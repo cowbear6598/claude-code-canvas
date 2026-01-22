@@ -27,7 +27,7 @@ const handleDoubleClick = (e: MouseEvent) => {
   }
 }
 
-const handleSelectType = (config: PodTypeConfig) => {
+const handleSelectType = async (config: PodTypeConfig) => {
   if (!store.typeMenu.position) return
 
   // 將螢幕座標轉換為畫布座標
@@ -37,7 +37,6 @@ const handleSelectType = (config: PodTypeConfig) => {
 
   const rotation = Math.random() * DEFAULT_POD_ROTATION_RANGE - (DEFAULT_POD_ROTATION_RANGE / 2)
   const newPod = {
-    id: Date.now().toString(),
     name: `${config.type.split(' ')[0]} ${store.podCount + 1}`,
     type: config.type,
     x: canvasX - POD_MENU_X_OFFSET,
@@ -47,16 +46,30 @@ const handleSelectType = (config: PodTypeConfig) => {
     rotation: Math.round(rotation * 10) / 10,
   }
 
-  store.addPod(newPod)
+  // Hide menu immediately for better UX
   store.hideTypeMenu()
+
+  try {
+    // Create pod via backend
+    await store.createPodWithBackend(newPod)
+  } catch (error) {
+    console.error('[CanvasContainer] Failed to create pod:', error)
+    // TODO: Show error notification to user
+  }
 }
 
 const handleSelectPod = (podId: string) => {
   store.selectPod(podId)
 }
 
-const handleDeletePod = (id: string) => {
-  store.deletePod(id)
+const handleDeletePod = async (id: string) => {
+  try {
+    // Delete pod via backend
+    await store.deletePodWithBackend(id)
+  } catch (error) {
+    console.error('[CanvasContainer] Failed to delete pod:', error)
+    // TODO: Show error notification to user
+  }
 }
 
 const handleDragEnd = (data: { id: string; x: number; y: number }) => {

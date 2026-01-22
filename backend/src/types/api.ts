@@ -1,0 +1,36 @@
+// API Type Definitions
+
+import { Pod, PodTypeName, PodColor } from './pod.js';
+
+export interface CreatePodRequest {
+  name: string;
+  type: PodTypeName;
+  color: PodColor;
+  // Canvas-specific fields
+  x: number;
+  y: number;
+  rotation: number;
+}
+
+export interface CreatePodResponse {
+  pod: Pod;
+}
+
+export interface ChatRequest {
+  message: string;
+}
+
+export interface ChatResponse {
+  messageId: string;
+}
+
+export interface GitCloneRequest {
+  repoUrl: string;
+  branch?: string; // optional, defaults to main
+}
+
+export interface ApiError {
+  error: string;
+  code: string;
+  details?: unknown;
+}

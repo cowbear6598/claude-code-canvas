@@ -6,7 +6,14 @@
       "Skill(vue)",
       "Bash(npm install)",
       "Bash(npm install:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm init:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run lint)",
+      "Bash(npm test)",
+      "Bash(npm run build:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm run dev:*)"
     ]
   },
   "outputStyle": "conductor"

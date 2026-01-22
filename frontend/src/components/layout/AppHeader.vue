@@ -9,10 +9,13 @@
         <h1 class="text-2xl font-bold tracking-tight">Agent Canvas</h1>
       </div>
 
+      <!-- Connection Status -->
+      <ConnectionStatus />
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
 import { Sparkles } from 'lucide-vue-next'
+import ConnectionStatus from '@/components/ui/ConnectionStatus.vue'
 </script>

@@ -2,6 +2,13 @@ import {defineStore} from 'pinia'
 import type {Pod, PodColor, Position, TypeMenuState, ViewportState} from '@/types'
 import {initialPods} from '@/data/initialPods'
 import {validatePodName} from '@/lib/sanitize'
+import {websocketService} from '@/services/websocket'
+import {generateRequestId} from '@/services/utils'
+import type {
+    PodCreatedPayload,
+    PodDeletedPayload,
+    PodListResultPayload
+} from '@/types/websocket'
 
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 3
@@ -75,6 +82,173 @@ export const useCanvasStore = defineStore('canvas', {
             }
         },
 
+        /**
+         * Create pod locally and sync with backend
+         */
+        async createPodWithBackend(pod: Omit<Pod, 'id'>): Promise<Pod | null> {
+            return new Promise((resolve, reject) => {
+                const requestId = generateRequestId()
+
+                // Register one-time listener for pod:created event
+                const handlePodCreated = (payload: PodCreatedPayload) => {
+                    if (payload.requestId === requestId) {
+                        websocketService.offPodCreated(handlePodCreated)
+
+                        if (payload.success && payload.pod) {
+                            // Merge backend pod with frontend-specific fields
+                            const frontendPod: Pod = {
+                                ...payload.pod,
+                                // Add canvas-specific fields from the original pod data
+                                x: pod.x,
+                                y: pod.y,
+                                rotation: pod.rotation,
+                                output: pod.output || ['> Ready to assist', '> Type your message...'],
+                            }
+                            // Add pod to local state
+                            this.addPod(frontendPod)
+                            resolve(frontendPod)
+                        } else {
+                            console.error('[CanvasStore] Pod creation failed:', payload.error)
+                            reject(new Error(payload.error || 'Unknown error'))
+                        }
+                    }
+                }
+
+                websocketService.onPodCreated(handlePodCreated)
+
+                // Emit pod:create event with canvas position
+                websocketService.podCreate({
+                    requestId,
+                    name: pod.name,
+                    type: pod.type,
+                    color: pod.color,
+                    x: pod.x,
+                    y: pod.y,
+                    rotation: pod.rotation
+                })
+
+                // Set timeout to prevent hanging
+                setTimeout(() => {
+                    websocketService.offPodCreated(handlePodCreated)
+                    reject(new Error('Pod creation timeout'))
+                }, 10000)
+            })
+        },
+
+        /**
+         * Delete pod locally and sync with backend
+         */
+        async deletePodWithBackend(id: string): Promise<void> {
+            return new Promise((resolve, reject) => {
+                const requestId = generateRequestId()
+
+                // Register one-time listener for pod:deleted event
+                const handlePodDeleted = (payload: PodDeletedPayload) => {
+                    if (payload.requestId === requestId) {
+                        websocketService.offPodDeleted(handlePodDeleted)
+
+                        if (payload.success) {
+                            // Delete pod from local state
+                            this.deletePod(id)
+                            resolve()
+                        } else {
+                            console.error('[CanvasStore] Pod deletion failed:', payload.error)
+                            reject(new Error(payload.error || 'Unknown error'))
+                        }
+                    }
+                }
+
+                websocketService.onPodDeleted(handlePodDeleted)
+
+                // Emit pod:delete event
+                websocketService.podDelete({
+                    requestId,
+                    podId: id
+                })
+
+                // Set timeout to prevent hanging
+                setTimeout(() => {
+                    websocketService.offPodDeleted(handlePodDeleted)
+                    reject(new Error('Pod deletion timeout'))
+                }, 10000)
+            })
+        },
+
+        /**
+         * Replace local pods with backend pods
+         * Adds frontend-specific fields (x, y, rotation, output) if missing
+         */
+        syncPodsFromBackend(pods: Pod[]): void {
+            console.log('[CanvasStore] Syncing pods from backend:', pods.length)
+            // Add frontend-specific fields to backend pods
+            const enrichedPods = pods.map((pod, index) => ({
+                ...pod,
+                // Add canvas position if missing (spread out horizontally)
+                x: pod.x ?? 100 + (index * 300),
+                y: pod.y ?? 150 + (index % 2) * 100,
+                rotation: pod.rotation ?? (Math.random() * 4 - 2),
+                output: pod.output ?? ['> Ready to assist', '> Type your message...'],
+            }))
+            this.pods = enrichedPods.filter(pod => this.isValidPod(pod))
+        },
+
+        /**
+         * Load pods from backend
+         */
+        async loadPodsFromBackend(): Promise<void> {
+            return new Promise((resolve, reject) => {
+                const requestId = generateRequestId()
+
+                // Register one-time listener for pod:list:result event
+                const handlePodListResult = (payload: PodListResultPayload) => {
+                    if (payload.requestId === requestId) {
+                        websocketService.offPodListResult(handlePodListResult)
+
+                        if (payload.success && payload.pods) {
+                            this.syncPodsFromBackend(payload.pods)
+                            resolve()
+                        } else {
+                            console.error('[CanvasStore] Pod list failed:', payload.error)
+                            reject(new Error(payload.error || 'Unknown error'))
+                        }
+                    }
+                }
+
+                websocketService.onPodListResult(handlePodListResult)
+
+                // Emit pod:list event
+                websocketService.podList({
+                    requestId
+                })
+
+                // Set timeout to prevent hanging
+                setTimeout(() => {
+                    websocketService.offPodListResult(handlePodListResult)
+                    reject(new Error('Pod list timeout'))
+                }, 10000)
+            })
+        },
+
+        /**
+         * Update pod status (idle/busy/error)
+         */
+        updatePodStatus(id: string, status: 'idle' | 'busy' | 'error'): void {
+            const pod = this.pods.find((p) => p.id === id)
+            if (pod) {
+                pod.status = status
+            }
+        },
+
+        /**
+         * Update pod git URL after clone
+         */
+        updatePodGitUrl(id: string, gitUrl: string): void {
+            const pod = this.pods.find((p) => p.id === id)
+            if (pod) {
+                pod.gitUrl = gitUrl
+            }
+        },
+
         movePod(id: string, x: number, y: number): void {
             const pod = this.pods.find((p) => p.id === id)
             if (pod) {
@@ -85,7 +259,35 @@ export const useCanvasStore = defineStore('canvas', {
                 // 限制座標範圍
                 pod.x = Math.max(-MAX_COORD, Math.min(MAX_COORD, x))
                 pod.y = Math.max(-MAX_COORD, Math.min(MAX_COORD, y))
+
+                // Sync position to backend (debounced)
+                this.debouncedSyncPodPosition(id, pod.x, pod.y)
             }
+        },
+
+        // Debounce timer for syncing pod position
+        _syncTimers: {} as Record<string, ReturnType<typeof setTimeout>>,
+
+        /**
+         * Debounced sync pod position to backend
+         */
+        debouncedSyncPodPosition(id: string, x: number, y: number): void {
+            // Clear existing timer for this pod
+            if (this._syncTimers[id]) {
+                clearTimeout(this._syncTimers[id])
+            }
+
+            // Set new timer (500ms debounce)
+            this._syncTimers[id] = setTimeout(() => {
+                const requestId = generateRequestId()
+                websocketService.podUpdate({
+                    requestId,
+                    podId: id,
+                    x,
+                    y
+                })
+                delete this._syncTimers[id]
+            }, 500)
         },
 
         selectPod(podId: string | null): void {

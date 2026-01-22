@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { Pod, Message } from '@/types'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
+import type { Pod } from '@/types'
 import ChatHeader from './ChatHeader.vue'
 import ChatMessages from './ChatMessages.vue'
 import ChatInput from './ChatInput.vue'
 import ChatToolPanel from './ChatToolPanel.vue'
+import { useChatStore } from '@/stores/chatStore'
+import { websocketService } from '@/services/websocket'
 import {
   MAX_MESSAGES_COUNT,
   CONTENT_PREVIEW_LENGTH,
   RESPONSE_PREVIEW_LENGTH,
-  RESPONSE_DELAY_MIN,
-  RESPONSE_DELAY_MAX,
 } from '@/lib/constants'
 
 const props = defineProps<{
@@ -22,64 +22,84 @@ const emit = defineEmits<{
   'update-pod': [pod: Pod]
 }>()
 
-const messages = ref<Message[]>([
-  {
-    id: '1',
-    role: 'assistant',
-    content: `Hi! I'm ${props.pod.name}. How can I help you today?`,
-  },
-])
-const isTyping = ref(false)
+const chatStore = useChatStore()
+
+// Use chatStore for messages and typing indicator
+const messages = computed(() => chatStore.getMessages(props.pod.id))
+const isTyping = computed(() => chatStore.isTyping(props.pod.id))
 
 const handleSend = async (content: string) => {
   if (!content.trim()) return
 
-  const userMessage: Message = {
-    id: Date.now().toString(),
-    role: 'user',
-    content,
+  // Limit messages count
+  const currentMessages = chatStore.getMessages(props.pod.id)
+  if (currentMessages.length > MAX_MESSAGES_COUNT) {
+    // TODO: Implement message trimming in chatStore if needed
+    console.warn('[ChatModal] Message count exceeds limit:', MAX_MESSAGES_COUNT)
   }
 
-  messages.value.push(userMessage)
+  // Send message via chatStore (which uses WebSocket)
+  await chatStore.sendMessage(props.pod.id, content)
 
-  // 限制訊息陣列大小
-  if (messages.value.length > MAX_MESSAGES_COUNT) {
-    messages.value = messages.value.slice(-MAX_MESSAGES_COUNT)
-  }
-
-  isTyping.value = true
-
-  // 模擬 AI 回覆
-  setTimeout(() => {
-    const responses = [
-      "I understand! Let me work on that for you...",
-      "Great question! Here's what I think...",
-      "Interesting! I'll help you figure this out.",
-      "Sure thing! Let me process that request.",
-    ]
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: responses[Math.floor(Math.random() * responses.length)] || '',
-    }
-    messages.value.push(assistantMessage)
-    isTyping.value = false
-
-    // 更新 Pod 輸出
-    emit('update-pod', {
-      ...props.pod,
-      output: [
-        ...props.pod.output,
-        `> ${content.slice(0, CONTENT_PREVIEW_LENGTH)}...`,
-        assistantMessage.content.slice(0, RESPONSE_PREVIEW_LENGTH),
-      ],
-    })
-  }, RESPONSE_DELAY_MIN + Math.random() * (RESPONSE_DELAY_MAX - RESPONSE_DELAY_MIN))
+  // Update Pod output preview with user message
+  emit('update-pod', {
+    ...props.pod,
+    output: [
+      ...props.pod.output,
+      `> ${content.slice(0, CONTENT_PREVIEW_LENGTH)}${content.length > CONTENT_PREVIEW_LENGTH ? '...' : ''}`,
+    ],
+  })
 }
+
+// Watch for chat completion to update pod output
+watch(
+  () => messages.value,
+  (newMessages, oldMessages) => {
+    if (newMessages.length > oldMessages.length) {
+      const lastMessage = newMessages[newMessages.length - 1]
+      if (lastMessage && lastMessage.role === 'assistant' && !lastMessage.isPartial) {
+        // Update Pod output with assistant's response
+        emit('update-pod', {
+          ...props.pod,
+          output: [
+            ...props.pod.output,
+            lastMessage.content.slice(0, RESPONSE_PREVIEW_LENGTH) +
+            (lastMessage.content.length > RESPONSE_PREVIEW_LENGTH ? '...' : ''),
+          ],
+        })
+      }
+    }
+  },
+  { deep: true }
+)
 
 const handleClose = () => {
   emit('close')
 }
+
+// Join pod room on mount
+onMounted(() => {
+  console.log('[ChatModal] Joining pod room:', props.pod.id)
+  websocketService.podJoin({ podId: props.pod.id })
+
+  // Initialize with welcome message if no messages exist
+  const currentMessages = chatStore.getMessages(props.pod.id)
+  if (currentMessages.length === 0) {
+    chatStore.messagesByPodId.set(props.pod.id, [
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content: `Hi! I'm ${props.pod.name}. How can I help you today?`,
+      },
+    ])
+  }
+})
+
+// Leave pod room on unmount
+onUnmounted(() => {
+  console.log('[ChatModal] Leaving pod room:', props.pod.id)
+  websocketService.podLeave({ podId: props.pod.id })
+})
 </script>
 
 <template>
@@ -97,7 +117,7 @@ const handleClose = () => {
       </div>
 
       <!-- 工具面板 -->
-      <ChatToolPanel />
+      <ChatToolPanel :pod-id="pod.id" />
     </div>
   </div>
 </template>

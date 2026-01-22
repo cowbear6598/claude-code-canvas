@@ -21,6 +21,11 @@ export interface Pod {
   color: PodColor
   output: string[]
   rotation: number
+  status?: 'idle' | 'busy' | 'error'
+  gitUrl?: string
+  workspacePath?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 // Pod 類型配置
