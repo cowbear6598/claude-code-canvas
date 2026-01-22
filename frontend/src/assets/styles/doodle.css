@@ -1,0 +1,134 @@
+/* Canvas grid background */
+.canvas-grid {
+  background-image:
+    linear-gradient(oklch(0.8 0.01 50 / 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.8 0.01 50 / 0.3) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Hand-drawn sketch border effect */
+.sketch-border {
+  position: relative;
+  border: 2px solid var(--doodle-ink);
+  border-radius: 3px;
+  box-shadow: 2px 2px 0 var(--doodle-ink);
+}
+
+.sketch-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--doodle-ink);
+  border-radius: 4px;
+  opacity: 0.3;
+  transform: rotate(0.5deg);
+  pointer-events: none;
+}
+
+/* Sticky note tab style */
+.sticky-tab {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  width: 24px;
+  height: 32px;
+  background: var(--doodle-yellow);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 2px 2px 0 0;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  z-index: 10;
+}
+
+.sticky-tab:hover {
+  transform: translateY(-4px);
+}
+
+.sticky-tab-expanded {
+  width: auto;
+  min-width: 120px;
+  height: auto;
+  padding: 8px;
+  top: -8px;
+  right: 12px;
+  border-radius: 2px;
+}
+
+/* Pod card doodle style */
+.pod-doodle {
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 6px;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4);
+  transition: all 0.2s ease;
+  cursor: grab;
+}
+
+.pod-doodle:hover {
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.5);
+  transform: translate(-0.5px, -0.5px);
+}
+
+.pod-doodle:active {
+  cursor: grabbing;
+}
+
+/* Mini screen inside pod */
+.mini-screen {
+  background: oklch(0.28 0.015 50);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  color: oklch(0.75 0.1 150);
+}
+
+/* Overlay modal */
+.modal-overlay {
+  background: oklch(0.1 0.01 50 / 0.7);
+  backdrop-filter: blur(4px);
+}
+
+/* Chat window doodle style */
+.chat-window {
+  background: var(--card);
+  border: 3px solid var(--doodle-ink);
+  border-radius: 8px;
+  box-shadow: 6px 6px 0 var(--doodle-ink);
+}
+
+/* Tool grid panel */
+.tool-panel {
+  background: var(--doodle-yellow);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 4px;
+  box-shadow: 3px 3px 0 var(--doodle-ink);
+}
+
+.tool-item {
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.tool-item:hover {
+  background: var(--secondary);
+  transform: scale(1.05);
+}
+
+/* Hand-drawn underline */
+.sketch-underline {
+  position: relative;
+}
+
+.sketch-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: currentColor;
+  transform: rotate(-0.5deg) scaleX(1.02);
+}

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Skill(vue)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "WebSearch"
+    ]
+  },
+  "outputStyle": "conductor"
+}
