@@ -59,8 +59,8 @@ export async function createPod(
       throw new ValidationError(`Invalid color. Must be one of: ${validColors.join(', ')}`);
     }
 
-    // Create Pod
-    const pod = podStore.create({ name, type, color });
+    // Create Pod (REST API uses default canvas position)
+    const pod = podStore.create({ name, type, color, x: 0, y: 0, rotation: 0 });
 
     // Create workspace directory
     await workspaceService.createWorkspace(pod.id);

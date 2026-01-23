@@ -18,6 +18,7 @@ export enum WebSocketRequestEvents {
   POD_DELETE = 'pod:delete',
   POD_GIT_CLONE = 'pod:git:clone',
   POD_CHAT_SEND = 'pod:chat:send',
+  POD_CHAT_HISTORY = 'pod:chat:history',
   POD_JOIN = 'pod:join',
   POD_LEAVE = 'pod:leave',
 }
@@ -38,6 +39,7 @@ export enum WebSocketResponseEvents {
   POD_CHAT_TOOL_USE = 'pod:chat:tool_use',
   POD_CHAT_TOOL_RESULT = 'pod:chat:tool_result',
   POD_CHAT_COMPLETE = 'pod:chat:complete',
+  POD_CHAT_HISTORY_RESULT = 'pod:chat:history:result',
   POD_JOINED = 'pod:joined',
   POD_LEFT = 'pod:left',
   POD_ERROR = 'pod:error',
@@ -93,6 +95,11 @@ export interface PodChatSendPayload {
   requestId: string;
   podId: string;
   message: string;
+}
+
+export interface PodChatHistoryPayload {
+  requestId: string;
+  podId: string;
 }
 
 export interface PodJoinPayload {
@@ -184,6 +191,18 @@ export interface PodChatCompletePayload {
   podId: string;
   messageId: string;
   fullContent: string;
+}
+
+export interface PodChatHistoryResultPayload {
+  requestId: string;
+  success: boolean;
+  messages?: Array<{
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string;
+  }>;
+  error?: string;
 }
 
 export interface PodJoinedPayload {

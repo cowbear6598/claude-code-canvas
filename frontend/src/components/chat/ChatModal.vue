@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch, ref } from 'vue'
 import type { Pod } from '@/types'
 import ChatHeader from './ChatHeader.vue'
 import ChatMessages from './ChatMessages.vue'
@@ -24,61 +24,84 @@ const emit = defineEmits<{
 
 const chatStore = useChatStore()
 
-// Use chatStore for messages and typing indicator
+// Computed properties
 const messages = computed(() => chatStore.getMessages(props.pod.id))
 const isTyping = computed(() => chatStore.isTyping(props.pod.id))
+const isHistoryLoading = computed(() => chatStore.isHistoryLoading(props.pod.id))
 
-const handleSend = async (content: string) => {
+// Track last processed message to avoid duplicates
+const lastProcessedMessageId = ref<string | null>(null)
+
+/**
+ * Truncate content with ellipsis if needed
+ */
+const truncateContent = (content: string, maxLength: number): string => {
+  return content.length > maxLength
+    ? `${content.slice(0, maxLength)}...`
+    : content
+}
+
+/**
+ * Handle sending a message
+ */
+const handleSend = async (content: string): Promise<void> => {
   if (!content.trim()) return
 
-  // Limit messages count
+  // Warn if message count exceeds limit
   const currentMessages = chatStore.getMessages(props.pod.id)
   if (currentMessages.length > MAX_MESSAGES_COUNT) {
-    // TODO: Implement message trimming in chatStore if needed
     console.warn('[ChatModal] Message count exceeds limit:', MAX_MESSAGES_COUNT)
   }
 
-  // Send message via chatStore (which uses WebSocket)
-  await chatStore.sendMessage(props.pod.id, content)
+  try {
+    // Send message via chatStore
+    await chatStore.sendMessage(props.pod.id, content)
 
-  // Update Pod output preview with user message
-  emit('update-pod', {
-    ...props.pod,
-    output: [
-      ...props.pod.output,
-      `> ${content.slice(0, CONTENT_PREVIEW_LENGTH)}${content.length > CONTENT_PREVIEW_LENGTH ? '...' : ''}`,
-    ],
-  })
+    // Update Pod output preview with user message
+    emit('update-pod', {
+      ...props.pod,
+      output: [
+        ...props.pod.output,
+        `> ${truncateContent(content, CONTENT_PREVIEW_LENGTH)}`,
+      ],
+    })
+  } catch (error) {
+    console.error('[ChatModal] Failed to send message:', error)
+  }
 }
 
-// Watch for chat completion to update pod output
-// Track the last message ID we've processed to avoid duplicates
-let lastProcessedMessageId: string | null = null
+/**
+ * Handle chat modal close
+ */
+const handleClose = (): void => {
+  emit('close')
+}
 
+/**
+ * Watch for completed assistant messages to update pod output
+ */
 watch(
-  () => messages.value,
+  messages,
   (newMessages) => {
     if (newMessages.length === 0) return
 
     const lastMessage = newMessages[newMessages.length - 1]
 
-    // Only process assistant messages that are complete (not partial)
-    // and haven't been processed yet
+    // Only process completed assistant messages that haven't been processed yet
     if (
       lastMessage &&
       lastMessage.role === 'assistant' &&
       !lastMessage.isPartial &&
-      lastMessage.id !== lastProcessedMessageId
+      lastMessage.id !== lastProcessedMessageId.value
     ) {
-      lastProcessedMessageId = lastMessage.id
+      lastProcessedMessageId.value = lastMessage.id
 
       // Update Pod output with assistant's response
       emit('update-pod', {
         ...props.pod,
         output: [
           ...props.pod.output,
-          lastMessage.content.slice(0, RESPONSE_PREVIEW_LENGTH) +
-          (lastMessage.content.length > RESPONSE_PREVIEW_LENGTH ? '...' : ''),
+          truncateContent(lastMessage.content, RESPONSE_PREVIEW_LENGTH),
         ],
       })
     }
@@ -86,17 +109,11 @@ watch(
   { deep: true }
 )
 
-const handleClose = () => {
-  emit('close')
-}
-
-// Join pod room on mount
 onMounted(() => {
   console.log('[ChatModal] Joining pod room:', props.pod.id)
   websocketService.podJoin({ podId: props.pod.id })
 })
 
-// Leave pod room on unmount
 onUnmounted(() => {
   console.log('[ChatModal] Leaving pod room:', props.pod.id)
   websocketService.podLeave({ podId: props.pod.id })
@@ -113,7 +130,7 @@ onUnmounted(() => {
       <!-- 主聊天視窗 -->
       <div class="chat-window flex-1 flex flex-col overflow-hidden">
         <ChatHeader :pod="pod" @close="handleClose" />
-        <ChatMessages :messages="messages" :is-typing="isTyping" />
+        <ChatMessages :messages="messages" :is-typing="isTyping" :is-loading-history="isHistoryLoading" />
         <ChatInput @send="handleSend" />
       </div>
 

@@ -28,27 +28,6 @@ const activeTools = computed<ToolUseInfo[]>(() => {
   return []
 })
 
-// Get tool icon by name (simplified mapping)
-const getToolByName = (toolName: string) => {
-  const normalizedName = toolName.toLowerCase()
-
-  // Map tool names to tool definitions
-  if (normalizedName.includes('search') || normalizedName.includes('grep')) {
-    return tools[0] // Search
-  } else if (normalizedName.includes('read') || normalizedName.includes('file')) {
-    return tools[1] // Docs
-  } else if (normalizedName.includes('data') || normalizedName.includes('database')) {
-    return tools[2] // Data
-  } else if (normalizedName.includes('bash') || normalizedName.includes('terminal')) {
-    return tools[5] // Code
-  } else if (normalizedName.includes('edit') || normalizedName.includes('write')) {
-    return tools[1] // Docs
-  }
-
-  // Default to first tool
-  return tools[0]
-}
-
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'completed':

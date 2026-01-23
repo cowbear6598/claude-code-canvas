@@ -18,6 +18,7 @@ export const WebSocketRequestEvents = {
   POD_DELETE: 'pod:delete',
   POD_GIT_CLONE: 'pod:git:clone',
   POD_CHAT_SEND: 'pod:chat:send',
+  POD_CHAT_HISTORY: 'pod:chat:history',
   POD_JOIN: 'pod:join',
   POD_LEAVE: 'pod:leave',
 } as const
@@ -40,6 +41,7 @@ export const WebSocketResponseEvents = {
   POD_CHAT_TOOL_USE: 'pod:chat:tool_use',
   POD_CHAT_TOOL_RESULT: 'pod:chat:tool_result',
   POD_CHAT_COMPLETE: 'pod:chat:complete',
+  POD_CHAT_HISTORY_RESULT: 'pod:chat:history:result',
   POD_JOINED: 'pod:joined',
   POD_LEFT: 'pod:left',
   POD_ERROR: 'pod:error',
@@ -104,6 +106,11 @@ export interface PodJoinPayload {
 }
 
 export interface PodLeavePayload {
+  podId: string
+}
+
+export interface PodChatHistoryPayload {
+  requestId: string
   podId: string
 }
 
@@ -203,4 +210,18 @@ export interface PodErrorPayload {
   podId?: string
   error: string
   code: string
+}
+
+export interface PersistedMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: string
+}
+
+export interface PodChatHistoryResultPayload {
+  requestId: string
+  success: boolean
+  messages?: PersistedMessage[]
+  error?: string
 }

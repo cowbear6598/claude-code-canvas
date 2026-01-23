@@ -11,7 +11,7 @@ import {
   handlePodDelete,
 } from './podHandlers.js';
 import { handleGitClone } from './gitHandlers.js';
-import { handleChatSend } from './chatHandlers.js';
+import { handleChatSend, handleChatHistory } from './chatHandlers.js';
 
 /**
  * Register all WebSocket event handlers for a socket
@@ -49,6 +49,10 @@ export function registerAllHandlers(socket: Socket): void {
     handleChatSend(socket, payload);
   });
 
+  socket.on(WebSocketRequestEvents.POD_CHAT_HISTORY, (payload) => {
+    handleChatHistory(socket, payload);
+  });
+
   console.log(`[Handlers] Registered all handlers for socket ${socket.id}`);
 }
 
@@ -61,4 +65,5 @@ export {
   handlePodDelete,
   handleGitClone,
   handleChatSend,
+  handleChatHistory,
 };

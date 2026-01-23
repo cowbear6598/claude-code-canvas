@@ -16,6 +16,9 @@ export type {
   ApiError,
 } from './api.js';
 
+// Persistence types
+export type { PersistedMessage, ChatHistory, PersistedPod } from './persistence.js';
+
 // WebSocket types
 export {
   WebSocketEvents,
@@ -32,6 +35,7 @@ export {
   type PodDeletePayload,
   type PodGitClonePayload,
   type PodChatSendPayload,
+  type PodChatHistoryPayload,
   type PodJoinPayload,
   type PodLeavePayload,
   type ConnectionReadyPayload,
@@ -46,6 +50,7 @@ export {
   type PodChatToolUsePayload,
   type PodChatToolResultPayload,
   type PodChatCompletePayload,
+  type PodChatHistoryResultPayload,
   type PodJoinedPayload,
   type PodLeftPayload,
 } from './websocket.js';

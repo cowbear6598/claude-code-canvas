@@ -1,17 +1,27 @@
 import { defineStore } from 'pinia'
 import { websocketService } from '@/services/websocket'
 import { generateRequestId } from '@/services/utils'
-import type { Message, ToolUseInfo } from '@/types/chat'
+import type { Message, ToolUseInfo, HistoryLoadingStatus, ToolUseStatus } from '@/types/chat'
 import type {
   PodChatMessagePayload,
   PodChatToolUsePayload,
   PodChatToolResultPayload,
   PodChatCompletePayload,
+  PodChatHistoryResultPayload,
+  PersistedMessage,
   PodErrorPayload,
   ConnectionReadyPayload
 } from '@/types/websocket'
 
+/**
+ * WebSocket connection status types
+ */
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
+
+/**
+ * Timeout duration for history loading (ms)
+ */
+const HISTORY_LOAD_TIMEOUT_MS = 10000
 
 interface ChatState {
   messagesByPodId: Map<string, Message[]>
@@ -19,6 +29,9 @@ interface ChatState {
   currentStreamingMessageId: string | null
   connectionStatus: ConnectionStatus
   socketId: string | null
+  historyLoadingStatus: Map<string, HistoryLoadingStatus>
+  historyLoadingError: Map<string, string>
+  allHistoryLoaded: boolean
 }
 
 export const useChatStore = defineStore('chat', {
@@ -27,7 +40,10 @@ export const useChatStore = defineStore('chat', {
     isTypingByPodId: new Map(),
     currentStreamingMessageId: null,
     connectionStatus: 'disconnected',
-    socketId: null
+    socketId: null,
+    historyLoadingStatus: new Map(),
+    historyLoadingError: new Map(),
+    allHistoryLoaded: false
   }),
 
   getters: {
@@ -54,6 +70,31 @@ export const useChatStore = defineStore('chat', {
      */
     isConnected: (state): boolean => {
       return state.connectionStatus === 'connected'
+    },
+
+    /**
+     * Get history loading status for a Pod
+     */
+    getHistoryLoadingStatus: (state) => {
+      return (podId: string): HistoryLoadingStatus => {
+        return state.historyLoadingStatus.get(podId) || 'idle'
+      }
+    },
+
+    /**
+     * Check if history is loading for a Pod
+     */
+    isHistoryLoading: (state) => {
+      return (podId: string): boolean => {
+        return state.historyLoadingStatus.get(podId) === 'loading'
+      }
+    },
+
+    /**
+     * Check if all history is loaded
+     */
+    isAllHistoryLoaded: (state): boolean => {
+      return state.allHistoryLoaded
     }
   },
 
@@ -99,6 +140,7 @@ export const useChatStore = defineStore('chat', {
       websocketService.onChatToolUse(this.handleChatToolUse)
       websocketService.onChatToolResult(this.handleChatToolResult)
       websocketService.onChatComplete(this.handleChatComplete)
+      websocketService.onChatHistoryResult(this.handleChatHistoryResult)
       websocketService.onError(this.handleError)
     },
 
@@ -111,6 +153,7 @@ export const useChatStore = defineStore('chat', {
       websocketService.offChatToolUse(this.handleChatToolUse)
       websocketService.offChatToolResult(this.handleChatToolResult)
       websocketService.offChatComplete(this.handleChatComplete)
+      websocketService.offChatHistoryResult(this.handleChatHistoryResult)
       websocketService.offError(this.handleError)
     },
 
@@ -129,6 +172,11 @@ export const useChatStore = defineStore('chat', {
     async sendMessage(podId: string, content: string): Promise<void> {
       if (!this.isConnected) {
         console.error('[ChatStore] Cannot send message, not connected')
+        throw new Error('WebSocket not connected')
+      }
+
+      if (!content.trim()) {
+        console.warn('[ChatStore] Attempted to send empty message')
         return
       }
 
@@ -156,12 +204,12 @@ export const useChatStore = defineStore('chat', {
       const userMessage: Message = {
         id: generateRequestId(),
         role: 'user',
-        content
+        content,
+        timestamp: new Date().toISOString()
       }
 
       const messages = this.messagesByPodId.get(podId) || []
-      messages.push(userMessage)
-      this.messagesByPodId.set(podId, messages)
+      this.messagesByPodId.set(podId, [...messages, userMessage])
     },
 
     /**
@@ -173,8 +221,7 @@ export const useChatStore = defineStore('chat', {
       const { podId, messageId, content, isPartial } = payload
       const messages = this.messagesByPodId.get(podId) || []
 
-      // Find existing message or create new one
-      let messageIndex = messages.findIndex(m => m.id === messageId)
+      const messageIndex = messages.findIndex(m => m.id === messageId)
 
       if (messageIndex === -1) {
         // Create new assistant message
@@ -182,25 +229,24 @@ export const useChatStore = defineStore('chat', {
           id: messageId,
           role: 'assistant',
           content,
-          isPartial
+          isPartial,
+          timestamp: new Date().toISOString()
         }
-        messages.push(newMessage)
+        this.messagesByPodId.set(podId, [...messages, newMessage])
         this.currentStreamingMessageId = messageId
       } else {
-        // Update existing message
-        const existingMessage = messages[messageIndex]
+        // Update existing message immutably
+        const updatedMessages = [...messages]
+        const existingMessage = updatedMessages[messageIndex]
         if (existingMessage) {
-          messages[messageIndex] = {
-            id: existingMessage.id,
-            role: existingMessage.role,
+          updatedMessages[messageIndex] = {
+            ...existingMessage,
             content,
-            isPartial,
-            toolUse: existingMessage.toolUse
+            isPartial
           }
+          this.messagesByPodId.set(podId, updatedMessages)
         }
       }
-
-      this.messagesByPodId.set(podId, messages)
 
       // Keep typing indicator active if still partial
       if (isPartial) {
@@ -217,34 +263,35 @@ export const useChatStore = defineStore('chat', {
       const { podId, messageId, toolName, input } = payload
       const messages = this.messagesByPodId.get(podId) || []
 
-      // Find the message
       const messageIndex = messages.findIndex(m => m.id === messageId)
-      if (messageIndex === -1) return
-
-      const message = messages[messageIndex]
-      if (!message) return
-
-      // Initialize toolUse array if not exists
-      if (!message.toolUse) {
-        message.toolUse = []
+      if (messageIndex === -1) {
+        console.warn('[ChatStore] Message not found for tool use:', messageId)
+        return
       }
 
-      // Add or update tool use info
-      const toolIndex = message.toolUse.findIndex(t => t.toolName === toolName)
+      const updatedMessages = [...messages]
+      const message = updatedMessages[messageIndex]
+      if (!message) return
+
+      const toolUse = message.toolUse || []
+      const toolIndex = toolUse.findIndex(t => t.toolName === toolName)
 
       const toolUseInfo: ToolUseInfo = {
         toolName,
         input,
-        status: 'running'
+        status: 'running' as ToolUseStatus
       }
 
-      if (toolIndex === -1) {
-        message.toolUse.push(toolUseInfo)
-      } else {
-        message.toolUse[toolIndex] = toolUseInfo
+      const updatedToolUse = toolIndex === -1
+        ? [...toolUse, toolUseInfo]
+        : toolUse.map((tool, idx) => idx === toolIndex ? toolUseInfo : tool)
+
+      updatedMessages[messageIndex] = {
+        ...message,
+        toolUse: updatedToolUse
       }
 
-      this.messagesByPodId.set(podId, messages)
+      this.messagesByPodId.set(podId, updatedMessages)
     },
 
     /**
@@ -256,21 +303,28 @@ export const useChatStore = defineStore('chat', {
       const { podId, messageId, toolName, output } = payload
       const messages = this.messagesByPodId.get(podId) || []
 
-      // Find the message
       const messageIndex = messages.findIndex(m => m.id === messageId)
-      if (messageIndex === -1) return
-
-      const message = messages[messageIndex]
-      if (!message) return
-
-      // Find the tool use info
-      const toolUseInfo = message.toolUse?.find(t => t.toolName === toolName)
-      if (toolUseInfo) {
-        toolUseInfo.output = output
-        toolUseInfo.status = 'completed'
+      if (messageIndex === -1) {
+        console.warn('[ChatStore] Message not found for tool result:', messageId)
+        return
       }
 
-      this.messagesByPodId.set(podId, messages)
+      const updatedMessages = [...messages]
+      const message = updatedMessages[messageIndex]
+      if (!message?.toolUse) return
+
+      const updatedToolUse = message.toolUse.map(tool =>
+        tool.toolName === toolName
+          ? { ...tool, output, status: 'completed' as ToolUseStatus }
+          : tool
+      )
+
+      updatedMessages[messageIndex] = {
+        ...message,
+        toolUse: updatedToolUse
+      }
+
+      this.messagesByPodId.set(podId, updatedMessages)
     },
 
     /**
@@ -282,19 +336,17 @@ export const useChatStore = defineStore('chat', {
       const { podId, messageId, fullContent } = payload
       const messages = this.messagesByPodId.get(podId) || []
 
-      // Find and update the message
       const messageIndex = messages.findIndex(m => m.id === messageId)
       if (messageIndex !== -1) {
-        const existingMessage = messages[messageIndex]
+        const updatedMessages = [...messages]
+        const existingMessage = updatedMessages[messageIndex]
         if (existingMessage) {
-          messages[messageIndex] = {
-            id: existingMessage.id,
-            role: existingMessage.role,
+          updatedMessages[messageIndex] = {
+            ...existingMessage,
             content: fullContent,
-            isPartial: false,
-            toolUse: existingMessage.toolUse
+            isPartial: false
           }
-          this.messagesByPodId.set(podId, messages)
+          this.messagesByPodId.set(podId, updatedMessages)
         }
       }
 
@@ -339,6 +391,153 @@ export const useChatStore = defineStore('chat', {
     clearMessages(podId: string): void {
       this.messagesByPodId.delete(podId)
       this.isTypingByPodId.delete(podId)
+    },
+
+    /**
+     * Convert PersistedMessage to Message format
+     */
+    convertPersistedToMessage(persistedMessage: PersistedMessage): Message {
+      return {
+        id: persistedMessage.id,
+        role: persistedMessage.role,
+        content: persistedMessage.content,
+        timestamp: persistedMessage.timestamp,
+        isPartial: false
+      }
+    },
+
+    /**
+     * Set Pod messages directly (used when loading history)
+     */
+    setPodMessages(podId: string, messages: Message[]): void {
+      this.messagesByPodId.set(podId, messages)
+    },
+
+    /**
+     * Set history loading status for a Pod
+     */
+    setHistoryLoadingStatus(podId: string, status: HistoryLoadingStatus): void {
+      this.historyLoadingStatus.set(podId, status)
+    },
+
+    /**
+     * Set history loading error for a Pod
+     */
+    setHistoryLoadingError(podId: string, error: string): void {
+      this.historyLoadingError.set(podId, error)
+    },
+
+    /**
+     * Load chat history for a single Pod
+     */
+    async loadPodChatHistory(podId: string): Promise<void> {
+      // Check if already loaded or loading
+      const currentStatus = this.historyLoadingStatus.get(podId)
+      if (currentStatus === 'loaded' || currentStatus === 'loading') {
+        console.log(`[ChatStore] Pod ${podId} history already ${currentStatus}`)
+        return
+      }
+
+      // Check if connected
+      if (!this.isConnected) {
+        const error = 'WebSocket not connected'
+        console.error(`[ChatStore] Cannot load history: ${error}`)
+        this.setHistoryLoadingStatus(podId, 'error')
+        this.setHistoryLoadingError(podId, error)
+        throw new Error(error)
+      }
+
+      console.log(`[ChatStore] Loading chat history for pod: ${podId}`)
+      this.setHistoryLoadingStatus(podId, 'loading')
+
+      return new Promise<void>((resolve, reject) => {
+        const requestId = generateRequestId()
+        let timeoutId: ReturnType<typeof setTimeout>
+
+        // Create one-time listener for the response
+        const handleHistoryResult = (payload: PodChatHistoryResultPayload): void => {
+          if (payload.requestId !== requestId) return
+
+          websocketService.offChatHistoryResult(handleHistoryResult)
+          clearTimeout(timeoutId)
+
+          if (payload.success) {
+            const messages = (payload.messages || []).map(msg =>
+              this.convertPersistedToMessage(msg)
+            )
+            this.setPodMessages(podId, messages)
+            this.setHistoryLoadingStatus(podId, 'loaded')
+            console.log(`[ChatStore] Loaded ${messages.length} messages for pod: ${podId}`)
+            resolve()
+          } else {
+            const error = payload.error || 'Unknown error'
+            console.error(`[ChatStore] Failed to load history for pod ${podId}:`, error)
+            this.setHistoryLoadingStatus(podId, 'error')
+            this.setHistoryLoadingError(podId, error)
+            reject(new Error(error))
+          }
+        }
+
+        // Set timeout
+        timeoutId = setTimeout(() => {
+          websocketService.offChatHistoryResult(handleHistoryResult)
+          const error = 'History load timeout'
+          console.error(`[ChatStore] ${error} for pod: ${podId}`)
+          this.setHistoryLoadingStatus(podId, 'error')
+          this.setHistoryLoadingError(podId, error)
+          reject(new Error(error))
+        }, HISTORY_LOAD_TIMEOUT_MS)
+
+        // Register listener
+        websocketService.onChatHistoryResult(handleHistoryResult)
+
+        // Send request
+        websocketService.podChatHistory({
+          requestId,
+          podId
+        })
+      })
+    },
+
+    /**
+     * Load chat history for all Pods in parallel
+     */
+    async loadAllPodsHistory(podIds: string[]): Promise<void> {
+      if (podIds.length === 0) {
+        console.log('[ChatStore] No pods to load history for')
+        this.allHistoryLoaded = true
+        return
+      }
+
+      console.log(`[ChatStore] Loading history for ${podIds.length} pods`)
+
+      const results = await Promise.allSettled(
+        podIds.map(podId => this.loadPodChatHistory(podId))
+      )
+
+      // Count successes and failures
+      const successCount = results.filter(r => r.status === 'fulfilled').length
+      const failureCount = results.filter(r => r.status === 'rejected').length
+
+      console.log(`[ChatStore] History load complete: ${successCount} succeeded, ${failureCount} failed`)
+
+      if (failureCount > 0) {
+        const failures = results
+          .map((r, i) => r.status === 'rejected' ? podIds[i] : null)
+          .filter((id): id is string => id !== null)
+        console.warn('[ChatStore] Failed to load history for pods:', failures)
+      }
+
+      this.allHistoryLoaded = true
+    },
+
+    /**
+     * Handle chat history result event
+     */
+    handleChatHistoryResult(payload: PodChatHistoryResultPayload): void {
+      console.log('[ChatStore] Chat history result:', payload)
+      // The actual handling is done in loadPodChatHistory's one-time listener
+      // This is here in case we need global handling in the future
     }
   }
 })

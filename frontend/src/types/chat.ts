@@ -1,26 +1,45 @@
 import type { Component } from 'vue'
 
-// 訊息角色
+/**
+ * Message role types
+ */
 export type MessageRole = 'user' | 'assistant'
 
-// 工具使用資訊
+/**
+ * History loading status types
+ */
+export type HistoryLoadingStatus = 'idle' | 'loading' | 'loaded' | 'error'
+
+/**
+ * Tool use status types
+ */
+export type ToolUseStatus = 'pending' | 'running' | 'completed' | 'error'
+
+/**
+ * Tool use information
+ */
 export interface ToolUseInfo {
   toolName: string
   input: Record<string, unknown>
   output?: string
-  status: 'pending' | 'running' | 'completed' | 'error'
+  status: ToolUseStatus
 }
 
-// 聊天訊息
+/**
+ * Chat message
+ */
 export interface Message {
   id: string
   role: MessageRole
   content: string
-  isPartial?: boolean // For streaming messages
-  toolUse?: ToolUseInfo[] // For tool usage display
+  isPartial?: boolean
+  toolUse?: ToolUseInfo[]
+  timestamp?: string
 }
 
-// 工具配置
+/**
+ * Tool configuration for display
+ */
 export interface Tool {
   icon: Component
   label: string

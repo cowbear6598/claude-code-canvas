@@ -12,6 +12,7 @@ import type {
   PodDeletePayload,
   PodGitClonePayload,
   PodChatSendPayload,
+  PodChatHistoryPayload,
   PodJoinPayload,
   PodLeavePayload,
   ConnectionReadyPayload,
@@ -26,6 +27,7 @@ import type {
   PodChatToolUsePayload,
   PodChatToolResultPayload,
   PodChatCompletePayload,
+  PodChatHistoryResultPayload,
   PodJoinedPayload,
   PodLeftPayload,
   PodErrorPayload
@@ -34,18 +36,26 @@ import type {
 type EventCallback<T> = (payload: T) => void
 
 /**
+ * WebSocket Service Configuration
+ */
+const WS_CONFIG = {
+  MAX_RECONNECT_ATTEMPTS: 5,
+  RECONNECT_DELAY_MS: 1000,
+} as const
+
+/**
  * WebSocket Service (Singleton)
  * Manages Socket.io connection lifecycle and provides typed emit/listener methods
  */
 class WebSocketService {
   private socket: Socket | null = null
   private reconnectAttempts = 0
-  private maxReconnectAttempts = 5
-  private reconnectDelay = 1000
+  private readonly maxReconnectAttempts = WS_CONFIG.MAX_RECONNECT_ATTEMPTS
+  private readonly reconnectDelay = WS_CONFIG.RECONNECT_DELAY_MS
 
   // Reactive state
-  public socketId = ref<string | null>(null)
-  public isConnected = computed(() => this.socket?.connected ?? false)
+  public readonly socketId = ref<string | null>(null)
+  public readonly isConnected = computed(() => this.socket?.connected ?? false)
 
   /**
    * Connect to WebSocket server
@@ -64,6 +74,8 @@ class WebSocketService {
       reconnection: true,
       reconnectionDelay: this.reconnectDelay,
       reconnectionAttempts: this.maxReconnectAttempts,
+      timeout: 10000,
+      transports: ['websocket', 'polling'],
     })
 
     this.setupConnectionHandlers()
@@ -178,6 +190,13 @@ class WebSocketService {
   }
 
   /**
+   * Emit pod:chat:history event
+   */
+  podChatHistory(payload: PodChatHistoryPayload): void {
+    this.emit(WebSocketRequestEvents.POD_CHAT_HISTORY, payload)
+  }
+
+  /**
    * Emit pod:join event
    */
   podJoin(payload: PodJoinPayload): void {
@@ -280,6 +299,13 @@ class WebSocketService {
   }
 
   /**
+   * Listen for pod:chat:history:result event
+   */
+  onChatHistoryResult(callback: EventCallback<PodChatHistoryResultPayload>): void {
+    this.on(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, callback)
+  }
+
+  /**
    * Listen for pod:joined event
    */
   onPodJoined(callback: EventCallback<PodJoinedPayload>): void {
@@ -379,6 +405,13 @@ class WebSocketService {
    */
   offChatComplete(callback: EventCallback<PodChatCompletePayload>): void {
     this.off(WebSocketResponseEvents.POD_CHAT_COMPLETE, callback)
+  }
+
+  /**
+   * Remove pod:chat:history:result listener
+   */
+  offChatHistoryResult(callback: EventCallback<PodChatHistoryResultPayload>): void {
+    this.off(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, callback)
   }
 
   /**

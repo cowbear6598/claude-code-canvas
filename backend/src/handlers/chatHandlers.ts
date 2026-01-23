@@ -6,12 +6,15 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   WebSocketResponseEvents,
   type PodChatSendPayload,
+  type PodChatHistoryPayload,
+  type PodChatHistoryResultPayload,
   type PodChatMessagePayload,
   type PodChatToolUsePayload,
   type PodChatToolResultPayload,
   type PodChatCompletePayload,
 } from '../types/index.js';
 import { podStore } from '../services/podStore.js';
+import { messageStore } from '../services/messageStore.js';
 import { claudeQueryService } from '../services/claude/queryService.js';
 import { socketService } from '../services/socketService.js';
 import {
@@ -21,6 +24,47 @@ import {
   getErrorMessage,
   getErrorCode,
 } from '../utils/websocketResponse.js';
+
+/**
+ * Handle chat error with consistent error processing
+ */
+function handleChatError(
+  socket: Socket,
+  error: unknown,
+  payload: unknown,
+  requestId: string | undefined,
+  podId: string | undefined,
+  logMessage: string
+): void {
+  const errorMessage = getErrorMessage(error);
+  const errorCode = getErrorCode(error);
+
+  // Extract requestId and podId from payload if not already set
+  if (!requestId && typeof payload === 'object' && payload && 'requestId' in payload) {
+    requestId = payload.requestId as string;
+  }
+
+  if (!podId && typeof payload === 'object' && payload && 'podId' in payload) {
+    podId = payload.podId as string;
+  }
+
+  // Set Pod status to error if we have a podId
+  if (podId) {
+    podStore.setStatus(podId, 'error');
+  }
+
+  // Emit error response
+  emitError(
+    socket,
+    WebSocketResponseEvents.POD_ERROR,
+    errorMessage,
+    requestId,
+    podId,
+    errorCode
+  );
+
+  console.error(`[Chat] ${logMessage}: ${errorMessage}`);
+}
 
 /**
  * Handle chat send request
@@ -155,32 +199,69 @@ export async function handleChatSend(
 
     console.log(`[Chat] Completed message processing for Pod ${currentPodId}`);
   } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    const errorCode = getErrorCode(error);
+    handleChatError(socket, error, payload, requestId, podId, 'Failed to process message');
+  }
+}
 
+/**
+ * Handle chat history request
+ */
+export async function handleChatHistory(
+  socket: Socket,
+  payload: unknown
+): Promise<void> {
+  let requestId: string | undefined;
+
+  try {
+    // Validate payload
+    validatePayload<PodChatHistoryPayload>(payload, ['requestId', 'podId']);
+
+    const { requestId: reqId, podId } = payload;
+    requestId = reqId;
+
+    console.log(`[Chat] Loading chat history for Pod ${podId}`);
+
+    // Check if Pod exists
+    const pod = podStore.getById(podId);
+    if (!pod) {
+      throw new Error(`Pod not found: ${podId}`);
+    }
+
+    // Get messages from message store
+    const messages = messageStore.getMessages(podId);
+
+    // Emit success response with messages
+    const responsePayload: PodChatHistoryResultPayload = {
+      requestId,
+      success: true,
+      messages: messages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+      })),
+    };
+
+    socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, responsePayload);
+
+    console.log(`[Chat] Sent ${messages.length} messages for Pod ${podId}`);
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+
+    // Extract requestId from payload if not already set
     if (!requestId && typeof payload === 'object' && payload && 'requestId' in payload) {
       requestId = payload.requestId as string;
     }
 
-    if (!podId && typeof payload === 'object' && payload && 'podId' in payload) {
-      podId = payload.podId as string;
-    }
-
-    // Set Pod status to error if we have a podId
-    if (podId) {
-      podStore.setStatus(podId, 'error');
-    }
-
     // Emit error response
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_ERROR,
-      errorMessage,
-      requestId,
-      podId,
-      errorCode
-    );
+    const responsePayload: PodChatHistoryResultPayload = {
+      requestId: requestId || 'unknown',
+      success: false,
+      error: errorMessage,
+    };
 
-    console.error(`[Chat] Failed to process message: ${errorMessage}`);
+    socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, responsePayload);
+
+    console.error(`[Chat] Failed to load chat history: ${errorMessage}`);
   }
 }
