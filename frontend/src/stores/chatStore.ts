@@ -47,93 +47,58 @@ export const useChatStore = defineStore('chat', {
   }),
 
   getters: {
-    /**
-     * Get messages for a specific Pod
-     */
     getMessages: (state) => {
       return (podId: string): Message[] => {
         return state.messagesByPodId.get(podId) || []
       }
     },
 
-    /**
-     * Check if assistant is typing for a Pod
-     */
     isTyping: (state) => {
       return (podId: string): boolean => {
         return state.isTypingByPodId.get(podId) || false
       }
     },
 
-    /**
-     * Check if WebSocket is connected
-     */
     isConnected: (state): boolean => {
       return state.connectionStatus === 'connected'
     },
 
-    /**
-     * Get history loading status for a Pod
-     */
     getHistoryLoadingStatus: (state) => {
       return (podId: string): HistoryLoadingStatus => {
         return state.historyLoadingStatus.get(podId) || 'idle'
       }
     },
 
-    /**
-     * Check if history is loading for a Pod
-     */
     isHistoryLoading: (state) => {
       return (podId: string): boolean => {
         return state.historyLoadingStatus.get(podId) === 'loading'
       }
     },
 
-    /**
-     * Check if all history is loaded
-     */
     isAllHistoryLoaded: (state): boolean => {
       return state.allHistoryLoaded
     }
   },
 
   actions: {
-    /**
-     * Initialize WebSocket connection and register listeners
-     */
     initWebSocket(): void {
       console.log('[ChatStore] Initializing WebSocket')
 
       this.connectionStatus = 'connecting'
-
-      // Connect to WebSocket server
       websocketService.connect()
-
-      // Register event listeners
       this.registerListeners()
     },
 
-    /**
-     * Disconnect WebSocket
-     */
     disconnectWebSocket(): void {
       console.log('[ChatStore] Disconnecting WebSocket')
 
-      // Unregister listeners
       this.unregisterListeners()
-
-      // Disconnect
       websocketService.disconnect()
 
-      // Reset state
       this.connectionStatus = 'disconnected'
       this.socketId = null
     },
 
-    /**
-     * Register all WebSocket event listeners
-     */
     registerListeners(): void {
       websocketService.onConnectionReady(this.handleConnectionReady)
       websocketService.onChatMessage(this.handleChatMessage)
@@ -144,9 +109,6 @@ export const useChatStore = defineStore('chat', {
       websocketService.onError(this.handleError)
     },
 
-    /**
-     * Unregister all WebSocket event listeners
-     */
     unregisterListeners(): void {
       websocketService.offConnectionReady(this.handleConnectionReady)
       websocketService.offChatMessage(this.handleChatMessage)
@@ -157,18 +119,12 @@ export const useChatStore = defineStore('chat', {
       websocketService.offError(this.handleError)
     },
 
-    /**
-     * Handle connection ready event
-     */
     handleConnectionReady(payload: ConnectionReadyPayload): void {
       console.log('[ChatStore] Connection ready:', payload)
       this.connectionStatus = 'connected'
       this.socketId = payload.socketId
     },
 
-    /**
-     * Send user message to a Pod
-     */
     async sendMessage(podId: string, content: string): Promise<void> {
       if (!this.isConnected) {
         console.error('[ChatStore] Cannot send message, not connected')
@@ -180,26 +136,19 @@ export const useChatStore = defineStore('chat', {
         return
       }
 
-      // Add user message to local state
       this.addUserMessage(podId, content)
 
-      // Generate request ID
       const requestId = generateRequestId()
 
-      // Emit message to server
       websocketService.podChatSend({
         requestId,
         podId,
         message: content
       })
 
-      // Set typing indicator
       this.setTyping(podId, true)
     },
 
-    /**
-     * Add user message to local state
-     */
     addUserMessage(podId: string, content: string): void {
       const userMessage: Message = {
         id: generateRequestId(),
@@ -212,9 +161,7 @@ export const useChatStore = defineStore('chat', {
       this.messagesByPodId.set(podId, [...messages, userMessage])
     },
 
-    /**
-     * Handle incoming chat message (streaming)
-     */
+    // 處理串流訊息：建立新訊息或更新現有訊息內容
     handleChatMessage(payload: PodChatMessagePayload): void {
       console.log('[ChatStore] Chat message:', payload)
 
@@ -224,7 +171,6 @@ export const useChatStore = defineStore('chat', {
       const messageIndex = messages.findIndex(m => m.id === messageId)
 
       if (messageIndex === -1) {
-        // Create new assistant message
         const newMessage: Message = {
           id: messageId,
           role: 'assistant',
@@ -234,29 +180,30 @@ export const useChatStore = defineStore('chat', {
         }
         this.messagesByPodId.set(podId, [...messages, newMessage])
         this.currentStreamingMessageId = messageId
-      } else {
-        // Update existing message immutably
-        const updatedMessages = [...messages]
-        const existingMessage = updatedMessages[messageIndex]
-        if (existingMessage) {
-          updatedMessages[messageIndex] = {
-            ...existingMessage,
-            content,
-            isPartial
-          }
-          this.messagesByPodId.set(podId, updatedMessages)
+
+        if (isPartial) {
+          this.setTyping(podId, true)
         }
+        return
       }
 
-      // Keep typing indicator active if still partial
+      const updatedMessages = [...messages]
+      const existingMessage = updatedMessages[messageIndex]
+      if (existingMessage) {
+        updatedMessages[messageIndex] = {
+          ...existingMessage,
+          content,
+          isPartial
+        }
+        this.messagesByPodId.set(podId, updatedMessages)
+      }
+
       if (isPartial) {
         this.setTyping(podId, true)
       }
     },
 
-    /**
-     * Handle tool use notification
-     */
+    // 記錄工具使用狀態，追蹤多個工具的執行進度
     handleChatToolUse(payload: PodChatToolUsePayload): void {
       console.log('[ChatStore] Tool use:', payload)
 
@@ -294,9 +241,7 @@ export const useChatStore = defineStore('chat', {
       this.messagesByPodId.set(podId, updatedMessages)
     },
 
-    /**
-     * Handle tool result
-     */
+    // 更新工具執行結果，標記為已完成
     handleChatToolResult(payload: PodChatToolResultPayload): void {
       console.log('[ChatStore] Tool result:', payload)
 
@@ -327,9 +272,6 @@ export const useChatStore = defineStore('chat', {
       this.messagesByPodId.set(podId, updatedMessages)
     },
 
-    /**
-     * Handle chat completion
-     */
     handleChatComplete(payload: PodChatCompletePayload): void {
       console.log('[ChatStore] Chat complete:', payload)
 
@@ -337,65 +279,54 @@ export const useChatStore = defineStore('chat', {
       const messages = this.messagesByPodId.get(podId) || []
 
       const messageIndex = messages.findIndex(m => m.id === messageId)
-      if (messageIndex !== -1) {
-        const updatedMessages = [...messages]
-        const existingMessage = updatedMessages[messageIndex]
-        if (existingMessage) {
-          updatedMessages[messageIndex] = {
-            ...existingMessage,
-            content: fullContent,
-            isPartial: false
-          }
-          this.messagesByPodId.set(podId, updatedMessages)
+      if (messageIndex === -1) {
+        this.setTyping(podId, false)
+
+        if (this.currentStreamingMessageId === messageId) {
+          this.currentStreamingMessageId = null
         }
+        return
       }
 
-      // Clear typing indicator
+      const updatedMessages = [...messages]
+      const existingMessage = updatedMessages[messageIndex]
+      if (existingMessage) {
+        updatedMessages[messageIndex] = {
+          ...existingMessage,
+          content: fullContent,
+          isPartial: false
+        }
+        this.messagesByPodId.set(podId, updatedMessages)
+      }
+
       this.setTyping(podId, false)
 
-      // Clear streaming message ID
       if (this.currentStreamingMessageId === messageId) {
         this.currentStreamingMessageId = null
       }
     },
 
-    /**
-     * Handle error events
-     */
     handleError(payload: PodErrorPayload): void {
       console.error('[ChatStore] Error:', payload)
 
-      // Update connection status if error is connection-related
       if (!websocketService.isConnected.value) {
         this.connectionStatus = 'error'
       }
 
-      // Clear typing indicators for the affected pod
       if (payload.podId) {
         this.setTyping(payload.podId, false)
       }
-
-      // TODO: Show error notification to user
     },
 
-    /**
-     * Set typing indicator for a Pod
-     */
     setTyping(podId: string, isTyping: boolean): void {
       this.isTypingByPodId.set(podId, isTyping)
     },
 
-    /**
-     * Clear messages for a Pod
-     */
     clearMessages(podId: string): void {
       this.messagesByPodId.delete(podId)
       this.isTypingByPodId.delete(podId)
     },
 
-    /**
-     * Convert PersistedMessage to Message format
-     */
     convertPersistedToMessage(persistedMessage: PersistedMessage): Message {
       return {
         id: persistedMessage.id,
@@ -406,39 +337,26 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    /**
-     * Set Pod messages directly (used when loading history)
-     */
     setPodMessages(podId: string, messages: Message[]): void {
       this.messagesByPodId.set(podId, messages)
     },
 
-    /**
-     * Set history loading status for a Pod
-     */
     setHistoryLoadingStatus(podId: string, status: HistoryLoadingStatus): void {
       this.historyLoadingStatus.set(podId, status)
     },
 
-    /**
-     * Set history loading error for a Pod
-     */
     setHistoryLoadingError(podId: string, error: string): void {
       this.historyLoadingError.set(podId, error)
     },
 
-    /**
-     * Load chat history for a single Pod
-     */
+    // 載入單一 Pod 的聊天歷史，使用 Promise 包裝 WebSocket 請求/響應流程
     async loadPodChatHistory(podId: string): Promise<void> {
-      // Check if already loaded or loading
       const currentStatus = this.historyLoadingStatus.get(podId)
       if (currentStatus === 'loaded' || currentStatus === 'loading') {
         console.log(`[ChatStore] Pod ${podId} history already ${currentStatus}`)
         return
       }
 
-      // Check if connected
       if (!this.isConnected) {
         const error = 'WebSocket not connected'
         console.error(`[ChatStore] Cannot load history: ${error}`)
@@ -454,7 +372,6 @@ export const useChatStore = defineStore('chat', {
         const requestId = generateRequestId()
         let timeoutId: ReturnType<typeof setTimeout>
 
-        // Create one-time listener for the response
         const handleHistoryResult = (payload: PodChatHistoryResultPayload): void => {
           if (payload.requestId !== requestId) return
 
@@ -478,7 +395,6 @@ export const useChatStore = defineStore('chat', {
           }
         }
 
-        // Set timeout
         timeoutId = setTimeout(() => {
           websocketService.offChatHistoryResult(handleHistoryResult)
           const error = 'History load timeout'
@@ -488,10 +404,8 @@ export const useChatStore = defineStore('chat', {
           reject(new Error(error))
         }, HISTORY_LOAD_TIMEOUT_MS)
 
-        // Register listener
         websocketService.onChatHistoryResult(handleHistoryResult)
 
-        // Send request
         websocketService.podChatHistory({
           requestId,
           podId
@@ -499,9 +413,7 @@ export const useChatStore = defineStore('chat', {
       })
     },
 
-    /**
-     * Load chat history for all Pods in parallel
-     */
+    // 平行載入所有 Pods 的聊天歷史，使用 Promise.allSettled 確保部分失敗不會影響其他
     async loadAllPodsHistory(podIds: string[]): Promise<void> {
       if (podIds.length === 0) {
         console.log('[ChatStore] No pods to load history for')
@@ -515,7 +427,6 @@ export const useChatStore = defineStore('chat', {
         podIds.map(podId => this.loadPodChatHistory(podId))
       )
 
-      // Count successes and failures
       const successCount = results.filter(r => r.status === 'fulfilled').length
       const failureCount = results.filter(r => r.status === 'rejected').length
 
@@ -531,13 +442,8 @@ export const useChatStore = defineStore('chat', {
       this.allHistoryLoaded = true
     },
 
-    /**
-     * Handle chat history result event
-     */
     handleChatHistoryResult(payload: PodChatHistoryResultPayload): void {
       console.log('[ChatStore] Chat history result:', payload)
-      // The actual handling is done in loadPodChatHistory's one-time listener
-      // This is here in case we need global handling in the future
     }
   }
 })

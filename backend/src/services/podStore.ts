@@ -1,6 +1,3 @@
-// In-Memory Pod Store
-// Manages Pod data storage and retrieval with disk persistence
-
 import { v4 as uuidv4 } from 'uuid';
 import { Pod, PodStatus, CreatePodRequest } from '../types/index.js';
 import { config } from '../config/index.js';
@@ -9,20 +6,12 @@ import { podPersistenceService } from './persistence/podPersistence.js';
 class PodStore {
   private pods: Map<string, Pod> = new Map();
 
-  /**
-   * Persist Pod to disk asynchronously (non-blocking)
-   * @param pod Pod to persist
-   * @param claudeSessionId Optional Claude session ID
-   */
   private persistPodAsync(pod: Pod, claudeSessionId?: string): void {
     podPersistenceService.savePod(pod, claudeSessionId).catch((error) => {
       console.error(`[PodStore] Failed to persist Pod ${pod.id}: ${error}`);
     });
   }
 
-  /**
-   * Create a new Pod
-   */
   create(data: CreatePodRequest): Pod {
     const id = uuidv4();
     const now = new Date();
@@ -37,40 +26,27 @@ class PodStore {
       gitUrl: null,
       createdAt: now,
       lastActiveAt: now,
-      // Canvas-specific fields
       x: data.x,
       y: data.y,
       rotation: data.rotation,
       output: ['> Ready to assist', '> Type your message...'],
-      // Claude session management
       claudeSessionId: null,
     };
 
     this.pods.set(id, pod);
-
-    // Persist to disk (async, but don't block)
     this.persistPodAsync(pod);
 
     return pod;
   }
 
-  /**
-   * Get Pod by ID
-   */
   getById(id: string): Pod | undefined {
     return this.pods.get(id);
   }
 
-  /**
-   * Get all Pods
-   */
   getAll(): Pod[] {
     return Array.from(this.pods.values());
   }
 
-  /**
-   * Update Pod
-   */
   update(id: string, updates: Partial<Pod>): Pod | undefined {
     const pod = this.pods.get(id);
     if (!pod) {
@@ -79,73 +55,55 @@ class PodStore {
 
     const updatedPod = { ...pod, ...updates };
     this.pods.set(id, updatedPod);
-
-    // Persist to disk (async, but don't block)
     this.persistPodAsync(updatedPod);
 
     return updatedPod;
   }
 
-  /**
-   * Delete Pod
-   */
   delete(id: string): boolean {
-    const deleted = this.pods.delete(id);
-
-    // Delete from disk (async, but don't block)
-    if (deleted) {
-      podPersistenceService.deletePodData(id).catch((error) => {
-        console.error(`[PodStore] Failed to delete Pod data ${id}: ${error}`);
-      });
+    if (!this.pods.delete(id)) {
+      return false;
     }
 
-    return deleted;
+    podPersistenceService.deletePodData(id).catch((error) => {
+      console.error(`[PodStore] Failed to delete Pod data ${id}: ${error}`);
+    });
+
+    return true;
   }
 
-  /**
-   * Set Pod status
-   */
   setStatus(id: string, status: PodStatus): void {
     const pod = this.pods.get(id);
-    if (pod) {
-      pod.status = status;
-      this.pods.set(id, pod);
+    if (!pod) {
+      return;
     }
+
+    pod.status = status;
+    this.pods.set(id, pod);
   }
 
-  /**
-   * Update last active timestamp
-   */
   updateLastActive(id: string): void {
     const pod = this.pods.get(id);
-    if (pod) {
-      pod.lastActiveAt = new Date();
-      this.pods.set(id, pod);
-
-      // Persist to disk (async, but don't block)
-      this.persistPodAsync(pod);
+    if (!pod) {
+      return;
     }
+
+    pod.lastActiveAt = new Date();
+    this.pods.set(id, pod);
+    this.persistPodAsync(pod);
   }
 
-  /**
-   * Set Claude session ID for a Pod
-   * @param id Pod identifier
-   * @param sessionId Claude SDK session ID
-   */
   setClaudeSessionId(id: string, sessionId: string): void {
     const pod = this.pods.get(id);
-    if (pod) {
-      pod.claudeSessionId = sessionId;
-      this.pods.set(id, pod);
-
-      // Persist to disk (async, but don't block)
-      this.persistPodAsync(pod, sessionId);
+    if (!pod) {
+      return;
     }
+
+    pod.claudeSessionId = sessionId;
+    this.pods.set(id, pod);
+    this.persistPodAsync(pod, sessionId);
   }
 
-  /**
-   * Load all Pods from disk into memory
-   */
   async loadFromDisk(): Promise<void> {
     try {
       // Get all Pod IDs from disk

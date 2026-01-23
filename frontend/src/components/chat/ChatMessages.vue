@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import type { Message } from '@/types'
 import ChatMessageBubble from './ChatMessageBubble.vue'
 import TypingIndicator from './TypingIndicator.vue'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 const props = withDefaults(
   defineProps<{
@@ -52,30 +53,32 @@ watch(
 </script>
 
 <template>
-  <div class="flex-1 overflow-y-auto p-4 space-y-4">
-    <!-- 載入歷史訊息中 -->
-    <div v-if="isLoadingHistory && messages.length === 0" class="flex justify-center items-center h-full">
-      <div class="flex flex-col items-center gap-3 text-muted-foreground">
-        <TypingIndicator />
-        <span class="text-sm">正在載入對話歷史...</span>
-      </div>
-    </div>
-
-    <!-- 訊息列表 -->
-    <template v-else>
-      <ChatMessageBubble v-for="msg in messages" :key="msg.id" :message="msg" />
-
-      <!-- 打字指示器 - 僅在沒有 partial 訊息時顯示 -->
-      <div v-if="isTyping && !hasPartialMessage" class="flex justify-start">
-        <div
-          class="p-3 rounded-lg border-2 border-doodle-ink bg-card"
-          :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
-        >
+  <ScrollArea class="flex-1 p-4">
+    <div class="space-y-4">
+      <!-- 載入歷史訊息中 -->
+      <div v-if="isLoadingHistory && messages.length === 0" class="flex justify-center items-center h-full">
+        <div class="flex flex-col items-center gap-3 text-muted-foreground">
           <TypingIndicator />
+          <span class="text-sm">正在載入對話歷史...</span>
         </div>
       </div>
-    </template>
 
-    <div ref="messagesEndRef" />
-  </div>
+      <!-- 訊息列表 -->
+      <template v-else>
+        <ChatMessageBubble v-for="msg in messages" :key="msg.id" :message="msg" />
+
+        <!-- 打字指示器 - 僅在沒有 partial 訊息時顯示 -->
+        <div v-if="isTyping && !hasPartialMessage" class="flex justify-start">
+          <div
+            class="p-3 rounded-lg border-2 border-doodle-ink bg-card"
+            :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
+          >
+            <TypingIndicator />
+          </div>
+        </div>
+      </template>
+
+      <div ref="messagesEndRef" />
+    </div>
+  </ScrollArea>
 </template>

@@ -1,15 +1,5 @@
-// WebSocket Event Type Definitions
-// Defines all WebSocket events and their payload types
-
 import type { Pod, PodColor, PodTypeName } from './pod.js';
 
-// ============================================================================
-// Event Name Enums
-// ============================================================================
-
-/**
- * Client -> Server Events (Request Events)
- */
 export enum WebSocketRequestEvents {
   POD_CREATE = 'pod:create',
   POD_LIST = 'pod:list',
@@ -23,9 +13,6 @@ export enum WebSocketRequestEvents {
   POD_LEAVE = 'pod:leave',
 }
 
-/**
- * Server -> Client Events (Response Events)
- */
 export enum WebSocketResponseEvents {
   CONNECTION_READY = 'connection:ready',
   POD_CREATED = 'pod:created',
@@ -45,16 +32,11 @@ export enum WebSocketResponseEvents {
   POD_ERROR = 'pod:error',
 }
 
-// ============================================================================
-// Request Payload Types (Client -> Server)
-// ============================================================================
-
 export interface PodCreatePayload {
   requestId: string;
   name: string;
   type: PodTypeName;
   color: PodColor;
-  // Canvas-specific fields
   x: number;
   y: number;
   rotation: number;
@@ -72,7 +54,6 @@ export interface PodGetPayload {
 export interface PodUpdatePayload {
   requestId: string;
   podId: string;
-  // Optional fields to update
   x?: number;
   y?: number;
   rotation?: number;
@@ -109,10 +90,6 @@ export interface PodJoinPayload {
 export interface PodLeavePayload {
   podId: string;
 }
-
-// ============================================================================
-// Response Payload Types (Server -> Client)
-// ============================================================================
 
 export interface ConnectionReadyPayload {
   socketId: string;

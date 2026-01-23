@@ -11,13 +11,11 @@ const props = defineProps<{
 
 const chatStore = useChatStore()
 
-// Get active tools from the most recent message with tool usage
 const activeTools = computed<ToolUseInfo[]>(() => {
   if (!props.podId) return []
 
   const messages = chatStore.getMessages(props.podId)
 
-  // Find the most recent message with tool usage
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i]
     if (msg && msg.toolUse && msg.toolUse.length > 0) {

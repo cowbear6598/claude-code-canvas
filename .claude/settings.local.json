@@ -16,7 +16,8 @@
       "Bash(npm run dev:*)",
       "Bash(xargs ls:*)",
       "WebFetch(domain:www.npmjs.com)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Skill(nodejs)"
     ]
   },
   "outputStyle": "conductor"

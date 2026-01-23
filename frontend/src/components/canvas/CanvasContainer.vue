@@ -46,7 +46,6 @@ const handleSelectType = async (config: PodTypeConfig) => {
     rotation: Math.round(rotation * 10) / 10,
   }
 
-  // Hide menu immediately for better UX
   store.hideTypeMenu()
 
   try {
