@@ -18,5 +18,10 @@ export default defineConfig({
       'X-XSS-Protection': '1; mode=block',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
     },
+    // WSL 環境下需要 polling 模式才能正確偵測檔案變化
+    watch: {
+      usePolling: true,
+      interval: 1000,
+    },
   },
 })

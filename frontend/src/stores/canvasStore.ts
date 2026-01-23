@@ -20,6 +20,7 @@ interface CanvasState {
     activePodId: string | null
     typeMenu: TypeMenuState
     viewport: ViewportState
+    syncTimers: Record<string, ReturnType<typeof setTimeout>>
 }
 
 export const useCanvasStore = defineStore('canvas', {
@@ -35,6 +36,7 @@ export const useCanvasStore = defineStore('canvas', {
             offset: {x: 0, y: 0},
             zoom: 1,
         },
+        syncTimers: {},
     }),
 
     getters: {
@@ -68,7 +70,8 @@ export const useCanvasStore = defineStore('canvas', {
             if (!this.isValidPod(pod)) return
             const index = this.pods.findIndex((p) => p.id === pod.id)
             if (index !== -1) {
-                this.pods[index] = pod
+                // 使用 splice 確保 Vue 響應式系統正確追蹤變化
+                this.pods.splice(index, 1, pod)
             }
         },
 
@@ -102,7 +105,7 @@ export const useCanvasStore = defineStore('canvas', {
                                 x: pod.x,
                                 y: pod.y,
                                 rotation: pod.rotation,
-                                output: pod.output || ['> Ready to assist', '> Type your message...'],
+                                output: pod.output || [],
                             }
                             // Add pod to local state
                             this.addPod(frontendPod)
@@ -187,7 +190,7 @@ export const useCanvasStore = defineStore('canvas', {
                 x: pod.x ?? 100 + (index * 300),
                 y: pod.y ?? 150 + (index % 2) * 100,
                 rotation: pod.rotation ?? (Math.random() * 4 - 2),
-                output: pod.output ?? ['> Ready to assist', '> Type your message...'],
+                output: pod.output ?? [],
             }))
             this.pods = enrichedPods.filter(pod => this.isValidPod(pod))
         },
@@ -265,20 +268,17 @@ export const useCanvasStore = defineStore('canvas', {
             }
         },
 
-        // Debounce timer for syncing pod position
-        _syncTimers: {} as Record<string, ReturnType<typeof setTimeout>>,
-
         /**
          * Debounced sync pod position to backend
          */
         debouncedSyncPodPosition(id: string, x: number, y: number): void {
             // Clear existing timer for this pod
-            if (this._syncTimers[id]) {
-                clearTimeout(this._syncTimers[id])
+            if (this.syncTimers[id]) {
+                clearTimeout(this.syncTimers[id])
             }
 
             // Set new timer (500ms debounce)
-            this._syncTimers[id] = setTimeout(() => {
+            this.syncTimers[id] = setTimeout(() => {
                 const requestId = generateRequestId()
                 websocketService.podUpdate({
                     requestId,
@@ -286,7 +286,7 @@ export const useCanvasStore = defineStore('canvas', {
                     x,
                     y
                 })
-                delete this._syncTimers[id]
+                delete this.syncTimers[id]
             }, 500)
         },
 

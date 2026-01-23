@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import type { Message } from '@/types'
 import ChatMessageBubble from './ChatMessageBubble.vue'
 import TypingIndicator from './TypingIndicator.vue'
@@ -16,13 +16,21 @@ const hasPartialMessage = computed(() => {
   return props.messages.some(msg => msg.isPartial)
 })
 
+// 滾動到底部的函數
+const scrollToBottom = async (smooth = true) => {
+  await nextTick()
+  messagesEndRef.value?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant' })
+}
+
+// 打開聊天框時立即滾動到底部
+onMounted(() => {
+  scrollToBottom(false)
+})
+
 // 訊息更新時自動滾動到底部
 watch(
   () => [props.messages, props.isTyping],
-  async () => {
-    await nextTick()
-    messagesEndRef.value?.scrollIntoView({ behavior: 'smooth' })
-  },
+  () => scrollToBottom(true),
   { deep: true }
 )
 </script>

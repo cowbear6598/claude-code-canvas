@@ -42,7 +42,7 @@ const handleSelectType = async (config: PodTypeConfig) => {
     x: canvasX - POD_MENU_X_OFFSET,
     y: canvasY - POD_MENU_Y_OFFSET,
     color: config.color,
-    output: ['Ready to help!', 'Click to start...'],
+    output: [],
     rotation: Math.round(rotation * 10) / 10,
   }
 

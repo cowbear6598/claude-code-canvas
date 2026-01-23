@@ -188,7 +188,7 @@ const handleSelectPod = () => {
           />
 
           <!-- 迷你螢幕 -->
-          <PodMiniScreen :output="pod.output" @click="handleSelectPod" />
+          <PodMiniScreen :output="pod.output" @dblclick="handleSelectPod" />
         </div>
       </div>
     </div>

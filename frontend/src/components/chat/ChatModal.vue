@@ -52,22 +52,35 @@ const handleSend = async (content: string) => {
 }
 
 // Watch for chat completion to update pod output
+// Track the last message ID we've processed to avoid duplicates
+let lastProcessedMessageId: string | null = null
+
 watch(
   () => messages.value,
-  (newMessages, oldMessages) => {
-    if (newMessages.length > oldMessages.length) {
-      const lastMessage = newMessages[newMessages.length - 1]
-      if (lastMessage && lastMessage.role === 'assistant' && !lastMessage.isPartial) {
-        // Update Pod output with assistant's response
-        emit('update-pod', {
-          ...props.pod,
-          output: [
-            ...props.pod.output,
-            lastMessage.content.slice(0, RESPONSE_PREVIEW_LENGTH) +
-            (lastMessage.content.length > RESPONSE_PREVIEW_LENGTH ? '...' : ''),
-          ],
-        })
-      }
+  (newMessages) => {
+    if (newMessages.length === 0) return
+
+    const lastMessage = newMessages[newMessages.length - 1]
+
+    // Only process assistant messages that are complete (not partial)
+    // and haven't been processed yet
+    if (
+      lastMessage &&
+      lastMessage.role === 'assistant' &&
+      !lastMessage.isPartial &&
+      lastMessage.id !== lastProcessedMessageId
+    ) {
+      lastProcessedMessageId = lastMessage.id
+
+      // Update Pod output with assistant's response
+      emit('update-pod', {
+        ...props.pod,
+        output: [
+          ...props.pod.output,
+          lastMessage.content.slice(0, RESPONSE_PREVIEW_LENGTH) +
+          (lastMessage.content.length > RESPONSE_PREVIEW_LENGTH ? '...' : ''),
+        ],
+      })
     }
   },
   { deep: true }
@@ -81,18 +94,6 @@ const handleClose = () => {
 onMounted(() => {
   console.log('[ChatModal] Joining pod room:', props.pod.id)
   websocketService.podJoin({ podId: props.pod.id })
-
-  // Initialize with welcome message if no messages exist
-  const currentMessages = chatStore.getMessages(props.pod.id)
-  if (currentMessages.length === 0) {
-    chatStore.messagesByPodId.set(props.pod.id, [
-      {
-        id: 'welcome',
-        role: 'assistant',
-        content: `Hi! I'm ${props.pod.name}. How can I help you today?`,
-      },
-    ])
-  }
 })
 
 // Leave pod room on unmount
@@ -103,12 +104,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" @click="handleClose">
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <!-- 遮罩 -->
     <div class="absolute inset-0 modal-overlay" />
 
     <!-- 內容 -->
-    <div class="relative flex gap-4 max-w-5xl w-full max-h-[85vh]" @click.stop>
+    <div class="relative flex gap-4 max-w-5xl w-full max-h-[85vh]">
       <!-- 主聊天視窗 -->
       <div class="chat-window flex-1 flex flex-col overflow-hidden">
         <ChatHeader :pod="pod" @close="handleClose" />
