@@ -427,6 +427,7 @@ export const useOutputStyleStore = defineStore('outputStyle', {
         const handleNoteDeleted = (payload: NoteDeletedPayload) => {
           if (payload.requestId === requestId) {
             websocketService.offNoteDeleted(handleNoteDeleted)
+            clearTimeout(timeoutId)
 
             if (payload.success) {
               resolve()
@@ -443,7 +444,7 @@ export const useOutputStyleStore = defineStore('outputStyle', {
           noteId,
         })
 
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           websocketService.offNoteDeleted(handleNoteDeleted)
           this.notes.splice(originalIndex, 0, note)
           reject(new Error('Delete note timeout'))
