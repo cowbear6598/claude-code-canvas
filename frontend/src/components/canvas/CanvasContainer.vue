@@ -200,7 +200,7 @@ const handleSkillNoteDragComplete = async (data: { noteId: string; isOverTrash: 
       @drag-complete="handleSkillNoteDragComplete"
     />
 
-    <!-- 空狀態 -->
+    <!-- 空狀態 - 在畫布座標中央 -->
     <EmptyState v-if="store.podCount === 0" />
   </CanvasViewport>
 
