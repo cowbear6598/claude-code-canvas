@@ -27,8 +27,8 @@ npm-debug.log*
 # Test coverage
 coverage/
 
-# Workspaces (Pod working directories)
-workspaces/
+# App data directory (workspaces, output-styles, etc.)
+app-data/
 
 # Temporary files
 tmp/

@@ -9,6 +9,9 @@ class StartupService {
     console.log('[Startup] Initializing server...');
 
     try {
+      await persistenceService.ensureDirectory(config.appDataRoot);
+      console.log(`[Startup] App data root verified: ${config.appDataRoot}`);
+
       await persistenceService.ensureDirectory(config.workspaceRoot);
       console.log(`[Startup] Workspace root verified: ${config.workspaceRoot}`);
 

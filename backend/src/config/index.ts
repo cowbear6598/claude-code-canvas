@@ -9,6 +9,7 @@ dotenv.config();
 interface Config {
   port: number;
   nodeEnv: string;
+  appDataRoot: string;
   workspaceRoot: string;
   corsOrigin: string;
   githubToken?: string;
@@ -19,10 +20,12 @@ function loadConfig(): Config {
   // Load environment variables with defaults
   const port = parseInt(process.env.PORT || '3001', 10);
   const nodeEnv = process.env.NODE_ENV || 'development';
-  const workspaceRoot = process.env.WORKSPACE_ROOT || './workspaces';
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
   const githubToken = process.env.GITHUB_TOKEN;
-  const outputStylesPath = process.env.OUTPUT_STYLES_PATH || './output-styles';
+
+  const appDataRoot = './app-data';
+  const workspaceRoot = './app-data/workspaces';
+  const outputStylesPath = './app-data/output-styles';
 
   // Validate port number
   if (isNaN(port) || port < 1 || port > 65535) {
@@ -35,6 +38,7 @@ function loadConfig(): Config {
   return {
     port,
     nodeEnv,
+    appDataRoot,
     workspaceRoot,
     corsOrigin,
     githubToken,
