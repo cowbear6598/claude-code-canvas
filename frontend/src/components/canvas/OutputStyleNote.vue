@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, computed } from 'vue'
 import type { OutputStyleNote } from '@/types'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
@@ -16,6 +16,7 @@ const canvasStore = useCanvasStore()
 const outputStyleStore = useOutputStyleStore()
 
 const isDragging = ref(false)
+const isAnimating = computed(() => outputStyleStore.isNoteAnimating(props.note.id))
 const dragRef = ref<{
   startX: number
   startY: number
@@ -82,7 +83,7 @@ const handleMouseDown = (e: MouseEvent) => {
 <template>
   <div
     class="output-style-note"
-    :class="{ dragging: isDragging }"
+    :class="{ dragging: isDragging, animating: isAnimating }"
     :style="{
       left: `${note.x}px`,
       top: `${note.y}px`,

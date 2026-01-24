@@ -189,19 +189,9 @@ const handleNoteRemoved = async () => {
   >
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
-      class="relative"
+      class="relative pod-with-notch"
       :style="{ transform: `rotate(${pod.rotation}deg)` }"
     >
-      <!-- Output Style Slot -->
-      <div class="absolute -top-10 left-2">
-        <PodOutputStyleSlot
-          :pod-id="pod.id"
-          :bound-note="boundNote"
-          @note-dropped="handleNoteDropped"
-          @note-removed="handleNoteRemoved"
-        />
-      </div>
-
       <!-- 粘性標籤 -->
       <PodStickyTab
         :color="pod.color"
@@ -211,6 +201,17 @@ const handleNoteRemoved = async () => {
         @copy="handleCopy"
         @delete="handleDelete"
       />
+
+      <!-- Output Style 凹槽 -->
+      <div class="pod-notch-area">
+        <PodOutputStyleSlot
+          :pod-id="pod.id"
+          :bound-note="boundNote"
+          :pod-rotation="pod.rotation"
+          @note-dropped="handleNoteDropped"
+          @note-removed="handleNoteRemoved"
+        />
+      </div>
 
       <!-- Pod 主卡片 -->
       <div class="pod-doodle w-56 overflow-visible relative">

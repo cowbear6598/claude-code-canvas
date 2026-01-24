@@ -18,6 +18,7 @@ interface OutputStyleState {
   isLoading: boolean
   error: string | null
   draggedNoteId: string | null
+  animatingNoteIds: Set<string>
 }
 
 export const useOutputStyleStore = defineStore('outputStyle', {
@@ -27,6 +28,7 @@ export const useOutputStyleStore = defineStore('outputStyle', {
     isLoading: false,
     error: null,
     draggedNoteId: null,
+    animatingNoteIds: new Set<string>(),
   }),
 
   getters: {
@@ -38,6 +40,9 @@ export const useOutputStyleStore = defineStore('outputStyle', {
 
     getNoteById: (state) => (noteId: string): OutputStyleNote | undefined =>
       state.notes.find(note => note.id === noteId),
+
+    isNoteAnimating: (state) => (noteId: string): boolean =>
+      state.animatingNoteIds.has(noteId),
   },
 
   actions: {
@@ -361,6 +366,14 @@ export const useOutputStyleStore = defineStore('outputStyle', {
 
     setDraggedNote(noteId: string | null): void {
       this.draggedNoteId = noteId
+    },
+
+    setNoteAnimating(noteId: string, isAnimating: boolean): void {
+      if (isAnimating) {
+        this.animatingNoteIds.add(noteId)
+      } else {
+        this.animatingNoteIds.delete(noteId)
+      }
     },
 
     async deleteNote(noteId: string): Promise<void> {

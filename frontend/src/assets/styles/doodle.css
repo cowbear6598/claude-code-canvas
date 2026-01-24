@@ -62,6 +62,7 @@
   box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4);
   transition: all 0.2s ease;
   cursor: grab;
+  position: relative;
 }
 
 .pod-doodle:hover {
@@ -73,12 +74,39 @@
   cursor: grabbing;
 }
 
+/* Pod with notch */
+.pod-with-notch {
+  position: relative;
+}
+
+.pod-notch-area {
+  position: absolute;
+  left: 0;
+  top: 12px;
+  transform: translateX(-100%);
+  z-index: -1;
+}
+
+.pod-with-notch .pod-doodle::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 12px;
+  width: 8px;
+  height: 32px;
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  z-index: -1;
+}
+
 /* Mini screen inside pod */
 .mini-screen {
   background: oklch(0.28 0.015 50);
   border: 2px solid var(--doodle-ink);
   border-radius: 2px;
-  font-family: var(--font-mono);
+  font-family: var(--font-mono), monospace, sans-serif;
   color: oklch(0.75 0.1 150);
 }
 
@@ -184,6 +212,10 @@
   white-space: nowrap;
 }
 
+.output-style-note.animating {
+  transition: left 0.3s ease, top 0.3s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
 .output-style-note:hover {
   box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
   transform: translate(-0.5px, -0.5px) rotate(-1deg);
@@ -197,7 +229,7 @@
 }
 
 .output-style-note-text {
-  font-family: var(--font-mono);
+  font-family: var(--font-mono), monospace, sans-serif;
   font-size: 11px;
   font-weight: 500;
   color: oklch(0.3 0.02 50);
@@ -206,15 +238,14 @@
 
 /* Pod Output Style Slot */
 .pod-output-style-slot {
-  min-width: 50px;
-  padding: 4px 8px;
+  padding: 6px 12px;
   background: transparent;
   border: 2px dashed oklch(0.6 0.02 50 / 0.4);
   border-radius: 2px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   white-space: nowrap;
 }
 
@@ -230,17 +261,44 @@
   background: var(--doodle-yellow);
   border-color: var(--doodle-ink);
   border-style: solid;
-  box-shadow: 1px 1px 0 oklch(0.4 0.02 50 / 0.3);
-  cursor: grab;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
+  cursor: pointer;
+  transform: translateX(50%);
 }
 
 .pod-output-style-slot.has-note:hover {
-  transform: scale(1.05);
+  transform: translateX(50%) translate(-0.5px, -0.5px);
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
 }
 
-.pod-output-style-slot.dragging-out {
-  opacity: 0.5;
-  cursor: grabbing;
+.pod-output-style-slot.ejecting {
+  animation: eject-from-slot 0.3s ease-out forwards;
+}
+
+.pod-output-style-slot.inserting {
+  animation: slide-into-slot 0.3s ease-out;
+}
+
+@keyframes slide-into-slot {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(50%);
+    opacity: 1;
+  }
+}
+
+@keyframes eject-from-slot {
+  from {
+    transform: translateX(50%);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
 }
 
 /* Pod Menu Submenu */
@@ -271,7 +329,7 @@
   width: 100%;
   padding: 8px 12px;
   text-align: left;
-  font-family: var(--font-mono);
+  font-family: var(--font-mono), monospace, sans-serif;
   font-size: 0.875rem;
   color: var(--foreground);
   background: transparent;

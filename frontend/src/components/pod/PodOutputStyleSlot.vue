@@ -7,6 +7,7 @@ import {useCanvasStore} from '@/stores/canvasStore'
 const props = defineProps<{
   podId: string
   boundNote: OutputStyleNote | undefined
+  podRotation?: number
 }>()
 
 const emit = defineEmits<{
@@ -19,12 +20,11 @@ const canvasStore = useCanvasStore()
 const slotRef = ref<HTMLElement | null>(null)
 const isDropTarget = ref(false)
 const lastDraggedNoteId = ref<string | null>(null)
-const isDraggingOut = ref(false)
+const isEjecting = ref(false)
+const isInserting = ref(false)
 
 let mouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let mouseUpHandler: (() => void) | null = null
-let dragOutMoveHandler: ((e: MouseEvent) => void) | null = null
-let dragOutUpHandler: (() => void) | null = null
 
 const checkDropTarget = (e: MouseEvent) => {
   if (!slotRef.value) {
@@ -46,7 +46,11 @@ const handleDrop = () => {
     const draggedNote = outputStyleStore.getNoteById(noteId)
 
     if (draggedNote && !draggedNote.boundToPodId) {
+      isInserting.value = true
       emit('note-dropped', noteId)
+      setTimeout(() => {
+        isInserting.value = false
+      }, 300)
     }
   }
   isDropTarget.value = false
@@ -70,59 +74,67 @@ const cleanupListeners = () => {
   }
 }
 
-const cleanupDragOutListeners = () => {
-  if (dragOutMoveHandler) {
-    document.removeEventListener('mousemove', dragOutMoveHandler)
-    dragOutMoveHandler = null
-  }
-  if (dragOutUpHandler) {
-    document.removeEventListener('mouseup', dragOutUpHandler)
-    dragOutUpHandler = null
-  }
-}
-
-const handleSlotMouseDown = (e: MouseEvent) => {
-  if (!props.boundNote) return
+const handleSlotClick = async (e: MouseEvent) => {
+  if (!props.boundNote || isEjecting.value) return
 
   e.stopPropagation()
-  isDraggingOut.value = true
+  e.preventDefault()
 
   const noteId = props.boundNote.id
-  const startX = e.clientX
-  const startY = e.clientY
-  const originalX = props.boundNote.originalPosition?.x ?? props.boundNote.x
-  const originalY = props.boundNote.originalPosition?.y ?? props.boundNote.y
+  const note = outputStyleStore.getNoteById(noteId)
+
+  if (!note) return
+
+  const slotElement = slotRef.value
+  if (!slotElement) return
+
+  const slotWidth = slotElement.getBoundingClientRect().width
+  const zoom = canvasStore.viewport.zoom
+
+  const podElement = slotElement.closest('.pod-with-notch')
+  if (!podElement) return
+
+  const podRect = podElement.getBoundingClientRect()
+  const viewportOffset = canvasStore.viewport.offset
+
+  const podCenterX = (podRect.left - viewportOffset.x) / zoom
+  const podCenterY = (podRect.top - viewportOffset.y + 12) / zoom
+
+  const extraDistance = 30
+  const ejectDistance = slotWidth + extraDistance
+
+  const baseX = -ejectDistance
+  const baseY = 0
+
+  const rotation = props.podRotation || 0
+  const radians = rotation * Math.PI / 180
+
+  const rotatedX = baseX * Math.cos(radians) - baseY * Math.sin(radians)
+  const rotatedY = baseX * Math.sin(radians) + baseY * Math.cos(radians)
+
+  const ejectX = podCenterX + rotatedX
+  const ejectY = podCenterY + rotatedY
+
+  isEjecting.value = true
+  outputStyleStore.setNoteAnimating(noteId, true)
 
   emit('note-removed')
 
+  await outputStyleStore.unbindFromPod(props.podId, false)
+
+  await outputStyleStore.updateNotePosition(noteId, ejectX, ejectY)
+
   setTimeout(() => {
-    const note = outputStyleStore.getNoteById(noteId)
-    if (note) {
-      outputStyleStore.setDraggedNote(noteId)
-
-      dragOutMoveHandler = (moveEvent: MouseEvent) => {
-        const dx = (moveEvent.clientX - startX) / canvasStore.viewport.zoom
-        const dy = (moveEvent.clientY - startY) / canvasStore.viewport.zoom
-        outputStyleStore.updateNotePosition(noteId, originalX + dx, originalY + dy)
-      }
-
-      dragOutUpHandler = () => {
-        isDraggingOut.value = false
-        outputStyleStore.setDraggedNote(null)
-        cleanupDragOutListeners()
-      }
-
-      document.addEventListener('mousemove', dragOutMoveHandler)
-      document.addEventListener('mouseup', dragOutUpHandler)
-    }
-  }, 50)
+    isEjecting.value = false
+    outputStyleStore.setNoteAnimating(noteId, false)
+  }, 300)
 }
 
 watch(() => outputStyleStore.draggedNoteId, (newVal) => {
-  if (newVal && !isDraggingOut.value) {
+  if (newVal) {
     lastDraggedNoteId.value = newVal
     setupListeners()
-  } else if (!newVal) {
+  } else {
     cleanupListeners()
     isDropTarget.value = false
   }
@@ -137,7 +149,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   cleanupListeners()
-  cleanupDragOutListeners()
 })
 </script>
 
@@ -148,9 +159,10 @@ onUnmounted(() => {
     :class="{
       'drop-target': isDropTarget,
       'has-note': boundNote !== undefined,
-      'dragging-out': isDraggingOut
+      'ejecting': isEjecting,
+      'inserting': isInserting
     }"
-    @mousedown="handleSlotMouseDown"
+    @click="handleSlotClick"
   >
     <template v-if="boundNote">
       <span class="text-xs font-mono">{{ boundNote.name }}</span>
