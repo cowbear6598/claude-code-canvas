@@ -487,6 +487,15 @@
   position: relative;
 }
 
+.pod-skill-slot::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 0;
+  width: 16px;
+  height: 100%;
+}
+
 .pod-skill-slot.drop-target {
   background: oklch(0.7 0.1 150 / 0.3);
   border: 2px solid oklch(0.6 0.1 150);
@@ -524,7 +533,7 @@
 /* Skill Hover 選單（顯示已綁定的 Skills 列表） */
 .pod-skill-menu {
   position: absolute;
-  right: calc(100% + 8px);  /* 選單在 Slot 左邊 */
+  right: calc(100% + 8px);  /* 選單在 Slot 左邊，減少間隙 */
   top: -2px;  /* 微調選單垂直位置，讓它和 Slot 對齊 */
   min-width: 120px;
   max-width: 200px;

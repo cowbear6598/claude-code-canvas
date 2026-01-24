@@ -144,7 +144,7 @@ onUnmounted(() => {
         :key="note.id"
         class="pod-skill-menu-item"
       >
-        {{ note.name }}
+        {{ note.skillId }}
       </div>
     </div>
   </div>
