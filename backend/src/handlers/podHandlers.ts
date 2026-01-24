@@ -20,6 +20,7 @@ import { workspaceService } from '../services/workspace/index.js';
 import { claudeSessionManager } from '../services/claude/sessionManager.js';
 import { noteStore } from '../services/noteStore.js';
 import { skillNoteStore } from '../services/skillNoteStore.js';
+import { socketService } from '../services/socketService.js';
 import {
   emitSuccess,
   emitError,
@@ -278,6 +279,9 @@ export async function handlePodDelete(
     success: true,
     podId,
   };
+
+  // Broadcast to all clients in the Pod room
+  socketService.emitPodDeletedBroadcast(podId, response);
 
   emitSuccess(socket, WebSocketResponseEvents.POD_DELETED, response);
 

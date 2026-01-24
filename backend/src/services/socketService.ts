@@ -90,6 +90,10 @@ class SocketService {
     this.emitToSocket(socketId, WebSocketResponseEvents.POD_DELETED, payload);
   }
 
+  emitPodDeletedBroadcast(podId: string, payload: PodDeletedPayload): void {
+    this.emitToPod(podId, WebSocketResponseEvents.POD_DELETED, payload);
+  }
+
   emitGitCloneProgress(podId: string, payload: PodGitCloneProgressPayload): void {
     this.emitToPod(podId, WebSocketResponseEvents.POD_GIT_CLONE_PROGRESS, payload);
   }

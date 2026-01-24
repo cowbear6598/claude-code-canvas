@@ -5,6 +5,7 @@ import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   PodJoinPayload,
+  PodJoinBatchPayload,
   PodLeavePayload,
 } from '../types/index.js';
 import { isValidPodId } from '../utils/payloadUtils.js';
@@ -28,6 +29,31 @@ export function setupSocketHandlers(socket: Socket): void {
 
     socket.emit(WebSocketResponseEvents.POD_JOINED, { podId });
     console.log(`[Socket.io] Client ${socket.id} joined Pod ${podId}`);
+  });
+
+  socket.on(WebSocketRequestEvents.POD_JOIN_BATCH, (data: PodJoinBatchPayload) => {
+    const { podIds } = data;
+
+    if (!Array.isArray(podIds)) {
+      socket.emit('error', { message: 'Invalid podIds: must be an array' });
+      return;
+    }
+
+    const joinedPodIds: string[] = [];
+    const failedPodIds: string[] = [];
+
+    podIds.forEach((podId) => {
+      if (!isValidPodId(podId)) {
+        failedPodIds.push(podId);
+        return;
+      }
+
+      socketService.joinPodRoom(socket.id, podId);
+      joinedPodIds.push(podId);
+    });
+
+    socket.emit(WebSocketResponseEvents.POD_JOINED_BATCH, { joinedPodIds, failedPodIds });
+    console.log(`[Socket.io] Client ${socket.id} batch joined ${joinedPodIds.length} Pods (${failedPodIds.length} failed)`);
   });
 
   socket.on(WebSocketRequestEvents.POD_LEAVE, (data: PodLeavePayload) => {

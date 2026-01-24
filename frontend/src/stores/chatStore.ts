@@ -12,6 +12,7 @@ import type {
   PodErrorPayload,
   ConnectionReadyPayload
 } from '@/types/websocket'
+import { RESPONSE_PREVIEW_LENGTH, CONTENT_PREVIEW_LENGTH } from '@/lib/constants'
 
 /**
  * WebSocket connection status types
@@ -22,6 +23,15 @@ type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
  * Timeout duration for history loading (ms)
  */
 const HISTORY_LOAD_TIMEOUT_MS = 10000
+
+/**
+ * Truncate content to specified length
+ */
+const truncateContent = (content: string, maxLength: number): string => {
+  return content.length > maxLength
+    ? `${content.slice(0, maxLength)}...`
+    : content
+}
 
 interface ChatState {
   messagesByPodId: Map<string, Message[]>
@@ -153,6 +163,20 @@ export const useChatStore = defineStore('chat', {
 
       const messages = this.messagesByPodId.get(podId) || []
       this.messagesByPodId.set(podId, [...messages, userMessage])
+
+      // Update POD output preview in canvas store
+      import('./canvasStore').then(({ useCanvasStore }) => {
+        const canvasStore = useCanvasStore()
+        const pod = canvasStore.pods.find(p => p.id === podId)
+
+        if (pod) {
+          const truncatedContent = `> ${truncateContent(content, CONTENT_PREVIEW_LENGTH)}`
+          canvasStore.updatePod({
+            ...pod,
+            output: [...pod.output, truncatedContent]
+          })
+        }
+      })
     },
 
     // 處理串流訊息：建立新訊息或更新現有訊息內容
@@ -281,6 +305,24 @@ export const useChatStore = defineStore('chat', {
           isPartial: false
         }
         this.messagesByPodId.set(podId, updatedMessages)
+
+        // Update POD output preview in canvas store
+        // Only update for assistant messages
+        if (existingMessage.role === 'assistant') {
+          // Dynamically import canvas store to avoid circular dependency
+          import('./canvasStore').then(({ useCanvasStore }) => {
+            const canvasStore = useCanvasStore()
+            const pod = canvasStore.pods.find(p => p.id === podId)
+
+            if (pod) {
+              const truncatedContent = truncateContent(fullContent, RESPONSE_PREVIEW_LENGTH)
+              canvasStore.updatePod({
+                ...pod,
+                output: [...pod.output, truncatedContent]
+              })
+            }
+          })
+        }
       }
 
       this.setTyping(podId, false)

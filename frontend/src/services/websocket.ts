@@ -14,6 +14,7 @@ import type {
   PodChatSendPayload,
   PodChatHistoryPayload,
   PodJoinPayload,
+  PodJoinBatchPayload,
   PodLeavePayload,
   OutputStyleListPayload,
   PodBindOutputStylePayload,
@@ -32,6 +33,7 @@ import type {
   PodChatCompletePayload,
   PodChatHistoryResultPayload,
   PodJoinedPayload,
+  PodJoinedBatchPayload,
   PodLeftPayload,
   PodErrorPayload,
   OutputStyleListResultPayload,
@@ -174,6 +176,10 @@ class WebSocketService {
     this.emit(WebSocketRequestEvents.POD_JOIN, payload)
   }
 
+  podJoinBatch(payload: PodJoinBatchPayload): void {
+    this.emit(WebSocketRequestEvents.POD_JOIN_BATCH, payload)
+  }
+
   podLeave(payload: PodLeavePayload): void {
     this.emit(WebSocketRequestEvents.POD_LEAVE, payload)
   }
@@ -284,6 +290,10 @@ class WebSocketService {
 
   onPodJoined(callback: EventCallback<PodJoinedPayload>): void {
     this.on(WebSocketResponseEvents.POD_JOINED, callback)
+  }
+
+  onPodJoinedBatch(callback: EventCallback<PodJoinedBatchPayload>): void {
+    this.on(WebSocketResponseEvents.POD_JOINED_BATCH, callback)
   }
 
   onPodLeft(callback: EventCallback<PodLeftPayload>): void {
@@ -448,6 +458,10 @@ class WebSocketService {
 
   offPodSkillBound(callback: EventCallback<PodSkillBoundPayload>): void {
     this.off(WebSocketResponseEvents.POD_SKILL_BOUND, callback)
+  }
+
+  offPodJoinedBatch(callback: EventCallback<PodJoinedBatchPayload>): void {
+    this.off(WebSocketResponseEvents.POD_JOINED_BATCH, callback)
   }
 
   private emit(event: WebSocketRequestEvents, payload: unknown): void {

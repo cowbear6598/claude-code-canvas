@@ -22,6 +22,7 @@ export const WebSocketRequestEvents = {
   POD_CHAT_SEND: 'pod:chat:send',
   POD_CHAT_HISTORY: 'pod:chat:history',
   POD_JOIN: 'pod:join',
+  POD_JOIN_BATCH: 'pod:join:batch',
   POD_LEAVE: 'pod:leave',
   OUTPUT_STYLE_LIST: 'output-style:list',
   POD_BIND_OUTPUT_STYLE: 'pod:bind-output-style',
@@ -58,6 +59,7 @@ export const WebSocketResponseEvents = {
   POD_CHAT_COMPLETE: 'pod:chat:complete',
   POD_CHAT_HISTORY_RESULT: 'pod:chat:history:result',
   POD_JOINED: 'pod:joined',
+  POD_JOINED_BATCH: 'pod:joined:batch',
   POD_LEFT: 'pod:left',
   POD_ERROR: 'pod:error',
   OUTPUT_STYLE_LIST_RESULT: 'output-style:list:result',
@@ -135,6 +137,10 @@ export interface PodJoinPayload {
 
 export interface PodLeavePayload {
   podId: string
+}
+
+export interface PodJoinBatchPayload {
+  podIds: string[]
 }
 
 export interface PodChatHistoryPayload {
@@ -246,6 +252,11 @@ export interface PodJoinedPayload {
 
 export interface PodLeftPayload {
   podId: string
+}
+
+export interface PodJoinedBatchPayload {
+  joinedPodIds: string[]
+  failedPodIds: string[]
 }
 
 export interface PodErrorPayload {

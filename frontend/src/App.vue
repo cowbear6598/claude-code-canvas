@@ -4,6 +4,7 @@ import { useCanvasStore } from '@/stores/canvasStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import { useSkillStore } from '@/stores/skillStore'
+import { websocketService } from '@/services/websocket'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
 import ChatModal from '@/components/chat/ChatModal.vue'
@@ -88,6 +89,12 @@ const initializeApp = async (): Promise<void> => {
   // Load pods from backend
   await canvasStore.loadPodsFromBackend()
 
+  // Batch join all POD rooms
+  const podIds = canvasStore.pods.map(p => p.id)
+  if (podIds.length > 0) {
+    websocketService.podJoinBatch({ podIds })
+  }
+
   // Load output styles and notes from backend
   await outputStyleStore.loadOutputStyles()
   await outputStyleStore.loadNotesFromBackend()
@@ -98,7 +105,6 @@ const initializeApp = async (): Promise<void> => {
   await skillStore.loadNotesFromBackend()
 
   // Load chat history for all pods
-  const podIds = canvasStore.pods.map(p => p.id)
   if (podIds.length > 0) {
     await chatStore.loadAllPodsHistory(podIds)
 
@@ -131,7 +137,6 @@ onUnmounted(() => {
       v-if="selectedPod"
       :pod="selectedPod"
       @close="handleCloseChat"
-      @update-pod="canvasStore.updatePod"
     />
   </div>
 </template>

@@ -10,6 +10,7 @@ export enum WebSocketRequestEvents {
   POD_CHAT_SEND = 'pod:chat:send',
   POD_CHAT_HISTORY = 'pod:chat:history',
   POD_JOIN = 'pod:join',
+  POD_JOIN_BATCH = 'pod:join:batch',
   POD_LEAVE = 'pod:leave',
   OUTPUT_STYLE_LIST = 'output-style:list',
   POD_BIND_OUTPUT_STYLE = 'pod:bind-output-style',
@@ -41,6 +42,7 @@ export enum WebSocketResponseEvents {
   POD_CHAT_COMPLETE = 'pod:chat:complete',
   POD_CHAT_HISTORY_RESULT = 'pod:chat:history:result',
   POD_JOINED = 'pod:joined',
+  POD_JOINED_BATCH = 'pod:joined:batch',
   POD_LEFT = 'pod:left',
   POD_ERROR = 'pod:error',
   OUTPUT_STYLE_LIST_RESULT = 'output-style:list:result',
@@ -111,6 +113,10 @@ export interface PodChatHistoryPayload {
 
 export interface PodJoinPayload {
   podId: string;
+}
+
+export interface PodJoinBatchPayload {
+  podIds: string[];
 }
 
 export interface PodLeavePayload {
@@ -210,6 +216,11 @@ export interface PodChatHistoryResultPayload {
 
 export interface PodJoinedPayload {
   podId: string;
+}
+
+export interface PodJoinedBatchPayload {
+  joinedPodIds: string[];
+  failedPodIds: string[];
 }
 
 export interface PodLeftPayload {

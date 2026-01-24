@@ -109,6 +109,8 @@ export const useCanvasStore = defineStore('canvas', {
                             }
                             // Add pod to local state
                             this.addPod(frontendPod)
+                            // Join POD room
+                            websocketService.podJoin({ podId: frontendPod.id })
                             resolve(frontendPod)
                         } else {
                             console.error('[CanvasStore] Pod creation failed:', payload.error)
@@ -151,6 +153,8 @@ export const useCanvasStore = defineStore('canvas', {
                         websocketService.offPodDeleted(handlePodDeleted)
 
                         if (payload.success) {
+                            // Leave POD room before deleting
+                            websocketService.podLeave({ podId: id })
                             // Delete pod from local state
                             this.deletePod(id)
                             resolve()
