@@ -82,16 +82,12 @@ export const useChatStore = defineStore('chat', {
 
   actions: {
     initWebSocket(): void {
-      console.log('[ChatStore] Initializing WebSocket')
-
       this.connectionStatus = 'connecting'
       websocketService.connect()
       this.registerListeners()
     },
 
     disconnectWebSocket(): void {
-      console.log('[ChatStore] Disconnecting WebSocket')
-
       this.unregisterListeners()
       websocketService.disconnect()
 
@@ -120,7 +116,6 @@ export const useChatStore = defineStore('chat', {
     },
 
     handleConnectionReady(payload: ConnectionReadyPayload): void {
-      console.log('[ChatStore] Connection ready:', payload)
       this.connectionStatus = 'connected'
       this.socketId = payload.socketId
     },
@@ -132,7 +127,6 @@ export const useChatStore = defineStore('chat', {
       }
 
       if (!content.trim()) {
-        console.warn('[ChatStore] Attempted to send empty message')
         return
       }
 
@@ -163,8 +157,6 @@ export const useChatStore = defineStore('chat', {
 
     // 處理串流訊息：建立新訊息或更新現有訊息內容
     handleChatMessage(payload: PodChatMessagePayload): void {
-      console.log('[ChatStore] Chat message:', payload)
-
       const { podId, messageId, content, isPartial } = payload
       const messages = this.messagesByPodId.get(podId) || []
 
@@ -205,14 +197,11 @@ export const useChatStore = defineStore('chat', {
 
     // 記錄工具使用狀態，追蹤多個工具的執行進度
     handleChatToolUse(payload: PodChatToolUsePayload): void {
-      console.log('[ChatStore] Tool use:', payload)
-
       const { podId, messageId, toolName, input } = payload
       const messages = this.messagesByPodId.get(podId) || []
 
       const messageIndex = messages.findIndex(m => m.id === messageId)
       if (messageIndex === -1) {
-        console.warn('[ChatStore] Message not found for tool use:', messageId)
         return
       }
 
@@ -243,14 +232,11 @@ export const useChatStore = defineStore('chat', {
 
     // 更新工具執行結果，標記為已完成
     handleChatToolResult(payload: PodChatToolResultPayload): void {
-      console.log('[ChatStore] Tool result:', payload)
-
       const { podId, messageId, toolName, output } = payload
       const messages = this.messagesByPodId.get(podId) || []
 
       const messageIndex = messages.findIndex(m => m.id === messageId)
       if (messageIndex === -1) {
-        console.warn('[ChatStore] Message not found for tool result:', messageId)
         return
       }
 
@@ -273,8 +259,6 @@ export const useChatStore = defineStore('chat', {
     },
 
     handleChatComplete(payload: PodChatCompletePayload): void {
-      console.log('[ChatStore] Chat complete:', payload)
-
       const { podId, messageId, fullContent } = payload
       const messages = this.messagesByPodId.get(podId) || []
 
@@ -353,7 +337,6 @@ export const useChatStore = defineStore('chat', {
     async loadPodChatHistory(podId: string): Promise<void> {
       const currentStatus = this.historyLoadingStatus.get(podId)
       if (currentStatus === 'loaded' || currentStatus === 'loading') {
-        console.log(`[ChatStore] Pod ${podId} history already ${currentStatus}`)
         return
       }
 
@@ -365,7 +348,6 @@ export const useChatStore = defineStore('chat', {
         throw new Error(error)
       }
 
-      console.log(`[ChatStore] Loading chat history for pod: ${podId}`)
       this.setHistoryLoadingStatus(podId, 'loading')
 
       return new Promise<void>((resolve, reject) => {
@@ -384,7 +366,6 @@ export const useChatStore = defineStore('chat', {
             )
             this.setPodMessages(podId, messages)
             this.setHistoryLoadingStatus(podId, 'loaded')
-            console.log(`[ChatStore] Loaded ${messages.length} messages for pod: ${podId}`)
             resolve()
           } else {
             const error = payload.error || 'Unknown error'
@@ -416,34 +397,18 @@ export const useChatStore = defineStore('chat', {
     // 平行載入所有 Pods 的聊天歷史，使用 Promise.allSettled 確保部分失敗不會影響其他
     async loadAllPodsHistory(podIds: string[]): Promise<void> {
       if (podIds.length === 0) {
-        console.log('[ChatStore] No pods to load history for')
         this.allHistoryLoaded = true
         return
       }
+        await Promise.allSettled(
+            podIds.map(podId => this.loadPodChatHistory(podId))
+        );
 
-      console.log(`[ChatStore] Loading history for ${podIds.length} pods`)
-
-      const results = await Promise.allSettled(
-        podIds.map(podId => this.loadPodChatHistory(podId))
-      )
-
-      const successCount = results.filter(r => r.status === 'fulfilled').length
-      const failureCount = results.filter(r => r.status === 'rejected').length
-
-      console.log(`[ChatStore] History load complete: ${successCount} succeeded, ${failureCount} failed`)
-
-      if (failureCount > 0) {
-        const failures = results
-          .map((r, i) => r.status === 'rejected' ? podIds[i] : null)
-          .filter((id): id is string => id !== null)
-        console.warn('[ChatStore] Failed to load history for pods:', failures)
-      }
-
-      this.allHistoryLoaded = true
+        this.allHistoryLoaded = true
     },
 
-    handleChatHistoryResult(payload: PodChatHistoryResultPayload): void {
-      console.log('[ChatStore] Chat history result:', payload)
+    handleChatHistoryResult(_: PodChatHistoryResultPayload): void {
+      // Chat history result received
     }
   }
 })

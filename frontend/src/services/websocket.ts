@@ -65,13 +65,10 @@ class WebSocketService {
 
   connect(url?: string): void {
     if (this.socket?.connected) {
-      console.log('[WebSocket] Already connected')
       return
     }
 
     const wsUrl = url || import.meta.env.VITE_WS_URL || 'http://localhost:3001'
-
-    console.log('[WebSocket] Connecting to:', wsUrl)
 
     this.socket = io(wsUrl, {
       reconnection: true,
@@ -86,7 +83,6 @@ class WebSocketService {
 
   disconnect(): void {
     if (this.socket) {
-      console.log('[WebSocket] Disconnecting')
       this.socket.disconnect()
       this.socket = null
       this.socketId.value = null
@@ -97,12 +93,10 @@ class WebSocketService {
     if (!this.socket) return
 
     this.socket.on('connect', () => {
-      console.log('[WebSocket] Connected')
       this.reconnectAttempts = 0
     })
 
-    this.socket.on('disconnect', (reason) => {
-      console.log('[WebSocket] Disconnected:', reason)
+    this.socket.on('disconnect', (_) => {
       this.socketId.value = null
     })
 
@@ -115,13 +109,12 @@ class WebSocketService {
       }
     })
 
-    this.socket.on('reconnect', (attemptNumber) => {
-      console.log('[WebSocket] Reconnected after', attemptNumber, 'attempts')
+    this.socket.on('reconnect', (_) => {
       this.reconnectAttempts = 0
     })
 
-    this.socket.on('reconnect_attempt', (attemptNumber) => {
-      console.log('[WebSocket] Reconnection attempt:', attemptNumber)
+    this.socket.on('reconnect_attempt', (_) => {
+      // Reconnection attempt
     })
 
     this.socket.on('reconnect_error', (error) => {
@@ -377,10 +370,6 @@ class WebSocketService {
     if (!this.socket?.connected) {
       console.error('[WebSocket] Cannot emit, not connected:', event)
       return
-    }
-
-    if (import.meta.env.DEV) {
-      console.log('[WebSocket] Emit:', event, payload)
     }
 
     this.socket.emit(event, payload)

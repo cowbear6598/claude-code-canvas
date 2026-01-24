@@ -8,7 +8,6 @@ import ChatToolPanel from './ChatToolPanel.vue'
 import { useChatStore } from '@/stores/chatStore'
 import { websocketService } from '@/services/websocket'
 import {
-  MAX_MESSAGES_COUNT,
   CONTENT_PREVIEW_LENGTH,
   RESPONSE_PREVIEW_LENGTH,
 } from '@/lib/constants'
@@ -38,11 +37,6 @@ const truncateContent = (content: string, maxLength: number): string => {
 
 const handleSend = async (content: string): Promise<void> => {
   if (!content.trim()) return
-
-  const currentMessages = chatStore.getMessages(props.pod.id)
-  if (currentMessages.length > MAX_MESSAGES_COUNT) {
-    console.warn('[ChatModal] Message count exceeds limit:', MAX_MESSAGES_COUNT)
-  }
 
   try {
     await chatStore.sendMessage(props.pod.id, content)
@@ -93,12 +87,10 @@ watch(
 )
 
 onMounted(() => {
-  console.log('[ChatModal] Joining pod room:', props.pod.id)
   websocketService.podJoin({ podId: props.pod.id })
 })
 
 onUnmounted(() => {
-  console.log('[ChatModal] Leaving pod room:', props.pod.id)
   websocketService.podLeave({ podId: props.pod.id })
 })
 </script>

@@ -154,11 +154,9 @@ const handleSelectPod = () => {
 }
 
 const handleNoteDropped = async (noteId: string) => {
-  console.log('[CanvasPod] Note dropped:', noteId, 'to pod:', props.pod.id)
   try {
     await outputStyleStore.bindToPod(noteId, props.pod.id)
     const note = outputStyleStore.getNoteById(noteId)
-    console.log('[CanvasPod] Bind success, note:', note)
     if (note) {
       canvasStore.updatePodOutputStyle(props.pod.id, note.outputStyleId)
     }

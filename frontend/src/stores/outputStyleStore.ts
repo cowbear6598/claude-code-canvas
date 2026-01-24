@@ -160,6 +160,14 @@ export const useOutputStyleStore = defineStore('outputStyle', {
       })
     },
 
+    // 只更新本地狀態，不發送 WebSocket（用於拖拽過程中）
+    updateNotePositionLocal(noteId: string, x: number, y: number): void {
+      const note = this.notes.find(n => n.id === noteId)
+      if (!note) return
+      note.x = x
+      note.y = y
+    },
+
     async updateNotePosition(noteId: string, x: number, y: number): Promise<void> {
       const note = this.notes.find(n => n.id === noteId)
       if (!note) return
@@ -464,7 +472,6 @@ export const useOutputStyleStore = defineStore('outputStyle', {
 
               if (payload.success && payload.note) {
                 this.notes.push(payload.note)
-                console.log(`[OutputStyleStore] Rebuilt note for Pod ${pod.id} with style ${pod.outputStyleId}`)
                 resolve()
               } else {
                 reject(new Error(payload.error || 'Failed to rebuild note'))

@@ -36,8 +36,6 @@ const truncateContent = (content: string, maxLength: number): string => {
  * Sync chat history to pod output
  */
 const syncHistoryToPodOutput = (): void => {
-  console.log('[App] Syncing chat history to pod output')
-
   for (const pod of canvasStore.pods) {
     const messages = chatStore.getMessages(pod.id)
 
@@ -79,8 +77,6 @@ const handleCloseChat = (): void => {
  * Initialize application on mount
  */
 const initializeApp = async (): Promise<void> => {
-  console.log('[App] Initializing application')
-
   // Initialize WebSocket connection
   chatStore.initWebSocket()
 
@@ -90,36 +86,29 @@ const initializeApp = async (): Promise<void> => {
   // Load pods from backend
   try {
     await canvasStore.loadPodsFromBackend()
-    console.log('[App] Loaded existing pods from backend')
 
     // Load output styles and notes from backend
     try {
       await outputStyleStore.loadOutputStyles()
-      console.log('[App] Output styles loaded')
 
       // Load notes from backend
       await outputStyleStore.loadNotesFromBackend()
-      console.log('[App] Notes loaded from backend')
 
       // Rebuild missing notes from pods
       await outputStyleStore.rebuildNotesFromPods(canvasStore.pods)
-      console.log('[App] Notes rebuilt from pods')
     } catch (e) {
-      console.warn('[App] Failed to load output styles or notes:', e)
+      // Failed to load output styles or notes
     }
 
     // Load chat history for all pods
     const podIds = canvasStore.pods.map(p => p.id)
     if (podIds.length > 0) {
-      console.log('[App] Loading chat history for all pods')
       await chatStore.loadAllPodsHistory(podIds)
-      console.log('[App] Chat history loaded successfully')
 
       // Sync loaded history to pod output
       syncHistoryToPodOutput()
     }
   } catch (error) {
-    console.warn('[App] Initialization warning:', error)
     // App should still work with local pods/without history
   }
 }
@@ -129,7 +118,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  console.log('[App] Disconnecting WebSocket')
   chatStore.disconnectWebSocket()
 })
 </script>

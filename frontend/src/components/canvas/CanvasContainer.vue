@@ -26,7 +26,6 @@ const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash)
 
 const validateCoordinate = (value: number): number => {
   if (!Number.isFinite(value)) {
-    console.warn('[CanvasContainer] Invalid coordinate:', value)
     return 0
   }
   return value
@@ -102,8 +101,9 @@ const handleCreateOutputStyleNote = (outputStyleId: string) => {
   outputStyleStore.createNote(outputStyleId, canvasX, canvasY)
 }
 
+// 拖拽過程中只更新本地狀態，不發 WebSocket
 const handleNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
-  outputStyleStore.updateNotePosition(data.noteId, data.x, data.y)
+  outputStyleStore.updateNotePositionLocal(data.noteId, data.x, data.y)
 }
 
 const handleNoteDragMove = (data: { noteId: string; screenX: number; screenY: number }) => {
@@ -119,17 +119,26 @@ const handleNoteDragComplete = async (data: { noteId: string; isOverTrash: boole
 
   if (data.isOverTrash) {
     if (note.boundToPodId === null) {
+      // 刪除 Note
       try {
         await outputStyleStore.deleteNote(data.noteId)
       } catch (error) {
         console.error('[CanvasContainer] Failed to delete note:', error)
       }
     } else {
+      // 已綁定的 Note 回到原位
       outputStyleStore.setNoteAnimating(data.noteId, true)
       await outputStyleStore.updateNotePosition(data.noteId, data.startX, data.startY)
       setTimeout(() => {
         outputStyleStore.setNoteAnimating(data.noteId, false)
       }, 300)
+    }
+  } else {
+    // 正常拖拽結束，同步最終位置到後端
+    try {
+      await outputStyleStore.updateNotePosition(data.noteId, note.x, note.y)
+    } catch (error) {
+      console.error('[CanvasContainer] Failed to sync note position:', error)
     }
   }
 

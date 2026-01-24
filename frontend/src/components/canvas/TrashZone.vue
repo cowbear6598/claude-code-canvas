@@ -12,7 +12,6 @@ const trashZoneRef = ref<HTMLDivElement | null>(null)
 
 const isPointInZone = (x: number, y: number): boolean => {
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    console.warn('[TrashZone] Invalid coordinates:', { x, y })
     return false
   }
 

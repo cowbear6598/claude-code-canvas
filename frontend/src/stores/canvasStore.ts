@@ -182,7 +182,6 @@ export const useCanvasStore = defineStore('canvas', {
          * Adds frontend-specific fields (x, y, rotation, output) if missing
          */
         syncPodsFromBackend(pods: Pod[]): void {
-            console.log('[CanvasStore] Syncing pods from backend:', pods.length)
             // Add frontend-specific fields to backend pods
             const enrichedPods = pods.map((pod, index) => ({
                 ...pod,
