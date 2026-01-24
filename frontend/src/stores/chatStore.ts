@@ -181,7 +181,7 @@ export const useChatStore = defineStore('chat', {
 
     // 處理串流訊息：建立新訊息或更新現有訊息內容
     handleChatMessage(payload: PodChatMessagePayload): void {
-      const { podId, messageId, content, isPartial } = payload
+      const { podId, messageId, content, isPartial, role } = payload
       const messages = this.messagesByPodId.get(podId) || []
 
       const messageIndex = messages.findIndex(m => m.id === messageId)
@@ -189,7 +189,7 @@ export const useChatStore = defineStore('chat', {
       if (messageIndex === -1) {
         const newMessage: Message = {
           id: messageId,
-          role: 'assistant',
+          role: role || 'assistant',
           content,
           isPartial,
           timestamp: new Date().toISOString()

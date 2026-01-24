@@ -28,6 +28,7 @@ export enum WebSocketRequestEvents {
   CONNECTION_CREATE = 'connection:create',
   CONNECTION_LIST = 'connection:list',
   CONNECTION_DELETE = 'connection:delete',
+  WORKFLOW_TRIGGER = 'workflow:trigger',
 }
 
 export enum WebSocketResponseEvents {
@@ -64,6 +65,9 @@ export enum WebSocketResponseEvents {
   CONNECTION_CREATED = 'connection:created',
   CONNECTION_LIST_RESULT = 'connection:list:result',
   CONNECTION_DELETED = 'connection:deleted',
+  WORKFLOW_TRIGGERED = 'workflow:triggered',
+  WORKFLOW_COMPLETE = 'workflow:complete',
+  WORKFLOW_ERROR = 'workflow:error',
 }
 
 export interface PodCreatePayload {
@@ -186,6 +190,7 @@ export interface PodChatMessagePayload {
   messageId: string;
   content: string;
   isPartial: boolean;
+  role?: 'user' | 'assistant';
 }
 
 export interface PodChatToolUsePayload {
@@ -451,4 +456,34 @@ export interface ConnectionDeletedPayload {
   success: boolean;
   connectionId?: string;
   error?: string;
+}
+
+export interface WorkflowTriggerPayload {
+  requestId: string;
+  connectionId: string;
+}
+
+export interface WorkflowTriggeredPayload {
+  requestId: string;
+  success: boolean;
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+  transferredContent: string;
+  error?: string;
+}
+
+export interface WorkflowCompletePayload {
+  requestId: string;
+  connectionId: string;
+  targetPodId: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface WorkflowErrorPayload {
+  requestId: string;
+  connectionId: string;
+  error: string;
+  code: string;
 }

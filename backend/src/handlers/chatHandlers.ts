@@ -139,6 +139,7 @@ export async function handleChatSend(
           messageId,
           content: accumulatedContent,
           isPartial: true,
+          role: 'assistant',
         };
         socketService.emitToPod(
           podId,

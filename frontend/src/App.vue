@@ -109,6 +109,9 @@ const initializeApp = async (): Promise<void> => {
   // Load connections from backend
   await connectionStore.loadConnectionsFromBackend()
 
+  // Setup workflow listeners
+  connectionStore.setupWorkflowListeners()
+
   // Load chat history for all pods
   if (podIds.length > 0) {
     await chatStore.loadAllPodsHistory(podIds)

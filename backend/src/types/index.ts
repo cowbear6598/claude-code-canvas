@@ -102,4 +102,8 @@ export {
   type ConnectionListResultPayload,
   type ConnectionDeletePayload,
   type ConnectionDeletedPayload,
+  type WorkflowTriggerPayload,
+  type WorkflowTriggeredPayload,
+  type WorkflowCompletePayload,
+  type WorkflowErrorPayload,
 } from './websocket.js';

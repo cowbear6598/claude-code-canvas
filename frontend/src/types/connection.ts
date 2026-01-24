@@ -2,6 +2,8 @@ export type AnchorPosition = 'top' | 'bottom' | 'left' | 'right'
 
 export type ConnectionStatus = 'inactive' | 'active'
 
+export type WorkflowStatus = 'idle' | 'transferring' | 'processing' | 'completed' | 'error'
+
 export interface Connection {
   id: string
   sourcePodId: string
@@ -10,6 +12,7 @@ export interface Connection {
   targetAnchor: AnchorPosition
   createdAt: Date
   status?: ConnectionStatus
+  workflowStatus?: WorkflowStatus
 }
 
 export interface DraggingConnection {

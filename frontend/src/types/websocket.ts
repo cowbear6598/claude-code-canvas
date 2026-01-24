@@ -40,6 +40,7 @@ export const WebSocketRequestEvents = {
   CONNECTION_CREATE: 'connection:create',
   CONNECTION_LIST: 'connection:list',
   CONNECTION_DELETE: 'connection:delete',
+  WORKFLOW_TRIGGER: 'workflow:trigger',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -81,6 +82,9 @@ export const WebSocketResponseEvents = {
   CONNECTION_CREATED: 'connection:created',
   CONNECTION_LIST_RESULT: 'connection:list:result',
   CONNECTION_DELETED: 'connection:deleted',
+  WORKFLOW_TRIGGERED: 'workflow:triggered',
+  WORKFLOW_COMPLETE: 'workflow:complete',
+  WORKFLOW_ERROR: 'workflow:error',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]
@@ -230,6 +234,7 @@ export interface PodChatMessagePayload {
   messageId: string
   content: string
   isPartial: boolean
+  role?: 'user' | 'assistant'
 }
 
 export interface PodChatToolUsePayload {
@@ -423,6 +428,11 @@ export interface ConnectionDeletePayload {
   connectionId: string
 }
 
+export interface WorkflowTriggerPayload {
+  requestId: string
+  connectionId: string
+}
+
 // ============================================================================
 // Skill Response Payload Types
 // ============================================================================
@@ -502,4 +512,29 @@ export interface ConnectionDeletedPayload {
   success: boolean
   connectionId?: string
   error?: string
+}
+
+export interface WorkflowTriggeredPayload {
+  requestId: string
+  success: boolean
+  connectionId: string
+  sourcePodId: string
+  targetPodId: string
+  transferredContent: string
+  error?: string
+}
+
+export interface WorkflowCompletePayload {
+  requestId: string
+  connectionId: string
+  targetPodId: string
+  success: boolean
+  error?: string
+}
+
+export interface WorkflowErrorPayload {
+  requestId: string
+  connectionId: string
+  error: string
+  code: string
 }

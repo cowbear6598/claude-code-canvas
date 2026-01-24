@@ -688,3 +688,123 @@
 .connection-line.active .line {
   filter: drop-shadow(0 0 3px currentColor);
 }
+
+/* Workflow Trigger Button */
+.workflow-trigger-btn {
+  position: absolute;
+  right: -14px;
+  bottom: -14px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--doodle-yellow);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 60;
+  box-shadow: 1px 1px 0 oklch(0.4 0.02 50 / 0.4);
+}
+
+.workflow-trigger-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.5);
+}
+
+.workflow-trigger-btn.loading {
+  pointer-events: none;
+  animation: workflow-btn-rotate 1s linear infinite;
+}
+
+.workflow-trigger-btn.error {
+  background: oklch(0.65 0.2 25);
+  animation: workflow-btn-shake 0.3s ease;
+}
+
+@keyframes workflow-btn-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes workflow-btn-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes workflow-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+/* Workflow Connection Line States */
+.connection-line.transferring .line {
+  stroke: oklch(0.7 0.2 220) !important;
+  stroke-dasharray: 10, 5;
+  animation: connection-flow 1s linear infinite;
+}
+
+@keyframes connection-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -15;
+  }
+}
+
+.connection-line.processing .line {
+  stroke: oklch(0.75 0.15 60) !important;
+  animation: connection-pulse 1s ease-in-out infinite;
+}
+
+@keyframes connection-pulse {
+  0%, 100% {
+    stroke-width: 3px;
+    opacity: 0.8;
+  }
+  50% {
+    stroke-width: 5px;
+    opacity: 1;
+  }
+}
+
+.connection-line.completed .line {
+  stroke: oklch(0.7 0.2 150) !important;
+  transition: stroke 0.3s ease;
+}
+
+.connection-line.error .line {
+  stroke: oklch(0.65 0.2 25) !important;
+  animation: connection-shake 0.3s ease;
+}
+
+@keyframes connection-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}

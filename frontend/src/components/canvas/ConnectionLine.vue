@@ -142,7 +142,15 @@ const handleDoubleClick = (e: MouseEvent) => {
   <g
     :class="[
       'connection-line',
-      { selected: isSelected, active: status === 'active', inactive: status !== 'active' },
+      {
+        selected: isSelected,
+        active: status === 'active',
+        inactive: status !== 'active',
+        transferring: connection.workflowStatus === 'transferring',
+        processing: connection.workflowStatus === 'processing',
+        completed: connection.workflowStatus === 'completed',
+        error: connection.workflowStatus === 'error',
+      },
     ]"
     @click="handleClick"
     @dblclick="handleDoubleClick"

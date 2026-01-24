@@ -13,6 +13,7 @@ import PodStickyTab from './PodStickyTab.vue'
 import PodOutputStyleSlot from './PodOutputStyleSlot.vue'
 import PodSkillSlot from './PodSkillSlot.vue'
 import PodAnchor from './PodAnchor.vue'
+import WorkflowTriggerButton from './WorkflowTriggerButton.vue'
 
 const props = defineProps<{
   pod: Pod
@@ -27,6 +28,7 @@ const { detectTargetAnchor } = useAnchorDetection()
 const isActive = computed(() => props.pod.id === canvasStore.activePodId)
 const boundNote = computed(() => outputStyleStore.getNoteByPodId(props.pod.id))
 const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
+const outgoingConnections = computed(() => connectionStore.getOutgoingConnections(props.pod.id))
 
 const emit = defineEmits<{
   select: [podId: string]
@@ -311,6 +313,12 @@ const handleAnchorDragEnd = async () => {
           @drag-start="handleAnchorDragStart"
           @drag-move="handleAnchorDragMove"
           @drag-end="handleAnchorDragEnd"
+        />
+
+        <!-- Workflow Trigger Button -->
+        <WorkflowTriggerButton
+          :pod-id="pod.id"
+          :connections="outgoingConnections"
         />
 
         <div class="p-3">

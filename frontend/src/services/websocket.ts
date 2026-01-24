@@ -64,7 +64,11 @@ import type {
   ConnectionDeletePayload,
   ConnectionCreatedPayload,
   ConnectionListResultPayload,
-  ConnectionDeletedPayload
+  ConnectionDeletedPayload,
+  WorkflowTriggerPayload,
+  WorkflowTriggeredPayload,
+  WorkflowCompletePayload,
+  WorkflowErrorPayload
 } from '@/types/websocket'
 
 type EventCallback<T> = (payload: T) => void
@@ -254,6 +258,10 @@ class WebSocketService {
     this.emit(WebSocketRequestEvents.CONNECTION_DELETE, payload)
   }
 
+  workflowTrigger(payload: WorkflowTriggerPayload): void {
+    this.emit(WebSocketRequestEvents.WORKFLOW_TRIGGER, payload)
+  }
+
   onConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.on(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -386,6 +394,18 @@ class WebSocketService {
     this.on(WebSocketResponseEvents.CONNECTION_DELETED, callback)
   }
 
+  onWorkflowTriggered(callback: EventCallback<WorkflowTriggeredPayload>): void {
+    this.on(WebSocketResponseEvents.WORKFLOW_TRIGGERED, callback)
+  }
+
+  onWorkflowComplete(callback: EventCallback<WorkflowCompletePayload>): void {
+    this.on(WebSocketResponseEvents.WORKFLOW_COMPLETE, callback)
+  }
+
+  onWorkflowError(callback: EventCallback<WorkflowErrorPayload>): void {
+    this.on(WebSocketResponseEvents.WORKFLOW_ERROR, callback)
+  }
+
   offConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.off(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -504,6 +524,18 @@ class WebSocketService {
 
   offConnectionDeleted(callback: EventCallback<ConnectionDeletedPayload>): void {
     this.off(WebSocketResponseEvents.CONNECTION_DELETED, callback)
+  }
+
+  offWorkflowTriggered(callback: EventCallback<WorkflowTriggeredPayload>): void {
+    this.off(WebSocketResponseEvents.WORKFLOW_TRIGGERED, callback)
+  }
+
+  offWorkflowComplete(callback: EventCallback<WorkflowCompletePayload>): void {
+    this.off(WebSocketResponseEvents.WORKFLOW_COMPLETE, callback)
+  }
+
+  offWorkflowError(callback: EventCallback<WorkflowErrorPayload>): void {
+    this.off(WebSocketResponseEvents.WORKFLOW_ERROR, callback)
   }
 
   private emit(event: WebSocketRequestEvents, payload: unknown): void {

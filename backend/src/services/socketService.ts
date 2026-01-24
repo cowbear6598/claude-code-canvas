@@ -15,6 +15,9 @@ import {
   PodChatToolResultPayload,
   PodChatCompletePayload,
   PodErrorPayload,
+  WorkflowTriggeredPayload,
+  WorkflowCompletePayload,
+  WorkflowErrorPayload,
 } from '../types/index.js';
 
 class SocketService {
@@ -120,6 +123,18 @@ class SocketService {
 
   emitError(socketId: string, payload: PodErrorPayload): void {
     this.emitToSocket(socketId, WebSocketResponseEvents.POD_ERROR, payload);
+  }
+
+  emitWorkflowTriggered(socketId: string, payload: WorkflowTriggeredPayload): void {
+    this.emitToSocket(socketId, WebSocketResponseEvents.WORKFLOW_TRIGGERED, payload);
+  }
+
+  emitWorkflowComplete(socketId: string, payload: WorkflowCompletePayload): void {
+    this.emitToSocket(socketId, WebSocketResponseEvents.WORKFLOW_COMPLETE, payload);
+  }
+
+  emitWorkflowError(socketId: string, payload: WorkflowErrorPayload): void {
+    this.emitToSocket(socketId, WebSocketResponseEvents.WORKFLOW_ERROR, payload);
   }
 
   joinPodRoom(socketId: string, podId: string): void {

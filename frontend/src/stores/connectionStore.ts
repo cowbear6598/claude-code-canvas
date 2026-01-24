@@ -1,11 +1,14 @@
 import { defineStore } from 'pinia'
-import type { Connection, DraggingConnection, AnchorPosition } from '@/types/connection'
+import type { Connection, DraggingConnection, AnchorPosition, WorkflowStatus } from '@/types/connection'
 import { websocketService } from '@/services/websocket'
 import { generateRequestId } from '@/services/utils'
 import type {
   ConnectionCreatedPayload,
   ConnectionListResultPayload,
-  ConnectionDeletedPayload
+  ConnectionDeletedPayload,
+  WorkflowTriggeredPayload,
+  WorkflowCompletePayload,
+  WorkflowErrorPayload
 } from '@/types/websocket'
 
 interface ConnectionState {
@@ -26,6 +29,10 @@ export const useConnectionStore = defineStore('connection', {
       return state.connections.filter(
         conn => conn.sourcePodId === podId || conn.targetPodId === podId
       )
+    },
+
+    getOutgoingConnections: (state) => (podId: string): Connection[] => {
+      return state.connections.filter(conn => conn.sourcePodId === podId)
     },
 
     selectedConnection: (state): Connection | null => {
@@ -183,6 +190,100 @@ export const useConnectionStore = defineStore('connection', {
 
     endDragging(): void {
       this.draggingConnection = null
+    },
+
+    async triggerWorkflow(connectionId: string): Promise<void> {
+      return new Promise((resolve, reject) => {
+        const requestId = generateRequestId()
+        const connection = this.connections.find(c => c.id === connectionId)
+
+        if (!connection) {
+          reject(new Error('Connection not found'))
+          return
+        }
+
+        this.updateConnectionWorkflowStatus(connectionId, 'transferring')
+
+        const handleWorkflowTriggered = (payload: WorkflowTriggeredPayload) => {
+          if (payload.requestId === requestId) {
+            websocketService.offWorkflowTriggered(handleWorkflowTriggered)
+            clearTimeout(timeoutId)
+
+            if (payload.success) {
+              resolve()
+            } else {
+              this.updateConnectionWorkflowStatus(connectionId, 'error')
+              setTimeout(() => {
+                this.updateConnectionWorkflowStatus(connectionId, 'idle')
+              }, 3000)
+              reject(new Error(payload.error || 'Unknown error'))
+            }
+          }
+        }
+
+        const timeoutId = setTimeout(() => {
+          websocketService.offWorkflowTriggered(handleWorkflowTriggered)
+          this.updateConnectionWorkflowStatus(connectionId, 'error')
+          setTimeout(() => {
+            this.updateConnectionWorkflowStatus(connectionId, 'idle')
+          }, 3000)
+          reject(new Error('Workflow trigger timeout'))
+        }, 10000)
+
+        websocketService.onWorkflowTriggered(handleWorkflowTriggered)
+        websocketService.workflowTrigger({ requestId, connectionId })
+      })
+    },
+
+    updateConnectionWorkflowStatus(connectionId: string, status: WorkflowStatus): void {
+      const connection = this.connections.find(c => c.id === connectionId)
+      if (connection) {
+        connection.workflowStatus = status
+      }
+    },
+
+    setupWorkflowListeners(): void {
+      websocketService.onWorkflowTriggered((payload: WorkflowTriggeredPayload) => {
+        if (payload.success) {
+          this.updateConnectionWorkflowStatus(payload.connectionId, 'processing')
+        }
+      })
+
+      websocketService.onWorkflowComplete((payload: WorkflowCompletePayload) => {
+        if (payload.success) {
+          this.updateConnectionWorkflowStatus(payload.connectionId, 'completed')
+          setTimeout(() => {
+            this.updateConnectionWorkflowStatus(payload.connectionId, 'idle')
+          }, 3000)
+        } else {
+          this.updateConnectionWorkflowStatus(payload.connectionId, 'error')
+          console.error('[ConnectionStore] Workflow complete error:', payload.error)
+          setTimeout(() => {
+            this.updateConnectionWorkflowStatus(payload.connectionId, 'idle')
+          }, 3000)
+        }
+      })
+
+      websocketService.onWorkflowError((payload: WorkflowErrorPayload) => {
+        this.updateConnectionWorkflowStatus(payload.connectionId, 'error')
+
+        const errorMessages: Record<string, string> = {
+          VALIDATION_ERROR: '請求格式錯誤',
+          CONNECTION_NOT_FOUND: '連線不存在，請重新整理頁面',
+          SOURCE_POD_NOT_FOUND: '來源 POD 不存在',
+          TARGET_POD_NOT_FOUND: '目標 POD 不存在',
+          TARGET_POD_BUSY: '目標 POD 正在處理中，請稍後再試',
+          NO_SOURCE_CONTENT: '來源 POD 沒有可傳遞的內容',
+          INTERNAL_ERROR: '系統錯誤，請稍後再試',
+        }
+
+        const message = errorMessages[payload.code] || payload.error
+        console.error('[ConnectionStore] Workflow error:', message, payload)
+
+        setTimeout(() => {
+          this.updateConnectionWorkflowStatus(payload.connectionId, 'idle')
+        }, 3000)
+      })
     },
   },
 })
