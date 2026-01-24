@@ -13,6 +13,7 @@ export interface Connection {
   createdAt: Date
   status?: ConnectionStatus
   workflowStatus?: WorkflowStatus
+  autoTrigger?: boolean
 }
 
 export interface DraggingConnection {

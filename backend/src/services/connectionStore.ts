@@ -4,8 +4,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Connection, AnchorPosition } from '../types/connection.js';
-import type { PersistedConnection } from '../types/persistence.js';
+import type { Connection, AnchorPosition } from '../types/index.js';
+import type { PersistedConnection } from '../types/index.js';
 import { config } from '../config/index.js';
 
 interface CreateConnectionData {
@@ -13,6 +13,7 @@ interface CreateConnectionData {
   sourceAnchor: AnchorPosition;
   targetPodId: string;
   targetAnchor: AnchorPosition;
+  autoTrigger?: boolean;
 }
 
 class ConnectionStore {
@@ -35,6 +36,7 @@ class ConnectionStore {
       sourceAnchor: data.sourceAnchor,
       targetPodId: data.targetPodId,
       targetAnchor: data.targetAnchor,
+      autoTrigger: data.autoTrigger ?? false,
       createdAt: new Date(),
     };
 
@@ -79,6 +81,34 @@ class ConnectionStore {
   }
 
   /**
+   * Find outgoing connections from a source Pod
+   */
+  findBySourcePodId(sourcePodId: string): Connection[] {
+    return Array.from(this.connections.values()).filter(
+      (connection) => connection.sourcePodId === sourcePodId
+    );
+  }
+
+  /**
+   * Update a connection
+   */
+  update(id: string, updates: Partial<{ autoTrigger: boolean }>): Connection | undefined {
+    const connection = this.connections.get(id);
+    if (!connection) {
+      return undefined;
+    }
+
+    if (updates.autoTrigger !== undefined) {
+      connection.autoTrigger = updates.autoTrigger;
+    }
+
+    this.connections.set(id, connection);
+    this.saveToDiskAsync();
+
+    return connection;
+  }
+
+  /**
    * Delete all connections related to a specific Pod
    */
   deleteByPodId(podId: string): number {
@@ -110,6 +140,7 @@ class ConnectionStore {
       for (const persisted of persistedConnections) {
         const connection: Connection = {
           ...persisted,
+          autoTrigger: persisted.autoTrigger ?? false,
           createdAt: new Date(persisted.createdAt),
         };
         this.connections.set(connection.id, connection);
@@ -142,6 +173,7 @@ class ConnectionStore {
       sourceAnchor: connection.sourceAnchor,
       targetPodId: connection.targetPodId,
       targetAnchor: connection.targetAnchor,
+      autoTrigger: connection.autoTrigger,
       createdAt: connection.createdAt.toISOString(),
     }));
 

@@ -65,8 +65,11 @@ export {
   type ConnectionListResultPayload,
   type ConnectionDeletePayload,
   type ConnectionDeletedPayload,
+  type ConnectionUpdatePayload,
+  type ConnectionUpdatedPayload,
   type WorkflowTriggerPayload,
   type WorkflowTriggeredPayload,
+  type WorkflowAutoTriggeredPayload,
   type WorkflowCompletePayload,
   type WorkflowErrorPayload,
 } from './websocket-events.js';

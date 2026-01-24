@@ -7,9 +7,11 @@ import {
   type ConnectionCreatePayload,
   type ConnectionListPayload,
   type ConnectionDeletePayload,
+  type ConnectionUpdatePayload,
   type ConnectionCreatedPayload,
   type ConnectionListResultPayload,
   type ConnectionDeletedPayload,
+  type ConnectionUpdatedPayload,
 } from '../types/index.js';
 import { connectionStore } from '../services/connectionStore.js';
 import { podStore } from '../services/podStore.js';
@@ -231,4 +233,84 @@ export async function handleConnectionDelete(
   emitSuccess(socket, WebSocketResponseEvents.CONNECTION_DELETED, response);
 
   console.log(`[Connection] Deleted connection ${connectionId}`);
+}
+
+/**
+ * Handle connection update request
+ */
+export async function handleConnectionUpdate(
+  socket: Socket,
+  payload: unknown
+): Promise<void> {
+  const validation = tryValidatePayload<ConnectionUpdatePayload>(payload, [
+    'requestId',
+    'connectionId',
+  ]);
+
+  if (!validation.success) {
+    const requestId =
+      typeof payload === 'object' && payload && 'requestId' in payload
+        ? (payload.requestId as string)
+        : undefined;
+
+    emitError(
+      socket,
+      WebSocketResponseEvents.CONNECTION_UPDATED,
+      validation.error!,
+      requestId,
+      undefined,
+      'VALIDATION_ERROR'
+    );
+
+    console.error(`[Connection] Failed to update connection: ${validation.error}`);
+    return;
+  }
+
+  const { requestId, connectionId, autoTrigger } = validation.data!;
+
+  const connection = connectionStore.getById(connectionId);
+  if (!connection) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.CONNECTION_UPDATED,
+      `Connection not found: ${connectionId}`,
+      requestId,
+      undefined,
+      'NOT_FOUND'
+    );
+
+    console.error(`[Connection] Failed to update connection: Connection not found: ${connectionId}`);
+    return;
+  }
+
+  const updates: Partial<{ autoTrigger: boolean }> = {};
+  if (autoTrigger !== undefined) {
+    updates.autoTrigger = autoTrigger;
+  }
+
+  const updatedConnection = connectionStore.update(connectionId, updates);
+
+  if (!updatedConnection) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.CONNECTION_UPDATED,
+      `Failed to update connection: ${connectionId}`,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+
+    console.error(`[Connection] Failed to update connection: ${connectionId}`);
+    return;
+  }
+
+  const response: ConnectionUpdatedPayload = {
+    requestId,
+    success: true,
+    connection: updatedConnection,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.CONNECTION_UPDATED, response);
+
+  console.log(`[Connection] Updated connection ${connectionId}`);
 }

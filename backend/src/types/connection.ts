@@ -9,5 +9,6 @@ export interface Connection {
   sourceAnchor: AnchorPosition;
   targetPodId: string;
   targetAnchor: AnchorPosition;
+  autoTrigger: boolean;
   createdAt: Date;
 }

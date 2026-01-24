@@ -16,6 +16,8 @@ import { podStore } from '../services/podStore.js';
 import { messageStore } from '../services/messageStore.js';
 import { claudeQueryService } from '../services/claude/queryService.js';
 import { socketService } from '../services/socketService.js';
+import { summaryService } from '../services/summaryService.js';
+import { workflowTriggerService } from '../services/workflowTriggerService.js';
 import { tryValidatePayload } from '../utils/websocketResponse.js';
 import { extractRequestId } from '../utils/payloadUtils.js';
 
@@ -125,8 +127,74 @@ export async function handleWorkflowTrigger(
     return;
   }
 
-  const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
-  const transferredContent = lastAssistantMessage.content;
+  let transferredContent: string;
+  let isSummarized: boolean;
+
+  try {
+    console.log(
+      `[Workflow] Generating summary using source POD ${sourcePodId} session`
+    );
+
+    // Generate a unique message ID for the summary request
+    const summaryMessageId = uuidv4();
+    let summaryContent = '';
+
+    transferredContent = await summaryService.generateSummaryWithSession(
+      sourcePodId,
+      (event) => {
+        // Stream summary generation events to source POD
+        switch (event.type) {
+          case 'text': {
+            summaryContent += event.content;
+
+            const textPayload: PodChatMessagePayload = {
+              podId: sourcePodId,
+              messageId: summaryMessageId,
+              content: summaryContent,
+              isPartial: true,
+              role: 'assistant',
+            };
+            socketService.emitToPod(
+              sourcePodId,
+              WebSocketResponseEvents.POD_CHAT_MESSAGE,
+              textPayload
+            );
+            break;
+          }
+
+          case 'complete': {
+            const completePayload: PodChatCompletePayload = {
+              podId: sourcePodId,
+              messageId: summaryMessageId,
+              fullContent: summaryContent,
+            };
+            socketService.emitToPod(
+              sourcePodId,
+              WebSocketResponseEvents.POD_CHAT_COMPLETE,
+              completePayload
+            );
+            break;
+          }
+
+          case 'error': {
+            console.error(`[Workflow] Summary generation error: ${event.error}`);
+            break;
+          }
+        }
+      }
+    );
+
+    isSummarized = true;
+
+    console.log(
+      `[Workflow] Summary generated successfully, length: ${transferredContent.length} chars`
+    );
+  } catch (error) {
+    console.error('[Workflow] Failed to generate summary, using last assistant message:', error);
+    const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
+    transferredContent = lastAssistantMessage.content;
+    isSummarized = false;
+  }
 
   const triggeredPayload: WorkflowTriggeredPayload = {
     requestId,
@@ -135,11 +203,12 @@ export async function handleWorkflowTrigger(
     sourcePodId,
     targetPodId,
     transferredContent,
+    isSummarized,
   };
 
   socket.emit(WebSocketResponseEvents.WORKFLOW_TRIGGERED, triggeredPayload);
   console.log(
-    `[Workflow] Triggered workflow from Pod ${sourcePodId} to Pod ${targetPodId}`
+    `[Workflow] Triggered workflow from Pod ${sourcePodId} to Pod ${targetPodId} (summarized: ${isSummarized})`
   );
 
   podStore.setStatus(targetPodId, 'busy');
@@ -266,6 +335,10 @@ ${transferredContent}
     console.log(
       `[Workflow] Completed workflow for connection ${connectionId}, target Pod ${targetPodId}`
     );
+
+    workflowTriggerService.checkAndTriggerWorkflows(targetPodId).catch((error) => {
+      console.error(`[Workflow] Failed to check auto-trigger workflows for Pod ${targetPodId}:`, error);
+    });
   } catch (error) {
     podStore.setStatus(targetPodId, 'idle');
 

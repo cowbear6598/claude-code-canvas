@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Message } from '@/types'
-import { Hammer, Check, Loader2, AlertCircle } from 'lucide-vue-next'
+import { Hammer, Check, Loader2, AlertCircle, FileText } from 'lucide-vue-next'
 
 defineProps<{
   message: Message
@@ -67,6 +67,12 @@ const getToolStatusColor = (status: string) => {
 
       <!-- Message Content -->
       <div class="p-3">
+        <!-- Summary Badge -->
+        <div v-if="message.isSummarized" class="message-summary-badge">
+          <FileText :size="10" />
+          <span>摘要</span>
+        </div>
+
         <p class="font-mono text-sm whitespace-pre-wrap">{{ message.content }}</p>
         <!-- Partial message indicator -->
         <span v-if="message.isPartial" class="inline-block w-1.5 h-4 bg-foreground animate-pulse ml-0.5" />

@@ -62,13 +62,16 @@ import type {
   ConnectionCreatePayload,
   ConnectionListPayload,
   ConnectionDeletePayload,
+  ConnectionUpdatePayload,
   ConnectionCreatedPayload,
   ConnectionListResultPayload,
   ConnectionDeletedPayload,
+  ConnectionUpdatedPayload,
   WorkflowTriggerPayload,
   WorkflowTriggeredPayload,
   WorkflowCompletePayload,
-  WorkflowErrorPayload
+  WorkflowErrorPayload,
+  WorkflowAutoTriggeredPayload
 } from '@/types/websocket'
 
 type EventCallback<T> = (payload: T) => void
@@ -258,6 +261,10 @@ class WebSocketService {
     this.emit(WebSocketRequestEvents.CONNECTION_DELETE, payload)
   }
 
+  connectionUpdate(payload: ConnectionUpdatePayload): void {
+    this.emit(WebSocketRequestEvents.CONNECTION_UPDATE, payload)
+  }
+
   workflowTrigger(payload: WorkflowTriggerPayload): void {
     this.emit(WebSocketRequestEvents.WORKFLOW_TRIGGER, payload)
   }
@@ -394,8 +401,16 @@ class WebSocketService {
     this.on(WebSocketResponseEvents.CONNECTION_DELETED, callback)
   }
 
+  onConnectionUpdated(callback: EventCallback<ConnectionUpdatedPayload>): void {
+    this.on(WebSocketResponseEvents.CONNECTION_UPDATED, callback)
+  }
+
   onWorkflowTriggered(callback: EventCallback<WorkflowTriggeredPayload>): void {
     this.on(WebSocketResponseEvents.WORKFLOW_TRIGGERED, callback)
+  }
+
+  onWorkflowAutoTriggered(callback: EventCallback<WorkflowAutoTriggeredPayload>): void {
+    this.on(WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, callback)
   }
 
   onWorkflowComplete(callback: EventCallback<WorkflowCompletePayload>): void {
@@ -526,8 +541,16 @@ class WebSocketService {
     this.off(WebSocketResponseEvents.CONNECTION_DELETED, callback)
   }
 
+  offConnectionUpdated(callback: EventCallback<ConnectionUpdatedPayload>): void {
+    this.off(WebSocketResponseEvents.CONNECTION_UPDATED, callback)
+  }
+
   offWorkflowTriggered(callback: EventCallback<WorkflowTriggeredPayload>): void {
     this.off(WebSocketResponseEvents.WORKFLOW_TRIGGERED, callback)
+  }
+
+  offWorkflowAutoTriggered(callback: EventCallback<WorkflowAutoTriggeredPayload>): void {
+    this.off(WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, callback)
   }
 
   offWorkflowComplete(callback: EventCallback<WorkflowCompletePayload>): void {

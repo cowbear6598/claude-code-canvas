@@ -53,5 +53,6 @@ export interface PersistedConnection {
   sourceAnchor: AnchorPosition;
   targetPodId: string;
   targetAnchor: AnchorPosition;
+  autoTrigger: boolean;
   createdAt: string; // ISO 8601 format
 }

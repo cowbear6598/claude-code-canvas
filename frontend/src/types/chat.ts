@@ -35,6 +35,8 @@ export interface Message {
   isPartial?: boolean
   toolUse?: ToolUseInfo[]
   timestamp?: string
+  isSummarized?: boolean
+  sourceInfo?: { podId: string; podName: string }
 }
 
 /**

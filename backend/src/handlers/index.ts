@@ -35,6 +35,7 @@ import {
   handleConnectionCreate,
   handleConnectionList,
   handleConnectionDelete,
+  handleConnectionUpdate,
 } from './connectionHandlers.js';
 import { handleWorkflowTrigger } from './workflowHandlers.js';
 
@@ -146,6 +147,10 @@ export function registerAllHandlers(socket: Socket): void {
     handleConnectionDelete(socket, payload);
   });
 
+  socket.on(WebSocketRequestEvents.CONNECTION_UPDATE, (payload) => {
+    handleConnectionUpdate(socket, payload);
+  });
+
   // Workflow handlers
   socket.on(WebSocketRequestEvents.WORKFLOW_TRIGGER, (payload) => {
     handleWorkflowTrigger(socket, payload);
@@ -180,5 +185,6 @@ export {
   handleConnectionCreate,
   handleConnectionList,
   handleConnectionDelete,
+  handleConnectionUpdate,
   handleWorkflowTrigger,
 };

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Zap } from 'lucide-vue-next'
 import type { Connection } from '@/types/connection'
 import type { Pod } from '@/types/pod'
 import { useConnectionStore } from '@/stores/connectionStore'
@@ -20,6 +21,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   select: [connectionId: string]
+  contextmenu: [connectionId: string, event: MouseEvent]
 }>()
 
 const connectionStore = useConnectionStore()
@@ -79,6 +81,21 @@ const actualTargetColor = computed(() => {
 })
 
 const arrowColor = computed(() => {
+  // Workflow status takes priority
+  if (props.connection.workflowStatus === 'transferring') {
+    return 'oklch(0.7 0.2 220)'
+  }
+  if (props.connection.workflowStatus === 'processing') {
+    return 'oklch(0.75 0.15 60)'
+  }
+  if (props.connection.workflowStatus === 'completed') {
+    return 'oklch(0.7 0.2 150)'
+  }
+  if (props.connection.workflowStatus === 'error') {
+    return 'oklch(0.65 0.2 25)'
+  }
+
+  // Default status based colors
   if (props.status === 'inactive') {
     return 'oklch(0.6 0.02 50 / 0.5)'
   }
@@ -136,6 +153,24 @@ const handleDoubleClick = (e: MouseEvent) => {
   e.stopPropagation()
   connectionStore.deleteConnection(props.connection.id)
 }
+
+const handleContextMenu = (e: MouseEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+  emit('contextmenu', props.connection.id, e)
+}
+
+const shouldShowAutoTriggerIcon = computed(() => {
+  return props.connection.autoTrigger === true
+})
+
+const isAutoTriggering = computed(() => {
+  return (
+    (props.connection.workflowStatus === 'transferring' ||
+      props.connection.workflowStatus === 'processing') &&
+    props.connection.autoTrigger === true
+  )
+})
 </script>
 
 <template>
@@ -150,10 +185,12 @@ const handleDoubleClick = (e: MouseEvent) => {
         processing: connection.workflowStatus === 'processing',
         completed: connection.workflowStatus === 'completed',
         error: connection.workflowStatus === 'error',
+        'auto-triggering': isAutoTriggering,
       },
     ]"
     @click="handleClick"
     @dblclick="handleDoubleClick"
+    @contextmenu.prevent="handleContextMenu"
   >
     <defs>
       <linearGradient :id="gradientId" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -179,14 +216,56 @@ const handleDoubleClick = (e: MouseEvent) => {
       fill="none"
     />
 
-    <!-- 箭頭 -->
+    <!-- 靜態箭頭（正常狀態） -->
     <polygon
       v-for="(arrow, index) in arrowPositions"
-      :key="index"
+      v-show="connection.workflowStatus !== 'transferring' && connection.workflowStatus !== 'processing' && !isAutoTriggering"
+      :key="`static-${index}`"
       class="arrow"
       :points="`0,-5 10,0 0,5`"
       :fill="arrowColor"
       :transform="`translate(${arrow.x}, ${arrow.y}) rotate(${arrow.angle})`"
     />
+
+    <!-- 動畫箭頭（workflow 狀態） -->
+    <template v-if="connection.workflowStatus === 'transferring' || connection.workflowStatus === 'processing' || isAutoTriggering">
+      <polygon
+        v-for="i in 3"
+        :key="`animated-${i}`"
+        class="arrow arrow-animated"
+        :points="`0,-5 10,0 0,5`"
+        :fill="arrowColor"
+      >
+        <animateMotion
+          :dur="`${3}s`"
+          :begin="`${(i - 1)}s`"
+          repeatCount="indefinite"
+          :path="pathData.path"
+          rotate="auto"
+        />
+        <animate
+          attributeName="opacity"
+          :dur="`${3}s`"
+          :begin="`${(i - 1)}s`"
+          values="0;1;1;0"
+          keyTimes="0;0.1;0.9;1"
+          repeatCount="indefinite"
+        />
+      </polygon>
+    </template>
+
+    <!-- autoTrigger 圖示 - 放在最後渲染，確保顯示在最上層 -->
+    <g v-if="shouldShowAutoTriggerIcon">
+      <foreignObject
+        :x="pathData.midPoint.x - 12"
+        :y="pathData.midPoint.y - 32"
+        width="24"
+        height="24"
+      >
+        <div class="connection-auto-trigger-icon">
+          <Zap :size="14" />
+        </div>
+      </foreignObject>
+    </g>
   </g>
 </template>

@@ -14,49 +14,12 @@ import { podStore } from '../services/podStore.js';
 import { messageStore } from '../services/messageStore.js';
 import { claudeQueryService } from '../services/claude/queryService.js';
 import { socketService } from '../services/socketService.js';
+import { workflowTriggerService } from '../services/workflowTriggerService.js';
 import {
   emitError,
   tryValidatePayload,
-  getErrorMessage,
-  getErrorCode,
 } from '../utils/websocketResponse.js';
 import { extractRequestId, extractPodId } from '../utils/payloadUtils.js';
-
-function handleChatError(
-  socket: Socket,
-  error: unknown,
-  payload: unknown,
-  requestId: string | undefined,
-  podId: string | undefined,
-  logMessage: string
-): void {
-  const errorMessage = getErrorMessage(error);
-  const errorCode = getErrorCode(error);
-
-  if (!requestId) {
-    requestId = extractRequestId(payload);
-  }
-
-  if (!podId) {
-    podId = extractPodId(payload);
-  }
-
-  if (podId) {
-    podStore.setStatus(podId, 'error');
-  }
-
-  emitError(
-    socket,
-    WebSocketResponseEvents.POD_ERROR,
-    errorMessage,
-    requestId,
-    podId,
-    errorCode
-  );
-
-  console.error(`[Chat] ${logMessage}: ${errorMessage}`);
-}
-
 // 整體流程：驗證 payload → 檢查 Pod 狀態 → 設定 busy → 串流處理 Claude 回應
 // （包含文字、工具使用、工具結果、完成事件） → 更新 Pod 狀態為 idle
 export async function handleChatSend(
@@ -202,6 +165,10 @@ export async function handleChatSend(
 
   podStore.setStatus(podId, 'idle');
   podStore.updateLastActive(podId);
+
+  workflowTriggerService.checkAndTriggerWorkflows(podId).catch((error) => {
+    console.error(`[Chat] Failed to check auto-trigger workflows for Pod ${podId}:`, error);
+  });
 
   console.log(`[Chat] Completed message processing for Pod ${podId}`);
 }

@@ -28,6 +28,7 @@ export enum WebSocketRequestEvents {
   CONNECTION_CREATE = 'connection:create',
   CONNECTION_LIST = 'connection:list',
   CONNECTION_DELETE = 'connection:delete',
+  CONNECTION_UPDATE = 'connection:update',
   WORKFLOW_TRIGGER = 'workflow:trigger',
 }
 
@@ -65,7 +66,9 @@ export enum WebSocketResponseEvents {
   CONNECTION_CREATED = 'connection:created',
   CONNECTION_LIST_RESULT = 'connection:list:result',
   CONNECTION_DELETED = 'connection:deleted',
+  CONNECTION_UPDATED = 'connection:updated',
   WORKFLOW_TRIGGERED = 'workflow:triggered',
+  WORKFLOW_AUTO_TRIGGERED = 'workflow:auto-triggered',
   WORKFLOW_COMPLETE = 'workflow:complete',
   WORKFLOW_ERROR = 'workflow:error',
 }
@@ -458,6 +461,19 @@ export interface ConnectionDeletedPayload {
   error?: string;
 }
 
+export interface ConnectionUpdatePayload {
+  requestId: string;
+  connectionId: string;
+  autoTrigger?: boolean;
+}
+
+export interface ConnectionUpdatedPayload {
+  requestId: string;
+  success: boolean;
+  connection?: import('./connection.js').Connection;
+  error?: string;
+}
+
 export interface WorkflowTriggerPayload {
   requestId: string;
   connectionId: string;
@@ -470,6 +486,7 @@ export interface WorkflowTriggeredPayload {
   sourcePodId: string;
   targetPodId: string;
   transferredContent: string;
+  isSummarized?: boolean;
   error?: string;
 }
 
@@ -486,4 +503,12 @@ export interface WorkflowErrorPayload {
   connectionId: string;
   error: string;
   code: string;
+}
+
+export interface WorkflowAutoTriggeredPayload {
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+  transferredContent: string;
+  isSummarized: boolean;
 }

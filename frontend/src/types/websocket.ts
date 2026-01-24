@@ -40,6 +40,7 @@ export const WebSocketRequestEvents = {
   CONNECTION_CREATE: 'connection:create',
   CONNECTION_LIST: 'connection:list',
   CONNECTION_DELETE: 'connection:delete',
+  CONNECTION_UPDATE: 'connection:update',
   WORKFLOW_TRIGGER: 'workflow:trigger',
 } as const
 
@@ -82,9 +83,11 @@ export const WebSocketResponseEvents = {
   CONNECTION_CREATED: 'connection:created',
   CONNECTION_LIST_RESULT: 'connection:list:result',
   CONNECTION_DELETED: 'connection:deleted',
+  CONNECTION_UPDATED: 'connection:updated',
   WORKFLOW_TRIGGERED: 'workflow:triggered',
   WORKFLOW_COMPLETE: 'workflow:complete',
   WORKFLOW_ERROR: 'workflow:error',
+  WORKFLOW_AUTO_TRIGGERED: 'workflow:auto-triggered',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]
@@ -433,6 +436,12 @@ export interface WorkflowTriggerPayload {
   connectionId: string
 }
 
+export interface ConnectionUpdatePayload {
+  requestId: string
+  connectionId: string
+  autoTrigger?: boolean
+}
+
 // ============================================================================
 // Skill Response Payload Types
 // ============================================================================
@@ -489,6 +498,7 @@ export interface ConnectionCreatedPayload {
     targetPodId: string
     targetAnchor: 'top' | 'bottom' | 'left' | 'right'
     createdAt: string
+    autoTrigger?: boolean
   }
   error?: string
 }
@@ -503,6 +513,7 @@ export interface ConnectionListResultPayload {
     targetPodId: string
     targetAnchor: 'top' | 'bottom' | 'left' | 'right'
     createdAt: string
+    autoTrigger?: boolean
   }>
   error?: string
 }
@@ -521,7 +532,31 @@ export interface WorkflowTriggeredPayload {
   sourcePodId: string
   targetPodId: string
   transferredContent: string
+  isSummarized?: boolean
   error?: string
+}
+
+export interface ConnectionUpdatedPayload {
+  requestId: string
+  success: boolean
+  connection?: {
+    id: string
+    sourcePodId: string
+    sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+    targetPodId: string
+    targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+    createdAt: string
+    autoTrigger?: boolean
+  }
+  error?: string
+}
+
+export interface WorkflowAutoTriggeredPayload {
+  connectionId: string
+  sourcePodId: string
+  targetPodId: string
+  transferredContent: string
+  isSummarized: boolean
 }
 
 export interface WorkflowCompletePayload {

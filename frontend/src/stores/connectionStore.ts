@@ -6,9 +6,12 @@ import type {
   ConnectionCreatedPayload,
   ConnectionListResultPayload,
   ConnectionDeletedPayload,
+  ConnectionUpdatePayload,
+  ConnectionUpdatedPayload,
   WorkflowTriggeredPayload,
   WorkflowCompletePayload,
-  WorkflowErrorPayload
+  WorkflowErrorPayload,
+  WorkflowAutoTriggeredPayload
 } from '@/types/websocket'
 
 interface ConnectionState {
@@ -54,6 +57,7 @@ export const useConnectionStore = defineStore('connection', {
               this.connections = payload.connections.map(conn => ({
                 ...conn,
                 createdAt: new Date(conn.createdAt),
+                autoTrigger: conn.autoTrigger ?? false,
               }))
               resolve()
             } else {
@@ -95,6 +99,7 @@ export const useConnectionStore = defineStore('connection', {
               const connection: Connection = {
                 ...payload.connection,
                 createdAt: new Date(payload.connection.createdAt),
+                autoTrigger: payload.connection.autoTrigger ?? false,
               }
               this.connections.push(connection)
               resolve(connection)
@@ -242,11 +247,52 @@ export const useConnectionStore = defineStore('connection', {
       }
     },
 
+    updateConnection(connectionId: string, updates: Partial<Connection>): void {
+      const connection = this.connections.find(c => c.id === connectionId)
+      if (connection) {
+        Object.assign(connection, updates)
+      }
+    },
+
+    async updateConnectionAutoTrigger(connectionId: string, autoTrigger: boolean): Promise<void> {
+      return new Promise((resolve, reject) => {
+        const requestId = generateRequestId()
+
+        const handleConnectionUpdated = (payload: ConnectionUpdatedPayload) => {
+          if (payload.requestId === requestId) {
+            websocketService.offConnectionUpdated(handleConnectionUpdated)
+            clearTimeout(timeoutId)
+
+            if (payload.success && payload.connection) {
+              this.updateConnection(connectionId, { autoTrigger: payload.connection.autoTrigger ?? false })
+              resolve()
+            } else {
+              console.error('[ConnectionStore] Connection update failed:', payload.error)
+              reject(new Error(payload.error || 'Unknown error'))
+            }
+          }
+        }
+
+        const timeoutId = setTimeout(() => {
+          websocketService.offConnectionUpdated(handleConnectionUpdated)
+          reject(new Error('Connection update timeout'))
+        }, 10000)
+
+        websocketService.onConnectionUpdated(handleConnectionUpdated)
+        websocketService.connectionUpdate({ requestId, connectionId, autoTrigger })
+      })
+    },
+
     setupWorkflowListeners(): void {
       websocketService.onWorkflowTriggered((payload: WorkflowTriggeredPayload) => {
         if (payload.success) {
           this.updateConnectionWorkflowStatus(payload.connectionId, 'processing')
         }
+      })
+
+      websocketService.onWorkflowAutoTriggered((payload: WorkflowAutoTriggeredPayload) => {
+        console.log('[ConnectionStore] Workflow auto-triggered:', payload.connectionId)
+        this.updateConnectionWorkflowStatus(payload.connectionId, 'transferring')
       })
 
       websocketService.onWorkflowComplete((payload: WorkflowCompletePayload) => {
