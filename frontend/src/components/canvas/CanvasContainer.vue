@@ -54,7 +54,7 @@ const handleSelectType = async (config: PodTypeConfig) => {
 
   const rotation = Math.random() * DEFAULT_POD_ROTATION_RANGE - (DEFAULT_POD_ROTATION_RANGE / 2)
   const newPod = {
-    name: `${config.type.split(' ')[0]} ${store.podCount + 1}`,
+    name: `Pod ${store.podCount + 1}`,
     type: config.type,
     x: canvasX - POD_MENU_X_OFFSET,
     y: canvasY - POD_MENU_Y_OFFSET,

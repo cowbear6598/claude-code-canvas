@@ -67,7 +67,6 @@
 
 .pod-doodle:hover {
   box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.5);
-  transform: translate(-0.5px, -0.5px);
 }
 
 .pod-doodle:active {
@@ -77,6 +76,11 @@
 /* Pod with notch */
 .pod-with-notch {
   position: relative;
+  transition: transform 0.2s ease;
+}
+
+.pod-with-notch:hover {
+  transform: translate(-0.5px, -0.5px);
 }
 
 .pod-notch-area {
