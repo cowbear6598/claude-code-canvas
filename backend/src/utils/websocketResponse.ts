@@ -38,8 +38,42 @@ export function emitError(
 }
 
 /**
+ * Validation result interface
+ */
+export interface ValidationResult<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+/**
+ * Validate payload contains required fields (non-throwing version)
+ * @returns ValidationResult with success flag, data, or error message
+ */
+export function tryValidatePayload<T>(
+  payload: unknown,
+  requiredFields: (keyof T)[]
+): ValidationResult<T> {
+  if (!payload || typeof payload !== 'object') {
+    return { success: false, error: 'Payload must be an object' };
+  }
+
+  const data = payload as Record<string, unknown>;
+
+  for (const field of requiredFields) {
+    const fieldName = String(field);
+    if (!(fieldName in data) || data[fieldName] === undefined) {
+      return { success: false, error: `Missing required field: ${fieldName}` };
+    }
+  }
+
+  return { success: true, data: payload as T };
+}
+
+/**
  * Validate payload contains required fields
  * @throws Error if validation fails
+ * @deprecated Use tryValidatePayload for better error handling
  */
 export function validatePayload<T>(
   payload: unknown,

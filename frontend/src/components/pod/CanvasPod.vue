@@ -159,45 +159,33 @@ const handleSelectPod = () => {
 }
 
 const handleNoteDropped = async (noteId: string) => {
-  try {
-    await outputStyleStore.bindToPod(noteId, props.pod.id)
-    const note = outputStyleStore.getNoteById(noteId)
-    if (note) {
-      canvasStore.updatePodOutputStyle(props.pod.id, note.outputStyleId)
-    }
-  } catch (error) {
-    console.error('[CanvasPod] Failed to bind output style:', error)
+  await outputStyleStore.bindToPod(noteId, props.pod.id)
+  const note = outputStyleStore.getNoteById(noteId)
+  if (note) {
+    canvasStore.updatePodOutputStyle(props.pod.id, note.outputStyleId)
   }
 }
 
 const handleNoteRemoved = async () => {
-  try {
-    await outputStyleStore.unbindFromPod(props.pod.id, true)
-    canvasStore.updatePodOutputStyle(props.pod.id, null)
-  } catch (error) {
-    console.error('[CanvasPod] Failed to unbind output style:', error)
-  }
+  await outputStyleStore.unbindFromPod(props.pod.id, true)
+  canvasStore.updatePodOutputStyle(props.pod.id, null)
 }
 
 const handleSkillNoteDropped = async (noteId: string) => {
-  try {
-    const note = skillStore.getNoteById(noteId)
-    if (!note) {
-      console.warn('[CanvasPod] Note not found:', noteId)
-      return
-    }
-
-    // Check if this skill is already bound to this pod
-    if (skillStore.isSkillBoundToPod(note.skillId, props.pod.id)) {
-      console.warn('[CanvasPod] Skill already bound to this pod:', note.skillId)
-      // Note will fly back to original position automatically via animation
-      return
-    }
-
-    await skillStore.bindToPod(noteId, props.pod.id)
-  } catch (error) {
-    console.error('[CanvasPod] Failed to bind skill note:', error)
+  const note = skillStore.getNoteById(noteId)
+  if (!note) {
+    console.warn('[CanvasPod] Note not found:', noteId)
+    return
   }
+
+  // Check if this skill is already bound to this pod
+  if (skillStore.isSkillBoundToPod(note.skillId, props.pod.id)) {
+    console.warn('[CanvasPod] Skill already bound to this pod:', note.skillId)
+    // Note will fly back to original position automatically via animation
+    return
+  }
+
+  await skillStore.bindToPod(noteId, props.pod.id)
 }
 </script>
 

@@ -68,13 +68,7 @@ const handleSelectType = async (config: PodTypeConfig) => {
 
   store.hideTypeMenu()
 
-  try {
-    // Create pod via backend
-    await store.createPodWithBackend(newPod)
-  } catch (error) {
-    console.error('[CanvasContainer] Failed to create pod:', error)
-    // TODO: Show error notification to user
-  }
+  await store.createPodWithBackend(newPod)
 }
 
 const handleSelectPod = (podId: string) => {
@@ -82,13 +76,7 @@ const handleSelectPod = (podId: string) => {
 }
 
 const handleDeletePod = async (id: string) => {
-  try {
-    // Delete pod via backend
-    await store.deletePodWithBackend(id)
-  } catch (error) {
-    console.error('[CanvasContainer] Failed to delete pod:', error)
-    // TODO: Show error notification to user
-  }
+  await store.deletePodWithBackend(id)
 }
 
 const handleDragEnd = (data: { id: string; x: number; y: number }) => {
@@ -129,25 +117,21 @@ const handleNoteDragComplete = async (data: { noteId: string; isOverTrash: boole
   const note = outputStyleStore.getNoteById(data.noteId)
   if (!note) return
 
-  try {
-    if (data.isOverTrash) {
-      if (note.boundToPodId === null) {
-        await outputStyleStore.deleteNote(data.noteId)
-      } else {
-        outputStyleStore.setNoteAnimating(data.noteId, true)
-        await outputStyleStore.updateNotePosition(data.noteId, data.startX, data.startY)
-        setTimeout(() => {
-          outputStyleStore.setNoteAnimating(data.noteId, false)
-        }, 300)
-      }
+  if (data.isOverTrash) {
+    if (note.boundToPodId === null) {
+      await outputStyleStore.deleteNote(data.noteId)
     } else {
-      await outputStyleStore.updateNotePosition(data.noteId, note.x, note.y)
+      outputStyleStore.setNoteAnimating(data.noteId, true)
+      await outputStyleStore.updateNotePosition(data.noteId, data.startX, data.startY)
+      setTimeout(() => {
+        outputStyleStore.setNoteAnimating(data.noteId, false)
+      }, 300)
     }
-  } catch (error) {
-    console.error('[CanvasContainer] Failed to handle note drag complete:', error)
-  } finally {
-    outputStyleStore.setIsOverTrash(false)
+  } else {
+    await outputStyleStore.updateNotePosition(data.noteId, note.x, note.y)
   }
+
+  outputStyleStore.setIsOverTrash(false)
 }
 
 const handleSkillNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
@@ -165,25 +149,21 @@ const handleSkillNoteDragComplete = async (data: { noteId: string; isOverTrash: 
   const note = skillStore.getNoteById(data.noteId)
   if (!note) return
 
-  try {
-    if (data.isOverTrash) {
-      if (note.boundToPodId === null) {
-        await skillStore.deleteNote(data.noteId)
-      } else {
-        skillStore.setNoteAnimating(data.noteId, true)
-        await skillStore.updateNotePosition(data.noteId, data.startX, data.startY)
-        setTimeout(() => {
-          skillStore.setNoteAnimating(data.noteId, false)
-        }, 300)
-      }
+  if (data.isOverTrash) {
+    if (note.boundToPodId === null) {
+      await skillStore.deleteNote(data.noteId)
     } else {
-      await skillStore.updateNotePosition(data.noteId, note.x, note.y)
+      skillStore.setNoteAnimating(data.noteId, true)
+      await skillStore.updateNotePosition(data.noteId, data.startX, data.startY)
+      setTimeout(() => {
+        skillStore.setNoteAnimating(data.noteId, false)
+      }, 300)
     }
-  } catch (error) {
-    console.error('[CanvasContainer] Failed to handle skill note drag complete:', error)
-  } finally {
-    skillStore.setIsOverTrash(false)
+  } else {
+    await skillStore.updateNotePosition(data.noteId, note.x, note.y)
   }
+
+  skillStore.setIsOverTrash(false)
 }
 </script>
 

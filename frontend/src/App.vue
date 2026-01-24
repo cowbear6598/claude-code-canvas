@@ -86,40 +86,24 @@ const initializeApp = async (): Promise<void> => {
   await new Promise(resolve => setTimeout(resolve, CONNECTION_DELAY_MS))
 
   // Load pods from backend
-  try {
-    await canvasStore.loadPodsFromBackend()
+  await canvasStore.loadPodsFromBackend()
 
-    // Load output styles and notes from backend
-    try {
-      await outputStyleStore.loadOutputStyles()
+  // Load output styles and notes from backend
+  await outputStyleStore.loadOutputStyles()
+  await outputStyleStore.loadNotesFromBackend()
+  await outputStyleStore.rebuildNotesFromPods(canvasStore.pods)
 
-      // Load notes from backend
-      await outputStyleStore.loadNotesFromBackend()
+  // Load skills and skill notes from backend
+  await skillStore.loadSkills()
+  await skillStore.loadNotesFromBackend()
 
-      // Rebuild missing notes from pods
-      await outputStyleStore.rebuildNotesFromPods(canvasStore.pods)
-    } catch (e) {
-      // Failed to load output styles or notes
-    }
+  // Load chat history for all pods
+  const podIds = canvasStore.pods.map(p => p.id)
+  if (podIds.length > 0) {
+    await chatStore.loadAllPodsHistory(podIds)
 
-    // Load skills and skill notes from backend
-    try {
-      await skillStore.loadSkills()
-      await skillStore.loadNotesFromBackend()
-    } catch (e) {
-      // Failed to load skills or skill notes
-    }
-
-    // Load chat history for all pods
-    const podIds = canvasStore.pods.map(p => p.id)
-    if (podIds.length > 0) {
-      await chatStore.loadAllPodsHistory(podIds)
-
-      // Sync loaded history to pod output
-      syncHistoryToPodOutput()
-    }
-  } catch (error) {
-    // App should still work with local pods/without history
+    // Sync loaded history to pod output
+    syncHistoryToPodOutput()
   }
 }
 

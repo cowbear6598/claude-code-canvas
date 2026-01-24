@@ -16,7 +16,7 @@ import { claudeQueryService } from '../services/claude/queryService.js';
 import { socketService } from '../services/socketService.js';
 import {
   emitError,
-  validatePayload,
+  tryValidatePayload,
   getErrorMessage,
   getErrorCode,
 } from '../utils/websocketResponse.js';
@@ -63,170 +63,203 @@ export async function handleChatSend(
   socket: Socket,
   payload: unknown
 ): Promise<void> {
-  let podId: string | undefined;
-  let requestId: string | undefined;
-  let messageId: string | undefined;
+  // Validate payload
+  const validation = tryValidatePayload<PodChatSendPayload>(payload, [
+    'requestId',
+    'podId',
+    'message',
+  ]);
 
-  try {
-    validatePayload<PodChatSendPayload>(payload, [
-      'requestId',
-      'podId',
-      'message',
-    ]);
+  if (!validation.success) {
+    const requestId = extractRequestId(payload);
+    const podId = extractPodId(payload);
 
-    const { requestId: reqId, podId: pid, message } = payload;
-    requestId = reqId;
-    podId = pid;
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_ERROR,
+      validation.error!,
+      requestId,
+      podId,
+      'VALIDATION_ERROR'
+    );
 
-    const currentPodId = pid;
-
-    const pod = podStore.getById(currentPodId);
-    if (!pod) {
-      throw new Error(`Pod not found: ${currentPodId}`);
-    }
-
-    if (pod.status === 'busy') {
-      throw new Error(`Pod ${currentPodId} is busy processing another request`);
-    }
-
-    podStore.setStatus(currentPodId, 'busy');
-
-    messageId = uuidv4();
-    const currentMessageId = messageId;
-
-    console.log(`[Chat] Processing message for Pod ${currentPodId}: ${message}`);
-
-    let accumulatedContent = '';
-
-    await claudeQueryService.sendMessage(currentPodId, message, (event) => {
-      switch (event.type) {
-        case 'text': {
-          accumulatedContent += event.content;
-
-          const textPayload: PodChatMessagePayload = {
-            podId: currentPodId,
-            messageId: currentMessageId,
-            content: accumulatedContent,
-            isPartial: true,
-          };
-          socketService.emitToPod(
-            currentPodId,
-            WebSocketResponseEvents.POD_CHAT_MESSAGE,
-            textPayload
-          );
-          break;
-        }
-
-        case 'tool_use': {
-          const toolUsePayload: PodChatToolUsePayload = {
-            podId: currentPodId,
-            messageId: currentMessageId,
-            toolName: event.toolName,
-            input: event.input,
-          };
-          socketService.emitToPod(
-            currentPodId,
-            WebSocketResponseEvents.POD_CHAT_TOOL_USE,
-            toolUsePayload
-          );
-          break;
-        }
-
-        case 'tool_result': {
-          const toolResultPayload: PodChatToolResultPayload = {
-            podId: currentPodId,
-            messageId: currentMessageId,
-            toolName: event.toolName,
-            output: event.output,
-          };
-          socketService.emitToPod(
-            currentPodId,
-            WebSocketResponseEvents.POD_CHAT_TOOL_RESULT,
-            toolResultPayload
-          );
-          break;
-        }
-
-        case 'complete': {
-          const completePayload: PodChatCompletePayload = {
-            podId: currentPodId,
-            messageId: currentMessageId,
-            fullContent: accumulatedContent,
-          };
-          socketService.emitToPod(
-            currentPodId,
-            WebSocketResponseEvents.POD_CHAT_COMPLETE,
-            completePayload
-          );
-          break;
-        }
-
-        case 'error': {
-          console.error(`[Chat] Stream error for Pod ${currentPodId}: ${event.error}`);
-          break;
-        }
-      }
-    });
-
-    podStore.setStatus(currentPodId, 'idle');
-    podStore.updateLastActive(currentPodId);
-
-    console.log(`[Chat] Completed message processing for Pod ${currentPodId}`);
-  } catch (error) {
-    handleChatError(socket, error, payload, requestId, podId, 'Failed to process message');
+    console.error(`[Chat] Failed to process message: ${validation.error}`);
+    return;
   }
+
+  const { requestId, podId, message } = validation.data!;
+
+  // Check if Pod exists
+  const pod = podStore.getById(podId);
+  if (!pod) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_ERROR,
+      `Pod not found: ${podId}`,
+      requestId,
+      podId,
+      'NOT_FOUND'
+    );
+
+    console.error(`[Chat] Failed to process message: Pod not found: ${podId}`);
+    return;
+  }
+
+  // Check if Pod is busy
+  if (pod.status === 'busy') {
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_ERROR,
+      `Pod ${podId} is busy processing another request`,
+      requestId,
+      podId,
+      'POD_BUSY'
+    );
+
+    console.error(`[Chat] Pod ${podId} is busy processing another request`);
+    return;
+  }
+
+  // Set Pod to busy
+  podStore.setStatus(podId, 'busy');
+
+  const messageId = uuidv4();
+
+  console.log(`[Chat] Processing message for Pod ${podId}: ${message}`);
+
+  let accumulatedContent = '';
+
+  await claudeQueryService.sendMessage(podId, message, (event) => {
+    switch (event.type) {
+      case 'text': {
+        accumulatedContent += event.content;
+
+        const textPayload: PodChatMessagePayload = {
+          podId,
+          messageId,
+          content: accumulatedContent,
+          isPartial: true,
+        };
+        socketService.emitToPod(
+          podId,
+          WebSocketResponseEvents.POD_CHAT_MESSAGE,
+          textPayload
+        );
+        break;
+      }
+
+      case 'tool_use': {
+        const toolUsePayload: PodChatToolUsePayload = {
+          podId,
+          messageId,
+          toolName: event.toolName,
+          input: event.input,
+        };
+        socketService.emitToPod(
+          podId,
+          WebSocketResponseEvents.POD_CHAT_TOOL_USE,
+          toolUsePayload
+        );
+        break;
+      }
+
+      case 'tool_result': {
+        const toolResultPayload: PodChatToolResultPayload = {
+          podId,
+          messageId,
+          toolName: event.toolName,
+          output: event.output,
+        };
+        socketService.emitToPod(
+          podId,
+          WebSocketResponseEvents.POD_CHAT_TOOL_RESULT,
+          toolResultPayload
+        );
+        break;
+      }
+
+      case 'complete': {
+        const completePayload: PodChatCompletePayload = {
+          podId,
+          messageId,
+          fullContent: accumulatedContent,
+        };
+        socketService.emitToPod(
+          podId,
+          WebSocketResponseEvents.POD_CHAT_COMPLETE,
+          completePayload
+        );
+        break;
+      }
+
+      case 'error': {
+        console.error(`[Chat] Stream error for Pod ${podId}: ${event.error}`);
+        break;
+      }
+    }
+  });
+
+  podStore.setStatus(podId, 'idle');
+  podStore.updateLastActive(podId);
+
+  console.log(`[Chat] Completed message processing for Pod ${podId}`);
 }
 
 export async function handleChatHistory(
   socket: Socket,
   payload: unknown
 ): Promise<void> {
-  let requestId: string | undefined;
+  // Validate payload
+  const validation = tryValidatePayload<PodChatHistoryPayload>(payload, ['requestId', 'podId']);
 
-  try {
-    validatePayload<PodChatHistoryPayload>(payload, ['requestId', 'podId']);
-
-    const { requestId: reqId, podId } = payload;
-    requestId = reqId;
-
-    console.log(`[Chat] Loading chat history for Pod ${podId}`);
-
-    const pod = podStore.getById(podId);
-    if (!pod) {
-      throw new Error(`Pod not found: ${podId}`);
-    }
-
-    const messages = messageStore.getMessages(podId);
-
-    const responsePayload: PodChatHistoryResultPayload = {
-      requestId,
-      success: true,
-      messages: messages.map((msg) => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp,
-      })),
-    };
-
-    socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, responsePayload);
-
-    console.log(`[Chat] Sent ${messages.length} messages for Pod ${podId}`);
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-
-    if (!requestId) {
-      requestId = extractRequestId(payload);
-    }
+  if (!validation.success) {
+    const requestId = extractRequestId(payload);
 
     const responsePayload: PodChatHistoryResultPayload = {
       requestId: requestId || 'unknown',
       success: false,
-      error: errorMessage,
+      error: validation.error,
     };
 
     socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, responsePayload);
 
-    console.error(`[Chat] Failed to load chat history: ${errorMessage}`);
+    console.error(`[Chat] Failed to load chat history: ${validation.error}`);
+    return;
   }
+
+  const { requestId, podId } = validation.data!;
+
+  console.log(`[Chat] Loading chat history for Pod ${podId}`);
+
+  // Check if Pod exists
+  const pod = podStore.getById(podId);
+  if (!pod) {
+    const responsePayload: PodChatHistoryResultPayload = {
+      requestId,
+      success: false,
+      error: `Pod not found: ${podId}`,
+    };
+
+    socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, responsePayload);
+
+    console.error(`[Chat] Failed to load chat history: Pod not found: ${podId}`);
+    return;
+  }
+
+  const messages = messageStore.getMessages(podId);
+
+  const responsePayload: PodChatHistoryResultPayload = {
+    requestId,
+    success: true,
+    messages: messages.map((msg) => ({
+      id: msg.id,
+      role: msg.role,
+      content: msg.content,
+      timestamp: msg.timestamp,
+    })),
+  };
+
+  socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, responsePayload);
+
+  console.log(`[Chat] Sent ${messages.length} messages for Pod ${podId}`);
 }

@@ -38,19 +38,15 @@ const truncateContent = (content: string, maxLength: number): string => {
 const handleSend = async (content: string): Promise<void> => {
   if (!content.trim()) return
 
-  try {
-    await chatStore.sendMessage(props.pod.id, content)
+  await chatStore.sendMessage(props.pod.id, content)
 
-    emit('update-pod', {
-      ...props.pod,
-      output: [
-        ...props.pod.output,
-        `> ${truncateContent(content, CONTENT_PREVIEW_LENGTH)}`,
-      ],
-    })
-  } catch (error) {
-    console.error('[ChatModal] Failed to send message:', error)
-  }
+  emit('update-pod', {
+    ...props.pod,
+    output: [
+      ...props.pod.output,
+      `> ${truncateContent(content, CONTENT_PREVIEW_LENGTH)}`,
+    ],
+  })
 }
 
 const handleClose = (): void => {

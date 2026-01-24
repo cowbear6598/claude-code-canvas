@@ -18,10 +18,12 @@ import {
 import { podStore } from '../services/podStore.js';
 import { workspaceService } from '../services/workspace/index.js';
 import { claudeSessionManager } from '../services/claude/sessionManager.js';
+import { noteStore } from '../services/noteStore.js';
+import { skillNoteStore } from '../services/skillNoteStore.js';
 import {
   emitSuccess,
   emitError,
-  validatePayload,
+  tryValidatePayload,
   getErrorMessage,
   getErrorCode,
 } from '../utils/websocketResponse.js';
@@ -33,43 +35,18 @@ export async function handlePodCreate(
   socket: Socket,
   payload: unknown
 ): Promise<void> {
-  try {
-    // Validate payload
-    validatePayload<PodCreatePayload>(payload, [
-      'requestId',
-      'name',
-      'type',
-      'color',
-      'x',
-      'y',
-      'rotation',
-    ]);
+  // Validate payload
+  const validation = tryValidatePayload<PodCreatePayload>(payload, [
+    'requestId',
+    'name',
+    'type',
+    'color',
+    'x',
+    'y',
+    'rotation',
+  ]);
 
-    const { requestId, name, type, color, x, y, rotation } = payload;
-
-    // Create Pod in store with canvas position
-    const pod = podStore.create({ name, type, color, x, y, rotation });
-
-    // Create workspace directory
-    await workspaceService.createWorkspace(pod.id);
-
-    // Create Claude session for this Pod
-    await claudeSessionManager.createSession(pod.id, pod.workspacePath);
-
-    // Emit success response
-    const response: PodCreatedPayload = {
-      requestId,
-      success: true,
-      pod,
-    };
-
-    emitSuccess(socket, WebSocketResponseEvents.POD_CREATED, response);
-
-    console.log(`[Pod] Created Pod ${pod.id} (${pod.name})`);
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    const errorCode = getErrorCode(error);
-
+  if (!validation.success) {
     const requestId =
       typeof payload === 'object' && payload && 'requestId' in payload
         ? (payload.requestId as string)
@@ -78,14 +55,37 @@ export async function handlePodCreate(
     emitError(
       socket,
       WebSocketResponseEvents.POD_CREATED,
-      errorMessage,
+      validation.error!,
       requestId,
       undefined,
-      errorCode
+      'VALIDATION_ERROR'
     );
 
-    console.error(`[Pod] Failed to create Pod: ${errorMessage}`);
+    console.error(`[Pod] Failed to create Pod: ${validation.error}`);
+    return;
   }
+
+  const { requestId, name, type, color, x, y, rotation } = validation.data!;
+
+  // Create Pod in store with canvas position
+  const pod = podStore.create({ name, type, color, x, y, rotation });
+
+  // Create workspace directory
+  await workspaceService.createWorkspace(pod.id);
+
+  // Create Claude session for this Pod
+  await claudeSessionManager.createSession(pod.id, pod.workspacePath);
+
+  // Emit success response
+  const response: PodCreatedPayload = {
+    requestId,
+    success: true,
+    pod,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.POD_CREATED, response);
+
+  console.log(`[Pod] Created Pod ${pod.id} (${pod.name})`);
 }
 
 /**
@@ -95,29 +95,10 @@ export async function handlePodList(
   socket: Socket,
   payload: unknown
 ): Promise<void> {
-  try {
-    // Validate payload
-    validatePayload<PodListPayload>(payload, ['requestId']);
+  // Validate payload
+  const validation = tryValidatePayload<PodListPayload>(payload, ['requestId']);
 
-    const { requestId } = payload;
-
-    // Get all Pods
-    const pods = podStore.getAll();
-
-    // Emit success response
-    const response: PodListResultPayload = {
-      requestId,
-      success: true,
-      pods,
-    };
-
-    emitSuccess(socket, WebSocketResponseEvents.POD_LIST_RESULT, response);
-
-    console.log(`[Pod] Listed ${pods.length} Pods`);
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    const errorCode = getErrorCode(error);
-
+  if (!validation.success) {
     const requestId =
       typeof payload === 'object' && payload && 'requestId' in payload
         ? (payload.requestId as string)
@@ -126,14 +107,31 @@ export async function handlePodList(
     emitError(
       socket,
       WebSocketResponseEvents.POD_LIST_RESULT,
-      errorMessage,
+      validation.error!,
       requestId,
       undefined,
-      errorCode
+      'VALIDATION_ERROR'
     );
 
-    console.error(`[Pod] Failed to list Pods: ${errorMessage}`);
+    console.error(`[Pod] Failed to list Pods: ${validation.error}`);
+    return;
   }
+
+  const { requestId } = validation.data!;
+
+  // Get all Pods
+  const pods = podStore.getAll();
+
+  // Emit success response
+  const response: PodListResultPayload = {
+    requestId,
+    success: true,
+    pods,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.POD_LIST_RESULT, response);
+
+  console.log(`[Pod] Listed ${pods.length} Pods`);
 }
 
 /**
@@ -143,33 +141,10 @@ export async function handlePodGet(
   socket: Socket,
   payload: unknown
 ): Promise<void> {
-  try {
-    // Validate payload
-    validatePayload<PodGetPayload>(payload, ['requestId', 'podId']);
+  // Validate payload
+  const validation = tryValidatePayload<PodGetPayload>(payload, ['requestId', 'podId']);
 
-    const { requestId, podId } = payload;
-
-    // Get Pod by ID
-    const pod = podStore.getById(podId);
-
-    if (!pod) {
-      throw new Error(`Pod not found: ${podId}`);
-    }
-
-    // Emit success response
-    const response: PodGetResultPayload = {
-      requestId,
-      success: true,
-      pod,
-    };
-
-    emitSuccess(socket, WebSocketResponseEvents.POD_GET_RESULT, response);
-
-    console.log(`[Pod] Retrieved Pod ${podId}`);
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    const errorCode = getErrorCode(error);
-
+  if (!validation.success) {
     const requestId =
       typeof payload === 'object' && payload && 'requestId' in payload
         ? (payload.requestId as string)
@@ -178,14 +153,45 @@ export async function handlePodGet(
     emitError(
       socket,
       WebSocketResponseEvents.POD_GET_RESULT,
-      errorMessage,
+      validation.error!,
       requestId,
       undefined,
-      errorCode
+      'VALIDATION_ERROR'
     );
 
-    console.error(`[Pod] Failed to get Pod: ${errorMessage}`);
+    console.error(`[Pod] Failed to get Pod: ${validation.error}`);
+    return;
   }
+
+  const { requestId, podId } = validation.data!;
+
+  // Get Pod by ID
+  const pod = podStore.getById(podId);
+
+  if (!pod) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_GET_RESULT,
+      `Pod not found: ${podId}`,
+      requestId,
+      undefined,
+      'NOT_FOUND'
+    );
+
+    console.error(`[Pod] Failed to get Pod: Pod not found: ${podId}`);
+    return;
+  }
+
+  // Emit success response
+  const response: PodGetResultPayload = {
+    requestId,
+    success: true,
+    pod,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.POD_GET_RESULT, response);
+
+  console.log(`[Pod] Retrieved Pod ${podId}`);
 }
 
 /**
@@ -195,66 +201,87 @@ export async function handlePodDelete(
   socket: Socket,
   payload: unknown
 ): Promise<void> {
-  try {
-    // Validate payload
-    validatePayload<PodDeletePayload>(payload, ['requestId', 'podId']);
+  // Validate payload
+  const validation = tryValidatePayload<PodDeletePayload>(payload, ['requestId', 'podId']);
 
-    const { requestId, podId } = payload;
-
-    // Check if Pod exists
-    const pod = podStore.getById(podId);
-    if (!pod) {
-      throw new Error(`Pod not found: ${podId}`);
-    }
-
-    // Destroy Claude session
-    await claudeSessionManager.destroySession(podId);
-
-    // Delete workspace
-    await workspaceService.deleteWorkspace(podId);
-
-    // Delete Pod from store
-    const deleted = podStore.delete(podId);
-
-    if (!deleted) {
-      throw new Error(`Failed to delete Pod from store: ${podId}`);
-    }
-
-    // Emit success response
-    const response: PodDeletedPayload = {
-      requestId,
-      success: true,
-      podId,
-    };
-
-    emitSuccess(socket, WebSocketResponseEvents.POD_DELETED, response);
-
-    console.log(`[Pod] Deleted Pod ${podId}`);
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    const errorCode = getErrorCode(error);
-
+  if (!validation.success) {
     const requestId =
       typeof payload === 'object' && payload && 'requestId' in payload
         ? (payload.requestId as string)
         : undefined;
 
-    const podId =
-      typeof payload === 'object' && payload && 'podId' in payload
-        ? (payload.podId as string)
-        : undefined;
-
     emitError(
       socket,
       WebSocketResponseEvents.POD_DELETED,
-      errorMessage,
+      validation.error!,
       requestId,
-      podId,
-      errorCode
+      undefined,
+      'VALIDATION_ERROR'
     );
 
-    console.error(`[Pod] Failed to delete Pod: ${errorMessage}`);
+    console.error(`[Pod] Failed to delete Pod: ${validation.error}`);
+    return;
   }
+
+  const { requestId, podId } = validation.data!;
+
+  // Check if Pod exists
+  const pod = podStore.getById(podId);
+  if (!pod) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_DELETED,
+      `Pod not found: ${podId}`,
+      requestId,
+      podId,
+      'NOT_FOUND'
+    );
+
+    console.error(`[Pod] Failed to delete Pod: Pod not found: ${podId}`);
+    return;
+  }
+
+  // Destroy Claude session
+  await claudeSessionManager.destroySession(podId);
+
+  // Delete workspace
+  await workspaceService.deleteWorkspace(podId);
+
+  // Delete bound Output Style Notes
+  const deletedOutputStyleNotes = noteStore.deleteByBoundPodId(podId);
+  console.log(`[Pod] Deleted ${deletedOutputStyleNotes} bound output style notes for Pod ${podId}`);
+
+  // Delete bound Skill Notes
+  const deletedSkillNotes = skillNoteStore.deleteByBoundPodId(podId);
+  console.log(`[Pod] Deleted ${deletedSkillNotes} bound skill notes for Pod ${podId}`);
+
+  // Delete Pod from store
+  const deleted = podStore.delete(podId);
+
+  if (!deleted) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_DELETED,
+      `Failed to delete Pod from store: ${podId}`,
+      requestId,
+      podId,
+      'INTERNAL_ERROR'
+    );
+
+    console.error(`[Pod] Failed to delete Pod from store: ${podId}`);
+    return;
+  }
+
+  // Emit success response
+  const response: PodDeletedPayload = {
+    requestId,
+    success: true,
+    podId,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.POD_DELETED, response);
+
+  console.log(`[Pod] Deleted Pod ${podId}`);
 }
 
 /**
@@ -264,65 +291,78 @@ export async function handlePodUpdate(
   socket: Socket,
   payload: unknown
 ): Promise<void> {
-  try {
-    // Validate payload
-    validatePayload<PodUpdatePayload>(payload, ['requestId', 'podId']);
+  // Validate payload
+  const validation = tryValidatePayload<PodUpdatePayload>(payload, ['requestId', 'podId']);
 
-    const { requestId, podId, x, y, rotation, name } = payload as PodUpdatePayload;
-
-    // Check if Pod exists
-    const existingPod = podStore.getById(podId);
-    if (!existingPod) {
-      throw new Error(`Pod not found: ${podId}`);
-    }
-
-    // Build update object with only provided fields
-    const updates: Record<string, unknown> = {};
-    if (x !== undefined) updates.x = x;
-    if (y !== undefined) updates.y = y;
-    if (rotation !== undefined) updates.rotation = rotation;
-    if (name !== undefined) updates.name = name;
-
-    // Update Pod in store
-    const updatedPod = podStore.update(podId, updates);
-
-    if (!updatedPod) {
-      throw new Error(`Failed to update Pod: ${podId}`);
-    }
-
-    // Emit success response
-    const response: PodUpdatedPayload = {
-      requestId,
-      success: true,
-      pod: updatedPod,
-    };
-
-    emitSuccess(socket, WebSocketResponseEvents.POD_UPDATED, response);
-
-    console.log(`[Pod] Updated Pod ${podId}`);
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    const errorCode = getErrorCode(error);
-
+  if (!validation.success) {
     const requestId =
       typeof payload === 'object' && payload && 'requestId' in payload
         ? (payload.requestId as string)
         : undefined;
 
-    const podId =
-      typeof payload === 'object' && payload && 'podId' in payload
-        ? (payload.podId as string)
-        : undefined;
-
     emitError(
       socket,
       WebSocketResponseEvents.POD_UPDATED,
-      errorMessage,
+      validation.error!,
       requestId,
-      podId,
-      errorCode
+      undefined,
+      'VALIDATION_ERROR'
     );
 
-    console.error(`[Pod] Failed to update Pod: ${errorMessage}`);
+    console.error(`[Pod] Failed to update Pod: ${validation.error}`);
+    return;
   }
+
+  const { requestId, podId, x, y, rotation, name } = validation.data!;
+
+  // Check if Pod exists
+  const existingPod = podStore.getById(podId);
+  if (!existingPod) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_UPDATED,
+      `Pod not found: ${podId}`,
+      requestId,
+      podId,
+      'NOT_FOUND'
+    );
+
+    console.error(`[Pod] Failed to update Pod: Pod not found: ${podId}`);
+    return;
+  }
+
+  // Build update object with only provided fields
+  const updates: Record<string, unknown> = {};
+  if (x !== undefined) updates.x = x;
+  if (y !== undefined) updates.y = y;
+  if (rotation !== undefined) updates.rotation = rotation;
+  if (name !== undefined) updates.name = name;
+
+  // Update Pod in store
+  const updatedPod = podStore.update(podId, updates);
+
+  if (!updatedPod) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_UPDATED,
+      `Failed to update Pod: ${podId}`,
+      requestId,
+      podId,
+      'INTERNAL_ERROR'
+    );
+
+    console.error(`[Pod] Failed to update Pod: ${podId}`);
+    return;
+  }
+
+  // Emit success response
+  const response: PodUpdatedPayload = {
+    requestId,
+    success: true,
+    pod: updatedPod,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.POD_UPDATED, response);
+
+  console.log(`[Pod] Updated Pod ${podId}`);
 }

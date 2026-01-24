@@ -88,6 +88,32 @@ class NoteStore {
   }
 
   /**
+   * Find notes bound to a specific Pod
+   */
+  findByBoundPodId(podId: string): OutputStyleNote[] {
+    return Array.from(this.notes.values()).filter(
+      (note) => note.boundToPodId === podId
+    );
+  }
+
+  /**
+   * Delete all notes bound to a specific Pod
+   */
+  deleteByBoundPodId(podId: string): number {
+    const notesToDelete = this.findByBoundPodId(podId);
+
+    for (const note of notesToDelete) {
+      this.notes.delete(note.id);
+    }
+
+    if (notesToDelete.length > 0) {
+      this.saveToDiskAsync();
+    }
+
+    return notesToDelete.length;
+  }
+
+  /**
    * Load notes from disk
    */
   async loadFromDisk(): Promise<void> {
