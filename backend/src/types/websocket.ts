@@ -45,6 +45,18 @@ export {
   type NoteListResultPayload,
   type NoteUpdatedPayload,
   type NoteDeletedPayload,
+  type SkillListPayload,
+  type SkillNoteCreatePayload,
+  type SkillNoteListPayload,
+  type SkillNoteUpdatePayload,
+  type SkillNoteDeletePayload,
+  type PodBindSkillPayload,
+  type SkillListResultPayload,
+  type SkillNoteCreatedPayload,
+  type SkillNoteListResultPayload,
+  type SkillNoteUpdatedPayload,
+  type SkillNoteDeletedPayload,
+  type PodSkillBoundPayload,
 } from './websocket-events.js';
 
 // Legacy enum for backward compatibility (deprecated)

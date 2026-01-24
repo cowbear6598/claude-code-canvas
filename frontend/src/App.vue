@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
+import { useSkillStore } from '@/stores/skillStore'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
 import ChatModal from '@/components/chat/ChatModal.vue'
@@ -15,6 +16,7 @@ import {
 const canvasStore = useCanvasStore()
 const chatStore = useChatStore()
 const outputStyleStore = useOutputStyleStore()
+const skillStore = useSkillStore()
 
 const selectedPod = computed(() => canvasStore.selectedPod)
 
@@ -98,6 +100,14 @@ const initializeApp = async (): Promise<void> => {
       await outputStyleStore.rebuildNotesFromPods(canvasStore.pods)
     } catch (e) {
       // Failed to load output styles or notes
+    }
+
+    // Load skills and skill notes from backend
+    try {
+      await skillStore.loadSkills()
+      await skillStore.loadNotesFromBackend()
+    } catch (e) {
+      // Failed to load skills or skill notes
     }
 
     // Load chat history for all pods

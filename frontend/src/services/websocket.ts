@@ -44,7 +44,19 @@ import type {
   NoteCreatedPayload,
   NoteListResultPayload,
   NoteUpdatedPayload,
-  NoteDeletedPayload
+  NoteDeletedPayload,
+  SkillListPayload,
+  SkillNoteCreatePayload,
+  SkillNoteListPayload,
+  SkillNoteUpdatePayload,
+  SkillNoteDeletePayload,
+  PodBindSkillPayload,
+  SkillListResultPayload,
+  SkillNoteCreatedPayload,
+  SkillNoteListResultPayload,
+  SkillNoteUpdatedPayload,
+  SkillNoteDeletedPayload,
+  PodSkillBoundPayload
 } from '@/types/websocket'
 
 type EventCallback<T> = (payload: T) => void
@@ -194,6 +206,30 @@ class WebSocketService {
     this.emit(WebSocketRequestEvents.NOTE_DELETE, payload)
   }
 
+  skillList(payload: SkillListPayload): void {
+    this.emit(WebSocketRequestEvents.SKILL_LIST, payload)
+  }
+
+  skillNoteCreate(payload: SkillNoteCreatePayload): void {
+    this.emit(WebSocketRequestEvents.SKILL_NOTE_CREATE, payload)
+  }
+
+  skillNoteList(payload: SkillNoteListPayload): void {
+    this.emit(WebSocketRequestEvents.SKILL_NOTE_LIST, payload)
+  }
+
+  skillNoteUpdate(payload: SkillNoteUpdatePayload): void {
+    this.emit(WebSocketRequestEvents.SKILL_NOTE_UPDATE, payload)
+  }
+
+  skillNoteDelete(payload: SkillNoteDeletePayload): void {
+    this.emit(WebSocketRequestEvents.SKILL_NOTE_DELETE, payload)
+  }
+
+  podBindSkill(payload: PodBindSkillPayload): void {
+    this.emit(WebSocketRequestEvents.POD_BIND_SKILL, payload)
+  }
+
   onConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.on(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -286,6 +322,30 @@ class WebSocketService {
     this.on(WebSocketResponseEvents.NOTE_DELETED, callback)
   }
 
+  onSkillListResult(callback: EventCallback<SkillListResultPayload>): void {
+    this.on(WebSocketResponseEvents.SKILL_LIST_RESULT, callback)
+  }
+
+  onSkillNoteCreated(callback: EventCallback<SkillNoteCreatedPayload>): void {
+    this.on(WebSocketResponseEvents.SKILL_NOTE_CREATED, callback)
+  }
+
+  onSkillNoteListResult(callback: EventCallback<SkillNoteListResultPayload>): void {
+    this.on(WebSocketResponseEvents.SKILL_NOTE_LIST_RESULT, callback)
+  }
+
+  onSkillNoteUpdated(callback: EventCallback<SkillNoteUpdatedPayload>): void {
+    this.on(WebSocketResponseEvents.SKILL_NOTE_UPDATED, callback)
+  }
+
+  onSkillNoteDeleted(callback: EventCallback<SkillNoteDeletedPayload>): void {
+    this.on(WebSocketResponseEvents.SKILL_NOTE_DELETED, callback)
+  }
+
+  onPodSkillBound(callback: EventCallback<PodSkillBoundPayload>): void {
+    this.on(WebSocketResponseEvents.POD_SKILL_BOUND, callback)
+  }
+
   offConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.off(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -364,6 +424,30 @@ class WebSocketService {
 
   offNoteDeleted(callback: EventCallback<NoteDeletedPayload>): void {
     this.off(WebSocketResponseEvents.NOTE_DELETED, callback)
+  }
+
+  offSkillListResult(callback: EventCallback<SkillListResultPayload>): void {
+    this.off(WebSocketResponseEvents.SKILL_LIST_RESULT, callback)
+  }
+
+  offSkillNoteCreated(callback: EventCallback<SkillNoteCreatedPayload>): void {
+    this.off(WebSocketResponseEvents.SKILL_NOTE_CREATED, callback)
+  }
+
+  offSkillNoteListResult(callback: EventCallback<SkillNoteListResultPayload>): void {
+    this.off(WebSocketResponseEvents.SKILL_NOTE_LIST_RESULT, callback)
+  }
+
+  offSkillNoteUpdated(callback: EventCallback<SkillNoteUpdatedPayload>): void {
+    this.off(WebSocketResponseEvents.SKILL_NOTE_UPDATED, callback)
+  }
+
+  offSkillNoteDeleted(callback: EventCallback<SkillNoteDeletedPayload>): void {
+    this.off(WebSocketResponseEvents.SKILL_NOTE_DELETED, callback)
+  }
+
+  offPodSkillBound(callback: EventCallback<PodSkillBoundPayload>): void {
+    this.off(WebSocketResponseEvents.POD_SKILL_BOUND, callback)
   }
 
   private emit(event: WebSocketRequestEvents, payload: unknown): void {

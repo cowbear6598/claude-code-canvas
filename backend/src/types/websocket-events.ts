@@ -18,6 +18,12 @@ export enum WebSocketRequestEvents {
   NOTE_LIST = 'note:list',
   NOTE_UPDATE = 'note:update',
   NOTE_DELETE = 'note:delete',
+  SKILL_LIST = 'skill:list',
+  SKILL_NOTE_CREATE = 'skill-note:create',
+  SKILL_NOTE_LIST = 'skill-note:list',
+  SKILL_NOTE_UPDATE = 'skill-note:update',
+  SKILL_NOTE_DELETE = 'skill-note:delete',
+  POD_BIND_SKILL = 'pod:bind-skill',
 }
 
 export enum WebSocketResponseEvents {
@@ -44,6 +50,12 @@ export enum WebSocketResponseEvents {
   NOTE_LIST_RESULT = 'note:list:result',
   NOTE_UPDATED = 'note:updated',
   NOTE_DELETED = 'note:deleted',
+  SKILL_LIST_RESULT = 'skill:list:result',
+  SKILL_NOTE_CREATED = 'skill-note:created',
+  SKILL_NOTE_LIST_RESULT = 'skill-note:list:result',
+  SKILL_NOTE_UPDATED = 'skill-note:updated',
+  SKILL_NOTE_DELETED = 'skill-note:deleted',
+  POD_SKILL_BOUND = 'pod:skill:bound',
 }
 
 export interface PodCreatePayload {
@@ -303,5 +315,85 @@ export interface NoteDeletedPayload {
   requestId: string;
   success: boolean;
   noteId?: string;
+  error?: string;
+}
+
+export interface SkillListPayload {
+  requestId: string;
+}
+
+export interface SkillNoteCreatePayload {
+  requestId: string;
+  skillId: string;
+  name: string;
+  x: number;
+  y: number;
+  boundToPodId: string | null;
+  originalPosition: { x: number; y: number } | null;
+}
+
+export interface SkillNoteListPayload {
+  requestId: string;
+}
+
+export interface SkillNoteUpdatePayload {
+  requestId: string;
+  noteId: string;
+  x?: number;
+  y?: number;
+  boundToPodId?: string | null;
+  originalPosition?: { x: number; y: number } | null;
+}
+
+export interface SkillNoteDeletePayload {
+  requestId: string;
+  noteId: string;
+}
+
+export interface PodBindSkillPayload {
+  requestId: string;
+  podId: string;
+  skillId: string;
+}
+
+export interface SkillListResultPayload {
+  requestId: string;
+  success: boolean;
+  skills?: import('./skill.js').Skill[];
+  error?: string;
+}
+
+export interface SkillNoteCreatedPayload {
+  requestId: string;
+  success: boolean;
+  note?: import('./skillNote.js').SkillNote;
+  error?: string;
+}
+
+export interface SkillNoteListResultPayload {
+  requestId: string;
+  success: boolean;
+  notes?: import('./skillNote.js').SkillNote[];
+  error?: string;
+}
+
+export interface SkillNoteUpdatedPayload {
+  requestId: string;
+  success: boolean;
+  note?: import('./skillNote.js').SkillNote;
+  error?: string;
+}
+
+export interface SkillNoteDeletedPayload {
+  requestId: string;
+  success: boolean;
+  noteId?: string;
+  error?: string;
+}
+
+export interface PodSkillBoundPayload {
+  requestId: string;
+  success: boolean;
+  pod?: Pod;
   error?: string;
 }

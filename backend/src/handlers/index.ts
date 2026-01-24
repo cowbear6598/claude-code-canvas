@@ -23,6 +23,14 @@ import {
   handleNoteUpdate,
   handleNoteDelete,
 } from './noteHandlers.js';
+import {
+  handleSkillList,
+  handleSkillNoteCreate,
+  handleSkillNoteList,
+  handleSkillNoteUpdate,
+  handleSkillNoteDelete,
+  handlePodBindSkill,
+} from './skillHandlers.js';
 
 /**
  * Register all WebSocket event handlers for a socket
@@ -94,6 +102,31 @@ export function registerAllHandlers(socket: Socket): void {
     handleNoteDelete(socket, payload);
   });
 
+  // Skill handlers
+  socket.on(WebSocketRequestEvents.SKILL_LIST, (payload) => {
+    handleSkillList(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.SKILL_NOTE_CREATE, (payload) => {
+    handleSkillNoteCreate(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.SKILL_NOTE_LIST, (payload) => {
+    handleSkillNoteList(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.SKILL_NOTE_UPDATE, (payload) => {
+    handleSkillNoteUpdate(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.SKILL_NOTE_DELETE, (payload) => {
+    handleSkillNoteDelete(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.POD_BIND_SKILL, (payload) => {
+    handlePodBindSkill(socket, payload);
+  });
+
   console.log(`[Handlers] Registered all handlers for socket ${socket.id}`);
 }
 
@@ -114,4 +147,10 @@ export {
   handleNoteList,
   handleNoteUpdate,
   handleNoteDelete,
+  handleSkillList,
+  handleSkillNoteCreate,
+  handleSkillNoteList,
+  handleSkillNoteUpdate,
+  handleSkillNoteDelete,
+  handlePodBindSkill,
 };

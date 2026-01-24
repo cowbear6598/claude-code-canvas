@@ -101,7 +101,8 @@ const handleSlotClick = async (e: MouseEvent) => {
   const podCenterY = (podRect.top - viewportOffset.y + 12) / zoom
 
   const extraDistance = 30
-  const ejectDistance = slotWidth + extraDistance
+  // slotWidth 是螢幕像素，需要除以 zoom 轉換為 canvas 座標
+  const ejectDistance = slotWidth / zoom + extraDistance
 
   const baseX = -ejectDistance
   const baseY = 0

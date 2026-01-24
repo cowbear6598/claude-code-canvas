@@ -188,7 +188,7 @@ export const useCanvasStore = defineStore('canvas', {
                 // Add canvas position if missing (spread out horizontally)
                 x: pod.x ?? 100 + (index * 300),
                 y: pod.y ?? 150 + (index % 2) * 100,
-                rotation: pod.rotation ?? (Math.random() * 4 - 2),
+                rotation: pod.rotation ?? (Math.random() * 2 - 1),
                 output: pod.output ?? [],
                 outputStyleId: pod.outputStyleId ?? null,
             }))

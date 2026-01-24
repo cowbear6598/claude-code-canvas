@@ -24,5 +24,5 @@ export const RESPONSE_DELAY_MAX = 2000
 
 // Pod Constants
 export const OUTPUT_LINES_PREVIEW_COUNT = 4
-export const DEFAULT_POD_ROTATION_RANGE = 10
+export const DEFAULT_POD_ROTATION_RANGE = 2
 export const MAX_POD_NAME_LENGTH = 50

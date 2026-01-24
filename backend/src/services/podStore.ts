@@ -32,6 +32,7 @@ class PodStore {
       output: ['> Ready to assist', '> Type your message...'],
       claudeSessionId: null,
       outputStyleId: null,
+      skillIds: [],
     };
 
     this.pods.set(id, pod);
@@ -116,6 +117,23 @@ class PodStore {
     this.persistPodAsync(pod);
   }
 
+  /**
+   * Add a skill ID to a Pod's skill list
+   * Note: This method is called from skill handlers to bind skills to Pods
+   */
+  addSkillId(podId: string, skillId: string): void {
+    const pod = this.pods.get(podId);
+    if (!pod) {
+      return;
+    }
+
+    if (!pod.skillIds.includes(skillId)) {
+      pod.skillIds.push(skillId);
+      this.pods.set(podId, pod);
+      this.persistPodAsync(pod);
+    }
+  }
+
   async loadFromDisk(): Promise<void> {
     try {
       // Get all Pod IDs from disk
@@ -145,6 +163,7 @@ class PodStore {
             output: ['> Ready to assist', '> Type your message...'],
             claudeSessionId: persistedPod.claudeSessionId,
             outputStyleId: persistedPod.outputStyleId ?? null,
+            skillIds: persistedPod.skillIds ?? [],
           };
 
           this.pods.set(pod.id, pod);

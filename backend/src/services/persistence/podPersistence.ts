@@ -24,6 +24,7 @@ class PodPersistenceService {
       rotation: pod.rotation,
       claudeSessionId: claudeSessionId ?? pod.claudeSessionId ?? null,
       outputStyleId: pod.outputStyleId,
+      skillIds: pod.skillIds,
     };
   }
 

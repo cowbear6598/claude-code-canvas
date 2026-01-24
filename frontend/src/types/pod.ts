@@ -27,6 +27,7 @@ export interface Pod {
   createdAt?: string
   updatedAt?: string
   outputStyleId?: string | null
+  skillIds?: string[]
 }
 
 // Pod 類型配置

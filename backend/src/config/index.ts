@@ -14,6 +14,7 @@ interface Config {
   corsOrigin: string;
   githubToken?: string;
   outputStylesPath: string;
+  skillsPath: string;
 }
 
 function loadConfig(): Config {
@@ -26,6 +27,7 @@ function loadConfig(): Config {
   const appDataRoot = './app-data';
   const workspaceRoot = './app-data/workspaces';
   const outputStylesPath = './app-data/output-styles';
+  const skillsPath = './app-data/skills';
 
   // Validate port number
   if (isNaN(port) || port < 1 || port > 65535) {
@@ -43,6 +45,7 @@ function loadConfig(): Config {
     corsOrigin,
     githubToken,
     outputStylesPath,
+    skillsPath,
   };
 }
 

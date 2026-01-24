@@ -2,12 +2,14 @@
 import { ref, computed } from 'vue'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
+import { useSkillStore } from '@/stores/skillStore'
 import CanvasViewport from './CanvasViewport.vue'
 import Minimap from './Minimap.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
 import OutputStyleNote from './OutputStyleNote.vue'
+import SkillNote from './SkillNote.vue'
 import TrashZone from './TrashZone.vue'
 import type { PodTypeConfig } from '@/types'
 import {
@@ -18,11 +20,12 @@ import {
 
 const store = useCanvasStore()
 const outputStyleStore = useOutputStyleStore()
+const skillStore = useSkillStore()
 
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
 
-const showTrashZone = computed(() => outputStyleStore.isDraggingNote)
-const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash)
+const showTrashZone = computed(() => outputStyleStore.isDraggingNote || skillStore.isDraggingNote)
+const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash || skillStore.isOverTrash)
 
 const validateCoordinate = (value: number): number => {
   if (!Number.isFinite(value)) {
@@ -101,6 +104,15 @@ const handleCreateOutputStyleNote = (outputStyleId: string) => {
   outputStyleStore.createNote(outputStyleId, canvasX, canvasY)
 }
 
+const handleCreateSkillNote = (skillId: string) => {
+  if (!store.typeMenu.position) return
+
+  const canvasX = validateCoordinate((store.typeMenu.position.x - store.viewport.offset.x) / store.viewport.zoom)
+  const canvasY = validateCoordinate((store.typeMenu.position.y - store.viewport.offset.y) / store.viewport.zoom)
+
+  skillStore.createNote(skillId, canvasX, canvasY)
+}
+
 // 拖拽過程中只更新本地狀態，不發 WebSocket
 const handleNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
   outputStyleStore.updateNotePositionLocal(data.noteId, data.x, data.y)
@@ -117,32 +129,61 @@ const handleNoteDragComplete = async (data: { noteId: string; isOverTrash: boole
   const note = outputStyleStore.getNoteById(data.noteId)
   if (!note) return
 
-  if (data.isOverTrash) {
-    if (note.boundToPodId === null) {
-      // 刪除 Note
-      try {
+  try {
+    if (data.isOverTrash) {
+      if (note.boundToPodId === null) {
         await outputStyleStore.deleteNote(data.noteId)
-      } catch (error) {
-        console.error('[CanvasContainer] Failed to delete note:', error)
+      } else {
+        outputStyleStore.setNoteAnimating(data.noteId, true)
+        await outputStyleStore.updateNotePosition(data.noteId, data.startX, data.startY)
+        setTimeout(() => {
+          outputStyleStore.setNoteAnimating(data.noteId, false)
+        }, 300)
       }
     } else {
-      // 已綁定的 Note 回到原位
-      outputStyleStore.setNoteAnimating(data.noteId, true)
-      await outputStyleStore.updateNotePosition(data.noteId, data.startX, data.startY)
-      setTimeout(() => {
-        outputStyleStore.setNoteAnimating(data.noteId, false)
-      }, 300)
-    }
-  } else {
-    // 正常拖拽結束，同步最終位置到後端
-    try {
       await outputStyleStore.updateNotePosition(data.noteId, note.x, note.y)
-    } catch (error) {
-      console.error('[CanvasContainer] Failed to sync note position:', error)
     }
+  } catch (error) {
+    console.error('[CanvasContainer] Failed to handle note drag complete:', error)
+  } finally {
+    outputStyleStore.setIsOverTrash(false)
   }
+}
 
-  outputStyleStore.setIsOverTrash(false)
+const handleSkillNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
+  skillStore.updateNotePositionLocal(data.noteId, data.x, data.y)
+}
+
+const handleSkillNoteDragMove = (data: { noteId: string; screenX: number; screenY: number }) => {
+  if (!trashZoneRef.value) return
+
+  const isOver = trashZoneRef.value.isPointInZone(data.screenX, data.screenY)
+  skillStore.setIsOverTrash(isOver)
+}
+
+const handleSkillNoteDragComplete = async (data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }) => {
+  const note = skillStore.getNoteById(data.noteId)
+  if (!note) return
+
+  try {
+    if (data.isOverTrash) {
+      if (note.boundToPodId === null) {
+        await skillStore.deleteNote(data.noteId)
+      } else {
+        skillStore.setNoteAnimating(data.noteId, true)
+        await skillStore.updateNotePosition(data.noteId, data.startX, data.startY)
+        setTimeout(() => {
+          skillStore.setNoteAnimating(data.noteId, false)
+        }, 300)
+      }
+    } else {
+      await skillStore.updateNotePosition(data.noteId, note.x, note.y)
+    }
+  } catch (error) {
+    console.error('[CanvasContainer] Failed to handle skill note drag complete:', error)
+  } finally {
+    skillStore.setIsOverTrash(false)
+  }
 }
 </script>
 
@@ -169,6 +210,16 @@ const handleNoteDragComplete = async (data: { noteId: string; isOverTrash: boole
       @drag-complete="handleNoteDragComplete"
     />
 
+    <!-- Skill Notes -->
+    <SkillNote
+      v-for="note in skillStore.getUnboundNotes"
+      :key="note.id"
+      :note="note"
+      @drag-end="handleSkillNoteDragEnd"
+      @drag-move="handleSkillNoteDragMove"
+      @drag-complete="handleSkillNoteDragComplete"
+    />
+
     <!-- 空狀態 -->
     <EmptyState v-if="store.podCount === 0" />
   </CanvasViewport>
@@ -179,6 +230,7 @@ const handleNoteDragComplete = async (data: { noteId: string; isOverTrash: boole
     :position="store.typeMenu.position"
     @select="handleSelectType"
     @create-output-style-note="handleCreateOutputStyleNote"
+    @create-skill-note="handleCreateSkillNote"
     @close="store.hideTypeMenu"
   />
 

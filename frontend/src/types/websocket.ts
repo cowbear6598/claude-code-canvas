@@ -3,6 +3,7 @@
 
 import type { Pod, PodColor, PodTypeName } from './pod'
 import type { OutputStyleListItem, OutputStyleNote } from './outputStyle'
+import type { Skill, SkillNote } from './skill'
 
 // ============================================================================
 // Event Name Enums
@@ -29,6 +30,12 @@ export const WebSocketRequestEvents = {
   NOTE_LIST: 'note:list',
   NOTE_UPDATE: 'note:update',
   NOTE_DELETE: 'note:delete',
+  SKILL_LIST: 'skill:list',
+  SKILL_NOTE_CREATE: 'skill-note:create',
+  SKILL_NOTE_LIST: 'skill-note:list',
+  SKILL_NOTE_UPDATE: 'skill-note:update',
+  SKILL_NOTE_DELETE: 'skill-note:delete',
+  POD_BIND_SKILL: 'pod:bind-skill',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -60,6 +67,12 @@ export const WebSocketResponseEvents = {
   NOTE_LIST_RESULT: 'note:list:result',
   NOTE_UPDATED: 'note:updated',
   NOTE_DELETED: 'note:deleted',
+  SKILL_LIST_RESULT: 'skill:list:result',
+  SKILL_NOTE_CREATED: 'skill-note:created',
+  SKILL_NOTE_LIST_RESULT: 'skill-note:list:result',
+  SKILL_NOTE_UPDATED: 'skill-note:updated',
+  SKILL_NOTE_DELETED: 'skill-note:deleted',
+  POD_SKILL_BOUND: 'pod:skill:bound',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]
@@ -331,5 +344,93 @@ export interface NoteDeletedPayload {
   requestId: string
   success: boolean
   noteId?: string
+  error?: string
+}
+
+// ============================================================================
+// Skill Request Payload Types
+// ============================================================================
+
+export interface SkillListPayload {
+  requestId: string
+}
+
+export interface SkillNoteCreatePayload {
+  requestId: string
+  skillId: string
+  name: string
+  x: number
+  y: number
+  boundToPodId: string | null
+  originalPosition: { x: number; y: number } | null
+}
+
+export interface SkillNoteListPayload {
+  requestId: string
+}
+
+export interface SkillNoteUpdatePayload {
+  requestId: string
+  noteId: string
+  x?: number
+  y?: number
+  boundToPodId?: string | null
+  originalPosition?: { x: number; y: number } | null
+}
+
+export interface SkillNoteDeletePayload {
+  requestId: string
+  noteId: string
+}
+
+export interface PodBindSkillPayload {
+  requestId: string
+  podId: string
+  skillId: string
+}
+
+// ============================================================================
+// Skill Response Payload Types
+// ============================================================================
+
+export interface SkillListResultPayload {
+  requestId: string
+  success: boolean
+  skills?: Skill[]
+  error?: string
+}
+
+export interface SkillNoteCreatedPayload {
+  requestId: string
+  success: boolean
+  note?: SkillNote
+  error?: string
+}
+
+export interface SkillNoteListResultPayload {
+  requestId: string
+  success: boolean
+  notes?: SkillNote[]
+  error?: string
+}
+
+export interface SkillNoteUpdatedPayload {
+  requestId: string
+  success: boolean
+  note?: SkillNote
+  error?: string
+}
+
+export interface SkillNoteDeletedPayload {
+  requestId: string
+  success: boolean
+  noteId?: string
+  error?: string
+}
+
+export interface PodSkillBoundPayload {
+  requestId: string
+  success: boolean
+  pod?: Pod
   error?: string
 }

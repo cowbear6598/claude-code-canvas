@@ -40,4 +40,5 @@ export interface PersistedPod {
   // Claude session management
   claudeSessionId: string | null; // Claude SDK session ID for resume
   outputStyleId: string | null; // Output style ID
+  skillIds: string[]; // Bound Skill IDs
 }

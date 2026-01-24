@@ -3,10 +3,12 @@ import { ref, computed, onUnmounted } from 'vue'
 import type { Pod } from '@/types'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
+import { useSkillStore } from '@/stores/skillStore'
 import PodHeader from './PodHeader.vue'
 import PodMiniScreen from './PodMiniScreen.vue'
 import PodStickyTab from './PodStickyTab.vue'
 import PodOutputStyleSlot from './PodOutputStyleSlot.vue'
+import PodSkillSlot from './PodSkillSlot.vue'
 
 const props = defineProps<{
   pod: Pod
@@ -14,9 +16,11 @@ const props = defineProps<{
 
 const canvasStore = useCanvasStore()
 const outputStyleStore = useOutputStyleStore()
+const skillStore = useSkillStore()
 
 const isActive = computed(() => props.pod.id === canvasStore.activePodId)
 const boundNote = computed(() => outputStyleStore.getNoteByPodId(props.pod.id))
+const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
 
 const emit = defineEmits<{
   select: [podId: string]
@@ -61,7 +65,8 @@ const handleMouseDown = (e: MouseEvent) => {
   if (
     (e.target as HTMLElement).closest('.sticky-tab-area') ||
     (e.target as HTMLElement).closest('.mini-screen-click') ||
-    (e.target as HTMLElement).closest('.pod-output-style-slot')
+    (e.target as HTMLElement).closest('.pod-output-style-slot') ||
+    (e.target as HTMLElement).closest('.pod-skill-slot')
   ) {
     return
   }
@@ -173,6 +178,27 @@ const handleNoteRemoved = async () => {
     console.error('[CanvasPod] Failed to unbind output style:', error)
   }
 }
+
+const handleSkillNoteDropped = async (noteId: string) => {
+  try {
+    const note = skillStore.getNoteById(noteId)
+    if (!note) {
+      console.warn('[CanvasPod] Note not found:', noteId)
+      return
+    }
+
+    // Check if this skill is already bound to this pod
+    if (skillStore.isSkillBoundToPod(note.skillId, props.pod.id)) {
+      console.warn('[CanvasPod] Skill already bound to this pod:', note.skillId)
+      // Note will fly back to original position automatically via animation
+      return
+    }
+
+    await skillStore.bindToPod(noteId, props.pod.id)
+  } catch (error) {
+    console.error('[CanvasPod] Failed to bind skill note:', error)
+  }
+}
 </script>
 
 <template>
@@ -187,7 +213,7 @@ const handleNoteRemoved = async () => {
   >
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
-      class="relative pod-with-notch"
+      class="relative pod-with-notch pod-with-skill-notch"
       :style="{ transform: `rotate(${pod.rotation}deg)` }"
     >
       <!-- 粘性標籤 -->
@@ -211,7 +237,16 @@ const handleNoteRemoved = async () => {
         />
       </div>
 
-      <!-- Pod 主卡片 -->
+      <!-- Skill 凹槽 -->
+      <div class="pod-skill-notch-area">
+        <PodSkillSlot
+          :pod-id="pod.id"
+          :bound-notes="boundSkillNotes"
+          @note-dropped="handleSkillNoteDropped"
+        />
+      </div>
+
+      <!-- Pod 主卡片 (增加凹槽偽元素) -->
       <div class="pod-doodle w-56 overflow-visible relative">
         <div class="p-3">
           <!-- 標題 -->

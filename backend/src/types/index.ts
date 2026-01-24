@@ -12,6 +12,12 @@ export type { OutputStyle, OutputStyleListItem } from './outputStyle.js';
 // Output Style Note types
 export type { OutputStyleNote } from './outputStyleNote.js';
 
+// Skill types
+export type { Skill } from './skill.js';
+
+// Skill Note types
+export type { SkillNote } from './skillNote.js';
+
 // API types
 export type {
   CreatePodRequest,
@@ -73,4 +79,16 @@ export {
   type NoteListResultPayload,
   type NoteUpdatedPayload,
   type NoteDeletedPayload,
+  type SkillListPayload,
+  type SkillNoteCreatePayload,
+  type SkillNoteListPayload,
+  type SkillNoteUpdatePayload,
+  type SkillNoteDeletePayload,
+  type PodBindSkillPayload,
+  type SkillListResultPayload,
+  type SkillNoteCreatedPayload,
+  type SkillNoteListResultPayload,
+  type SkillNoteUpdatedPayload,
+  type SkillNoteDeletedPayload,
+  type PodSkillBoundPayload,
 } from './websocket.js';

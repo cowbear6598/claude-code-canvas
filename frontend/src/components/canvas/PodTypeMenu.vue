@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Palette } from 'lucide-vue-next'
-import type { Position, PodTypeConfig, OutputStyleListItem } from '@/types'
+import { Palette, Wrench } from 'lucide-vue-next'
+import type { Position, PodTypeConfig, OutputStyleListItem, Skill } from '@/types'
 import { podTypes } from '@/data/podTypes'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
+import { useSkillStore } from '@/stores/skillStore'
 
 defineProps<{
   position: Position
@@ -12,17 +13,23 @@ defineProps<{
 const emit = defineEmits<{
   select: [config: PodTypeConfig]
   'create-output-style-note': [outputStyleId: string]
+  'create-skill-note': [skillId: string]
   close: []
 }>()
 
 const outputStyleStore = useOutputStyleStore()
+const skillStore = useSkillStore()
 const showSubmenu = ref(false)
+const showSkillSubmenu = ref(false)
 
 onMounted(async () => {
   try {
-    await outputStyleStore.loadOutputStyles()
+    await Promise.all([
+      outputStyleStore.loadOutputStyles(),
+      skillStore.loadSkills()
+    ])
   } catch (e) {
-    console.error('[PodTypeMenu] Failed to load output styles:', e)
+    console.error('[PodTypeMenu] Failed to load output styles or skills:', e)
   }
 })
 
@@ -33,6 +40,12 @@ const handleSelect = (config: PodTypeConfig) => {
 const handleOutputStyleSelect = (style: OutputStyleListItem) => {
   showSubmenu.value = false
   emit('create-output-style-note', style.id)
+  emit('close')
+}
+
+const handleSkillSelect = (skill: Skill) => {
+  showSkillSubmenu.value = false
+  emit('create-skill-note', skill.id)
   emit('close')
 }
 
@@ -97,6 +110,36 @@ const handleClose = () => {
             @click="handleOutputStyleSelect(style)"
           >
             {{ style.name }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Skills 按鈕 -->
+      <div class="relative" @mouseenter="showSkillSubmenu = true" @mouseleave="showSkillSubmenu = false">
+        <button
+          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
+        >
+          <span
+            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+            style="background-color: var(--doodle-green)"
+          >
+            <Wrench :size="16" class="text-card" />
+          </span>
+          <span class="font-mono text-sm text-foreground">Skills &gt;</span>
+        </button>
+
+        <!-- Skills 子選單 -->
+        <div
+          v-if="showSkillSubmenu && skillStore.availableSkills.length > 0"
+          class="pod-menu-submenu"
+        >
+          <button
+            v-for="skill in skillStore.availableSkills"
+            :key="skill.id"
+            class="pod-menu-submenu-item"
+            @click="handleSkillSelect(skill)"
+          >
+            {{ skill.name }}
           </button>
         </div>
       </div>
