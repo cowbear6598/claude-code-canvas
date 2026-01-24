@@ -24,6 +24,7 @@ import {
   getErrorMessage,
   getErrorCode,
 } from '../utils/websocketResponse.js';
+import { validateSkillId, validateSkillName } from '../utils/pathValidator.js';
 
 /**
  * Extract requestId from unknown payload for error handling
@@ -99,6 +100,14 @@ export async function handleSkillNoteCreate(
 
     const { requestId, skillId, name, x, y, boundToPodId, originalPosition } =
       payload as SkillNoteCreatePayload;
+
+    if (!validateSkillId(skillId)) {
+      throw new Error('Invalid skill ID format');
+    }
+
+    if (!validateSkillName(name)) {
+      throw new Error('Invalid skill name format');
+    }
 
     const note = skillNoteStore.create({
       skillId,
@@ -233,6 +242,8 @@ export async function handlePodBindSkill(socket: Socket, payload: unknown): Prom
     if (pod.skillIds.includes(skillId)) {
       throw new Error(`Skill ${skillId} is already bound to Pod ${podId}`);
     }
+
+    await skillService.copySkillToPod(skillId, podId);
 
     podStore.addSkillId(podId, skillId);
     const updatedPod = podStore.getById(podId);

@@ -26,7 +26,8 @@ class ClaudeSessionManager {
       prompt: '', // Empty initial prompt, will be set in queryService
       options: {
         cwd: workspacePath,
-        allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
+        settingSources: ['project'],
+        allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Skill'],
         permissionMode: 'acceptEdits',
         includePartialMessages: true, // Enable streaming partial messages
       },

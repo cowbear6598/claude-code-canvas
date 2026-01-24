@@ -2,6 +2,11 @@ import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config/index.js';
 import type { Skill } from '../types/index.js';
+import {
+  validateSkillId,
+  validatePodId,
+  isPathWithinDirectory,
+} from '../utils/pathValidator.js';
 
 class SkillService {
   /**
@@ -78,10 +83,98 @@ class SkillService {
   }
 
   /**
+   * Copy a skill directory to a pod's workspace
+   */
+  async copySkillToPod(skillId: string, podId: string): Promise<void> {
+    if (!validateSkillId(skillId)) {
+      throw new Error('Invalid skill ID format');
+    }
+    if (!validatePodId(podId)) {
+      throw new Error('Invalid pod ID format');
+    }
+
+    const srcDir = this.getSkillDirectoryPath(skillId);
+    const destDir = path.join(config.workspaceRoot, `pod-${podId}`, '.claude', 'skills', skillId);
+
+    try {
+      await fs.access(srcDir);
+    } catch {
+      throw new Error(`Skill directory not found: ${skillId}`);
+    }
+
+    try {
+      try {
+        await fs.rm(destDir, { recursive: true, force: true });
+      } catch {
+        // Ignore errors if directory doesn't exist
+      }
+
+      await this.copyDirectoryRecursive(srcDir, destDir);
+      console.log(`[SkillService] Successfully copied skill ${skillId} to pod ${podId}`);
+    } catch (error) {
+      throw new Error(`Failed to copy skill ${skillId} to pod ${podId}: ${error}`);
+    }
+  }
+
+  /**
+   * Get the directory path for a skill
+   */
+  private getSkillDirectoryPath(skillId: string): string {
+    if (!validateSkillId(skillId)) {
+      throw new Error('Invalid skill ID format');
+    }
+
+    // 使用 basename 防止路徑遍歷
+    const safePath = path.join(config.skillsPath, path.basename(skillId));
+
+    // 驗證最終路徑在允許範圍內
+    if (!isPathWithinDirectory(safePath, config.skillsPath)) {
+      throw new Error('Invalid skill path');
+    }
+
+    return safePath;
+  }
+
+  /**
    * Get the file path for a skill's SKILL.md file
    */
   private getSkillFilePath(skillId: string): string {
-    return path.join(config.skillsPath, skillId, 'SKILL.md');
+    const skillDir = this.getSkillDirectoryPath(skillId);
+    return path.join(skillDir, 'SKILL.md');
+  }
+
+  /**
+   * Recursively copy a directory from source to destination
+   */
+  private async copyDirectoryRecursive(
+    srcDir: string,
+    destDir: string,
+    depth: number = 0
+  ): Promise<void> {
+    const MAX_DEPTH = 10;
+    if (depth > MAX_DEPTH) {
+      throw new Error('Maximum directory depth exceeded');
+    }
+
+    await fs.mkdir(destDir, { recursive: true });
+
+    const entries = await fs.readdir(srcDir, { withFileTypes: true });
+
+    const MAX_FILES = 1000;
+    if (entries.length > MAX_FILES) {
+      throw new Error('Maximum file count exceeded');
+    }
+
+    for (const entry of entries) {
+      const srcPath = path.join(srcDir, entry.name);
+      const destPath = path.join(destDir, entry.name);
+
+      if (entry.isDirectory()) {
+        await this.copyDirectoryRecursive(srcPath, destPath, depth + 1);
+      } else {
+        await fs.copyFile(srcPath, destPath);
+      }
+    }
   }
 
   private parseFrontmatter(content: string, skillId: string): { description: string } {

@@ -63,7 +63,8 @@ class ClaudeQueryService {
 
       const queryOptions: Options = {
         cwd: pod.workspacePath,
-        allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
+        settingSources: ['project'],
+        allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Skill'],
         permissionMode: 'acceptEdits',
         includePartialMessages: true,
       };
