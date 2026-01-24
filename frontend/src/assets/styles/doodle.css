@@ -342,3 +342,51 @@
 .pod-menu-submenu-item:hover {
   background: var(--secondary);
 }
+
+/* Trash Zone */
+.trash-zone {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.trash-zone.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.trash-zone-inner {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: oklch(0.95 0.01 50);
+  border: 2px dashed oklch(0.6 0.02 50);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.trash-zone-inner.highlighted {
+  transform: scale(1.2);
+  background: oklch(0.9 0.15 25);
+  border-color: oklch(0.6 0.2 25);
+  border-style: solid;
+  box-shadow: 0 0 20px oklch(0.6 0.2 25 / 0.4);
+}
+
+.trash-zone-icon {
+  width: 32px;
+  height: 32px;
+  fill: none;
+  color: oklch(0.5 0.02 50);
+  transition: color 0.2s ease;
+}
+
+.trash-zone-inner.highlighted .trash-zone-icon {
+  color: oklch(0.5 0.2 25);
+}

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import CanvasViewport from './CanvasViewport.vue'
@@ -7,6 +8,7 @@ import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
 import OutputStyleNote from './OutputStyleNote.vue'
+import TrashZone from './TrashZone.vue'
 import type { PodTypeConfig } from '@/types'
 import {
   POD_MENU_X_OFFSET,
@@ -16,6 +18,19 @@ import {
 
 const store = useCanvasStore()
 const outputStyleStore = useOutputStyleStore()
+
+const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
+
+const showTrashZone = computed(() => outputStyleStore.isDraggingNote)
+const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash)
+
+const validateCoordinate = (value: number): number => {
+  if (!Number.isFinite(value)) {
+    console.warn('[CanvasContainer] Invalid coordinate:', value)
+    return 0
+  }
+  return value
+}
 
 const handleDoubleClick = (e: MouseEvent) => {
   const target = e.target as HTMLElement
@@ -35,8 +50,8 @@ const handleSelectType = async (config: PodTypeConfig) => {
 
   // 將螢幕座標轉換為畫布座標
   // 螢幕座標 -> 視口座標 -> 畫布座標
-  const canvasX = (store.typeMenu.position.x - store.viewport.offset.x) / store.viewport.zoom
-  const canvasY = (store.typeMenu.position.y - store.viewport.offset.y) / store.viewport.zoom
+  const canvasX = validateCoordinate((store.typeMenu.position.x - store.viewport.offset.x) / store.viewport.zoom)
+  const canvasY = validateCoordinate((store.typeMenu.position.y - store.viewport.offset.y) / store.viewport.zoom)
 
   const rotation = Math.random() * DEFAULT_POD_ROTATION_RANGE - (DEFAULT_POD_ROTATION_RANGE / 2)
   const newPod = {
@@ -81,14 +96,44 @@ const handleDragEnd = (data: { id: string; x: number; y: number }) => {
 const handleCreateOutputStyleNote = (outputStyleId: string) => {
   if (!store.typeMenu.position) return
 
-  const canvasX = (store.typeMenu.position.x - store.viewport.offset.x) / store.viewport.zoom
-  const canvasY = (store.typeMenu.position.y - store.viewport.offset.y) / store.viewport.zoom
+  const canvasX = validateCoordinate((store.typeMenu.position.x - store.viewport.offset.x) / store.viewport.zoom)
+  const canvasY = validateCoordinate((store.typeMenu.position.y - store.viewport.offset.y) / store.viewport.zoom)
 
   outputStyleStore.createNote(outputStyleId, canvasX, canvasY)
 }
 
 const handleNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
   outputStyleStore.updateNotePosition(data.noteId, data.x, data.y)
+}
+
+const handleNoteDragMove = (data: { noteId: string; screenX: number; screenY: number }) => {
+  if (!trashZoneRef.value) return
+
+  const isOver = trashZoneRef.value.isPointInZone(data.screenX, data.screenY)
+  outputStyleStore.setIsOverTrash(isOver)
+}
+
+const handleNoteDragComplete = async (data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }) => {
+  const note = outputStyleStore.getNoteById(data.noteId)
+  if (!note) return
+
+  if (data.isOverTrash) {
+    if (note.boundToPodId === null) {
+      try {
+        await outputStyleStore.deleteNote(data.noteId)
+      } catch (error) {
+        console.error('[CanvasContainer] Failed to delete note:', error)
+      }
+    } else {
+      outputStyleStore.setNoteAnimating(data.noteId, true)
+      await outputStyleStore.updateNotePosition(data.noteId, data.startX, data.startY)
+      setTimeout(() => {
+        outputStyleStore.setNoteAnimating(data.noteId, false)
+      }, 300)
+    }
+  }
+
+  outputStyleStore.setIsOverTrash(false)
 }
 </script>
 
@@ -111,6 +156,8 @@ const handleNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
       :key="note.id"
       :note="note"
       @drag-end="handleNoteDragEnd"
+      @drag-move="handleNoteDragMove"
+      @drag-complete="handleNoteDragComplete"
     />
 
     <!-- 空狀態 -->
@@ -124,6 +171,13 @@ const handleNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
     @select="handleSelectType"
     @create-output-style-note="handleCreateOutputStyleNote"
     @close="store.hideTypeMenu"
+  />
+
+  <!-- Trash Zone -->
+  <TrashZone
+    ref="trashZoneRef"
+    :visible="showTrashZone"
+    :is-highlighted="isTrashHighlighted"
   />
 
   <!-- Minimap -->

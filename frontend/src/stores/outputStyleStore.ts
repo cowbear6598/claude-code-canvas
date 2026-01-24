@@ -19,6 +19,8 @@ interface OutputStyleState {
   error: string | null
   draggedNoteId: string | null
   animatingNoteIds: Set<string>
+  isDraggingNote: boolean
+  isOverTrash: boolean
 }
 
 export const useOutputStyleStore = defineStore('outputStyle', {
@@ -29,6 +31,8 @@ export const useOutputStyleStore = defineStore('outputStyle', {
     error: null,
     draggedNoteId: null,
     animatingNoteIds: new Set<string>(),
+    isDraggingNote: false,
+    isOverTrash: false,
   }),
 
   getters: {
@@ -43,6 +47,12 @@ export const useOutputStyleStore = defineStore('outputStyle', {
 
     isNoteAnimating: (state) => (noteId: string): boolean =>
       state.animatingNoteIds.has(noteId),
+
+    canDeleteDraggedNote: (state): boolean => {
+      if (state.draggedNoteId === null) return false
+      const note = state.notes.find(n => n.id === state.draggedNoteId)
+      return note?.boundToPodId === null
+    },
   },
 
   actions: {
@@ -154,6 +164,9 @@ export const useOutputStyleStore = defineStore('outputStyle', {
       const note = this.notes.find(n => n.id === noteId)
       if (!note) return
 
+      const originalX = note.x
+      const originalY = note.y
+
       // Optimistically update
       note.x = x
       note.y = y
@@ -172,6 +185,8 @@ export const useOutputStyleStore = defineStore('outputStyle', {
               }
               resolve()
             } else {
+              note.x = originalX
+              note.y = originalY
               reject(new Error(payload.error || 'Failed to update note'))
             }
           }
@@ -187,6 +202,8 @@ export const useOutputStyleStore = defineStore('outputStyle', {
 
         setTimeout(() => {
           websocketService.offNoteUpdated(handleNoteUpdated)
+          note.x = originalX
+          note.y = originalY
           reject(new Error('Update note timeout'))
         }, 10000)
       })
@@ -376,15 +393,25 @@ export const useOutputStyleStore = defineStore('outputStyle', {
       }
     },
 
+    setIsDraggingNote(isDragging: boolean): void {
+      this.isDraggingNote = isDragging
+    },
+
+    setIsOverTrash(isOver: boolean): void {
+      this.isOverTrash = isOver
+    },
+
     async deleteNote(noteId: string): Promise<void> {
-      const note = this.notes.find(n => n.id === noteId)
+      const index = this.notes.findIndex(n => n.id === noteId)
+      if (index === -1) return
+
+      const note = this.notes[index]
       if (!note) return
 
+      const originalIndex = index
+
       // Optimistically remove from UI
-      const index = this.notes.findIndex(n => n.id === noteId)
-      if (index !== -1) {
-        this.notes.splice(index, 1)
-      }
+      this.notes.splice(index, 1)
 
       return new Promise((resolve, reject) => {
         const requestId = generateRequestId()
@@ -396,8 +423,7 @@ export const useOutputStyleStore = defineStore('outputStyle', {
             if (payload.success) {
               resolve()
             } else {
-              // Re-add the note on error
-              this.notes.push(note)
+              this.notes.splice(originalIndex, 0, note)
               reject(new Error(payload.error || 'Failed to delete note'))
             }
           }
@@ -411,6 +437,7 @@ export const useOutputStyleStore = defineStore('outputStyle', {
 
         setTimeout(() => {
           websocketService.offNoteDeleted(handleNoteDeleted)
+          this.notes.splice(originalIndex, 0, note)
           reject(new Error('Delete note timeout'))
         }, 10000)
       })
