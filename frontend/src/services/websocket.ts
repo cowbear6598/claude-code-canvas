@@ -58,7 +58,13 @@ import type {
   SkillNoteListResultPayload,
   SkillNoteUpdatedPayload,
   SkillNoteDeletedPayload,
-  PodSkillBoundPayload
+  PodSkillBoundPayload,
+  ConnectionCreatePayload,
+  ConnectionListPayload,
+  ConnectionDeletePayload,
+  ConnectionCreatedPayload,
+  ConnectionListResultPayload,
+  ConnectionDeletedPayload
 } from '@/types/websocket'
 
 type EventCallback<T> = (payload: T) => void
@@ -236,6 +242,18 @@ class WebSocketService {
     this.emit(WebSocketRequestEvents.POD_BIND_SKILL, payload)
   }
 
+  connectionCreate(payload: ConnectionCreatePayload): void {
+    this.emit(WebSocketRequestEvents.CONNECTION_CREATE, payload)
+  }
+
+  connectionList(payload: ConnectionListPayload): void {
+    this.emit(WebSocketRequestEvents.CONNECTION_LIST, payload)
+  }
+
+  connectionDelete(payload: ConnectionDeletePayload): void {
+    this.emit(WebSocketRequestEvents.CONNECTION_DELETE, payload)
+  }
+
   onConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.on(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -356,6 +374,18 @@ class WebSocketService {
     this.on(WebSocketResponseEvents.POD_SKILL_BOUND, callback)
   }
 
+  onConnectionCreated(callback: EventCallback<ConnectionCreatedPayload>): void {
+    this.on(WebSocketResponseEvents.CONNECTION_CREATED, callback)
+  }
+
+  onConnectionListResult(callback: EventCallback<ConnectionListResultPayload>): void {
+    this.on(WebSocketResponseEvents.CONNECTION_LIST_RESULT, callback)
+  }
+
+  onConnectionDeleted(callback: EventCallback<ConnectionDeletedPayload>): void {
+    this.on(WebSocketResponseEvents.CONNECTION_DELETED, callback)
+  }
+
   offConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.off(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -462,6 +492,18 @@ class WebSocketService {
 
   offPodJoinedBatch(callback: EventCallback<PodJoinedBatchPayload>): void {
     this.off(WebSocketResponseEvents.POD_JOINED_BATCH, callback)
+  }
+
+  offConnectionCreated(callback: EventCallback<ConnectionCreatedPayload>): void {
+    this.off(WebSocketResponseEvents.CONNECTION_CREATED, callback)
+  }
+
+  offConnectionListResult(callback: EventCallback<ConnectionListResultPayload>): void {
+    this.off(WebSocketResponseEvents.CONNECTION_LIST_RESULT, callback)
+  }
+
+  offConnectionDeleted(callback: EventCallback<ConnectionDeletedPayload>): void {
+    this.off(WebSocketResponseEvents.CONNECTION_DELETED, callback)
   }
 
   private emit(event: WebSocketRequestEvents, payload: unknown): void {

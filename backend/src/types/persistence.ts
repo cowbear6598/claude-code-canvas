@@ -2,6 +2,7 @@
 // Types for data stored on disk
 
 import type { PodTypeName, PodColor, PodStatus } from './pod.js';
+import type { AnchorPosition } from './connection.js';
 
 /**
  * Message stored in chat history
@@ -41,4 +42,16 @@ export interface PersistedPod {
   claudeSessionId: string | null; // Claude SDK session ID for resume
   outputStyleId: string | null; // Output style ID
   skillIds: string[]; // Bound Skill IDs
+}
+
+/**
+ * Connection data stored on disk
+ */
+export interface PersistedConnection {
+  id: string;
+  sourcePodId: string;
+  sourceAnchor: AnchorPosition;
+  targetPodId: string;
+  targetAnchor: AnchorPosition;
+  createdAt: string; // ISO 8601 format
 }

@@ -18,6 +18,9 @@ export type { Skill } from './skill.js';
 // Skill Note types
 export type { SkillNote } from './skillNote.js';
 
+// Connection types
+export type { Connection, AnchorPosition } from './connection.js';
+
 // API types
 export type {
   CreatePodRequest,
@@ -29,7 +32,7 @@ export type {
 } from './api.js';
 
 // Persistence types
-export type { PersistedMessage, ChatHistory, PersistedPod } from './persistence.js';
+export type { PersistedMessage, ChatHistory, PersistedPod, PersistedConnection } from './persistence.js';
 
 // WebSocket types
 export {
@@ -93,4 +96,10 @@ export {
   type SkillNoteUpdatedPayload,
   type SkillNoteDeletedPayload,
   type PodSkillBoundPayload,
+  type ConnectionCreatePayload,
+  type ConnectionCreatedPayload,
+  type ConnectionListPayload,
+  type ConnectionListResultPayload,
+  type ConnectionDeletePayload,
+  type ConnectionDeletedPayload,
 } from './websocket.js';

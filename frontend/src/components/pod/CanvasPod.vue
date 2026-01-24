@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import type { Pod } from '@/types'
+import type { AnchorPosition } from '@/types/connection'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import { useSkillStore } from '@/stores/skillStore'
+import { useConnectionStore } from '@/stores/connectionStore'
+import { useAnchorDetection } from '@/composables/useAnchorDetection'
 import PodHeader from './PodHeader.vue'
 import PodMiniScreen from './PodMiniScreen.vue'
 import PodStickyTab from './PodStickyTab.vue'
 import PodOutputStyleSlot from './PodOutputStyleSlot.vue'
 import PodSkillSlot from './PodSkillSlot.vue'
+import PodAnchor from './PodAnchor.vue'
 
 const props = defineProps<{
   pod: Pod
@@ -17,6 +21,8 @@ const props = defineProps<{
 const canvasStore = useCanvasStore()
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
+const connectionStore = useConnectionStore()
+const { detectTargetAnchor } = useAnchorDetection()
 
 const isActive = computed(() => props.pod.id === canvasStore.activePodId)
 const boundNote = computed(() => outputStyleStore.getNoteByPodId(props.pod.id))
@@ -187,6 +193,47 @@ const handleSkillNoteDropped = async (noteId: string) => {
 
   await skillStore.bindToPod(noteId, props.pod.id)
 }
+
+const handleAnchorDragStart = (data: {
+  podId: string
+  anchor: AnchorPosition
+  screenX: number
+  screenY: number
+}) => {
+  const canvasX = (data.screenX - canvasStore.viewport.offset.x) / canvasStore.viewport.zoom
+  const canvasY = (data.screenY - canvasStore.viewport.offset.y) / canvasStore.viewport.zoom
+
+  connectionStore.startDragging(data.podId, data.anchor, { x: canvasX, y: canvasY })
+}
+
+const handleAnchorDragMove = (data: { screenX: number; screenY: number }) => {
+  const canvasX = (data.screenX - canvasStore.viewport.offset.x) / canvasStore.viewport.zoom
+  const canvasY = (data.screenY - canvasStore.viewport.offset.y) / canvasStore.viewport.zoom
+
+  connectionStore.updateDraggingPosition({ x: canvasX, y: canvasY })
+}
+
+const handleAnchorDragEnd = async () => {
+  if (!connectionStore.draggingConnection) {
+    connectionStore.endDragging()
+    return
+  }
+
+  const { sourcePodId, sourceAnchor, currentPoint } = connectionStore.draggingConnection
+
+  const targetAnchor = detectTargetAnchor(currentPoint, canvasStore.pods, sourcePodId)
+
+  if (targetAnchor) {
+    await connectionStore.createConnection(
+      sourcePodId,
+      sourceAnchor,
+      targetAnchor.podId,
+      targetAnchor.anchor
+    )
+  }
+
+  connectionStore.endDragging()
+}
 </script>
 
 <template>
@@ -236,6 +283,36 @@ const handleSkillNoteDropped = async (noteId: string) => {
 
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
       <div class="pod-doodle w-56 overflow-visible relative">
+        <!-- Anchors -->
+        <PodAnchor
+          position="top"
+          :pod-id="pod.id"
+          @drag-start="handleAnchorDragStart"
+          @drag-move="handleAnchorDragMove"
+          @drag-end="handleAnchorDragEnd"
+        />
+        <PodAnchor
+          position="bottom"
+          :pod-id="pod.id"
+          @drag-start="handleAnchorDragStart"
+          @drag-move="handleAnchorDragMove"
+          @drag-end="handleAnchorDragEnd"
+        />
+        <PodAnchor
+          position="left"
+          :pod-id="pod.id"
+          @drag-start="handleAnchorDragStart"
+          @drag-move="handleAnchorDragMove"
+          @drag-end="handleAnchorDragEnd"
+        />
+        <PodAnchor
+          position="right"
+          :pod-id="pod.id"
+          @drag-start="handleAnchorDragStart"
+          @drag-move="handleAnchorDragMove"
+          @drag-end="handleAnchorDragEnd"
+        />
+
         <div class="p-3">
           <!-- 標題 -->
           <PodHeader

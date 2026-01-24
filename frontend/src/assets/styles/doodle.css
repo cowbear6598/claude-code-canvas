@@ -586,3 +586,105 @@
 .pod-skill-menu::-webkit-scrollbar-thumb:hover {
   background: oklch(0.5 0.02 50);
 }
+
+/* Pod Anchors */
+.pod-anchor {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 50%;
+  cursor: default;
+  transition: all 0.2s ease;
+  z-index: 50;
+  transform-origin: center;
+}
+
+.pod-anchor:hover {
+  scale: 1.3;
+  box-shadow: 0 0 6px var(--doodle-ink);
+}
+
+.pod-anchor.dragging {
+  scale: 1.5;
+  background: var(--doodle-blue);
+  box-shadow: 0 0 12px oklch(0.6 0.1 200 / 0.7);
+}
+
+.anchor-top {
+  top: -6px;
+  left: 50%;
+  margin-left: -6px;
+}
+
+.anchor-bottom {
+  bottom: -6px;
+  left: 50%;
+  margin-left: -6px;
+}
+
+.anchor-left {
+  left: -6px;
+  top: 50%;
+  margin-top: -6px;
+}
+
+.anchor-right {
+  right: -6px;
+  top: 50%;
+  margin-top: -6px;
+}
+
+/* Connection Layer */
+.connection-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.connection-line {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.connection-line .click-area {
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+.connection-line .line {
+  stroke-width: 3px;
+  transition: stroke-width 0.2s ease;
+}
+
+.connection-line:hover .line {
+  stroke-width: 4px;
+}
+
+.connection-line.selected .line {
+  stroke-width: 5px;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.connection-line .arrow {
+  transition: opacity 0.2s ease;
+}
+
+.connection-line:hover .arrow {
+  opacity: 0.8;
+}
+
+.dragging-line {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Connection Status Styles */
+.connection-line.active .line {
+  filter: drop-shadow(0 0 3px currentColor);
+}

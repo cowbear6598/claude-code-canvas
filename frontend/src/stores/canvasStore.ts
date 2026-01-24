@@ -9,6 +9,7 @@ import type {
     PodDeletedPayload,
     PodListResultPayload
 } from '@/types/websocket'
+import { useConnectionStore } from './connectionStore'
 
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 3
@@ -83,6 +84,10 @@ export const useCanvasStore = defineStore('canvas', {
             if (this.activePodId === id) {
                 this.activePodId = null
             }
+
+            // Delete related connections
+            const connectionStore = useConnectionStore()
+            connectionStore.deleteConnectionsByPodId(id)
         },
 
         /**

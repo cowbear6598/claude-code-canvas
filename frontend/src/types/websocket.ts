@@ -37,6 +37,9 @@ export const WebSocketRequestEvents = {
   SKILL_NOTE_UPDATE: 'skill-note:update',
   SKILL_NOTE_DELETE: 'skill-note:delete',
   POD_BIND_SKILL: 'pod:bind-skill',
+  CONNECTION_CREATE: 'connection:create',
+  CONNECTION_LIST: 'connection:list',
+  CONNECTION_DELETE: 'connection:delete',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -75,6 +78,9 @@ export const WebSocketResponseEvents = {
   SKILL_NOTE_UPDATED: 'skill-note:updated',
   SKILL_NOTE_DELETED: 'skill-note:deleted',
   POD_SKILL_BOUND: 'pod:skill:bound',
+  CONNECTION_CREATED: 'connection:created',
+  CONNECTION_LIST_RESULT: 'connection:list:result',
+  CONNECTION_DELETED: 'connection:deleted',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]
@@ -400,6 +406,23 @@ export interface PodBindSkillPayload {
   skillId: string
 }
 
+export interface ConnectionCreatePayload {
+  requestId: string
+  sourcePodId: string
+  sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+  targetPodId: string
+  targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+}
+
+export interface ConnectionListPayload {
+  requestId: string
+}
+
+export interface ConnectionDeletePayload {
+  requestId: string
+  connectionId: string
+}
+
 // ============================================================================
 // Skill Response Payload Types
 // ============================================================================
@@ -443,5 +466,40 @@ export interface PodSkillBoundPayload {
   requestId: string
   success: boolean
   pod?: Pod
+  error?: string
+}
+
+export interface ConnectionCreatedPayload {
+  requestId: string
+  success: boolean
+  connection?: {
+    id: string
+    sourcePodId: string
+    sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+    targetPodId: string
+    targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+    createdAt: string
+  }
+  error?: string
+}
+
+export interface ConnectionListResultPayload {
+  requestId: string
+  success: boolean
+  connections?: Array<{
+    id: string
+    sourcePodId: string
+    sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+    targetPodId: string
+    targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+    createdAt: string
+  }>
+  error?: string
+}
+
+export interface ConnectionDeletedPayload {
+  requestId: string
+  success: boolean
+  connectionId?: string
   error?: string
 }

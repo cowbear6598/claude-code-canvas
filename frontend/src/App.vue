@@ -4,6 +4,7 @@ import { useCanvasStore } from '@/stores/canvasStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import { useSkillStore } from '@/stores/skillStore'
+import { useConnectionStore } from '@/stores/connectionStore'
 import { websocketService } from '@/services/websocket'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
@@ -18,6 +19,7 @@ const canvasStore = useCanvasStore()
 const chatStore = useChatStore()
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
+const connectionStore = useConnectionStore()
 
 const selectedPod = computed(() => canvasStore.selectedPod)
 
@@ -103,6 +105,9 @@ const initializeApp = async (): Promise<void> => {
   // Load skills and skill notes from backend
   await skillStore.loadSkills()
   await skillStore.loadNotesFromBackend()
+
+  // Load connections from backend
+  await connectionStore.loadConnectionsFromBackend()
 
   // Load chat history for all pods
   if (podIds.length > 0) {

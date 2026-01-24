@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import { useSkillStore } from '@/stores/skillStore'
+import { useConnectionStore } from '@/stores/connectionStore'
 import CanvasViewport from './CanvasViewport.vue'
 import Minimap from './Minimap.vue'
 import EmptyState from './EmptyState.vue'
@@ -11,6 +12,7 @@ import CanvasPod from '@/components/pod/CanvasPod.vue'
 import OutputStyleNote from './OutputStyleNote.vue'
 import SkillNote from './SkillNote.vue'
 import TrashZone from './TrashZone.vue'
+import ConnectionLayer from './ConnectionLayer.vue'
 import type { PodTypeConfig } from '@/types'
 import {
   POD_MENU_X_OFFSET,
@@ -21,6 +23,7 @@ import {
 const store = useCanvasStore()
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
+const connectionStore = useConnectionStore()
 
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
 
@@ -45,6 +48,18 @@ const handleDoubleClick = (e: MouseEvent) => {
     // 選單使用螢幕座標（因為是 position: fixed）
     store.showTypeMenu({ x: e.clientX, y: e.clientY })
   }
+}
+
+const handleCanvasClick = (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+
+  // 如果點擊的是連線相關元素，不取消選取
+  if (target.closest('.connection-line')) {
+    return
+  }
+
+  // 點擊空白處時取消連線選取
+  connectionStore.selectConnection(null)
 }
 
 const handleSelectType = async (config: PodTypeConfig) => {
@@ -168,7 +183,10 @@ const handleSkillNoteDragComplete = async (data: { noteId: string; isOverTrash: 
 </script>
 
 <template>
-  <CanvasViewport @dblclick="handleDoubleClick">
+  <CanvasViewport @dblclick="handleDoubleClick" @click="handleCanvasClick">
+    <!-- Connection Layer -->
+    <ConnectionLayer />
+
     <!-- Pod 列表 -->
     <CanvasPod
       v-for="pod in store.pods"

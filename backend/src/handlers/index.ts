@@ -31,6 +31,11 @@ import {
   handleSkillNoteDelete,
   handlePodBindSkill,
 } from './skillHandlers.js';
+import {
+  handleConnectionCreate,
+  handleConnectionList,
+  handleConnectionDelete,
+} from './connectionHandlers.js';
 
 /**
  * Register all WebSocket event handlers for a socket
@@ -127,6 +132,19 @@ export function registerAllHandlers(socket: Socket): void {
     handlePodBindSkill(socket, payload);
   });
 
+  // Connection handlers
+  socket.on(WebSocketRequestEvents.CONNECTION_CREATE, (payload) => {
+    handleConnectionCreate(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.CONNECTION_LIST, (payload) => {
+    handleConnectionList(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.CONNECTION_DELETE, (payload) => {
+    handleConnectionDelete(socket, payload);
+  });
+
   console.log(`[Handlers] Registered all handlers for socket ${socket.id}`);
 }
 
@@ -153,4 +171,7 @@ export {
   handleSkillNoteUpdate,
   handleSkillNoteDelete,
   handlePodBindSkill,
+  handleConnectionCreate,
+  handleConnectionList,
+  handleConnectionDelete,
 };

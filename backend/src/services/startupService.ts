@@ -2,6 +2,7 @@ import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { noteStore } from './noteStore.js';
 import { skillNoteStore } from './skillNoteStore.js';
+import { connectionStore } from './connectionStore.js';
 import { config } from '../config/index.js';
 import { persistenceService } from './persistence/index.js';
 
@@ -35,6 +36,10 @@ class StartupService {
       await skillNoteStore.loadFromDisk();
       const skillNotes = skillNoteStore.list();
       console.log(`[Startup] Loaded ${skillNotes.length} skill notes from disk`);
+
+      await connectionStore.loadFromDisk();
+      const connections = connectionStore.list();
+      console.log(`[Startup] Loaded ${connections.length} connections from disk`);
 
       console.log('[Startup] Initialization complete');
     } catch (error) {

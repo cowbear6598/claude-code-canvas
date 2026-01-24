@@ -59,6 +59,12 @@ export {
   type SkillNoteUpdatedPayload,
   type SkillNoteDeletedPayload,
   type PodSkillBoundPayload,
+  type ConnectionCreatePayload,
+  type ConnectionCreatedPayload,
+  type ConnectionListPayload,
+  type ConnectionListResultPayload,
+  type ConnectionDeletePayload,
+  type ConnectionDeletedPayload,
 } from './websocket-events.js';
 
 // Legacy enum for backward compatibility (deprecated)

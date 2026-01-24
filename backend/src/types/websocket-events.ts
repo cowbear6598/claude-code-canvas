@@ -25,6 +25,9 @@ export enum WebSocketRequestEvents {
   SKILL_NOTE_UPDATE = 'skill-note:update',
   SKILL_NOTE_DELETE = 'skill-note:delete',
   POD_BIND_SKILL = 'pod:bind-skill',
+  CONNECTION_CREATE = 'connection:create',
+  CONNECTION_LIST = 'connection:list',
+  CONNECTION_DELETE = 'connection:delete',
 }
 
 export enum WebSocketResponseEvents {
@@ -58,6 +61,9 @@ export enum WebSocketResponseEvents {
   SKILL_NOTE_UPDATED = 'skill-note:updated',
   SKILL_NOTE_DELETED = 'skill-note:deleted',
   POD_SKILL_BOUND = 'pod:skill:bound',
+  CONNECTION_CREATED = 'connection:created',
+  CONNECTION_LIST_RESULT = 'connection:list:result',
+  CONNECTION_DELETED = 'connection:deleted',
 }
 
 export interface PodCreatePayload {
@@ -406,5 +412,43 @@ export interface PodSkillBoundPayload {
   requestId: string;
   success: boolean;
   pod?: Pod;
+  error?: string;
+}
+
+export interface ConnectionCreatePayload {
+  requestId: string;
+  sourcePodId: string;
+  sourceAnchor: import('./connection.js').AnchorPosition;
+  targetPodId: string;
+  targetAnchor: import('./connection.js').AnchorPosition;
+}
+
+export interface ConnectionCreatedPayload {
+  requestId: string;
+  success: boolean;
+  connection?: import('./connection.js').Connection;
+  error?: string;
+}
+
+export interface ConnectionListPayload {
+  requestId: string;
+}
+
+export interface ConnectionListResultPayload {
+  requestId: string;
+  success: boolean;
+  connections?: import('./connection.js').Connection[];
+  error?: string;
+}
+
+export interface ConnectionDeletePayload {
+  requestId: string;
+  connectionId: string;
+}
+
+export interface ConnectionDeletedPayload {
+  requestId: string;
+  success: boolean;
+  connectionId?: string;
   error?: string;
 }
