@@ -31,6 +31,7 @@ class PodStore {
       rotation: data.rotation,
       output: ['> Ready to assist', '> Type your message...'],
       claudeSessionId: null,
+      outputStyleId: null,
     };
 
     this.pods.set(id, pod);
@@ -104,6 +105,17 @@ class PodStore {
     this.persistPodAsync(pod, sessionId);
   }
 
+  setOutputStyleId(id: string, outputStyleId: string | null): void {
+    const pod = this.pods.get(id);
+    if (!pod) {
+      return;
+    }
+
+    pod.outputStyleId = outputStyleId;
+    this.pods.set(id, pod);
+    this.persistPodAsync(pod);
+  }
+
   async loadFromDisk(): Promise<void> {
     try {
       // Get all Pod IDs from disk
@@ -132,6 +144,7 @@ class PodStore {
             rotation: persistedPod.rotation,
             output: ['> Ready to assist', '> Type your message...'],
             claudeSessionId: persistedPod.claudeSessionId,
+            outputStyleId: persistedPod.outputStyleId ?? null,
           };
 
           this.pods.set(pod.id, pod);

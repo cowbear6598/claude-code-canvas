@@ -31,6 +31,20 @@ export {
   type PodJoinedPayload,
   type PodLeftPayload,
   type PodErrorPayload,
+  type OutputStyleListPayload,
+  type OutputStyleListResultPayload,
+  type PodBindOutputStylePayload,
+  type PodOutputStyleBoundPayload,
+  type PodUnbindOutputStylePayload,
+  type PodOutputStyleUnboundPayload,
+  type NoteCreatePayload,
+  type NoteListPayload,
+  type NoteUpdatePayload,
+  type NoteDeletePayload,
+  type NoteCreatedPayload,
+  type NoteListResultPayload,
+  type NoteUpdatedPayload,
+  type NoteDeletedPayload,
 } from './websocket-events.js';
 
 // Legacy enum for backward compatibility (deprecated)

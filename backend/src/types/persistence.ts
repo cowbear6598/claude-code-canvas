@@ -39,4 +39,5 @@ export interface PersistedPod {
   rotation: number;
   // Claude session management
   claudeSessionId: string | null; // Claude SDK session ID for resume
+  outputStyleId: string | null; // Output style ID
 }

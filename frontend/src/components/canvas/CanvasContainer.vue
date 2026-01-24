@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useCanvasStore } from '@/stores/canvasStore'
+import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import CanvasViewport from './CanvasViewport.vue'
 import Minimap from './Minimap.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
+import OutputStyleNote from './OutputStyleNote.vue'
 import type { PodTypeConfig } from '@/types'
 import {
   POD_MENU_X_OFFSET,
@@ -13,6 +15,7 @@ import {
 } from '@/lib/constants'
 
 const store = useCanvasStore()
+const outputStyleStore = useOutputStyleStore()
 
 const handleDoubleClick = (e: MouseEvent) => {
   const target = e.target as HTMLElement
@@ -74,6 +77,19 @@ const handleDeletePod = async (id: string) => {
 const handleDragEnd = (data: { id: string; x: number; y: number }) => {
   store.movePod(data.id, data.x, data.y)
 }
+
+const handleCreateOutputStyleNote = (outputStyleId: string) => {
+  if (!store.typeMenu.position) return
+
+  const canvasX = (store.typeMenu.position.x - store.viewport.offset.x) / store.viewport.zoom
+  const canvasY = (store.typeMenu.position.y - store.viewport.offset.y) / store.viewport.zoom
+
+  outputStyleStore.createNote(outputStyleId, canvasX, canvasY)
+}
+
+const handleNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
+  outputStyleStore.updateNotePosition(data.noteId, data.x, data.y)
+}
 </script>
 
 <template>
@@ -89,6 +105,14 @@ const handleDragEnd = (data: { id: string; x: number; y: number }) => {
       @drag-end="handleDragEnd"
     />
 
+    <!-- Output Style Notes -->
+    <OutputStyleNote
+      v-for="note in outputStyleStore.getUnboundNotes"
+      :key="note.id"
+      :note="note"
+      @drag-end="handleNoteDragEnd"
+    />
+
     <!-- 空狀態 -->
     <EmptyState v-if="store.podCount === 0" />
   </CanvasViewport>
@@ -98,6 +122,7 @@ const handleDragEnd = (data: { id: string; x: number; y: number }) => {
     v-if="store.typeMenu.visible && store.typeMenu.position"
     :position="store.typeMenu.position"
     @select="handleSelectType"
+    @create-output-style-note="handleCreateOutputStyleNote"
     @close="store.hideTypeMenu"
   />
 

@@ -2,6 +2,7 @@ import {v4 as uuidv4} from 'uuid';
 import {type Options, query} from '@anthropic-ai/claude-agent-sdk';
 import {podStore} from '../podStore.js';
 import {messageStore} from '../messageStore.js';
+import {outputStyleService} from '../outputStyleService.js';
 import {Message, ToolUseInfo} from '../../types/index.js';
 
 export type StreamEvent =
@@ -66,6 +67,19 @@ class ClaudeQueryService {
         permissionMode: 'acceptEdits',
         includePartialMessages: true,
       };
+
+      if (pod.outputStyleId) {
+        const styleContent = await outputStyleService.getStyleContent(pod.outputStyleId);
+        if (styleContent) {
+          queryOptions.systemPrompt = styleContent;
+          console.log(`[QueryService] Using output style ${pod.outputStyleId} for Pod ${podId}`);
+          console.log(`[QueryService] System prompt length: ${styleContent.length} chars`);
+        } else {
+          console.log(`[QueryService] Output style ${pod.outputStyleId} content is empty`);
+        }
+      } else {
+        console.log(`[QueryService] Pod ${podId} has no output style`);
+      }
 
       if (resumeSessionId) {
         queryOptions.resume = resumeSessionId;

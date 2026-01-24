@@ -191,6 +191,7 @@ export const useCanvasStore = defineStore('canvas', {
                 y: pod.y ?? 150 + (index % 2) * 100,
                 rotation: pod.rotation ?? (Math.random() * 4 - 2),
                 output: pod.output ?? [],
+                outputStyleId: pod.outputStyleId ?? null,
             }))
             this.pods = enrichedPods.filter(pod => this.isValidPod(pod))
         },
@@ -341,6 +342,13 @@ export const useCanvasStore = defineStore('canvas', {
             this.viewport = {
                 offset: {x: 0, y: 0},
                 zoom: 1,
+            }
+        },
+
+        updatePodOutputStyle(podId: string, outputStyleId: string | null): void {
+            const pod = this.pods.find((p) => p.id === podId)
+            if (pod) {
+                pod.outputStyleId = outputStyleId
             }
         },
     },

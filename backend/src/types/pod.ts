@@ -28,4 +28,5 @@ export interface Pod {
   output: string[]; // Output lines for display
   // Claude session management
   claudeSessionId: string | null; // Claude SDK session ID for conversation resume
+  outputStyleId: string | null; // Output style ID
 }

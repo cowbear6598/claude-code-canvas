@@ -26,6 +26,7 @@ export interface Pod {
   workspacePath?: string
   createdAt?: string
   updatedAt?: string
+  outputStyleId?: string | null
 }
 
 // Pod 類型配置

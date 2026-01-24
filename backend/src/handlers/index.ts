@@ -12,6 +12,17 @@ import {
 } from './podHandlers.js';
 import { handleGitClone } from './gitHandlers.js';
 import { handleChatSend, handleChatHistory } from './chatHandlers.js';
+import {
+  handleOutputStyleList,
+  handlePodBindOutputStyle,
+  handlePodUnbindOutputStyle,
+} from './outputStyleHandlers.js';
+import {
+  handleNoteCreate,
+  handleNoteList,
+  handleNoteUpdate,
+  handleNoteDelete,
+} from './noteHandlers.js';
 
 /**
  * Register all WebSocket event handlers for a socket
@@ -53,6 +64,36 @@ export function registerAllHandlers(socket: Socket): void {
     handleChatHistory(socket, payload);
   });
 
+  // Output Style handlers
+  socket.on(WebSocketRequestEvents.OUTPUT_STYLE_LIST, (payload) => {
+    handleOutputStyleList(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.POD_BIND_OUTPUT_STYLE, (payload) => {
+    handlePodBindOutputStyle(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.POD_UNBIND_OUTPUT_STYLE, (payload) => {
+    handlePodUnbindOutputStyle(socket, payload);
+  });
+
+  // Note handlers
+  socket.on(WebSocketRequestEvents.NOTE_CREATE, (payload) => {
+    handleNoteCreate(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.NOTE_LIST, (payload) => {
+    handleNoteList(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.NOTE_UPDATE, (payload) => {
+    handleNoteUpdate(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.NOTE_DELETE, (payload) => {
+    handleNoteDelete(socket, payload);
+  });
+
   console.log(`[Handlers] Registered all handlers for socket ${socket.id}`);
 }
 
@@ -66,4 +107,11 @@ export {
   handleGitClone,
   handleChatSend,
   handleChatHistory,
+  handleOutputStyleList,
+  handlePodBindOutputStyle,
+  handlePodUnbindOutputStyle,
+  handleNoteCreate,
+  handleNoteList,
+  handleNoteUpdate,
+  handleNoteDelete,
 };

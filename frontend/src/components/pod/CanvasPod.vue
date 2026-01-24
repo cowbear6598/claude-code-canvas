@@ -2,17 +2,21 @@
 import { ref, computed, onUnmounted } from 'vue'
 import type { Pod } from '@/types'
 import { useCanvasStore } from '@/stores/canvasStore'
+import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import PodHeader from './PodHeader.vue'
 import PodMiniScreen from './PodMiniScreen.vue'
 import PodStickyTab from './PodStickyTab.vue'
+import PodOutputStyleSlot from './PodOutputStyleSlot.vue'
 
 const props = defineProps<{
   pod: Pod
 }>()
 
 const canvasStore = useCanvasStore()
+const outputStyleStore = useOutputStyleStore()
 
 const isActive = computed(() => props.pod.id === canvasStore.activePodId)
+const boundNote = computed(() => outputStyleStore.getNoteByPodId(props.pod.id))
 
 const emit = defineEmits<{
   select: [podId: string]
@@ -56,7 +60,8 @@ const handleMouseDown = (e: MouseEvent) => {
   // 排除特定區域的拖拽
   if (
     (e.target as HTMLElement).closest('.sticky-tab-area') ||
-    (e.target as HTMLElement).closest('.mini-screen-click')
+    (e.target as HTMLElement).closest('.mini-screen-click') ||
+    (e.target as HTMLElement).closest('.pod-output-style-slot')
   ) {
     return
   }
@@ -147,6 +152,29 @@ const handleSelectPod = () => {
   canvasStore.setActivePod(props.pod.id)
   emit('select', props.pod.id)
 }
+
+const handleNoteDropped = async (noteId: string) => {
+  console.log('[CanvasPod] Note dropped:', noteId, 'to pod:', props.pod.id)
+  try {
+    await outputStyleStore.bindToPod(noteId, props.pod.id)
+    const note = outputStyleStore.getNoteById(noteId)
+    console.log('[CanvasPod] Bind success, note:', note)
+    if (note) {
+      canvasStore.updatePodOutputStyle(props.pod.id, note.outputStyleId)
+    }
+  } catch (error) {
+    console.error('[CanvasPod] Failed to bind output style:', error)
+  }
+}
+
+const handleNoteRemoved = async () => {
+  try {
+    await outputStyleStore.unbindFromPod(props.pod.id, true)
+    canvasStore.updatePodOutputStyle(props.pod.id, null)
+  } catch (error) {
+    console.error('[CanvasPod] Failed to unbind output style:', error)
+  }
+}
 </script>
 
 <template>
@@ -164,6 +192,16 @@ const handleSelectPod = () => {
       class="relative"
       :style="{ transform: `rotate(${pod.rotation}deg)` }"
     >
+      <!-- Output Style Slot -->
+      <div class="absolute -top-10 left-2">
+        <PodOutputStyleSlot
+          :pod-id="pod.id"
+          :bound-note="boundNote"
+          @note-dropped="handleNoteDropped"
+          @note-removed="handleNoteRemoved"
+        />
+      </div>
+
       <!-- 粘性標籤 -->
       <PodStickyTab
         :color="pod.color"

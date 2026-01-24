@@ -6,6 +6,12 @@ export type { Pod, PodColor, PodTypeName, PodStatus } from './pod.js';
 // Message types
 export type { Message, MessageRole, ToolUseInfo } from './message.js';
 
+// Output Style types
+export type { OutputStyle, OutputStyleListItem } from './outputStyle.js';
+
+// Output Style Note types
+export type { OutputStyleNote } from './outputStyleNote.js';
+
 // API types
 export type {
   CreatePodRequest,
@@ -53,4 +59,18 @@ export {
   type PodChatHistoryResultPayload,
   type PodJoinedPayload,
   type PodLeftPayload,
+  type OutputStyleListPayload,
+  type OutputStyleListResultPayload,
+  type PodBindOutputStylePayload,
+  type PodOutputStyleBoundPayload,
+  type PodUnbindOutputStylePayload,
+  type PodOutputStyleUnboundPayload,
+  type NoteCreatePayload,
+  type NoteListPayload,
+  type NoteUpdatePayload,
+  type NoteDeletePayload,
+  type NoteCreatedPayload,
+  type NoteListResultPayload,
+  type NoteUpdatedPayload,
+  type NoteDeletedPayload,
 } from './websocket.js';

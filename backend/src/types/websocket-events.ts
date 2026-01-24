@@ -11,6 +11,13 @@ export enum WebSocketRequestEvents {
   POD_CHAT_HISTORY = 'pod:chat:history',
   POD_JOIN = 'pod:join',
   POD_LEAVE = 'pod:leave',
+  OUTPUT_STYLE_LIST = 'output-style:list',
+  POD_BIND_OUTPUT_STYLE = 'pod:bind-output-style',
+  POD_UNBIND_OUTPUT_STYLE = 'pod:unbind-output-style',
+  NOTE_CREATE = 'note:create',
+  NOTE_LIST = 'note:list',
+  NOTE_UPDATE = 'note:update',
+  NOTE_DELETE = 'note:delete',
 }
 
 export enum WebSocketResponseEvents {
@@ -30,6 +37,13 @@ export enum WebSocketResponseEvents {
   POD_JOINED = 'pod:joined',
   POD_LEFT = 'pod:left',
   POD_ERROR = 'pod:error',
+  OUTPUT_STYLE_LIST_RESULT = 'output-style:list:result',
+  POD_OUTPUT_STYLE_BOUND = 'pod:output-style:bound',
+  POD_OUTPUT_STYLE_UNBOUND = 'pod:output-style:unbound',
+  NOTE_CREATED = 'note:created',
+  NOTE_LIST_RESULT = 'note:list:result',
+  NOTE_UPDATED = 'note:updated',
+  NOTE_DELETED = 'note:deleted',
 }
 
 export interface PodCreatePayload {
@@ -195,4 +209,99 @@ export interface PodErrorPayload {
   podId?: string;
   error: string;
   code: string;
+}
+
+export interface OutputStyleListPayload {
+  requestId: string;
+}
+
+export interface OutputStyleListResultPayload {
+  requestId: string;
+  success: boolean;
+  styles?: Array<{
+    id: string;
+    name: string;
+  }>;
+  error?: string;
+}
+
+export interface PodBindOutputStylePayload {
+  requestId: string;
+  podId: string;
+  outputStyleId: string;
+}
+
+export interface PodOutputStyleBoundPayload {
+  requestId: string;
+  success: boolean;
+  pod?: Pod;
+  error?: string;
+}
+
+export interface PodUnbindOutputStylePayload {
+  requestId: string;
+  podId: string;
+}
+
+export interface PodOutputStyleUnboundPayload {
+  requestId: string;
+  success: boolean;
+  pod?: Pod;
+  error?: string;
+}
+
+export interface NoteCreatePayload {
+  requestId: string;
+  outputStyleId: string;
+  name: string;
+  x: number;
+  y: number;
+  boundToPodId: string | null;
+  originalPosition: { x: number; y: number } | null;
+}
+
+export interface NoteListPayload {
+  requestId: string;
+}
+
+export interface NoteUpdatePayload {
+  requestId: string;
+  noteId: string;
+  x?: number;
+  y?: number;
+  boundToPodId?: string | null;
+  originalPosition?: { x: number; y: number } | null;
+}
+
+export interface NoteDeletePayload {
+  requestId: string;
+  noteId: string;
+}
+
+export interface NoteCreatedPayload {
+  requestId: string;
+  success: boolean;
+  note?: import('./outputStyleNote.js').OutputStyleNote;
+  error?: string;
+}
+
+export interface NoteListResultPayload {
+  requestId: string;
+  success: boolean;
+  notes?: import('./outputStyleNote.js').OutputStyleNote[];
+  error?: string;
+}
+
+export interface NoteUpdatedPayload {
+  requestId: string;
+  success: boolean;
+  note?: import('./outputStyleNote.js').OutputStyleNote;
+  error?: string;
+}
+
+export interface NoteDeletedPayload {
+  requestId: string;
+  success: boolean;
+  noteId?: string;
+  error?: string;
 }

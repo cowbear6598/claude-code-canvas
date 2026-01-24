@@ -15,6 +15,9 @@ import type {
   PodChatHistoryPayload,
   PodJoinPayload,
   PodLeavePayload,
+  OutputStyleListPayload,
+  PodBindOutputStylePayload,
+  PodUnbindOutputStylePayload,
   ConnectionReadyPayload,
   PodCreatedPayload,
   PodListResultPayload,
@@ -30,7 +33,18 @@ import type {
   PodChatHistoryResultPayload,
   PodJoinedPayload,
   PodLeftPayload,
-  PodErrorPayload
+  PodErrorPayload,
+  OutputStyleListResultPayload,
+  PodOutputStyleBoundPayload,
+  PodOutputStyleUnboundPayload,
+  NoteCreatePayload,
+  NoteListPayload,
+  NoteUpdatePayload,
+  NoteDeletePayload,
+  NoteCreatedPayload,
+  NoteListResultPayload,
+  NoteUpdatedPayload,
+  NoteDeletedPayload
 } from '@/types/websocket'
 
 type EventCallback<T> = (payload: T) => void
@@ -159,6 +173,34 @@ class WebSocketService {
     this.emit(WebSocketRequestEvents.POD_LEAVE, payload)
   }
 
+  outputStyleList(payload: OutputStyleListPayload): void {
+    this.emit(WebSocketRequestEvents.OUTPUT_STYLE_LIST, payload)
+  }
+
+  podBindOutputStyle(payload: PodBindOutputStylePayload): void {
+    this.emit(WebSocketRequestEvents.POD_BIND_OUTPUT_STYLE, payload)
+  }
+
+  podUnbindOutputStyle(payload: PodUnbindOutputStylePayload): void {
+    this.emit(WebSocketRequestEvents.POD_UNBIND_OUTPUT_STYLE, payload)
+  }
+
+  noteCreate(payload: NoteCreatePayload): void {
+    this.emit(WebSocketRequestEvents.NOTE_CREATE, payload)
+  }
+
+  noteList(payload: NoteListPayload): void {
+    this.emit(WebSocketRequestEvents.NOTE_LIST, payload)
+  }
+
+  noteUpdate(payload: NoteUpdatePayload): void {
+    this.emit(WebSocketRequestEvents.NOTE_UPDATE, payload)
+  }
+
+  noteDelete(payload: NoteDeletePayload): void {
+    this.emit(WebSocketRequestEvents.NOTE_DELETE, payload)
+  }
+
   onConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.on(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -223,6 +265,34 @@ class WebSocketService {
     this.on(WebSocketResponseEvents.POD_ERROR, callback)
   }
 
+  onOutputStyleListResult(callback: EventCallback<OutputStyleListResultPayload>): void {
+    this.on(WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT, callback)
+  }
+
+  onPodOutputStyleBound(callback: EventCallback<PodOutputStyleBoundPayload>): void {
+    this.on(WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, callback)
+  }
+
+  onPodOutputStyleUnbound(callback: EventCallback<PodOutputStyleUnboundPayload>): void {
+    this.on(WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, callback)
+  }
+
+  onNoteCreated(callback: EventCallback<NoteCreatedPayload>): void {
+    this.on(WebSocketResponseEvents.NOTE_CREATED, callback)
+  }
+
+  onNoteListResult(callback: EventCallback<NoteListResultPayload>): void {
+    this.on(WebSocketResponseEvents.NOTE_LIST_RESULT, callback)
+  }
+
+  onNoteUpdated(callback: EventCallback<NoteUpdatedPayload>): void {
+    this.on(WebSocketResponseEvents.NOTE_UPDATED, callback)
+  }
+
+  onNoteDeleted(callback: EventCallback<NoteDeletedPayload>): void {
+    this.on(WebSocketResponseEvents.NOTE_DELETED, callback)
+  }
+
   offConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.off(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -273,6 +343,34 @@ class WebSocketService {
 
   offError(callback: EventCallback<PodErrorPayload>): void {
     this.off(WebSocketResponseEvents.POD_ERROR, callback)
+  }
+
+  offOutputStyleListResult(callback: EventCallback<OutputStyleListResultPayload>): void {
+    this.off(WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT, callback)
+  }
+
+  offPodOutputStyleBound(callback: EventCallback<PodOutputStyleBoundPayload>): void {
+    this.off(WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, callback)
+  }
+
+  offPodOutputStyleUnbound(callback: EventCallback<PodOutputStyleUnboundPayload>): void {
+    this.off(WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, callback)
+  }
+
+  offNoteCreated(callback: EventCallback<NoteCreatedPayload>): void {
+    this.off(WebSocketResponseEvents.NOTE_CREATED, callback)
+  }
+
+  offNoteListResult(callback: EventCallback<NoteListResultPayload>): void {
+    this.off(WebSocketResponseEvents.NOTE_LIST_RESULT, callback)
+  }
+
+  offNoteUpdated(callback: EventCallback<NoteUpdatedPayload>): void {
+    this.off(WebSocketResponseEvents.NOTE_UPDATED, callback)
+  }
+
+  offNoteDeleted(callback: EventCallback<NoteDeletedPayload>): void {
+    this.off(WebSocketResponseEvents.NOTE_DELETED, callback)
   }
 
   private emit(event: WebSocketRequestEvents, payload: unknown): void {

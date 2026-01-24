@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useChatStore } from '@/stores/chatStore'
+import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
 import ChatModal from '@/components/chat/ChatModal.vue'
@@ -13,6 +14,7 @@ import {
 
 const canvasStore = useCanvasStore()
 const chatStore = useChatStore()
+const outputStyleStore = useOutputStyleStore()
 
 const selectedPod = computed(() => canvasStore.selectedPod)
 
@@ -89,6 +91,22 @@ const initializeApp = async (): Promise<void> => {
   try {
     await canvasStore.loadPodsFromBackend()
     console.log('[App] Loaded existing pods from backend')
+
+    // Load output styles and notes from backend
+    try {
+      await outputStyleStore.loadOutputStyles()
+      console.log('[App] Output styles loaded')
+
+      // Load notes from backend
+      await outputStyleStore.loadNotesFromBackend()
+      console.log('[App] Notes loaded from backend')
+
+      // Rebuild missing notes from pods
+      await outputStyleStore.rebuildNotesFromPods(canvasStore.pods)
+      console.log('[App] Notes rebuilt from pods')
+    } catch (e) {
+      console.warn('[App] Failed to load output styles or notes:', e)
+    }
 
     // Load chat history for all pods
     const podIds = canvasStore.pods.map(p => p.id)

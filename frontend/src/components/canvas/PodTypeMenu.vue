@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import type { Position, PodTypeConfig } from '@/types'
+import { ref, onMounted } from 'vue'
+import { Palette } from 'lucide-vue-next'
+import type { Position, PodTypeConfig, OutputStyleListItem } from '@/types'
 import { podTypes } from '@/data/podTypes'
+import { useOutputStyleStore } from '@/stores/outputStyleStore'
 
 defineProps<{
   position: Position
@@ -8,11 +11,29 @@ defineProps<{
 
 const emit = defineEmits<{
   select: [config: PodTypeConfig]
+  'create-output-style-note': [outputStyleId: string]
   close: []
 }>()
 
+const outputStyleStore = useOutputStyleStore()
+const showSubmenu = ref(false)
+
+onMounted(async () => {
+  try {
+    await outputStyleStore.loadOutputStyles()
+  } catch (e) {
+    console.error('[PodTypeMenu] Failed to load output styles:', e)
+  }
+})
+
 const handleSelect = (config: PodTypeConfig) => {
   emit('select', config)
+}
+
+const handleOutputStyleSelect = (style: OutputStyleListItem) => {
+  showSubmenu.value = false
+  emit('create-output-style-note', style.id)
+  emit('close')
 }
 
 const handleClose = () => {
@@ -35,23 +56,50 @@ const handleClose = () => {
         transform: 'scale(0.8)',
       }"
     >
-      <p class="font-sans text-xl text-foreground px-2 pb-2 border-b border-border mb-2">
-        Create New Pod
-      </p>
+      <!-- Pod 按鈕 -->
       <button
-        v-for="type in podTypes"
-        :key="type.type"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
-        @click="handleSelect(type)"
+        v-if="podTypes[0]"
+        class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left mb-1"
+        @click="handleSelect(podTypes[0])"
       >
         <span
           class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
-          :style="{ backgroundColor: `var(--doodle-${type.color})` }"
+          :style="{ backgroundColor: `var(--doodle-${podTypes[0].color})` }"
         >
-          <component :is="type.icon" :size="16" class="text-card" />
+          <component :is="podTypes[0].icon" :size="16" class="text-card" />
         </span>
-        <span class="font-mono text-sm text-foreground">{{ type.type }}</span>
+        <span class="font-mono text-sm text-foreground">Pod</span>
       </button>
+
+      <!-- Output Styles 按鈕 -->
+      <div class="relative" @mouseenter="showSubmenu = true" @mouseleave="showSubmenu = false">
+        <button
+          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
+        >
+          <span
+            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+            style="background-color: var(--doodle-pink)"
+          >
+            <Palette :size="16" class="text-card" />
+          </span>
+          <span class="font-mono text-sm text-foreground">Output Styles &gt;</span>
+        </button>
+
+        <!-- 子選單 -->
+        <div
+          v-if="showSubmenu && outputStyleStore.availableStyles.length > 0"
+          class="pod-menu-submenu"
+        >
+          <button
+            v-for="style in outputStyleStore.availableStyles"
+            :key="style.id"
+            class="pod-menu-submenu-item"
+            @click="handleOutputStyleSelect(style)"
+          >
+            {{ style.name }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
