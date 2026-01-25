@@ -1,4 +1,3 @@
-import { claudeQueryService, type StreamCallback } from './claude/queryService.js';
 import { disposableChatService } from './claude/disposableChatService.js';
 import { summaryPromptBuilder } from './summaryPromptBuilder.js';
 import { podStore } from './podStore.js';
@@ -13,37 +12,7 @@ export interface TargetSummaryResult {
 }
 
 class SummaryService {
-  /**
-   * @deprecated Use generateSummaryForTarget instead
-   * Generate summary using the source POD's AI session with context
-   * @param sourcePodId - The ID of the source POD
-   * @param onStream - Callback for streaming events
-   * @returns Promise with the summarized content
-   */
-  async generateSummaryWithSession(
-    sourcePodId: string,
-    onStream?: StreamCallback
-  ): Promise<string> {
-    const summaryPrompt = `請摘要我們目前的對話重點，給下一個處理者使用。請用繁體中文回應，並只輸出摘要內容，不要加上任何解釋或前綴。`;
-
-    let summarizedContent = '';
-
-    const streamCallback: StreamCallback = (event) => {
-      if (event.type === 'text') {
-        summarizedContent += event.content;
-      }
-
-      if (onStream) {
-        onStream(event);
-      }
-    };
-
-    await claudeQueryService.sendMessage(sourcePodId, summaryPrompt, streamCallback);
-
-    return summarizedContent;
-  }
-
-  async generateSummaryForTarget(sourcePodId: string, targetPodId: string): Promise<TargetSummaryResult> {
+    async generateSummaryForTarget(sourcePodId: string, targetPodId: string): Promise<TargetSummaryResult> {
     const sourcePod = podStore.getById(sourcePodId);
     if (!sourcePod) {
       return {
@@ -130,27 +99,6 @@ class SummaryService {
       summary: result.content,
       success: true,
     };
-  }
-
-  async generateSummariesForAllTargets(
-    sourcePodId: string,
-    targetPodIds: string[]
-  ): Promise<Map<string, TargetSummaryResult>> {
-    const results = await Promise.allSettled(
-      targetPodIds.map((targetPodId) => this.generateSummaryForTarget(sourcePodId, targetPodId))
-    );
-
-    const summaryMap = new Map<string, TargetSummaryResult>();
-
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        summaryMap.set(result.value.targetPodId, result.value);
-      } else {
-        console.error(`[SummaryService] Failed to generate summary:`, result.reason);
-      }
-    }
-
-    return summaryMap;
   }
 }
 
