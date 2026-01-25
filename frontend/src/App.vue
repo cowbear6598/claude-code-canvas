@@ -100,6 +100,9 @@ const initializeApp = async (): Promise<void> => {
   // Load pods from backend
   await canvasStore.loadPodsFromBackend()
 
+  // 縮放到全貌，讓所有 POD 都可見
+  canvasStore.fitToAllPods()
+
   // Batch join all POD rooms
   const podIds = canvasStore.pods.map(p => p.id)
   if (podIds.length > 0) {

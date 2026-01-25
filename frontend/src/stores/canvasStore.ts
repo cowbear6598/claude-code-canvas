@@ -336,6 +336,47 @@ export const useCanvasStore = defineStore('canvas', {
             this.viewport.offset.y = centerY - (dy * newZoom) / oldZoom
             this.viewport.zoom = newZoom
         },
+
+        /**
+         * 縮放視口，讓所有 POD 都可見
+         */
+        fitToAllPods(): void {
+            if (this.pods.length === 0) return
+
+            const POD_WIDTH = 224
+            const POD_HEIGHT = 168
+            const PADDING_X = 50
+            const PADDING_TOP = 80 // 上方多留一點空間
+            const PADDING_BOTTOM = 50
+
+            // 計算所有 POD 的邊界
+            const minX = Math.min(...this.pods.map(p => p.x))
+            const minY = Math.min(...this.pods.map(p => p.y))
+            const maxX = Math.max(...this.pods.map(p => p.x + POD_WIDTH))
+            const maxY = Math.max(...this.pods.map(p => p.y + POD_HEIGHT))
+
+            // 計算內容的寬高（含 padding）
+            const contentWidth = maxX - minX + PADDING_X * 2
+            const contentHeight = maxY - minY + PADDING_TOP + PADDING_BOTTOM
+
+            // 可見區域
+            const screenWidth = window.innerWidth
+            const screenHeight = window.innerHeight
+
+            // 計算適合的縮放比例
+            const zoomX = screenWidth / contentWidth
+            const zoomY = screenHeight / contentHeight
+            const zoom = Math.min(zoomX, zoomY, 1) // 最大不超過 1
+            const clampedZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom))
+
+            // 計算 offset，讓內容對齊可見區域
+            const offsetX = -minX * clampedZoom + PADDING_X
+            const offsetY = -minY * clampedZoom + PADDING_TOP
+
+            this.viewport.zoom = clampedZoom
+            this.viewport.offset = { x: offsetX, y: offsetY }
+        },
+
         updatePodOutputStyle(podId: string, outputStyleId: string | null): void {
             const pod = this.pods.find((p) => p.id === podId)
             if (pod) {
