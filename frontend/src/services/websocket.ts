@@ -72,7 +72,11 @@ import type {
   WorkflowErrorPayload,
   WorkflowAutoTriggeredPayload,
   WorkflowPendingPayload,
-  WorkflowSourcesMergedPayload
+  WorkflowSourcesMergedPayload,
+  WorkflowGetDownstreamPodsPayload,
+  WorkflowGetDownstreamPodsResultPayload,
+  WorkflowClearPayload,
+  WorkflowClearResultPayload
 } from '@/types/websocket'
 
 type EventCallback<T> = (payload: T) => void
@@ -266,6 +270,14 @@ class WebSocketService {
     this.emit(WebSocketRequestEvents.CONNECTION_UPDATE, payload)
   }
 
+  workflowGetDownstreamPods(payload: WorkflowGetDownstreamPodsPayload): void {
+    this.emit(WebSocketRequestEvents.WORKFLOW_GET_DOWNSTREAM_PODS, payload)
+  }
+
+  workflowClear(payload: WorkflowClearPayload): void {
+    this.emit(WebSocketRequestEvents.WORKFLOW_CLEAR, payload)
+  }
+
   onConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.on(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -426,6 +438,14 @@ class WebSocketService {
     this.on(WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, callback)
   }
 
+  onWorkflowGetDownstreamPodsResult(callback: EventCallback<WorkflowGetDownstreamPodsResultPayload>): void {
+    this.on(WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT, callback)
+  }
+
+  onWorkflowClearResult(callback: EventCallback<WorkflowClearResultPayload>): void {
+    this.on(WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, callback)
+  }
+
   offConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.off(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -572,6 +592,14 @@ class WebSocketService {
 
   offWorkflowSourcesMerged(callback: EventCallback<WorkflowSourcesMergedPayload>): void {
     this.off(WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, callback)
+  }
+
+  offWorkflowGetDownstreamPodsResult(callback: EventCallback<WorkflowGetDownstreamPodsResultPayload>): void {
+    this.off(WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT, callback)
+  }
+
+  offWorkflowClearResult(callback: EventCallback<WorkflowClearResultPayload>): void {
+    this.off(WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, callback)
   }
 
   private emit(event: WebSocketRequestEvents, payload: unknown): void {

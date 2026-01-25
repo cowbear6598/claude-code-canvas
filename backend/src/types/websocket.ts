@@ -73,6 +73,10 @@ export {
   type WorkflowErrorPayload,
   type WorkflowPendingPayload,
   type WorkflowSourcesMergedPayload,
+  type WorkflowGetDownstreamPodsPayload,
+  type WorkflowGetDownstreamPodsResultPayload,
+  type WorkflowClearPayload,
+  type WorkflowClearResultPayload,
 } from './websocket-events.js';
 
 // Legacy enum for backward compatibility (deprecated)

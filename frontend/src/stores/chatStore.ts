@@ -347,10 +347,13 @@ export const useChatStore = defineStore('chat', {
     setTyping(podId: string, isTyping: boolean): void {
       this.isTypingByPodId.set(podId, isTyping)
     },
-
-    clearMessages(podId: string): void {
-      this.messagesByPodId.delete(podId)
-      this.isTypingByPodId.delete(podId)
+      clearMessagesByPodIds(podIds: string[]): void {
+      podIds.forEach(podId => {
+        this.messagesByPodId.delete(podId)
+        this.isTypingByPodId.delete(podId)
+        this.historyLoadingStatus.delete(podId)
+        this.historyLoadingError.delete(podId)
+      })
     },
 
     convertPersistedToMessage(persistedMessage: PersistedMessage): Message {

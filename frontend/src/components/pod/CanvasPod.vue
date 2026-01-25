@@ -6,13 +6,30 @@ import { useCanvasStore } from '@/stores/canvasStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import { useSkillStore } from '@/stores/skillStore'
 import { useConnectionStore } from '@/stores/connectionStore'
+import { useChatStore } from '@/stores/chatStore'
 import { useAnchorDetection } from '@/composables/useAnchorDetection'
+import { websocketService } from '@/services/websocket'
+import { generateRequestId } from '@/services/utils'
+import type {
+  WorkflowGetDownstreamPodsResultPayload,
+  WorkflowClearResultPayload
+} from '@/types/websocket'
 import PodHeader from './PodHeader.vue'
 import PodMiniScreen from './PodMiniScreen.vue'
 import PodStickyTab from './PodStickyTab.vue'
 import PodOutputStyleSlot from './PodOutputStyleSlot.vue'
 import PodSkillSlot from './PodSkillSlot.vue'
 import PodAnchor from './PodAnchor.vue'
+import { Eraser } from 'lucide-vue-next'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 const props = defineProps<{
   pod: Pod
@@ -22,11 +39,13 @@ const canvasStore = useCanvasStore()
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
 const connectionStore = useConnectionStore()
+const chatStore = useChatStore()
 const { detectTargetAnchor } = useAnchorDetection()
 
 const isActive = computed(() => props.pod.id === canvasStore.activePodId)
 const boundNote = computed(() => outputStyleStore.getNoteByPodId(props.pod.id))
 const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
+const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
 
 const emit = defineEmits<{
   select: [podId: string]
@@ -44,6 +63,11 @@ const dragRef = ref<{
   podX: number
   podY: number
 } | null>(null)
+
+const showClearDialog = ref(false)
+const downstreamPods = ref<Array<{ id: string; name: string }>>([])
+const isLoadingDownstream = ref(false)
+const isClearing = ref(false)
 
 // 在 script setup 中添加用於追蹤當前事件監聽器的變數
 let currentMouseMoveHandler: ((e: MouseEvent) => void) | null = null
@@ -237,6 +261,79 @@ const handleAnchorDragEnd = async () => {
 
   connectionStore.endDragging()
 }
+
+const handleClearWorkflow = () => {
+  isLoadingDownstream.value = true
+  const requestId = generateRequestId()
+
+  const handleResult = (payload: WorkflowGetDownstreamPodsResultPayload) => {
+    if (payload.requestId === requestId) {
+      websocketService.offWorkflowGetDownstreamPodsResult(handleResult)
+      isLoadingDownstream.value = false
+
+      if (payload.success && payload.pods) {
+        downstreamPods.value = payload.pods
+        showClearDialog.value = true
+      } else {
+        console.error('[CanvasPod] Failed to get downstream pods:', payload.error)
+      }
+    }
+  }
+
+  websocketService.onWorkflowGetDownstreamPodsResult(handleResult)
+  websocketService.workflowGetDownstreamPods({
+    requestId,
+    sourcePodId: props.pod.id
+  })
+
+  setTimeout(() => {
+    websocketService.offWorkflowGetDownstreamPodsResult(handleResult)
+    if (isLoadingDownstream.value) {
+      isLoadingDownstream.value = false
+      console.error('[CanvasPod] Get downstream pods timeout')
+    }
+  }, 10000)
+}
+
+const confirmClear = () => {
+  isClearing.value = true
+  const requestId = generateRequestId()
+
+  const handleResult = (payload: WorkflowClearResultPayload) => {
+    if (payload.requestId === requestId) {
+      websocketService.offWorkflowClearResult(handleResult)
+      isClearing.value = false
+
+      if (payload.success && payload.clearedPodIds) {
+        chatStore.clearMessagesByPodIds(payload.clearedPodIds)
+        canvasStore.clearPodOutputsByIds(payload.clearedPodIds)
+        showClearDialog.value = false
+        downstreamPods.value = []
+      } else {
+        console.error('[CanvasPod] Failed to clear workflow:', payload.error)
+      }
+    }
+  }
+
+  websocketService.onWorkflowClearResult(handleResult)
+  websocketService.workflowClear({
+    requestId,
+    sourcePodId: props.pod.id
+  })
+
+  setTimeout(() => {
+    websocketService.offWorkflowClearResult(handleResult)
+    if (isClearing.value) {
+      isClearing.value = false
+      console.error('[CanvasPod] Workflow clear timeout')
+    }
+  }, 10000)
+}
+
+const cancelClear = () => {
+  showClearDialog.value = false
+  downstreamPods.value = []
+}
 </script>
 
 <template>
@@ -330,7 +427,51 @@ const handleAnchorDragEnd = async () => {
           <!-- 迷你螢幕 -->
           <PodMiniScreen :output="pod.output" @dblclick="handleSelectPod" />
         </div>
+
       </div>
+
+      <!-- Workflow Clear Button (只顯示在 Source POD，放在 POD 右下角外側) -->
+      <button
+        v-if="isSourcePod"
+        class="workflow-clear-button"
+        :disabled="isLoadingDownstream || isClearing"
+        @click.stop="handleClearWorkflow"
+      >
+        <Eraser :size="16" />
+      </button>
     </div>
+
+    <!-- Clear Workflow Dialog -->
+    <Dialog v-model:open="showClearDialog">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>清理 Workflow</DialogTitle>
+          <DialogDescription>
+            即將清空以下 POD 的所有訊息：
+          </DialogDescription>
+        </DialogHeader>
+
+        <div class="py-4">
+          <ul class="space-y-2">
+            <li
+              v-for="pod in downstreamPods"
+              :key="pod.id"
+              class="text-sm font-mono text-foreground"
+            >
+              • {{ pod.name }}
+            </li>
+          </ul>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" @click="cancelClear" :disabled="isClearing">
+            取消
+          </Button>
+          <Button variant="destructive" @click="confirmClear" :disabled="isClearing">
+            {{ isClearing ? '清理中...' : '確認清理' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

@@ -43,6 +43,10 @@ export const useConnectionStore = defineStore('connection', {
       if (!state.selectedConnectionId) return null
       return state.connections.find(c => c.id === state.selectedConnectionId) || null
     },
+
+    isSourcePod: (state) => (podId: string): boolean => {
+      return !state.connections.some(conn => conn.targetPodId === podId)
+    },
   },
 
   actions: {

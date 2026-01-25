@@ -359,5 +359,14 @@ export const useCanvasStore = defineStore('canvas', {
                 pod.outputStyleId = outputStyleId
             }
         },
+
+        clearPodOutputsByIds(podIds: string[]): void {
+            podIds.forEach(podId => {
+                const pod = this.pods.find((p) => p.id === podId)
+                if (pod) {
+                    pod.output = []
+                }
+            })
+        },
     },
 })

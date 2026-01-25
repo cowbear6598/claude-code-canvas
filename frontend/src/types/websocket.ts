@@ -41,6 +41,8 @@ export const WebSocketRequestEvents = {
   CONNECTION_LIST: 'connection:list',
   CONNECTION_DELETE: 'connection:delete',
   CONNECTION_UPDATE: 'connection:update',
+  WORKFLOW_GET_DOWNSTREAM_PODS: 'workflow:get-downstream-pods',
+  WORKFLOW_CLEAR: 'workflow:clear',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -89,6 +91,8 @@ export const WebSocketResponseEvents = {
   WORKFLOW_AUTO_TRIGGERED: 'workflow:auto-triggered',
   WORKFLOW_PENDING: 'workflow:pending',
   WORKFLOW_SOURCES_MERGED: 'workflow:sources-merged',
+  WORKFLOW_GET_DOWNSTREAM_PODS_RESULT: 'workflow:get-downstream-pods:result',
+  WORKFLOW_CLEAR_RESULT: 'workflow:clear:result',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]
@@ -582,4 +586,29 @@ export interface WorkflowSourcesMergedPayload {
   targetPodId: string
   sourcePodIds: string[]
   mergedContentPreview: string
+}
+
+export interface WorkflowGetDownstreamPodsPayload {
+  requestId: string
+  sourcePodId: string
+}
+
+export interface WorkflowGetDownstreamPodsResultPayload {
+  requestId: string
+  success: boolean
+  pods?: Array<{ id: string; name: string }>
+  error?: string
+}
+
+export interface WorkflowClearPayload {
+  requestId: string
+  sourcePodId: string
+}
+
+export interface WorkflowClearResultPayload {
+  requestId: string
+  success: boolean
+  clearedPodIds?: string[]
+  clearedPodNames?: string[]
+  error?: string
 }

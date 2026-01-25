@@ -37,6 +37,10 @@ import {
   handleConnectionDelete,
   handleConnectionUpdate,
 } from './connectionHandlers.js';
+import {
+  handleWorkflowGetDownstreamPods,
+  handleWorkflowClear,
+} from './workflowHandlers.js';
 
 /**
  * Register all WebSocket event handlers for a socket
@@ -150,6 +154,15 @@ export function registerAllHandlers(socket: Socket): void {
     handleConnectionUpdate(socket, payload);
   });
 
+  // Workflow handlers
+  socket.on(WebSocketRequestEvents.WORKFLOW_GET_DOWNSTREAM_PODS, (payload) => {
+    handleWorkflowGetDownstreamPods(socket, payload);
+  });
+
+  socket.on(WebSocketRequestEvents.WORKFLOW_CLEAR, (payload) => {
+    handleWorkflowClear(socket, payload);
+  });
+
   console.log(`[Handlers] Registered all handlers for socket ${socket.id}`);
 }
 
@@ -180,4 +193,6 @@ export {
   handleConnectionList,
   handleConnectionDelete,
   handleConnectionUpdate,
+  handleWorkflowGetDownstreamPods,
+  handleWorkflowClear,
 };

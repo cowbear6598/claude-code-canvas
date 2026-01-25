@@ -1,0 +1,132 @@
+// Workflow Clear Service
+// Provides BFS traversal and clearing functionality for downstream PODs
+
+import { connectionStore } from './connectionStore.js';
+import { podStore } from './podStore.js';
+import { messageStore } from './messageStore.js';
+import { chatPersistenceService } from './persistence/chatPersistence.js';
+import { claudeSessionManager } from './claude/sessionManager.js';
+
+export interface ClearResult {
+  success: boolean;
+  clearedPodIds: string[];
+  clearedPodNames: string[];
+  error?: string;
+}
+
+class WorkflowClearService {
+  /**
+   * Get all downstream POD IDs using BFS traversal
+   * @param sourcePodId Starting POD ID
+   * @returns Array of POD IDs (including the source POD)
+   */
+  getDownstreamPodIds(sourcePodId: string): string[] {
+    const visited = new Set<string>();
+    const queue: string[] = [sourcePodId];
+    visited.add(sourcePodId);
+
+    while (queue.length > 0) {
+      const currentPodId = queue.shift()!;
+
+      // Find all outgoing connections from current POD
+      const connections = connectionStore.findBySourcePodId(currentPodId);
+
+      for (const connection of connections) {
+        const targetPodId = connection.targetPodId;
+
+        if (!visited.has(targetPodId)) {
+          visited.add(targetPodId);
+          queue.push(targetPodId);
+        }
+      }
+    }
+
+    return Array.from(visited);
+  }
+
+  /**
+   * Get downstream PODs with their names
+   * @param sourcePodId Starting POD ID
+   * @returns Array of objects with id and name
+   */
+  getDownstreamPods(sourcePodId: string): Array<{ id: string; name: string }> {
+    const podIds = this.getDownstreamPodIds(sourcePodId);
+    const pods: Array<{ id: string; name: string }> = [];
+
+    for (const podId of podIds) {
+      const pod = podStore.getById(podId);
+      if (pod) {
+        pods.push({
+          id: pod.id,
+          name: pod.name,
+        });
+      }
+    }
+
+    return pods;
+  }
+
+  /**
+   * Clear workflow data for all downstream PODs
+   * @param sourcePodId Starting POD ID
+   * @returns ClearResult with success status and cleared POD information
+   */
+  async clearWorkflow(sourcePodId: string): Promise<ClearResult> {
+    try {
+      const podIds = this.getDownstreamPodIds(sourcePodId);
+      const clearedPodNames: string[] = [];
+
+      for (const podId of podIds) {
+        const pod = podStore.getById(podId);
+        if (pod) {
+          clearedPodNames.push(pod.name);
+
+          // Clear messages from memory
+          messageStore.clearMessages(podId);
+
+          // Clear chat history from disk (handle ENOENT gracefully)
+          try {
+            await chatPersistenceService.clearChatHistory(podId);
+          } catch (error: unknown) {
+            const err = error as { code?: string };
+            if (err.code === 'ENOENT') {
+              // File doesn't exist, which is fine - already cleared
+              console.log(`[WorkflowClear] No chat history file found for Pod ${podId}`);
+            } else {
+              // Log other errors but don't fail the entire operation
+              console.error(`[WorkflowClear] Error clearing chat history for Pod ${podId}: ${error}`);
+            }
+          }
+
+          // Destroy Claude session
+          try {
+            await claudeSessionManager.destroySession(podId);
+          } catch (error) {
+            // Log but don't fail on session destroy errors
+            console.error(`[WorkflowClear] Error destroying session for Pod ${podId}: ${error}`);
+          }
+        }
+      }
+
+      console.log(`[WorkflowClear] Cleared ${podIds.length} PODs: ${clearedPodNames.join(', ')}`);
+
+      return {
+        success: true,
+        clearedPodIds: podIds,
+        clearedPodNames,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[WorkflowClear] Failed to clear workflow: ${errorMessage}`);
+
+      return {
+        success: false,
+        clearedPodIds: [],
+        clearedPodNames: [],
+        error: errorMessage,
+      };
+    }
+  }
+}
+
+export const workflowClearService = new WorkflowClearService();
