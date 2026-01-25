@@ -17,12 +17,11 @@ import type {
 } from '@/types/websocket'
 import PodHeader from './PodHeader.vue'
 import PodMiniScreen from './PodMiniScreen.vue'
-import PodStickyTab from './PodStickyTab.vue'
 import PodOutputStyleSlot from './PodOutputStyleSlot.vue'
 import PodSkillSlot from './PodSkillSlot.vue'
 import PodAnchor from './PodAnchor.vue'
 import PodModelSelector from './PodModelSelector.vue'
-import { Eraser } from 'lucide-vue-next'
+import { Eraser, Trash2 } from 'lucide-vue-next'
 import {
   Dialog,
   DialogContent,
@@ -57,7 +56,6 @@ const emit = defineEmits<{
   'drag-end': [data: { id: string; x: number; y: number }]
 }>()
 
-const isTabOpen = ref(false)
 const isDragging = ref(false)
 const isEditing = ref(false)
 const dragRef = ref<{
@@ -71,6 +69,7 @@ const showClearDialog = ref(false)
 const downstreamPods = ref<Array<{ id: string; name: string }>>([])
 const isLoadingDownstream = ref(false)
 const isClearing = ref(false)
+const showDeleteDialog = ref(false)
 
 // 在 script setup 中添加用於追蹤當前事件監聽器的變數
 let currentMouseMoveHandler: ((e: MouseEvent) => void) | null = null
@@ -96,7 +95,6 @@ onUnmounted(() => {
 const handleMouseDown = (e: MouseEvent) => {
   // 排除特定區域的拖拽
   if (
-    (e.target as HTMLElement).closest('.sticky-tab-area') ||
     (e.target as HTMLElement).closest('.mini-screen-click') ||
     (e.target as HTMLElement).closest('.pod-output-style-slot') ||
     (e.target as HTMLElement).closest('.pod-skill-slot')
@@ -145,14 +143,8 @@ const handleMouseDown = (e: MouseEvent) => {
   document.addEventListener('mouseup', handleMouseUp)
 }
 
-const handleToggleTab = () => {
-  canvasStore.setActivePod(props.pod.id)
-  isTabOpen.value = !isTabOpen.value
-}
-
 const handleRename = () => {
   isEditing.value = true
-  isTabOpen.value = false
 }
 
 const handleUpdateName = (name: string) => {
@@ -163,30 +155,17 @@ const handleSaveName = () => {
   isEditing.value = false
 }
 
-const handleCopy = async () => {
-  // 消毒 output 內容
-  const sanitizedOutput = props.pod.output
-    .map(line => line.replace(/[\x00-\x1F\x7F]/g, '')) // 移除控制字元
-    .join('\n')
-    .slice(0, 10000) // 限制總長度
-
-  try {
-    await navigator.clipboard.writeText(sanitizedOutput)
-  } catch (err) {
-    // 降級方案
-    const textArea = document.createElement('textarea')
-    textArea.value = sanitizedOutput
-    textArea.style.position = 'fixed'
-    textArea.style.opacity = '0'
-    document.body.appendChild(textArea)
-    textArea.select()
-    document.execCommand('copy')
-    document.body.removeChild(textArea)
-  }
+const handleDelete = () => {
+  showDeleteDialog.value = true
 }
 
-const handleDelete = () => {
+const confirmDelete = () => {
   emit('delete', props.pod.id)
+  showDeleteDialog.value = false
+}
+
+const cancelDelete = () => {
+  showDeleteDialog.value = false
 }
 
 const handleSelectPod = () => {
@@ -391,16 +370,6 @@ const handleModelChange = (model: ModelType) => {
         @update:model="handleModelChange"
       />
 
-      <!-- 粘性標籤 -->
-      <PodStickyTab
-        :color="pod.color"
-        :is-open="isTabOpen"
-        @toggle="handleToggleTab"
-        @rename="handleRename"
-        @copy="handleCopy"
-        @delete="handleDelete"
-      />
-
       <!-- Output Style 凹槽 -->
       <div class="pod-notch-area">
         <PodOutputStyleSlot
@@ -465,6 +434,7 @@ const handleModelChange = (model: ModelType) => {
             :is-editing="isEditing"
             @update:name="handleUpdateName"
             @save="handleSaveName"
+            @rename="handleRename"
           />
 
           <!-- 迷你螢幕 -->
@@ -473,14 +443,33 @@ const handleModelChange = (model: ModelType) => {
 
       </div>
 
-      <!-- Workflow Clear Button (只顯示在 Source POD，放在 POD 右下角外側) -->
+      <!-- 右下角按鈕區域 -->
+      <!-- Source Pod: 顯示按鈕群組 (刪除 + 橡皮擦) -->
+      <div v-if="isSourcePod" class="pod-action-buttons-group">
+        <!-- 刪除按鈕（左） -->
+        <button
+          class="pod-delete-button"
+          @click.stop="handleDelete"
+        >
+          <Trash2 :size="16" />
+        </button>
+        <!-- 橡皮擦按鈕（右） -->
+        <button
+          class="workflow-clear-button-in-group"
+          :disabled="isLoadingDownstream || isClearing"
+          @click.stop="handleClearWorkflow"
+        >
+          <Eraser :size="16" />
+        </button>
+      </div>
+
+      <!-- 非 Source Pod: 只顯示刪除按鈕 -->
       <button
-        v-if="isSourcePod"
-        class="workflow-clear-button"
-        :disabled="isLoadingDownstream || isClearing"
-        @click.stop="handleClearWorkflow"
+        v-else
+        class="pod-delete-button pod-delete-button-standalone"
+        @click.stop="handleDelete"
       >
-        <Eraser :size="16" />
+        <Trash2 :size="16" />
       </button>
     </div>
 
@@ -512,6 +501,27 @@ const handleModelChange = (model: ModelType) => {
           </Button>
           <Button variant="destructive" @click="confirmClear" :disabled="isClearing">
             {{ isClearing ? '清理中...' : '確認清理' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Delete Pod Dialog -->
+    <Dialog v-model:open="showDeleteDialog">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>刪除 Pod</DialogTitle>
+          <DialogDescription>
+            確定要刪除「{{ pod.name }}」嗎？此操作無法復原。
+          </DialogDescription>
+        </DialogHeader>
+
+        <DialogFooter>
+          <Button variant="outline" @click="cancelDelete">
+            取消
+          </Button>
+          <Button variant="destructive" @click="confirmDelete">
+            確認刪除
           </Button>
         </DialogFooter>
       </DialogContent>

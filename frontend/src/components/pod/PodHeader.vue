@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import type { PodTypeName, PodColor } from '@/types'
 import { COLOR_MAP, MAX_POD_NAME_LENGTH } from '@/lib/constants'
+import { Pencil } from 'lucide-vue-next'
 
 const props = defineProps<{
   name: string
@@ -13,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:name': [name: string]
   save: []
+  rename: []
 }>()
 
 const editName = ref(props.name)
@@ -52,6 +54,13 @@ const handleSave = () => {
       <h3 v-else class="flex-1 font-sans text-xl text-foreground truncate">
         {{ name }}
       </h3>
+      <button
+        v-if="!isEditing"
+        class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        @click="$emit('rename')"
+      >
+        <Pencil :size="14" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300" />
+      </button>
     </div>
     <!-- 類型文字 -->
     <p class="text-xs text-muted-foreground font-mono mb-2">{{ type }}</p>
