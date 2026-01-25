@@ -96,9 +96,24 @@ class WorkflowTriggerService {
 
       if (!summary) {
         try {
-          console.log(`[WorkflowTrigger] Generating summary for source POD ${sourcePodId}`);
-          summary = await summaryService.generateSummaryWithSession(sourcePodId);
-          isSummarized = true;
+          console.log(`[WorkflowTrigger] Generating customized summary for source POD ${sourcePodId} to target POD ${connection.targetPodId}`);
+          const summaryResult = await summaryService.generateSummaryForTarget(sourcePodId, connection.targetPodId);
+
+          if (summaryResult.success) {
+            summary = summaryResult.summary;
+            isSummarized = true;
+          } else {
+            console.error(`[WorkflowTrigger] Failed to generate summary: ${summaryResult.error}`);
+            const messages = messageStore.getMessages(sourcePodId);
+            const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
+            if (assistantMessages.length > 0) {
+              summary = assistantMessages[assistantMessages.length - 1].content;
+              isSummarized = false;
+            } else {
+              console.error('[WorkflowTrigger] No summary and no assistant messages available');
+              continue;
+            }
+          }
         } catch (error) {
           console.error('[WorkflowTrigger] Failed to generate summary:', error);
           const messages = messageStore.getMessages(sourcePodId);
@@ -229,17 +244,28 @@ class WorkflowTriggerService {
 
     try {
       console.log(
-        `[WorkflowTrigger] Generating summary using source POD ${sourcePodId} session`
+        `[WorkflowTrigger] Generating customized summary from source POD ${sourcePodId} to target POD ${targetPodId}`
       );
 
-      transferredContent = await summaryService.generateSummaryWithSession(
-        sourcePodId
+      const summaryResult = await summaryService.generateSummaryForTarget(
+        sourcePodId,
+        targetPodId
       );
-      isSummarized = true;
 
-      console.log(
-        `[WorkflowTrigger] Summary generated successfully, length: ${transferredContent.length} chars`
-      );
+      if (summaryResult.success) {
+        transferredContent = summaryResult.summary;
+        isSummarized = true;
+        console.log(
+          `[WorkflowTrigger] Summary generated successfully, length: ${transferredContent.length} chars`
+        );
+      } else {
+        console.error(
+          `[WorkflowTrigger] Failed to generate summary: ${summaryResult.error}, using last assistant message`
+        );
+        const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
+        transferredContent = lastAssistantMessage.content;
+        isSummarized = false;
+      }
     } catch (error) {
       console.error(
         '[WorkflowTrigger] Failed to generate summary, using last assistant message:',
