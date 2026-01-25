@@ -36,7 +36,7 @@ class ConnectionStore {
       sourceAnchor: data.sourceAnchor,
       targetPodId: data.targetPodId,
       targetAnchor: data.targetAnchor,
-      autoTrigger: data.autoTrigger ?? false,
+      autoTrigger: data.autoTrigger ?? true,
       createdAt: new Date(),
     };
 
@@ -148,7 +148,7 @@ class ConnectionStore {
 
       console.log(`[ConnectionStore] Loaded ${this.connections.size} connections from disk`);
     } catch (readError: unknown) {
-      const error = readError as NodeJS.ErrnoException;
+      const error = readError as { code?: string };
       if (error.code === 'ENOENT') {
         console.log('[ConnectionStore] No existing connections file found, starting fresh');
         this.connections.clear();

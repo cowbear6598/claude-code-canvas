@@ -878,21 +878,12 @@
 /* Connection Settings Popover */
 .connection-settings-popover {
   position: fixed;
-  background: var(--doodle-paper);
+  background: oklch(0.98 0.01 80);
   border: 2px solid var(--doodle-ink);
   border-radius: 8px;
-  padding: 12px;
-  min-width: 180px;
+  padding: 8px 12px;
   box-shadow: 3px 3px 0 var(--doodle-ink);
   z-index: 200;
-}
-
-.connection-settings-popover__title {
-  font-weight: 600;
-  font-size: 14px;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed var(--doodle-ink);
 }
 
 .connection-settings-popover__item {
@@ -904,12 +895,7 @@
 
 .connection-settings-popover__label {
   font-size: 13px;
-}
-
-.connection-settings-popover__description {
-  font-size: 11px;
-  color: oklch(0.5 0.02 50);
-  margin-top: 4px;
+  font-weight: 500;
 }
 
 /* Connection Settings Toggle Switch */

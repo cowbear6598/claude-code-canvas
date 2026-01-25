@@ -55,17 +55,11 @@ onUnmounted(() => {
     :style="{
       left: `${position.x}px`,
       top: `${position.y}px`,
+      transform: 'translateX(-50%)',
     }"
   >
-    <div class="connection-settings-popover__title">連線設定</div>
-
     <div class="connection-settings-popover__item">
-      <div>
-        <div class="connection-settings-popover__label">自動觸發</div>
-        <div class="connection-settings-popover__description">
-          Source POD 完成回應後自動傳遞
-        </div>
-      </div>
+      <div class="connection-settings-popover__label">自動觸發</div>
 
       <div
         :class="['connection-settings-toggle', { active: connection.autoTrigger }]"

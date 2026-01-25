@@ -81,6 +81,9 @@ const handleMouseDown = (e: MouseEvent) => {
 
   canvasStore.setActivePod(props.pod.id)
 
+  // 取消 connection 選取
+  connectionStore.selectConnection(null)
+
   // 先清理之前可能存在的監聽器
   cleanupEventListeners()
 

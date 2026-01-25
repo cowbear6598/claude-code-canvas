@@ -20,8 +20,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  select: [connectionId: string]
-  contextmenu: [connectionId: string, event: MouseEvent]
+  select: [connectionId: string, midPoint: { x: number; y: number }]
 }>()
 
 const connectionStore = useConnectionStore()
@@ -146,7 +145,7 @@ const arrowPositions = computed(() => {
 
 const handleClick = (e: MouseEvent) => {
   e.stopPropagation()
-  emit('select', props.connection.id)
+  emit('select', props.connection.id, pathData.value.midPoint)
 }
 
 const handleDoubleClick = (e: MouseEvent) => {
@@ -154,11 +153,6 @@ const handleDoubleClick = (e: MouseEvent) => {
   connectionStore.deleteConnection(props.connection.id)
 }
 
-const handleContextMenu = (e: MouseEvent) => {
-  e.preventDefault()
-  e.stopPropagation()
-  emit('contextmenu', props.connection.id, e)
-}
 
 const shouldShowAutoTriggerIcon = computed(() => {
   return props.connection.autoTrigger === true
@@ -190,7 +184,6 @@ const isAutoTriggering = computed(() => {
     ]"
     @click="handleClick"
     @dblclick="handleDoubleClick"
-    @contextmenu.prevent="handleContextMenu"
   >
     <defs>
       <linearGradient :id="gradientId" x1="0%" y1="0%" x2="100%" y2="0%">

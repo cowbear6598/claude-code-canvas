@@ -50,7 +50,7 @@ export async function handleWorkflowTrigger(
 
   if (!validation.success) {
     const requestId = extractRequestId(payload) || 'unknown';
-    const connectionId = (payload as any)?.connectionId || 'unknown';
+    const connectionId = (payload as Record<string, unknown>)?.connectionId as string || 'unknown';
 
     emitWorkflowError(
       socket,

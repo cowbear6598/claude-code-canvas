@@ -22,21 +22,18 @@ const draggingPathData = computed(() => {
   return `M ${startPoint.x} ${startPoint.y} L ${currentPoint.x} ${currentPoint.y}`
 })
 
-const handleSelectConnection = (connectionId: string) => {
+const handleSelectConnection = (connectionId: string, midPoint: { x: number; y: number }) => {
   connectionStore.selectConnection(connectionId)
+  // 使用連線中點座標（閃電符號正下方）
+  settingsPosition.value = { x: midPoint.x, y: midPoint.y + 20 }
+  showSettings.value = true
 }
 
 const handleCanvasClick = (e: MouseEvent) => {
   if (e.target === e.currentTarget) {
     connectionStore.selectConnection(null)
+    showSettings.value = false
   }
-}
-
-const handleConnectionRightClick = (connectionId: string, event: MouseEvent) => {
-  event.preventDefault()
-  connectionStore.selectConnection(connectionId)
-  settingsPosition.value = { x: event.clientX, y: event.clientY }
-  showSettings.value = true
 }
 
 const handleCloseSettings = () => {
@@ -71,7 +68,6 @@ onUnmounted(() => {
         :is-selected="connection.id === connectionStore.selectedConnectionId"
         :status="connection.status || 'inactive'"
         @select="handleSelectConnection"
-        @contextmenu="handleConnectionRightClick"
       />
 
       <g v-if="connectionStore.draggingConnection" class="dragging-line">
