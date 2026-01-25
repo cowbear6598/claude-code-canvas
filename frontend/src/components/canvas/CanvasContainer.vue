@@ -5,7 +5,6 @@ import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import { useSkillStore } from '@/stores/skillStore'
 import { useConnectionStore } from '@/stores/connectionStore'
 import CanvasViewport from './CanvasViewport.vue'
-import Minimap from './Minimap.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
@@ -238,7 +237,4 @@ const handleSkillNoteDragComplete = async (data: { noteId: string; isOverTrash: 
     :visible="showTrashZone"
     :is-highlighted="isTrashHighlighted"
   />
-
-  <!-- Minimap -->
-  <Minimap />
 </template>
