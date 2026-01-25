@@ -36,6 +36,7 @@ import type {
   PodJoinedBatchPayload,
   PodLeftPayload,
   PodErrorPayload,
+  PodStatusChangedPayload,
   OutputStyleListResultPayload,
   PodOutputStyleBoundPayload,
   PodOutputStyleUnboundPayload,
@@ -346,6 +347,10 @@ class WebSocketService {
     this.on(WebSocketResponseEvents.POD_ERROR, callback)
   }
 
+  onPodStatusChanged(callback: EventCallback<PodStatusChangedPayload>): void {
+    this.on(WebSocketResponseEvents.POD_STATUS_CHANGED, callback)
+  }
+
   onOutputStyleListResult(callback: EventCallback<OutputStyleListResultPayload>): void {
     this.on(WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT, callback)
   }
@@ -496,6 +501,10 @@ class WebSocketService {
 
   offError(callback: EventCallback<PodErrorPayload>): void {
     this.off(WebSocketResponseEvents.POD_ERROR, callback)
+  }
+
+  offPodStatusChanged(callback: EventCallback<PodStatusChangedPayload>): void {
+    this.off(WebSocketResponseEvents.POD_STATUS_CHANGED, callback)
   }
 
   offOutputStyleListResult(callback: EventCallback<OutputStyleListResultPayload>): void {

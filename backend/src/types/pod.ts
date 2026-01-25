@@ -9,7 +9,7 @@ export type PodTypeName =
   | 'Data Analyst'
   | 'General AI';
 
-export type PodStatus = 'idle' | 'busy' | 'error';
+export type PodStatus = 'idle' | 'chatting' | 'summarizing' | 'error';
 
 export type ModelType = 'opus' | 'sonnet' | 'haiku';
 

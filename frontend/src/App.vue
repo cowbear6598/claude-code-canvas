@@ -6,6 +6,7 @@ import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import { useSkillStore } from '@/stores/skillStore'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { websocketService } from '@/services/websocket'
+import type { PodStatusChangedPayload } from '@/types/websocket'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
 import ChatModal from '@/components/chat/ChatModal.vue'
@@ -80,6 +81,13 @@ const handleCloseChat = (): void => {
 }
 
 /**
+ * Handle POD status changed event
+ */
+const handlePodStatusChanged = (payload: PodStatusChangedPayload): void => {
+  canvasStore.updatePodStatus(payload.podId, payload.status)
+}
+
+/**
  * Initialize application on mount
  */
 const initializeApp = async (): Promise<void> => {
@@ -120,6 +128,9 @@ const initializeApp = async (): Promise<void> => {
     // Sync loaded history to pod output
     syncHistoryToPodOutput()
   }
+
+  // Setup POD status changed listener
+  websocketService.onPodStatusChanged(handlePodStatusChanged)
 }
 
 onMounted(() => {
@@ -128,6 +139,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   chatStore.disconnectWebSocket()
+  websocketService.offPodStatusChanged(handlePodStatusChanged)
 })
 </script>
 

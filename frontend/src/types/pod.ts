@@ -6,6 +6,9 @@ export type PodColor = 'blue' | 'coral' | 'pink' | 'yellow' | 'green'
 // Pod Model 類型
 export type ModelType = 'opus' | 'sonnet' | 'haiku'
 
+// Pod 狀態類型
+export type PodStatus = 'idle' | 'chatting' | 'summarizing' | 'error'
+
 // Pod 類型名稱
 export type PodTypeName =
   | 'Code Assistant'
@@ -24,7 +27,7 @@ export interface Pod {
   color: PodColor
   output: string[]
   rotation: number
-  status?: 'idle' | 'busy' | 'error'
+  status?: PodStatus
   gitUrl?: string
   workspacePath?: string
   createdAt?: string

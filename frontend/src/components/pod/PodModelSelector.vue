@@ -64,8 +64,6 @@ const selectModel = (model: ModelType) => {
     return
   }
 
-  console.log('[PodModelSelector] Selecting model:', model, 'for pod:', props.podId)
-
   // 開始動畫，禁止 hover
   isAnimating.value = true
 

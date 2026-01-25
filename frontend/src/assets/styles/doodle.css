@@ -854,3 +854,79 @@
 .workflow-clear-button-in-group:hover svg {
   color: oklch(0.25 0.02 50);
 }
+
+/* POD Status Animation Styles */
+
+/* Idle 狀態無特殊樣式 */
+.pod-status-idle {
+  /* 預設樣式，無額外動畫 */
+}
+
+/* Chatting 狀態的脈衝動畫（增強版 - 更明顯可見） */
+@keyframes pod-chatting-pulse {
+  0%, 100% {
+    box-shadow:
+      2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+      0 0 8px oklch(0.7 0.18 220 / 0.5),
+      0 0 16px oklch(0.65 0.2 220 / 0.3);
+  }
+  50% {
+    box-shadow:
+      2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+      0 0 20px oklch(0.75 0.22 220 / 0.8),
+      0 0 32px oklch(0.65 0.2 220 / 0.5);
+  }
+}
+
+.pod-status-chatting {
+  animation: pod-chatting-pulse 2s ease-in-out infinite;
+}
+
+/* Summarizing 狀態的向內收縮光暈（金黃色，像資料被彙整） */
+@keyframes pod-summarizing-collect {
+  0% {
+    box-shadow:
+      2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+      0 0 20px 8px oklch(0.8 0.18 85 / 0.5),
+      0 0 30px 12px oklch(0.75 0.15 85 / 0.3);
+  }
+  /* 慢慢收縮到很小 */
+  85% {
+    box-shadow:
+      2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+      0 0 1px 0 oklch(0.85 0.2 85 / 1),
+      0 0 2px 0 oklch(0.75 0.15 85 / 0.6);
+  }
+  /* 快速彈開 */
+  100% {
+    box-shadow:
+      2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+      0 0 20px 8px oklch(0.8 0.18 85 / 0.5),
+      0 0 30px 12px oklch(0.75 0.15 85 / 0.3);
+  }
+}
+
+.pod-status-summarizing {
+  animation: pod-summarizing-collect 2s ease-in-out infinite;
+}
+
+/* Error 狀態樣式 */
+.pod-status-error {
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+              0 0 8px oklch(0.65 0.2 25 / 0.5);
+}
+
+/* 無障礙支援：減少動態效果 */
+@media (prefers-reduced-motion: reduce) {
+  .pod-status-chatting {
+    animation: none;
+    box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+                0 0 12px oklch(0.7 0.18 220 / 0.6);
+  }
+
+  .pod-status-summarizing {
+    animation: none;
+    box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+                0 0 8px 2px oklch(0.8 0.18 85 / 0.7);
+  }
+}

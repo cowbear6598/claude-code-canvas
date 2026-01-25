@@ -51,6 +51,7 @@ export enum WebSocketResponseEvents {
   POD_JOINED_BATCH = 'pod:joined:batch',
   POD_LEFT = 'pod:left',
   POD_ERROR = 'pod:error',
+  POD_STATUS_CHANGED = 'pod:status:changed',
   OUTPUT_STYLE_LIST_RESULT = 'output-style:list:result',
   POD_OUTPUT_STYLE_BOUND = 'pod:output-style:bound',
   POD_OUTPUT_STYLE_UNBOUND = 'pod:output-style:unbound',
@@ -252,6 +253,12 @@ export interface PodErrorPayload {
   podId?: string;
   error: string;
   code: string;
+}
+
+export interface PodStatusChangedPayload {
+  podId: string;
+  status: import('./pod.js').PodStatus;
+  previousStatus: import('./pod.js').PodStatus;
 }
 
 export interface OutputStyleListPayload {

@@ -1,7 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Pod, PodStatus, CreatePodRequest, ModelType } from '../types/index.js';
+import { Pod, PodStatus, CreatePodRequest, ModelType, WebSocketResponseEvents } from '../types/index.js';
 import { config } from '../config/index.js';
 import { podPersistenceService } from './persistence/podPersistence.js';
+import { socketService } from './socketService.js';
 
 class PodStore {
   private pods: Map<string, Pod> = new Map();
@@ -81,8 +82,21 @@ class PodStore {
       return;
     }
 
+    const previousStatus = pod.status;
+    if (previousStatus === status) {
+      return;
+    }
+
     pod.status = status;
     this.pods.set(id, pod);
+
+    const payload = {
+      podId: id,
+      status,
+      previousStatus,
+    };
+
+    socketService.emitToPod(id, WebSocketResponseEvents.POD_STATUS_CHANGED, payload);
   }
 
   updateLastActive(id: string): void {
@@ -159,12 +173,13 @@ class PodStore {
 
         if (persistedPod) {
           // Convert PersistedPod to Pod (convert string dates to Date objects)
+          const loadedStatus = persistedPod.status as string;
           const pod: Pod = {
             id: persistedPod.id,
             name: persistedPod.name,
             type: persistedPod.type,
             color: persistedPod.color,
-            status: persistedPod.status,
+            status: loadedStatus === 'busy' ? 'idle' : persistedPod.status,
             workspacePath: `${config.workspaceRoot}/pod-${persistedPod.id}`,
             gitUrl: persistedPod.gitUrl,
             createdAt: new Date(persistedPod.createdAt),

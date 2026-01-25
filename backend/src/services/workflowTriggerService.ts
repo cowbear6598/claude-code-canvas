@@ -19,6 +19,65 @@ import { pendingTargetStore } from './pendingTargetStore.js';
 
 class WorkflowTriggerService {
   /**
+   * Emit workflow completion event to connected PODs
+   */
+  private emitWorkflowComplete(
+    connectionId: string,
+    sourcePodId: string,
+    targetPodId: string,
+    success: boolean,
+    error?: string
+  ): void {
+    const payload = {
+      requestId: uuidv4(),
+      connectionId,
+      targetPodId,
+      success,
+      ...(error && { error }),
+    };
+    socketService.emitToPod(sourcePodId, WebSocketResponseEvents.WORKFLOW_COMPLETE, payload);
+    socketService.emitToPod(targetPodId, WebSocketResponseEvents.WORKFLOW_COMPLETE, payload);
+  }
+
+  /**
+   * Emit workflow triggered event to connected PODs
+   */
+  private emitWorkflowTriggered(
+    connectionId: string,
+    sourcePodId: string,
+    targetPodId: string,
+    transferredContent: string,
+    isSummarized: boolean
+  ): void {
+    const payload = {
+      requestId: uuidv4(),
+      success: true,
+      connectionId,
+      sourcePodId,
+      targetPodId,
+      transferredContent,
+      isSummarized,
+    };
+    socketService.emitToPod(sourcePodId, WebSocketResponseEvents.WORKFLOW_TRIGGERED, payload);
+    socketService.emitToPod(targetPodId, WebSocketResponseEvents.WORKFLOW_TRIGGERED, payload);
+  }
+
+  /**
+   * Fallback to last assistant message when summary generation fails
+   */
+  private getLastAssistantMessage(sourcePodId: string): string | null {
+    const messages = messageStore.getMessages(sourcePodId);
+    const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
+
+    if (assistantMessages.length === 0) {
+      console.error('[WorkflowTrigger] No assistant messages available for fallback');
+      return null;
+    }
+
+    return assistantMessages[assistantMessages.length - 1].content;
+  }
+
+  /**
    * Check if target POD has multiple auto-trigger connections (Multi-Input scenario)
    */
   private checkMultiInputScenario(targetPodId: string): { isMultiInput: boolean; requiredSourcePodIds: string[] } {
@@ -75,9 +134,9 @@ class WorkflowTriggerService {
         continue;
       }
 
-      if (targetPod.status === 'busy') {
+      if (targetPod.status === 'chatting' || targetPod.status === 'summarizing') {
         console.warn(
-          `[WorkflowTrigger] Target Pod ${connection.targetPodId} is busy, skipping auto-trigger`
+          `[WorkflowTrigger] Target Pod ${connection.targetPodId} is ${targetPod.status}, skipping auto-trigger`
         );
         continue;
       }
@@ -96,6 +155,7 @@ class WorkflowTriggerService {
 
       if (!summary) {
         try {
+          podStore.setStatus(sourcePodId, 'summarizing');
           console.log(`[WorkflowTrigger] Generating customized summary for source POD ${sourcePodId} to target POD ${connection.targetPodId}`);
           const summaryResult = await summaryService.generateSummaryForTarget(sourcePodId, connection.targetPodId);
 
@@ -104,27 +164,25 @@ class WorkflowTriggerService {
             isSummarized = true;
           } else {
             console.error(`[WorkflowTrigger] Failed to generate summary: ${summaryResult.error}`);
-            const messages = messageStore.getMessages(sourcePodId);
-            const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
-            if (assistantMessages.length > 0) {
-              summary = assistantMessages[assistantMessages.length - 1].content;
-              isSummarized = false;
-            } else {
-              console.error('[WorkflowTrigger] No summary and no assistant messages available');
+            summary = this.getLastAssistantMessage(sourcePodId);
+            isSummarized = false;
+
+            if (!summary) {
+              podStore.setStatus(sourcePodId, 'idle');
               continue;
             }
           }
+          podStore.setStatus(sourcePodId, 'idle');
         } catch (error) {
           console.error('[WorkflowTrigger] Failed to generate summary:', error);
-          const messages = messageStore.getMessages(sourcePodId);
-          const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
-          if (assistantMessages.length > 0) {
-            summary = assistantMessages[assistantMessages.length - 1].content;
-            isSummarized = false;
-          } else {
-            console.error('[WorkflowTrigger] No summary and no assistant messages available');
+          summary = this.getLastAssistantMessage(sourcePodId);
+          isSummarized = false;
+
+          if (!summary) {
+            podStore.setStatus(sourcePodId, 'idle');
             continue;
           }
+          podStore.setStatus(sourcePodId, 'idle');
         }
       }
 
@@ -243,6 +301,7 @@ class WorkflowTriggerService {
     let isSummarized: boolean;
 
     try {
+      podStore.setStatus(sourcePodId, 'summarizing');
       console.log(
         `[WorkflowTrigger] Generating customized summary from source POD ${sourcePodId} to target POD ${targetPodId}`
       );
@@ -262,17 +321,17 @@ class WorkflowTriggerService {
         console.error(
           `[WorkflowTrigger] Failed to generate summary: ${summaryResult.error}, using last assistant message`
         );
-        const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
-        transferredContent = lastAssistantMessage.content;
+        transferredContent = assistantMessages[assistantMessages.length - 1].content;
         isSummarized = false;
       }
+      podStore.setStatus(sourcePodId, 'idle');
     } catch (error) {
+      podStore.setStatus(sourcePodId, 'idle');
       console.error(
         '[WorkflowTrigger] Failed to generate summary, using last assistant message:',
         error
       );
-      const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
-      transferredContent = lastAssistantMessage.content;
+      transferredContent = assistantMessages[assistantMessages.length - 1].content;
       isSummarized = false;
     }
 
@@ -300,27 +359,9 @@ class WorkflowTriggerService {
     );
 
     // Emit WorkflowTriggered event to update status to 'processing'
-    const triggeredPayload = {
-      requestId: uuidv4(),
-      success: true,
-      connectionId,
-      sourcePodId,
-      targetPodId,
-      transferredContent,
-      isSummarized,
-    };
-    socketService.emitToPod(
-      sourcePodId,
-      WebSocketResponseEvents.WORKFLOW_TRIGGERED,
-      triggeredPayload
-    );
-    socketService.emitToPod(
-      targetPodId,
-      WebSocketResponseEvents.WORKFLOW_TRIGGERED,
-      triggeredPayload
-    );
+    this.emitWorkflowTriggered(connectionId, sourcePodId, targetPodId, transferredContent, isSummarized);
 
-    podStore.setStatus(targetPodId, 'busy');
+    podStore.setStatus(targetPodId, 'chatting');
 
     const messageToSend = `以下是從另一個 POD 傳遞過來的內容,請根據這些資訊繼續處理:
 
@@ -433,23 +474,7 @@ ${transferredContent}
       podStore.setStatus(targetPodId, 'idle');
       podStore.updateLastActive(targetPodId);
 
-      // Emit workflow complete event to notify frontend
-      const completePayload = {
-        requestId: uuidv4(),
-        connectionId,
-        targetPodId,
-        success: true,
-      };
-      socketService.emitToPod(
-        sourcePodId,
-        WebSocketResponseEvents.WORKFLOW_COMPLETE,
-        completePayload
-      );
-      socketService.emitToPod(
-        targetPodId,
-        WebSocketResponseEvents.WORKFLOW_COMPLETE,
-        completePayload
-      );
+      this.emitWorkflowComplete(connectionId, sourcePodId, targetPodId, true);
 
       console.log(
         `[WorkflowTrigger] Completed auto-triggered workflow for connection ${connectionId}, target Pod ${targetPodId}`
@@ -465,24 +490,8 @@ ${transferredContent}
     } catch (error) {
       podStore.setStatus(targetPodId, 'idle');
 
-      // Emit workflow error event to notify frontend
-      const errorPayload = {
-        requestId: uuidv4(),
-        connectionId,
-        targetPodId,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-      socketService.emitToPod(
-        sourcePodId,
-        WebSocketResponseEvents.WORKFLOW_COMPLETE,
-        errorPayload
-      );
-      socketService.emitToPod(
-        targetPodId,
-        WebSocketResponseEvents.WORKFLOW_COMPLETE,
-        errorPayload
-      );
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.emitWorkflowComplete(connectionId, sourcePodId, targetPodId, false, errorMessage);
 
       console.error(`[WorkflowTrigger] Failed to complete auto-triggered workflow:`, error);
       throw error;
@@ -528,27 +537,9 @@ ${transferredContent}
       autoTriggeredPayload
     );
 
-    const triggeredPayload = {
-      requestId: uuidv4(),
-      success: true,
-      connectionId,
-      sourcePodId,
-      targetPodId,
-      transferredContent: summary,
-      isSummarized,
-    };
-    socketService.emitToPod(
-      sourcePodId,
-      WebSocketResponseEvents.WORKFLOW_TRIGGERED,
-      triggeredPayload
-    );
-    socketService.emitToPod(
-      targetPodId,
-      WebSocketResponseEvents.WORKFLOW_TRIGGERED,
-      triggeredPayload
-    );
+    this.emitWorkflowTriggered(connectionId, sourcePodId, targetPodId, summary, isSummarized);
 
-    podStore.setStatus(targetPodId, 'busy');
+    podStore.setStatus(targetPodId, 'chatting');
 
     const messageToSend = `以下是從另一個 POD 傳遞過來的內容,請根據這些資訊繼續處理:
 
@@ -661,22 +652,7 @@ ${summary}
       podStore.setStatus(targetPodId, 'idle');
       podStore.updateLastActive(targetPodId);
 
-      const completePayload = {
-        requestId: uuidv4(),
-        connectionId,
-        targetPodId,
-        success: true,
-      };
-      socketService.emitToPod(
-        sourcePodId,
-        WebSocketResponseEvents.WORKFLOW_COMPLETE,
-        completePayload
-      );
-      socketService.emitToPod(
-        targetPodId,
-        WebSocketResponseEvents.WORKFLOW_COMPLETE,
-        completePayload
-      );
+      this.emitWorkflowComplete(connectionId, sourcePodId, targetPodId, true);
 
       console.log(
         `[WorkflowTrigger] Completed workflow with summary for connection ${connectionId}, target Pod ${targetPodId}`
@@ -691,23 +667,8 @@ ${summary}
     } catch (error) {
       podStore.setStatus(targetPodId, 'idle');
 
-      const errorPayload = {
-        requestId: uuidv4(),
-        connectionId,
-        targetPodId,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-      socketService.emitToPod(
-        sourcePodId,
-        WebSocketResponseEvents.WORKFLOW_COMPLETE,
-        errorPayload
-      );
-      socketService.emitToPod(
-        targetPodId,
-        WebSocketResponseEvents.WORKFLOW_COMPLETE,
-        errorPayload
-      );
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.emitWorkflowComplete(connectionId, sourcePodId, targetPodId, false, errorMessage);
 
       console.error(`[WorkflowTrigger] Failed to complete workflow with summary:`, error);
       throw error;

@@ -102,7 +102,7 @@ class PendingTargetStore {
   }
 
   /**
-   * Set merged content for a pending target when ready but target is busy
+   * Set merged content for a pending target when ready but target is processing
    */
   setMergedContent(targetPodId: string, content: string): void {
     const pending = this.pendingTargets.get(targetPodId);

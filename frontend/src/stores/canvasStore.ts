@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import type {Pod, PodColor, Position, TypeMenuState, ViewportState, ModelType} from '@/types'
+import type {Pod, PodColor, PodStatus, Position, TypeMenuState, ViewportState, ModelType} from '@/types'
 import {initialPods} from '@/data/initialPods'
 import {validatePodName} from '@/lib/sanitize'
 import {websocketService} from '@/services/websocket'
@@ -243,9 +243,9 @@ export const useCanvasStore = defineStore('canvas', {
         },
 
         /**
-         * Update pod status (idle/busy/error)
+         * Update pod status (idle/chatting/summarizing/error)
          */
-        updatePodStatus(id: string, status: 'idle' | 'busy' | 'error'): void {
+        updatePodStatus(id: string, status: PodStatus): void {
             const pod = this.pods.find((p) => p.id === id)
             if (pod) {
                 pod.status = status

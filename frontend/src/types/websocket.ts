@@ -1,7 +1,7 @@
 // WebSocket Event Type Definitions
 // Defines all WebSocket events and their payload types
 
-import type { Pod, PodColor, PodTypeName, ModelType } from './pod'
+import type { Pod, PodColor, PodTypeName, ModelType, PodStatus } from './pod'
 import type { OutputStyleListItem, OutputStyleNote } from './outputStyle'
 import type { Skill, SkillNote } from './skill'
 
@@ -68,6 +68,7 @@ export const WebSocketResponseEvents = {
   POD_JOINED_BATCH: 'pod:joined:batch',
   POD_LEFT: 'pod:left',
   POD_ERROR: 'pod:error',
+  POD_STATUS_CHANGED: 'pod:status:changed',
   OUTPUT_STYLE_LIST_RESULT: 'output-style:list:result',
   POD_OUTPUT_STYLE_BOUND: 'pod:output-style:bound',
   POD_OUTPUT_STYLE_UNBOUND: 'pod:output-style:unbound',
@@ -284,6 +285,12 @@ export interface PodErrorPayload {
   podId?: string
   error: string
   code: string
+}
+
+export interface PodStatusChangedPayload {
+  podId: string
+  status: PodStatus
+  previousStatus: PodStatus
 }
 
 export interface PersistedMessage {

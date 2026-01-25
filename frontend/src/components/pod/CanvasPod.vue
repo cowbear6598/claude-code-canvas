@@ -49,6 +49,10 @@ const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
 const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
 const currentModel = computed(() => props.pod.model ?? 'opus')
 
+const podStatusClass = computed(() => {
+  return props.pod.status ? `pod-status-${props.pod.status}` : ''
+})
+
 const emit = defineEmits<{
   select: [podId: string]
   update: [pod: Pod]
@@ -318,7 +322,6 @@ const cancelClear = () => {
 }
 
 const handleModelChange = (model: ModelType) => {
-  console.log('[CanvasPod] handleModelChange called with model:', model, 'for pod:', props.pod.id)
   const requestId = generateRequestId()
 
   const handleResult = (payload: PodUpdatedPayload) => {
@@ -326,7 +329,6 @@ const handleModelChange = (model: ModelType) => {
       websocketService.offPodUpdated(handleResult)
 
       if (payload.success && payload.pod) {
-        console.log('[CanvasPod] Model updated successfully:', payload.pod)
         canvasStore.updatePodModel(props.pod.id, payload.pod.model ?? 'opus')
       } else {
         console.error('[CanvasPod] Failed to update model:', payload.error)
@@ -335,7 +337,6 @@ const handleModelChange = (model: ModelType) => {
   }
 
   websocketService.onPodUpdated(handleResult)
-  console.log('[CanvasPod] Sending pod update request:', { requestId, podId: props.pod.id, model })
   websocketService.podUpdate({
     requestId,
     podId: props.pod.id,
@@ -391,7 +392,7 @@ const handleModelChange = (model: ModelType) => {
       </div>
 
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
-      <div class="pod-doodle w-56 overflow-visible relative">
+      <div class="pod-doodle w-56 overflow-visible relative" :class="podStatusClass">
         <!-- Model 凹槽 -->
         <div class="model-notch"></div>
 

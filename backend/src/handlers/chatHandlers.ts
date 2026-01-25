@@ -20,7 +20,7 @@ import {
   tryValidatePayload,
 } from '../utils/websocketResponse.js';
 import { extractRequestId, extractPodId } from '../utils/payloadUtils.js';
-// 整體流程：驗證 payload → 檢查 Pod 狀態 → 設定 busy → 串流處理 Claude 回應
+// 整體流程：驗證 payload → 檢查 Pod 狀態 → 設定 chatting → 串流處理 Claude 回應
 // （包含文字、工具使用、工具結果、完成事件） → 更新 Pod 狀態為 idle
 export async function handleChatSend(
   socket: Socket,
@@ -69,22 +69,22 @@ export async function handleChatSend(
   }
 
   // Check if Pod is busy
-  if (pod.status === 'busy') {
+  if (pod.status === 'chatting' || pod.status === 'summarizing') {
     emitError(
       socket,
       WebSocketResponseEvents.POD_ERROR,
-      `Pod ${podId} is busy processing another request`,
+      `Pod ${podId} is currently ${pod.status}, please wait`,
       requestId,
       podId,
       'POD_BUSY'
     );
 
-    console.error(`[Chat] Pod ${podId} is busy processing another request`);
+    console.error(`[Chat] Pod ${podId} is currently ${pod.status}, please wait`);
     return;
   }
 
-  // Set Pod to busy
-  podStore.setStatus(podId, 'busy');
+  // Set Pod to chatting
+  podStore.setStatus(podId, 'chatting');
 
   const messageId = uuidv4();
 
