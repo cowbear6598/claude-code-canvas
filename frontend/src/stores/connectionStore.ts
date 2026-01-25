@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import type { Connection, DraggingConnection, AnchorPosition, ConnectionStatus } from '@/types/connection'
 import { websocketService } from '@/services/websocket'
 import { generateRequestId } from '@/services/utils'
+import { useToast } from '@/composables/useToast'
 import type {
   ConnectionCreatedPayload,
   ConnectionListResultPayload,
@@ -91,6 +92,19 @@ export const useConnectionStore = defineStore('connection', {
     ): Promise<Connection | null> {
       if (sourcePodId === targetPodId) {
         console.warn('[ConnectionStore] Cannot connect pod to itself')
+        return null
+      }
+
+      const existingConnection = this.connections.find(
+        conn => conn.sourcePodId === sourcePodId && conn.targetPodId === targetPodId
+      )
+      if (existingConnection) {
+        const { toast } = useToast()
+        toast({
+          title: '連線已存在',
+          description: '這兩個 Pod 之間已經有連線了',
+          duration: 3000
+        })
         return null
       }
 

@@ -9,6 +9,7 @@ import { websocketService } from '@/services/websocket'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
 import ChatModal from '@/components/chat/ChatModal.vue'
+import { Toast } from '@/components/ui/toast'
 import {
   CONTENT_PREVIEW_LENGTH,
   RESPONSE_PREVIEW_LENGTH,
@@ -146,5 +147,8 @@ onUnmounted(() => {
       :pod="selectedPod"
       @close="handleCloseChat"
     />
+
+    <!-- Toast -->
+    <Toast />
   </div>
 </template>
