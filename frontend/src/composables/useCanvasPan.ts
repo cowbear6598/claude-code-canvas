@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { useCanvasStore } from '@/stores/canvasStore'
 
 export function useCanvasPan() {
@@ -11,6 +11,8 @@ export function useCanvasPan() {
   let startOffsetY = 0
 
   const startPan = (e: MouseEvent) => {
+    if (e.button !== 0) return
+
     const target = e.target as HTMLElement
 
     if (
@@ -43,6 +45,10 @@ export function useCanvasPan() {
     document.removeEventListener('mousemove', onPanMove)
     document.removeEventListener('mouseup', stopPan)
   }
+
+  onUnmounted(() => {
+    stopPan()
+  })
 
   return {
     isPanning,

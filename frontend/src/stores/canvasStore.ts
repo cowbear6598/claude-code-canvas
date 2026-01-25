@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import type {Pod, PodColor, PodStatus, Position, TypeMenuState, ViewportState, ModelType} from '@/types'
+import type {Pod, PodColor, PodStatus, Position, TypeMenuState, ViewportState, ModelType, SelectionState, SelectableElement} from '@/types'
 import {initialPods} from '@/data/initialPods'
 import {validatePodName} from '@/lib/sanitize'
 import {websocketService} from '@/services/websocket'
@@ -10,6 +10,9 @@ import type {
     PodListResultPayload
 } from '@/types/websocket'
 import { useConnectionStore } from './connectionStore'
+import { useOutputStyleStore } from './outputStyleStore'
+import { useSkillStore } from './skillStore'
+import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT, POSITION_SYNC_DELAY_MS } from '@/lib/constants'
 
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 3
@@ -22,6 +25,7 @@ interface CanvasState {
     typeMenu: TypeMenuState
     viewport: ViewportState
     syncTimers: Record<string, ReturnType<typeof setTimeout>>
+    selection: SelectionState
 }
 
 export const useCanvasStore = defineStore('canvas', {
@@ -38,6 +42,11 @@ export const useCanvasStore = defineStore('canvas', {
             zoom: 1,
         },
         syncTimers: {},
+        selection: {
+            isSelecting: false,
+            box: null,
+            selectedElements: []
+        } as SelectionState,
     }),
 
     getters: {
@@ -45,6 +54,23 @@ export const useCanvasStore = defineStore('canvas', {
             state.pods.find((p) => p.id === state.selectedPodId) || null,
 
         podCount: (state): number => state.pods.length,
+
+        selectedPodIds: (state): string[] =>
+            state.selection.selectedElements
+                .filter(el => el.type === 'pod')
+                .map(el => el.id),
+
+        selectedOutputStyleNoteIds: (state): string[] =>
+            state.selection.selectedElements
+                .filter(el => el.type === 'outputStyleNote')
+                .map(el => el.id),
+
+        selectedSkillNoteIds: (state): string[] =>
+            state.selection.selectedElements
+                .filter(el => el.type === 'skillNote')
+                .map(el => el.id),
+
+        hasSelection: (state): boolean => state.selection.selectedElements.length > 0,
     },
 
     actions: {
@@ -287,7 +313,6 @@ export const useCanvasStore = defineStore('canvas', {
                 clearTimeout(this.syncTimers[id])
             }
 
-            // Set new timer (500ms debounce)
             this.syncTimers[id] = setTimeout(() => {
                 const requestId = generateRequestId()
                 websocketService.podUpdate({
@@ -297,7 +322,7 @@ export const useCanvasStore = defineStore('canvas', {
                     y
                 })
                 delete this.syncTimers[id]
-            }, 500)
+            }, POSITION_SYNC_DELAY_MS)
         },
 
         selectPod(podId: string | null): void {
@@ -343,10 +368,8 @@ export const useCanvasStore = defineStore('canvas', {
         fitToAllPods(): void {
             if (this.pods.length === 0) return
 
-            const POD_WIDTH = 224
-            const POD_HEIGHT = 168
             const PADDING_X = 50
-            const PADDING_TOP = 80 // 上方多留一點空間
+            const PADDING_TOP = 80
             const PADDING_BOTTOM = 50
 
             // 計算所有 POD 的邊界
@@ -366,7 +389,7 @@ export const useCanvasStore = defineStore('canvas', {
             // 計算適合的縮放比例
             const zoomX = screenWidth / contentWidth
             const zoomY = screenHeight / contentHeight
-            const zoom = Math.min(zoomX, zoomY, 1) // 最大不超過 1
+            const zoom = Math.min(zoomX, zoomY, 1)
             const clampedZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom))
 
             // 計算 offset，讓內容對齊可見區域
@@ -398,6 +421,101 @@ export const useCanvasStore = defineStore('canvas', {
             if (pod) {
                 pod.model = model
             }
+        },
+
+        startSelection(startX: number, startY: number): void {
+            this.selection.isSelecting = true
+            this.selection.box = { startX, startY, endX: startX, endY: startY }
+            this.selection.selectedElements = []
+        },
+
+        updateSelection(endX: number, endY: number): void {
+            if (!this.selection.box) return
+            this.selection.box.endX = endX
+            this.selection.box.endY = endY
+            this.calculateSelectedElements()
+        },
+
+        endSelection(): void {
+            this.selection.isSelecting = false
+            this.selection.box = null
+        },
+
+        clearSelection(): void {
+            this.selection.isSelecting = false
+            this.selection.box = null
+            this.selection.selectedElements = []
+        },
+
+        moveSelectedElements(dx: number, dy: number): void {
+            for (const element of this.selection.selectedElements) {
+                if (element.type === 'pod') {
+                    const pod = this.pods.find(p => p.id === element.id)
+                    if (pod) {
+                        pod.x += dx
+                        pod.y += dy
+                    }
+                }
+            }
+        },
+
+        calculateSelectedElements(): void {
+            if (!this.selection.box) return
+
+            const box = this.selection.box
+            const minX = Math.min(box.startX, box.endX)
+            const maxX = Math.max(box.startX, box.endX)
+            const minY = Math.min(box.startY, box.endY)
+            const maxY = Math.max(box.startY, box.endY)
+
+            const selected: SelectableElement[] = []
+
+            for (const pod of this.pods) {
+                const podMinX = pod.x
+                const podMaxX = pod.x + POD_WIDTH
+                const podMinY = pod.y
+                const podMaxY = pod.y + POD_HEIGHT
+
+                const hasIntersection = !(podMaxX < minX || podMinX > maxX || podMaxY < minY || podMinY > maxY)
+
+                if (hasIntersection) {
+                    selected.push({ type: 'pod', id: pod.id })
+                }
+            }
+
+            const outputStyleStore = useOutputStyleStore()
+            for (const note of outputStyleStore.notes) {
+                if (note.boundToPodId) continue
+
+                const noteMinX = note.x
+                const noteMaxX = note.x + NOTE_WIDTH
+                const noteMinY = note.y
+                const noteMaxY = note.y + NOTE_HEIGHT
+
+                const hasIntersection = !(noteMaxX < minX || noteMinX > maxX || noteMaxY < minY || noteMinY > maxY)
+
+                if (hasIntersection) {
+                    selected.push({ type: 'outputStyleNote', id: note.id })
+                }
+            }
+
+            const skillStore = useSkillStore()
+            for (const note of skillStore.notes) {
+                if (note.boundToPodId) continue
+
+                const noteMinX = note.x
+                const noteMaxX = note.x + NOTE_WIDTH
+                const noteMinY = note.y
+                const noteMaxY = note.y + NOTE_HEIGHT
+
+                const hasIntersection = !(noteMaxX < minX || noteMinX > maxX || noteMaxY < minY || noteMinY > maxY)
+
+                if (hasIntersection) {
+                    selected.push({ type: 'skillNote', id: note.id })
+                }
+            }
+
+            this.selection.selectedElements = selected
         },
     },
 })

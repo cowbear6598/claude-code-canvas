@@ -3,6 +3,7 @@ import { ref, onUnmounted, computed } from 'vue'
 import type { OutputStyleNote } from '@/types'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
+import { useBatchDrag } from '@/composables/useBatchDrag'
 
 const props = defineProps<{
   note: OutputStyleNote
@@ -16,9 +17,13 @@ const emit = defineEmits<{
 
 const canvasStore = useCanvasStore()
 const outputStyleStore = useOutputStyleStore()
+const { startBatchDrag, isElementSelected } = useBatchDrag()
 
 const isDragging = ref(false)
 const isAnimating = computed(() => outputStyleStore.isNoteAnimating(props.note.id))
+const isSelected = computed(() =>
+  canvasStore.selectedOutputStyleNoteIds.includes(props.note.id)
+)
 const dragRef = ref<{
   startX: number
   startY: number
@@ -50,6 +55,18 @@ onUnmounted(() => {
 // 2. 需要計算相對於 viewport 的坐標變化
 // 3. 需要在 unmount 時精確清理監聽器以防記憶體洩漏
 const handleMouseDown = (e: MouseEvent) => {
+  // 檢查此 Note 是否在選中列表中
+  if (isElementSelected('outputStyleNote', props.note.id)) {
+    if (startBatchDrag(e)) {
+      return
+    }
+  }
+
+  // 點擊未選中的 Note 時，清除現有選取
+  if (canvasStore.hasSelection && !isElementSelected('outputStyleNote', props.note.id)) {
+    canvasStore.clearSelection()
+  }
+
   cleanupEventListeners()
 
   isDragging.value = true
@@ -113,7 +130,7 @@ const handleMouseDown = (e: MouseEvent) => {
 <template>
   <div
     class="output-style-note"
-    :class="{ dragging: isDragging, animating: isAnimating }"
+    :class="{ dragging: isDragging, animating: isAnimating, selected: isSelected }"
     :style="{
       left: `${note.x}px`,
       top: `${note.y}px`,

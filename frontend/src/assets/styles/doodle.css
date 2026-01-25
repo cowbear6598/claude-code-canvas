@@ -930,3 +930,20 @@
                 0 0 8px 2px oklch(0.8 0.18 85 / 0.7);
   }
 }
+
+/* ========================================
+   Selection - 框選相關樣式
+   ======================================== */
+
+.pod-doodle.selected {
+  box-shadow:
+    2px 2px 0 oklch(0.35 0.03 50 / 0.7),
+    0 0 0 3px oklch(0.6 0.15 220 / 0.5);
+  border-color: oklch(0.5 0.15 220);
+}
+
+.output-style-note.selected,
+.skill-note.selected {
+  box-shadow: 0 0 0 2px oklch(0.6 0.15 220 / 0.5);
+  border-color: oklch(0.5 0.15 220);
+}

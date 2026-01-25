@@ -12,6 +12,7 @@ import OutputStyleNote from './OutputStyleNote.vue'
 import SkillNote from './SkillNote.vue'
 import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
+import SelectionBox from './SelectionBox.vue'
 import type { PodTypeConfig } from '@/types'
 import {
   POD_MENU_X_OFFSET,
@@ -57,7 +58,8 @@ const handleCanvasClick = (e: MouseEvent) => {
     return
   }
 
-  // 點擊空白處時取消連線選取
+  // 點擊空白處時清除框選和連線選取
+  store.clearSelection()
   connectionStore.selectConnection(null)
 }
 
@@ -185,6 +187,9 @@ const handleSkillNoteDragComplete = async (data: { noteId: string; isOverTrash: 
   <CanvasViewport @dblclick="handleDoubleClick" @click="handleCanvasClick">
     <!-- Connection Layer -->
     <ConnectionLayer />
+
+    <!-- Selection Box -->
+    <SelectionBox />
 
     <!-- Pod 列表 -->
     <CanvasPod

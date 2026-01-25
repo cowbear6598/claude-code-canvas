@@ -1,0 +1,127 @@
+import { ref, onUnmounted } from 'vue'
+import { useCanvasStore } from '@/stores/canvasStore'
+import { useOutputStyleStore } from '@/stores/outputStyleStore'
+import { useSkillStore } from '@/stores/skillStore'
+
+export function useBatchDrag() {
+  const canvasStore = useCanvasStore()
+  const outputStyleStore = useOutputStyleStore()
+  const skillStore = useSkillStore()
+
+  const isBatchDragging = ref(false)
+
+  let startX = 0
+  let startY = 0
+
+  const movedOutputStyleNotes = new Set<string>()
+  const movedSkillNotes = new Set<string>()
+
+  let currentMoveHandler: ((e: MouseEvent) => void) | null = null
+  let currentUpHandler: (() => void) | null = null
+
+  const cleanupEventListeners = () => {
+    if (currentMoveHandler) {
+      document.removeEventListener('mousemove', currentMoveHandler)
+      currentMoveHandler = null
+    }
+    if (currentUpHandler) {
+      document.removeEventListener('mouseup', currentUpHandler)
+      currentUpHandler = null
+    }
+  }
+
+  const startBatchDrag = (e: MouseEvent) => {
+    if (e.button !== 0) return false
+
+    if (!canvasStore.hasSelection) return false
+
+    isBatchDragging.value = true
+    startX = e.clientX
+    startY = e.clientY
+
+    movedOutputStyleNotes.clear()
+    movedSkillNotes.clear()
+
+    cleanupEventListeners()
+
+    currentMoveHandler = (moveEvent: MouseEvent) => {
+      const dx = (moveEvent.clientX - startX) / canvasStore.viewport.zoom
+      const dy = (moveEvent.clientY - startY) / canvasStore.viewport.zoom
+
+      moveSelectedElements(dx, dy)
+
+      startX = moveEvent.clientX
+      startY = moveEvent.clientY
+    }
+
+    currentUpHandler = async () => {
+      isBatchDragging.value = false
+      cleanupEventListeners()
+
+      await syncNotesToBackend()
+    }
+
+    document.addEventListener('mousemove', currentMoveHandler)
+    document.addEventListener('mouseup', currentUpHandler)
+
+    return true
+  }
+
+  const moveSelectedElements = (dx: number, dy: number) => {
+    for (const element of canvasStore.selection.selectedElements) {
+      if (element.type === 'pod') {
+        const pod = canvasStore.pods.find(p => p.id === element.id)
+        if (pod) {
+          canvasStore.movePod(element.id, pod.x + dx, pod.y + dy)
+        }
+      } else if (element.type === 'outputStyleNote') {
+        const note = outputStyleStore.notes.find(n => n.id === element.id)
+        if (note && !note.boundToPodId) {
+          outputStyleStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
+          movedOutputStyleNotes.add(element.id)
+        }
+      } else if (element.type === 'skillNote') {
+        const note = skillStore.notes.find(n => n.id === element.id)
+        if (note && !note.boundToPodId) {
+          skillStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
+          movedSkillNotes.add(element.id)
+        }
+      }
+    }
+  }
+
+  const syncNotesToBackend = async () => {
+    for (const noteId of movedOutputStyleNotes) {
+      const note = outputStyleStore.notes.find(n => n.id === noteId)
+      if (note) {
+        await outputStyleStore.updateNotePosition(noteId, note.x, note.y)
+      }
+    }
+
+    for (const noteId of movedSkillNotes) {
+      const note = skillStore.notes.find(n => n.id === noteId)
+      if (note) {
+        await skillStore.updateNotePosition(noteId, note.x, note.y)
+      }
+    }
+
+    movedOutputStyleNotes.clear()
+    movedSkillNotes.clear()
+  }
+
+  const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote', id: string) => {
+    return canvasStore.selection.selectedElements.some(
+      el => el.type === type && el.id === id
+    )
+  }
+
+  onUnmounted(() => {
+    cleanupEventListeners()
+  })
+
+  return {
+    isBatchDragging,
+    startBatchDrag,
+    isElementSelected
+  }
+}

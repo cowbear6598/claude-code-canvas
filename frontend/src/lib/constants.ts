@@ -26,3 +26,18 @@ export const RESPONSE_DELAY_MAX = 2000
 export const OUTPUT_LINES_PREVIEW_COUNT = 4
 export const DEFAULT_POD_ROTATION_RANGE = 2
 export const MAX_POD_NAME_LENGTH = 50
+
+// Canvas Constants
+export const GRID_SIZE = 20
+
+// Pod Size
+export const POD_WIDTH = 224
+export const POD_HEIGHT = 168
+
+// Note Size
+export const NOTE_WIDTH = 80
+export const NOTE_HEIGHT = 30
+
+// Time Constants (ms)
+export const POSITION_SYNC_DELAY_MS = 500
+export const NOTE_ANIMATION_DURATION_MS = 300

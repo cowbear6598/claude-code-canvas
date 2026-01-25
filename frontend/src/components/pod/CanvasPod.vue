@@ -8,6 +8,7 @@ import { useSkillStore } from '@/stores/skillStore'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useAnchorDetection } from '@/composables/useAnchorDetection'
+import { useBatchDrag } from '@/composables/useBatchDrag'
 import { websocketService } from '@/services/websocket'
 import { generateRequestId } from '@/services/utils'
 import type {
@@ -42,12 +43,17 @@ const skillStore = useSkillStore()
 const connectionStore = useConnectionStore()
 const chatStore = useChatStore()
 const { detectTargetAnchor } = useAnchorDetection()
+const { startBatchDrag, isElementSelected } = useBatchDrag()
 
 const isActive = computed(() => props.pod.id === canvasStore.activePodId)
 const boundNote = computed(() => outputStyleStore.getNoteByPodId(props.pod.id))
 const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
 const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
 const currentModel = computed(() => props.pod.model ?? 'opus')
+
+const isSelected = computed(() =>
+  canvasStore.selectedPodIds.includes(props.pod.id)
+)
 
 const podStatusClass = computed(() => {
   return props.pod.status ? `pod-status-${props.pod.status}` : ''
@@ -99,11 +105,22 @@ onUnmounted(() => {
 const handleMouseDown = (e: MouseEvent) => {
   // 排除特定區域的拖拽
   if (
-    (e.target as HTMLElement).closest('.mini-screen-click') ||
     (e.target as HTMLElement).closest('.pod-output-style-slot') ||
     (e.target as HTMLElement).closest('.pod-skill-slot')
   ) {
     return
+  }
+
+  // 檢查此 POD 是否在選中列表中
+  if (isElementSelected('pod', props.pod.id)) {
+    if (startBatchDrag(e)) {
+      return
+    }
+  }
+
+  // 點擊未選中的 POD 時，清除現有選取
+  if (canvasStore.hasSelection && !isElementSelected('pod', props.pod.id)) {
+    canvasStore.clearSelection()
   }
 
   canvasStore.setActivePod(props.pod.id)
@@ -392,7 +409,7 @@ const handleModelChange = (model: ModelType) => {
       </div>
 
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
-      <div class="pod-doodle w-56 overflow-visible relative" :class="podStatusClass">
+      <div class="pod-doodle w-56 overflow-visible relative" :class="[podStatusClass, { selected: isSelected }]">
         <!-- Model 凹槽 -->
         <div class="model-notch"></div>
 
