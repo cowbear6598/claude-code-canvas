@@ -2,7 +2,6 @@
 import { onMounted, onUnmounted, ref, watch, computed } from 'vue'
 import type { SkillNote } from '@/types'
 import { useSkillStore } from '@/stores/skillStore'
-import { useCanvasStore } from '@/stores/canvasStore'
 
 const props = defineProps<{
   podId: string
@@ -14,7 +13,6 @@ const emit = defineEmits<{
 }>()
 
 const skillStore = useSkillStore()
-const canvasStore = useCanvasStore()
 
 const slotRef = ref<HTMLElement | null>(null)
 const isDropTarget = ref(false)

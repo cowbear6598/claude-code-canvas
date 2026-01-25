@@ -41,7 +41,6 @@ export const WebSocketRequestEvents = {
   CONNECTION_LIST: 'connection:list',
   CONNECTION_DELETE: 'connection:delete',
   CONNECTION_UPDATE: 'connection:update',
-  WORKFLOW_TRIGGER: 'workflow:trigger',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -429,11 +428,6 @@ export interface ConnectionListPayload {
 }
 
 export interface ConnectionDeletePayload {
-  requestId: string
-  connectionId: string
-}
-
-export interface WorkflowTriggerPayload {
   requestId: string
   connectionId: string
 }

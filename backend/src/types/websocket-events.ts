@@ -29,7 +29,6 @@ export enum WebSocketRequestEvents {
   CONNECTION_LIST = 'connection:list',
   CONNECTION_DELETE = 'connection:delete',
   CONNECTION_UPDATE = 'connection:update',
-  WORKFLOW_TRIGGER = 'workflow:trigger',
 }
 
 export enum WebSocketResponseEvents {
@@ -474,11 +473,6 @@ export interface ConnectionUpdatedPayload {
   success: boolean;
   connection?: import('./connection.js').Connection;
   error?: string;
-}
-
-export interface WorkflowTriggerPayload {
-  requestId: string;
-  connectionId: string;
 }
 
 export interface WorkflowTriggeredPayload {

@@ -2,13 +2,6 @@ export type AnchorPosition = 'top' | 'bottom' | 'left' | 'right'
 
 export type ConnectionStatus = 'inactive' | 'active'
 
-export type WorkflowStatus = 'idle' | 'transferring' | 'processing' | 'completed' | 'error' | 'waiting'
-
-export interface PendingInfo {
-  completedCount: number
-  totalCount: number
-}
-
 export interface Connection {
   id: string
   sourcePodId: string
@@ -17,9 +10,7 @@ export interface Connection {
   targetAnchor: AnchorPosition
   createdAt: Date
   status?: ConnectionStatus
-  workflowStatus?: WorkflowStatus
   autoTrigger?: boolean
-  pendingInfo?: PendingInfo
 }
 
 export interface DraggingConnection {

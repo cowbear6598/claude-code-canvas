@@ -104,7 +104,6 @@ export {
   type ConnectionDeletedPayload,
   type ConnectionUpdatePayload,
   type ConnectionUpdatedPayload,
-  type WorkflowTriggerPayload,
   type WorkflowTriggeredPayload,
   type WorkflowAutoTriggeredPayload,
   type WorkflowCompletePayload,

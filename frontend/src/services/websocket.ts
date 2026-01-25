@@ -67,7 +67,6 @@ import type {
   ConnectionListResultPayload,
   ConnectionDeletedPayload,
   ConnectionUpdatedPayload,
-  WorkflowTriggerPayload,
   WorkflowTriggeredPayload,
   WorkflowCompletePayload,
   WorkflowErrorPayload,
@@ -265,10 +264,6 @@ class WebSocketService {
 
   connectionUpdate(payload: ConnectionUpdatePayload): void {
     this.emit(WebSocketRequestEvents.CONNECTION_UPDATE, payload)
-  }
-
-  workflowTrigger(payload: WorkflowTriggerPayload): void {
-    this.emit(WebSocketRequestEvents.WORKFLOW_TRIGGER, payload)
   }
 
   onConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {

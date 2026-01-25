@@ -32,7 +32,7 @@ const handleDoubleClick = (e: MouseEvent) => {
 
 <template>
   <div
-    class="viewport h-full overflow-hidden canvas-grid"
+    class="viewport h-full canvas-grid"
     :style="gridStyle"
     @wheel="handleWheel"
     @mousedown="startPan"

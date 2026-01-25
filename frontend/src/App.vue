@@ -109,7 +109,7 @@ const initializeApp = async (): Promise<void> => {
   // Load connections from backend
   await connectionStore.loadConnectionsFromBackend()
 
-  // Setup workflow listeners
+  // Setup workflow event listeners
   connectionStore.setupWorkflowListeners()
 
   // Load chat history for all pods
@@ -136,7 +136,7 @@ onUnmounted(() => {
     <AppHeader />
 
     <!-- Canvas -->
-    <main class="flex-1 relative overflow-hidden">
+    <main class="flex-1 relative">
       <CanvasContainer />
     </main>
 
