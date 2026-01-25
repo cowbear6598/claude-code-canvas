@@ -4,6 +4,7 @@ import { useCanvasStore } from '@/stores/canvasStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import { useSkillStore } from '@/stores/skillStore'
 import { useConnectionStore } from '@/stores/connectionStore'
+import { useDeleteSelection } from '@/composables/useDeleteSelection'
 import CanvasViewport from './CanvasViewport.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
@@ -24,6 +25,8 @@ const store = useCanvasStore()
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
 const connectionStore = useConnectionStore()
+
+useDeleteSelection()
 
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
 
