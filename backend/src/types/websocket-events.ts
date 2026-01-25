@@ -71,6 +71,8 @@ export enum WebSocketResponseEvents {
   WORKFLOW_AUTO_TRIGGERED = 'workflow:auto-triggered',
   WORKFLOW_COMPLETE = 'workflow:complete',
   WORKFLOW_ERROR = 'workflow:error',
+  WORKFLOW_PENDING = 'workflow:pending',
+  WORKFLOW_SOURCES_MERGED = 'workflow:sources-merged',
 }
 
 export interface PodCreatePayload {
@@ -511,4 +513,18 @@ export interface WorkflowAutoTriggeredPayload {
   targetPodId: string;
   transferredContent: string;
   isSummarized: boolean;
+}
+
+export interface WorkflowPendingPayload {
+  targetPodId: string;
+  completedSourcePodIds: string[];
+  pendingSourcePodIds: string[];
+  totalSources: number;
+  completedCount: number;
+}
+
+export interface WorkflowSourcesMergedPayload {
+  targetPodId: string;
+  sourcePodIds: string[];
+  mergedContentPreview: string;
 }

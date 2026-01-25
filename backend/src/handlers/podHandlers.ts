@@ -22,6 +22,7 @@ import { noteStore } from '../services/noteStore.js';
 import { skillNoteStore } from '../services/skillNoteStore.js';
 import { connectionStore } from '../services/connectionStore.js';
 import { socketService } from '../services/socketService.js';
+import { workflowTriggerService } from '../services/workflowTriggerService.js';
 import {
   emitSuccess,
   emitError,
@@ -242,6 +243,9 @@ export async function handlePodDelete(
     console.error(`[Pod] Failed to delete Pod: Pod not found: ${podId}`);
     return;
   }
+
+  // Handle workflow pending targets before deletion
+  workflowTriggerService.handleSourceDeletion(podId);
 
   // Destroy Claude session
   await claudeSessionManager.destroySession(podId);

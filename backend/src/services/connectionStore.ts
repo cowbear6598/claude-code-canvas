@@ -90,6 +90,15 @@ class ConnectionStore {
   }
 
   /**
+   * Find incoming connections to a target Pod
+   */
+  findByTargetPodId(targetPodId: string): Connection[] {
+    return Array.from(this.connections.values()).filter(
+      (connection) => connection.targetPodId === targetPodId
+    );
+  }
+
+  /**
    * Update a connection
    */
   update(id: string, updates: Partial<{ autoTrigger: boolean }>): Connection | undefined {

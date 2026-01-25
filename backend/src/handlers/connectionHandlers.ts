@@ -15,6 +15,7 @@ import {
 } from '../types/index.js';
 import { connectionStore } from '../services/connectionStore.js';
 import { podStore } from '../services/podStore.js';
+import { workflowTriggerService } from '../services/workflowTriggerService.js';
 import {
   emitSuccess,
   emitError,
@@ -205,6 +206,9 @@ export async function handleConnectionDelete(
     console.error(`[Connection] Failed to delete connection: Connection not found: ${connectionId}`);
     return;
   }
+
+  // Handle workflow pending targets before deletion
+  workflowTriggerService.handleConnectionDeletion(connectionId);
 
   // Delete connection from store
   const deleted = connectionStore.delete(connectionId);

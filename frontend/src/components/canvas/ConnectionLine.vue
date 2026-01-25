@@ -81,6 +81,9 @@ const actualTargetColor = computed(() => {
 
 const arrowColor = computed(() => {
   // Workflow status takes priority
+  if (props.connection.workflowStatus === 'waiting') {
+    return 'oklch(0.65 0.15 290)'
+  }
   if (props.connection.workflowStatus === 'transferring') {
     return 'oklch(0.7 0.2 220)'
   }
@@ -165,6 +168,14 @@ const isAutoTriggering = computed(() => {
     props.connection.autoTrigger === true
   )
 })
+
+const isWaiting = computed(() => {
+  return props.connection.workflowStatus === 'waiting'
+})
+
+const waitingProgress = computed(() => {
+  return props.connection.pendingInfo ?? null
+})
 </script>
 
 <template>
@@ -179,6 +190,7 @@ const isAutoTriggering = computed(() => {
         processing: connection.workflowStatus === 'processing',
         completed: connection.workflowStatus === 'completed',
         error: connection.workflowStatus === 'error',
+        waiting: connection.workflowStatus === 'waiting',
         'auto-triggering': isAutoTriggering,
       },
     ]"
@@ -212,12 +224,24 @@ const isAutoTriggering = computed(() => {
     <!-- 靜態箭頭（正常狀態） -->
     <polygon
       v-for="(arrow, index) in arrowPositions"
-      v-show="connection.workflowStatus !== 'transferring' && connection.workflowStatus !== 'processing' && !isAutoTriggering"
+      v-show="connection.workflowStatus !== 'transferring' && connection.workflowStatus !== 'processing' && !isAutoTriggering && connection.workflowStatus !== 'waiting'"
       :key="`static-${index}`"
       class="arrow"
       :points="`0,-5 10,0 0,5`"
       :fill="arrowColor"
       :transform="`translate(${arrow.x}, ${arrow.y}) rotate(${arrow.angle})`"
+    />
+
+    <!-- Waiting state static arrows -->
+    <polygon
+      v-for="(arrow, index) in arrowPositions"
+      v-show="connection.workflowStatus === 'waiting'"
+      :key="`waiting-${index}`"
+      class="arrow"
+      :points="`0,-5 10,0 0,5`"
+      :fill="arrowColor"
+      :transform="`translate(${arrow.x}, ${arrow.y}) rotate(${arrow.angle})`"
+      style="opacity: 0.7;"
     />
 
     <!-- 動畫箭頭（workflow 狀態） -->
@@ -257,6 +281,20 @@ const isAutoTriggering = computed(() => {
       >
         <div class="connection-auto-trigger-icon">
           <Zap :size="14" />
+        </div>
+      </foreignObject>
+    </g>
+
+    <!-- Waiting Progress Badge -->
+    <g v-if="isWaiting && waitingProgress">
+      <foreignObject
+        :x="pathData.midPoint.x - 16"
+        :y="pathData.midPoint.y + 8"
+        width="40"
+        height="24"
+      >
+        <div class="connection-waiting-badge">
+          {{ waitingProgress.completedCount }}/{{ waitingProgress.totalCount }}
         </div>
       </foreignObject>
     </g>

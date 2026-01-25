@@ -6,18 +6,20 @@ import type {
   ConnectionCreatedPayload,
   ConnectionListResultPayload,
   ConnectionDeletedPayload,
-  ConnectionUpdatePayload,
   ConnectionUpdatedPayload,
   WorkflowTriggeredPayload,
   WorkflowCompletePayload,
   WorkflowErrorPayload,
-  WorkflowAutoTriggeredPayload
+  WorkflowAutoTriggeredPayload,
+  WorkflowPendingPayload,
+  WorkflowSourcesMergedPayload
 } from '@/types/websocket'
 
 interface ConnectionState {
   connections: Connection[]
   selectedConnectionId: string | null
   draggingConnection: DraggingConnection | null
+  pendingTargets: Map<string, { completedCount: number; totalCount: number; pendingSourcePodIds: string[] }>
 }
 
 export const useConnectionStore = defineStore('connection', {
@@ -25,6 +27,7 @@ export const useConnectionStore = defineStore('connection', {
     connections: [],
     selectedConnectionId: null,
     draggingConnection: null,
+    pendingTargets: new Map(),
   }),
 
   getters: {
@@ -36,6 +39,14 @@ export const useConnectionStore = defineStore('connection', {
 
     getOutgoingConnections: (state) => (podId: string): Connection[] => {
       return state.connections.filter(conn => conn.sourcePodId === podId)
+    },
+
+    getConnectionsByTargetPodId: (state) => (podId: string): Connection[] => {
+      return state.connections.filter(conn => conn.targetPodId === podId)
+    },
+
+    getPendingInfo: (state) => (targetPodId: string): { completedCount: number; totalCount: number; pendingSourcePodIds: string[] } | undefined => {
+      return state.pendingTargets.get(targetPodId)
     },
 
     selectedConnection: (state): Connection | null => {
@@ -135,10 +146,21 @@ export const useConnectionStore = defineStore('connection', {
             websocketService.offConnectionDeleted(handleConnectionDeleted)
 
             if (payload.success) {
+              const connection = this.connections.find(c => c.id === connectionId)
               this.connections = this.connections.filter(c => c.id !== connectionId)
               if (this.selectedConnectionId === connectionId) {
                 this.selectedConnectionId = null
               }
+
+              if (connection) {
+                const stillHasConnectionsToTarget = this.connections.some(
+                  c => c.targetPodId === connection.targetPodId
+                )
+                if (!stillHasConnectionsToTarget) {
+                  this.pendingTargets.delete(connection.targetPodId)
+                }
+              }
+
               resolve()
             } else {
               console.error('[ConnectionStore] Connection deletion failed:', payload.error)
@@ -158,9 +180,26 @@ export const useConnectionStore = defineStore('connection', {
     },
 
     deleteConnectionsByPodId(podId: string): void {
+      const affectedTargetPodIds = new Set<string>()
+
+      this.connections.forEach(conn => {
+        if (conn.sourcePodId === podId || conn.targetPodId === podId) {
+          affectedTargetPodIds.add(conn.targetPodId)
+        }
+      })
+
       this.connections = this.connections.filter(
         conn => conn.sourcePodId !== podId && conn.targetPodId !== podId
       )
+
+      affectedTargetPodIds.forEach(targetPodId => {
+        const stillHasConnectionsToTarget = this.connections.some(
+          c => c.targetPodId === targetPodId
+        )
+        if (!stillHasConnectionsToTarget) {
+          this.pendingTargets.delete(targetPodId)
+        }
+      })
 
       if (this.selectedConnectionId) {
         const stillExists = this.connections.some(conn => conn.id === this.selectedConnectionId)
@@ -254,6 +293,31 @@ export const useConnectionStore = defineStore('connection', {
       }
     },
 
+    updatePendingTarget(
+      targetPodId: string,
+      info: { completedCount: number; totalCount: number; pendingSourcePodIds: string[] }
+    ): void {
+      this.pendingTargets.set(targetPodId, info)
+
+      const connections = this.getConnectionsByTargetPodId(targetPodId)
+      connections.forEach(connection => {
+        connection.workflowStatus = 'waiting'
+        connection.pendingInfo = {
+          completedCount: info.completedCount,
+          totalCount: info.totalCount,
+        }
+      })
+    },
+
+    clearPendingTarget(targetPodId: string): void {
+      this.pendingTargets.delete(targetPodId)
+
+      const connections = this.getConnectionsByTargetPodId(targetPodId)
+      connections.forEach(connection => {
+        connection.pendingInfo = undefined
+      })
+    },
+
     async updateConnectionAutoTrigger(connectionId: string, autoTrigger: boolean): Promise<void> {
       return new Promise((resolve, reject) => {
         const requestId = generateRequestId()
@@ -329,6 +393,25 @@ export const useConnectionStore = defineStore('connection', {
         setTimeout(() => {
           this.updateConnectionWorkflowStatus(payload.connectionId, 'idle')
         }, 3000)
+      })
+
+      websocketService.onWorkflowPending((payload: WorkflowPendingPayload) => {
+        console.log('[ConnectionStore] Workflow pending:', payload)
+        this.updatePendingTarget(payload.targetPodId, {
+          completedCount: payload.completedCount,
+          totalCount: payload.totalSources,
+          pendingSourcePodIds: payload.pendingSourcePodIds,
+        })
+      })
+
+      websocketService.onWorkflowSourcesMerged((payload: WorkflowSourcesMergedPayload) => {
+        console.log('[ConnectionStore] Workflow sources merged:', payload)
+        this.clearPendingTarget(payload.targetPodId)
+
+        const connections = this.getConnectionsByTargetPodId(payload.targetPodId)
+        connections.forEach(connection => {
+          connection.workflowStatus = 'transferring'
+        })
       })
     },
   },

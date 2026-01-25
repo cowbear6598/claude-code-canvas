@@ -71,7 +71,9 @@ import type {
   WorkflowTriggeredPayload,
   WorkflowCompletePayload,
   WorkflowErrorPayload,
-  WorkflowAutoTriggeredPayload
+  WorkflowAutoTriggeredPayload,
+  WorkflowPendingPayload,
+  WorkflowSourcesMergedPayload
 } from '@/types/websocket'
 
 type EventCallback<T> = (payload: T) => void
@@ -421,6 +423,14 @@ class WebSocketService {
     this.on(WebSocketResponseEvents.WORKFLOW_ERROR, callback)
   }
 
+  onWorkflowPending(callback: EventCallback<WorkflowPendingPayload>): void {
+    this.on(WebSocketResponseEvents.WORKFLOW_PENDING, callback)
+  }
+
+  onWorkflowSourcesMerged(callback: EventCallback<WorkflowSourcesMergedPayload>): void {
+    this.on(WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, callback)
+  }
+
   offConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.off(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -559,6 +569,14 @@ class WebSocketService {
 
   offWorkflowError(callback: EventCallback<WorkflowErrorPayload>): void {
     this.off(WebSocketResponseEvents.WORKFLOW_ERROR, callback)
+  }
+
+  offWorkflowPending(callback: EventCallback<WorkflowPendingPayload>): void {
+    this.off(WebSocketResponseEvents.WORKFLOW_PENDING, callback)
+  }
+
+  offWorkflowSourcesMerged(callback: EventCallback<WorkflowSourcesMergedPayload>): void {
+    this.off(WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, callback)
   }
 
   private emit(event: WebSocketRequestEvents, payload: unknown): void {

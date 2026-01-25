@@ -88,6 +88,8 @@ export const WebSocketResponseEvents = {
   WORKFLOW_COMPLETE: 'workflow:complete',
   WORKFLOW_ERROR: 'workflow:error',
   WORKFLOW_AUTO_TRIGGERED: 'workflow:auto-triggered',
+  WORKFLOW_PENDING: 'workflow:pending',
+  WORKFLOW_SOURCES_MERGED: 'workflow:sources-merged',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]
@@ -572,4 +574,18 @@ export interface WorkflowErrorPayload {
   connectionId: string
   error: string
   code: string
+}
+
+export interface WorkflowPendingPayload {
+  targetPodId: string
+  completedSourcePodIds: string[]
+  pendingSourcePodIds: string[]
+  totalSources: number
+  completedCount: number
+}
+
+export interface WorkflowSourcesMergedPayload {
+  targetPodId: string
+  sourcePodIds: string[]
+  mergedContentPreview: string
 }

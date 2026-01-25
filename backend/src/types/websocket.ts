@@ -72,6 +72,8 @@ export {
   type WorkflowAutoTriggeredPayload,
   type WorkflowCompletePayload,
   type WorkflowErrorPayload,
+  type WorkflowPendingPayload,
+  type WorkflowSourcesMergedPayload,
 } from './websocket-events.js';
 
 // Legacy enum for backward compatibility (deprecated)
