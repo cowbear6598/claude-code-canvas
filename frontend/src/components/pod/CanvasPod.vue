@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
-import type { Pod } from '@/types'
+import type { Pod, ModelType } from '@/types'
 import type { AnchorPosition } from '@/types/connection'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
@@ -12,7 +12,8 @@ import { websocketService } from '@/services/websocket'
 import { generateRequestId } from '@/services/utils'
 import type {
   WorkflowGetDownstreamPodsResultPayload,
-  WorkflowClearResultPayload
+  WorkflowClearResultPayload,
+  PodUpdatedPayload
 } from '@/types/websocket'
 import PodHeader from './PodHeader.vue'
 import PodMiniScreen from './PodMiniScreen.vue'
@@ -20,6 +21,7 @@ import PodStickyTab from './PodStickyTab.vue'
 import PodOutputStyleSlot from './PodOutputStyleSlot.vue'
 import PodSkillSlot from './PodSkillSlot.vue'
 import PodAnchor from './PodAnchor.vue'
+import PodModelSelector from './PodModelSelector.vue'
 import { Eraser } from 'lucide-vue-next'
 import {
   Dialog,
@@ -46,6 +48,7 @@ const isActive = computed(() => props.pod.id === canvasStore.activePodId)
 const boundNote = computed(() => outputStyleStore.getNoteByPodId(props.pod.id))
 const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
 const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
+const currentModel = computed(() => props.pod.model ?? 'opus')
 
 const emit = defineEmits<{
   select: [podId: string]
@@ -334,6 +337,36 @@ const cancelClear = () => {
   showClearDialog.value = false
   downstreamPods.value = []
 }
+
+const handleModelChange = (model: ModelType) => {
+  console.log('[CanvasPod] handleModelChange called with model:', model, 'for pod:', props.pod.id)
+  const requestId = generateRequestId()
+
+  const handleResult = (payload: PodUpdatedPayload) => {
+    if (payload.requestId === requestId) {
+      websocketService.offPodUpdated(handleResult)
+
+      if (payload.success && payload.pod) {
+        console.log('[CanvasPod] Model updated successfully:', payload.pod)
+        canvasStore.updatePodModel(props.pod.id, payload.pod.model ?? 'opus')
+      } else {
+        console.error('[CanvasPod] Failed to update model:', payload.error)
+      }
+    }
+  }
+
+  websocketService.onPodUpdated(handleResult)
+  console.log('[CanvasPod] Sending pod update request:', { requestId, podId: props.pod.id, model })
+  websocketService.podUpdate({
+    requestId,
+    podId: props.pod.id,
+    model
+  })
+
+  setTimeout(() => {
+    websocketService.offPodUpdated(handleResult)
+  }, 10000)
+}
 </script>
 
 <template>
@@ -348,9 +381,16 @@ const cancelClear = () => {
   >
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
-      class="relative pod-with-notch pod-with-skill-notch"
+      class="relative pod-with-notch pod-with-skill-notch pod-with-model-notch"
       :style="{ transform: `rotate(${pod.rotation}deg)` }"
     >
+      <!-- Model Selector -->
+      <PodModelSelector
+        :pod-id="pod.id"
+        :current-model="currentModel"
+        @update:model="handleModelChange"
+      />
+
       <!-- 粘性標籤 -->
       <PodStickyTab
         :color="pod.color"
@@ -383,6 +423,9 @@ const cancelClear = () => {
 
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
       <div class="pod-doodle w-56 overflow-visible relative">
+        <!-- Model 凹槽 -->
+        <div class="model-notch"></div>
+
         <!-- Anchors -->
         <PodAnchor
           position="top"

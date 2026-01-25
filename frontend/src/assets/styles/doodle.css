@@ -79,6 +79,7 @@
    結構說明：
    - .pod-notch-area: Slot 容器的位置（Output Style）
    - .pod-skill-notch-area: Slot 容器的位置（Skill）
+   - .model-notch: POD 上方的 Model 凹槽視覺效果
    - ::before: POD 左側的凹槽視覺效果（Output Style）
    - ::after: POD 左側的凹槽視覺效果（Skill）
 
@@ -95,6 +96,20 @@
 
 .pod-with-notch:hover {
   transform: translate(-0.5px, -0.5px);
+}
+
+/* Model 凹槽（POD 上方） */
+.model-notch {
+  position: absolute;
+  top: -6px;
+  left: 8px;
+  width: 28px;
+  height: 8px;
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  z-index: -1;
 }
 
 /* Output Style Slot 容器位置 */
@@ -529,6 +544,7 @@
   transform: translateX(-100%);
   z-index: -1;
 }
+
 
 /* Skill Hover 選單（顯示已綁定的 Skills 列表） */
 .pod-skill-menu {

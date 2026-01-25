@@ -1,7 +1,7 @@
 // Type Definitions - Central Export
 
 // Pod types
-export type { Pod, PodColor, PodTypeName, PodStatus } from './pod.js';
+export type { Pod, PodColor, PodTypeName, PodStatus, ModelType } from './pod.js';
 
 // Message types
 export type { Message, MessageRole, ToolUseInfo } from './message.js';

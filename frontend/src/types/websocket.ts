@@ -1,7 +1,7 @@
 // WebSocket Event Type Definitions
 // Defines all WebSocket events and their payload types
 
-import type { Pod, PodColor, PodTypeName } from './pod'
+import type { Pod, PodColor, PodTypeName, ModelType } from './pod'
 import type { OutputStyleListItem, OutputStyleNote } from './outputStyle'
 import type { Skill, SkillNote } from './skill'
 
@@ -129,6 +129,7 @@ export interface PodUpdatePayload {
   y?: number
   rotation?: number
   name?: string
+  model?: ModelType
 }
 
 export interface PodDeletePayload {

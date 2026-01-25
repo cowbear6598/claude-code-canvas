@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Pod, PodStatus, CreatePodRequest } from '../types/index.js';
+import { Pod, PodStatus, CreatePodRequest, ModelType } from '../types/index.js';
 import { config } from '../config/index.js';
 import { podPersistenceService } from './persistence/podPersistence.js';
 
@@ -33,6 +33,7 @@ class PodStore {
       claudeSessionId: null,
       outputStyleId: null,
       skillIds: [],
+      model: 'opus',
     };
 
     this.pods.set(id, pod);
@@ -134,6 +135,17 @@ class PodStore {
     }
   }
 
+  setModel(id: string, model: ModelType): void {
+    const pod = this.pods.get(id);
+    if (!pod) {
+      return;
+    }
+
+    pod.model = model;
+    this.pods.set(id, pod);
+    this.persistPodAsync(pod);
+  }
+
   async loadFromDisk(): Promise<void> {
     try {
       // Get all Pod IDs from disk
@@ -164,6 +176,7 @@ class PodStore {
             claudeSessionId: persistedPod.claudeSessionId,
             outputStyleId: persistedPod.outputStyleId ?? null,
             skillIds: persistedPod.skillIds ?? [],
+            model: persistedPod.model ?? 'opus',
           };
 
           this.pods.set(pod.id, pod);

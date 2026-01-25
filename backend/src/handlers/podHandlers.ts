@@ -326,7 +326,7 @@ export async function handlePodUpdate(
     return;
   }
 
-  const { requestId, podId, x, y, rotation, name } = validation.data!;
+  const { requestId, podId, x, y, rotation, name, model } = validation.data!;
 
   // Check if Pod exists
   const existingPod = podStore.getById(podId);
@@ -350,6 +350,10 @@ export async function handlePodUpdate(
   if (y !== undefined) updates.y = y;
   if (rotation !== undefined) updates.rotation = rotation;
   if (name !== undefined) updates.name = name;
+  if (model !== undefined) {
+    updates.model = model;
+    // 保留 session，讓 SDK 嘗試用新 model 繼續對話
+  }
 
   // Update Pod in store
   const updatedPod = podStore.update(podId, updates);

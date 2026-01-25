@@ -11,6 +11,8 @@ export type PodTypeName =
 
 export type PodStatus = 'idle' | 'busy' | 'error';
 
+export type ModelType = 'opus' | 'sonnet' | 'haiku';
+
 export interface Pod {
   id: string; // UUID
   name: string;
@@ -30,4 +32,5 @@ export interface Pod {
   claudeSessionId: string | null; // Claude SDK session ID for conversation resume
   outputStyleId: string | null; // Output style ID
   skillIds: string[]; // Bound Skill IDs
+  model: ModelType; // Model type for Claude API
 }

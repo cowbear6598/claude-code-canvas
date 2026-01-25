@@ -1,4 +1,4 @@
-import type { Pod, PodColor, PodTypeName } from './pod.js';
+import type { Pod, PodColor, PodTypeName, ModelType } from './pod.js';
 
 export enum WebSocketRequestEvents {
   POD_CREATE = 'pod:create',
@@ -104,6 +104,7 @@ export interface PodUpdatePayload {
   y?: number;
   rotation?: number;
   name?: string;
+  model?: ModelType;
 }
 
 export interface PodDeletePayload {

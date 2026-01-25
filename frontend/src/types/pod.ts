@@ -3,6 +3,9 @@ import type { Component } from 'vue'
 // Pod 顏色類型
 export type PodColor = 'blue' | 'coral' | 'pink' | 'yellow' | 'green'
 
+// Pod Model 類型
+export type ModelType = 'opus' | 'sonnet' | 'haiku'
+
 // Pod 類型名稱
 export type PodTypeName =
   | 'Code Assistant'
@@ -28,6 +31,7 @@ export interface Pod {
   updatedAt?: string
   outputStyleId?: string | null
   skillIds?: string[]
+  model?: ModelType
 }
 
 // Pod 類型配置

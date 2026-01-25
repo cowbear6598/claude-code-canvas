@@ -89,6 +89,9 @@ class ClaudeQueryService {
         console.log(`[QueryService] Starting new session for Pod ${podId}`);
       }
 
+      queryOptions.model = pod.model;
+      console.log(`[QueryService] Using model ${pod.model} for Pod ${podId}`);
+
       const queryStream = query({
         prompt: message,
         options: queryOptions,

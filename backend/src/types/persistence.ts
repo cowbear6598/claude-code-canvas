@@ -1,7 +1,7 @@
 // Persistence Type Definitions
 // Types for data stored on disk
 
-import type { PodTypeName, PodColor, PodStatus } from './pod.js';
+import type { PodTypeName, PodColor, PodStatus, ModelType } from './pod.js';
 import type { AnchorPosition } from './connection.js';
 
 /**
@@ -42,6 +42,7 @@ export interface PersistedPod {
   claudeSessionId: string | null; // Claude SDK session ID for resume
   outputStyleId: string | null; // Output style ID
   skillIds: string[]; // Bound Skill IDs
+  model: ModelType; // Model type for Claude API
 }
 
 /**

@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import type {Pod, PodColor, Position, TypeMenuState, ViewportState} from '@/types'
+import type {Pod, PodColor, Position, TypeMenuState, ViewportState, ModelType} from '@/types'
 import {initialPods} from '@/data/initialPods'
 import {validatePodName} from '@/lib/sanitize'
 import {websocketService} from '@/services/websocket'
@@ -200,6 +200,7 @@ export const useCanvasStore = defineStore('canvas', {
                 rotation: pod.rotation ?? (Math.random() * 2 - 1),
                 output: pod.output ?? [],
                 outputStyleId: pod.outputStyleId ?? null,
+                model: pod.model ?? 'opus',
             }))
             this.pods = enrichedPods.filter(pod => this.isValidPod(pod))
         },
@@ -324,16 +325,6 @@ export const useCanvasStore = defineStore('canvas', {
         setOffset(x: number, y: number): void {
             this.viewport.offset = {x, y}
         },
-
-        setZoom(zoom: number): void {
-            this.viewport.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom))
-        },
-
-        panBy(dx: number, dy: number): void {
-            this.viewport.offset.x += dx
-            this.viewport.offset.y += dy
-        },
-
         zoomTo(zoom: number, centerX: number, centerY: number): void {
             const oldZoom = this.viewport.zoom
             const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom))
@@ -345,14 +336,6 @@ export const useCanvasStore = defineStore('canvas', {
             this.viewport.offset.y = centerY - (dy * newZoom) / oldZoom
             this.viewport.zoom = newZoom
         },
-
-        resetView(): void {
-            this.viewport = {
-                offset: {x: 0, y: 0},
-                zoom: 1,
-            }
-        },
-
         updatePodOutputStyle(podId: string, outputStyleId: string | null): void {
             const pod = this.pods.find((p) => p.id === podId)
             if (pod) {
@@ -367,6 +350,13 @@ export const useCanvasStore = defineStore('canvas', {
                     pod.output = []
                 }
             })
+        },
+
+        updatePodModel(podId: string, model: ModelType): void {
+            const pod = this.pods.find((p) => p.id === podId)
+            if (pod) {
+                pod.model = model
+            }
         },
     },
 })

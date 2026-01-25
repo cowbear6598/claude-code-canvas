@@ -25,6 +25,7 @@ class PodPersistenceService {
       claudeSessionId: claudeSessionId ?? pod.claudeSessionId ?? null,
       outputStyleId: pod.outputStyleId,
       skillIds: pod.skillIds,
+      model: pod.model,
     };
   }
 
