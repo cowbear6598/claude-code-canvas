@@ -12,7 +12,7 @@ defineEmits<{
 
 <template>
   <div
-    class="mini-screen-click mini-screen h-20 p-2 overflow-hidden cursor-pointer rounded flex flex-col justify-end"
+    class="mini-screen-click mini-screen h-[100px] p-2 mb-2 overflow-hidden cursor-pointer rounded flex flex-col justify-end"
     @dblclick="$emit('dblclick')"
   >
     <div class="text-xs leading-relaxed">

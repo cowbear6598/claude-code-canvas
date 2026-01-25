@@ -62,7 +62,5 @@ const handleSave = () => {
         <Pencil :size="14" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300" />
       </button>
     </div>
-    <!-- 類型文字 -->
-    <p class="text-xs text-muted-foreground font-mono mb-2">{{ type }}</p>
   </div>
 </template>
