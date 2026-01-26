@@ -4,52 +4,26 @@
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
-  type WorkflowGetDownstreamPodsPayload,
   type WorkflowGetDownstreamPodsResultPayload,
-  type WorkflowClearPayload,
   type WorkflowClearResultPayload,
 } from '../types/index.js';
+import type {
+  WorkflowGetDownstreamPodsPayload,
+  WorkflowClearPayload,
+} from '../schemas/index.js';
 import { workflowClearService } from '../services/workflowClearService.js';
 import { podStore } from '../services/podStore.js';
-import {
-  emitSuccess,
-  emitError,
-  tryValidatePayload,
-} from '../utils/websocketResponse.js';
+import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
 /**
  * Handle workflow get downstream PODs request
  */
 export async function handleWorkflowGetDownstreamPods(
   socket: Socket,
-  payload: unknown
+  payload: WorkflowGetDownstreamPodsPayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<WorkflowGetDownstreamPodsPayload>(payload, [
-    'requestId',
-    'sourcePodId',
-  ]);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Workflow] Failed to get downstream PODs: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, sourcePodId } = validation.data!;
+  const { sourcePodId } = payload;
 
   // Check if source POD exists
   const sourcePod = podStore.getById(sourcePodId);
@@ -102,34 +76,10 @@ export async function handleWorkflowGetDownstreamPods(
  */
 export async function handleWorkflowClear(
   socket: Socket,
-  payload: unknown
+  payload: WorkflowClearPayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<WorkflowClearPayload>(payload, [
-    'requestId',
-    'sourcePodId',
-  ]);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Workflow] Failed to clear workflow: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, sourcePodId } = validation.data!;
+  const { sourcePodId } = payload;
 
   // Check if source POD exists
   const sourcePod = podStore.getById(sourcePodId);

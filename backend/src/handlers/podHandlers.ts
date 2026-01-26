@@ -4,17 +4,19 @@
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
-  type PodCreatePayload,
-  type PodListPayload,
-  type PodGetPayload,
-  type PodUpdatePayload,
-  type PodDeletePayload,
   type PodCreatedPayload,
   type PodListResultPayload,
   type PodGetResultPayload,
   type PodUpdatedPayload,
   type PodDeletedPayload,
 } from '../types/index.js';
+import type {
+  PodCreatePayload,
+  PodListPayload,
+  PodGetPayload,
+  PodUpdatePayload,
+  PodDeletePayload,
+} from '../schemas/index.js';
 import { podStore } from '../services/podStore.js';
 import { workspaceService } from '../services/workspace/index.js';
 import { claudeSessionManager } from '../services/claude/sessionManager.js';
@@ -22,53 +24,18 @@ import { noteStore } from '../services/noteStore.js';
 import { skillNoteStore } from '../services/skillNoteStore.js';
 import { connectionStore } from '../services/connectionStore.js';
 import { socketService } from '../services/socketService.js';
-import { workflowTriggerService } from '../services/workflowTriggerService.js';
-import {
-  emitSuccess,
-  emitError,
-  tryValidatePayload,
-  getErrorMessage,
-  getErrorCode,
-} from '../utils/websocketResponse.js';
+import { workflowService } from '../services/workflow/index.js';
+import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
 /**
  * Handle Pod creation request
  */
 export async function handlePodCreate(
   socket: Socket,
-  payload: unknown
+  payload: PodCreatePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<PodCreatePayload>(payload, [
-    'requestId',
-    'name',
-    'type',
-    'color',
-    'x',
-    'y',
-    'rotation',
-  ]);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_CREATED,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Pod] Failed to create Pod: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, name, type, color, x, y, rotation } = validation.data!;
+  const { name, type, color, x, y, rotation } = payload;
 
   // Create Pod in store with canvas position
   const pod = podStore.create({ name, type, color, x, y, rotation });
@@ -96,32 +63,9 @@ export async function handlePodCreate(
  */
 export async function handlePodList(
   socket: Socket,
-  payload: unknown
+  _: PodListPayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<PodListPayload>(payload, ['requestId']);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_LIST_RESULT,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Pod] Failed to list Pods: ${validation.error}`);
-    return;
-  }
-
-  const { requestId } = validation.data!;
-
   // Get all Pods
   const pods = podStore.getAll();
 
@@ -142,31 +86,10 @@ export async function handlePodList(
  */
 export async function handlePodGet(
   socket: Socket,
-  payload: unknown
+  payload: PodGetPayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<PodGetPayload>(payload, ['requestId', 'podId']);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_GET_RESULT,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Pod] Failed to get Pod: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, podId } = validation.data!;
+  const { podId } = payload;
 
   // Get Pod by ID
   const pod = podStore.getById(podId);
@@ -202,31 +125,10 @@ export async function handlePodGet(
  */
 export async function handlePodDelete(
   socket: Socket,
-  payload: unknown
+  payload: PodDeletePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<PodDeletePayload>(payload, ['requestId', 'podId']);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_DELETED,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Pod] Failed to delete Pod: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, podId } = validation.data!;
+  const { podId } = payload;
 
   // Check if Pod exists
   const pod = podStore.getById(podId);
@@ -245,7 +147,7 @@ export async function handlePodDelete(
   }
 
   // Handle workflow pending targets before deletion
-  workflowTriggerService.handleSourceDeletion(podId);
+  workflowService.handleSourceDeletion(podId);
 
   // Destroy Claude session
   await claudeSessionManager.destroySession(podId);
@@ -302,31 +204,10 @@ export async function handlePodDelete(
  */
 export async function handlePodUpdate(
   socket: Socket,
-  payload: unknown
+  payload: PodUpdatePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<PodUpdatePayload>(payload, ['requestId', 'podId']);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_UPDATED,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Pod] Failed to update Pod: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, podId, x, y, rotation, name, model } = validation.data!;
+  const { podId, x, y, rotation, name, model } = payload;
 
   // Check if Pod exists
   const existingPod = podStore.getById(podId);

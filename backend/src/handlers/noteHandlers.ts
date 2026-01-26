@@ -4,61 +4,29 @@
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
-  type NoteCreatePayload,
-  type NoteListPayload,
-  type NoteUpdatePayload,
-  type NoteDeletePayload,
   type NoteCreatedPayload,
   type NoteListResultPayload,
   type NoteUpdatedPayload,
   type NoteDeletedPayload,
 } from '../types/index.js';
+import type {
+  NoteCreatePayload,
+  NoteListPayload,
+  NoteUpdatePayload,
+  NoteDeletePayload,
+} from '../schemas/index.js';
 import { noteStore } from '../services/noteStore.js';
-import {
-  emitSuccess,
-  emitError,
-  tryValidatePayload,
-  getErrorMessage,
-  getErrorCode,
-} from '../utils/websocketResponse.js';
+import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
 /**
  * Handle note creation request
  */
 export async function handleNoteCreate(
   socket: Socket,
-  payload: unknown
+  payload: NoteCreatePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<NoteCreatePayload>(payload, [
-    'requestId',
-    'outputStyleId',
-    'name',
-    'x',
-    'y',
-  ]);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.NOTE_CREATED,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Note] Failed to create note: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, outputStyleId, name, x, y, boundToPodId, originalPosition } =
-    validation.data!;
+  const { outputStyleId, name, x, y, boundToPodId, originalPosition } = payload;
 
   // Create note in store
   const note = noteStore.create({
@@ -87,32 +55,9 @@ export async function handleNoteCreate(
  */
 export async function handleNoteList(
   socket: Socket,
-  payload: unknown
+  _: NoteListPayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<NoteListPayload>(payload, ['requestId']);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.NOTE_LIST_RESULT,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Note] Failed to list notes: ${validation.error}`);
-    return;
-  }
-
-  const { requestId } = validation.data!;
-
   // Get all notes
   const notes = noteStore.list();
 
@@ -133,31 +78,10 @@ export async function handleNoteList(
  */
 export async function handleNoteUpdate(
   socket: Socket,
-  payload: unknown
+  payload: NoteUpdatePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<NoteUpdatePayload>(payload, ['requestId', 'noteId']);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.NOTE_UPDATED,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Note] Failed to update note: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, noteId, x, y, boundToPodId, originalPosition } = validation.data!;
+  const { noteId, x, y, boundToPodId, originalPosition } = payload;
 
   // Check if note exists
   const existingNote = noteStore.getById(noteId);
@@ -216,31 +140,10 @@ export async function handleNoteUpdate(
  */
 export async function handleNoteDelete(
   socket: Socket,
-  payload: unknown
+  payload: NoteDeletePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<NoteDeletePayload>(payload, ['requestId', 'noteId']);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.NOTE_DELETED,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Note] Failed to delete note: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, noteId } = validation.data!;
+  const { noteId } = payload;
 
   // Check if note exists
   const note = noteStore.getById(noteId);

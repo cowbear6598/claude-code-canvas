@@ -177,6 +177,7 @@ class ClaudeQueryService {
           }
         }
         else if (sdkMessage.type === 'stream_event') {
+          // Ignore stream events
         }
       }
 

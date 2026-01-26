@@ -1,51 +1,24 @@
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
-  type OutputStyleListPayload,
   type OutputStyleListResultPayload,
-  type PodBindOutputStylePayload,
   type PodOutputStyleBoundPayload,
-  type PodUnbindOutputStylePayload,
   type PodOutputStyleUnboundPayload,
 } from '../types/index.js';
+import type {
+  OutputStyleListPayload,
+  PodBindOutputStylePayload,
+  PodUnbindOutputStylePayload,
+} from '../schemas/index.js';
 import { outputStyleService } from '../services/outputStyleService.js';
 import { podStore } from '../services/podStore.js';
-import {
-  emitSuccess,
-  emitError,
-  tryValidatePayload,
-  getErrorMessage,
-  getErrorCode,
-} from '../utils/websocketResponse.js';
+import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
 export async function handleOutputStyleList(
   socket: Socket,
-  payload: unknown
+  _: OutputStyleListPayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<OutputStyleListPayload>(payload, ['requestId']);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[OutputStyle] Failed to list styles: ${validation.error}`);
-    return;
-  }
-
-  const { requestId } = validation.data!;
-
   const styles = await outputStyleService.listStyles();
 
   const response: OutputStyleListResultPayload = {
@@ -61,42 +34,11 @@ export async function handleOutputStyleList(
 
 export async function handlePodBindOutputStyle(
   socket: Socket,
-  payload: unknown
+  payload: PodBindOutputStylePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<PodBindOutputStylePayload>(payload, [
-    'requestId',
-    'podId',
-    'outputStyleId',
-  ]);
+  const { podId, outputStyleId } = payload;
 
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    const podId =
-      typeof payload === 'object' && payload && 'podId' in payload
-        ? (payload.podId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND,
-      validation.error!,
-      requestId,
-      podId,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[OutputStyle] Failed to bind style: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, podId, outputStyleId } = validation.data!;
-
-  // Check if Pod exists
   const pod = podStore.getById(podId);
   if (!pod) {
     emitError(
@@ -112,7 +54,6 @@ export async function handlePodBindOutputStyle(
     return;
   }
 
-  // Check if style exists
   const styleExists = await outputStyleService.exists(outputStyleId);
   if (!styleExists) {
     emitError(
@@ -145,38 +86,11 @@ export async function handlePodBindOutputStyle(
 
 export async function handlePodUnbindOutputStyle(
   socket: Socket,
-  payload: unknown
+  payload: PodUnbindOutputStylePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<PodUnbindOutputStylePayload>(payload, ['requestId', 'podId']);
+  const { podId } = payload;
 
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    const podId =
-      typeof payload === 'object' && payload && 'podId' in payload
-        ? (payload.podId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND,
-      validation.error!,
-      requestId,
-      podId,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[OutputStyle] Failed to unbind style: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, podId } = validation.data!;
-
-  // Check if Pod exists
   const pod = podStore.getById(podId);
   if (!pod) {
     emitError(

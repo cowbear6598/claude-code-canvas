@@ -1,12 +1,6 @@
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
-  type SkillListPayload,
-  type SkillNoteCreatePayload,
-  type SkillNoteListPayload,
-  type SkillNoteUpdatePayload,
-  type SkillNoteDeletePayload,
-  type PodBindSkillPayload,
   type SkillListResultPayload,
   type SkillNoteCreatedPayload,
   type SkillNoteListResultPayload,
@@ -14,67 +8,24 @@ import {
   type SkillNoteDeletedPayload,
   type PodSkillBoundPayload,
 } from '../types/index.js';
+import type {
+  SkillListPayload,
+  SkillNoteCreatePayload,
+  SkillNoteListPayload,
+  SkillNoteUpdatePayload,
+  SkillNoteDeletePayload,
+  PodBindSkillPayload,
+} from '../schemas/index.js';
 import { skillService } from '../services/skillService.js';
 import { skillNoteStore } from '../services/skillNoteStore.js';
 import { podStore } from '../services/podStore.js';
-import {
-  emitSuccess,
-  emitError,
-  tryValidatePayload,
-  getErrorMessage,
-  getErrorCode,
-} from '../utils/websocketResponse.js';
-import { validateSkillId, validateSkillName } from '../utils/pathValidator.js';
+import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
-/**
- * Extract requestId from unknown payload for error handling
- */
-function extractRequestId(payload: unknown): string | undefined {
-  return typeof payload === 'object' && payload && 'requestId' in payload
-    ? (payload.requestId as string)
-    : undefined;
-}
-
-/**
- * Extract podId from unknown payload for error handling
- */
-function extractPodId(payload: unknown): string | undefined {
-  return typeof payload === 'object' && payload && 'podId' in payload
-    ? (payload.podId as string)
-    : undefined;
-}
-
-/**
- * Handle errors in skill handlers
- */
-function handleError(
+export async function handleSkillList(
   socket: Socket,
-  error: unknown,
-  event: WebSocketResponseEvents,
-  payload: unknown,
-  includePodId = false
-): void {
-  const errorMessage = getErrorMessage(error);
-  const errorCode = getErrorCode(error);
-  const requestId = extractRequestId(payload);
-  const podId = includePodId ? extractPodId(payload) : undefined;
-
-  emitError(socket, event, errorMessage, requestId, podId, errorCode);
-
-  const eventName = event.split(':').slice(0, -1).join(':');
-  console.error(`[${eventName}] Error: ${errorMessage}`);
-}
-
-export async function handleSkillList(socket: Socket, payload: unknown): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<SkillListPayload>(payload, ['requestId']);
-
-  if (!validation.success) {
-    handleError(socket, new Error(validation.error), WebSocketResponseEvents.SKILL_LIST_RESULT, payload);
-    return;
-  }
-
-  const { requestId } = validation.data!;
+  _: SkillListPayload,
+  requestId: string
+): Promise<void> {
   const skills = await skillService.listSkills();
 
   const response: SkillListResultPayload = {
@@ -89,35 +40,10 @@ export async function handleSkillList(socket: Socket, payload: unknown): Promise
 
 export async function handleSkillNoteCreate(
   socket: Socket,
-  payload: unknown
+  payload: SkillNoteCreatePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<SkillNoteCreatePayload>(payload, [
-    'requestId',
-    'skillId',
-    'name',
-    'x',
-    'y',
-  ]);
-
-  if (!validation.success) {
-    handleError(socket, new Error(validation.error), WebSocketResponseEvents.SKILL_NOTE_CREATED, payload);
-    return;
-  }
-
-  const { requestId, skillId, name, x, y, boundToPodId, originalPosition } = validation.data!;
-
-  // Validate skillId format
-  if (!validateSkillId(skillId)) {
-    handleError(socket, new Error('Invalid skill ID format'), WebSocketResponseEvents.SKILL_NOTE_CREATED, payload);
-    return;
-  }
-
-  // Validate skill name format
-  if (!validateSkillName(name)) {
-    handleError(socket, new Error('Invalid skill name format'), WebSocketResponseEvents.SKILL_NOTE_CREATED, payload);
-    return;
-  }
+  const { skillId, name, x, y, boundToPodId, originalPosition } = payload;
 
   const note = skillNoteStore.create({
     skillId,
@@ -138,16 +64,11 @@ export async function handleSkillNoteCreate(
   console.log(`[SkillNote] Created note ${note.id} (${note.name})`);
 }
 
-export async function handleSkillNoteList(socket: Socket, payload: unknown): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<SkillNoteListPayload>(payload, ['requestId']);
-
-  if (!validation.success) {
-    handleError(socket, new Error(validation.error), WebSocketResponseEvents.SKILL_NOTE_LIST_RESULT, payload);
-    return;
-  }
-
-  const { requestId } = validation.data!;
+export async function handleSkillNoteList(
+  socket: Socket,
+  _: SkillNoteListPayload,
+  requestId: string
+): Promise<void> {
   const notes = skillNoteStore.list();
 
   const response: SkillNoteListResultPayload = {
@@ -162,22 +83,22 @@ export async function handleSkillNoteList(socket: Socket, payload: unknown): Pro
 
 export async function handleSkillNoteUpdate(
   socket: Socket,
-  payload: unknown
+  payload: SkillNoteUpdatePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<SkillNoteUpdatePayload>(payload, ['requestId', 'noteId']);
+  const { noteId, x, y, boundToPodId, originalPosition } = payload;
 
-  if (!validation.success) {
-    handleError(socket, new Error(validation.error), WebSocketResponseEvents.SKILL_NOTE_UPDATED, payload);
-    return;
-  }
-
-  const { requestId, noteId, x, y, boundToPodId, originalPosition } = validation.data!;
-
-  // Check if note exists
   const existingNote = skillNoteStore.getById(noteId);
   if (!existingNote) {
-    handleError(socket, new Error(`Note not found: ${noteId}`), WebSocketResponseEvents.SKILL_NOTE_UPDATED, payload);
+    emitError(
+      socket,
+      WebSocketResponseEvents.SKILL_NOTE_UPDATED,
+      `Note not found: ${noteId}`,
+      requestId,
+      undefined,
+      'NOT_FOUND'
+    );
+    console.error(`[SkillNote] Note not found: ${noteId}`);
     return;
   }
 
@@ -190,7 +111,15 @@ export async function handleSkillNoteUpdate(
   const updatedNote = skillNoteStore.update(noteId, updates);
 
   if (!updatedNote) {
-    handleError(socket, new Error(`Failed to update note: ${noteId}`), WebSocketResponseEvents.SKILL_NOTE_UPDATED, payload);
+    emitError(
+      socket,
+      WebSocketResponseEvents.SKILL_NOTE_UPDATED,
+      `Failed to update note: ${noteId}`,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+    console.error(`[SkillNote] Failed to update note: ${noteId}`);
     return;
   }
 
@@ -206,28 +135,36 @@ export async function handleSkillNoteUpdate(
 
 export async function handleSkillNoteDelete(
   socket: Socket,
-  payload: unknown
+  payload: SkillNoteDeletePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<SkillNoteDeletePayload>(payload, ['requestId', 'noteId']);
+  const { noteId } = payload;
 
-  if (!validation.success) {
-    handleError(socket, new Error(validation.error), WebSocketResponseEvents.SKILL_NOTE_DELETED, payload);
-    return;
-  }
-
-  const { requestId, noteId } = validation.data!;
-
-  // Check if note exists
   const note = skillNoteStore.getById(noteId);
   if (!note) {
-    handleError(socket, new Error(`Note not found: ${noteId}`), WebSocketResponseEvents.SKILL_NOTE_DELETED, payload);
+    emitError(
+      socket,
+      WebSocketResponseEvents.SKILL_NOTE_DELETED,
+      `Note not found: ${noteId}`,
+      requestId,
+      undefined,
+      'NOT_FOUND'
+    );
+    console.error(`[SkillNote] Note not found: ${noteId}`);
     return;
   }
 
   const deleted = skillNoteStore.delete(noteId);
   if (!deleted) {
-    handleError(socket, new Error(`Failed to delete note from store: ${noteId}`), WebSocketResponseEvents.SKILL_NOTE_DELETED, payload);
+    emitError(
+      socket,
+      WebSocketResponseEvents.SKILL_NOTE_DELETED,
+      `Failed to delete note from store: ${noteId}`,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+    console.error(`[SkillNote] Failed to delete note from store: ${noteId}`);
     return;
   }
 
@@ -241,34 +178,51 @@ export async function handleSkillNoteDelete(
   console.log(`[SkillNote] Deleted note ${noteId}`);
 }
 
-export async function handlePodBindSkill(socket: Socket, payload: unknown): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<PodBindSkillPayload>(payload, ['requestId', 'podId', 'skillId']);
+export async function handlePodBindSkill(
+  socket: Socket,
+  payload: PodBindSkillPayload,
+  requestId: string
+): Promise<void> {
+  const { podId, skillId } = payload;
 
-  if (!validation.success) {
-    handleError(socket, new Error(validation.error), WebSocketResponseEvents.POD_SKILL_BOUND, payload, true);
-    return;
-  }
-
-  const { requestId, podId, skillId } = validation.data!;
-
-  // Check if Pod exists
   const pod = podStore.getById(podId);
   if (!pod) {
-    handleError(socket, new Error(`Pod not found: ${podId}`), WebSocketResponseEvents.POD_SKILL_BOUND, payload, true);
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_SKILL_BOUND,
+      `Pod not found: ${podId}`,
+      requestId,
+      podId,
+      'NOT_FOUND'
+    );
+    console.error(`[Skill] Pod not found: ${podId}`);
     return;
   }
 
-  // Check if Skill exists
   const skillExists = await skillService.exists(skillId);
   if (!skillExists) {
-    handleError(socket, new Error(`Skill not found: ${skillId}`), WebSocketResponseEvents.POD_SKILL_BOUND, payload, true);
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_SKILL_BOUND,
+      `Skill not found: ${skillId}`,
+      requestId,
+      podId,
+      'NOT_FOUND'
+    );
+    console.error(`[Skill] Skill not found: ${skillId}`);
     return;
   }
 
-  // Check if Skill is already bound
   if (pod.skillIds.includes(skillId)) {
-    handleError(socket, new Error(`Skill ${skillId} is already bound to Pod ${podId}`), WebSocketResponseEvents.POD_SKILL_BOUND, payload, true);
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_SKILL_BOUND,
+      `Skill ${skillId} is already bound to Pod ${podId}`,
+      requestId,
+      podId,
+      'CONFLICT'
+    );
+    console.error(`[Skill] Skill ${skillId} is already bound to Pod ${podId}`);
     return;
   }
 

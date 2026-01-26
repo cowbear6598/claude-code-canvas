@@ -10,7 +10,7 @@ export function errorHandler(
   err: Error | AppError,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void {
   // Log error with timestamp and stack trace
   const timestamp = new Date().toISOString();

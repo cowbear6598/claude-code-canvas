@@ -4,7 +4,6 @@
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
-  type CanvasPastePayload,
   type CanvasPasteResultPayload,
   type PasteError,
   type Pod,
@@ -12,18 +11,14 @@ import {
   type SkillNote,
   type Connection,
 } from '../types/index.js';
+import type { CanvasPastePayload } from '../schemas/index.js';
 import { podStore } from '../services/podStore.js';
 import { workspaceService } from '../services/workspace/index.js';
 import { claudeSessionManager } from '../services/claude/sessionManager.js';
 import { noteStore } from '../services/noteStore.js';
 import { skillNoteStore } from '../services/skillNoteStore.js';
 import { connectionStore } from '../services/connectionStore.js';
-import {
-  emitSuccess,
-  emitError,
-  tryValidatePayload,
-  getErrorMessage,
-} from '../utils/websocketResponse.js';
+import { emitSuccess, getErrorMessage } from '../utils/websocketResponse.js';
 
 /**
  * Map original pod ID to new pod ID for note binding
@@ -56,36 +51,10 @@ function recordError(
  */
 export async function handleCanvasPaste(
   socket: Socket,
-  payload: unknown
+  payload: CanvasPastePayload,
+  requestId: string
 ): Promise<void> {
-  const validation = tryValidatePayload<CanvasPastePayload>(payload, [
-    'requestId',
-    'pods',
-    'outputStyleNotes',
-    'skillNotes',
-    'connections',
-  ]);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.CANVAS_PASTE_RESULT,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Paste] Failed to paste: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, pods, outputStyleNotes, skillNotes, connections } = validation.data!;
+  const { pods, outputStyleNotes, skillNotes, connections } = payload;
 
   const createdPods: Pod[] = [];
   const createdOutputStyleNotes: OutputStyleNote[] = [];

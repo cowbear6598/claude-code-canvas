@@ -4,60 +4,31 @@
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
-  type ConnectionCreatePayload,
-  type ConnectionListPayload,
-  type ConnectionDeletePayload,
-  type ConnectionUpdatePayload,
   type ConnectionCreatedPayload,
   type ConnectionListResultPayload,
   type ConnectionDeletedPayload,
   type ConnectionUpdatedPayload,
 } from '../types/index.js';
+import type {
+  ConnectionCreatePayload,
+  ConnectionListPayload,
+  ConnectionDeletePayload,
+  ConnectionUpdatePayload,
+} from '../schemas/index.js';
 import { connectionStore } from '../services/connectionStore.js';
 import { podStore } from '../services/podStore.js';
-import { workflowTriggerService } from '../services/workflowTriggerService.js';
-import {
-  emitSuccess,
-  emitError,
-  tryValidatePayload,
-} from '../utils/websocketResponse.js';
+import { workflowService } from '../services/workflow/index.js';
+import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
 /**
  * Handle connection creation request
  */
 export async function handleConnectionCreate(
   socket: Socket,
-  payload: unknown
+  payload: ConnectionCreatePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<ConnectionCreatePayload>(payload, [
-    'requestId',
-    'sourcePodId',
-    'sourceAnchor',
-    'targetPodId',
-    'targetAnchor',
-  ]);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.CONNECTION_CREATED,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Connection] Failed to create connection: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, sourcePodId, sourceAnchor, targetPodId, targetAnchor } = validation.data!;
+  const { sourcePodId, sourceAnchor, targetPodId, targetAnchor } = payload;
 
   // Check if source Pod exists
   const sourcePod = podStore.getById(sourcePodId);
@@ -116,31 +87,9 @@ export async function handleConnectionCreate(
  */
 export async function handleConnectionList(
   socket: Socket,
-  payload: unknown
+  _: ConnectionListPayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<ConnectionListPayload>(payload, ['requestId']);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.CONNECTION_LIST_RESULT,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Connection] Failed to list connections: ${validation.error}`);
-    return;
-  }
-
-  const { requestId } = validation.data!;
 
   // Get all connections
   const connections = connectionStore.list();
@@ -162,34 +111,10 @@ export async function handleConnectionList(
  */
 export async function handleConnectionDelete(
   socket: Socket,
-  payload: unknown
+  payload: ConnectionDeletePayload,
+  requestId: string
 ): Promise<void> {
-  // Validate payload
-  const validation = tryValidatePayload<ConnectionDeletePayload>(payload, [
-    'requestId',
-    'connectionId',
-  ]);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.CONNECTION_DELETED,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Connection] Failed to delete connection: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, connectionId } = validation.data!;
+  const { connectionId } = payload;
 
   // Check if connection exists
   const connection = connectionStore.getById(connectionId);
@@ -208,7 +133,7 @@ export async function handleConnectionDelete(
   }
 
   // Handle workflow pending targets before deletion
-  workflowTriggerService.handleConnectionDeletion(connectionId);
+  workflowService.handleConnectionDeletion(connectionId);
 
   // Delete connection from store
   const deleted = connectionStore.delete(connectionId);
@@ -244,33 +169,10 @@ export async function handleConnectionDelete(
  */
 export async function handleConnectionUpdate(
   socket: Socket,
-  payload: unknown
+  payload: ConnectionUpdatePayload,
+  requestId: string
 ): Promise<void> {
-  const validation = tryValidatePayload<ConnectionUpdatePayload>(payload, [
-    'requestId',
-    'connectionId',
-  ]);
-
-  if (!validation.success) {
-    const requestId =
-      typeof payload === 'object' && payload && 'requestId' in payload
-        ? (payload.requestId as string)
-        : undefined;
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.CONNECTION_UPDATED,
-      validation.error!,
-      requestId,
-      undefined,
-      'VALIDATION_ERROR'
-    );
-
-    console.error(`[Connection] Failed to update connection: ${validation.error}`);
-    return;
-  }
-
-  const { requestId, connectionId, autoTrigger } = validation.data!;
+  const { connectionId, autoTrigger } = payload;
 
   const connection = connectionStore.getById(connectionId);
   if (!connection) {

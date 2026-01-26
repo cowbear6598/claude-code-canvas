@@ -23,7 +23,7 @@ app.use(errorHandler);
 
 const httpServer = createServer(app);
 
-async function startServer() {
+async function startServer(): Promise<void> {
   try {
     await startupService.initialize();
 
@@ -52,7 +52,7 @@ async function startServer() {
 
 startServer();
 
-const shutdown = async (signal: string) => {
+const shutdown = async (signal: string): Promise<void> => {
   console.log(`[Server] ${signal} received, shutting down gracefully...`);
 
   const io = socketService.getIO();
