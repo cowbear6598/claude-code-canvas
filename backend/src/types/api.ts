@@ -1,6 +1,6 @@
 // API Type Definitions
 
-import { Pod, PodTypeName, PodColor } from './pod.js';
+import { Pod, PodTypeName, PodColor, ModelType } from './pod.js';
 
 export interface CreatePodRequest {
   name: string;
@@ -10,6 +10,9 @@ export interface CreatePodRequest {
   x: number;
   y: number;
   rotation: number;
+  outputStyleId?: string | null;
+  skillIds?: string[];
+  model?: ModelType;
 }
 
 export interface CreatePodResponse {

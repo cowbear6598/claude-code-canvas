@@ -41,6 +41,7 @@ import {
   handleWorkflowGetDownstreamPods,
   handleWorkflowClear,
 } from './workflowHandlers.js';
+import { handleCanvasPaste } from './pasteHandlers.js';
 
 /**
  * Register all WebSocket event handlers for a socket
@@ -163,6 +164,11 @@ export function registerAllHandlers(socket: Socket): void {
     handleWorkflowClear(socket, payload);
   });
 
+  // Paste handlers
+  socket.on(WebSocketRequestEvents.CANVAS_PASTE, (payload) => {
+    handleCanvasPaste(socket, payload);
+  });
+
   console.log(`[Handlers] Registered all handlers for socket ${socket.id}`);
 }
 
@@ -195,4 +201,5 @@ export {
   handleConnectionUpdate,
   handleWorkflowGetDownstreamPods,
   handleWorkflowClear,
+  handleCanvasPaste,
 };

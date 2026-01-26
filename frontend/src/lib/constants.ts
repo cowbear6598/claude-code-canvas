@@ -41,3 +41,4 @@ export const NOTE_HEIGHT = 30
 // Time Constants (ms)
 export const POSITION_SYNC_DELAY_MS = 500
 export const NOTE_ANIMATION_DURATION_MS = 300
+export const PASTE_TIMEOUT_MS = 10000

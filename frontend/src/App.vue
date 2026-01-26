@@ -11,6 +11,7 @@ import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
 import ChatModal from '@/components/chat/ChatModal.vue'
 import { Toast } from '@/components/ui/toast'
+import { useCopyPaste } from '@/composables/useCopyPaste'
 import {
   CONTENT_PREVIEW_LENGTH,
   RESPONSE_PREVIEW_LENGTH,
@@ -24,6 +25,8 @@ const skillStore = useSkillStore()
 const connectionStore = useConnectionStore()
 
 const selectedPod = computed(() => canvasStore.selectedPod)
+
+useCopyPaste()
 
 /**
  * Connection establishment delay (ms)

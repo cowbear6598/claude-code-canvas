@@ -3,18 +3,7 @@ import { useCanvasStore } from '@/stores/canvasStore'
 import { useOutputStyleStore } from '@/stores/outputStyleStore'
 import { useSkillStore } from '@/stores/skillStore'
 import { useToast } from '@/composables/useToast'
-
-function isEditingElement(): boolean {
-  const activeElement = document.activeElement
-  if (!activeElement) return false
-
-  const tagName = activeElement.tagName
-  if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') {
-    return true
-  }
-
-  return activeElement.getAttribute('contenteditable') === 'true';
-}
+import { isEditingElement } from '@/utils/domHelpers'
 
 async function deleteSelectedElements(): Promise<void> {
   const canvasStore = useCanvasStore()

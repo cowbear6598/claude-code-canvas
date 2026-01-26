@@ -118,9 +118,9 @@ const handleMouseDown = (e: MouseEvent) => {
     }
   }
 
-  // 點擊未選中的 POD 時，清除現有選取
-  if (canvasStore.hasSelection && !isElementSelected('pod', props.pod.id)) {
-    canvasStore.clearSelection()
+  // 點擊時選取當前 POD（若未選取則清除其他並選取當前）
+  if (!isElementSelected('pod', props.pod.id)) {
+    canvasStore.setSelectedElements([{ type: 'pod', id: props.pod.id }])
   }
 
   canvasStore.setActivePod(props.pod.id)

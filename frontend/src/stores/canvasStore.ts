@@ -517,5 +517,9 @@ export const useCanvasStore = defineStore('canvas', {
 
             this.selection.selectedElements = selected
         },
+
+        setSelectedElements(elements: SelectableElement[]): void {
+            this.selection.selectedElements = elements
+        },
     },
 })

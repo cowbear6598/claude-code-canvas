@@ -43,6 +43,7 @@ export const WebSocketRequestEvents = {
   CONNECTION_UPDATE: 'connection:update',
   WORKFLOW_GET_DOWNSTREAM_PODS: 'workflow:get-downstream-pods',
   WORKFLOW_CLEAR: 'workflow:clear',
+  CANVAS_PASTE: 'canvas:paste',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -94,6 +95,7 @@ export const WebSocketResponseEvents = {
   WORKFLOW_SOURCES_MERGED: 'workflow:sources-merged',
   WORKFLOW_GET_DOWNSTREAM_PODS_RESULT: 'workflow:get-downstream-pods:result',
   WORKFLOW_CLEAR_RESULT: 'workflow:clear:result',
+  CANVAS_PASTE_RESULT: 'canvas:paste:result',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]
@@ -618,5 +620,82 @@ export interface WorkflowClearResultPayload {
   success: boolean
   clearedPodIds?: string[]
   clearedPodNames?: string[]
+  error?: string
+}
+
+// ============================================================================
+// Canvas Copy/Paste Payload Types
+// ============================================================================
+
+export interface PastePodItem {
+  originalId: string
+  name: string
+  type: PodTypeName
+  color: PodColor
+  x: number
+  y: number
+  rotation: number
+  outputStyleId?: string | null
+  skillIds?: string[]
+  model?: ModelType
+}
+
+export interface PasteOutputStyleNoteItem {
+  outputStyleId: string
+  name: string
+  x: number
+  y: number
+  boundToOriginalPodId: string | null
+  originalPosition: { x: number; y: number } | null
+}
+
+export interface PasteSkillNoteItem {
+  skillId: string
+  name: string
+  x: number
+  y: number
+  boundToOriginalPodId: string | null
+  originalPosition: { x: number; y: number } | null
+}
+
+export interface PasteConnectionItem {
+  originalSourcePodId: string
+  sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+  originalTargetPodId: string
+  targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+  autoTrigger?: boolean
+}
+
+export interface CanvasPastePayload {
+  requestId: string
+  pods: PastePodItem[]
+  outputStyleNotes: PasteOutputStyleNoteItem[]
+  skillNotes: PasteSkillNoteItem[]
+  connections: PasteConnectionItem[]
+}
+
+export interface PasteError {
+  type: 'pod' | 'outputStyleNote' | 'skillNote'
+  originalId: string
+  error: string
+}
+
+export interface CanvasPasteResultPayload {
+  requestId: string
+  success: boolean
+  createdPods: Pod[]
+  createdOutputStyleNotes: OutputStyleNote[]
+  createdSkillNotes: SkillNote[]
+  createdConnections: Array<{
+    id: string
+    sourcePodId: string
+    sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+    targetPodId: string
+    targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+    createdAt: string
+    autoTrigger?: boolean
+  }>
+  podIdMapping: Record<string, string>
+  errors: PasteError[]
   error?: string
 }

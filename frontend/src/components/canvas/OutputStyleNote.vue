@@ -62,9 +62,9 @@ const handleMouseDown = (e: MouseEvent) => {
     }
   }
 
-  // 點擊未選中的 Note 時，清除現有選取
-  if (canvasStore.hasSelection && !isElementSelected('outputStyleNote', props.note.id)) {
-    canvasStore.clearSelection()
+  // 點擊時選取當前 Note（若未選取則清除其他並選取當前）
+  if (!isElementSelected('outputStyleNote', props.note.id)) {
+    canvasStore.setSelectedElements([{ type: 'outputStyleNote', id: props.note.id }])
   }
 
   cleanupEventListeners()

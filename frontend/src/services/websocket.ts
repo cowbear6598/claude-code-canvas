@@ -77,7 +77,9 @@ import type {
   WorkflowGetDownstreamPodsPayload,
   WorkflowGetDownstreamPodsResultPayload,
   WorkflowClearPayload,
-  WorkflowClearResultPayload
+  WorkflowClearResultPayload,
+  CanvasPastePayload,
+  CanvasPasteResultPayload
 } from '@/types/websocket'
 
 type EventCallback<T> = (payload: T) => void
@@ -279,6 +281,10 @@ class WebSocketService {
     this.emit(WebSocketRequestEvents.WORKFLOW_CLEAR, payload)
   }
 
+  canvasPaste(payload: CanvasPastePayload): void {
+    this.emit(WebSocketRequestEvents.CANVAS_PASTE, payload)
+  }
+
   onConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.on(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -451,6 +457,10 @@ class WebSocketService {
     this.on(WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, callback)
   }
 
+  onCanvasPasteResult(callback: EventCallback<CanvasPasteResultPayload>): void {
+    this.on(WebSocketResponseEvents.CANVAS_PASTE_RESULT, callback)
+  }
+
   offConnectionReady(callback: EventCallback<ConnectionReadyPayload>): void {
     this.off(WebSocketResponseEvents.CONNECTION_READY, callback)
   }
@@ -609,6 +619,10 @@ class WebSocketService {
 
   offWorkflowClearResult(callback: EventCallback<WorkflowClearResultPayload>): void {
     this.off(WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, callback)
+  }
+
+  offCanvasPasteResult(callback: EventCallback<CanvasPasteResultPayload>): void {
+    this.off(WebSocketResponseEvents.CANVAS_PASTE_RESULT, callback)
   }
 
   private emit(event: WebSocketRequestEvents, payload: unknown): void {

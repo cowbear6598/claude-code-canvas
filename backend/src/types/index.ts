@@ -114,4 +114,10 @@ export {
   type WorkflowGetDownstreamPodsResultPayload,
   type WorkflowClearPayload,
   type WorkflowClearResultPayload,
+  type PastePodItem,
+  type PasteOutputStyleNoteItem,
+  type PasteSkillNoteItem,
+  type CanvasPastePayload,
+  type PasteError,
+  type CanvasPasteResultPayload,
 } from './websocket.js';

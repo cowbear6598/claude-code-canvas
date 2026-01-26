@@ -31,6 +31,7 @@ export enum WebSocketRequestEvents {
   CONNECTION_UPDATE = 'connection:update',
   WORKFLOW_GET_DOWNSTREAM_PODS = 'workflow:get-downstream-pods',
   WORKFLOW_CLEAR = 'workflow:clear',
+  CANVAS_PASTE = 'canvas:paste',
 }
 
 export enum WebSocketResponseEvents {
@@ -77,6 +78,7 @@ export enum WebSocketResponseEvents {
   WORKFLOW_SOURCES_MERGED = 'workflow:sources-merged',
   WORKFLOW_GET_DOWNSTREAM_PODS_RESULT = 'workflow:get-downstream-pods:result',
   WORKFLOW_CLEAR_RESULT = 'workflow:clear:result',
+  CANVAS_PASTE_RESULT = 'canvas:paste:result',
 }
 
 export interface PodCreatePayload {
@@ -557,5 +559,68 @@ export interface WorkflowClearResultPayload {
   success: boolean;
   clearedPodIds?: string[];
   clearedPodNames?: string[];
+  error?: string;
+}
+
+export interface PastePodItem {
+  originalId: string;
+  name: string;
+  type: PodTypeName;
+  color: PodColor;
+  x: number;
+  y: number;
+  rotation: number;
+  outputStyleId?: string | null;
+  skillIds?: string[];
+  model?: ModelType;
+}
+
+interface PasteNoteItemBase {
+  name: string;
+  x: number;
+  y: number;
+  boundToOriginalPodId: string | null;
+  originalPosition: { x: number; y: number } | null;
+}
+
+export interface PasteOutputStyleNoteItem extends PasteNoteItemBase {
+  outputStyleId: string;
+}
+
+export interface PasteSkillNoteItem extends PasteNoteItemBase {
+  skillId: string;
+}
+
+export interface PasteConnectionItem {
+  originalSourcePodId: string;
+  sourceAnchor: import('./connection.js').AnchorPosition;
+  originalTargetPodId: string;
+  targetAnchor: import('./connection.js').AnchorPosition;
+  autoTrigger?: boolean;
+}
+
+export interface CanvasPastePayload {
+  requestId: string;
+  pods: PastePodItem[];
+  outputStyleNotes: PasteOutputStyleNoteItem[];
+  skillNotes: PasteSkillNoteItem[];
+  connections: PasteConnectionItem[];
+}
+
+export interface PasteError {
+  type: 'pod' | 'outputStyleNote' | 'skillNote';
+  originalId: string;
+  error: string;
+}
+
+export interface CanvasPasteResultPayload {
+  requestId: string;
+  success: boolean;
+  createdPods: Pod[];
+  createdOutputStyleNotes: import('./outputStyleNote.js').OutputStyleNote[];
+  createdSkillNotes: import('./skillNote.js').SkillNote[];
+  createdConnections: import('./connection.js').Connection[];
+  podIdMapping: Record<string, string>;
+  errors: PasteError[];
   error?: string;
 }

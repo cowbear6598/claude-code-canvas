@@ -61,6 +61,21 @@ const handleCanvasClick = (e: MouseEvent) => {
     return
   }
 
+  // 如果點擊的是 POD，不取消選取
+  if (target.closest('.pod-doodle')) {
+    return
+  }
+
+  // 如果點擊的是 OutputStyleNote，不取消選取
+  if (target.closest('.output-style-note')) {
+    return
+  }
+
+  // 如果點擊的是 SkillNote，不取消選取
+  if (target.closest('.skill-note')) {
+    return
+  }
+
   // 點擊空白處時清除框選和連線選取
   store.clearSelection()
   connectionStore.selectConnection(null)

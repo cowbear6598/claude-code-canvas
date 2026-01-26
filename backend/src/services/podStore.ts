@@ -32,9 +32,9 @@ class PodStore {
       rotation: data.rotation,
       output: [],
       claudeSessionId: null,
-      outputStyleId: null,
-      skillIds: [],
-      model: 'opus',
+      outputStyleId: data.outputStyleId ?? null,
+      skillIds: data.skillIds ?? [],
+      model: data.model ?? 'opus',
     };
 
     this.pods.set(id, pod);

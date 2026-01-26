@@ -38,7 +38,7 @@ const shouldShow = computed(() =>
 .selection-box {
   position: absolute;
   border: 2px dashed var(--doodle-ink, #333);
-  background: oklch(0.7 0.1 220 / 0.1);
+  background: oklch(0.7 0.12 170 / 0.15);
   border-radius: 2px;
   pointer-events: none;
   z-index: 1000;
