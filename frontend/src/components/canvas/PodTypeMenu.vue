@@ -3,8 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Palette, Wrench } from 'lucide-vue-next'
 import type { Position, PodTypeConfig, OutputStyleListItem, Skill } from '@/types'
 import { podTypes } from '@/data/podTypes'
-import { useOutputStyleStore } from '@/stores/outputStyleStore'
-import { useSkillStore } from '@/stores/skillStore'
+import { useOutputStyleStore, useSkillStore } from '@/stores/note'
 
 defineProps<{
   position: Position

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onUnmounted, computed } from 'vue'
 import type { OutputStyleNote } from '@/types'
-import { useCanvasStore } from '@/stores/canvasStore'
-import { useOutputStyleStore } from '@/stores/outputStyleStore'
-import { useBatchDrag } from '@/composables/useBatchDrag'
+import { useViewportStore, useSelectionStore } from '@/stores/pod'
+import { useOutputStyleStore } from '@/stores/note'
+import { useBatchDrag } from '@/composables/canvas'
 
 const props = defineProps<{
   note: OutputStyleNote
@@ -15,14 +15,15 @@ const emit = defineEmits<{
   'drag-complete': [data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }]
 }>()
 
-const canvasStore = useCanvasStore()
+const viewportStore = useViewportStore()
+const selectionStore = useSelectionStore()
 const outputStyleStore = useOutputStyleStore()
 const { startBatchDrag, isElementSelected } = useBatchDrag()
 
 const isDragging = ref(false)
 const isAnimating = computed(() => outputStyleStore.isNoteAnimating(props.note.id))
 const isSelected = computed(() =>
-  canvasStore.selectedOutputStyleNoteIds.includes(props.note.id)
+  selectionStore.selectedOutputStyleNoteIds.includes(props.note.id)
 )
 const dragRef = ref<{
   startX: number
@@ -64,7 +65,7 @@ const handleMouseDown = (e: MouseEvent) => {
 
   // 點擊時選取當前 Note（若未選取則清除其他並選取當前）
   if (!isElementSelected('outputStyleNote', props.note.id)) {
-    canvasStore.setSelectedElements([{ type: 'outputStyleNote', id: props.note.id }])
+    selectionStore.setSelectedElements([{ type: 'outputStyleNote', id: props.note.id }])
   }
 
   cleanupEventListeners()
@@ -87,8 +88,8 @@ const handleMouseDown = (e: MouseEvent) => {
 
   const handleMouseMove = (moveEvent: MouseEvent) => {
     if (!dragRef.value) return
-    const dx = (moveEvent.clientX - dragRef.value.startX) / canvasStore.viewport.zoom
-    const dy = (moveEvent.clientY - dragRef.value.startY) / canvasStore.viewport.zoom
+    const dx = (moveEvent.clientX - dragRef.value.startX) / viewportStore.zoom
+    const dy = (moveEvent.clientY - dragRef.value.startY) / viewportStore.zoom
 
     emit('drag-end', {
       noteId: props.note.id,

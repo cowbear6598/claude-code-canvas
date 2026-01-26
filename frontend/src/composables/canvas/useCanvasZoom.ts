@@ -1,7 +1,7 @@
-import { useCanvasStore } from '@/stores/canvasStore'
+import { useCanvasContext } from './useCanvasContext'
 
 export function useCanvasZoom() {
-  const store = useCanvasStore()
+  const { viewportStore } = useCanvasContext()
 
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault()
@@ -11,9 +11,9 @@ export function useCanvasZoom() {
     const mouseY = e.clientY - rect.top
 
     const delta = e.deltaY > 0 ? 0.9 : 1.1
-    const newZoom = store.viewport.zoom * delta
+    const newZoom = viewportStore.zoom * delta
 
-    store.zoomTo(newZoom, mouseX, mouseY)
+    viewportStore.zoomTo(newZoom, mouseX, mouseY)
   }
 
   return {

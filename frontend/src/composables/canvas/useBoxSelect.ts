@@ -1,8 +1,9 @@
 import { ref, onUnmounted } from 'vue'
-import { useCanvasStore } from '@/stores/canvasStore'
+import { useCanvasContext } from './useCanvasContext'
 
 export function useBoxSelect() {
-  const canvasStore = useCanvasStore()
+  const { viewportStore, selectionStore, podStore, outputStyleStore, skillStore } = useCanvasContext()
+
   const isBoxSelecting = ref(false)
 
   let currentMoveHandler: ((e: MouseEvent) => void) | null = null
@@ -30,23 +31,27 @@ export function useBoxSelect() {
 
     e.preventDefault()
 
-    const viewport = canvasStore.viewport
-    const canvasX = (e.clientX - viewport.offset.x) / viewport.zoom
-    const canvasY = (e.clientY - viewport.offset.y) / viewport.zoom
+    const canvasX = (e.clientX - viewportStore.offset.x) / viewportStore.zoom
+    const canvasY = (e.clientY - viewportStore.offset.y) / viewportStore.zoom
 
-    canvasStore.startSelection(canvasX, canvasY)
+    selectionStore.startSelection(canvasX, canvasY)
     isBoxSelecting.value = true
 
     cleanupEventListeners()
 
     currentMoveHandler = (moveEvent: MouseEvent) => {
-      const moveCanvasX = (moveEvent.clientX - viewport.offset.x) / viewport.zoom
-      const moveCanvasY = (moveEvent.clientY - viewport.offset.y) / viewport.zoom
-      canvasStore.updateSelection(moveCanvasX, moveCanvasY)
+      const moveCanvasX = (moveEvent.clientX - viewportStore.offset.x) / viewportStore.zoom
+      const moveCanvasY = (moveEvent.clientY - viewportStore.offset.y) / viewportStore.zoom
+      selectionStore.updateSelection(moveCanvasX, moveCanvasY)
+      selectionStore.calculateSelectedElements(
+        podStore.pods,
+        outputStyleStore.notes,
+        skillStore.notes
+      )
     }
 
     currentUpHandler = () => {
-      canvasStore.endSelection()
+      selectionStore.endSelection()
       isBoxSelecting.value = false
       cleanupEventListeners()
     }

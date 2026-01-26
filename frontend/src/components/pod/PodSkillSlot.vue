@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch, computed } from 'vue'
 import type { SkillNote } from '@/types'
-import { useSkillStore } from '@/stores/skillStore'
+import { useSkillStore } from '@/stores/note'
 
 const props = defineProps<{
   podId: string

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useCanvasStore } from '@/stores/canvasStore'
+import { useSelectionStore } from '@/stores/pod'
 
-const canvasStore = useCanvasStore()
+const selectionStore = useSelectionStore()
 
 const boxStyle = computed(() => {
-  const box = canvasStore.selection.box
+  const box = selectionStore.box
   if (!box) return null
 
   const left = Math.min(box.startX, box.endX)
@@ -22,7 +22,7 @@ const boxStyle = computed(() => {
 })
 
 const shouldShow = computed(() =>
-  canvasStore.selection.isSelecting && canvasStore.selection.box
+  selectionStore.isSelecting && selectionStore.box
 )
 </script>
 

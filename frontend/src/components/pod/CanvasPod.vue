@@ -2,19 +2,20 @@
 import { ref, computed, onUnmounted } from 'vue'
 import type { Pod, ModelType } from '@/types'
 import type { AnchorPosition } from '@/types/connection'
-import { useCanvasStore } from '@/stores/canvasStore'
-import { useOutputStyleStore } from '@/stores/outputStyleStore'
-import { useSkillStore } from '@/stores/skillStore'
+import { usePodStore, useViewportStore, useSelectionStore } from '@/stores/pod'
+import { useOutputStyleStore, useSkillStore } from '@/stores/note'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useAnchorDetection } from '@/composables/useAnchorDetection'
-import { useBatchDrag } from '@/composables/useBatchDrag'
-import { websocketService } from '@/services/websocket'
-import { generateRequestId } from '@/services/utils'
+import { useBatchDrag } from '@/composables/canvas'
+import { createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import type {
   WorkflowGetDownstreamPodsResultPayload,
   WorkflowClearResultPayload,
-  PodUpdatedPayload
+  PodUpdatedPayload,
+  WorkflowGetDownstreamPodsPayload,
+  WorkflowClearPayload,
+  PodUpdatePayload
 } from '@/types/websocket'
 import PodHeader from './PodHeader.vue'
 import PodMiniScreen from './PodMiniScreen.vue'
@@ -37,7 +38,9 @@ const props = defineProps<{
   pod: Pod
 }>()
 
-const canvasStore = useCanvasStore()
+const podStore = usePodStore()
+const viewportStore = useViewportStore()
+const selectionStore = useSelectionStore()
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
 const connectionStore = useConnectionStore()
@@ -45,14 +48,14 @@ const chatStore = useChatStore()
 const { detectTargetAnchor } = useAnchorDetection()
 const { startBatchDrag, isElementSelected } = useBatchDrag()
 
-const isActive = computed(() => props.pod.id === canvasStore.activePodId)
+const isActive = computed(() => props.pod.id === podStore.activePodId)
 const boundNote = computed(() => outputStyleStore.getNoteByPodId(props.pod.id))
 const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
 const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
 const currentModel = computed(() => props.pod.model ?? 'opus')
 
 const isSelected = computed(() =>
-  canvasStore.selectedPodIds.includes(props.pod.id)
+  selectionStore.selectedPodIds.includes(props.pod.id)
 )
 
 const podStatusClass = computed(() => {
@@ -120,10 +123,10 @@ const handleMouseDown = (e: MouseEvent) => {
 
   // 點擊時選取當前 POD（若未選取則清除其他並選取當前）
   if (!isElementSelected('pod', props.pod.id)) {
-    canvasStore.setSelectedElements([{ type: 'pod', id: props.pod.id }])
+    selectionStore.setSelectedElements([{ type: 'pod', id: props.pod.id }])
   }
 
-  canvasStore.setActivePod(props.pod.id)
+  podStore.setActivePod(props.pod.id)
 
   // 取消 connection 選取
   connectionStore.selectConnection(null)
@@ -141,8 +144,8 @@ const handleMouseDown = (e: MouseEvent) => {
 
   const handleMouseMove = (moveEvent: MouseEvent) => {
     if (!dragRef.value) return
-    const dx = (moveEvent.clientX - dragRef.value.startX) / canvasStore.viewport.zoom
-    const dy = (moveEvent.clientY - dragRef.value.startY) / canvasStore.viewport.zoom
+    const dx = (moveEvent.clientX - dragRef.value.startX) / viewportStore.zoom
+    const dy = (moveEvent.clientY - dragRef.value.startY) / viewportStore.zoom
     emit('drag-end', {
       id: props.pod.id,
       x: dragRef.value.podX + dx,
@@ -190,7 +193,7 @@ const cancelDelete = () => {
 }
 
 const handleSelectPod = () => {
-  canvasStore.setActivePod(props.pod.id)
+  podStore.setActivePod(props.pod.id)
   emit('select', props.pod.id)
 }
 
@@ -198,13 +201,13 @@ const handleNoteDropped = async (noteId: string) => {
   await outputStyleStore.bindToPod(noteId, props.pod.id)
   const note = outputStyleStore.getNoteById(noteId)
   if (note) {
-    canvasStore.updatePodOutputStyle(props.pod.id, note.outputStyleId)
+    podStore.updatePodOutputStyle(props.pod.id, note.outputStyleId)
   }
 }
 
 const handleNoteRemoved = async () => {
   await outputStyleStore.unbindFromPod(props.pod.id, true)
-  canvasStore.updatePodOutputStyle(props.pod.id, null)
+  podStore.updatePodOutputStyle(props.pod.id, null)
 }
 
 const handleSkillNoteDropped = async (noteId: string) => {
@@ -230,15 +233,15 @@ const handleAnchorDragStart = (data: {
   screenX: number
   screenY: number
 }) => {
-  const canvasX = (data.screenX - canvasStore.viewport.offset.x) / canvasStore.viewport.zoom
-  const canvasY = (data.screenY - canvasStore.viewport.offset.y) / canvasStore.viewport.zoom
+  const canvasX = (data.screenX - viewportStore.offset.x) / viewportStore.zoom
+  const canvasY = (data.screenY - viewportStore.offset.y) / viewportStore.zoom
 
   connectionStore.startDragging(data.podId, data.anchor, { x: canvasX, y: canvasY })
 }
 
 const handleAnchorDragMove = (data: { screenX: number; screenY: number }) => {
-  const canvasX = (data.screenX - canvasStore.viewport.offset.x) / canvasStore.viewport.zoom
-  const canvasY = (data.screenY - canvasStore.viewport.offset.y) / canvasStore.viewport.zoom
+  const canvasX = (data.screenX - viewportStore.offset.x) / viewportStore.zoom
+  const canvasY = (data.screenY - viewportStore.offset.y) / viewportStore.zoom
 
   connectionStore.updateDraggingPosition({ x: canvasX, y: canvasY })
 }
@@ -251,7 +254,7 @@ const handleAnchorDragEnd = async () => {
 
   const { sourcePodId, sourceAnchor, currentPoint } = connectionStore.draggingConnection
 
-  const targetAnchor = detectTargetAnchor(currentPoint, canvasStore.pods, sourcePodId)
+  const targetAnchor = detectTargetAnchor(currentPoint, podStore.pods, sourcePodId)
 
   if (targetAnchor) {
     await connectionStore.createConnection(
@@ -265,72 +268,52 @@ const handleAnchorDragEnd = async () => {
   connectionStore.endDragging()
 }
 
-const handleClearWorkflow = () => {
+const handleClearWorkflow = async () => {
   isLoadingDownstream.value = true
-  const requestId = generateRequestId()
 
-  const handleResult = (payload: WorkflowGetDownstreamPodsResultPayload) => {
-    if (payload.requestId === requestId) {
-      websocketService.offWorkflowGetDownstreamPodsResult(handleResult)
-      isLoadingDownstream.value = false
-
-      if (payload.success && payload.pods) {
-        downstreamPods.value = payload.pods
-        showClearDialog.value = true
-      } else {
-        console.error('[CanvasPod] Failed to get downstream pods:', payload.error)
+  try {
+    const response = await createWebSocketRequest<WorkflowGetDownstreamPodsPayload, WorkflowGetDownstreamPodsResultPayload>({
+      requestEvent: WebSocketRequestEvents.WORKFLOW_GET_DOWNSTREAM_PODS,
+      responseEvent: WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
+      payload: {
+        sourcePodId: props.pod.id
       }
+    })
+
+    if (response.pods) {
+      downstreamPods.value = response.pods
+      showClearDialog.value = true
     }
+  } catch (error) {
+    console.error('[CanvasPod] Failed to get downstream pods:', error)
+  } finally {
+    isLoadingDownstream.value = false
   }
-
-  websocketService.onWorkflowGetDownstreamPodsResult(handleResult)
-  websocketService.workflowGetDownstreamPods({
-    requestId,
-    sourcePodId: props.pod.id
-  })
-
-  setTimeout(() => {
-    websocketService.offWorkflowGetDownstreamPodsResult(handleResult)
-    if (isLoadingDownstream.value) {
-      isLoadingDownstream.value = false
-      console.error('[CanvasPod] Get downstream pods timeout')
-    }
-  }, 10000)
 }
 
-const confirmClear = () => {
+const confirmClear = async () => {
   isClearing.value = true
-  const requestId = generateRequestId()
 
-  const handleResult = (payload: WorkflowClearResultPayload) => {
-    if (payload.requestId === requestId) {
-      websocketService.offWorkflowClearResult(handleResult)
-      isClearing.value = false
-
-      if (payload.success && payload.clearedPodIds) {
-        chatStore.clearMessagesByPodIds(payload.clearedPodIds)
-        canvasStore.clearPodOutputsByIds(payload.clearedPodIds)
-        showClearDialog.value = false
-        downstreamPods.value = []
-      } else {
-        console.error('[CanvasPod] Failed to clear workflow:', payload.error)
+  try {
+    const response = await createWebSocketRequest<WorkflowClearPayload, WorkflowClearResultPayload>({
+      requestEvent: WebSocketRequestEvents.WORKFLOW_CLEAR,
+      responseEvent: WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
+      payload: {
+        sourcePodId: props.pod.id
       }
+    })
+
+    if (response.clearedPodIds) {
+      chatStore.clearMessagesByPodIds(response.clearedPodIds)
+      podStore.clearPodOutputsByIds(response.clearedPodIds)
+      showClearDialog.value = false
+      downstreamPods.value = []
     }
+  } catch (error) {
+    console.error('[CanvasPod] Failed to clear workflow:', error)
+  } finally {
+    isClearing.value = false
   }
-
-  websocketService.onWorkflowClearResult(handleResult)
-  websocketService.workflowClear({
-    requestId,
-    sourcePodId: props.pod.id
-  })
-
-  setTimeout(() => {
-    websocketService.offWorkflowClearResult(handleResult)
-    if (isClearing.value) {
-      isClearing.value = false
-      console.error('[CanvasPod] Workflow clear timeout')
-    }
-  }, 10000)
 }
 
 const cancelClear = () => {
@@ -338,31 +321,23 @@ const cancelClear = () => {
   downstreamPods.value = []
 }
 
-const handleModelChange = (model: ModelType) => {
-  const requestId = generateRequestId()
-
-  const handleResult = (payload: PodUpdatedPayload) => {
-    if (payload.requestId === requestId) {
-      websocketService.offPodUpdated(handleResult)
-
-      if (payload.success && payload.pod) {
-        canvasStore.updatePodModel(props.pod.id, payload.pod.model ?? 'opus')
-      } else {
-        console.error('[CanvasPod] Failed to update model:', payload.error)
+const handleModelChange = async (model: ModelType) => {
+  try {
+    const response = await createWebSocketRequest<PodUpdatePayload, PodUpdatedPayload>({
+      requestEvent: WebSocketRequestEvents.POD_UPDATE,
+      responseEvent: WebSocketResponseEvents.POD_UPDATED,
+      payload: {
+        podId: props.pod.id,
+        model
       }
+    })
+
+    if (response.pod) {
+      podStore.updatePodModel(props.pod.id, response.pod.model ?? 'opus')
     }
+  } catch (error) {
+    console.error('[CanvasPod] Failed to update model:', error)
   }
-
-  websocketService.onPodUpdated(handleResult)
-  websocketService.podUpdate({
-    requestId,
-    podId: props.pod.id,
-    model
-  })
-
-  setTimeout(() => {
-    websocketService.offPodUpdated(handleResult)
-  }, 10000)
 }
 </script>
 

@@ -1,30 +1,29 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
-import { useCanvasStore } from '@/stores/canvasStore'
+import { usePodStore, useViewportStore } from '@/stores/pod'
 import { useChatStore } from '@/stores/chatStore'
-import { useOutputStyleStore } from '@/stores/outputStyleStore'
-import { useSkillStore } from '@/stores/skillStore'
+import { useOutputStyleStore, useSkillStore } from '@/stores/note'
 import { useConnectionStore } from '@/stores/connectionStore'
-import { websocketService } from '@/services/websocket'
-import type { PodStatusChangedPayload } from '@/types/websocket'
+import { websocketClient, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
+import type { PodStatusChangedPayload, PodJoinBatchPayload } from '@/types/websocket'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
 import ChatModal from '@/components/chat/ChatModal.vue'
 import { Toast } from '@/components/ui/toast'
-import { useCopyPaste } from '@/composables/useCopyPaste'
+import { useCopyPaste } from '@/composables/canvas'
 import {
   CONTENT_PREVIEW_LENGTH,
   RESPONSE_PREVIEW_LENGTH,
   OUTPUT_LINES_PREVIEW_COUNT,
 } from '@/lib/constants'
 
-const canvasStore = useCanvasStore()
+const podStore = usePodStore()
 const chatStore = useChatStore()
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
 const connectionStore = useConnectionStore()
 
-const selectedPod = computed(() => canvasStore.selectedPod)
+const selectedPod = computed(() => podStore.selectedPod)
 
 useCopyPaste()
 
@@ -46,7 +45,7 @@ const truncateContent = (content: string, maxLength: number): string => {
  * Sync chat history to pod output
  */
 const syncHistoryToPodOutput = (): void => {
-  for (const pod of canvasStore.pods) {
+  for (const pod of podStore.pods) {
     const messages = chatStore.getMessages(pod.id)
 
     if (messages.length === 0) continue
@@ -68,7 +67,7 @@ const syncHistoryToPodOutput = (): void => {
     if (output.length > 0) {
       // Keep only the most recent OUTPUT_LINES_PREVIEW_COUNT lines
       const previewOutput = output.slice(-OUTPUT_LINES_PREVIEW_COUNT)
-      canvasStore.updatePod({
+      podStore.updatePod({
         ...pod,
         output: previewOutput,
       })
@@ -80,14 +79,14 @@ const syncHistoryToPodOutput = (): void => {
  * Handle chat modal close
  */
 const handleCloseChat = (): void => {
-  canvasStore.selectPod(null)
+  podStore.selectPod(null)
 }
 
 /**
  * Handle POD status changed event
  */
 const handlePodStatusChanged = (payload: PodStatusChangedPayload): void => {
-  canvasStore.updatePodStatus(payload.podId, payload.status)
+  podStore.updatePodStatus(payload.podId, payload.status)
 }
 
 /**
@@ -101,21 +100,21 @@ const initializeApp = async (): Promise<void> => {
   await new Promise(resolve => setTimeout(resolve, CONNECTION_DELAY_MS))
 
   // Load pods from backend
-  await canvasStore.loadPodsFromBackend()
+  await podStore.loadPodsFromBackend()
 
   // 縮放到全貌，讓所有 POD 都可見
-  canvasStore.fitToAllPods()
+  useViewportStore().fitToAllPods(podStore.pods)
 
   // Batch join all POD rooms
-  const podIds = canvasStore.pods.map(p => p.id)
+  const podIds = podStore.pods.map(p => p.id)
   if (podIds.length > 0) {
-    websocketService.podJoinBatch({ podIds })
+    websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, { podIds })
   }
 
   // Load output styles and notes from backend
   await outputStyleStore.loadOutputStyles()
   await outputStyleStore.loadNotesFromBackend()
-  await outputStyleStore.rebuildNotesFromPods(canvasStore.pods)
+  await outputStyleStore.rebuildNotesFromPods(podStore.pods)
 
   // Load skills and skill notes from backend
   await skillStore.loadSkills()
@@ -136,7 +135,7 @@ const initializeApp = async (): Promise<void> => {
   }
 
   // Setup POD status changed listener
-  websocketService.onPodStatusChanged(handlePodStatusChanged)
+  websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
 }
 
 onMounted(() => {
@@ -145,7 +144,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   chatStore.disconnectWebSocket()
-  websocketService.offPodStatusChanged(handlePodStatusChanged)
+  websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
 })
 </script>
 

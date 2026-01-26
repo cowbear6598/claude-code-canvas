@@ -1,12 +1,8 @@
 import { ref, onUnmounted } from 'vue'
-import { useCanvasStore } from '@/stores/canvasStore'
-import { useOutputStyleStore } from '@/stores/outputStyleStore'
-import { useSkillStore } from '@/stores/skillStore'
+import { useCanvasContext } from './useCanvasContext'
 
 export function useBatchDrag() {
-  const canvasStore = useCanvasStore()
-  const outputStyleStore = useOutputStyleStore()
-  const skillStore = useSkillStore()
+  const { podStore, viewportStore, selectionStore, outputStyleStore, skillStore } = useCanvasContext()
 
   const isBatchDragging = ref(false)
 
@@ -33,7 +29,7 @@ export function useBatchDrag() {
   const startBatchDrag = (e: MouseEvent) => {
     if (e.button !== 0) return false
 
-    if (!canvasStore.hasSelection) return false
+    if (!selectionStore.hasSelection) return false
 
     isBatchDragging.value = true
     startX = e.clientX
@@ -45,8 +41,8 @@ export function useBatchDrag() {
     cleanupEventListeners()
 
     currentMoveHandler = (moveEvent: MouseEvent) => {
-      const dx = (moveEvent.clientX - startX) / canvasStore.viewport.zoom
-      const dy = (moveEvent.clientY - startY) / canvasStore.viewport.zoom
+      const dx = (moveEvent.clientX - startX) / viewportStore.zoom
+      const dy = (moveEvent.clientY - startY) / viewportStore.zoom
 
       moveSelectedElements(dx, dy)
 
@@ -68,11 +64,11 @@ export function useBatchDrag() {
   }
 
   const moveSelectedElements = (dx: number, dy: number) => {
-    for (const element of canvasStore.selection.selectedElements) {
+    for (const element of selectionStore.selectedElements) {
       if (element.type === 'pod') {
-        const pod = canvasStore.pods.find(p => p.id === element.id)
+        const pod = podStore.pods.find(p => p.id === element.id)
         if (pod) {
-          canvasStore.movePod(element.id, pod.x + dx, pod.y + dy)
+          podStore.movePod(element.id, pod.x + dx, pod.y + dy)
         }
       } else if (element.type === 'outputStyleNote') {
         const note = outputStyleStore.notes.find(n => n.id === element.id)
@@ -110,7 +106,7 @@ export function useBatchDrag() {
   }
 
   const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote', id: string) => {
-    return canvasStore.selection.selectedElements.some(
+    return selectionStore.selectedElements.some(
       el => el.type === type && el.id === id
     )
   }

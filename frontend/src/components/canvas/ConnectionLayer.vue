@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useConnectionStore } from '@/stores/connectionStore'
-import { useCanvasStore } from '@/stores/canvasStore'
+import { usePodStore } from '@/stores/pod'
 import ConnectionLine from './ConnectionLine.vue'
 
 const connectionStore = useConnectionStore()
-const canvasStore = useCanvasStore()
+const podStore = usePodStore()
 
 const draggingPathData = computed(() => {
   if (!connectionStore.draggingConnection) {
@@ -51,7 +51,7 @@ onUnmounted(() => {
       v-for="connection in connectionStore.connections"
       :key="connection.id"
       :connection="connection"
-      :pods="canvasStore.pods"
+      :pods="podStore.pods"
       :is-selected="connection.id === connectionStore.selectedConnectionId"
       :status="connection.status || 'inactive'"
       @select="handleSelectConnection"

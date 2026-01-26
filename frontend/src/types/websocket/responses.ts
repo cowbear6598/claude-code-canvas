@@ -1,0 +1,358 @@
+// WebSocket Response Payload Types (Server -> Client)
+
+import type { Pod, PodStatus } from '../pod'
+import type { OutputStyleListItem, OutputStyleNote } from '@/types'
+import type { Skill, SkillNote } from '@/types'
+
+export interface ConnectionReadyPayload {
+  socketId: string
+}
+
+export interface PodCreatedPayload {
+  requestId: string
+  success: boolean
+  pod?: Pod
+  error?: string
+}
+
+export interface PodListResultPayload {
+  requestId: string
+  success: boolean
+  pods?: Pod[]
+  error?: string
+}
+
+export interface PodGetResultPayload {
+  requestId: string
+  success: boolean
+  pod?: Pod
+  error?: string
+}
+
+export interface PodUpdatedPayload {
+  requestId: string
+  success: boolean
+  pod?: Pod
+  error?: string
+}
+
+export interface PodDeletedPayload {
+  requestId: string
+  success: boolean
+  podId?: string
+  error?: string
+}
+
+export interface PodGitCloneProgressPayload {
+  podId: string
+  progress: number
+  message: string
+}
+
+export interface PodGitCloneResultPayload {
+  requestId: string
+  success: boolean
+  pod?: Pod
+  error?: string
+}
+
+export interface PodChatMessagePayload {
+  podId: string
+  messageId: string
+  content: string
+  isPartial: boolean
+  role?: 'user' | 'assistant'
+}
+
+export interface PodChatToolUsePayload {
+  podId: string
+  messageId: string
+  toolName: string
+  input: Record<string, unknown>
+}
+
+export interface PodChatToolResultPayload {
+  podId: string
+  messageId: string
+  toolName: string
+  output: string
+}
+
+export interface PodChatCompletePayload {
+  podId: string
+  messageId: string
+  fullContent: string
+}
+
+export interface PodJoinedPayload {
+  podId: string
+}
+
+export interface PodLeftPayload {
+  podId: string
+}
+
+export interface PodJoinedBatchPayload {
+  joinedPodIds: string[]
+  failedPodIds: string[]
+}
+
+export interface PodErrorPayload {
+  requestId?: string
+  podId?: string
+  error: string
+  code: string
+}
+
+export interface PodStatusChangedPayload {
+  podId: string
+  status: PodStatus
+  previousStatus: PodStatus
+}
+
+export interface PersistedMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: string
+}
+
+export interface PodChatHistoryResultPayload {
+  requestId: string
+  success: boolean
+  messages?: PersistedMessage[]
+  error?: string
+}
+
+export interface OutputStyleListResultPayload {
+  requestId: string
+  success: boolean
+  styles?: OutputStyleListItem[]
+  error?: string
+}
+
+export interface PodOutputStyleBoundPayload {
+  requestId: string
+  success: boolean
+  podId?: string
+  outputStyleId?: string
+  error?: string
+}
+
+export interface PodOutputStyleUnboundPayload {
+  requestId: string
+  success: boolean
+  podId?: string
+  error?: string
+}
+
+export interface NoteCreatedPayload {
+  requestId: string
+  success: boolean
+  note?: OutputStyleNote
+  error?: string
+}
+
+export interface NoteListResultPayload {
+  requestId: string
+  success: boolean
+  notes?: OutputStyleNote[]
+  error?: string
+}
+
+export interface NoteUpdatedPayload {
+  requestId: string
+  success: boolean
+  note?: OutputStyleNote
+  error?: string
+}
+
+export interface NoteDeletedPayload {
+  requestId: string
+  success: boolean
+  noteId?: string
+  error?: string
+}
+
+export interface SkillListResultPayload {
+  requestId: string
+  success: boolean
+  skills?: Skill[]
+  error?: string
+}
+
+export interface SkillNoteCreatedPayload {
+  requestId: string
+  success: boolean
+  note?: SkillNote
+  error?: string
+}
+
+export interface SkillNoteListResultPayload {
+  requestId: string
+  success: boolean
+  notes?: SkillNote[]
+  error?: string
+}
+
+export interface SkillNoteUpdatedPayload {
+  requestId: string
+  success: boolean
+  note?: SkillNote
+  error?: string
+}
+
+export interface SkillNoteDeletedPayload {
+  requestId: string
+  success: boolean
+  noteId?: string
+  error?: string
+}
+
+export interface PodSkillBoundPayload {
+  requestId: string
+  success: boolean
+  pod?: Pod
+  error?: string
+}
+
+export interface ConnectionCreatedPayload {
+  requestId: string
+  success: boolean
+  connection?: {
+    id: string
+    sourcePodId: string
+    sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+    targetPodId: string
+    targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+    createdAt: string
+    autoTrigger?: boolean
+  }
+  error?: string
+}
+
+export interface ConnectionListResultPayload {
+  requestId: string
+  success: boolean
+  connections?: Array<{
+    id: string
+    sourcePodId: string
+    sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+    targetPodId: string
+    targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+    createdAt: string
+    autoTrigger?: boolean
+  }>
+  error?: string
+}
+
+export interface ConnectionDeletedPayload {
+  requestId: string
+  success: boolean
+  connectionId?: string
+  error?: string
+}
+
+export interface WorkflowTriggeredPayload {
+  requestId: string
+  success: boolean
+  connectionId: string
+  sourcePodId: string
+  targetPodId: string
+  transferredContent: string
+  isSummarized?: boolean
+  error?: string
+}
+
+export interface ConnectionUpdatedPayload {
+  requestId: string
+  success: boolean
+  connection?: {
+    id: string
+    sourcePodId: string
+    sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+    targetPodId: string
+    targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+    createdAt: string
+    autoTrigger?: boolean
+  }
+  error?: string
+}
+
+export interface WorkflowAutoTriggeredPayload {
+  connectionId: string
+  sourcePodId: string
+  targetPodId: string
+  transferredContent: string
+  isSummarized: boolean
+}
+
+export interface WorkflowCompletePayload {
+  requestId: string
+  connectionId: string
+  targetPodId: string
+  success: boolean
+  error?: string
+}
+
+export interface WorkflowErrorPayload {
+  requestId: string
+  connectionId: string
+  error: string
+  code: string
+}
+
+export interface WorkflowPendingPayload {
+  targetPodId: string
+  completedSourcePodIds: string[]
+  pendingSourcePodIds: string[]
+  totalSources: number
+  completedCount: number
+}
+
+export interface WorkflowSourcesMergedPayload {
+  targetPodId: string
+  sourcePodIds: string[]
+  mergedContentPreview: string
+}
+
+export interface WorkflowGetDownstreamPodsResultPayload {
+  requestId: string
+  success: boolean
+  pods?: Array<{ id: string; name: string }>
+  error?: string
+}
+
+export interface WorkflowClearResultPayload {
+  requestId: string
+  success: boolean
+  clearedPodIds?: string[]
+  clearedPodNames?: string[]
+  error?: string
+}
+
+export interface PasteError {
+  type: 'pod' | 'outputStyleNote' | 'skillNote'
+  originalId: string
+  error: string
+}
+
+export interface CanvasPasteResultPayload {
+  requestId: string
+  success: boolean
+  createdPods: Pod[]
+  createdOutputStyleNotes: OutputStyleNote[]
+  createdSkillNotes: SkillNote[]
+  createdConnections: Array<{
+    id: string
+    sourcePodId: string
+    sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+    targetPodId: string
+    targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+    createdAt: string
+    autoTrigger?: boolean
+  }>
+  podIdMapping: Record<string, string>
+  errors: PasteError[]
+  error?: string
+}

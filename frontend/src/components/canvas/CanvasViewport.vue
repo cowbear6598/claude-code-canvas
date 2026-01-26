@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useCanvasStore } from '@/stores/canvasStore'
-import { useCanvasPan } from '@/composables/useCanvasPan'
-import { useCanvasZoom } from '@/composables/useCanvasZoom'
-import { useBoxSelect } from '@/composables/useBoxSelect'
+import { useViewportStore } from '@/stores/pod'
+import { useCanvasPan, useCanvasZoom, useBoxSelect } from '@/composables/canvas'
 import { GRID_SIZE } from '@/lib/constants'
 
-const store = useCanvasStore()
+const viewportStore = useViewportStore()
 const { startPan } = useCanvasPan()
 const { handleWheel } = useCanvasZoom()
 const { startBoxSelect } = useBoxSelect()
@@ -16,7 +14,7 @@ const emit = defineEmits<{
 }>()
 
 const gridStyle = computed(() => {
-  const { offset, zoom } = store.viewport
+  const { offset, zoom } = viewportStore
   const gridSizeScaled = GRID_SIZE * zoom
 
   return {
@@ -54,7 +52,7 @@ const handleMouseDown = (e: MouseEvent) => {
     <div
       class="canvas-content h-full"
       :style="{
-        transform: `translate(${store.viewport.offset.x}px, ${store.viewport.offset.y}px) scale(${store.viewport.zoom})`,
+        transform: `translate(${viewportStore.offset.x}px, ${viewportStore.offset.y}px) scale(${viewportStore.zoom})`,
         transformOrigin: '0 0',
       }"
     >

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {onMounted, onUnmounted, ref, watch} from 'vue'
 import type {OutputStyleNote} from '@/types'
-import {useOutputStyleStore} from '@/stores/outputStyleStore'
-import {useCanvasStore} from '@/stores/canvasStore'
+import {useOutputStyleStore} from '@/stores/note'
+import {useViewportStore} from '@/stores/pod'
 
 const props = defineProps<{
   podId: string
@@ -16,7 +16,7 @@ const emit = defineEmits<{
 }>()
 
 const outputStyleStore = useOutputStyleStore()
-const canvasStore = useCanvasStore()
+const viewportStore = useViewportStore()
 const slotRef = ref<HTMLElement | null>(null)
 const isDropTarget = ref(false)
 const lastDraggedNoteId = ref<string | null>(null)
@@ -89,13 +89,13 @@ const handleSlotClick = async (e: MouseEvent) => {
   if (!slotElement) return
 
   const slotWidth = slotElement.getBoundingClientRect().width
-  const zoom = canvasStore.viewport.zoom
+  const zoom = viewportStore.zoom
 
   const podElement = slotElement.closest('.pod-with-notch')
   if (!podElement) return
 
   const podRect = podElement.getBoundingClientRect()
-  const viewportOffset = canvasStore.viewport.offset
+  const viewportOffset = viewportStore.offset
 
   const podCenterX = (podRect.left - viewportOffset.x) / zoom
   const podCenterY = (podRect.top - viewportOffset.y + 12) / zoom

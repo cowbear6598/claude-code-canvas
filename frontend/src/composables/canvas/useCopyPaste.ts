@@ -1,15 +1,12 @@
 import { onMounted, onUnmounted, ref } from 'vue'
-import { useCanvasStore } from '@/stores/canvasStore'
-import { useOutputStyleStore } from '@/stores/outputStyleStore'
-import { useSkillStore } from '@/stores/skillStore'
-import { useClipboardStore } from '@/stores/clipboardStore'
-import { useConnectionStore } from '@/stores/connectionStore'
-import { websocketService } from '@/services/websocket'
-import { generateRequestId } from '@/services/utils'
+import { useCanvasContext } from './useCanvasContext'
+import { websocketClient, createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { isEditingElement, isModifierKeyPressed, hasTextSelection } from '@/utils/domHelpers'
 import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT, PASTE_TIMEOUT_MS } from '@/lib/constants'
 import type {
   CanvasPasteResultPayload,
+  CanvasPastePayload,
+  PodJoinBatchPayload,
   SelectableElement,
   CopiedPod,
   CopiedOutputStyleNote,
@@ -18,24 +15,20 @@ import type {
 } from '@/types'
 
 export function useCopyPaste() {
-  const canvasStore = useCanvasStore()
-  const outputStyleStore = useOutputStyleStore()
-  const skillStore = useSkillStore()
-  const clipboardStore = useClipboardStore()
-  const connectionStore = useConnectionStore()
+  const {
+    podStore,
+    viewportStore,
+    selectionStore,
+    outputStyleStore,
+    skillStore,
+    clipboardStore,
+    connectionStore
+  } = useCanvasContext()
 
   const mousePosition = ref({ x: 0, y: 0 })
 
   const updateMousePosition = (event: MouseEvent): void => {
     mousePosition.value = { x: event.clientX, y: event.clientY }
-  }
-
-  const screenToCanvas = (screenX: number, screenY: number) => {
-    const { offset, zoom } = canvasStore.viewport
-    return {
-      x: (screenX - offset.x) / zoom,
-      y: (screenY - offset.y) / zoom
-    }
   }
 
   const collectBoundNotes = (
@@ -105,7 +98,7 @@ export function useCopyPaste() {
   }
 
   const handleCopy = (event: KeyboardEvent): boolean => {
-    const selectedElements = canvasStore.selection.selectedElements
+    const selectedElements = selectionStore.selectedElements
     if (selectedElements.length === 0) return false
 
     event.preventDefault()
@@ -120,7 +113,7 @@ export function useCopyPaste() {
 
     for (const element of selectedElements) {
       if (element.type === 'pod') {
-        const pod = canvasStore.pods.find(p => p.id === element.id)
+        const pod = podStore.pods.find(p => p.id === element.id)
         if (pod) {
           copiedPods.push({
             id: pod.id,
@@ -156,10 +149,8 @@ export function useCopyPaste() {
       }
     }
 
-    // 收集內部連線（兩端 POD 都被選中的連線）
     const copiedConnections: CopiedConnection[] = []
     for (const connection of connectionStore.connections) {
-      // 只複製兩端 POD 都在選中列表中的連線
       if (selectedPodIds.has(connection.sourcePodId) && selectedPodIds.has(connection.targetPodId)) {
         copiedConnections.push({
           sourcePodId: connection.sourcePodId,
@@ -255,7 +246,6 @@ export function useCopyPaste() {
       originalPosition: note.originalPosition,
     }))
 
-    // 構建新的 connections
     const newConnections = connections.map(conn => ({
       originalSourcePodId: conn.sourcePodId,
       sourceAnchor: conn.sourceAnchor,
@@ -272,77 +262,70 @@ export function useCopyPaste() {
     }
   }
 
-  const handlePaste = (event: KeyboardEvent): boolean => {
+  const handlePaste = async (event: KeyboardEvent): Promise<boolean> => {
     if (clipboardStore.isEmpty) return false
 
     event.preventDefault()
 
-    const canvasPos = screenToCanvas(mousePosition.value.x, mousePosition.value.y)
+    const canvasPos = viewportStore.screenToCanvas(mousePosition.value.x, mousePosition.value.y)
     const { pods, outputStyleNotes, skillNotes, connections } = calculatePastePositions(canvasPos)
 
-    const requestId = generateRequestId()
+    try {
+      const response = await createWebSocketRequest<CanvasPastePayload, CanvasPasteResultPayload>({
+        requestEvent: WebSocketRequestEvents.CANVAS_PASTE,
+        responseEvent: WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+        payload: {
+          pods,
+          outputStyleNotes,
+          skillNotes,
+          connections,
+        },
+        timeout: PASTE_TIMEOUT_MS
+      })
 
-    const handleCanvasPasteResult = (payload: CanvasPasteResultPayload) => {
-      if (payload.requestId !== requestId) return
-
-      websocketService.offCanvasPasteResult(handleCanvasPasteResult)
-
-      if (payload.success) {
-        for (const pod of payload.createdPods) {
-          canvasStore.addPod(pod)
-        }
-
-        const createdPodIds = payload.createdPods.map(p => p.id)
-        if (createdPodIds.length > 0) {
-          websocketService.podJoinBatch({ podIds: createdPodIds })
-        }
-
-        for (const note of payload.createdOutputStyleNotes) {
-          outputStyleStore.notes.push(note)
-        }
-
-        for (const note of payload.createdSkillNotes) {
-          skillStore.notes.push(note)
-        }
-
-        // 將創建的連線加入 connectionStore
-        for (const conn of payload.createdConnections) {
-          connectionStore.connections.push({
-            ...conn,
-            createdAt: new Date(conn.createdAt),
-            autoTrigger: conn.autoTrigger ?? false,
-            status: 'inactive',
-          })
-        }
-
-        const newSelectedElements: SelectableElement[] = [
-          ...payload.createdPods.map(pod => ({ type: 'pod' as const, id: pod.id })),
-          ...payload.createdOutputStyleNotes
-            .filter(note => note.boundToPodId === null)
-            .map(note => ({ type: 'outputStyleNote' as const, id: note.id })),
-          ...payload.createdSkillNotes
-            .filter(note => note.boundToPodId === null)
-            .map(note => ({ type: 'skillNote' as const, id: note.id })),
-        ]
-
-        canvasStore.setSelectedElements(newSelectedElements)
+      for (const pod of response.createdPods) {
+        podStore.addPod(pod)
       }
+
+      const createdPodIds = response.createdPods.map(p => p.id)
+      if (createdPodIds.length > 0) {
+        websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, { podIds: createdPodIds })
+      }
+
+      for (const note of response.createdOutputStyleNotes) {
+        outputStyleStore.notes.push(note)
+      }
+
+      for (const note of response.createdSkillNotes) {
+        skillStore.notes.push(note)
+      }
+
+      for (const conn of response.createdConnections) {
+        connectionStore.connections.push({
+          ...conn,
+          createdAt: new Date(conn.createdAt),
+          autoTrigger: conn.autoTrigger ?? false,
+          status: 'inactive',
+        })
+      }
+
+      const newSelectedElements: SelectableElement[] = [
+        ...response.createdPods.map(pod => ({ type: 'pod' as const, id: pod.id })),
+        ...response.createdOutputStyleNotes
+          .filter(note => note.boundToPodId === null)
+          .map(note => ({ type: 'outputStyleNote' as const, id: note.id })),
+        ...response.createdSkillNotes
+          .filter(note => note.boundToPodId === null)
+          .map(note => ({ type: 'skillNote' as const, id: note.id })),
+      ]
+
+      selectionStore.setSelectedElements(newSelectedElements)
+
+      return true
+    } catch (error) {
+      console.error('[useCopyPaste] Paste failed:', error)
+      return false
     }
-
-    websocketService.onCanvasPasteResult(handleCanvasPasteResult)
-    websocketService.canvasPaste({
-      requestId,
-      pods,
-      outputStyleNotes,
-      skillNotes,
-      connections,
-    })
-
-    setTimeout(() => {
-      websocketService.offCanvasPasteResult(handleCanvasPasteResult)
-    }, PASTE_TIMEOUT_MS)
-
-    return true
   }
 
   const handleKeyDown = (event: KeyboardEvent): void => {
@@ -352,7 +335,6 @@ export function useCopyPaste() {
     const key = event.key.toLowerCase()
 
     if (key === 'c') {
-      // 如果有選取文字，讓瀏覽器處理原生複製
       if (hasTextSelection()) return
       handleCopy(event)
     } else if (key === 'v') {

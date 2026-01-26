@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { websocketService } from '@/services/websocket'
+import { websocketClient, createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { generateRequestId } from '@/services/utils'
 import type { Message, ToolUseInfo, HistoryLoadingStatus, ToolUseStatus } from '@/types/chat'
 import type {
@@ -8,6 +8,8 @@ import type {
   PodChatToolResultPayload,
   PodChatCompletePayload,
   PodChatHistoryResultPayload,
+  PodChatHistoryPayload,
+  PodChatSendPayload,
   PersistedMessage,
   PodErrorPayload,
   ConnectionReadyPayload
@@ -93,36 +95,36 @@ export const useChatStore = defineStore('chat', {
   actions: {
     initWebSocket(): void {
       this.connectionStatus = 'connecting'
-      websocketService.connect()
+      websocketClient.connect()
       this.registerListeners()
     },
 
     disconnectWebSocket(): void {
       this.unregisterListeners()
-      websocketService.disconnect()
+      websocketClient.disconnect()
 
       this.connectionStatus = 'disconnected'
       this.socketId = null
     },
 
     registerListeners(): void {
-      websocketService.onConnectionReady(this.handleConnectionReady)
-      websocketService.onChatMessage(this.handleChatMessage)
-      websocketService.onChatToolUse(this.handleChatToolUse)
-      websocketService.onChatToolResult(this.handleChatToolResult)
-      websocketService.onChatComplete(this.handleChatComplete)
-      websocketService.onChatHistoryResult(this.handleChatHistoryResult)
-      websocketService.onError(this.handleError)
+      websocketClient.on<ConnectionReadyPayload>(WebSocketResponseEvents.CONNECTION_READY, this.handleConnectionReady)
+      websocketClient.on<PodChatMessagePayload>(WebSocketResponseEvents.POD_CHAT_MESSAGE, this.handleChatMessage)
+      websocketClient.on<PodChatToolUsePayload>(WebSocketResponseEvents.POD_CHAT_TOOL_USE, this.handleChatToolUse)
+      websocketClient.on<PodChatToolResultPayload>(WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, this.handleChatToolResult)
+      websocketClient.on<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)
+      websocketClient.on<PodChatHistoryResultPayload>(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, this.handleChatHistoryResult)
+      websocketClient.on<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
     },
 
     unregisterListeners(): void {
-      websocketService.offConnectionReady(this.handleConnectionReady)
-      websocketService.offChatMessage(this.handleChatMessage)
-      websocketService.offChatToolUse(this.handleChatToolUse)
-      websocketService.offChatToolResult(this.handleChatToolResult)
-      websocketService.offChatComplete(this.handleChatComplete)
-      websocketService.offChatHistoryResult(this.handleChatHistoryResult)
-      websocketService.offError(this.handleError)
+      websocketClient.off<ConnectionReadyPayload>(WebSocketResponseEvents.CONNECTION_READY, this.handleConnectionReady)
+      websocketClient.off<PodChatMessagePayload>(WebSocketResponseEvents.POD_CHAT_MESSAGE, this.handleChatMessage)
+      websocketClient.off<PodChatToolUsePayload>(WebSocketResponseEvents.POD_CHAT_TOOL_USE, this.handleChatToolUse)
+      websocketClient.off<PodChatToolResultPayload>(WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, this.handleChatToolResult)
+      websocketClient.off<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)
+      websocketClient.off<PodChatHistoryResultPayload>(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, this.handleChatHistoryResult)
+      websocketClient.off<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
     },
 
     handleConnectionReady(payload: ConnectionReadyPayload): void {
@@ -142,10 +144,8 @@ export const useChatStore = defineStore('chat', {
 
       this.addUserMessage(podId, content)
 
-      const requestId = generateRequestId()
-
-      websocketService.podChatSend({
-        requestId,
+      websocketClient.emit<PodChatSendPayload>(WebSocketRequestEvents.POD_CHAT_SEND, {
+        requestId: generateRequestId(),
         podId,
         message: content
       })
@@ -164,14 +164,14 @@ export const useChatStore = defineStore('chat', {
       const messages = this.messagesByPodId.get(podId) || []
       this.messagesByPodId.set(podId, [...messages, userMessage])
 
-      // Update POD output preview in canvas store
-      import('./canvasStore').then(({ useCanvasStore }) => {
-        const canvasStore = useCanvasStore()
-        const pod = canvasStore.pods.find(p => p.id === podId)
+      // Update POD output preview in pod store
+      import('./pod/podStore').then(({ usePodStore }) => {
+        const podStore = usePodStore()
+        const pod = podStore.pods.find(p => p.id === podId)
 
         if (pod) {
           const truncatedContent = `> ${truncateContent(content, CONTENT_PREVIEW_LENGTH)}`
-          canvasStore.updatePod({
+          podStore.updatePod({
             ...pod,
             output: [...pod.output, truncatedContent]
           })
@@ -306,17 +306,17 @@ export const useChatStore = defineStore('chat', {
         }
         this.messagesByPodId.set(podId, updatedMessages)
 
-        // Update POD output preview in canvas store
+        // Update POD output preview in pod store
         // Only update for assistant messages
         if (existingMessage.role === 'assistant') {
-          // Dynamically import canvas store to avoid circular dependency
-          import('./canvasStore').then(({ useCanvasStore }) => {
-            const canvasStore = useCanvasStore()
-            const pod = canvasStore.pods.find(p => p.id === podId)
+          // Dynamically import pod store to avoid circular dependency
+          import('./pod/podStore').then(({ usePodStore }) => {
+            const podStore = usePodStore()
+            const pod = podStore.pods.find(p => p.id === podId)
 
             if (pod) {
               const truncatedContent = truncateContent(fullContent, RESPONSE_PREVIEW_LENGTH)
-              canvasStore.updatePod({
+              podStore.updatePod({
                 ...pod,
                 output: [...pod.output, truncatedContent]
               })
@@ -335,7 +335,7 @@ export const useChatStore = defineStore('chat', {
     handleError(payload: PodErrorPayload): void {
       console.error('[ChatStore] Error:', payload)
 
-      if (!websocketService.isConnected.value) {
+      if (!websocketClient.isConnected.value) {
         this.connectionStatus = 'error'
       }
 
@@ -395,48 +395,28 @@ export const useChatStore = defineStore('chat', {
 
       this.setHistoryLoadingStatus(podId, 'loading')
 
-      return new Promise<void>((resolve, reject) => {
-        const requestId = generateRequestId()
-        let timeoutId: ReturnType<typeof setTimeout>
-
-        const handleHistoryResult = (payload: PodChatHistoryResultPayload): void => {
-          if (payload.requestId !== requestId) return
-
-          websocketService.offChatHistoryResult(handleHistoryResult)
-          clearTimeout(timeoutId)
-
-          if (payload.success) {
-            const messages = (payload.messages || []).map(msg =>
-              this.convertPersistedToMessage(msg)
-            )
-            this.setPodMessages(podId, messages)
-            this.setHistoryLoadingStatus(podId, 'loaded')
-            resolve()
-          } else {
-            const error = payload.error || 'Unknown error'
-            console.error(`[ChatStore] Failed to load history for pod ${podId}:`, error)
-            this.setHistoryLoadingStatus(podId, 'error')
-            this.setHistoryLoadingError(podId, error)
-            reject(new Error(error))
-          }
-        }
-
-        timeoutId = setTimeout(() => {
-          websocketService.offChatHistoryResult(handleHistoryResult)
-          const error = 'History load timeout'
-          console.error(`[ChatStore] ${error} for pod: ${podId}`)
-          this.setHistoryLoadingStatus(podId, 'error')
-          this.setHistoryLoadingError(podId, error)
-          reject(new Error(error))
-        }, HISTORY_LOAD_TIMEOUT_MS)
-
-        websocketService.onChatHistoryResult(handleHistoryResult)
-
-        websocketService.podChatHistory({
-          requestId,
-          podId
+      try {
+        const response = await createWebSocketRequest<PodChatHistoryPayload, PodChatHistoryResultPayload>({
+          requestEvent: WebSocketRequestEvents.POD_CHAT_HISTORY,
+          responseEvent: WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT,
+          payload: {
+            podId
+          },
+          timeout: HISTORY_LOAD_TIMEOUT_MS
         })
-      })
+
+        const messages = (response.messages || []).map(msg =>
+          this.convertPersistedToMessage(msg)
+        )
+        this.setPodMessages(podId, messages)
+        this.setHistoryLoadingStatus(podId, 'loaded')
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        console.error(`[ChatStore] Failed to load history for pod ${podId}:`, errorMessage)
+        this.setHistoryLoadingStatus(podId, 'error')
+        this.setHistoryLoadingError(podId, errorMessage)
+        throw error
+      }
     },
 
     // 平行載入所有 Pods 的聊天歷史，使用 Promise.allSettled 確保部分失敗不會影響其他

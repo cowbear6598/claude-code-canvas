@@ -1,17 +1,13 @@
 import { onMounted, onUnmounted } from 'vue'
-import { useCanvasStore } from '@/stores/canvasStore'
-import { useOutputStyleStore } from '@/stores/outputStyleStore'
-import { useSkillStore } from '@/stores/skillStore'
+import { useCanvasContext } from './useCanvasContext'
 import { useToast } from '@/composables/useToast'
 import { isEditingElement } from '@/utils/domHelpers'
 
 async function deleteSelectedElements(): Promise<void> {
-  const canvasStore = useCanvasStore()
-  const outputStyleStore = useOutputStyleStore()
-  const skillStore = useSkillStore()
+  const { podStore, selectionStore, outputStyleStore, skillStore } = useCanvasContext()
   const { toast } = useToast()
 
-  const selectedElements = canvasStore.selection.selectedElements
+  const selectedElements = selectionStore.selectedElements
   if (selectedElements.length === 0) return
 
   const pods = selectedElements
@@ -29,7 +25,7 @@ async function deleteSelectedElements(): Promise<void> {
   const deletePromises: Promise<void>[] = []
 
   pods.forEach(id => {
-    deletePromises.push(canvasStore.deletePodWithBackend(id))
+    deletePromises.push(podStore.deletePodWithBackend(id))
   })
 
   outputStyleNotes.forEach(id => {
@@ -52,15 +48,15 @@ async function deleteSelectedElements(): Promise<void> {
     })
   }
 
-  canvasStore.clearSelection()
+  selectionStore.clearSelection()
 }
 
 function handleKeyDown(e: KeyboardEvent): void {
   if (e.key !== 'Delete') return
   if (isEditingElement()) return
 
-  const canvasStore = useCanvasStore()
-  if (!canvasStore.hasSelection) return
+  const { selectionStore } = useCanvasContext()
+  if (!selectionStore.hasSelection) return
 
   deleteSelectedElements()
 }
