@@ -21,7 +21,7 @@ export function useBoxSelect() {
   }
 
   const startBoxSelect = (e: MouseEvent) => {
-    if (e.button !== 2) return
+    if (e.button !== 0) return
 
     const target = e.target as HTMLElement
     if (!target.classList.contains('canvas-grid') &&
@@ -34,6 +34,7 @@ export function useBoxSelect() {
     const canvasX = (e.clientX - viewportStore.offset.x) / viewportStore.zoom
     const canvasY = (e.clientY - viewportStore.offset.y) / viewportStore.zoom
 
+    selectionStore.clearSelection()
     selectionStore.startSelection(canvasX, canvasY)
     isBoxSelecting.value = true
 

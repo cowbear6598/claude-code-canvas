@@ -30,12 +30,12 @@ const handleDoubleClick = (e: MouseEvent) => {
 
 const handleMouseDown = (e: MouseEvent) => {
   if (e.button === 2) {
-    startBoxSelect(e)
+    startPan(e)
     return
   }
 
   if (e.button === 0) {
-    startPan(e)
+    startBoxSelect(e)
   }
 }
 </script>

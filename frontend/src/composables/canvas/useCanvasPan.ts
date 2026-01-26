@@ -11,7 +11,7 @@ export function useCanvasPan() {
   let startOffsetY = 0
 
   const startPan = (e: MouseEvent) => {
-    if (e.button !== 0) return
+    if (e.button !== 2) return
 
     const target = e.target as HTMLElement
 

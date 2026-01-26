@@ -6,6 +6,7 @@ interface SelectionState {
   isSelecting: boolean
   box: SelectionBox | null
   selectedElements: SelectableElement[]
+  boxSelectJustEnded: boolean
 }
 
 export const useSelectionStore = defineStore('selection', {
@@ -13,6 +14,7 @@ export const useSelectionStore = defineStore('selection', {
     isSelecting: false,
     box: null,
     selectedElements: [],
+    boxSelectJustEnded: false,
   }),
 
   getters: {
@@ -71,6 +73,10 @@ export const useSelectionStore = defineStore('selection', {
     endSelection(): void {
       this.isSelecting = false
       this.box = null
+      this.boxSelectJustEnded = true
+      requestAnimationFrame(() => {
+        this.boxSelectJustEnded = false
+      })
     },
 
     /**

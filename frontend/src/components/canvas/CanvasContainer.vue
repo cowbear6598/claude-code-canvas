@@ -55,6 +55,11 @@ const handleDoubleClick = (e: MouseEvent) => {
 }
 
 const handleCanvasClick = (e: MouseEvent) => {
+  // 如果剛完成框選，跳過清除選取
+  if (selectionStore.boxSelectJustEnded) {
+    return
+  }
+
   const target = e.target as HTMLElement
 
   // 如果點擊的是連線相關元素，不取消選取

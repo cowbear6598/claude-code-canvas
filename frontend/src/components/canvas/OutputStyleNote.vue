@@ -57,7 +57,7 @@ onUnmounted(() => {
 // 3. 需要在 unmount 時精確清理監聽器以防記憶體洩漏
 const handleMouseDown = (e: MouseEvent) => {
   // 檢查此 Note 是否在選中列表中
-  if (isElementSelected('outputStyleNote', props.note.id)) {
+  if (isElementSelected('outputStyleNote', props.note.id) && selectionStore.selectedElements.length > 1) {
     if (startBatchDrag(e)) {
       return
     }
