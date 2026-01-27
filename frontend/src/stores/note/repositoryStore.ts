@@ -89,16 +89,28 @@ export const useRepositoryStore = defineStore('repository', {
       this.availableItems = response.repositories
     },
 
-    async createRepository(name: string): Promise<void> {
-      const response = await createWebSocketRequest<RepositoryCreatePayload, RepositoryCreatedPayload>({
-        requestEvent: WebSocketRequestEvents.REPOSITORY_CREATE,
-        responseEvent: WebSocketResponseEvents.REPOSITORY_CREATED,
-        payload: {name}
-      })
+    async createRepository(name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }> {
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
 
-      if (!response.repository) return
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryCreatePayload, RepositoryCreatedPayload>({
+          requestEvent: WebSocketRequestEvents.REPOSITORY_CREATE,
+          responseEvent: WebSocketResponseEvents.REPOSITORY_CREATED,
+          payload: {name}
+        }),
+        '建立資料夾失敗'
+      )
+
+      if (!response) {
+        return { success: false, error: '建立資料夾失敗' }
+      }
+
+      if (!response.repository) {
+        return { success: false, error: response.error || '建立資料夾失敗' }
+      }
 
       this.availableItems.push(response.repository)
+      return { success: true, repository: response.repository }
     },
 
     async loadNotesFromBackend(): Promise<void> {

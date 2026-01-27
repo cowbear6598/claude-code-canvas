@@ -4,6 +4,7 @@ import { websocketClient, createWebSocketRequest, WebSocketRequestEvents, WebSoc
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { isEditingElement, isModifierKeyPressed, hasTextSelection } from '@/utils/domHelpers'
 import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT, PASTE_TIMEOUT_MS } from '@/lib/constants'
+import { useRepositoryStore } from '@/stores/note'
 import type {
   CanvasPasteResultPayload,
   CanvasPastePayload,
@@ -12,6 +13,7 @@ import type {
   CopiedPod,
   CopiedOutputStyleNote,
   CopiedSkillNote,
+  CopiedRepositoryNote,
   CopiedConnection
 } from '@/types'
 
@@ -26,6 +28,8 @@ export function useCopyPaste() {
     connectionStore
   } = useCanvasContext()
 
+  const repositoryStore = useRepositoryStore()
+
   const mousePosition = ref({ x: 0, y: 0 })
 
   const updateMousePosition = (event: MouseEvent): void => {
@@ -35,7 +39,8 @@ export function useCopyPaste() {
   const collectBoundNotes = (
     podId: string,
     outputStyleNotes: CopiedOutputStyleNote[],
-    skillNotes: CopiedSkillNote[]
+    skillNotes: CopiedSkillNote[],
+    repositoryNotes: CopiedRepositoryNote[]
   ): void => {
     const boundOutputStyleNotes = outputStyleStore.notes.filter(
       note => note.boundToPodId === podId
@@ -63,6 +68,20 @@ export function useCopyPaste() {
         x: note.x,
         y: note.y,
         boundToPodId: note.boundToPodId,
+        originalPosition: note.originalPosition,
+      })
+    }
+
+    const boundRepositoryNotes = repositoryStore.notes.filter(
+      note => note.boundToPodId === podId
+    )
+    for (const note of boundRepositoryNotes) {
+      repositoryNotes.push({
+        repositoryId: note.repositoryId,
+        name: note.name,
+        x: note.x,
+        y: note.y,
+        boundToOriginalPodId: note.boundToPodId,
         originalPosition: note.originalPosition,
       })
     }
@@ -98,6 +117,20 @@ export function useCopyPaste() {
     }
   }
 
+  const collectUnboundRepositoryNote = (noteId: string): CopiedRepositoryNote | null => {
+    const note = repositoryStore.notes.find(n => n.id === noteId)
+    if (!note || note.boundToPodId !== null) return null
+
+    return {
+      repositoryId: note.repositoryId,
+      name: note.name,
+      x: note.x,
+      y: note.y,
+      boundToOriginalPodId: note.boundToPodId,
+      originalPosition: note.originalPosition,
+    }
+  }
+
   const handleCopy = (event: KeyboardEvent): boolean => {
     const selectedElements = selectionStore.selectedElements
     if (selectedElements.length === 0) return false
@@ -107,6 +140,7 @@ export function useCopyPaste() {
     const copiedPods: CopiedPod[] = []
     const copiedOutputStyleNotes: CopiedOutputStyleNote[] = []
     const copiedSkillNotes: CopiedSkillNote[] = []
+    const copiedRepositoryNotes: CopiedRepositoryNote[] = []
 
     const selectedPodIds = new Set(
       selectedElements.filter(el => el.type === 'pod').map(el => el.id)
@@ -127,13 +161,14 @@ export function useCopyPaste() {
             outputStyleId: pod.outputStyleId,
             skillIds: pod.skillIds,
             model: pod.model,
+            repositoryId: pod.repositoryId,
           })
         }
       }
     }
 
     for (const podId of selectedPodIds) {
-      collectBoundNotes(podId, copiedOutputStyleNotes, copiedSkillNotes)
+      collectBoundNotes(podId, copiedOutputStyleNotes, copiedSkillNotes, copiedRepositoryNotes)
     }
 
     for (const element of selectedElements) {
@@ -146,6 +181,11 @@ export function useCopyPaste() {
         const note = collectUnboundSkillNote(element.id)
         if (note) {
           copiedSkillNotes.push(note)
+        }
+      } else if (element.type === 'repositoryNote') {
+        const note = collectUnboundRepositoryNote(element.id)
+        if (note) {
+          copiedRepositoryNotes.push(note)
         }
       }
     }
@@ -163,7 +203,7 @@ export function useCopyPaste() {
       }
     }
 
-    clipboardStore.setCopy(copiedPods, copiedOutputStyleNotes, copiedSkillNotes, copiedConnections)
+    clipboardStore.setCopy(copiedPods, copiedOutputStyleNotes, copiedSkillNotes, copiedRepositoryNotes, copiedConnections)
     return true
   }
 
@@ -181,10 +221,10 @@ export function useCopyPaste() {
   }
 
   const calculatePastePositions = (targetPosition: { x: number; y: number }) => {
-    const { pods, outputStyleNotes, skillNotes, connections } = clipboardStore.getCopiedData()
+    const { pods, outputStyleNotes, skillNotes, repositoryNotes, connections } = clipboardStore.getCopiedData()
 
-    if (pods.length === 0 && outputStyleNotes.length === 0 && skillNotes.length === 0) {
-      return { pods: [], outputStyleNotes: [], skillNotes: [], connections: [] }
+    if (pods.length === 0 && outputStyleNotes.length === 0 && skillNotes.length === 0 && repositoryNotes.length === 0) {
+      return { pods: [], outputStyleNotes: [], skillNotes: [], repositoryNotes: [], connections: [] }
     }
 
     const bounds = {
@@ -210,6 +250,12 @@ export function useCopyPaste() {
       }
     }
 
+    for (const note of repositoryNotes) {
+      if (note.boundToOriginalPodId === null) {
+        updateBoundingBox(bounds, note.x, note.y, NOTE_WIDTH, NOTE_HEIGHT)
+      }
+    }
+
     const centerX = (bounds.minX + bounds.maxX) / 2
     const centerY = (bounds.minY + bounds.maxY) / 2
 
@@ -227,6 +273,7 @@ export function useCopyPaste() {
       outputStyleId: pod.outputStyleId,
       skillIds: pod.skillIds,
       model: pod.model,
+      repositoryId: pod.repositoryId,
     }))
 
     const newOutputStyleNotes = outputStyleNotes.map(note => ({
@@ -247,6 +294,15 @@ export function useCopyPaste() {
       originalPosition: note.originalPosition,
     }))
 
+    const newRepositoryNotes = repositoryNotes.map(note => ({
+      repositoryId: note.repositoryId,
+      name: note.name,
+      x: note.boundToOriginalPodId !== null ? 0 : note.x + offsetX,
+      y: note.boundToOriginalPodId !== null ? 0 : note.y + offsetY,
+      boundToOriginalPodId: note.boundToOriginalPodId,
+      originalPosition: note.originalPosition,
+    }))
+
     const newConnections = connections.map(conn => ({
       originalSourcePodId: conn.sourcePodId,
       sourceAnchor: conn.sourceAnchor,
@@ -259,6 +315,7 @@ export function useCopyPaste() {
       pods: newPods,
       outputStyleNotes: newOutputStyleNotes,
       skillNotes: newSkillNotes,
+      repositoryNotes: newRepositoryNotes,
       connections: newConnections,
     }
   }
@@ -269,7 +326,7 @@ export function useCopyPaste() {
     event.preventDefault()
 
     const canvasPos = viewportStore.screenToCanvas(mousePosition.value.x, mousePosition.value.y)
-    const { pods, outputStyleNotes, skillNotes, connections } = calculatePastePositions(canvasPos)
+    const { pods, outputStyleNotes, skillNotes, repositoryNotes, connections } = calculatePastePositions(canvasPos)
 
     const { wrapWebSocketRequest } = useWebSocketErrorHandler()
 
@@ -281,6 +338,7 @@ export function useCopyPaste() {
           pods,
           outputStyleNotes,
           skillNotes,
+          repositoryNotes,
           connections,
         },
         timeout: PASTE_TIMEOUT_MS
@@ -307,6 +365,10 @@ export function useCopyPaste() {
       skillStore.notes.push(note)
     }
 
+    for (const note of response.createdRepositoryNotes) {
+      repositoryStore.notes.push(note)
+    }
+
     for (const conn of response.createdConnections) {
       connectionStore.connections.push({
         ...conn,
@@ -324,6 +386,9 @@ export function useCopyPaste() {
       ...response.createdSkillNotes
         .filter(note => note.boundToPodId === null)
         .map(note => ({ type: 'skillNote' as const, id: note.id })),
+      ...response.createdRepositoryNotes
+        .filter(note => note.boundToPodId === null)
+        .map(note => ({ type: 'repositoryNote' as const, id: note.id })),
     ]
 
     selectionStore.setSelectedElements(newSelectedElements)

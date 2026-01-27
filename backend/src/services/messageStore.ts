@@ -57,6 +57,19 @@ class MessageStore {
   getMessageCount(podId: string): number {
     return this.messagesByPodId.get(podId)?.length ?? 0;
   }
+
+  async clearMessagesWithPersistence(podId: string): Promise<Result<void>> {
+    this.clearMessages(podId);
+
+    const result = await chatPersistenceService.clearChatHistory(podId);
+    if (!result.success) {
+      console.error(`[MessageStore] Failed to clear persistence for Pod ${podId}: ${result.error}`);
+      return err(`清除訊息失敗 (Pod ${podId})`);
+    }
+
+    console.log(`[MessageStore] Cleared all messages (cache + persistence) for Pod ${podId}`);
+    return ok(undefined);
+  }
 }
 
 export const messageStore = new MessageStore();

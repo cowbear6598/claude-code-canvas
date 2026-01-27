@@ -35,7 +35,7 @@ class PodStore {
       outputStyleId: data.outputStyleId ?? null,
       skillIds: data.skillIds ?? [],
       model: data.model ?? 'opus',
-      repositoryId: null,
+      repositoryId: data.repositoryId ?? null,
       needsForkSession: false,
     };
 

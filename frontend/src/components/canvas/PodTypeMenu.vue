@@ -4,6 +4,7 @@ import {Palette, Wrench, FolderOpen} from 'lucide-vue-next'
 import type {Position, PodTypeConfig, OutputStyleListItem, Skill, Repository} from '@/types'
 import {podTypes} from '@/data/podTypes'
 import {useOutputStyleStore, useSkillStore, useRepositoryStore} from '@/stores/note'
+import CreateRepositoryModal from './CreateRepositoryModal.vue'
 
 defineProps<{
   position: Position
@@ -23,6 +24,7 @@ const repositoryStore = useRepositoryStore()
 const showSubmenu = ref(false)
 const showSkillSubmenu = ref(false)
 const showRepositorySubmenu = ref(false)
+const showCreateRepositoryModal = ref(false)
 
 onMounted(async () => {
   await Promise.all([
@@ -55,6 +57,12 @@ const handleRepositorySelect = (repository: Repository) => {
 }
 
 const handleClose = () => {
+  emit('close')
+}
+
+const handleRepositoryCreated = (repository: { id: string; name: string }) => {
+  showRepositorySubmenu.value = false
+  emit('create-repository-note', repository.id)
   emit('close')
 }
 </script>
@@ -176,8 +184,17 @@ const handleClose = () => {
           >
             {{ repo.name }}
           </button>
+          <div class="border-t border-doodle-ink/30 my-1" />
+          <div class="pod-menu-submenu-item" @click="showCreateRepositoryModal = true">
+            + 新建資料夾
+          </div>
         </div>
       </div>
     </div>
+
+    <CreateRepositoryModal
+      v-model:open="showCreateRepositoryModal"
+      @created="handleRepositoryCreated"
+    />
   </div>
 </template>

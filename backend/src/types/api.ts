@@ -13,6 +13,7 @@ export interface CreatePodRequest {
   outputStyleId?: string | null;
   skillIds?: string[];
   model?: ModelType;
+  repositoryId?: string | null;
 }
 
 export interface CreatePodResponse {

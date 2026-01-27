@@ -191,6 +191,7 @@ export interface PastePodItem {
   outputStyleId?: string | null
   skillIds?: string[]
   model?: ModelType
+  repositoryId?: string | null
 }
 
 export interface PasteOutputStyleNoteItem {
@@ -211,6 +212,15 @@ export interface PasteSkillNoteItem {
   originalPosition: { x: number; y: number } | null
 }
 
+export interface PasteRepositoryNoteItem {
+  repositoryId: string
+  name: string
+  x: number
+  y: number
+  boundToOriginalPodId: string | null
+  originalPosition: { x: number; y: number } | null
+}
+
 export interface PasteConnectionItem {
   originalSourcePodId: string
   sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
@@ -224,6 +234,7 @@ export interface CanvasPastePayload {
   pods: PastePodItem[]
   outputStyleNotes: PasteOutputStyleNoteItem[]
   skillNotes: PasteSkillNoteItem[]
+  repositoryNotes: PasteRepositoryNoteItem[]
   connections: PasteConnectionItem[]
 }
 

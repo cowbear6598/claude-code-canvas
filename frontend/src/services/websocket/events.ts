@@ -108,6 +108,7 @@ export const WebSocketResponseEvents = {
   REPOSITORY_NOTE_DELETED: 'repository-note:deleted',
   POD_REPOSITORY_BOUND: 'pod:repository:bound',
   POD_REPOSITORY_UNBOUND: 'pod:repository:unbound',
+  POD_MESSAGES_CLEARED: 'pod:messages:cleared',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]

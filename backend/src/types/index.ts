@@ -146,4 +146,5 @@ export {
   type PodRepositoryBoundPayload,
   type PodUnbindRepositoryPayload,
   type PodRepositoryUnboundPayload,
+  type PodMessagesClearedPayload,
 } from './websocket.js';

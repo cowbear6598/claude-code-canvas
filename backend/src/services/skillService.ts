@@ -112,6 +112,49 @@ class SkillService {
     }
 
     /**
+     * Copy a skill directory to a repository
+     */
+    async copySkillToRepository(skillId: string, repositoryPath: string): Promise<void> {
+        if (!validateSkillId(skillId)) {
+            throw new Error('無效的技能 ID 格式');
+        }
+
+        const srcDir = this.getSkillDirectoryPath(skillId);
+        const destDir = path.join(repositoryPath, '.claude', 'skills', skillId);
+
+        try {
+            await fs.access(srcDir);
+        } catch {
+            throw new Error(`找不到技能目錄: ${skillId}`);
+        }
+
+        try {
+            await fs.rm(destDir, {recursive: true, force: true});
+        } catch {
+            // Ignore errors if directory doesn't exist
+        }
+
+        await this.copyDirectoryRecursive(srcDir, destDir);
+        console.log(`[SkillService] Successfully copied skill ${skillId} to repository at ${repositoryPath}`);
+    }
+
+    /**
+     * Delete the .claude/skills directory from a path
+     */
+    async deleteSkillsFromPath(basePath: string): Promise<void> {
+        const skillsDir = path.join(basePath, '.claude', 'skills');
+
+        try {
+            await fs.rm(skillsDir, {recursive: true, force: true});
+            console.log(`[SkillService] Deleted skills directory at ${skillsDir}`);
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+                console.warn(`[SkillService] Failed to delete skills directory at ${skillsDir}:`, error);
+            }
+        }
+    }
+
+    /**
      * Get the directory path for a skill
      */
     private getSkillDirectoryPath(skillId: string): string {

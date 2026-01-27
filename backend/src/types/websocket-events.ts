@@ -95,6 +95,7 @@ export enum WebSocketResponseEvents {
   REPOSITORY_NOTE_DELETED = 'repository-note:deleted',
   POD_REPOSITORY_BOUND = 'pod:repository:bound',
   POD_REPOSITORY_UNBOUND = 'pod:repository:unbound',
+  POD_MESSAGES_CLEARED = 'pod:messages:cleared',
 }
 
 export interface PodCreatePayload {
@@ -589,6 +590,7 @@ export interface PastePodItem {
   outputStyleId?: string | null;
   skillIds?: string[];
   model?: ModelType;
+  repositoryId?: string | null;
 }
 
 interface PasteNoteItemBase {
@@ -607,6 +609,10 @@ export interface PasteSkillNoteItem extends PasteNoteItemBase {
   skillId: string;
 }
 
+export interface PasteRepositoryNoteItem extends PasteNoteItemBase {
+  repositoryId: string;
+}
+
 export interface PasteConnectionItem {
   originalSourcePodId: string;
   sourceAnchor: import('./connection.js').AnchorPosition;
@@ -620,11 +626,12 @@ export interface CanvasPastePayload {
   pods: PastePodItem[];
   outputStyleNotes: PasteOutputStyleNoteItem[];
   skillNotes: PasteSkillNoteItem[];
+  repositoryNotes: PasteRepositoryNoteItem[];
   connections: PasteConnectionItem[];
 }
 
 export interface PasteError {
-  type: 'pod' | 'outputStyleNote' | 'skillNote';
+  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote';
   originalId: string;
   error: string;
 }
@@ -635,6 +642,7 @@ export interface CanvasPasteResultPayload {
   createdPods: Pod[];
   createdOutputStyleNotes: import('./outputStyleNote.js').OutputStyleNote[];
   createdSkillNotes: import('./skillNote.js').SkillNote[];
+  createdRepositoryNotes: import('./repositoryNote.js').RepositoryNote[];
   createdConnections: import('./connection.js').Connection[];
   podIdMapping: Record<string, string>;
   errors: PasteError[];
@@ -743,4 +751,8 @@ export interface PodRepositoryUnboundPayload {
   success: boolean;
   pod?: Pod;
   error?: string;
+}
+
+export interface PodMessagesClearedPayload {
+  podId: string;
 }

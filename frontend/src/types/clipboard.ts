@@ -12,6 +12,7 @@ export interface CopiedPod {
   outputStyleId?: string | null
   skillIds?: string[]
   model?: ModelType
+  repositoryId?: string | null
 }
 
 export interface CopiedOutputStyleNote {
@@ -31,6 +32,15 @@ export interface CopiedSkillNote {
   x: number
   y: number
   boundToPodId: string | null
+  originalPosition: { x: number; y: number } | null
+}
+
+export interface CopiedRepositoryNote {
+  repositoryId: string
+  name: string
+  x: number
+  y: number
+  boundToOriginalPodId: string | null
   originalPosition: { x: number; y: number } | null
 }
 

@@ -86,13 +86,17 @@ class PersistenceService {
    * @param filePath Absolute path to file
    */
   async deleteFile(filePath: string): Promise<Result<void>> {
-    const exists = await this.fileExists(filePath);
-    if (!exists) {
+    try {
+      await fs.unlink(filePath);
       return ok(undefined);
+    } catch (error: any) {
+      // 如果檔案不存在（ENOENT），這就是我們想要的結果
+      if (error.code === 'ENOENT') {
+        return ok(undefined);
+      }
+      // 其他錯誤才需要回報
+      return err(`刪除檔案失敗: ${filePath} - ${error.message}`);
     }
-
-    await fs.unlink(filePath);
-    return ok(undefined);
   }
 }
 

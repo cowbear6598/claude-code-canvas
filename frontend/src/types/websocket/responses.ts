@@ -333,7 +333,7 @@ export interface WorkflowClearResultPayload {
 }
 
 export interface PasteError {
-  type: 'pod' | 'outputStyleNote' | 'skillNote'
+  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote'
   originalId: string
   error: string
 }
@@ -344,6 +344,7 @@ export interface CanvasPasteResultPayload {
   createdPods: Pod[]
   createdOutputStyleNotes: OutputStyleNote[]
   createdSkillNotes: SkillNote[]
+  createdRepositoryNotes: RepositoryNote[]
   createdConnections: Array<{
     id: string
     sourcePodId: string
@@ -413,4 +414,8 @@ export interface PodRepositoryUnboundPayload {
   success: boolean
   podId?: string
   error?: string
+}
+
+export interface PodMessagesClearedPayload {
+  podId: string
 }

@@ -26,6 +26,8 @@ import type {
 import { repositoryService } from '../services/repositoryService.js';
 import { repositoryNoteStore } from '../services/repositoryNoteStore.js';
 import { podStore } from '../services/podStore.js';
+import { skillService } from '../services/skillService.js';
+import { messageStore } from '../services/messageStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
 /**
@@ -303,9 +305,36 @@ export async function handlePodBindRepository(
     return;
   }
 
+  const oldRepositoryId = pod.repositoryId;
+  const oldCwd = oldRepositoryId
+    ? repositoryService.getRepositoryPath(oldRepositoryId)
+    : pod.workspacePath;
+
+  try {
+    await skillService.deleteSkillsFromPath(oldCwd);
+  } catch (error) {
+    console.error(`[Repository] Failed to delete old skills from ${oldCwd}:`, error);
+  }
+
   podStore.setRepositoryId(podId, repositoryId);
-  // 清除 session，下次對話會在新的 cwd 開始
   podStore.setClaudeSessionId(podId, '');
+
+  const newCwd = repositoryService.getRepositoryPath(repositoryId);
+
+  for (const skillId of pod.skillIds) {
+    try {
+      await skillService.copySkillToRepository(skillId, newCwd);
+    } catch (error) {
+      console.error(`[Repository] Failed to copy skill ${skillId} to repository:`, error);
+    }
+  }
+
+  try {
+    await messageStore.clearMessagesWithPersistence(podId);
+    socket.emit(WebSocketResponseEvents.POD_MESSAGES_CLEARED, { podId });
+  } catch (error) {
+    console.error(`[Repository] Failed to clear messages for Pod ${podId}:`, error);
+  }
 
   const updatedPod = podStore.getById(podId);
 
@@ -345,9 +374,40 @@ export async function handlePodUnbindRepository(
     return;
   }
 
+  const oldRepositoryId = pod.repositoryId;
+  if (!oldRepositoryId) {
+    console.warn(`[Repository] Pod ${podId} has no repository to unbind`);
+  }
+
+  const oldCwd = oldRepositoryId
+    ? repositoryService.getRepositoryPath(oldRepositoryId)
+    : pod.workspacePath;
+
+  try {
+    await skillService.deleteSkillsFromPath(oldCwd);
+  } catch (error) {
+    console.error(`[Repository] Failed to delete old skills from ${oldCwd}:`, error);
+  }
+
   podStore.setRepositoryId(podId, null);
-  // 清除 session，下次對話會在新的 cwd 開始
   podStore.setClaudeSessionId(podId, '');
+
+  const newCwd = pod.workspacePath;
+
+  for (const skillId of pod.skillIds) {
+    try {
+      await skillService.copySkillToRepository(skillId, newCwd);
+    } catch (error) {
+      console.error(`[Repository] Failed to copy skill ${skillId} to workspace:`, error);
+    }
+  }
+
+  try {
+    await messageStore.clearMessagesWithPersistence(podId);
+    socket.emit(WebSocketResponseEvents.POD_MESSAGES_CLEARED, { podId });
+  } catch (error) {
+    console.error(`[Repository] Failed to clear messages for Pod ${podId}:`, error);
+  }
 
   const updatedPod = podStore.getById(podId);
 

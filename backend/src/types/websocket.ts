@@ -99,6 +99,7 @@ export {
   type PodRepositoryBoundPayload,
   type PodUnbindRepositoryPayload,
   type PodRepositoryUnboundPayload,
+  type PodMessagesClearedPayload,
 } from './websocket-events.js';
 
 // Legacy enum for backward compatibility (deprecated)

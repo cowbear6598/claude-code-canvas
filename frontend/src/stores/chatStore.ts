@@ -13,7 +13,8 @@ import type {
   PodChatSendPayload,
   PersistedMessage,
   PodErrorPayload,
-  ConnectionReadyPayload
+  ConnectionReadyPayload,
+  PodMessagesClearedPayload
 } from '@/types/websocket'
 import { RESPONSE_PREVIEW_LENGTH, CONTENT_PREVIEW_LENGTH } from '@/lib/constants'
 
@@ -116,6 +117,7 @@ export const useChatStore = defineStore('chat', {
       websocketClient.on<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)
       websocketClient.on<PodChatHistoryResultPayload>(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, this.handleChatHistoryResult)
       websocketClient.on<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
+      websocketClient.on<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
     },
 
     unregisterListeners(): void {
@@ -126,6 +128,7 @@ export const useChatStore = defineStore('chat', {
       websocketClient.off<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)
       websocketClient.off<PodChatHistoryResultPayload>(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, this.handleChatHistoryResult)
       websocketClient.off<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
+      websocketClient.off<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
     },
 
     handleConnectionReady(payload: ConnectionReadyPayload): void {
@@ -433,6 +436,16 @@ export const useChatStore = defineStore('chat', {
 
     handleChatHistoryResult(_: PodChatHistoryResultPayload): void {
       // Chat history result received
+    },
+
+    handleMessagesClearedEvent(payload: PodMessagesClearedPayload): void {
+      this.clearMessagesByPodIds([payload.podId])
+
+      // 同時清除 POD 小螢幕的輸出
+      import('./pod/podStore').then(({ usePodStore }) => {
+        const podStore = usePodStore()
+        podStore.clearPodOutputsByIds([payload.podId])
+      })
     }
   }
 })

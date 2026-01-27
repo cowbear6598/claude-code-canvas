@@ -9,6 +9,7 @@ import {
   type Pod,
   type OutputStyleNote,
   type SkillNote,
+  type RepositoryNote,
   type Connection,
 } from '../types/index.js';
 import type { CanvasPastePayload } from '../schemas/index.js';
@@ -17,7 +18,10 @@ import { workspaceService } from '../services/workspace/index.js';
 import { claudeSessionManager } from '../services/claude/sessionManager.js';
 import { noteStore } from '../services/noteStore.js';
 import { skillNoteStore } from '../services/skillNoteStore.js';
+import { repositoryNoteStore } from '../services/repositoryNoteStore.js';
 import { connectionStore } from '../services/connectionStore.js';
+import { repositoryService } from '../services/repositoryService.js';
+import { skillService } from '../services/skillService.js';
 import { emitSuccess, getErrorMessage } from '../utils/websocketResponse.js';
 
 /**
@@ -54,11 +58,12 @@ export async function handleCanvasPaste(
   payload: CanvasPastePayload,
   requestId: string
 ): Promise<void> {
-  const { pods, outputStyleNotes, skillNotes, connections } = payload;
+  const { pods, outputStyleNotes, skillNotes, repositoryNotes, connections } = payload;
 
   const createdPods: Pod[] = [];
   const createdOutputStyleNotes: OutputStyleNote[] = [];
   const createdSkillNotes: SkillNote[] = [];
+  const createdRepositoryNotes: RepositoryNote[] = [];
   const createdConnections: Connection[] = [];
   const podIdMapping: Record<string, string> = {};
   const errors: PasteError[] = [];
@@ -66,6 +71,16 @@ export async function handleCanvasPaste(
   // Process PODs - workspace and session creation involves third-party services
   for (const podItem of pods) {
     try {
+      let finalRepositoryId = podItem.repositoryId ?? null;
+
+      if (finalRepositoryId) {
+        const exists = await repositoryService.exists(finalRepositoryId);
+        if (!exists) {
+          recordError(errors, 'pod', podItem.originalId, `Repository not found: ${finalRepositoryId}`, '建立 Pod 失敗');
+          finalRepositoryId = null;
+        }
+      }
+
       const pod = podStore.create({
         name: podItem.name,
         type: podItem.type,
@@ -76,10 +91,34 @@ export async function handleCanvasPaste(
         outputStyleId: podItem.outputStyleId ?? null,
         skillIds: podItem.skillIds ?? [],
         model: podItem.model,
+        repositoryId: finalRepositoryId,
       });
 
+      const cwd = finalRepositoryId
+        ? repositoryService.getRepositoryPath(finalRepositoryId)
+        : pod.workspacePath;
+
       await workspaceService.createWorkspace(pod.id);
-      await claudeSessionManager.createSession(pod.id, pod.workspacePath);
+      await claudeSessionManager.createSession(pod.id, cwd);
+
+      if (finalRepositoryId && podItem.skillIds && podItem.skillIds.length > 0) {
+        const repositoryPath = repositoryService.getRepositoryPath(finalRepositoryId);
+        for (const skillId of podItem.skillIds) {
+          try {
+            await skillService.copySkillToRepository(skillId, repositoryPath);
+          } catch (error) {
+            console.error(`[Paste] Failed to copy skill ${skillId} to repository:`, error);
+          }
+        }
+      } else if (!finalRepositoryId && podItem.skillIds && podItem.skillIds.length > 0) {
+        for (const skillId of podItem.skillIds) {
+          try {
+            await skillService.copySkillToPod(skillId, pod.id);
+          } catch (error) {
+            console.error(`[Paste] Failed to copy skill ${skillId} to pod:`, error);
+          }
+        }
+      }
 
       createdPods.push(pod);
       podIdMapping[podItem.originalId] = pod.id;
@@ -131,6 +170,27 @@ export async function handleCanvasPaste(
     }
   }
 
+  // Process RepositoryNotes
+  for (const noteItem of repositoryNotes) {
+    try {
+      const boundToPodId = resolveBoundPodId(noteItem.boundToOriginalPodId, podIdMapping);
+
+      const note = repositoryNoteStore.create({
+        repositoryId: noteItem.repositoryId,
+        name: noteItem.name,
+        x: noteItem.x,
+        y: noteItem.y,
+        boundToPodId,
+        originalPosition: noteItem.originalPosition,
+      });
+
+      createdRepositoryNotes.push(note);
+      console.log(`[Paste] Created RepositoryNote ${note.id} (${note.name})`);
+    } catch (error) {
+      recordError(errors, 'repositoryNote', noteItem.repositoryId, error, '建立儲存庫筆記失敗');
+    }
+  }
+
   // Process Connections
   for (const connItem of connections ?? []) {
     try {
@@ -166,6 +226,7 @@ export async function handleCanvasPaste(
     createdPods,
     createdOutputStyleNotes,
     createdSkillNotes,
+    createdRepositoryNotes,
     createdConnections,
     podIdMapping,
     errors,
@@ -178,6 +239,6 @@ export async function handleCanvasPaste(
   emitSuccess(socket, WebSocketResponseEvents.CANVAS_PASTE_RESULT, response);
 
   console.log(
-    `[Paste] Completed: ${createdPods.length} pods, ${createdOutputStyleNotes.length} output style notes, ${createdSkillNotes.length} skill notes, ${createdConnections.length} connections, ${errors.length} errors`
+    `[Paste] Completed: ${createdPods.length} pods, ${createdOutputStyleNotes.length} output style notes, ${createdSkillNotes.length} skill notes, ${createdRepositoryNotes.length} repository notes, ${createdConnections.length} connections, ${errors.length} errors`
   );
 }
