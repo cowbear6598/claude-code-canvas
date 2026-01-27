@@ -1,19 +1,20 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { usePodStore, useViewportStore, useSelectionStore } from '@/stores/pod'
-import { useOutputStyleStore, useSkillStore } from '@/stores/note'
-import { useConnectionStore } from '@/stores/connectionStore'
-import { useDeleteSelection } from '@/composables/canvas'
+import {ref, computed} from 'vue'
+import {usePodStore, useViewportStore, useSelectionStore} from '@/stores/pod'
+import {useOutputStyleStore, useSkillStore, useRepositoryStore} from '@/stores/note'
+import {useConnectionStore} from '@/stores/connectionStore'
+import {useDeleteSelection} from '@/composables/canvas'
 import CanvasViewport from './CanvasViewport.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
 import OutputStyleNote from './OutputStyleNote.vue'
 import SkillNote from './SkillNote.vue'
+import RepositoryNote from './RepositoryNote.vue'
 import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
 import SelectionBox from './SelectionBox.vue'
-import type { PodTypeConfig } from '@/types'
+import type {PodTypeConfig} from '@/types'
 import {
   POD_MENU_X_OFFSET,
   POD_MENU_Y_OFFSET,
@@ -25,14 +26,15 @@ const viewportStore = useViewportStore()
 const selectionStore = useSelectionStore()
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
+const repositoryStore = useRepositoryStore()
 const connectionStore = useConnectionStore()
 
 useDeleteSelection()
 
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
 
-const showTrashZone = computed(() => outputStyleStore.isDraggingNote || skillStore.isDraggingNote)
-const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash || skillStore.isOverTrash)
+const showTrashZone = computed(() => outputStyleStore.isDraggingNote || skillStore.isDraggingNote || repositoryStore.isDraggingNote)
+const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash || skillStore.isOverTrash || repositoryStore.isOverTrash)
 
 const validateCoordinate = (value: number): number => {
   if (!Number.isFinite(value)) {
@@ -79,6 +81,11 @@ const handleCanvasClick = (e: MouseEvent) => {
 
   // 如果點擊的是 SkillNote，不取消選取
   if (target.closest('.skill-note')) {
+    return
+  }
+
+  // 如果點擊的是 RepositoryNote，不取消選取
+  if (target.closest('.repository-note')) {
     return
   }
 
@@ -139,6 +146,15 @@ const handleCreateSkillNote = (skillId: string) => {
   const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
 
   skillStore.createNote(skillId, canvasX, canvasY)
+}
+
+const handleCreateRepositoryNote = (repositoryId: string) => {
+  if (!podStore.typeMenu.position) return
+
+  const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
+  const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
+
+  repositoryStore.createNote(repositoryId, canvasX, canvasY)
 }
 
 // 拖拽過程中只更新本地狀態，不發 WebSocket
@@ -205,6 +221,38 @@ const handleSkillNoteDragComplete = async (data: { noteId: string; isOverTrash: 
 
   skillStore.setIsOverTrash(false)
 }
+
+const handleRepositoryNoteDragEnd = (data: {noteId: string; x: number; y: number}) => {
+  repositoryStore.updateNotePositionLocal(data.noteId, data.x, data.y)
+}
+
+const handleRepositoryNoteDragMove = (data: {noteId: string; screenX: number; screenY: number}) => {
+  if (!trashZoneRef.value) return
+
+  const isOver = trashZoneRef.value.isPointInZone(data.screenX, data.screenY)
+  repositoryStore.setIsOverTrash(isOver)
+}
+
+const handleRepositoryNoteDragComplete = async (data: {noteId: string; isOverTrash: boolean; startX: number; startY: number}) => {
+  const note = repositoryStore.getNoteById(data.noteId)
+  if (!note) return
+
+  if (data.isOverTrash) {
+    if (note.boundToPodId === null) {
+      await repositoryStore.deleteNote(data.noteId)
+    } else {
+      repositoryStore.setNoteAnimating(data.noteId, true)
+      await repositoryStore.updateNotePosition(data.noteId, data.startX, data.startY)
+      setTimeout(() => {
+        repositoryStore.setNoteAnimating(data.noteId, false)
+      }, 300)
+    }
+  } else {
+    await repositoryStore.updateNotePosition(data.noteId, note.x, note.y)
+  }
+
+  repositoryStore.setIsOverTrash(false)
+}
 </script>
 
 <template>
@@ -246,6 +294,16 @@ const handleSkillNoteDragComplete = async (data: { noteId: string; isOverTrash: 
       @drag-complete="handleSkillNoteDragComplete"
     />
 
+    <!-- Repository Notes -->
+    <RepositoryNote
+      v-for="note in repositoryStore.getUnboundNotes"
+      :key="note.id"
+      :note="note"
+      @drag-end="handleRepositoryNoteDragEnd"
+      @drag-move="handleRepositoryNoteDragMove"
+      @drag-complete="handleRepositoryNoteDragComplete"
+    />
+
     <!-- 空狀態 - 在畫布座標中央 -->
     <EmptyState v-if="podStore.podCount === 0" />
   </CanvasViewport>
@@ -257,6 +315,7 @@ const handleSkillNoteDragComplete = async (data: { noteId: string; isOverTrash: 
     @select="handleSelectType"
     @create-output-style-note="handleCreateOutputStyleNote"
     @create-skill-note="handleCreateSkillNote"
+    @create-repository-note="handleCreateRepositoryNote"
     @close="podStore.hideTypeMenu"
   />
 

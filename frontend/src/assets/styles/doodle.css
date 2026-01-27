@@ -321,6 +321,140 @@
   }
 }
 
+/* Repository Note */
+.repository-note {
+  position: absolute;
+  padding: 6px 12px;
+  background: var(--doodle-orange);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
+  cursor: grab;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  z-index: 20;
+  white-space: nowrap;
+}
+
+.repository-note.animating {
+  transition: left 0.3s ease, top 0.3s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.repository-note:hover {
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
+  transform: translate(-0.5px, -0.5px) rotate(-1deg);
+}
+
+.repository-note.dragging {
+  cursor: grabbing;
+  box-shadow: 4px 4px 0 oklch(0.4 0.02 50 / 0.5);
+  transform: rotate(2deg);
+  z-index: 100;
+}
+
+.repository-note-text {
+  font-family: var(--font-mono), monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: oklch(0.3 0.02 50);
+  text-align: center;
+}
+
+.repository-note.selected {
+  box-shadow: 0 0 0 2px oklch(0.65 0.15 170 / 0.6);
+  border-color: oklch(0.55 0.15 170);
+}
+
+/* Pod Repository Slot */
+.pod-repository-slot {
+  padding: 6px 12px;
+  background: transparent;
+  border: 2px dashed oklch(0.6 0.02 50 / 0.4);
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.pod-repository-slot.drop-target {
+  background: oklch(0.7 0.1 150 / 0.3);
+  border: 2px solid oklch(0.6 0.1 150);
+  box-shadow: 0 0 12px oklch(0.6 0.1 150 / 0.6);
+  transform: scale(1.05);
+}
+
+.pod-repository-slot.has-note {
+  background: var(--doodle-orange);
+  border-color: var(--doodle-ink);
+  border-style: solid;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
+  cursor: pointer;
+  transform: translateX(-50%);
+}
+
+.pod-repository-slot.has-note:hover {
+  transform: translateX(-50%) translate(0.5px, -0.5px);
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
+}
+
+.pod-repository-slot.ejecting {
+  animation: eject-from-slot-right 0.3s ease-out forwards;
+}
+
+.pod-repository-slot.inserting {
+  animation: slide-into-slot-right 0.3s ease-out;
+}
+
+@keyframes slide-into-slot-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%);
+    opacity: 1;
+  }
+}
+
+@keyframes eject-from-slot-right {
+  from {
+    transform: translateX(-50%);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Repository Slot 容器位置（POD 右側） */
+.pod-repository-notch-area {
+  position: absolute;
+  right: 0;
+  top: 18px;
+  transform: translateX(100%);
+  z-index: -1;
+}
+
+/* Repository 凹槽視覺效果（POD 右側的小突出） */
+.repository-notch {
+  position: absolute;
+  right: -6px;
+  top: 16px;    /* 與 Output Style 凹槽同高 */
+  width: 8px;
+  height: 32px;
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  z-index: -1;
+}
+
 /* Pod Menu Submenu */
 .pod-menu-submenu {
   position: absolute;

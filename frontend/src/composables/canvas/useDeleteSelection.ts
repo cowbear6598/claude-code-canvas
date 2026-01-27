@@ -4,7 +4,7 @@ import { useToast } from '@/composables/useToast'
 import { isEditingElement } from '@/utils/domHelpers'
 
 async function deleteSelectedElements(): Promise<void> {
-  const { podStore, selectionStore, outputStyleStore, skillStore } = useCanvasContext()
+  const { podStore, selectionStore, outputStyleStore, skillStore, repositoryStore } = useCanvasContext()
   const { toast } = useToast()
 
   const selectedElements = selectionStore.selectedElements
@@ -22,6 +22,10 @@ async function deleteSelectedElements(): Promise<void> {
     .filter(el => el.type === 'skillNote')
     .map(el => el.id)
 
+  const repositoryNotes = selectedElements
+    .filter(el => el.type === 'repositoryNote')
+    .map(el => el.id)
+
   const deletePromises: Promise<void>[] = []
 
   pods.forEach(id => {
@@ -34,6 +38,10 @@ async function deleteSelectedElements(): Promise<void> {
 
   skillNotes.forEach(id => {
     deletePromises.push(skillStore.deleteNote(id))
+  })
+
+  repositoryNotes.forEach(id => {
+    deletePromises.push(repositoryStore.deleteNote(id))
   })
 
   const results = await Promise.allSettled(deletePromises)

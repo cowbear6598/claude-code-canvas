@@ -2,6 +2,8 @@
 // Loads and validates environment variables
 
 import dotenv from 'dotenv';
+import os from 'os';
+import path from 'path';
 
 // Load environment variables
 dotenv.config();
@@ -10,7 +12,8 @@ interface Config {
   port: number;
   nodeEnv: string;
   appDataRoot: string;
-  workspaceRoot: string;
+  canvasRoot: string;
+  repositoriesRoot: string;
   corsOrigin: string;
   githubToken?: string;
   outputStylesPath: string;
@@ -24,10 +27,14 @@ function loadConfig(): Config {
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
   const githubToken = process.env.GITHUB_TOKEN;
 
-  const appDataRoot = './app-data';
-  const workspaceRoot = './app-data/workspaces';
-  const outputStylesPath = './app-data/output-styles';
-  const skillsPath = './app-data/skills';
+  // 根目錄：~/Documents/ClaudeCanvas
+  const dataRoot = path.join(os.homedir(), 'Documents', 'ClaudeCanvas');
+
+  const appDataRoot = dataRoot;
+  const canvasRoot = path.join(dataRoot, 'canvas');
+  const repositoriesRoot = path.join(dataRoot, 'repositories');
+  const outputStylesPath = path.join(dataRoot, 'output-styles');
+  const skillsPath = path.join(dataRoot, 'skills');
 
   // Validate port number
   if (isNaN(port) || port < 1 || port > 65535) {
@@ -41,7 +48,8 @@ function loadConfig(): Config {
     port,
     nodeEnv,
     appDataRoot,
-    workspaceRoot,
+    canvasRoot,
+    repositoriesRoot,
     corsOrigin,
     githubToken,
     outputStylesPath,

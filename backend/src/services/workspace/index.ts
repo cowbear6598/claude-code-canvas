@@ -42,7 +42,7 @@ class WorkspaceService {
    * Get workspace path for a Pod
    */
   getWorkspacePath(podId: string): string {
-    return path.join(config.workspaceRoot, `pod-${podId}`);
+    return path.join(config.canvasRoot, `pod-${podId}`);
   }
 
   /**

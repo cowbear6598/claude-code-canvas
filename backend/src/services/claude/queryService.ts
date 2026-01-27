@@ -1,9 +1,11 @@
 import {v4 as uuidv4} from 'uuid';
+import path from 'path';
 import {type Options, query} from '@anthropic-ai/claude-agent-sdk';
 import {podStore} from '../podStore.js';
 import {messageStore} from '../messageStore.js';
 import {outputStyleService} from '../outputStyleService.js';
 import {Message, ToolUseInfo} from '../../types/index.js';
+import {config} from '../../config/index.js';
 
 export type StreamEvent =
   | TextStreamEvent
@@ -61,8 +63,14 @@ class ClaudeQueryService {
 
       const resumeSessionId = pod.claudeSessionId;
 
+      const cwd = pod.repositoryId
+        ? path.join(config.repositoriesRoot, pod.repositoryId)
+        : pod.workspacePath;
+
+      console.log(`[QueryService] Pod ${podId} cwd: ${cwd} (repositoryId: ${pod.repositoryId || 'none'})`);
+
       const queryOptions: Options = {
-        cwd: pod.workspacePath,
+        cwd,
         settingSources: ['project'],
         allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Skill'],
         permissionMode: 'acceptEdits',

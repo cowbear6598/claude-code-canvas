@@ -1,4 +1,5 @@
 export { useOutputStyleStore } from './outputStyleStore'
 export { useSkillStore } from './skillStore'
+export { useRepositoryStore } from './repositoryStore'
 export { createNoteStore } from './createNoteStore'
 export type { BaseNoteState, BaseNoteGetters, BaseNoteActions, NoteStoreConfig } from './createNoteStore'

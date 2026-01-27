@@ -41,7 +41,8 @@ async function startServer(): Promise<void> {
       console.log(`[Server] Environment: ${config.nodeEnv}`);
       console.log(`[Server] CORS Origin: ${config.corsOrigin}`);
       console.log(`[Server] App Data Root: ${config.appDataRoot}`);
-      console.log(`[Server] Workspace Root: ${config.workspaceRoot}`);
+      console.log(`[Server] Canvas Root: ${config.canvasRoot}`);
+      console.log(`[Server] Repositories Root: ${config.repositoriesRoot}`);
       console.log(`[Server] Authentication: Claude Code CLI`);
     });
   } catch (error) {

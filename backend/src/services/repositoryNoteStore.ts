@@ -1,14 +1,14 @@
-// Output Style Note Store
-// Manages Output Style Notes with persistence to disk
+// Repository Note Store
+// Manages Repository Notes with persistence to disk
 
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { OutputStyleNote } from '../types/outputStyleNote.js';
+import type { RepositoryNote } from '../types/repositoryNote.js';
 import { config } from '../config/index.js';
 
-interface CreateNoteData {
-  outputStyleId: string;
+interface CreateRepositoryNoteData {
+  repositoryId: string;
   name: string;
   x: number;
   y: number;
@@ -16,23 +16,23 @@ interface CreateNoteData {
   originalPosition: { x: number; y: number } | null;
 }
 
-class NoteStore {
-  private notes: Map<string, OutputStyleNote> = new Map();
+class RepositoryNoteStore {
+  private notes: Map<string, RepositoryNote> = new Map();
   private readonly notesFilePath: string;
 
   constructor() {
-    this.notesFilePath = path.join(config.canvasRoot, 'data', 'notes.json');
+    this.notesFilePath = path.join(config.canvasRoot, 'data', 'repository-notes.json');
   }
 
   /**
-   * Create a new note
+   * Create a new repository note
    */
-  create(data: CreateNoteData): OutputStyleNote {
+  create(data: CreateRepositoryNoteData): RepositoryNote {
     const id = uuidv4();
 
-    const note: OutputStyleNote = {
+    const note: RepositoryNote = {
       id,
-      outputStyleId: data.outputStyleId,
+      repositoryId: data.repositoryId,
       name: data.name,
       x: data.x,
       y: data.y,
@@ -47,23 +47,23 @@ class NoteStore {
   }
 
   /**
-   * Get a note by ID
+   * Get a repository note by ID
    */
-  getById(id: string): OutputStyleNote | undefined {
+  getById(id: string): RepositoryNote | undefined {
     return this.notes.get(id);
   }
 
   /**
-   * Get all notes
+   * Get all repository notes
    */
-  list(): OutputStyleNote[] {
+  list(): RepositoryNote[] {
     return Array.from(this.notes.values());
   }
 
   /**
-   * Update a note
+   * Update a repository note
    */
-  update(id: string, updates: Partial<Omit<OutputStyleNote, 'id'>>): OutputStyleNote | undefined {
+  update(id: string, updates: Partial<Omit<RepositoryNote, 'id'>>): RepositoryNote | undefined {
     const note = this.notes.get(id);
     if (!note) {
       return undefined;
@@ -77,7 +77,7 @@ class NoteStore {
   }
 
   /**
-   * Delete a note
+   * Delete a repository note
    */
   delete(id: string): boolean {
     const deleted = this.notes.delete(id);
@@ -88,16 +88,16 @@ class NoteStore {
   }
 
   /**
-   * Find notes bound to a specific Pod
+   * Find repository notes bound to a specific Pod
    */
-  findByBoundPodId(podId: string): OutputStyleNote[] {
+  findByBoundPodId(podId: string): RepositoryNote[] {
     return Array.from(this.notes.values()).filter(
       (note) => note.boundToPodId === podId
     );
   }
 
   /**
-   * Delete all notes bound to a specific Pod
+   * Delete all repository notes bound to a specific Pod
    */
   deleteByBoundPodId(podId: string): number {
     const notesToDelete = this.findByBoundPodId(podId);
@@ -114,7 +114,7 @@ class NoteStore {
   }
 
   /**
-   * Load notes from disk
+   * Load repository notes from disk
    */
   async loadFromDisk(): Promise<void> {
     try {
@@ -122,36 +122,36 @@ class NoteStore {
       const dataDir = path.dirname(this.notesFilePath);
       await fs.mkdir(dataDir, { recursive: true });
 
-      // Try to read the notes file
+      // Try to read the repository notes file
       try {
         const data = await fs.readFile(this.notesFilePath, 'utf-8');
-        const notesArray: OutputStyleNote[] = JSON.parse(data);
+        const notesArray: RepositoryNote[] = JSON.parse(data);
 
-        // Load notes into the Map
+        // Load repository notes into the Map
         this.notes.clear();
         for (const note of notesArray) {
           this.notes.set(note.id, note);
         }
 
-        console.log(`[NoteStore] Loaded ${this.notes.size} notes from disk`);
+        console.log(`[RepositoryNoteStore] Loaded ${this.notes.size} repository notes from disk`);
       } catch (readError: unknown) {
-        // If the file doesn't exist, that's okay - start with empty notes
+        // If the file doesn't exist, that's okay - start with empty repository notes
         const error = readError as NodeJS.ErrnoException;
         if (error.code === 'ENOENT') {
-          console.log('[NoteStore] No existing notes file found, starting fresh');
+          console.log('[RepositoryNoteStore] No existing repository notes file found, starting fresh');
           this.notes.clear();
         } else {
           throw readError;
         }
       }
     } catch (error) {
-      console.error(`[NoteStore] Failed to load notes from disk: ${error}`);
+      console.error(`[RepositoryNoteStore] Failed to load repository notes from disk: ${error}`);
       throw error;
     }
   }
 
   /**
-   * Save notes to disk
+   * Save repository notes to disk
    */
   async saveToDisk(): Promise<void> {
     try {
@@ -165,20 +165,20 @@ class NoteStore {
       // Write to file
       await fs.writeFile(this.notesFilePath, JSON.stringify(notesArray, null, 2), 'utf-8');
     } catch (error) {
-      console.error(`[NoteStore] Failed to save notes to disk: ${error}`);
+      console.error(`[RepositoryNoteStore] Failed to save repository notes to disk: ${error}`);
       throw error;
     }
   }
 
   /**
-   * Save notes to disk asynchronously (non-blocking)
+   * Save repository notes to disk asynchronously (non-blocking)
    */
   private saveToDiskAsync(): void {
     this.saveToDisk().catch((error) => {
-      console.error(`[NoteStore] Failed to persist notes: ${error}`);
+      console.error(`[RepositoryNoteStore] Failed to persist repository notes: ${error}`);
     });
   }
 }
 
 // Export singleton instance
-export const noteStore = new NoteStore();
+export const repositoryNoteStore = new RepositoryNoteStore();

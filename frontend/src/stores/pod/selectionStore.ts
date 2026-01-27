@@ -1,6 +1,6 @@
-import { defineStore } from 'pinia'
-import type { SelectableElement, SelectionBox } from '@/types'
-import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT } from '@/lib/constants'
+import {defineStore} from 'pinia'
+import type {SelectableElement, SelectionBox} from '@/types'
+import {POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT} from '@/lib/constants'
 
 interface SelectionState {
   isSelecting: boolean
@@ -40,6 +40,14 @@ export const useSelectionStore = defineStore('selection', {
     selectedSkillNoteIds: (state): string[] =>
       state.selectedElements
         .filter(el => el.type === 'skillNote')
+        .map(el => el.id),
+
+    /**
+     * 取得選中的 RepositoryNote ID 列表
+     */
+    selectedRepositoryNoteIds: (state): string[] =>
+      state.selectedElements
+        .filter(el => el.type === 'repositoryNote')
         .map(el => el.id),
 
     /**
@@ -95,17 +103,11 @@ export const useSelectionStore = defineStore('selection', {
       this.selectedElements = elements
     },
 
-    /**
-     * 計算框選範圍內的元素
-     *
-     * @param pods - Pod 列表
-     * @param outputStyleNotes - OutputStyleNote 列表
-     * @param skillNotes - SkillNote 列表
-     */
     calculateSelectedElements(
-      pods: Array<{ id: string; x: number; y: number }>,
-      outputStyleNotes: Array<{ id: string; x: number; y: number; boundToPodId: string | null }>,
-      skillNotes: Array<{ id: string; x: number; y: number; boundToPodId: string | null }>
+      pods: Array<{id: string; x: number; y: number}>,
+      outputStyleNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}>,
+      skillNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}>,
+      repositoryNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = []
     ): void {
       if (!this.box) return
 
@@ -117,7 +119,6 @@ export const useSelectionStore = defineStore('selection', {
 
       const selected: SelectableElement[] = []
 
-      // 檢查 Pods
       for (const pod of pods) {
         const podMinX = pod.x
         const podMaxX = pod.x + POD_WIDTH
@@ -127,11 +128,10 @@ export const useSelectionStore = defineStore('selection', {
         const hasIntersection = !(podMaxX < minX || podMinX > maxX || podMaxY < minY || podMinY > maxY)
 
         if (hasIntersection) {
-          selected.push({ type: 'pod', id: pod.id })
+          selected.push({type: 'pod', id: pod.id})
         }
       }
 
-      // 檢查 OutputStyleNotes（只選取未綁定的）
       for (const note of outputStyleNotes) {
         if (note.boundToPodId) continue
 
@@ -143,11 +143,10 @@ export const useSelectionStore = defineStore('selection', {
         const hasIntersection = !(noteMaxX < minX || noteMinX > maxX || noteMaxY < minY || noteMinY > maxY)
 
         if (hasIntersection) {
-          selected.push({ type: 'outputStyleNote', id: note.id })
+          selected.push({type: 'outputStyleNote', id: note.id})
         }
       }
 
-      // 檢查 SkillNotes（只選取未綁定的）
       for (const note of skillNotes) {
         if (note.boundToPodId) continue
 
@@ -159,7 +158,22 @@ export const useSelectionStore = defineStore('selection', {
         const hasIntersection = !(noteMaxX < minX || noteMinX > maxX || noteMaxY < minY || noteMinY > maxY)
 
         if (hasIntersection) {
-          selected.push({ type: 'skillNote', id: note.id })
+          selected.push({type: 'skillNote', id: note.id})
+        }
+      }
+
+      for (const note of repositoryNotes) {
+        if (note.boundToPodId) continue
+
+        const noteMinX = note.x
+        const noteMaxX = note.x + NOTE_WIDTH
+        const noteMinY = note.y
+        const noteMaxY = note.y + NOTE_HEIGHT
+
+        const hasIntersection = !(noteMaxX < minX || noteMinX > maxX || noteMaxY < minY || noteMinY > maxY)
+
+        if (hasIntersection) {
+          selected.push({type: 'repositoryNote', id: note.id})
         }
       }
 

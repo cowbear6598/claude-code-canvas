@@ -38,6 +38,15 @@ export const WebSocketRequestEvents = {
   WORKFLOW_GET_DOWNSTREAM_PODS: 'workflow:get-downstream-pods',
   WORKFLOW_CLEAR: 'workflow:clear',
   CANVAS_PASTE: 'canvas:paste',
+  // Repository Events
+  REPOSITORY_LIST: 'repository:list',
+  REPOSITORY_CREATE: 'repository:create',
+  REPOSITORY_NOTE_CREATE: 'repository-note:create',
+  REPOSITORY_NOTE_LIST: 'repository-note:list',
+  REPOSITORY_NOTE_UPDATE: 'repository-note:update',
+  REPOSITORY_NOTE_DELETE: 'repository-note:delete',
+  POD_BIND_REPOSITORY: 'pod:bind-repository',
+  POD_UNBIND_REPOSITORY: 'pod:unbind-repository',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -90,6 +99,15 @@ export const WebSocketResponseEvents = {
   WORKFLOW_GET_DOWNSTREAM_PODS_RESULT: 'workflow:get-downstream-pods:result',
   WORKFLOW_CLEAR_RESULT: 'workflow:clear:result',
   CANVAS_PASTE_RESULT: 'canvas:paste:result',
+  // Repository Events
+  REPOSITORY_LIST_RESULT: 'repository:list:result',
+  REPOSITORY_CREATED: 'repository:created',
+  REPOSITORY_NOTE_CREATED: 'repository-note:created',
+  REPOSITORY_NOTE_LIST_RESULT: 'repository-note:list:result',
+  REPOSITORY_NOTE_UPDATED: 'repository-note:updated',
+  REPOSITORY_NOTE_DELETED: 'repository-note:deleted',
+  POD_REPOSITORY_BOUND: 'pod:repository:bound',
+  POD_REPOSITORY_UNBOUND: 'pod:repository:unbound',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]

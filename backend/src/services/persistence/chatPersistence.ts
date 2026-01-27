@@ -5,7 +5,7 @@ import { config } from '../../config/index.js';
 
 class ChatPersistenceService {
   getChatFilePath(podId: string): string {
-    return path.join(config.workspaceRoot, `pod-${podId}`, 'chat.json');
+    return path.join(config.canvasRoot, `pod-${podId}`, 'chat.json');
   }
 
   async saveMessage(podId: string, message: PersistedMessage): Promise<void> {

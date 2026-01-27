@@ -29,3 +29,6 @@ export * from './pasteSchemas.js';
 
 // Git schemas
 export * from './gitSchemas.js';
+
+// Repository schemas
+export * from './repositorySchemas.js';

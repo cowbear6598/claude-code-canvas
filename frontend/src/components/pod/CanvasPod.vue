@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
-import type { Pod, ModelType } from '@/types'
-import type { AnchorPosition } from '@/types/connection'
-import { usePodStore, useViewportStore, useSelectionStore } from '@/stores/pod'
-import { useOutputStyleStore, useSkillStore } from '@/stores/note'
-import { useConnectionStore } from '@/stores/connectionStore'
-import { useChatStore } from '@/stores/chatStore'
-import { useAnchorDetection } from '@/composables/useAnchorDetection'
-import { useBatchDrag } from '@/composables/canvas'
-import { createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
+import {ref, computed, onUnmounted} from 'vue'
+import type {Pod, ModelType} from '@/types'
+import type {AnchorPosition} from '@/types/connection'
+import {usePodStore, useViewportStore, useSelectionStore} from '@/stores/pod'
+import {useOutputStyleStore, useSkillStore, useRepositoryStore} from '@/stores/note'
+import {useConnectionStore} from '@/stores/connectionStore'
+import {useChatStore} from '@/stores/chatStore'
+import {useAnchorDetection} from '@/composables/useAnchorDetection'
+import {useBatchDrag} from '@/composables/canvas'
+import {createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
 import type {
   WorkflowGetDownstreamPodsResultPayload,
   WorkflowClearResultPayload,
@@ -21,9 +21,10 @@ import PodHeader from './PodHeader.vue'
 import PodMiniScreen from './PodMiniScreen.vue'
 import PodOutputStyleSlot from './PodOutputStyleSlot.vue'
 import PodSkillSlot from './PodSkillSlot.vue'
+import PodRepositorySlot from './PodRepositorySlot.vue'
 import PodAnchor from './PodAnchor.vue'
 import PodModelSelector from './PodModelSelector.vue'
-import { Eraser, Trash2 } from 'lucide-vue-next'
+import {Eraser, Trash2} from 'lucide-vue-next'
 import {
   Dialog,
   DialogContent,
@@ -32,7 +33,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import {Button} from '@/components/ui/button'
 
 const props = defineProps<{
   pod: Pod
@@ -43,14 +44,16 @@ const viewportStore = useViewportStore()
 const selectionStore = useSelectionStore()
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
+const repositoryStore = useRepositoryStore()
 const connectionStore = useConnectionStore()
 const chatStore = useChatStore()
-const { detectTargetAnchor } = useAnchorDetection()
-const { startBatchDrag, isElementSelected } = useBatchDrag()
+const {detectTargetAnchor} = useAnchorDetection()
+const {startBatchDrag, isElementSelected} = useBatchDrag()
 
 const isActive = computed(() => props.pod.id === podStore.activePodId)
 const boundNote = computed(() => outputStyleStore.getNoteByPodId(props.pod.id))
 const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
+const boundRepositoryNote = computed(() => repositoryStore.getNoteByPodId(props.pod.id))
 const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
 const currentModel = computed(() => props.pod.model ?? 'opus')
 
@@ -66,7 +69,7 @@ const emit = defineEmits<{
   select: [podId: string]
   update: [pod: Pod]
   delete: [id: string]
-  'drag-end': [data: { id: string; x: number; y: number }]
+  'drag-end': [data: {id: string; x: number; y: number}]
 }>()
 
 const isDragging = ref(false)
@@ -106,24 +109,22 @@ onUnmounted(() => {
 })
 
 const handleMouseDown = (e: MouseEvent) => {
-  // 排除特定區域的拖拽
   if (
     (e.target as HTMLElement).closest('.pod-output-style-slot') ||
-    (e.target as HTMLElement).closest('.pod-skill-slot')
+    (e.target as HTMLElement).closest('.pod-skill-slot') ||
+    (e.target as HTMLElement).closest('.pod-repository-slot')
   ) {
     return
   }
 
-  // 檢查此 POD 是否在選中列表中
   if (isElementSelected('pod', props.pod.id)) {
     if (startBatchDrag(e)) {
       return
     }
   }
 
-  // 點擊時選取當前 POD（若未選取則清除其他並選取當前）
   if (!isElementSelected('pod', props.pod.id)) {
-    selectionStore.setSelectedElements([{ type: 'pod', id: props.pod.id }])
+    selectionStore.setSelectedElements([{type: 'pod', id: props.pod.id}])
   }
 
   podStore.setActivePod(props.pod.id)
@@ -131,7 +132,6 @@ const handleMouseDown = (e: MouseEvent) => {
   // 取消 connection 選取
   connectionStore.selectConnection(null)
 
-  // 先清理之前可能存在的監聽器
   cleanupEventListeners()
 
   isDragging.value = true
@@ -144,8 +144,10 @@ const handleMouseDown = (e: MouseEvent) => {
 
   const handleMouseMove = (moveEvent: MouseEvent) => {
     if (!dragRef.value) return
+
     const dx = (moveEvent.clientX - dragRef.value.startX) / viewportStore.zoom
     const dy = (moveEvent.clientY - dragRef.value.startY) / viewportStore.zoom
+
     emit('drag-end', {
       id: props.pod.id,
       x: dragRef.value.podX + dx,
@@ -159,7 +161,6 @@ const handleMouseDown = (e: MouseEvent) => {
     cleanupEventListeners()
   }
 
-  // 保存引用以便清理
   currentMouseMoveHandler = handleMouseMove
   currentMouseUpHandler = handleMouseUp
 
@@ -172,7 +173,7 @@ const handleRename = () => {
 }
 
 const handleUpdateName = (name: string) => {
-  emit('update', { ...props.pod, name })
+  emit('update', {...props.pod, name})
 }
 
 const handleSaveName = () => {
@@ -217,14 +218,25 @@ const handleSkillNoteDropped = async (noteId: string) => {
     return
   }
 
-  // Check if this skill is already bound to this pod
   if (skillStore.isSkillBoundToPod(note.skillId, props.pod.id)) {
     console.warn('[CanvasPod] Skill already bound to this pod:', note.skillId)
-    // Note will fly back to original position automatically via animation
     return
   }
 
   await skillStore.bindToPod(noteId, props.pod.id)
+}
+
+const handleRepositoryNoteDropped = async (noteId: string) => {
+  await repositoryStore.bindToPod(noteId, props.pod.id)
+  const note = repositoryStore.getNoteById(noteId)
+  if (note) {
+    podStore.updatePodRepository(props.pod.id, note.repositoryId)
+  }
+}
+
+const handleRepositoryNoteRemoved = async () => {
+  await repositoryStore.unbindFromPod(props.pod.id, true)
+  podStore.updatePodRepository(props.pod.id, null)
 }
 
 const handleAnchorDragStart = (data: {
@@ -236,14 +248,14 @@ const handleAnchorDragStart = (data: {
   const canvasX = (data.screenX - viewportStore.offset.x) / viewportStore.zoom
   const canvasY = (data.screenY - viewportStore.offset.y) / viewportStore.zoom
 
-  connectionStore.startDragging(data.podId, data.anchor, { x: canvasX, y: canvasY })
+  connectionStore.startDragging(data.podId, data.anchor, {x: canvasX, y: canvasY})
 }
 
-const handleAnchorDragMove = (data: { screenX: number; screenY: number }) => {
+const handleAnchorDragMove = (data: {screenX: number; screenY: number}) => {
   const canvasX = (data.screenX - viewportStore.offset.x) / viewportStore.zoom
   const canvasY = (data.screenY - viewportStore.offset.y) / viewportStore.zoom
 
-  connectionStore.updateDraggingPosition({ x: canvasX, y: canvasY })
+  connectionStore.updateDraggingPosition({x: canvasX, y: canvasY})
 }
 
 const handleAnchorDragEnd = async () => {
@@ -252,7 +264,7 @@ const handleAnchorDragEnd = async () => {
     return
   }
 
-  const { sourcePodId, sourceAnchor, currentPoint } = connectionStore.draggingConnection
+  const {sourcePodId, sourceAnchor, currentPoint} = connectionStore.draggingConnection
 
   const targetAnchor = detectTargetAnchor(currentPoint, podStore.pods, sourcePodId)
 
@@ -275,15 +287,13 @@ const handleClearWorkflow = async () => {
     const response = await createWebSocketRequest<WorkflowGetDownstreamPodsPayload, WorkflowGetDownstreamPodsResultPayload>({
       requestEvent: WebSocketRequestEvents.WORKFLOW_GET_DOWNSTREAM_PODS,
       responseEvent: WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
-      payload: {
-        sourcePodId: props.pod.id
-      }
+      payload: {sourcePodId: props.pod.id}
     })
 
-    if (response.pods) {
-      downstreamPods.value = response.pods
-      showClearDialog.value = true
-    }
+    if (!response.pods) return
+
+    downstreamPods.value = response.pods
+    showClearDialog.value = true
   } catch (error) {
     console.error('[CanvasPod] Failed to get downstream pods:', error)
   } finally {
@@ -298,17 +308,15 @@ const confirmClear = async () => {
     const response = await createWebSocketRequest<WorkflowClearPayload, WorkflowClearResultPayload>({
       requestEvent: WebSocketRequestEvents.WORKFLOW_CLEAR,
       responseEvent: WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
-      payload: {
-        sourcePodId: props.pod.id
-      }
+      payload: {sourcePodId: props.pod.id}
     })
 
-    if (response.clearedPodIds) {
-      chatStore.clearMessagesByPodIds(response.clearedPodIds)
-      podStore.clearPodOutputsByIds(response.clearedPodIds)
-      showClearDialog.value = false
-      downstreamPods.value = []
-    }
+    if (!response.clearedPodIds) return
+
+    chatStore.clearMessagesByPodIds(response.clearedPodIds)
+    podStore.clearPodOutputsByIds(response.clearedPodIds)
+    showClearDialog.value = false
+    downstreamPods.value = []
   } catch (error) {
     console.error('[CanvasPod] Failed to clear workflow:', error)
   } finally {
@@ -326,15 +334,12 @@ const handleModelChange = async (model: ModelType) => {
     const response = await createWebSocketRequest<PodUpdatePayload, PodUpdatedPayload>({
       requestEvent: WebSocketRequestEvents.POD_UPDATE,
       responseEvent: WebSocketResponseEvents.POD_UPDATED,
-      payload: {
-        podId: props.pod.id,
-        model
-      }
+      payload: {podId: props.pod.id, model}
     })
 
-    if (response.pod) {
-      podStore.updatePodModel(props.pod.id, response.pod.model ?? 'opus')
-    }
+    if (!response.pod) return
+
+    podStore.updatePodModel(props.pod.id, response.pod.model ?? 'opus')
   } catch (error) {
     console.error('[CanvasPod] Failed to update model:', error)
   }
@@ -353,7 +358,7 @@ const handleModelChange = async (model: ModelType) => {
   >
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
-      class="relative pod-with-notch pod-with-skill-notch pod-with-model-notch"
+      class="relative pod-with-notch pod-with-skill-notch pod-with-model-notch pod-with-repository-notch"
       :style="{ transform: `rotate(${pod.rotation}deg)` }"
     >
       <!-- Model Selector -->
@@ -383,10 +388,23 @@ const handleModelChange = async (model: ModelType) => {
         />
       </div>
 
+      <!-- Repository 凹槽（右側） -->
+      <div class="pod-repository-notch-area">
+        <PodRepositorySlot
+          :pod-id="pod.id"
+          :bound-note="boundRepositoryNote"
+          :pod-rotation="pod.rotation"
+          @note-dropped="handleRepositoryNoteDropped"
+          @note-removed="handleRepositoryNoteRemoved"
+        />
+      </div>
+
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
       <div class="pod-doodle w-56 overflow-visible relative" :class="[podStatusClass, { selected: isSelected }]">
         <!-- Model 凹槽 -->
         <div class="model-notch"></div>
+        <!-- Repository 凹槽（右側） -->
+        <div class="repository-notch"></div>
 
         <!-- Anchors -->
         <PodAnchor

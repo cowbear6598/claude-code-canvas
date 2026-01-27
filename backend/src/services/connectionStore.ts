@@ -21,7 +21,7 @@ class ConnectionStore {
   private readonly connectionsFilePath: string;
 
   constructor() {
-    this.connectionsFilePath = path.join(config.workspaceRoot, 'data', 'connections.json');
+    this.connectionsFilePath = path.join(config.canvasRoot, 'data', 'connections.json');
   }
 
   /**

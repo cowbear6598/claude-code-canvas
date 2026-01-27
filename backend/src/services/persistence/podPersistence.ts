@@ -6,7 +6,7 @@ import { config } from '../../config/index.js';
 
 class PodPersistenceService {
   getPodFilePath(podId: string): string {
-    return path.join(config.workspaceRoot, `pod-${podId}`, 'pod.json');
+    return path.join(config.canvasRoot, `pod-${podId}`, 'pod.json');
   }
 
   private toPersistedPod(pod: Pod, claudeSessionId?: string): PersistedPod {
@@ -26,6 +26,7 @@ class PodPersistenceService {
       outputStyleId: pod.outputStyleId,
       skillIds: pod.skillIds,
       model: pod.model,
+      repositoryId: pod.repositoryId,
     };
   }
 
@@ -67,8 +68,8 @@ class PodPersistenceService {
 
   async listAllPodIds(): Promise<string[]> {
     try {
-      await persistenceService.ensureDirectory(config.workspaceRoot);
-      const entries = await fs.readdir(config.workspaceRoot, { withFileTypes: true });
+      await persistenceService.ensureDirectory(config.canvasRoot);
+      const entries = await fs.readdir(config.canvasRoot, { withFileTypes: true });
       const podIds: string[] = [];
 
       for (const entry of entries) {

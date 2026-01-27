@@ -322,5 +322,12 @@ export const usePodStore = defineStore('pod', {
         pod.model = model
       }
     },
+
+    updatePodRepository(podId: string, repositoryId: string | null): void {
+      const pod = this.pods.find((p) => p.id === podId)
+      if (!pod) return
+
+      pod.repositoryId = repositoryId
+    },
   },
 })

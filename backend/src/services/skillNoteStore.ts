@@ -21,7 +21,7 @@ class SkillNoteStore {
   private readonly notesFilePath: string;
 
   constructor() {
-    this.notesFilePath = path.join(config.workspaceRoot, 'data', 'skill-notes.json');
+    this.notesFilePath = path.join(config.canvasRoot, 'data', 'skill-notes.json');
   }
 
   /**

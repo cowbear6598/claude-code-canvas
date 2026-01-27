@@ -1,5 +1,5 @@
 import { usePodStore, useViewportStore, useSelectionStore } from '@/stores/pod'
-import { useOutputStyleStore, useSkillStore } from '@/stores/note'
+import { useOutputStyleStore, useSkillStore, useRepositoryStore } from '@/stores/note'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useClipboardStore } from '@/stores/clipboardStore'
 
@@ -9,6 +9,7 @@ export function useCanvasContext() {
   const selectionStore = useSelectionStore()
   const outputStyleStore = useOutputStyleStore()
   const skillStore = useSkillStore()
+  const repositoryStore = useRepositoryStore()
   const connectionStore = useConnectionStore()
   const clipboardStore = useClipboardStore()
 
@@ -18,6 +19,7 @@ export function useCanvasContext() {
     selectionStore,
     outputStyleStore,
     skillStore,
+    repositoryStore,
     connectionStore,
     clipboardStore
   }

@@ -2,6 +2,7 @@ import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { noteStore } from './noteStore.js';
 import { skillNoteStore } from './skillNoteStore.js';
+import { repositoryNoteStore } from './repositoryNoteStore.js';
 import { connectionStore } from './connectionStore.js';
 import { config } from '../config/index.js';
 import { persistenceService } from './persistence/index.js';
@@ -14,8 +15,11 @@ class StartupService {
       await persistenceService.ensureDirectory(config.appDataRoot);
       console.log(`[Startup] App data root verified: ${config.appDataRoot}`);
 
-      await persistenceService.ensureDirectory(config.workspaceRoot);
-      console.log(`[Startup] Workspace root verified: ${config.workspaceRoot}`);
+      await persistenceService.ensureDirectory(config.canvasRoot);
+      console.log(`[Startup] Canvas root verified: ${config.canvasRoot}`);
+
+      await persistenceService.ensureDirectory(config.repositoriesRoot);
+      console.log(`[Startup] Repositories root verified: ${config.repositoriesRoot}`);
 
       await podStore.loadFromDisk();
       const pods = podStore.getAll();
@@ -36,6 +40,10 @@ class StartupService {
       await skillNoteStore.loadFromDisk();
       const skillNotes = skillNoteStore.list();
       console.log(`[Startup] Loaded ${skillNotes.length} skill notes from disk`);
+
+      await repositoryNoteStore.loadFromDisk();
+      const repositoryNotes = repositoryNoteStore.list();
+      console.log(`[Startup] Loaded ${repositoryNotes.length} repository notes from disk`);
 
       await connectionStore.loadFromDisk();
       const connections = connectionStore.list();

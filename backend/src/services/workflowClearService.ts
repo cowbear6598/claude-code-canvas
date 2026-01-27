@@ -98,9 +98,11 @@ class WorkflowClearService {
             }
           }
 
-          // Destroy Claude session
+          // Destroy Claude session and clear session ID
           try {
             await claudeSessionManager.destroySession(podId);
+            // 清除 Pod 中保存的 session ID，確保下次對話會開始新的 session
+            podStore.setClaudeSessionId(podId, '');
           } catch (error) {
             // Log but don't fail on session destroy errors
             console.error(`[WorkflowClear] Error destroying session for Pod ${podId}: ${error}`);

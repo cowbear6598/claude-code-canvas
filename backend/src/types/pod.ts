@@ -33,4 +33,6 @@ export interface Pod {
   outputStyleId: string | null; // Output style ID
   skillIds: string[]; // Bound Skill IDs
   model: ModelType; // Model type for Claude API
+  repositoryId: string | null; // Bound Repository ID
+  needsForkSession: boolean; // Flag to fork session on next query (when cwd changes)
 }

@@ -3,6 +3,7 @@
 import type { Pod, PodStatus } from '../pod'
 import type { OutputStyleListItem, OutputStyleNote } from '@/types'
 import type { Skill, SkillNote } from '@/types'
+import type { Repository, RepositoryNote } from '@/types'
 
 export interface ConnectionReadyPayload {
   socketId: string
@@ -354,5 +355,62 @@ export interface CanvasPasteResultPayload {
   }>
   podIdMapping: Record<string, string>
   errors: PasteError[]
+  error?: string
+}
+
+export interface RepositoryListResultPayload {
+  requestId: string
+  success: boolean
+  repositories?: Repository[]
+  error?: string
+}
+
+export interface RepositoryCreatedPayload {
+  requestId: string
+  success: boolean
+  repository?: Repository
+  error?: string
+}
+
+export interface RepositoryNoteCreatedPayload {
+  requestId: string
+  success: boolean
+  note?: RepositoryNote
+  error?: string
+}
+
+export interface RepositoryNoteListResultPayload {
+  requestId: string
+  success: boolean
+  notes?: RepositoryNote[]
+  error?: string
+}
+
+export interface RepositoryNoteUpdatedPayload {
+  requestId: string
+  success: boolean
+  note?: RepositoryNote
+  error?: string
+}
+
+export interface RepositoryNoteDeletedPayload {
+  requestId: string
+  success: boolean
+  noteId?: string
+  error?: string
+}
+
+export interface PodRepositoryBoundPayload {
+  requestId: string
+  success: boolean
+  podId?: string
+  repositoryId?: string
+  error?: string
+}
+
+export interface PodRepositoryUnboundPayload {
+  requestId: string
+  success: boolean
+  podId?: string
   error?: string
 }

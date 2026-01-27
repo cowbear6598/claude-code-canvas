@@ -22,6 +22,7 @@ import { workspaceService } from '../services/workspace/index.js';
 import { claudeSessionManager } from '../services/claude/sessionManager.js';
 import { noteStore } from '../services/noteStore.js';
 import { skillNoteStore } from '../services/skillNoteStore.js';
+import { repositoryNoteStore } from '../services/repositoryNoteStore.js';
 import { connectionStore } from '../services/connectionStore.js';
 import { socketService } from '../services/socketService.js';
 import { workflowService } from '../services/workflow/index.js';
@@ -162,6 +163,10 @@ export async function handlePodDelete(
   // Delete bound Skill Notes
   const deletedSkillNotes = skillNoteStore.deleteByBoundPodId(podId);
   console.log(`[Pod] Deleted ${deletedSkillNotes} bound skill notes for Pod ${podId}`);
+
+  // Delete bound Repository Notes
+  const deletedRepositoryNotes = repositoryNoteStore.deleteByBoundPodId(podId);
+  console.log(`[Pod] Deleted ${deletedRepositoryNotes} bound repository notes for Pod ${podId}`);
 
   // Delete related Connections
   const deletedConnections = connectionStore.deleteByPodId(podId);

@@ -23,7 +23,7 @@ class PodStore {
       type: data.type,
       color: data.color,
       status: 'idle',
-      workspacePath: `${config.workspaceRoot}/pod-${id}`,
+      workspacePath: `${config.canvasRoot}/pod-${id}`,
       gitUrl: null,
       createdAt: now,
       lastActiveAt: now,
@@ -35,6 +35,8 @@ class PodStore {
       outputStyleId: data.outputStyleId ?? null,
       skillIds: data.skillIds ?? [],
       model: data.model ?? 'opus',
+      repositoryId: null,
+      needsForkSession: false,
     };
 
     this.pods.set(id, pod);
@@ -160,6 +162,30 @@ class PodStore {
     this.persistPodAsync(pod);
   }
 
+  setRepositoryId(id: string, repositoryId: string | null): void {
+    const pod = this.pods.get(id);
+    if (!pod) {
+      return;
+    }
+
+    pod.repositoryId = repositoryId;
+    // 當 repository 變更時，標記需要 fork session（讓新的 cwd 生效）
+    pod.needsForkSession = true;
+    this.pods.set(id, pod);
+    this.persistPodAsync(pod);
+  }
+
+  setNeedsForkSession(id: string, needsFork: boolean): void {
+    const pod = this.pods.get(id);
+    if (!pod) {
+      return;
+    }
+
+    pod.needsForkSession = needsFork;
+    this.pods.set(id, pod);
+    this.persistPodAsync(pod);
+  }
+
   async loadFromDisk(): Promise<void> {
     try {
       // Get all Pod IDs from disk
@@ -180,7 +206,7 @@ class PodStore {
             type: persistedPod.type,
             color: persistedPod.color,
             status: loadedStatus === 'busy' ? 'idle' : persistedPod.status,
-            workspacePath: `${config.workspaceRoot}/pod-${persistedPod.id}`,
+            workspacePath: `${config.canvasRoot}/pod-${persistedPod.id}`,
             gitUrl: persistedPod.gitUrl,
             createdAt: new Date(persistedPod.createdAt),
             lastActiveAt: new Date(persistedPod.updatedAt),
@@ -192,6 +218,8 @@ class PodStore {
             outputStyleId: persistedPod.outputStyleId ?? null,
             skillIds: persistedPod.skillIds ?? [],
             model: persistedPod.model ?? 'opus',
+            repositoryId: persistedPod.repositoryId ?? null,
+            needsForkSession: persistedPod.needsForkSession ?? false,
           };
 
           this.pods.set(pod.id, pod);

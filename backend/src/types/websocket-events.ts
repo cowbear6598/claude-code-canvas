@@ -32,6 +32,14 @@ export enum WebSocketRequestEvents {
   WORKFLOW_GET_DOWNSTREAM_PODS = 'workflow:get-downstream-pods',
   WORKFLOW_CLEAR = 'workflow:clear',
   CANVAS_PASTE = 'canvas:paste',
+  REPOSITORY_LIST = 'repository:list',
+  REPOSITORY_CREATE = 'repository:create',
+  REPOSITORY_NOTE_CREATE = 'repository-note:create',
+  REPOSITORY_NOTE_LIST = 'repository-note:list',
+  REPOSITORY_NOTE_UPDATE = 'repository-note:update',
+  REPOSITORY_NOTE_DELETE = 'repository-note:delete',
+  POD_BIND_REPOSITORY = 'pod:bind-repository',
+  POD_UNBIND_REPOSITORY = 'pod:unbind-repository',
 }
 
 export enum WebSocketResponseEvents {
@@ -79,6 +87,14 @@ export enum WebSocketResponseEvents {
   WORKFLOW_GET_DOWNSTREAM_PODS_RESULT = 'workflow:get-downstream-pods:result',
   WORKFLOW_CLEAR_RESULT = 'workflow:clear:result',
   CANVAS_PASTE_RESULT = 'canvas:paste:result',
+  REPOSITORY_LIST_RESULT = 'repository:list:result',
+  REPOSITORY_CREATED = 'repository:created',
+  REPOSITORY_NOTE_CREATED = 'repository-note:created',
+  REPOSITORY_NOTE_LIST_RESULT = 'repository-note:list:result',
+  REPOSITORY_NOTE_UPDATED = 'repository-note:updated',
+  REPOSITORY_NOTE_DELETED = 'repository-note:deleted',
+  POD_REPOSITORY_BOUND = 'pod:repository:bound',
+  POD_REPOSITORY_UNBOUND = 'pod:repository:unbound',
 }
 
 export interface PodCreatePayload {
@@ -622,5 +638,109 @@ export interface CanvasPasteResultPayload {
   createdConnections: import('./connection.js').Connection[];
   podIdMapping: Record<string, string>;
   errors: PasteError[];
+  error?: string;
+}
+
+export interface RepositoryListPayload {
+  requestId: string;
+}
+
+export interface RepositoryListResultPayload {
+  requestId: string;
+  success: boolean;
+  repositories?: Array<{ id: string; name: string }>;
+  error?: string;
+}
+
+export interface RepositoryCreatePayload {
+  requestId: string;
+  name: string;
+}
+
+export interface RepositoryCreatedPayload {
+  requestId: string;
+  success: boolean;
+  repository?: { id: string; name: string };
+  error?: string;
+}
+
+export interface RepositoryNoteCreatePayload {
+  requestId: string;
+  repositoryId: string;
+  name: string;
+  x: number;
+  y: number;
+  boundToPodId: string | null;
+  originalPosition: { x: number; y: number } | null;
+}
+
+export interface RepositoryNoteCreatedPayload {
+  requestId: string;
+  success: boolean;
+  note?: import('./repositoryNote.js').RepositoryNote;
+  error?: string;
+}
+
+export interface RepositoryNoteListPayload {
+  requestId: string;
+}
+
+export interface RepositoryNoteListResultPayload {
+  requestId: string;
+  success: boolean;
+  notes?: import('./repositoryNote.js').RepositoryNote[];
+  error?: string;
+}
+
+export interface RepositoryNoteUpdatePayload {
+  requestId: string;
+  noteId: string;
+  x?: number;
+  y?: number;
+  boundToPodId?: string | null;
+  originalPosition?: { x: number; y: number } | null;
+}
+
+export interface RepositoryNoteUpdatedPayload {
+  requestId: string;
+  success: boolean;
+  note?: import('./repositoryNote.js').RepositoryNote;
+  error?: string;
+}
+
+export interface RepositoryNoteDeletePayload {
+  requestId: string;
+  noteId: string;
+}
+
+export interface RepositoryNoteDeletedPayload {
+  requestId: string;
+  success: boolean;
+  noteId?: string;
+  error?: string;
+}
+
+export interface PodBindRepositoryPayload {
+  requestId: string;
+  podId: string;
+  repositoryId: string;
+}
+
+export interface PodRepositoryBoundPayload {
+  requestId: string;
+  success: boolean;
+  pod?: Pod;
+  error?: string;
+}
+
+export interface PodUnbindRepositoryPayload {
+  requestId: string;
+  podId: string;
+}
+
+export interface PodRepositoryUnboundPayload {
+  requestId: string;
+  success: boolean;
+  pod?: Pod;
   error?: string;
 }

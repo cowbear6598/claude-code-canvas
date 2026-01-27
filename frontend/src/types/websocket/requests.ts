@@ -226,3 +226,51 @@ export interface CanvasPastePayload {
   skillNotes: PasteSkillNoteItem[]
   connections: PasteConnectionItem[]
 }
+
+export interface RepositoryListPayload {
+  requestId: string
+}
+
+export interface RepositoryCreatePayload {
+  requestId: string
+  name: string
+}
+
+export interface RepositoryNoteCreatePayload {
+  requestId: string
+  repositoryId: string
+  name: string
+  x: number
+  y: number
+  boundToPodId: string | null
+  originalPosition: { x: number; y: number } | null
+}
+
+export interface RepositoryNoteListPayload {
+  requestId: string
+}
+
+export interface RepositoryNoteUpdatePayload {
+  requestId: string
+  noteId: string
+  x?: number
+  y?: number
+  boundToPodId?: string | null
+  originalPosition?: { x: number; y: number } | null
+}
+
+export interface RepositoryNoteDeletePayload {
+  requestId: string
+  noteId: string
+}
+
+export interface PodBindRepositoryPayload {
+  requestId: string
+  podId: string
+  repositoryId: string
+}
+
+export interface PodUnbindRepositoryPayload {
+  requestId: string
+  podId: string
+}

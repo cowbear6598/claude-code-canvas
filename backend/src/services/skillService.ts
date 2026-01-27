@@ -89,7 +89,7 @@ class SkillService {
         }
 
         const srcDir = this.getSkillDirectoryPath(skillId);
-        const destDir = path.join(config.workspaceRoot, `pod-${podId}`, '.claude', 'skills', skillId);
+        const destDir = path.join(config.canvasRoot, `pod-${podId}`, '.claude', 'skills', skillId);
 
         try {
             await fs.access(srcDir);

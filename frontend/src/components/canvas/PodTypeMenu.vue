@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { Palette, Wrench } from 'lucide-vue-next'
-import type { Position, PodTypeConfig, OutputStyleListItem, Skill } from '@/types'
-import { podTypes } from '@/data/podTypes'
-import { useOutputStyleStore, useSkillStore } from '@/stores/note'
+import {ref, onMounted} from 'vue'
+import {Palette, Wrench, FolderOpen} from 'lucide-vue-next'
+import type {Position, PodTypeConfig, OutputStyleListItem, Skill, Repository} from '@/types'
+import {podTypes} from '@/data/podTypes'
+import {useOutputStyleStore, useSkillStore, useRepositoryStore} from '@/stores/note'
 
 defineProps<{
   position: Position
@@ -13,19 +13,27 @@ const emit = defineEmits<{
   select: [config: PodTypeConfig]
   'create-output-style-note': [outputStyleId: string]
   'create-skill-note': [skillId: string]
+  'create-repository-note': [repositoryId: string]
   close: []
 }>()
 
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
+const repositoryStore = useRepositoryStore()
 const showSubmenu = ref(false)
 const showSkillSubmenu = ref(false)
+const showRepositorySubmenu = ref(false)
 
 onMounted(async () => {
-  await Promise.all([
-    outputStyleStore.loadOutputStyles(),
-    skillStore.loadSkills()
-  ])
+  try {
+    await Promise.all([
+      outputStyleStore.loadOutputStyles(),
+      skillStore.loadSkills(),
+      repositoryStore.loadRepositories()
+    ])
+  } catch (error) {
+    console.error('[PodTypeMenu] Failed to load data:', error)
+  }
 })
 
 const handleSelect = (config: PodTypeConfig) => {
@@ -41,6 +49,12 @@ const handleOutputStyleSelect = (style: OutputStyleListItem) => {
 const handleSkillSelect = (skill: Skill) => {
   showSkillSubmenu.value = false
   emit('create-skill-note', skill.id)
+  emit('close')
+}
+
+const handleRepositorySelect = (repository: Repository) => {
+  showRepositorySubmenu.value = false
+  emit('create-repository-note', repository.id)
   emit('close')
 }
 
@@ -135,6 +149,36 @@ const handleClose = () => {
             @click="handleSkillSelect(skill)"
           >
             {{ skill.name }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Repository 按鈕 -->
+      <div class="relative" @mouseenter="showRepositorySubmenu = true" @mouseleave="showRepositorySubmenu = false">
+        <button
+          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
+        >
+          <span
+            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+            style="background-color: var(--doodle-orange)"
+          >
+            <FolderOpen :size="16" class="text-card" />
+          </span>
+          <span class="font-mono text-sm text-foreground">Repository &gt;</span>
+        </button>
+
+        <!-- Repository 子選單 -->
+        <div
+          v-if="showRepositorySubmenu && repositoryStore.availableRepositories.length > 0"
+          class="pod-menu-submenu"
+        >
+          <button
+            v-for="repo in repositoryStore.availableRepositories"
+            :key="repo.id"
+            class="pod-menu-submenu-item"
+            @click="handleRepositorySelect(repo)"
+          >
+            {{ repo.name }}
           </button>
         </div>
       </div>

@@ -12,6 +12,7 @@ import { skillHandlerGroup } from './groups/skillHandlerGroup.js';
 import { outputStyleHandlerGroup } from './groups/outputStyleHandlerGroup.js';
 import { pasteHandlerGroup } from './groups/pasteHandlerGroup.js';
 import { gitHandlerGroup } from './groups/gitHandlerGroup.js';
+import { repositoryHandlerGroup } from './groups/repositoryHandlerGroup.js';
 
 // Create and configure the registry
 const registry = new HandlerRegistry();
@@ -26,6 +27,7 @@ registry.registerGroup(skillHandlerGroup);
 registry.registerGroup(outputStyleHandlerGroup);
 registry.registerGroup(pasteHandlerGroup);
 registry.registerGroup(gitHandlerGroup);
+registry.registerGroup(repositoryHandlerGroup);
 
 /**
  * Register all WebSocket event handlers for a socket
@@ -75,3 +77,13 @@ export {
   handleWorkflowClear,
 } from './workflowHandlers.js';
 export { handleCanvasPaste } from './pasteHandlers.js';
+export {
+  handleRepositoryList,
+  handleRepositoryCreate,
+  handleRepositoryNoteCreate,
+  handleRepositoryNoteList,
+  handleRepositoryNoteUpdate,
+  handleRepositoryNoteDelete,
+  handlePodBindRepository,
+  handlePodUnbindRepository,
+} from './repositoryHandlers.js';

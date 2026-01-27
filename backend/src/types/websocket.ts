@@ -83,6 +83,22 @@ export {
   type CanvasPastePayload,
   type PasteError,
   type CanvasPasteResultPayload,
+  type RepositoryListPayload,
+  type RepositoryListResultPayload,
+  type RepositoryCreatePayload,
+  type RepositoryCreatedPayload,
+  type RepositoryNoteCreatePayload,
+  type RepositoryNoteCreatedPayload,
+  type RepositoryNoteListPayload,
+  type RepositoryNoteListResultPayload,
+  type RepositoryNoteUpdatePayload,
+  type RepositoryNoteUpdatedPayload,
+  type RepositoryNoteDeletePayload,
+  type RepositoryNoteDeletedPayload,
+  type PodBindRepositoryPayload,
+  type PodRepositoryBoundPayload,
+  type PodUnbindRepositoryPayload,
+  type PodRepositoryUnboundPayload,
 } from './websocket-events.js';
 
 // Legacy enum for backward compatibility (deprecated)

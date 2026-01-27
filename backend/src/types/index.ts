@@ -18,6 +18,12 @@ export type { Skill } from './skill.js';
 // Skill Note types
 export type { SkillNote } from './skillNote.js';
 
+// Repository types
+export type { Repository } from './repository.js';
+
+// Repository Note types
+export type { RepositoryNote } from './repositoryNote.js';
+
 // Connection types
 export type { Connection, AnchorPosition } from './connection.js';
 
@@ -120,4 +126,20 @@ export {
   type CanvasPastePayload,
   type PasteError,
   type CanvasPasteResultPayload,
+  type RepositoryListPayload,
+  type RepositoryListResultPayload,
+  type RepositoryCreatePayload,
+  type RepositoryCreatedPayload,
+  type RepositoryNoteCreatePayload,
+  type RepositoryNoteCreatedPayload,
+  type RepositoryNoteListPayload,
+  type RepositoryNoteListResultPayload,
+  type RepositoryNoteUpdatePayload,
+  type RepositoryNoteUpdatedPayload,
+  type RepositoryNoteDeletePayload,
+  type RepositoryNoteDeletedPayload,
+  type PodBindRepositoryPayload,
+  type PodRepositoryBoundPayload,
+  type PodUnbindRepositoryPayload,
+  type PodRepositoryUnboundPayload,
 } from './websocket.js';

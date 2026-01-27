@@ -35,6 +35,7 @@ export interface Pod {
   outputStyleId?: string | null
   skillIds?: string[]
   model?: ModelType
+  repositoryId?: string | null
 }
 
 // Pod 類型配置
