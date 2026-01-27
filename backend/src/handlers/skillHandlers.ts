@@ -7,6 +7,7 @@ import {
   type SkillNoteUpdatedPayload,
   type SkillNoteDeletedPayload,
   type PodSkillBoundPayload,
+  type SkillDeletedPayload,
 } from '../types/index.js';
 import type {
   SkillListPayload,
@@ -15,6 +16,7 @@ import type {
   SkillNoteUpdatePayload,
   SkillNoteDeletePayload,
   PodBindSkillPayload,
+  SkillDeletePayload,
 } from '../schemas/index.js';
 import { skillService } from '../services/skillService.js';
 import { skillNoteStore } from '../services/skillNoteStore.js';
@@ -239,4 +241,54 @@ export async function handlePodBindSkill(
 
   emitSuccess(socket, WebSocketResponseEvents.POD_SKILL_BOUND, response);
   console.log(`[Skill] Bound skill ${skillId} to Pod ${podId}`);
+}
+
+export async function handleSkillDelete(
+  socket: Socket,
+  payload: SkillDeletePayload,
+  requestId: string
+): Promise<void> {
+  const { skillId } = payload;
+
+  const exists = await skillService.exists(skillId);
+  if (!exists) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.SKILL_DELETED,
+      `Skill not found: ${skillId}`,
+      requestId,
+      undefined,
+      'NOT_FOUND'
+    );
+    console.error(`[Skill] Failed to delete: Skill not found: ${skillId}`);
+    return;
+  }
+
+  const podsUsingSkill = podStore.findBySkillId(skillId);
+  if (podsUsingSkill.length > 0) {
+    const podNames = podsUsingSkill.map((pod) => pod.name).join(', ');
+    emitError(
+      socket,
+      WebSocketResponseEvents.SKILL_DELETED,
+      `Skill is in use by pods: ${podNames}`,
+      requestId,
+      undefined,
+      'IN_USE'
+    );
+    console.error(`[Skill] Failed to delete: Skill ${skillId} is in use by pods: ${podNames}`);
+    return;
+  }
+
+  const deletedNoteIds = skillNoteStore.deleteBySkillId(skillId);
+  await skillService.delete(skillId);
+
+  const response: SkillDeletedPayload = {
+    requestId,
+    success: true,
+    skillId,
+    deletedNoteIds,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.SKILL_DELETED, response);
+  console.log(`[Skill] Deleted skill ${skillId} and ${deletedNoteIds.length} notes`);
 }

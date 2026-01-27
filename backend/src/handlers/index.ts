@@ -51,6 +51,7 @@ export {
   handleOutputStyleList,
   handlePodBindOutputStyle,
   handlePodUnbindOutputStyle,
+  handleOutputStyleDelete,
 } from './outputStyleHandlers.js';
 export {
   handleNoteCreate,
@@ -65,6 +66,7 @@ export {
   handleSkillNoteUpdate,
   handleSkillNoteDelete,
   handlePodBindSkill,
+  handleSkillDelete,
 } from './skillHandlers.js';
 export {
   handleConnectionCreate,
@@ -86,4 +88,5 @@ export {
   handleRepositoryNoteDelete,
   handlePodBindRepository,
   handlePodUnbindRepository,
+  handleRepositoryDelete,
 } from './repositoryHandlers.js';

@@ -39,6 +39,11 @@ export const podBindSkillSchema = z.object({
   skillId: z.string(),
 });
 
+export const skillDeleteSchema = z.object({
+  requestId: requestIdSchema,
+  skillId: z.string(),
+});
+
 // Inferred types
 export type SkillListPayload = z.infer<typeof skillListSchema>;
 export type SkillNoteCreatePayload = z.infer<typeof skillNoteCreateSchema>;
@@ -46,3 +51,4 @@ export type SkillNoteListPayload = z.infer<typeof skillNoteListSchema>;
 export type SkillNoteUpdatePayload = z.infer<typeof skillNoteUpdateSchema>;
 export type SkillNoteDeletePayload = z.infer<typeof skillNoteDeleteSchema>;
 export type PodBindSkillPayload = z.infer<typeof podBindSkillSchema>;
+export type SkillDeletePayload = z.infer<typeof skillDeleteSchema>;

@@ -12,6 +12,7 @@ import {
   type RepositoryNoteDeletedPayload,
   type PodRepositoryBoundPayload,
   type PodRepositoryUnboundPayload,
+  type RepositoryDeletedPayload,
 } from '../types/index.js';
 import type {
   RepositoryListPayload,
@@ -22,6 +23,7 @@ import type {
   RepositoryNoteDeletePayload,
   PodBindRepositoryPayload,
   PodUnbindRepositoryPayload,
+  RepositoryDeletePayload,
 } from '../schemas/index.js';
 import { repositoryService } from '../services/repositoryService.js';
 import { repositoryNoteStore } from '../services/repositoryNoteStore.js';
@@ -420,4 +422,57 @@ export async function handlePodUnbindRepository(
   emitSuccess(socket, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, response);
 
   console.log(`[Repository] Unbound repository from Pod ${podId}`);
+}
+
+/**
+ * Handle repository deletion request
+ */
+export async function handleRepositoryDelete(
+  socket: Socket,
+  payload: RepositoryDeletePayload,
+  requestId: string
+): Promise<void> {
+  const { repositoryId } = payload;
+
+  const exists = await repositoryService.exists(repositoryId);
+  if (!exists) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_DELETED,
+      `Repository not found: ${repositoryId}`,
+      requestId,
+      undefined,
+      'NOT_FOUND'
+    );
+    console.error(`[Repository] Failed to delete: Repository not found: ${repositoryId}`);
+    return;
+  }
+
+  const podsUsingRepository = podStore.findByRepositoryId(repositoryId);
+  if (podsUsingRepository.length > 0) {
+    const podNames = podsUsingRepository.map((pod) => pod.name).join(', ');
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_DELETED,
+      `Repository is in use by pods: ${podNames}`,
+      requestId,
+      undefined,
+      'IN_USE'
+    );
+    console.error(`[Repository] Failed to delete: Repository ${repositoryId} is in use by pods: ${podNames}`);
+    return;
+  }
+
+  const deletedNoteIds = repositoryNoteStore.deleteByRepositoryId(repositoryId);
+  await repositoryService.delete(repositoryId);
+
+  const response: RepositoryDeletedPayload = {
+    requestId,
+    success: true,
+    repositoryId,
+    deletedNoteIds,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_DELETED, response);
+  console.log(`[Repository] Deleted repository ${repositoryId} and ${deletedNoteIds.length} notes`);
 }

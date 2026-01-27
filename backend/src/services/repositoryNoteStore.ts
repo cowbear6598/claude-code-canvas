@@ -115,6 +115,34 @@ class RepositoryNoteStore {
   }
 
   /**
+   * Find repository notes by repository ID
+   */
+  findByRepositoryId(repositoryId: string): RepositoryNote[] {
+    return Array.from(this.notes.values()).filter(
+      (note) => note.repositoryId === repositoryId
+    );
+  }
+
+  /**
+   * Delete all notes for a specific repository ID
+   */
+  deleteByRepositoryId(repositoryId: string): string[] {
+    const notesToDelete = this.findByRepositoryId(repositoryId);
+    const deletedIds: string[] = [];
+
+    for (const note of notesToDelete) {
+      this.notes.delete(note.id);
+      deletedIds.push(note.id);
+    }
+
+    if (deletedIds.length > 0) {
+      this.saveToDiskAsync();
+    }
+
+    return deletedIds;
+  }
+
+  /**
    * Load repository notes from disk
    */
   async loadFromDisk(): Promise<Result<void>> {

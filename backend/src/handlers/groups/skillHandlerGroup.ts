@@ -6,6 +6,7 @@ import {
   skillNoteUpdateSchema,
   skillNoteDeleteSchema,
   podBindSkillSchema,
+  skillDeleteSchema,
 } from '../../schemas/index.js';
 import {
   handleSkillList,
@@ -14,6 +15,7 @@ import {
   handleSkillNoteUpdate,
   handleSkillNoteDelete,
   handlePodBindSkill,
+  handleSkillDelete,
 } from '../skillHandlers.js';
 import type { HandlerGroup } from '../registry.js';
 import type { ValidatedHandler } from '../../middleware/wsMiddleware.js';
@@ -56,6 +58,12 @@ export const skillHandlerGroup: HandlerGroup = {
       handler: handlePodBindSkill as unknown as ValidatedHandler<unknown>,
       schema: podBindSkillSchema,
       responseEvent: WebSocketResponseEvents.POD_SKILL_BOUND,
+    },
+    {
+      event: WebSocketRequestEvents.SKILL_DELETE,
+      handler: handleSkillDelete as unknown as ValidatedHandler<unknown>,
+      schema: skillDeleteSchema,
+      responseEvent: WebSocketResponseEvents.SKILL_DELETED,
     },
   ],
 };

@@ -49,6 +49,11 @@ export const podUnbindRepositorySchema = z.object({
   podId: z.uuid(),
 });
 
+export const repositoryDeleteSchema = z.object({
+  requestId: requestIdSchema,
+  repositoryId: z.string(),
+});
+
 export type RepositoryListPayload = z.infer<typeof repositoryListSchema>;
 export type RepositoryCreatePayload = z.infer<typeof repositoryCreateSchema>;
 export type RepositoryNoteCreatePayload = z.infer<typeof repositoryNoteCreateSchema>;
@@ -57,3 +62,4 @@ export type RepositoryNoteUpdatePayload = z.infer<typeof repositoryNoteUpdateSch
 export type RepositoryNoteDeletePayload = z.infer<typeof repositoryNoteDeleteSchema>;
 export type PodBindRepositoryPayload = z.infer<typeof podBindRepositorySchema>;
 export type PodUnbindRepositoryPayload = z.infer<typeof podUnbindRepositorySchema>;
+export type RepositoryDeletePayload = z.infer<typeof repositoryDeleteSchema>;

@@ -115,6 +115,34 @@ class NoteStore {
   }
 
   /**
+   * Find notes by output style ID
+   */
+  findByOutputStyleId(outputStyleId: string): OutputStyleNote[] {
+    return Array.from(this.notes.values()).filter(
+      (note) => note.outputStyleId === outputStyleId
+    );
+  }
+
+  /**
+   * Delete all notes for a specific output style ID
+   */
+  deleteByOutputStyleId(outputStyleId: string): string[] {
+    const notesToDelete = this.findByOutputStyleId(outputStyleId);
+    const deletedIds: string[] = [];
+
+    for (const note of notesToDelete) {
+      this.notes.delete(note.id);
+      deletedIds.push(note.id);
+    }
+
+    if (deletedIds.length > 0) {
+      this.saveToDiskAsync();
+    }
+
+    return deletedIds;
+  }
+
+  /**
    * Load notes from disk
    */
   async loadFromDisk(): Promise<Result<void>> {

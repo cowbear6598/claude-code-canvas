@@ -21,6 +21,7 @@ const isInserting = ref(false)
 const showMenu = ref(false)
 
 const skillCount = computed(() => props.boundNotes.length)
+const hasSkills = computed(() => skillCount.value > 0)
 
 let mouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let mouseUpHandler: (() => void) | null = null
@@ -84,7 +85,7 @@ const cleanupListeners = () => {
 }
 
 const handleSlotHover = () => {
-  if (skillCount.value > 0) {
+  if (hasSkills.value) {
     showMenu.value = true
   }
 }
@@ -120,7 +121,7 @@ onUnmounted(() => {
     class="pod-skill-slot"
     :class="{
       'drop-target': isDropTarget,
-      'has-notes': skillCount > 0,
+      'has-notes': hasSkills,
       inserting: isInserting
     }"
     @mouseenter="handleSlotHover"
@@ -128,21 +129,24 @@ onUnmounted(() => {
   >
     <span
       class="text-xs font-mono"
-      :class="{ 'opacity-50': skillCount === 0 }"
+      :class="{ 'opacity-50': !hasSkills }"
     >
-      <template v-if="skillCount > 0">({{ skillCount }}) </template>Skills
+      <template v-if="hasSkills">({{ skillCount }}) </template>Skills
     </span>
 
     <div
-      v-if="showMenu && skillCount > 0"
+      v-if="showMenu && hasSkills"
       class="pod-skill-menu"
+      @wheel.stop.passive
     >
-      <div
-        v-for="note in boundNotes"
-        :key="note.id"
-        class="pod-skill-menu-item"
-      >
-        {{ note.skillId }}
+      <div class="pod-skill-menu-scrollable">
+        <div
+          v-for="note in boundNotes"
+          :key="note.id"
+          class="pod-skill-menu-item"
+        >
+          {{ note.skillId }}
+        </div>
       </div>
     </div>
   </div>

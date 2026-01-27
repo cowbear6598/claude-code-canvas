@@ -100,6 +100,12 @@ export {
   type PodUnbindRepositoryPayload,
   type PodRepositoryUnboundPayload,
   type PodMessagesClearedPayload,
+  type OutputStyleDeletePayload,
+  type OutputStyleDeletedPayload,
+  type SkillDeletePayload,
+  type SkillDeletedPayload,
+  type RepositoryDeletePayload,
+  type RepositoryDeletedPayload,
 } from './websocket-events.js';
 
 // Legacy enum for backward compatibility (deprecated)

@@ -3,9 +3,11 @@ import type {Repository, RepositoryNote} from '@/types'
 import type {BaseNoteState} from './createNoteStore'
 import {createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
+import {useDeleteItem} from '@/composables/useDeleteItem'
 import type {
   RepositoryListResultPayload,
   RepositoryCreatedPayload,
+  RepositoryDeletedPayload,
   RepositoryNoteCreatedPayload,
   RepositoryNoteListResultPayload,
   RepositoryNoteUpdatedPayload,
@@ -14,6 +16,7 @@ import type {
   PodRepositoryUnboundPayload,
   RepositoryListPayload,
   RepositoryCreatePayload,
+  RepositoryDeletePayload,
   RepositoryNoteCreatePayload,
   RepositoryNoteListPayload,
   RepositoryNoteUpdatePayload,
@@ -59,6 +62,9 @@ export const useRepositoryStore = defineStore('repository', {
       const note = state.notes.find(n => n.id === state.draggedNoteId)
       return note?.boundToPodId === null
     },
+
+    isRepositoryInUse: (state) => (repositoryId: string): boolean =>
+      state.notes.some(note => note.repositoryId === repositoryId && note.boundToPodId !== null),
   },
 
   actions: {
@@ -326,6 +332,27 @@ export const useRepositoryStore = defineStore('repository', {
         this.notes.splice(originalIndex, 0, note)
         return
       }
+    },
+
+    async deleteRepository(repositoryId: string): Promise<void> {
+      const { deleteItem } = useDeleteItem()
+
+      await deleteItem<Omit<RepositoryDeletePayload, 'requestId'>, RepositoryDeletedPayload>({
+        requestEvent: WebSocketRequestEvents.REPOSITORY_DELETE,
+        responseEvent: WebSocketResponseEvents.REPOSITORY_DELETED,
+        payload: { repositoryId },
+        errorMessage: '刪除 Repository 失敗',
+        onSuccess: (res) => {
+          const index = this.availableItems.findIndex(r => r.id === repositoryId)
+          if (index !== -1) {
+            this.availableItems.splice(index, 1)
+          }
+
+          if (res.deletedNoteIds) {
+            this.notes = this.notes.filter(note => !res.deletedNoteIds!.includes(note.id))
+          }
+        }
+      })
     },
   },
 })

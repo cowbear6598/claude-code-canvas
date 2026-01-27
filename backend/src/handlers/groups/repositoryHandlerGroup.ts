@@ -8,6 +8,7 @@ import {
   repositoryNoteDeleteSchema,
   podBindRepositorySchema,
   podUnbindRepositorySchema,
+  repositoryDeleteSchema,
 } from '../../schemas/index.js';
 import {
   handleRepositoryList,
@@ -18,6 +19,7 @@ import {
   handleRepositoryNoteDelete,
   handlePodBindRepository,
   handlePodUnbindRepository,
+  handleRepositoryDelete,
 } from '../repositoryHandlers.js';
 import type { HandlerGroup } from '../registry.js';
 import type { ValidatedHandler } from '../../middleware/wsMiddleware.js';
@@ -72,6 +74,12 @@ export const repositoryHandlerGroup: HandlerGroup = {
       handler: handlePodUnbindRepository as unknown as ValidatedHandler<unknown>,
       schema: podUnbindRepositorySchema,
       responseEvent: WebSocketResponseEvents.POD_REPOSITORY_UNBOUND,
+    },
+    {
+      event: WebSocketRequestEvents.REPOSITORY_DELETE,
+      handler: handleRepositoryDelete as unknown as ValidatedHandler<unknown>,
+      schema: repositoryDeleteSchema,
+      responseEvent: WebSocketResponseEvents.REPOSITORY_DELETED,
     },
   ],
 };

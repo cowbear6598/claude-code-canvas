@@ -22,14 +22,6 @@ export interface PodListResultPayload {
   pods?: Pod[]
   error?: string
 }
-
-export interface PodGetResultPayload {
-  requestId: string
-  success: boolean
-  pod?: Pod
-  error?: string
-}
-
 export interface PodUpdatedPayload {
   requestId: string
   success: boolean
@@ -43,20 +35,6 @@ export interface PodDeletedPayload {
   podId?: string
   error?: string
 }
-
-export interface PodGitCloneProgressPayload {
-  podId: string
-  progress: number
-  message: string
-}
-
-export interface PodGitCloneResultPayload {
-  requestId: string
-  success: boolean
-  pod?: Pod
-  error?: string
-}
-
 export interface PodChatMessagePayload {
   podId: string
   messageId: string
@@ -84,20 +62,6 @@ export interface PodChatCompletePayload {
   messageId: string
   fullContent: string
 }
-
-export interface PodJoinedPayload {
-  podId: string
-}
-
-export interface PodLeftPayload {
-  podId: string
-}
-
-export interface PodJoinedBatchPayload {
-  joinedPodIds: string[]
-  failedPodIds: string[]
-}
-
 export interface PodErrorPayload {
   requestId?: string
   podId?: string
@@ -129,6 +93,14 @@ export interface OutputStyleListResultPayload {
   requestId: string
   success: boolean
   styles?: OutputStyleListItem[]
+  error?: string
+}
+
+export interface OutputStyleDeletedPayload {
+  requestId: string
+  success: boolean
+  outputStyleId?: string
+  deletedNoteIds?: string[]
   error?: string
 }
 
@@ -179,6 +151,14 @@ export interface SkillListResultPayload {
   requestId: string
   success: boolean
   skills?: Skill[]
+  error?: string
+}
+
+export interface SkillDeletedPayload {
+  requestId: string
+  success: boolean
+  skillId?: string
+  deletedNoteIds?: string[]
   error?: string
 }
 
@@ -253,33 +233,6 @@ export interface ConnectionDeletedPayload {
   connectionId?: string
   error?: string
 }
-
-export interface WorkflowTriggeredPayload {
-  requestId: string
-  success: boolean
-  connectionId: string
-  sourcePodId: string
-  targetPodId: string
-  transferredContent: string
-  isSummarized?: boolean
-  error?: string
-}
-
-export interface ConnectionUpdatedPayload {
-  requestId: string
-  success: boolean
-  connection?: {
-    id: string
-    sourcePodId: string
-    sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
-    targetPodId: string
-    targetAnchor: 'top' | 'bottom' | 'left' | 'right'
-    createdAt: string
-    autoTrigger?: boolean
-  }
-  error?: string
-}
-
 export interface WorkflowAutoTriggeredPayload {
   connectionId: string
   sourcePodId: string
@@ -294,27 +247,6 @@ export interface WorkflowCompletePayload {
   targetPodId: string
   success: boolean
   error?: string
-}
-
-export interface WorkflowErrorPayload {
-  requestId: string
-  connectionId: string
-  error: string
-  code: string
-}
-
-export interface WorkflowPendingPayload {
-  targetPodId: string
-  completedSourcePodIds: string[]
-  pendingSourcePodIds: string[]
-  totalSources: number
-  completedCount: number
-}
-
-export interface WorkflowSourcesMergedPayload {
-  targetPodId: string
-  sourcePodIds: string[]
-  mergedContentPreview: string
 }
 
 export interface WorkflowGetDownstreamPodsResultPayload {
@@ -370,6 +302,14 @@ export interface RepositoryCreatedPayload {
   requestId: string
   success: boolean
   repository?: Repository
+  error?: string
+}
+
+export interface RepositoryDeletedPayload {
+  requestId: string
+  success: boolean
+  repositoryId?: string
+  deletedNoteIds?: string[]
   error?: string
 }
 

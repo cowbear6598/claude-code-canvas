@@ -70,6 +70,11 @@ export interface OutputStyleListPayload {
   requestId: string
 }
 
+export interface OutputStyleDeletePayload {
+  requestId: string
+  outputStyleId: string
+}
+
 export interface PodBindOutputStylePayload {
   requestId: string
   podId: string
@@ -111,6 +116,11 @@ export interface NoteDeletePayload {
 
 export interface SkillListPayload {
   requestId: string
+}
+
+export interface SkillDeletePayload {
+  requestId: string
+  skillId: string
 }
 
 export interface SkillNoteCreatePayload {
@@ -245,6 +255,11 @@ export interface RepositoryListPayload {
 export interface RepositoryCreatePayload {
   requestId: string
   name: string
+}
+
+export interface RepositoryDeletePayload {
+  requestId: string
+  repositoryId: string
 }
 
 export interface RepositoryNoteCreatePayload {

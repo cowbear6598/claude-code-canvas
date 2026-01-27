@@ -115,6 +115,34 @@ class SkillNoteStore {
   }
 
   /**
+   * Find skill notes by skill ID
+   */
+  findBySkillId(skillId: string): SkillNote[] {
+    return Array.from(this.notes.values()).filter(
+      (note) => note.skillId === skillId
+    );
+  }
+
+  /**
+   * Delete all notes for a specific skill ID
+   */
+  deleteBySkillId(skillId: string): string[] {
+    const notesToDelete = this.findBySkillId(skillId);
+    const deletedIds: string[] = [];
+
+    for (const note of notesToDelete) {
+      this.notes.delete(note.id);
+      deletedIds.push(note.id);
+    }
+
+    if (deletedIds.length > 0) {
+      this.saveToDiskAsync();
+    }
+
+    return deletedIds;
+  }
+
+  /**
    * Load skill notes from disk
    */
   async loadFromDisk(): Promise<Result<void>> {

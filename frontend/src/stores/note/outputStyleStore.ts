@@ -3,14 +3,17 @@ import type {OutputStyleListItem, OutputStyleNote, Pod} from '@/types'
 import type {BaseNoteState} from './createNoteStore'
 import {createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
+import {useDeleteItem} from '@/composables/useDeleteItem'
 import type {
     OutputStyleListResultPayload,
+    OutputStyleDeletedPayload,
     PodOutputStyleBoundPayload,
     PodOutputStyleUnboundPayload,
     NoteListResultPayload,
     NoteCreatedPayload,
     NoteUpdatedPayload,
     OutputStyleListPayload,
+    OutputStyleDeletePayload,
     NoteListPayload,
     NoteCreatePayload,
     NoteUpdatePayload,
@@ -58,6 +61,9 @@ export const useOutputStyleStore = defineStore('outputStyle', {
             const note = state.notes.find(n => n.id === state.draggedNoteId)
             return note?.boundToPodId === null
         },
+
+        isOutputStyleInUse: (state) => (outputStyleId: string): boolean =>
+            state.notes.some(note => note.outputStyleId === outputStyleId && note.boundToPodId !== null),
     },
 
     actions: {
@@ -352,6 +358,27 @@ export const useOutputStyleStore = defineStore('outputStyle', {
             if (promises.length > 0) {
                 await Promise.all(promises)
             }
+        },
+
+        async deleteOutputStyle(outputStyleId: string): Promise<void> {
+            const { deleteItem } = useDeleteItem()
+
+            await deleteItem<Omit<OutputStyleDeletePayload, 'requestId'>, OutputStyleDeletedPayload>({
+                requestEvent: WebSocketRequestEvents.OUTPUT_STYLE_DELETE,
+                responseEvent: WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
+                payload: { outputStyleId },
+                errorMessage: '刪除 Output Style 失敗',
+                onSuccess: (res) => {
+                    const index = this.availableItems.findIndex(s => s.id === outputStyleId)
+                    if (index !== -1) {
+                        this.availableItems.splice(index, 1)
+                    }
+
+                    if (res.deletedNoteIds) {
+                        this.notes = this.notes.filter(note => !res.deletedNoteIds!.includes(note.id))
+                    }
+                }
+            })
         },
 
         // Backward compatibility alias

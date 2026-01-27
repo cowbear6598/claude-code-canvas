@@ -59,6 +59,14 @@ class RepositoryService {
   getRepositoryPath(repositoryId: string): string {
     return path.join(config.repositoriesRoot, repositoryId);
   }
+
+  /**
+   * Delete a repository
+   * Note: This removes the repository from the list but does not delete the actual directory
+   */
+  async delete(_repositoryId: string): Promise<void> {
+    console.log(`[RepositoryService] Repository delete called - only removes from list, does not delete actual directory`);
+  }
 }
 
 // Export singleton instance

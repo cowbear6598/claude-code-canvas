@@ -3,14 +3,17 @@ import type { Skill, SkillNote } from '@/types'
 import type { BaseNoteState } from './createNoteStore'
 import { createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
+import { useDeleteItem } from '@/composables/useDeleteItem'
 import type {
   SkillListResultPayload,
+  SkillDeletedPayload,
   SkillNoteCreatedPayload,
   SkillNoteListResultPayload,
   SkillNoteUpdatedPayload,
   SkillNoteDeletedPayload,
   PodSkillBoundPayload,
   SkillListPayload,
+  SkillDeletePayload,
   SkillNoteListPayload,
   SkillNoteCreatePayload,
   SkillNoteUpdatePayload,
@@ -62,6 +65,9 @@ export const useSkillStore = defineStore('skill', {
 
     isSkillBoundToPod: (state) => (skillId: string, podId: string): boolean =>
       state.notes.some(note => note.skillId === skillId && note.boundToPodId === podId),
+
+    isSkillInUse: (state) => (skillId: string): boolean =>
+      state.notes.some(note => note.skillId === skillId && note.boundToPodId !== null),
   },
 
   actions: {
@@ -268,6 +274,27 @@ export const useSkillStore = defineStore('skill', {
         this.notes.splice(originalIndex, 0, note)
         return
       }
+    },
+
+    async deleteSkill(skillId: string): Promise<void> {
+      const { deleteItem } = useDeleteItem()
+
+      await deleteItem<Omit<SkillDeletePayload, 'requestId'>, SkillDeletedPayload>({
+        requestEvent: WebSocketRequestEvents.SKILL_DELETE,
+        responseEvent: WebSocketResponseEvents.SKILL_DELETED,
+        payload: { skillId },
+        errorMessage: '刪除 Skill 失敗',
+        onSuccess: (res) => {
+          const index = this.availableItems.findIndex(s => s.id === skillId)
+          if (index !== -1) {
+            this.availableItems.splice(index, 1)
+          }
+
+          if (res.deletedNoteIds) {
+            this.notes = this.notes.filter(note => !res.deletedNoteIds!.includes(note.id))
+          }
+        }
+      })
     },
 
     // Backward compatibility alias

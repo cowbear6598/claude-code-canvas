@@ -186,6 +186,24 @@ class PodStore {
     this.persistPodAsync(pod);
   }
 
+  findByOutputStyleId(outputStyleId: string): Pod[] {
+    return Array.from(this.pods.values()).filter(
+      (pod) => pod.outputStyleId === outputStyleId
+    );
+  }
+
+  findBySkillId(skillId: string): Pod[] {
+    return Array.from(this.pods.values()).filter(
+      (pod) => pod.skillIds.includes(skillId)
+    );
+  }
+
+  findByRepositoryId(repositoryId: string): Pod[] {
+    return Array.from(this.pods.values()).filter(
+      (pod) => pod.repositoryId === repositoryId
+    );
+  }
+
   async loadFromDisk(): Promise<Result<void>> {
     const result = await podPersistenceService.listAllPodIds();
     if (!result.success) {

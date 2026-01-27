@@ -1,58 +1,59 @@
 import fs from 'fs/promises';
 import path from 'path';
-import {config} from '../config/index.js';
-import type {OutputStyleListItem} from '../types/index.js';
+import { config } from '../config/index.js';
+import type { OutputStyleListItem } from '../types/index.js';
 
 class OutputStyleService {
-    async listStyles(): Promise<OutputStyleListItem[]> {
-        try {
-            await fs.mkdir(config.outputStylesPath, {recursive: true});
-            const files = await fs.readdir(config.outputStylesPath);
+  async listStyles(): Promise<OutputStyleListItem[]> {
+    await fs.mkdir(config.outputStylesPath, { recursive: true });
+    const files = await fs.readdir(config.outputStylesPath);
 
-            const styles: OutputStyleListItem[] = [];
+    const styles: OutputStyleListItem[] = [];
 
-            for (const file of files) {
-                if (!file.endsWith('.md')) {
-                    continue;
-                }
+    for (const file of files) {
+      if (!file.endsWith('.md')) {
+        continue;
+      }
 
-                const id = file.replace(/\.md$/, '');
-                styles.push({
-                    id,
-                    name: id,
-                });
-            }
-
-            return styles;
-        } catch (error) {
-            console.error('[OutputStyleService] Failed to list styles:', error);
-            throw new Error('取得輸出風格列表失敗');
-        }
+      const id = file.replace(/\.md$/, '');
+      styles.push({
+        id,
+        name: id,
+      });
     }
 
-    async getStyleContent(styleId: string): Promise<string | null> {
-        try {
-            const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
-            return await fs.readFile(filePath, 'utf-8');
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-                return null;
-            }
+    return styles;
+  }
 
-            console.error(`[OutputStyleService] Failed to read style ${styleId}:`, error);
-            throw new Error(`讀取輸出風格失敗: ${styleId}`);
-        }
-    }
+  async getStyleContent(styleId: string): Promise<string | null> {
+    const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
 
-    async exists(styleId: string): Promise<boolean> {
-        try {
-            const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
-            await fs.access(filePath);
-            return true;
-        } catch {
-            return false;
-        }
+    try {
+      return await fs.readFile(filePath, 'utf-8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return null;
+      }
+      throw error;
     }
+  }
+
+  async exists(styleId: string): Promise<boolean> {
+    const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
+
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async delete(styleId: string): Promise<void> {
+    const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
+    await fs.unlink(filePath);
+    console.log(`[OutputStyleService] Deleted output style: ${styleId}`);
+  }
 }
 
 export const outputStyleService = new OutputStyleService();

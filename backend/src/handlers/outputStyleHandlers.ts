@@ -4,14 +4,17 @@ import {
   type OutputStyleListResultPayload,
   type PodOutputStyleBoundPayload,
   type PodOutputStyleUnboundPayload,
+  type OutputStyleDeletedPayload,
 } from '../types/index.js';
 import type {
   OutputStyleListPayload,
   PodBindOutputStylePayload,
   PodUnbindOutputStylePayload,
+  OutputStyleDeletePayload,
 } from '../schemas/index.js';
 import { outputStyleService } from '../services/outputStyleService.js';
 import { podStore } from '../services/podStore.js';
+import { noteStore } from '../services/noteStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
 export async function handleOutputStyleList(
@@ -119,4 +122,54 @@ export async function handlePodUnbindOutputStyle(
   emitSuccess(socket, WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, response);
 
   console.log(`[OutputStyle] Unbound style from Pod ${podId}`);
+}
+
+export async function handleOutputStyleDelete(
+  socket: Socket,
+  payload: OutputStyleDeletePayload,
+  requestId: string
+): Promise<void> {
+  const { outputStyleId } = payload;
+
+  const exists = await outputStyleService.exists(outputStyleId);
+  if (!exists) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
+      `Output style not found: ${outputStyleId}`,
+      requestId,
+      undefined,
+      'NOT_FOUND'
+    );
+    console.error(`[OutputStyle] Failed to delete: Output style not found: ${outputStyleId}`);
+    return;
+  }
+
+  const podsUsingStyle = podStore.findByOutputStyleId(outputStyleId);
+  if (podsUsingStyle.length > 0) {
+    const podNames = podsUsingStyle.map((pod) => pod.name).join(', ');
+    emitError(
+      socket,
+      WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
+      `Output style is in use by pods: ${podNames}`,
+      requestId,
+      undefined,
+      'IN_USE'
+    );
+    console.error(`[OutputStyle] Failed to delete: Output style ${outputStyleId} is in use by pods: ${podNames}`);
+    return;
+  }
+
+  const deletedNoteIds = noteStore.deleteByOutputStyleId(outputStyleId);
+  await outputStyleService.delete(outputStyleId);
+
+  const response: OutputStyleDeletedPayload = {
+    requestId,
+    success: true,
+    outputStyleId,
+    deletedNoteIds,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.OUTPUT_STYLE_DELETED, response);
+  console.log(`[OutputStyle] Deleted output style ${outputStyleId} and ${deletedNoteIds.length} notes`);
 }

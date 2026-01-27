@@ -40,6 +40,9 @@ export enum WebSocketRequestEvents {
   REPOSITORY_NOTE_DELETE = 'repository-note:delete',
   POD_BIND_REPOSITORY = 'pod:bind-repository',
   POD_UNBIND_REPOSITORY = 'pod:unbind-repository',
+  OUTPUT_STYLE_DELETE = 'output-style:delete',
+  SKILL_DELETE = 'skill:delete',
+  REPOSITORY_DELETE = 'repository:delete',
 }
 
 export enum WebSocketResponseEvents {
@@ -96,6 +99,9 @@ export enum WebSocketResponseEvents {
   POD_REPOSITORY_BOUND = 'pod:repository:bound',
   POD_REPOSITORY_UNBOUND = 'pod:repository:unbound',
   POD_MESSAGES_CLEARED = 'pod:messages:cleared',
+  OUTPUT_STYLE_DELETED = 'output-style:deleted',
+  SKILL_DELETED = 'skill:deleted',
+  REPOSITORY_DELETED = 'repository:deleted',
 }
 
 export interface PodCreatePayload {
@@ -755,4 +761,43 @@ export interface PodRepositoryUnboundPayload {
 
 export interface PodMessagesClearedPayload {
   podId: string;
+}
+
+export interface OutputStyleDeletePayload {
+  requestId: string;
+  outputStyleId: string;
+}
+
+export interface OutputStyleDeletedPayload {
+  requestId: string;
+  success: boolean;
+  outputStyleId?: string;
+  deletedNoteIds?: string[];
+  error?: string;
+}
+
+export interface SkillDeletePayload {
+  requestId: string;
+  skillId: string;
+}
+
+export interface SkillDeletedPayload {
+  requestId: string;
+  success: boolean;
+  skillId?: string;
+  deletedNoteIds?: string[];
+  error?: string;
+}
+
+export interface RepositoryDeletePayload {
+  requestId: string;
+  repositoryId: string;
+}
+
+export interface RepositoryDeletedPayload {
+  requestId: string;
+  success: boolean;
+  repositoryId?: string;
+  deletedNoteIds?: string[];
+  error?: string;
 }

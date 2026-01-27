@@ -3,11 +3,13 @@ import {
   outputStyleListSchema,
   podBindOutputStyleSchema,
   podUnbindOutputStyleSchema,
+  outputStyleDeleteSchema,
 } from '../../schemas/index.js';
 import {
   handleOutputStyleList,
   handlePodBindOutputStyle,
   handlePodUnbindOutputStyle,
+  handleOutputStyleDelete,
 } from '../outputStyleHandlers.js';
 import type { HandlerGroup } from '../registry.js';
 import type { ValidatedHandler } from '../../middleware/wsMiddleware.js';
@@ -32,6 +34,12 @@ export const outputStyleHandlerGroup: HandlerGroup = {
       handler: handlePodUnbindOutputStyle as unknown as ValidatedHandler<unknown>,
       schema: podUnbindOutputStyleSchema,
       responseEvent: WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND,
+    },
+    {
+      event: WebSocketRequestEvents.OUTPUT_STYLE_DELETE,
+      handler: handleOutputStyleDelete as unknown as ValidatedHandler<unknown>,
+      schema: outputStyleDeleteSchema,
+      responseEvent: WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
     },
   ],
 };

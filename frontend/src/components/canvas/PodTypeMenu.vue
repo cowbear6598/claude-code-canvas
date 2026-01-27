@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import {ref, onMounted} from 'vue'
+import {ref, onMounted, computed} from 'vue'
 import {Palette, Wrench, FolderOpen} from 'lucide-vue-next'
 import type {Position, PodTypeConfig, OutputStyleListItem, Skill, Repository} from '@/types'
 import {podTypes} from '@/data/podTypes'
 import {useOutputStyleStore, useSkillStore, useRepositoryStore} from '@/stores/note'
 import CreateRepositoryModal from './CreateRepositoryModal.vue'
+import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
+import PodTypeMenuSubmenu from './PodTypeMenuSubmenu.vue'
 
 defineProps<{
   position: Position
@@ -25,6 +27,31 @@ const showSubmenu = ref(false)
 const showSkillSubmenu = ref(false)
 const showRepositorySubmenu = ref(false)
 const showCreateRepositoryModal = ref(false)
+const showDeleteModal = ref(false)
+type ItemType = 'outputStyle' | 'skill' | 'repository'
+
+interface DeleteTarget {
+  type: ItemType
+  id: string
+  name: string
+}
+
+const deleteTarget = ref<DeleteTarget | null>(null)
+const hoveredItemId = ref<string | null>(null)
+
+const isDeleteTargetInUse = computed(() => {
+  if (!deleteTarget.value) return false
+
+  const { type, id } = deleteTarget.value
+
+  const inUseChecks = {
+    outputStyle: () => outputStyleStore.isOutputStyleInUse(id),
+    skill: () => skillStore.isSkillInUse(id),
+    repository: () => repositoryStore.isRepositoryInUse(id),
+  }
+
+  return inUseChecks[type]()
+})
 
 onMounted(async () => {
   await Promise.all([
@@ -64,6 +91,34 @@ const handleRepositoryCreated = (repository: { id: string; name: string }) => {
   showRepositorySubmenu.value = false
   emit('create-repository-note', repository.id)
   emit('close')
+}
+
+const handleDeleteClick = (type: ItemType, id: string, name: string, event: Event) => {
+  event.stopPropagation()
+  deleteTarget.value = { type, id, name }
+  showDeleteModal.value = true
+}
+
+const handleDeleteConfirm = async () => {
+  if (!deleteTarget.value) return
+
+  const { type, id } = deleteTarget.value
+
+  const deleteActions = {
+    outputStyle: () => outputStyleStore.deleteOutputStyle(id),
+    skill: () => skillStore.deleteSkill(id),
+    repository: () => repositoryStore.deleteRepository(id),
+  }
+
+  await deleteActions[type]()
+
+  showDeleteModal.value = false
+  deleteTarget.value = null
+}
+
+const handleDeleteModalClose = () => {
+  showDeleteModal.value = false
+  deleteTarget.value = null
 }
 </script>
 
@@ -111,20 +166,13 @@ const handleRepositoryCreated = (repository: { id: string; name: string }) => {
           <span class="font-mono text-sm text-foreground">Output Styles &gt;</span>
         </button>
 
-        <!-- 子選單 -->
-        <div
-          v-if="showSubmenu && outputStyleStore.availableStyles.length > 0"
-          class="pod-menu-submenu"
-        >
-          <button
-            v-for="style in outputStyleStore.availableStyles"
-            :key="style.id"
-            class="pod-menu-submenu-item"
-            @click="handleOutputStyleSelect(style)"
-          >
-            {{ style.name }}
-          </button>
-        </div>
+        <PodTypeMenuSubmenu
+          v-model:hovered-item-id="hoveredItemId"
+          :items="outputStyleStore.availableStyles"
+          :visible="showSubmenu"
+          @item-select="handleOutputStyleSelect"
+          @item-delete="(id, name, event) => handleDeleteClick('outputStyle', id, name, event)"
+        />
       </div>
 
       <!-- Skills 按鈕 -->
@@ -141,20 +189,13 @@ const handleRepositoryCreated = (repository: { id: string; name: string }) => {
           <span class="font-mono text-sm text-foreground">Skills &gt;</span>
         </button>
 
-        <!-- Skills 子選單 -->
-        <div
-          v-if="showSkillSubmenu && skillStore.availableSkills.length > 0"
-          class="pod-menu-submenu"
-        >
-          <button
-            v-for="skill in skillStore.availableSkills"
-            :key="skill.id"
-            class="pod-menu-submenu-item"
-            @click="handleSkillSelect(skill)"
-          >
-            {{ skill.name }}
-          </button>
-        </div>
+        <PodTypeMenuSubmenu
+          v-model:hovered-item-id="hoveredItemId"
+          :items="skillStore.availableSkills"
+          :visible="showSkillSubmenu"
+          @item-select="handleSkillSelect"
+          @item-delete="(id, name, event) => handleDeleteClick('skill', id, name, event)"
+        />
       </div>
 
       <!-- Repository 按鈕 -->
@@ -171,30 +212,34 @@ const handleRepositoryCreated = (repository: { id: string; name: string }) => {
           <span class="font-mono text-sm text-foreground">Repository &gt;</span>
         </button>
 
-        <!-- Repository 子選單 -->
-        <div
-          v-if="showRepositorySubmenu && repositoryStore.availableRepositories.length > 0"
-          class="pod-menu-submenu"
+        <PodTypeMenuSubmenu
+          v-model:hovered-item-id="hoveredItemId"
+          :items="repositoryStore.availableRepositories"
+          :visible="showRepositorySubmenu"
+          @item-select="handleRepositorySelect"
+          @item-delete="(id, name, event) => handleDeleteClick('repository', id, name, event)"
         >
-          <button
-            v-for="repo in repositoryStore.availableRepositories"
-            :key="repo.id"
-            class="pod-menu-submenu-item"
-            @click="handleRepositorySelect(repo)"
-          >
-            {{ repo.name }}
-          </button>
-          <div class="border-t border-doodle-ink/30 my-1" />
-          <div class="pod-menu-submenu-item" @click="showCreateRepositoryModal = true">
-            + 新建資料夾
-          </div>
-        </div>
+          <template #footer>
+            <div class="border-t border-doodle-ink/30 my-1" />
+            <div class="pod-menu-submenu-item" @click="showCreateRepositoryModal = true">
+              + 新建資料夾
+            </div>
+          </template>
+        </PodTypeMenuSubmenu>
       </div>
     </div>
 
     <CreateRepositoryModal
       v-model:open="showCreateRepositoryModal"
       @created="handleRepositoryCreated"
+    />
+
+    <ConfirmDeleteModal
+      v-model:open="showDeleteModal"
+      :item-name="deleteTarget?.name ?? ''"
+      :is-in-use="isDeleteTargetInUse"
+      :item-type="deleteTarget?.type ?? 'outputStyle'"
+      @confirm="handleDeleteConfirm"
     />
   </div>
 </template>
