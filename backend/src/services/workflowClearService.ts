@@ -84,18 +84,10 @@ class WorkflowClearService {
           // Clear messages from memory
           messageStore.clearMessages(podId);
 
-          // Clear chat history from disk (handle ENOENT gracefully)
-          try {
-            await chatPersistenceService.clearChatHistory(podId);
-          } catch (error: unknown) {
-            const err = error as { code?: string };
-            if (err.code === 'ENOENT') {
-              // File doesn't exist, which is fine - already cleared
-              console.log(`[WorkflowClear] No chat history file found for Pod ${podId}`);
-            } else {
-              // Log other errors but don't fail the entire operation
-              console.error(`[WorkflowClear] Error clearing chat history for Pod ${podId}: ${error}`);
-            }
+          // Clear chat history from disk
+          const clearResult = await chatPersistenceService.clearChatHistory(podId);
+          if (!clearResult.success) {
+            console.error(`[WorkflowClear] Error clearing chat history for Pod ${podId}: ${clearResult.error}`);
           }
 
           // Destroy Claude session and clear session ID

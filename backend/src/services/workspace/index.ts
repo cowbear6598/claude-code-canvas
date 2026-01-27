@@ -3,6 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
+import { Result, ok } from '../../types/index.js';
 import { config } from '../../config/index.js';
 
 class WorkspaceService {
@@ -10,32 +11,23 @@ class WorkspaceService {
    * Create a workspace directory for a Pod
    * @returns The absolute path to the created workspace
    */
-  async createWorkspace(podId: string): Promise<string> {
+  async createWorkspace(podId: string): Promise<Result<string>> {
     const workspacePath = this.getWorkspacePath(podId);
 
-    try {
-      await fs.mkdir(workspacePath, { recursive: true });
-      console.log(`[Workspace] Created workspace at: ${workspacePath}`);
-      return workspacePath;
-    } catch (error) {
-      console.error(`[Workspace] Failed to create workspace: ${error}`);
-      throw new Error(`Failed to create workspace for pod ${podId}`);
-    }
+    await fs.mkdir(workspacePath, { recursive: true });
+    console.log(`[Workspace] Created workspace at: ${workspacePath}`);
+    return ok(workspacePath);
   }
 
   /**
    * Delete a workspace directory
    */
-  async deleteWorkspace(podId: string): Promise<void> {
+  async deleteWorkspace(podId: string): Promise<Result<void>> {
     const workspacePath = this.getWorkspacePath(podId);
 
-    try {
-      await fs.rm(workspacePath, { recursive: true, force: true });
-      console.log(`[Workspace] Deleted workspace at: ${workspacePath}`);
-    } catch (error) {
-      console.error(`[Workspace] Failed to delete workspace: ${error}`);
-      throw new Error(`Failed to delete workspace for pod ${podId}`);
-    }
+    await fs.rm(workspacePath, { recursive: true, force: true });
+    console.log(`[Workspace] Deleted workspace at: ${workspacePath}`);
+    return ok(undefined);
   }
 
   /**
@@ -63,16 +55,11 @@ class WorkspaceService {
    * List files in a workspace
    * @returns Array of relative file paths
    */
-  async listWorkspaceFiles(podId: string): Promise<string[]> {
+  async listWorkspaceFiles(podId: string): Promise<Result<string[]>> {
     const workspacePath = this.getWorkspacePath(podId);
 
-    try {
-      const files = await this.readDirRecursive(workspacePath, workspacePath);
-      return files;
-    } catch (error) {
-      console.error(`[Workspace] Failed to list files: ${error}`);
-      throw new Error(`Failed to list files for pod ${podId}`);
-    }
+    const files = await this.readDirRecursive(workspacePath, workspacePath);
+    return ok(files);
   }
 
   /**

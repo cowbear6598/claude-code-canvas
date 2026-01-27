@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Pod, PodStatus, CreatePodRequest, ModelType, WebSocketResponseEvents } from '../types/index.js';
+import { Pod, PodStatus, CreatePodRequest, ModelType, WebSocketResponseEvents, Result, ok, err } from '../types/index.js';
 import { config } from '../config/index.js';
 import { podPersistenceService } from './persistence/podPersistence.js';
 import { socketService } from './socketService.js';
@@ -186,52 +186,49 @@ class PodStore {
     this.persistPodAsync(pod);
   }
 
-  async loadFromDisk(): Promise<void> {
-    try {
-      // Get all Pod IDs from disk
-      const podIds = await podPersistenceService.listAllPodIds();
-
-      console.log(`[PodStore] Loading ${podIds.length} Pods from disk...`);
-
-      // Load each Pod
-      for (const podId of podIds) {
-        const persistedPod = await podPersistenceService.loadPod(podId);
-
-        if (persistedPod) {
-          // Convert PersistedPod to Pod (convert string dates to Date objects)
-          const loadedStatus = persistedPod.status as string;
-          const pod: Pod = {
-            id: persistedPod.id,
-            name: persistedPod.name,
-            type: persistedPod.type,
-            color: persistedPod.color,
-            status: loadedStatus === 'busy' ? 'idle' : persistedPod.status,
-            workspacePath: `${config.canvasRoot}/pod-${persistedPod.id}`,
-            gitUrl: persistedPod.gitUrl,
-            createdAt: new Date(persistedPod.createdAt),
-            lastActiveAt: new Date(persistedPod.updatedAt),
-            x: persistedPod.x,
-            y: persistedPod.y,
-            rotation: persistedPod.rotation,
-            output: [],
-            claudeSessionId: persistedPod.claudeSessionId,
-            outputStyleId: persistedPod.outputStyleId ?? null,
-            skillIds: persistedPod.skillIds ?? [],
-            model: persistedPod.model ?? 'opus',
-            repositoryId: persistedPod.repositoryId ?? null,
-            needsForkSession: persistedPod.needsForkSession ?? false,
-          };
-
-          this.pods.set(pod.id, pod);
-          console.log(`[PodStore] Loaded Pod ${pod.id}: ${pod.name}`);
-        }
-      }
-
-      console.log(`[PodStore] Successfully loaded ${this.pods.size} Pods`);
-    } catch (error) {
-      console.error(`[PodStore] Failed to load Pods from disk: ${error}`);
-      throw error;
+  async loadFromDisk(): Promise<Result<void>> {
+    const result = await podPersistenceService.listAllPodIds();
+    if (!result.success) {
+      return err('載入 Pod 資料失敗');
     }
+
+    const podIds = result.data!;
+    console.log(`[PodStore] Loading ${podIds.length} Pods from disk...`);
+
+    for (const podId of podIds) {
+      const persistedPod = await podPersistenceService.loadPod(podId);
+
+      if (persistedPod) {
+        const loadedStatus = persistedPod.status as string;
+        const pod: Pod = {
+          id: persistedPod.id,
+          name: persistedPod.name,
+          type: persistedPod.type,
+          color: persistedPod.color,
+          status: loadedStatus === 'busy' ? 'idle' : persistedPod.status,
+          workspacePath: `${config.canvasRoot}/pod-${persistedPod.id}`,
+          gitUrl: persistedPod.gitUrl,
+          createdAt: new Date(persistedPod.createdAt),
+          lastActiveAt: new Date(persistedPod.updatedAt),
+          x: persistedPod.x,
+          y: persistedPod.y,
+          rotation: persistedPod.rotation,
+          output: [],
+          claudeSessionId: persistedPod.claudeSessionId,
+          outputStyleId: persistedPod.outputStyleId ?? null,
+          skillIds: persistedPod.skillIds ?? [],
+          model: persistedPod.model ?? 'opus',
+          repositoryId: persistedPod.repositoryId ?? null,
+          needsForkSession: persistedPod.needsForkSession ?? false,
+        };
+
+        this.pods.set(pod.id, pod);
+        console.log(`[PodStore] Loaded Pod ${pod.id}: ${pod.name}`);
+      }
+    }
+
+    console.log(`[PodStore] Successfully loaded ${this.pods.size} Pods`);
+    return ok(undefined);
   }
 }
 

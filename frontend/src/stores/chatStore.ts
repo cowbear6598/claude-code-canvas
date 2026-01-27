@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { websocketClient, createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { generateRequestId } from '@/services/utils'
+import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import type { Message, ToolUseInfo, HistoryLoadingStatus, ToolUseStatus } from '@/types/chat'
 import type {
   PodChatMessagePayload,
@@ -134,7 +135,6 @@ export const useChatStore = defineStore('chat', {
 
     async sendMessage(podId: string, content: string): Promise<void> {
       if (!this.isConnected) {
-        console.error('[ChatStore] Cannot send message, not connected')
         throw new Error('WebSocket not connected')
       }
 
@@ -333,8 +333,6 @@ export const useChatStore = defineStore('chat', {
     },
 
     handleError(payload: PodErrorPayload): void {
-      console.error('[ChatStore] Error:', payload)
-
       if (!websocketClient.isConnected.value) {
         this.connectionStatus = 'error'
       }
@@ -387,7 +385,6 @@ export const useChatStore = defineStore('chat', {
 
       if (!this.isConnected) {
         const error = 'WebSocket not connected'
-        console.error(`[ChatStore] Cannot load history: ${error}`)
         this.setHistoryLoadingStatus(podId, 'error')
         this.setHistoryLoadingError(podId, error)
         throw new Error(error)
@@ -395,28 +392,30 @@ export const useChatStore = defineStore('chat', {
 
       this.setHistoryLoadingStatus(podId, 'loading')
 
-      try {
-        const response = await createWebSocketRequest<PodChatHistoryPayload, PodChatHistoryResultPayload>({
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<PodChatHistoryPayload, PodChatHistoryResultPayload>({
           requestEvent: WebSocketRequestEvents.POD_CHAT_HISTORY,
           responseEvent: WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT,
           payload: {
             podId
           },
           timeout: HISTORY_LOAD_TIMEOUT_MS
-        })
+        }),
+        '載入聊天歷史失敗'
+      )
 
-        const messages = (response.messages || []).map(msg =>
-          this.convertPersistedToMessage(msg)
-        )
-        this.setPodMessages(podId, messages)
-        this.setHistoryLoadingStatus(podId, 'loaded')
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        console.error(`[ChatStore] Failed to load history for pod ${podId}:`, errorMessage)
+      if (!response) {
         this.setHistoryLoadingStatus(podId, 'error')
-        this.setHistoryLoadingError(podId, errorMessage)
-        throw error
+        return
       }
+
+      const messages = (response.messages || []).map(msg =>
+        this.convertPersistedToMessage(msg)
+      )
+      this.setPodMessages(podId, messages)
+      this.setHistoryLoadingStatus(podId, 'loaded')
     },
 
     // 平行載入所有 Pods 的聊天歷史，使用 Promise.allSettled 確保部分失敗不會影響其他

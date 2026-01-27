@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { BaseNote } from '@/types'
 import { createWebSocketRequest } from '@/services/websocket'
+import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 
 export interface NoteStoreConfig<TItem> {
   storeName: string
@@ -84,23 +85,28 @@ export function createNoteStore<TItem>(
         this.isLoading = true
         this.error = null
 
-        try {
-          const response = await createWebSocketRequest<any, any>({
+        const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+        const response = await wrapWebSocketRequest(
+          createWebSocketRequest<any, any>({
             requestEvent: config.events.listItems.request,
             responseEvent: config.events.listItems.response,
             payload: {}
-          })
+          }),
+          '載入項目失敗'
+        )
 
-          if (response.styles) {
-            this.availableItems = response.styles
-          } else if (response.skills) {
-            this.availableItems = response.skills
-          }
-        } catch (error) {
-          this.error = error instanceof Error ? error.message : 'Failed to load items'
-          throw error
-        } finally {
-          this.isLoading = false
+        this.isLoading = false
+
+        if (!response) {
+          this.error = '載入失敗'
+          return
+        }
+
+        if (response.styles) {
+          this.availableItems = response.styles
+        } else if (response.skills) {
+          this.availableItems = response.skills
         }
       },
 
@@ -108,21 +114,26 @@ export function createNoteStore<TItem>(
         this.isLoading = true
         this.error = null
 
-        try {
-          const response = await createWebSocketRequest<any, any>({
+        const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+        const response = await wrapWebSocketRequest(
+          createWebSocketRequest<any, any>({
             requestEvent: config.events.listNotes.request,
             responseEvent: config.events.listNotes.response,
             payload: {}
-          })
+          }),
+          '載入筆記失敗'
+        )
 
-          if (response.notes) {
-            this.notes = response.notes
-          }
-        } catch (error) {
-          this.error = error instanceof Error ? error.message : 'Failed to load notes'
-          throw error
-        } finally {
-          this.isLoading = false
+        this.isLoading = false
+
+        if (!response) {
+          this.error = '載入失敗'
+          return
+        }
+
+        if (response.notes) {
+          this.notes = response.notes
         }
       },
 
@@ -166,8 +177,10 @@ export function createNoteStore<TItem>(
         note.x = x
         note.y = y
 
-        try {
-          const response = await createWebSocketRequest<any, any>({
+        const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+        const response = await wrapWebSocketRequest(
+          createWebSocketRequest<any, any>({
             requestEvent: config.events.updateNote.request,
             responseEvent: config.events.updateNote.response,
             payload: {
@@ -175,18 +188,21 @@ export function createNoteStore<TItem>(
               x,
               y,
             }
-          })
+          }),
+          '更新位置失敗'
+        )
 
-          if (response.note) {
-            const index = this.notes.findIndex(n => n.id === noteId)
-            if (index !== -1) {
-              this.notes[index] = response.note
-            }
-          }
-        } catch (error) {
+        if (!response) {
           note.x = originalX
           note.y = originalY
-          throw error
+          return
+        }
+
+        if (response.note) {
+          const index = this.notes.findIndex(n => n.id === noteId)
+          if (index !== -1) {
+            this.notes[index] = response.note
+          }
         }
       },
 
@@ -220,17 +236,22 @@ export function createNoteStore<TItem>(
         const originalIndex = index
         this.notes.splice(index, 1)
 
-        try {
-          await createWebSocketRequest<any, any>({
+        const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+        const response = await wrapWebSocketRequest(
+          createWebSocketRequest<any, any>({
             requestEvent: config.events.deleteNote.request,
             responseEvent: config.events.deleteNote.response,
             payload: {
               noteId,
             }
-          })
-        } catch (error) {
+          }),
+          '刪除筆記失敗'
+        )
+
+        if (!response) {
           this.notes.splice(originalIndex, 0, note)
-          throw error
+          return
         }
       },
     },

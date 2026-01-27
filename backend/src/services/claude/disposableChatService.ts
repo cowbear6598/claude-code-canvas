@@ -49,7 +49,7 @@ class DisposableChatService {
             const errorMessage =
               'errors' in sdkMessage && sdkMessage.errors
                 ? sdkMessage.errors.join(', ')
-                : 'Unknown error';
+                : '未知錯誤';
 
             return {
               content: '',

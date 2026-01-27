@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import type { Skill, SkillNote } from '@/types'
 import type { BaseNoteState } from './createNoteStore'
 import { createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
+import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import type {
   SkillListResultPayload,
   SkillNoteCreatedPayload,
@@ -68,21 +69,26 @@ export const useSkillStore = defineStore('skill', {
       this.isLoading = true
       this.error = null
 
-      try {
-        const response = await createWebSocketRequest<SkillListPayload, SkillListResultPayload>({
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<SkillListPayload, SkillListResultPayload>({
           requestEvent: WebSocketRequestEvents.SKILL_LIST,
           responseEvent: WebSocketResponseEvents.SKILL_LIST_RESULT,
           payload: {}
-        })
+        }),
+        '載入 Skill 失敗'
+      )
 
-        if (response.skills) {
-          this.availableItems = response.skills
-        }
-      } catch (error) {
-        this.error = error instanceof Error ? error.message : 'Failed to load skills'
-        throw error
-      } finally {
-        this.isLoading = false
+      this.isLoading = false
+
+      if (!response) {
+        this.error = '載入失敗'
+        return
+      }
+
+      if (response.skills) {
+        this.availableItems = response.skills
       }
     },
 
@@ -90,21 +96,26 @@ export const useSkillStore = defineStore('skill', {
       this.isLoading = true
       this.error = null
 
-      try {
-        const response = await createWebSocketRequest<SkillNoteListPayload, SkillNoteListResultPayload>({
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<SkillNoteListPayload, SkillNoteListResultPayload>({
           requestEvent: WebSocketRequestEvents.SKILL_NOTE_LIST,
           responseEvent: WebSocketResponseEvents.SKILL_NOTE_LIST_RESULT,
           payload: {}
-        })
+        }),
+        '載入 Skill 筆記失敗'
+      )
 
-        if (response.notes) {
-          this.notes = response.notes
-        }
-      } catch (error) {
-        this.error = error instanceof Error ? error.message : 'Failed to load skill notes'
-        throw error
-      } finally {
-        this.isLoading = false
+      this.isLoading = false
+
+      if (!response) {
+        this.error = '載入失敗'
+        return
+      }
+
+      if (response.notes) {
+        this.notes = response.notes
       }
     },
 
@@ -147,8 +158,10 @@ export const useSkillStore = defineStore('skill', {
       note.x = x
       note.y = y
 
-      try {
-        const response = await createWebSocketRequest<SkillNoteUpdatePayload, SkillNoteUpdatedPayload>({
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<SkillNoteUpdatePayload, SkillNoteUpdatedPayload>({
           requestEvent: WebSocketRequestEvents.SKILL_NOTE_UPDATE,
           responseEvent: WebSocketResponseEvents.SKILL_NOTE_UPDATED,
           payload: {
@@ -156,18 +169,21 @@ export const useSkillStore = defineStore('skill', {
             x,
             y,
           }
-        })
+        }),
+        '更新位置失敗'
+      )
 
-        if (response.note) {
-          const index = this.notes.findIndex(n => n.id === noteId)
-          if (index !== -1) {
-            this.notes[index] = response.note
-          }
-        }
-      } catch (error) {
+      if (!response) {
         note.x = originalX
         note.y = originalY
-        throw error
+        return
+      }
+
+      if (response.note) {
+        const index = this.notes.findIndex(n => n.id === noteId)
+        if (index !== -1) {
+          this.notes[index] = response.note
+        }
       }
     },
 
@@ -235,17 +251,22 @@ export const useSkillStore = defineStore('skill', {
       const originalIndex = index
       this.notes.splice(index, 1)
 
-      try {
-        await createWebSocketRequest<SkillNoteDeletePayload, SkillNoteDeletedPayload>({
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<SkillNoteDeletePayload, SkillNoteDeletedPayload>({
           requestEvent: WebSocketRequestEvents.SKILL_NOTE_DELETE,
           responseEvent: WebSocketResponseEvents.SKILL_NOTE_DELETED,
           payload: {
             noteId,
           }
-        })
-      } catch (error) {
+        }),
+        '刪除筆記失敗'
+      )
+
+      if (!response) {
         this.notes.splice(originalIndex, 0, note)
-        throw error
+        return
       }
     },
 

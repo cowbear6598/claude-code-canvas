@@ -40,7 +40,7 @@ class SkillService {
             return skills;
         } catch (error) {
             console.error('[SkillService] Failed to list skills:', error);
-            throw new Error('Failed to list skills');
+            throw new Error('取得技能列表失敗');
         }
     }
 
@@ -59,7 +59,7 @@ class SkillService {
             }
 
             console.error(`[SkillService] Failed to read skill ${skillId}:`, error);
-            throw new Error(`Failed to read skill: ${skillId}`);
+            throw new Error(`讀取技能失敗: ${skillId}`);
         }
     }
 
@@ -82,10 +82,10 @@ class SkillService {
      */
     async copySkillToPod(skillId: string, podId: string): Promise<void> {
         if (!validateSkillId(skillId)) {
-            throw new Error('Invalid skill ID format');
+            throw new Error('無效的技能 ID 格式');
         }
         if (!validatePodId(podId)) {
-            throw new Error('Invalid pod ID format');
+            throw new Error('無效的 Pod ID 格式');
         }
 
         const srcDir = this.getSkillDirectoryPath(skillId);
@@ -94,7 +94,7 @@ class SkillService {
         try {
             await fs.access(srcDir);
         } catch {
-            throw new Error(`Skill directory not found: ${skillId}`);
+            throw new Error(`找不到技能目錄: ${skillId}`);
         }
 
         try {
@@ -107,7 +107,7 @@ class SkillService {
             await this.copyDirectoryRecursive(srcDir, destDir);
             console.log(`[SkillService] Successfully copied skill ${skillId} to pod ${podId}`);
         } catch (error) {
-            throw new Error(`Failed to copy skill ${skillId} to pod ${podId}: ${error}`);
+            throw new Error(`複製技能失敗 ${skillId} 至 pod ${podId}: ${error}`);
         }
     }
 
@@ -116,7 +116,7 @@ class SkillService {
      */
     private getSkillDirectoryPath(skillId: string): string {
         if (!validateSkillId(skillId)) {
-            throw new Error('Invalid skill ID format');
+            throw new Error('無效的技能 ID 格式');
         }
 
         // 使用 basename 防止路徑遍歷
@@ -124,7 +124,7 @@ class SkillService {
 
         // 驗證最終路徑在允許範圍內
         if (!isPathWithinDirectory(safePath, config.skillsPath)) {
-            throw new Error('Invalid skill path');
+            throw new Error('無效的技能路徑');
         }
 
         return safePath;
@@ -148,7 +148,7 @@ class SkillService {
     ): Promise<void> {
         const MAX_DEPTH = 10;
         if (depth > MAX_DEPTH) {
-            throw new Error('Maximum directory depth exceeded');
+            throw new Error('超過最大目錄深度');
         }
 
         await fs.mkdir(destDir, {recursive: true});
@@ -157,7 +157,7 @@ class SkillService {
 
         const MAX_FILES = 1000;
         if (entries.length > MAX_FILES) {
-            throw new Error('Maximum file count exceeded');
+            throw new Error('超過最大檔案數量');
         }
 
         for (const entry of entries) {

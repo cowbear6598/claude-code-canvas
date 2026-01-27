@@ -2,6 +2,7 @@ import {defineStore} from 'pinia'
 import type {OutputStyleListItem, OutputStyleNote, Pod} from '@/types'
 import type {BaseNoteState} from './createNoteStore'
 import {createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
+import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import type {
     OutputStyleListResultPayload,
     PodOutputStyleBoundPayload,
@@ -64,21 +65,26 @@ export const useOutputStyleStore = defineStore('outputStyle', {
             this.isLoading = true
             this.error = null
 
-            try {
-                const response = await createWebSocketRequest<OutputStyleListPayload, OutputStyleListResultPayload>({
+            const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+            const response = await wrapWebSocketRequest(
+                createWebSocketRequest<OutputStyleListPayload, OutputStyleListResultPayload>({
                     requestEvent: WebSocketRequestEvents.OUTPUT_STYLE_LIST,
                     responseEvent: WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT,
                     payload: {}
-                })
+                }),
+                '載入 Output Style 失敗'
+            )
 
-                if (response.styles) {
-                    this.availableItems = response.styles
-                }
-            } catch (error) {
-                this.error = error instanceof Error ? error.message : 'Failed to load output styles'
-                throw error
-            } finally {
-                this.isLoading = false
+            this.isLoading = false
+
+            if (!response) {
+                this.error = '載入失敗'
+                return
+            }
+
+            if (response.styles) {
+                this.availableItems = response.styles
             }
         },
 
@@ -86,21 +92,26 @@ export const useOutputStyleStore = defineStore('outputStyle', {
             this.isLoading = true
             this.error = null
 
-            try {
-                const response = await createWebSocketRequest<NoteListPayload, NoteListResultPayload>({
+            const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+            const response = await wrapWebSocketRequest(
+                createWebSocketRequest<NoteListPayload, NoteListResultPayload>({
                     requestEvent: WebSocketRequestEvents.NOTE_LIST,
                     responseEvent: WebSocketResponseEvents.NOTE_LIST_RESULT,
                     payload: {}
-                })
+                }),
+                '載入 Output Style 筆記失敗'
+            )
 
-                if (response.notes) {
-                    this.notes = response.notes
-                }
-            } catch (error) {
-                this.error = error instanceof Error ? error.message : 'Failed to load notes'
-                throw error
-            } finally {
-                this.isLoading = false
+            this.isLoading = false
+
+            if (!response) {
+                this.error = '載入失敗'
+                return
+            }
+
+            if (response.notes) {
+                this.notes = response.notes
             }
         },
 
@@ -143,8 +154,10 @@ export const useOutputStyleStore = defineStore('outputStyle', {
             note.x = x
             note.y = y
 
-            try {
-                const response = await createWebSocketRequest<NoteUpdatePayload, NoteUpdatedPayload>({
+            const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+            const response = await wrapWebSocketRequest(
+                createWebSocketRequest<NoteUpdatePayload, NoteUpdatedPayload>({
                     requestEvent: WebSocketRequestEvents.NOTE_UPDATE,
                     responseEvent: WebSocketResponseEvents.NOTE_UPDATED,
                     payload: {
@@ -152,18 +165,21 @@ export const useOutputStyleStore = defineStore('outputStyle', {
                         x,
                         y,
                     }
-                })
+                }),
+                '更新位置失敗'
+            )
 
-                if (response.note) {
-                    const index = this.notes.findIndex(n => n.id === noteId)
-                    if (index !== -1) {
-                        this.notes[index] = response.note
-                    }
-                }
-            } catch (error) {
+            if (!response) {
                 note.x = originalX
                 note.y = originalY
-                throw error
+                return
+            }
+
+            if (response.note) {
+                const index = this.notes.findIndex(n => n.id === noteId)
+                if (index !== -1) {
+                    this.notes[index] = response.note
+                }
             }
         },
 
@@ -282,17 +298,22 @@ export const useOutputStyleStore = defineStore('outputStyle', {
             const originalIndex = index
             this.notes.splice(index, 1)
 
-            try {
-                await createWebSocketRequest<NoteDeletePayload, NoteDeletedPayload>({
+            const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+            const response = await wrapWebSocketRequest(
+                createWebSocketRequest<NoteDeletePayload, NoteDeletedPayload>({
                     requestEvent: WebSocketRequestEvents.NOTE_DELETE,
                     responseEvent: WebSocketResponseEvents.NOTE_DELETED,
                     payload: {
                         noteId,
                     }
-                })
-            } catch (error) {
+                }),
+                '刪除筆記失敗'
+            )
+
+            if (!response) {
                 this.notes.splice(originalIndex, 0, note)
-                throw error
+                return
             }
         },
 

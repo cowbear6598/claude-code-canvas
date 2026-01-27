@@ -1,6 +1,7 @@
 import path from 'path';
 import { persistenceService } from './index.js';
 import type { PersistedMessage, ChatHistory } from '../../types/index.js';
+import { Result, ok, err } from '../../types/index.js';
 import { config } from '../../config/index.js';
 
 class ChatPersistenceService {
@@ -8,52 +9,60 @@ class ChatPersistenceService {
     return path.join(config.canvasRoot, `pod-${podId}`, 'chat.json');
   }
 
-  async saveMessage(podId: string, message: PersistedMessage): Promise<void> {
+  async saveMessage(podId: string, message: PersistedMessage): Promise<Result<void>> {
     const filePath = this.getChatFilePath(podId);
 
-    try {
-      let chatHistory = await persistenceService.readJson<ChatHistory>(filePath);
-
-      if (!chatHistory) {
-        chatHistory = {
-          messages: [],
-          lastUpdated: new Date().toISOString(),
-        };
-      }
-
-      chatHistory.messages.push(message);
-      chatHistory.lastUpdated = new Date().toISOString();
-
-      await persistenceService.writeJson(filePath, chatHistory);
-
-      console.log(`[ChatPersistence] Saved message ${message.id} to Pod ${podId}`);
-    } catch (error) {
-      console.error(`[ChatPersistence] Failed to save message for Pod ${podId}: ${error}`);
-      throw error;
+    const readResult = await persistenceService.readJson<ChatHistory>(filePath);
+    if (!readResult.success) {
+      return err(`儲存訊息失敗 (Pod ${podId})`);
     }
+
+    let chatHistory = readResult.data;
+    if (!chatHistory) {
+      chatHistory = {
+        messages: [],
+        lastUpdated: new Date().toISOString(),
+      };
+    }
+
+    chatHistory.messages.push(message);
+    chatHistory.lastUpdated = new Date().toISOString();
+
+    const writeResult = await persistenceService.writeJson(filePath, chatHistory);
+    if (!writeResult.success) {
+      return err(`儲存訊息失敗 (Pod ${podId})`);
+    }
+
+    console.log(`[ChatPersistence] Saved message ${message.id} to Pod ${podId}`);
+    return ok(undefined);
   }
 
   async loadChatHistory(podId: string): Promise<ChatHistory | null> {
     const filePath = this.getChatFilePath(podId);
-    const chatHistory = await persistenceService.readJson<ChatHistory>(filePath);
+    const result = await persistenceService.readJson<ChatHistory>(filePath);
 
-    if (chatHistory) {
-      console.log(`[ChatPersistence] Loaded ${chatHistory.messages.length} messages for Pod ${podId}`);
+    if (!result.success) {
+      return null;
     }
 
-    return chatHistory;
+    const data = result.data ?? null;
+    if (data) {
+      console.log(`[ChatPersistence] Loaded ${data.messages.length} messages for Pod ${podId}`);
+    }
+
+    return data;
   }
 
-  async clearChatHistory(podId: string): Promise<void> {
+  async clearChatHistory(podId: string): Promise<Result<void>> {
     const filePath = this.getChatFilePath(podId);
 
-    try {
-      await persistenceService.deleteFile(filePath);
-      console.log(`[ChatPersistence] Cleared chat history for Pod ${podId}`);
-    } catch (error) {
-      console.error(`[ChatPersistence] Failed to clear chat history for Pod ${podId}: ${error}`);
-      throw error;
+    const result = await persistenceService.deleteFile(filePath);
+    if (!result.success) {
+      return err(`清除聊天紀錄失敗 (Pod ${podId})`);
     }
+
+    console.log(`[ChatPersistence] Cleared chat history for Pod ${podId}`);
+    return ok(undefined);
   }
 }
 

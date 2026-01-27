@@ -6,6 +6,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import type { Connection, AnchorPosition } from '../types/index.js';
 import type { PersistedConnection } from '../types/index.js';
+import { Result, ok, err } from '../types/index.js';
 import { config } from '../config/index.js';
 
 interface CreateConnectionData {
@@ -137,12 +138,23 @@ class ConnectionStore {
   /**
    * Load connections from disk
    */
-  async loadFromDisk(): Promise<void> {
+  async loadFromDisk(): Promise<Result<void>> {
     const dataDir = path.dirname(this.connectionsFilePath);
     await fs.mkdir(dataDir, { recursive: true });
 
+    // 先檢查檔案是否存在
     try {
-      const data = await fs.readFile(this.connectionsFilePath, 'utf-8');
+      await fs.access(this.connectionsFilePath);
+    } catch {
+      console.log('[ConnectionStore] No existing connections file found, starting fresh');
+      this.connections.clear();
+      return ok(undefined);
+    }
+
+    const data = await fs.readFile(this.connectionsFilePath, 'utf-8');
+
+    // JSON.parse 可能拋錯，保留 try-catch
+    try {
       const persistedConnections: PersistedConnection[] = JSON.parse(data);
 
       this.connections.clear();
@@ -156,22 +168,17 @@ class ConnectionStore {
       }
 
       console.log(`[ConnectionStore] Loaded ${this.connections.size} connections from disk`);
-    } catch (readError: unknown) {
-      const error = readError as { code?: string };
-      if (error.code === 'ENOENT') {
-        console.log('[ConnectionStore] No existing connections file found, starting fresh');
-        this.connections.clear();
-      } else {
-        console.error(`[ConnectionStore] Failed to load connections from disk: ${readError}`);
-        throw readError;
-      }
+      return ok(undefined);
+    } catch (error) {
+      console.error(`[ConnectionStore] Failed to load connections from disk: ${error}`);
+      return err('載入連線資料失敗');
     }
   }
 
   /**
    * Save connections to disk
    */
-  async saveToDisk(): Promise<void> {
+  async saveToDisk(): Promise<Result<void>> {
     const dataDir = path.dirname(this.connectionsFilePath);
     await fs.mkdir(dataDir, { recursive: true });
 
@@ -191,6 +198,8 @@ class ConnectionStore {
       JSON.stringify(persistedConnections, null, 2),
       'utf-8'
     );
+
+    return ok(undefined);
   }
 
   /**

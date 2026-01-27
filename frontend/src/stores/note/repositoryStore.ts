@@ -2,6 +2,7 @@ import {defineStore} from 'pinia'
 import type {Repository, RepositoryNote} from '@/types'
 import type {BaseNoteState} from './createNoteStore'
 import {createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
+import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import type {
   RepositoryListResultPayload,
   RepositoryCreatedPayload,
@@ -65,22 +66,27 @@ export const useRepositoryStore = defineStore('repository', {
       this.isLoading = true
       this.error = null
 
-      try {
-        const response = await createWebSocketRequest<RepositoryListPayload, RepositoryListResultPayload>({
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryListPayload, RepositoryListResultPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_LIST,
           responseEvent: WebSocketResponseEvents.REPOSITORY_LIST_RESULT,
           payload: {}
-        })
+        }),
+        '載入 Repository 失敗'
+      )
 
-        if (!response.repositories) return
+      this.isLoading = false
 
-        this.availableItems = response.repositories
-      } catch (error) {
-        this.error = error instanceof Error ? error.message : 'Failed to load repositories'
-        throw error
-      } finally {
-        this.isLoading = false
+      if (!response) {
+        this.error = '載入失敗'
+        return
       }
+
+      if (!response.repositories) return
+
+      this.availableItems = response.repositories
     },
 
     async createRepository(name: string): Promise<void> {
@@ -99,22 +105,27 @@ export const useRepositoryStore = defineStore('repository', {
       this.isLoading = true
       this.error = null
 
-      try {
-        const response = await createWebSocketRequest<RepositoryNoteListPayload, RepositoryNoteListResultPayload>({
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryNoteListPayload, RepositoryNoteListResultPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_NOTE_LIST,
           responseEvent: WebSocketResponseEvents.REPOSITORY_NOTE_LIST_RESULT,
           payload: {}
-        })
+        }),
+        '載入 Repository 筆記失敗'
+      )
 
-        if (!response.notes) return
+      this.isLoading = false
 
-        this.notes = response.notes
-      } catch (error) {
-        this.error = error instanceof Error ? error.message : 'Failed to load repository notes'
-        throw error
-      } finally {
-        this.isLoading = false
+      if (!response) {
+        this.error = '載入失敗'
+        return
       }
+
+      if (!response.notes) return
+
+      this.notes = response.notes
     },
 
     async createNote(repositoryId: string, x: number, y: number): Promise<void> {
@@ -157,24 +168,29 @@ export const useRepositoryStore = defineStore('repository', {
       note.x = x
       note.y = y
 
-      try {
-        const response = await createWebSocketRequest<RepositoryNoteUpdatePayload, RepositoryNoteUpdatedPayload>({
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryNoteUpdatePayload, RepositoryNoteUpdatedPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_NOTE_UPDATE,
           responseEvent: WebSocketResponseEvents.REPOSITORY_NOTE_UPDATED,
           payload: {noteId, x, y}
-        })
+        }),
+        '更新位置失敗'
+      )
 
-        if (!response.note) return
-
-        const index = this.notes.findIndex(n => n.id === noteId)
-        if (index === -1) return
-
-        this.notes[index] = response.note
-      } catch (error) {
+      if (!response) {
         note.x = originalX
         note.y = originalY
-        throw error
+        return
       }
+
+      if (!response.note) return
+
+      const index = this.notes.findIndex(n => n.id === noteId)
+      if (index === -1) return
+
+      this.notes[index] = response.note
     },
 
     async bindToPod(noteId: string, podId: string): Promise<void> {
@@ -283,15 +299,20 @@ export const useRepositoryStore = defineStore('repository', {
       const originalIndex = index
       this.notes.splice(index, 1)
 
-      try {
-        await createWebSocketRequest<RepositoryNoteDeletePayload, RepositoryNoteDeletedPayload>({
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryNoteDeletePayload, RepositoryNoteDeletedPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_NOTE_DELETE,
           responseEvent: WebSocketResponseEvents.REPOSITORY_NOTE_DELETED,
           payload: {noteId}
-        })
-      } catch (error) {
+        }),
+        '刪除筆記失敗'
+      )
+
+      if (!response) {
         this.notes.splice(originalIndex, 0, note)
-        throw error
+        return
       }
     },
   },

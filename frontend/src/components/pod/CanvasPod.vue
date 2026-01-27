@@ -8,6 +8,7 @@ import {useConnectionStore} from '@/stores/connectionStore'
 import {useChatStore} from '@/stores/chatStore'
 import {useAnchorDetection} from '@/composables/useAnchorDetection'
 import {useBatchDrag} from '@/composables/canvas'
+import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import {createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
 import type {
   WorkflowGetDownstreamPodsResultPayload,
@@ -213,15 +214,9 @@ const handleNoteRemoved = async () => {
 
 const handleSkillNoteDropped = async (noteId: string) => {
   const note = skillStore.getNoteById(noteId)
-  if (!note) {
-    console.warn('[CanvasPod] Note not found:', noteId)
-    return
-  }
+  if (!note) return
 
-  if (skillStore.isSkillBoundToPod(note.skillId, props.pod.id)) {
-    console.warn('[CanvasPod] Skill already bound to this pod:', note.skillId)
-    return
-  }
+  if (skillStore.isSkillBoundToPod(note.skillId, props.pod.id)) return
 
   await skillStore.bindToPod(noteId, props.pod.id)
 }
@@ -283,45 +278,51 @@ const handleAnchorDragEnd = async () => {
 const handleClearWorkflow = async () => {
   isLoadingDownstream.value = true
 
-  try {
-    const response = await createWebSocketRequest<WorkflowGetDownstreamPodsPayload, WorkflowGetDownstreamPodsResultPayload>({
+  const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+  const response = await wrapWebSocketRequest(
+    createWebSocketRequest<WorkflowGetDownstreamPodsPayload, WorkflowGetDownstreamPodsResultPayload>({
       requestEvent: WebSocketRequestEvents.WORKFLOW_GET_DOWNSTREAM_PODS,
       responseEvent: WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
       payload: {sourcePodId: props.pod.id}
-    })
+    }),
+    '取得下游 Pod 失敗'
+  )
 
-    if (!response.pods) return
+  isLoadingDownstream.value = false
 
-    downstreamPods.value = response.pods
-    showClearDialog.value = true
-  } catch (error) {
-    console.error('[CanvasPod] Failed to get downstream pods:', error)
-  } finally {
-    isLoadingDownstream.value = false
-  }
+  if (!response) return
+
+  if (!response.pods) return
+
+  downstreamPods.value = response.pods
+  showClearDialog.value = true
 }
 
 const confirmClear = async () => {
   isClearing.value = true
 
-  try {
-    const response = await createWebSocketRequest<WorkflowClearPayload, WorkflowClearResultPayload>({
+  const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+  const response = await wrapWebSocketRequest(
+    createWebSocketRequest<WorkflowClearPayload, WorkflowClearResultPayload>({
       requestEvent: WebSocketRequestEvents.WORKFLOW_CLEAR,
       responseEvent: WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
       payload: {sourcePodId: props.pod.id}
-    })
+    }),
+    '清理 Workflow 失敗'
+  )
 
-    if (!response.clearedPodIds) return
+  isClearing.value = false
 
-    chatStore.clearMessagesByPodIds(response.clearedPodIds)
-    podStore.clearPodOutputsByIds(response.clearedPodIds)
-    showClearDialog.value = false
-    downstreamPods.value = []
-  } catch (error) {
-    console.error('[CanvasPod] Failed to clear workflow:', error)
-  } finally {
-    isClearing.value = false
-  }
+  if (!response) return
+
+  if (!response.clearedPodIds) return
+
+  chatStore.clearMessagesByPodIds(response.clearedPodIds)
+  podStore.clearPodOutputsByIds(response.clearedPodIds)
+  showClearDialog.value = false
+  downstreamPods.value = []
 }
 
 const cancelClear = () => {
@@ -330,19 +331,22 @@ const cancelClear = () => {
 }
 
 const handleModelChange = async (model: ModelType) => {
-  try {
-    const response = await createWebSocketRequest<PodUpdatePayload, PodUpdatedPayload>({
+  const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+  const response = await wrapWebSocketRequest(
+    createWebSocketRequest<PodUpdatePayload, PodUpdatedPayload>({
       requestEvent: WebSocketRequestEvents.POD_UPDATE,
       responseEvent: WebSocketResponseEvents.POD_UPDATED,
       payload: {podId: props.pod.id, model}
-    })
+    }),
+    '更新模型失敗'
+  )
 
-    if (!response.pod) return
+  if (!response) return
 
-    podStore.updatePodModel(props.pod.id, response.pod.model ?? 'opus')
-  } catch (error) {
-    console.error('[CanvasPod] Failed to update model:', error)
-  }
+  if (!response.pod) return
+
+  podStore.updatePodModel(props.pod.id, response.pod.model ?? 'opus')
 }
 </script>
 

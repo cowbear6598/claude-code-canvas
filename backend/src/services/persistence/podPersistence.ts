@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { persistenceService } from './index.js';
 import type { Pod, PersistedPod } from '../../types/index.js';
+import { Result, ok, err } from '../../types/index.js';
 import { config } from '../../config/index.js';
 
 class PodPersistenceService {
@@ -30,23 +31,28 @@ class PodPersistenceService {
     };
   }
 
-  async savePod(pod: Pod, claudeSessionId?: string): Promise<void> {
+  async savePod(pod: Pod, claudeSessionId?: string): Promise<Result<void>> {
     const filePath = this.getPodFilePath(pod.id);
     const persistedPod = this.toPersistedPod(pod, claudeSessionId);
 
-    try {
-      await persistenceService.writeJson(filePath, persistedPod);
-      console.log(`[PodPersistence] Saved Pod ${pod.id} to ${filePath}`);
-    } catch (error) {
-      console.error(`[PodPersistence] Failed to save Pod ${pod.id}: ${error}`);
-      throw error;
+    const result = await persistenceService.writeJson(filePath, persistedPod);
+    if (!result.success) {
+      return err(`儲存 Pod 失敗 (${pod.id})`);
     }
+
+    console.log(`[PodPersistence] Saved Pod ${pod.id} to ${filePath}`);
+    return ok(undefined);
   }
 
   async loadPod(podId: string): Promise<PersistedPod | null> {
     const filePath = this.getPodFilePath(podId);
-    const data = await persistenceService.readJson<PersistedPod>(filePath);
+    const result = await persistenceService.readJson<PersistedPod>(filePath);
 
+    if (!result.success) {
+      return null;
+    }
+
+    const data = result.data ?? null;
     if (data) {
       console.log(`[PodPersistence] Loaded Pod ${podId}`);
     }
@@ -54,47 +60,46 @@ class PodPersistenceService {
     return data;
   }
 
-  async deletePodData(podId: string): Promise<void> {
+  async deletePodData(podId: string): Promise<Result<void>> {
     const filePath = this.getPodFilePath(podId);
 
-    try {
-      await persistenceService.deleteFile(filePath);
-      console.log(`[PodPersistence] Deleted Pod data ${filePath}`);
-    } catch (error) {
-      console.error(`[PodPersistence] Failed to delete Pod data ${podId}: ${error}`);
-      throw error;
+    const result = await persistenceService.deleteFile(filePath);
+    if (!result.success) {
+      return err(`刪除 Pod 資料失敗 (${podId})`);
     }
+
+    console.log(`[PodPersistence] Deleted Pod data ${filePath}`);
+    return ok(undefined);
   }
 
-  async listAllPodIds(): Promise<string[]> {
-    try {
-      await persistenceService.ensureDirectory(config.canvasRoot);
-      const entries = await fs.readdir(config.canvasRoot, { withFileTypes: true });
-      const podIds: string[] = [];
+  async listAllPodIds(): Promise<Result<string[]>> {
+    const dirResult = await persistenceService.ensureDirectory(config.canvasRoot);
+    if (!dirResult.success) {
+      return err('列出 Pod 失敗');
+    }
 
-      for (const entry of entries) {
-        if (!entry.isDirectory() || !entry.name.startsWith('pod-')) {
-          continue;
-        }
+    const entries = await fs.readdir(config.canvasRoot, { withFileTypes: true });
+    const podIds: string[] = [];
 
-        const podId = entry.name.substring(4);
-        const podFilePath = this.getPodFilePath(podId);
-        const exists = await persistenceService.fileExists(podFilePath);
-
-        if (!exists) {
-          console.warn(`[PodPersistence] Found orphan workspace directory: ${entry.name}`);
-          continue;
-        }
-
-        podIds.push(podId);
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !entry.name.startsWith('pod-')) {
+        continue;
       }
 
-      console.log(`[PodPersistence] Found ${podIds.length} Pods on disk`);
-      return podIds;
-    } catch (error) {
-      console.error(`[PodPersistence] Failed to list Pod IDs: ${error}`);
-      return [];
+      const podId = entry.name.substring(4);
+      const podFilePath = this.getPodFilePath(podId);
+      const exists = await persistenceService.fileExists(podFilePath);
+
+      if (!exists) {
+        console.warn(`[PodPersistence] Found orphan workspace directory: ${entry.name}`);
+        continue;
+      }
+
+      podIds.push(podId);
     }
+
+    console.log(`[PodPersistence] Found ${podIds.length} Pods on disk`);
+    return ok(podIds);
   }
 }
 

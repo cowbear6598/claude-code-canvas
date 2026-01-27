@@ -85,7 +85,7 @@ export async function handleCanvasPaste(
       podIdMapping[podItem.originalId] = pod.id;
       console.log(`[Paste] Created Pod ${pod.id} (${pod.name})`);
     } catch (error) {
-      recordError(errors, 'pod', podItem.originalId, error, `Failed to create Pod ${podItem.originalId}`);
+      recordError(errors, 'pod', podItem.originalId, error, `建立 Pod 失敗`);
     }
   }
 
@@ -106,7 +106,7 @@ export async function handleCanvasPaste(
       createdOutputStyleNotes.push(note);
       console.log(`[Paste] Created OutputStyleNote ${note.id} (${note.name})`);
     } catch (error) {
-      recordError(errors, 'outputStyleNote', noteItem.outputStyleId, error, 'Failed to create OutputStyleNote');
+      recordError(errors, 'outputStyleNote', noteItem.outputStyleId, error, '建立輸出風格筆記失敗');
     }
   }
 
@@ -127,7 +127,7 @@ export async function handleCanvasPaste(
       createdSkillNotes.push(note);
       console.log(`[Paste] Created SkillNote ${note.id} (${note.name})`);
     } catch (error) {
-      recordError(errors, 'skillNote', noteItem.skillId, error, 'Failed to create SkillNote');
+      recordError(errors, 'skillNote', noteItem.skillId, error, '建立技能筆記失敗');
     }
   }
 
@@ -172,7 +172,7 @@ export async function handleCanvasPaste(
   };
 
   if (errors.length > 0) {
-    response.error = `Paste completed with ${errors.length} error(s)`;
+    response.error = `貼上完成，但有 ${errors.length} 個錯誤`;
   }
 
   emitSuccess(socket, WebSocketResponseEvents.CANVAS_PASTE_RESULT, response);

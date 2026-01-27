@@ -25,15 +25,11 @@ const showSkillSubmenu = ref(false)
 const showRepositorySubmenu = ref(false)
 
 onMounted(async () => {
-  try {
-    await Promise.all([
-      outputStyleStore.loadOutputStyles(),
-      skillStore.loadSkills(),
-      repositoryStore.loadRepositories()
-    ])
-  } catch (error) {
-    console.error('[PodTypeMenu] Failed to load data:', error)
-  }
+  await Promise.all([
+    outputStyleStore.loadOutputStyles(),
+    skillStore.loadSkills(),
+    repositoryStore.loadRepositories()
+  ])
 })
 
 const handleSelect = (config: PodTypeConfig) => {

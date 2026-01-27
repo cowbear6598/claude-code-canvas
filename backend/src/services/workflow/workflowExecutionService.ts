@@ -230,7 +230,7 @@ class WorkflowExecutionService {
         );
         const fallbackContent = workflowContentFormatter.getLastAssistantMessage(sourcePodId);
         if (!fallbackContent) {
-          throw new Error('No fallback content available');
+          throw new Error('無可用的備用內容');
         }
         transferredContent = fallbackContent;
         isSummarized = false;
@@ -244,7 +244,7 @@ class WorkflowExecutionService {
       );
       const fallbackContent = workflowContentFormatter.getLastAssistantMessage(sourcePodId);
       if (!fallbackContent) {
-        throw new Error('No fallback content available');
+        throw new Error('無可用的備用內容');
       }
       transferredContent = fallbackContent;
       isSummarized = false;

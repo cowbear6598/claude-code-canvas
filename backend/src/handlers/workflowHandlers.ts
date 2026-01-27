@@ -31,7 +31,7 @@ export async function handleWorkflowGetDownstreamPods(
     emitError(
       socket,
       WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
-      `Source POD not found: ${sourcePodId}`,
+      `找不到來源 Pod: ${sourcePodId}`,
       requestId,
       undefined,
       'NOT_FOUND'
@@ -41,34 +41,19 @@ export async function handleWorkflowGetDownstreamPods(
     return;
   }
 
-  try {
-    // Get downstream PODs
-    const pods = workflowClearService.getDownstreamPods(sourcePodId);
+  // Get downstream PODs
+  const pods = workflowClearService.getDownstreamPods(sourcePodId);
 
-    // Emit success response
-    const response: WorkflowGetDownstreamPodsResultPayload = {
-      requestId,
-      success: true,
-      pods,
-    };
+  // Emit success response
+  const response: WorkflowGetDownstreamPodsResultPayload = {
+    requestId,
+    success: true,
+    pods,
+  };
 
-    emitSuccess(socket, WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT, response);
+  emitSuccess(socket, WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT, response);
 
-    console.log(`[Workflow] Retrieved ${pods.length} downstream PODs from ${sourcePodId}`);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    emitError(
-      socket,
-      WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
-      errorMessage,
-      requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
-
-    console.error(`[Workflow] Error getting downstream PODs: ${errorMessage}`);
-  }
+  console.log(`[Workflow] Retrieved ${pods.length} downstream PODs from ${sourcePodId}`);
 }
 
 /**
@@ -87,7 +72,7 @@ export async function handleWorkflowClear(
     emitError(
       socket,
       WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
-      `Source POD not found: ${sourcePodId}`,
+      `找不到來源 Pod: ${sourcePodId}`,
       requestId,
       undefined,
       'NOT_FOUND'
@@ -97,49 +82,34 @@ export async function handleWorkflowClear(
     return;
   }
 
-  try {
-    // Clear workflow
-    const result = await workflowClearService.clearWorkflow(sourcePodId);
+  // Clear workflow
+  const result = await workflowClearService.clearWorkflow(sourcePodId);
 
-    if (result.success) {
-      // Emit success response
-      const response: WorkflowClearResultPayload = {
-        requestId,
-        success: true,
-        clearedPodIds: result.clearedPodIds,
-        clearedPodNames: result.clearedPodNames,
-      };
-
-      emitSuccess(socket, WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, response);
-
-      console.log(
-        `[Workflow] Cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`
-      );
-    } else {
-      // Emit error response
-      emitError(
-        socket,
-        WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
-        result.error || 'Unknown error occurred during workflow clear',
-        requestId,
-        undefined,
-        'INTERNAL_ERROR'
-      );
-
-      console.error(`[Workflow] Failed to clear workflow: ${result.error}`);
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
+  if (!result.success) {
     emitError(
       socket,
       WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
-      errorMessage,
+      result.error || 'Unknown error occurred during workflow clear',
       requestId,
       undefined,
       'INTERNAL_ERROR'
     );
 
-    console.error(`[Workflow] Error clearing workflow: ${errorMessage}`);
+    console.error(`[Workflow] Failed to clear workflow: ${result.error}`);
+    return;
   }
+
+  // Emit success response
+  const response: WorkflowClearResultPayload = {
+    requestId,
+    success: true,
+    clearedPodIds: result.clearedPodIds,
+    clearedPodNames: result.clearedPodNames,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, response);
+
+  console.log(
+    `[Workflow] Cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`
+  );
 }

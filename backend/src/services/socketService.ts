@@ -42,7 +42,7 @@ class SocketService {
 
   getIO(): SocketIOServer {
     if (!this.io) {
-      throw new Error('Socket.io not initialized. Call initialize() first.');
+      throw new Error('Socket.io 尚未初始化。請先呼叫 initialize()');
     }
     return this.io;
   }

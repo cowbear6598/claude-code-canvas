@@ -24,31 +24,31 @@ app.use(errorHandler);
 const httpServer = createServer(app);
 
 async function startServer(): Promise<void> {
-  try {
-    await startupService.initialize();
+  const result = await startupService.initialize();
 
-    socketService.initialize(httpServer);
-
-    const io = socketService.getIO();
-    io.on('connection', (socket) => {
-      setupSocketHandlers(socket);
-    });
-
-    const PORT = config.port;
-    httpServer.listen(PORT, () => {
-      console.log(`[Server] 🚀 Running on port ${PORT}`);
-      console.log(`[Server] 📡 WebSocket-first architecture enabled`);
-      console.log(`[Server] Environment: ${config.nodeEnv}`);
-      console.log(`[Server] CORS Origin: ${config.corsOrigin}`);
-      console.log(`[Server] App Data Root: ${config.appDataRoot}`);
-      console.log(`[Server] Canvas Root: ${config.canvasRoot}`);
-      console.log(`[Server] Repositories Root: ${config.repositoriesRoot}`);
-      console.log(`[Server] Authentication: Claude Code CLI`);
-    });
-  } catch (error) {
-    console.error('[Server] Failed to start:', error);
+  if (!result.success) {
+    console.error('[Server] Failed to start:', result.error);
     process.exit(1);
   }
+
+  socketService.initialize(httpServer);
+
+  const io = socketService.getIO();
+  io.on('connection', (socket) => {
+    setupSocketHandlers(socket);
+  });
+
+  const PORT = config.port;
+  httpServer.listen(PORT, () => {
+    console.log(`[Server] 🚀 Running on port ${PORT}`);
+    console.log(`[Server] 📡 WebSocket-first architecture enabled`);
+    console.log(`[Server] Environment: ${config.nodeEnv}`);
+    console.log(`[Server] CORS Origin: ${config.corsOrigin}`);
+    console.log(`[Server] App Data Root: ${config.appDataRoot}`);
+    console.log(`[Server] Canvas Root: ${config.canvasRoot}`);
+    console.log(`[Server] Repositories Root: ${config.repositoriesRoot}`);
+    console.log(`[Server] Authentication: Claude Code CLI`);
+  });
 }
 
 startServer();

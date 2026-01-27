@@ -1,6 +1,7 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
 import { websocketClient, createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
+import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { isEditingElement, isModifierKeyPressed, hasTextSelection } from '@/utils/domHelpers'
 import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT, PASTE_TIMEOUT_MS } from '@/lib/constants'
 import type {
@@ -270,8 +271,10 @@ export function useCopyPaste() {
     const canvasPos = viewportStore.screenToCanvas(mousePosition.value.x, mousePosition.value.y)
     const { pods, outputStyleNotes, skillNotes, connections } = calculatePastePositions(canvasPos)
 
-    try {
-      const response = await createWebSocketRequest<CanvasPastePayload, CanvasPasteResultPayload>({
+    const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+
+    const response = await wrapWebSocketRequest(
+      createWebSocketRequest<CanvasPastePayload, CanvasPasteResultPayload>({
         requestEvent: WebSocketRequestEvents.CANVAS_PASTE,
         responseEvent: WebSocketResponseEvents.CANVAS_PASTE_RESULT,
         payload: {
@@ -281,51 +284,51 @@ export function useCopyPaste() {
           connections,
         },
         timeout: PASTE_TIMEOUT_MS
-      })
+      }),
+      '貼上失敗'
+    )
 
-      for (const pod of response.createdPods) {
-        podStore.addPod(pod)
-      }
+    if (!response) return false
 
-      const createdPodIds = response.createdPods.map(p => p.id)
-      if (createdPodIds.length > 0) {
-        websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, { podIds: createdPodIds })
-      }
-
-      for (const note of response.createdOutputStyleNotes) {
-        outputStyleStore.notes.push(note)
-      }
-
-      for (const note of response.createdSkillNotes) {
-        skillStore.notes.push(note)
-      }
-
-      for (const conn of response.createdConnections) {
-        connectionStore.connections.push({
-          ...conn,
-          createdAt: new Date(conn.createdAt),
-          autoTrigger: conn.autoTrigger ?? false,
-          status: 'inactive',
-        })
-      }
-
-      const newSelectedElements: SelectableElement[] = [
-        ...response.createdPods.map(pod => ({ type: 'pod' as const, id: pod.id })),
-        ...response.createdOutputStyleNotes
-          .filter(note => note.boundToPodId === null)
-          .map(note => ({ type: 'outputStyleNote' as const, id: note.id })),
-        ...response.createdSkillNotes
-          .filter(note => note.boundToPodId === null)
-          .map(note => ({ type: 'skillNote' as const, id: note.id })),
-      ]
-
-      selectionStore.setSelectedElements(newSelectedElements)
-
-      return true
-    } catch (error) {
-      console.error('[useCopyPaste] Paste failed:', error)
-      return false
+    for (const pod of response.createdPods) {
+      podStore.addPod(pod)
     }
+
+    const createdPodIds = response.createdPods.map(p => p.id)
+    if (createdPodIds.length > 0) {
+      websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, { podIds: createdPodIds })
+    }
+
+    for (const note of response.createdOutputStyleNotes) {
+      outputStyleStore.notes.push(note)
+    }
+
+    for (const note of response.createdSkillNotes) {
+      skillStore.notes.push(note)
+    }
+
+    for (const conn of response.createdConnections) {
+      connectionStore.connections.push({
+        ...conn,
+        createdAt: new Date(conn.createdAt),
+        autoTrigger: conn.autoTrigger ?? false,
+        status: 'inactive',
+      })
+    }
+
+    const newSelectedElements: SelectableElement[] = [
+      ...response.createdPods.map(pod => ({ type: 'pod' as const, id: pod.id })),
+      ...response.createdOutputStyleNotes
+        .filter(note => note.boundToPodId === null)
+        .map(note => ({ type: 'outputStyleNote' as const, id: note.id })),
+      ...response.createdSkillNotes
+        .filter(note => note.boundToPodId === null)
+        .map(note => ({ type: 'skillNote' as const, id: note.id })),
+    ]
+
+    selectionStore.setSelectedElements(newSelectedElements)
+
+    return true
   }
 
   const handleKeyDown = (event: KeyboardEvent): void => {

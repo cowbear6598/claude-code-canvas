@@ -50,7 +50,7 @@ class ClaudeQueryService {
   ): Promise<Message> {
     const pod = podStore.getById(podId);
     if (!pod) {
-      throw new Error(`Pod ${podId} not found`);
+      throw new Error(`找不到 Pod ${podId}`);
     }
 
     const messageId = uuidv4();

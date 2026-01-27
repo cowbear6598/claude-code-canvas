@@ -42,7 +42,18 @@ export async function handlePodCreate(
   const pod = podStore.create({ name, type, color, x, y, rotation });
 
   // Create workspace directory
-  await workspaceService.createWorkspace(pod.id);
+  const workspaceResult = await workspaceService.createWorkspace(pod.id);
+  if (!workspaceResult.success) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_CREATED,
+      `建立工作區失敗 (Pod ${pod.id})`,
+      requestId,
+      pod.id,
+      'INTERNAL_ERROR'
+    );
+    return;
+  }
 
   // Create Claude session for this Pod
   await claudeSessionManager.createSession(pod.id, pod.workspacePath);
@@ -154,7 +165,10 @@ export async function handlePodDelete(
   await claudeSessionManager.destroySession(podId);
 
   // Delete workspace
-  await workspaceService.deleteWorkspace(podId);
+  const deleteResult = await workspaceService.deleteWorkspace(podId);
+  if (!deleteResult.success) {
+    console.error(`[Pod] Failed to delete workspace for Pod ${podId}: ${deleteResult.error}`);
+  }
 
   // Delete bound Output Style Notes
   const deletedOutputStyleNotes = noteStore.deleteByBoundPodId(podId);

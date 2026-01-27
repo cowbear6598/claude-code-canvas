@@ -2,6 +2,7 @@
 // Manages Git operations using simple-git
 
 import {simpleGit, StatusResult} from 'simple-git';
+import { Result, ok, err } from '../../types/index.js';
 import {config} from '../../config/index.js';
 
 class GitService {
@@ -15,7 +16,7 @@ class GitService {
         repoUrl: string,
         targetPath: string,
         branch?: string
-    ): Promise<void> {
+    ): Promise<Result<void>> {
         try {
             const git = simpleGit();
 
@@ -39,52 +40,52 @@ class GitService {
                     branch ? ` (branch: ${branch})` : ''
                 }`
             );
+            return ok(undefined);
         } catch (error) {
             console.error(`[Git] Clone failed: ${error}`);
-            throw new Error(
-                `Failed to clone repository: ${error instanceof Error ? error.message : String(error)}`
-            );
+            return err('複製儲存庫失敗');
         }
     }
 
     /**
      * Get Git status for a workspace
      */
-    async getStatus(workspacePath: string): Promise<StatusResult> {
+    async getStatus(workspacePath: string): Promise<Result<StatusResult>> {
         try {
             const git = simpleGit(workspacePath);
-            return await git.status();
+            const status = await git.status();
+            return ok(status);
         } catch (error) {
             console.error(`[Git] Failed to get status: ${error}`);
-            throw new Error('Failed to get Git status');
+            return err('取得 Git 狀態失敗');
         }
     }
 
     /**
      * Get current branch name
      */
-    async getCurrentBranch(workspacePath: string): Promise<string> {
+    async getCurrentBranch(workspacePath: string): Promise<Result<string>> {
         try {
             const git = simpleGit(workspacePath);
             const status = await git.status();
-            return status.current || 'unknown';
+            return ok(status.current || 'unknown');
         } catch (error) {
             console.error(`[Git] Failed to get current branch: ${error}`);
-            throw new Error('Failed to get current branch');
+            return err('取得目前分支失敗');
         }
     }
 
     /**
      * List all branches
      */
-    async listBranches(workspacePath: string): Promise<string[]> {
+    async listBranches(workspacePath: string): Promise<Result<string[]>> {
         try {
             const git = simpleGit(workspacePath);
             const branches = await git.branch();
-            return branches.all;
+            return ok(branches.all);
         } catch (error) {
             console.error(`[Git] Failed to list branches: ${error}`);
-            throw new Error('Failed to list branches');
+            return err('取得分支列表失敗');
         }
     }
 }

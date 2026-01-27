@@ -3,6 +3,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { Result, ok, err } from '../../types/index.js';
 
 class PersistenceService {
   /**
@@ -10,16 +11,18 @@ class PersistenceService {
    * @param filePath Absolute path to JSON file
    * @returns Parsed data or null if file doesn't exist
    */
-  async readJson<T>(filePath: string): Promise<T | null> {
-    try {
-      const exists = await this.fileExists(filePath);
-      if (!exists) {
-        return null;
-      }
+  async readJson<T>(filePath: string): Promise<Result<T | null>> {
+    const exists = await this.fileExists(filePath);
+    if (!exists) {
+      return ok(null);
+    }
 
-      const fileContent = await fs.readFile(filePath, 'utf-8');
+    const fileContent = await fs.readFile(filePath, 'utf-8');
+
+    // JSON.parse 可能拋出 SyntaxError，需要保留 try-catch
+    try {
       const data = JSON.parse(fileContent);
-      return data as T;
+      return ok(data as T);
     } catch (error) {
       if (error instanceof SyntaxError) {
         console.error(`[Persistence] Invalid JSON in file ${filePath}: ${error.message}`);
@@ -31,10 +34,9 @@ class PersistenceService {
         } catch (backupError) {
           console.error(`[Persistence] Failed to backup corrupted file: ${backupError}`);
         }
-      } else {
-        console.error(`[Persistence] Error reading file ${filePath}: ${error}`);
+        return err(`JSON 檔案格式錯誤: ${filePath}`);
       }
-      return null;
+      return err(`讀取檔案失敗: ${filePath}`);
     }
   }
 
@@ -43,32 +45,26 @@ class PersistenceService {
    * @param filePath Absolute path to JSON file
    * @param data Data to write
    */
-  async writeJson<T>(filePath: string, data: T): Promise<void> {
-    try {
-      // Ensure directory exists
-      const directory = path.dirname(filePath);
-      await this.ensureDirectory(directory);
+  async writeJson<T>(filePath: string, data: T): Promise<Result<void>> {
+    const directory = path.dirname(filePath);
+    const dirResult = await this.ensureDirectory(directory);
 
-      // Write formatted JSON
-      const jsonContent = JSON.stringify(data, null, 2);
-      await fs.writeFile(filePath, jsonContent, 'utf-8');
-    } catch (error) {
-      console.error(`[Persistence] Error writing file ${filePath}: ${error}`);
-      throw error;
+    if (!dirResult.success) {
+      return err(dirResult.error!);
     }
+
+    const jsonContent = JSON.stringify(data, null, 2);
+    await fs.writeFile(filePath, jsonContent, 'utf-8');
+    return ok(undefined);
   }
 
   /**
    * Create directory if not exists (recursive)
    * @param dirPath Absolute path to directory
    */
-  async ensureDirectory(dirPath: string): Promise<void> {
-    try {
-      await fs.mkdir(dirPath, { recursive: true });
-    } catch (error) {
-      console.error(`[Persistence] Error creating directory ${dirPath}: ${error}`);
-      throw error;
-    }
+  async ensureDirectory(dirPath: string): Promise<Result<void>> {
+    await fs.mkdir(dirPath, { recursive: true });
+    return ok(undefined);
   }
 
   /**
@@ -89,16 +85,14 @@ class PersistenceService {
    * Delete file if exists
    * @param filePath Absolute path to file
    */
-  async deleteFile(filePath: string): Promise<void> {
-    try {
-      const exists = await this.fileExists(filePath);
-      if (exists) {
-        await fs.unlink(filePath);
-      }
-    } catch (error) {
-      console.error(`[Persistence] Error deleting file ${filePath}: ${error}`);
-      throw error;
+  async deleteFile(filePath: string): Promise<Result<void>> {
+    const exists = await this.fileExists(filePath);
+    if (!exists) {
+      return ok(undefined);
     }
+
+    await fs.unlink(filePath);
+    return ok(undefined);
   }
 }
 

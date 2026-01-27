@@ -4,7 +4,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { OutputStyleNote } from '../types/outputStyleNote.js';
+import type { OutputStyleNote } from '../types/index.js';
+import { Result, ok, err } from '../types/index.js';
 import { config } from '../config/index.js';
 
 interface CreateNoteData {
@@ -116,58 +117,49 @@ class NoteStore {
   /**
    * Load notes from disk
    */
-  async loadFromDisk(): Promise<void> {
+  async loadFromDisk(): Promise<Result<void>> {
+    const dataDir = path.dirname(this.notesFilePath);
+    await fs.mkdir(dataDir, { recursive: true });
+
+    // 檢查檔案是否存在
     try {
-      // Ensure the data directory exists
-      const dataDir = path.dirname(this.notesFilePath);
-      await fs.mkdir(dataDir, { recursive: true });
+      await fs.access(this.notesFilePath);
+    } catch {
+      console.log('[NoteStore] No existing notes file found, starting fresh');
+      this.notes.clear();
+      return ok(undefined);
+    }
 
-      // Try to read the notes file
-      try {
-        const data = await fs.readFile(this.notesFilePath, 'utf-8');
-        const notesArray: OutputStyleNote[] = JSON.parse(data);
+    const data = await fs.readFile(this.notesFilePath, 'utf-8');
 
-        // Load notes into the Map
-        this.notes.clear();
-        for (const note of notesArray) {
-          this.notes.set(note.id, note);
-        }
+    // JSON.parse 可能拋錯，保留 try-catch
+    try {
+      const notesArray: OutputStyleNote[] = JSON.parse(data);
 
-        console.log(`[NoteStore] Loaded ${this.notes.size} notes from disk`);
-      } catch (readError: unknown) {
-        // If the file doesn't exist, that's okay - start with empty notes
-        const error = readError as NodeJS.ErrnoException;
-        if (error.code === 'ENOENT') {
-          console.log('[NoteStore] No existing notes file found, starting fresh');
-          this.notes.clear();
-        } else {
-          throw readError;
-        }
+      this.notes.clear();
+      for (const note of notesArray) {
+        this.notes.set(note.id, note);
       }
+
+      console.log(`[NoteStore] Loaded ${this.notes.size} notes from disk`);
+      return ok(undefined);
     } catch (error) {
       console.error(`[NoteStore] Failed to load notes from disk: ${error}`);
-      throw error;
+      return err('載入輸出風格筆記失敗');
     }
   }
 
   /**
    * Save notes to disk
    */
-  async saveToDisk(): Promise<void> {
-    try {
-      // Ensure the data directory exists
-      const dataDir = path.dirname(this.notesFilePath);
-      await fs.mkdir(dataDir, { recursive: true });
+  async saveToDisk(): Promise<Result<void>> {
+    const dataDir = path.dirname(this.notesFilePath);
+    await fs.mkdir(dataDir, { recursive: true });
 
-      // Convert Map to array
-      const notesArray = Array.from(this.notes.values());
+    const notesArray = Array.from(this.notes.values());
+    await fs.writeFile(this.notesFilePath, JSON.stringify(notesArray, null, 2), 'utf-8');
 
-      // Write to file
-      await fs.writeFile(this.notesFilePath, JSON.stringify(notesArray, null, 2), 'utf-8');
-    } catch (error) {
-      console.error(`[NoteStore] Failed to save notes to disk: ${error}`);
-      throw error;
-    }
+    return ok(undefined);
   }
 
   /**

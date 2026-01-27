@@ -62,7 +62,18 @@ export async function handleGitClone(
   );
 
   // Perform Git clone
-  await gitService.clone(repoUrl, pod.workspacePath, branch);
+  const cloneResult = await gitService.clone(repoUrl, pod.workspacePath, branch);
+  if (!cloneResult.success) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.POD_GIT_CLONE_RESULT,
+      cloneResult.error!,
+      requestId,
+      podId,
+      'INTERNAL_ERROR'
+    );
+    return;
+  }
 
   // Emit progress: Clone complete
   const progressPayload3: PodGitCloneProgressPayload = {

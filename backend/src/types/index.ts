@@ -1,5 +1,9 @@
 // Type Definitions - Central Export
 
+// Result types
+export type { Result } from './result.js';
+export { ok, err } from './result.js';
+
 // Pod types
 export type { Pod, PodColor, PodTypeName, PodStatus, ModelType } from './pod.js';
 
