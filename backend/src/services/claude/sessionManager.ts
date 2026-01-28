@@ -16,7 +16,6 @@ class ClaudeSessionManager {
   async createSession(podId: string, workspacePath: string): Promise<Query> {
     // If session already exists, return it
     if (this.sessions.has(podId)) {
-      console.log(`[Claude] Session already exists for Pod ${podId}`);
       return this.sessions.get(podId)!;
     }
 
@@ -34,7 +33,6 @@ class ClaudeSessionManager {
     });
 
     this.sessions.set(podId, session);
-    console.log(`[Claude] Created session for Pod ${podId} at ${workspacePath}`);
 
     return session;
   }
@@ -55,7 +53,6 @@ class ClaudeSessionManager {
       // Note: Claude Agent SDK doesn't have explicit cleanup method
       // The session will be garbage collected when removed from map
       this.sessions.delete(podId);
-      console.log(`[Claude] Destroyed session for Pod ${podId}`);
     }
   }
 

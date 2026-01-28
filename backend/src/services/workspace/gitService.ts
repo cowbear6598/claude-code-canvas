@@ -4,6 +4,7 @@
 import {simpleGit, StatusResult} from 'simple-git';
 import { Result, ok, err } from '../../types/index.js';
 import {config} from '../../config/index.js';
+import { logger } from '../../utils/logger.js';
 
 class GitService {
     /**
@@ -35,14 +36,9 @@ class GitService {
             const cloneOptions = branch ? ['--branch', branch] : [];
 
             await git.clone(authenticatedUrl, targetPath, cloneOptions);
-            console.log(
-                `[Git] Cloned repository: ${repoUrl} to ${targetPath}${
-                    branch ? ` (branch: ${branch})` : ''
-                }`
-            );
             return ok(undefined);
         } catch (error) {
-            console.error(`[Git] Clone failed: ${error}`);
+            logger.error('Git', 'Error', `[Git] Clone failed`, error);
             return err('複製儲存庫失敗');
         }
     }
@@ -56,7 +52,7 @@ class GitService {
             const status = await git.status();
             return ok(status);
         } catch (error) {
-            console.error(`[Git] Failed to get status: ${error}`);
+            logger.error('Git', 'Error', `[Git] Failed to get status`, error);
             return err('取得 Git 狀態失敗');
         }
     }
@@ -70,7 +66,7 @@ class GitService {
             const status = await git.status();
             return ok(status.current || 'unknown');
         } catch (error) {
-            console.error(`[Git] Failed to get current branch: ${error}`);
+            logger.error('Git', 'Error', `[Git] Failed to get current branch`, error);
             return err('取得目前分支失敗');
         }
     }
@@ -84,7 +80,7 @@ class GitService {
             const branches = await git.branch();
             return ok(branches.all);
         } catch (error) {
-            console.error(`[Git] Failed to list branches: ${error}`);
+            logger.error('Git', 'Error', `[Git] Failed to list branches`, error);
             return err('取得分支列表失敗');
         }
     }

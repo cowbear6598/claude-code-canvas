@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { Result, ok, err } from '../types/index.js';
 import { config } from '../config/index.js';
+import { logger } from '../utils/logger.js';
 
 export interface BaseNote {
   id: string;
@@ -121,7 +122,6 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
     try {
       await fs.access(this.notesFilePath);
     } catch {
-      console.log(`[${this.config.storeName}] No existing notes file found, starting fresh`);
       this.notes.clear();
       return ok(undefined);
     }
@@ -136,10 +136,10 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
         this.notes.set(note.id, note);
       }
 
-      console.log(`[${this.config.storeName}] Loaded ${this.notes.size} notes from disk`);
+      logger.log('Note', 'Load', `[${this.config.storeName}] Loaded ${this.notes.size} notes`);
       return ok(undefined);
     } catch (error) {
-      console.error(`[${this.config.storeName}] Failed to load notes from disk: ${error}`);
+      logger.error('Note', 'Error', `[${this.config.storeName}] Failed to load notes`, error);
       return err('載入筆記失敗');
     }
   }
@@ -156,7 +156,7 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
 
   saveToDiskAsync(): void {
     this.saveToDisk().catch((error) => {
-      console.error(`[${this.config.storeName}] Failed to persist notes: ${error}`);
+      logger.error('Note', 'Error', `[${this.config.storeName}] Failed to persist notes`, error);
     });
   }
 }

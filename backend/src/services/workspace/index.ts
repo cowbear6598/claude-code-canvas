@@ -15,7 +15,6 @@ class WorkspaceService {
     const workspacePath = this.getWorkspacePath(podId);
 
     await fs.mkdir(workspacePath, { recursive: true });
-    console.log(`[Workspace] Created workspace at: ${workspacePath}`);
     return ok(workspacePath);
   }
 
@@ -26,7 +25,6 @@ class WorkspaceService {
     const workspacePath = this.getWorkspacePath(podId);
 
     await fs.rm(workspacePath, { recursive: true, force: true });
-    console.log(`[Workspace] Deleted workspace at: ${workspacePath}`);
     return ok(undefined);
   }
 

@@ -19,7 +19,6 @@ export class HandlerRegistry {
 
   registerGroup(group: HandlerGroup): void {
     this.groups.push(group);
-    console.log(`[HandlerRegistry] Registered group: ${group.name} (${group.handlers.length} handlers)`);
   }
 
   applyToSocket(socket: Socket): void {
@@ -33,10 +32,5 @@ export class HandlerRegistry {
         socket.on(definition.event, (payload) => wrappedHandler(socket, payload));
       }
     }
-    console.log(`[HandlerRegistry] Applied ${this.getTotalHandlers()} handlers to socket ${socket.id}`);
-  }
-
-  private getTotalHandlers(): number {
-    return this.groups.reduce((total, group) => total + group.handlers.length, 0);
   }
 }

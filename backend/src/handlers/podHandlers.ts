@@ -24,6 +24,7 @@ import { connectionStore } from '../services/connectionStore.js';
 import { socketService } from '../services/socketService.js';
 import { workflowService } from '../services/workflow/index.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { logger } from '../utils/logger.js';
 
 export async function handlePodCreate(
   socket: Socket,
@@ -57,7 +58,7 @@ export async function handlePodCreate(
 
   emitSuccess(socket, WebSocketResponseEvents.POD_CREATED, response);
 
-  console.log(`[Pod] Created Pod ${pod.id} (${pod.name})`);
+  logger.log('Pod', 'Create', `Created Pod ${pod.id} (${pod.name})`);
 }
 
 export async function handlePodList(
@@ -74,8 +75,6 @@ export async function handlePodList(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.POD_LIST_RESULT, response);
-
-  console.log(`[Pod] Listed ${pods.length} Pods`);
 }
 
 export async function handlePodGet(
@@ -96,8 +95,6 @@ export async function handlePodGet(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Pod] Failed to get Pod: Pod not found: ${podId}`);
     return;
   }
 
@@ -108,8 +105,6 @@ export async function handlePodGet(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.POD_GET_RESULT, response);
-
-  console.log(`[Pod] Retrieved Pod ${podId}`);
 }
 
 export async function handlePodDelete(
@@ -129,8 +124,6 @@ export async function handlePodDelete(
       podId,
       'NOT_FOUND'
     );
-
-    console.error(`[Pod] Failed to delete Pod: Pod not found: ${podId}`);
     return;
   }
 
@@ -140,20 +133,13 @@ export async function handlePodDelete(
 
   const deleteResult = await workspaceService.deleteWorkspace(podId);
   if (!deleteResult.success) {
-    console.error(`[Pod] Failed to delete workspace for Pod ${podId}: ${deleteResult.error}`);
+    logger.error('Pod', 'Delete', `Failed to delete workspace for Pod ${podId}`, deleteResult.error);
   }
 
-  const deletedOutputStyleNotes = noteStore.deleteByBoundPodId(podId);
-  console.log(`[Pod] Deleted ${deletedOutputStyleNotes} bound output style notes for Pod ${podId}`);
-
-  const deletedSkillNotes = skillNoteStore.deleteByBoundPodId(podId);
-  console.log(`[Pod] Deleted ${deletedSkillNotes} bound skill notes for Pod ${podId}`);
-
-  const deletedRepositoryNotes = repositoryNoteStore.deleteByBoundPodId(podId);
-  console.log(`[Pod] Deleted ${deletedRepositoryNotes} bound repository notes for Pod ${podId}`);
-
-  const deletedConnections = connectionStore.deleteByPodId(podId);
-  console.log(`[Pod] Deleted ${deletedConnections} related connections for Pod ${podId}`);
+  noteStore.deleteByBoundPodId(podId);
+  skillNoteStore.deleteByBoundPodId(podId);
+  repositoryNoteStore.deleteByBoundPodId(podId);
+  connectionStore.deleteByPodId(podId);
 
   const deleted = podStore.delete(podId);
 
@@ -166,8 +152,6 @@ export async function handlePodDelete(
       podId,
       'INTERNAL_ERROR'
     );
-
-    console.error(`[Pod] Failed to delete Pod from store: ${podId}`);
     return;
   }
 
@@ -181,7 +165,7 @@ export async function handlePodDelete(
 
   emitSuccess(socket, WebSocketResponseEvents.POD_DELETED, response);
 
-  console.log(`[Pod] Deleted Pod ${podId}`);
+  logger.log('Pod', 'Delete', `Deleted Pod ${podId}`);
 }
 
 /**
@@ -205,8 +189,6 @@ export async function handlePodUpdate(
       podId,
       'NOT_FOUND'
     );
-
-    console.error(`[Pod] Failed to update Pod: Pod not found: ${podId}`);
     return;
   }
 
@@ -232,8 +214,6 @@ export async function handlePodUpdate(
       podId,
       'INTERNAL_ERROR'
     );
-
-    console.error(`[Pod] Failed to update Pod: ${podId}`);
     return;
   }
 
@@ -244,6 +224,4 @@ export async function handlePodUpdate(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.POD_UPDATED, response);
-
-  console.log(`[Pod] Updated Pod ${podId}`);
 }

@@ -9,6 +9,7 @@ import apiRoutes from './routes/index.js';
 import { socketService } from './services/socketService.js';
 import { setupSocketHandlers } from './services/socketHandlers.js';
 import { startupService } from './services/startupService.js';
+import { logger } from './utils/logger.js';
 
 const app = express();
 
@@ -27,7 +28,7 @@ async function startServer(): Promise<void> {
   const result = await startupService.initialize();
 
   if (!result.success) {
-    console.error('[Server] Failed to start:', result.error);
+    logger.error('Startup', 'Error', 'Failed to start server', result.error);
     process.exit(1);
   }
 
@@ -40,32 +41,18 @@ async function startServer(): Promise<void> {
 
   const PORT = config.port;
   httpServer.listen(PORT, () => {
-    console.log(`[Server] 🚀 Running on port ${PORT}`);
-    console.log(`[Server] 📡 WebSocket-first architecture enabled`);
-    console.log(`[Server] Environment: ${config.nodeEnv}`);
-    console.log(`[Server] CORS Origin: ${config.corsOrigin}`);
-    console.log(`[Server] App Data Root: ${config.appDataRoot}`);
-    console.log(`[Server] Canvas Root: ${config.canvasRoot}`);
-    console.log(`[Server] Repositories Root: ${config.repositoriesRoot}`);
-    console.log(`[Server] Authentication: Claude Code CLI`);
+    logger.log('Startup', 'Complete', `Server running on port ${PORT}`);
   });
 }
 
 startServer();
 
 const shutdown = async (signal: string): Promise<void> => {
-  console.log(`[Server] ${signal} received, shutting down gracefully...`);
+  logger.log('Startup', 'Complete', `${signal} received, shutting down gracefully`);
 
   const io = socketService.getIO();
-
-  io.close(() => {
-    console.log('[Socket.io] Server closed');
-  });
-
-  httpServer.close(() => {
-    console.log('[Server] HTTP server closed');
-    process.exit(0);
-  });
+  io.close();
+  httpServer.close(() => process.exit(0));
 };
 
 process.on('SIGINT', () => shutdown('SIGINT'));

@@ -35,7 +35,6 @@ class RepositoryService {
     const repositoryPath = path.join(config.repositoriesRoot, name);
 
     await fs.mkdir(repositoryPath, { recursive: true });
-    console.log(`[RepositoryService] Created repository: ${name}`);
 
     return { id: name, name };
   }
@@ -72,7 +71,6 @@ class RepositoryService {
     }
 
     await fs.rm(repositoryPath, { recursive: true, force: true });
-    console.log(`[Repository] [Delete] Deleted repository directory: ${repositoryId}`);
   }
 }
 

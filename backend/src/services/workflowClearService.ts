@@ -6,6 +6,7 @@ import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { chatPersistenceService } from './persistence/chatPersistence.js';
 import { claudeSessionManager } from './claude/sessionManager.js';
+import { logger } from '../utils/logger.js';
 
 export interface ClearResult {
   success: boolean;
@@ -87,7 +88,7 @@ class WorkflowClearService {
           // Clear chat history from disk
           const clearResult = await chatPersistenceService.clearChatHistory(podId);
           if (!clearResult.success) {
-            console.error(`[WorkflowClear] Error clearing chat history for Pod ${podId}: ${clearResult.error}`);
+            logger.error('AutoClear', 'Error', `[WorkflowClear] Error clearing chat history for Pod ${podId}: ${clearResult.error}`);
           }
 
           // Destroy Claude session and clear session ID
@@ -96,13 +97,10 @@ class WorkflowClearService {
             // 清除 Pod 中保存的 session ID，確保下次對話會開始新的 session
             podStore.setClaudeSessionId(podId, '');
           } catch (error) {
-            // Log but don't fail on session destroy errors
-            console.error(`[WorkflowClear] Error destroying session for Pod ${podId}: ${error}`);
+            logger.error('AutoClear', 'Error', `[WorkflowClear] Error destroying session for Pod ${podId}`, error);
           }
         }
       }
-
-      console.log(`[WorkflowClear] Cleared ${podIds.length} PODs: ${clearedPodNames.join(', ')}`);
 
       return {
         success: true,
@@ -111,7 +109,7 @@ class WorkflowClearService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[WorkflowClear] Failed to clear workflow: ${errorMessage}`);
+      logger.error('AutoClear', 'Error', `[WorkflowClear] Failed to clear workflow: ${errorMessage}`);
 
       return {
         success: false,

@@ -3,13 +3,14 @@ import { Pod, PodStatus, CreatePodRequest, ModelType, WebSocketResponseEvents, R
 import { config } from '../config/index.js';
 import { podPersistenceService } from './persistence/podPersistence.js';
 import { socketService } from './socketService.js';
+import { logger } from '../utils/logger.js';
 
 class PodStore {
   private pods: Map<string, Pod> = new Map();
 
   private persistPodAsync(pod: Pod, claudeSessionId?: string): void {
     podPersistenceService.savePod(pod, claudeSessionId).catch((error) => {
-      console.error(`[PodStore] Failed to persist Pod ${pod.id}: ${error}`);
+      logger.error('Pod', 'Error', `[PodStore] Failed to persist Pod ${pod.id}: ${error}`);
     });
   }
 
@@ -74,7 +75,7 @@ class PodStore {
     }
 
     podPersistenceService.deletePodData(id).catch((error) => {
-      console.error(`[PodStore] Failed to delete Pod data ${id}: ${error}`);
+      logger.error('Pod', 'Delete', `[PodStore] Failed to delete Pod data ${id}: ${error}`);
     });
 
     return true;
@@ -243,7 +244,6 @@ class PodStore {
     }
 
     const podIds = result.data!;
-    console.log(`[PodStore] Loading ${podIds.length} Pods from disk...`);
 
     for (const podId of podIds) {
       const persistedPod = await podPersistenceService.loadPod(podId);
@@ -275,11 +275,10 @@ class PodStore {
         };
 
         this.pods.set(pod.id, pod);
-        console.log(`[PodStore] Loaded Pod ${pod.id}: ${pod.name}`);
       }
     }
 
-    console.log(`[PodStore] Successfully loaded ${this.pods.size} Pods`);
+    logger.log('Pod', 'Load', `[PodStore] Successfully loaded ${this.pods.size} Pods`);
     return ok(undefined);
   }
 }

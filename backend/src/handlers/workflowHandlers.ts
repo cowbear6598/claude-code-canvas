@@ -11,6 +11,7 @@ import type {
 import { workflowClearService } from '../services/workflowClearService.js';
 import { podStore } from '../services/podStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { logger } from '../utils/logger.js';
 
 export async function handleWorkflowGetDownstreamPods(
   socket: Socket,
@@ -29,8 +30,6 @@ export async function handleWorkflowGetDownstreamPods(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Workflow] Source POD not found: ${sourcePodId}`);
     return;
   }
 
@@ -43,8 +42,6 @@ export async function handleWorkflowGetDownstreamPods(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT, response);
-
-  console.log(`[Workflow] Retrieved ${pods.length} downstream PODs from ${sourcePodId}`);
 }
 
 export async function handleWorkflowClear(
@@ -64,8 +61,6 @@ export async function handleWorkflowClear(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Workflow] Source POD not found: ${sourcePodId}`);
     return;
   }
 
@@ -80,8 +75,6 @@ export async function handleWorkflowClear(
       undefined,
       'INTERNAL_ERROR'
     );
-
-    console.error(`[Workflow] Failed to clear workflow: ${result.error}`);
     return;
   }
 
@@ -94,7 +87,9 @@ export async function handleWorkflowClear(
 
   emitSuccess(socket, WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, response);
 
-  console.log(
-    `[Workflow] Cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`
+  logger.log(
+    'Workflow',
+    'Complete',
+    `Cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`
   );
 }

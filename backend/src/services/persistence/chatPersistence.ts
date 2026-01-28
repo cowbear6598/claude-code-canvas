@@ -33,7 +33,6 @@ class ChatPersistenceService {
       return err(`儲存訊息失敗 (Pod ${podId})`);
     }
 
-    console.log(`[ChatPersistence] Saved message ${message.id} to Pod ${podId}`);
     return ok(undefined);
   }
 
@@ -45,12 +44,7 @@ class ChatPersistenceService {
       return null;
     }
 
-    const data = result.data ?? null;
-    if (data) {
-      console.log(`[ChatPersistence] Loaded ${data.messages.length} messages for Pod ${podId}`);
-    }
-
-    return data;
+    return result.data ?? null;
   }
 
   async clearChatHistory(podId: string): Promise<Result<void>> {
@@ -61,7 +55,6 @@ class ChatPersistenceService {
       return err(`清除聊天紀錄失敗 (Pod ${podId})`);
     }
 
-    console.log(`[ChatPersistence] Cleared chat history for Pod ${podId}`);
     return ok(undefined);
   }
 }

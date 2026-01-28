@@ -52,7 +52,6 @@ class OutputStyleService {
   async delete(styleId: string): Promise<void> {
     const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
     await fs.unlink(filePath);
-    console.log(`[OutputStyleService] Deleted output style: ${styleId}`);
   }
 }
 

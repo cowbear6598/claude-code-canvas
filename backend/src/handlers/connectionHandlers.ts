@@ -16,6 +16,7 @@ import { connectionStore } from '../services/connectionStore.js';
 import { podStore } from '../services/podStore.js';
 import { workflowService } from '../services/workflow/index.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { logger } from '../utils/logger.js';
 
 export async function handleConnectionCreate(
   socket: Socket,
@@ -34,8 +35,6 @@ export async function handleConnectionCreate(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Connection] Failed to create connection: Source Pod not found: ${sourcePodId}`);
     return;
   }
 
@@ -49,8 +48,6 @@ export async function handleConnectionCreate(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Connection] Failed to create connection: Target Pod not found: ${targetPodId}`);
     return;
   }
 
@@ -69,7 +66,7 @@ export async function handleConnectionCreate(
 
   emitSuccess(socket, WebSocketResponseEvents.CONNECTION_CREATED, response);
 
-  console.log(`[Connection] Created connection ${connection.id} (${sourcePodId} -> ${targetPodId})`);
+  logger.log('Connection', 'Create', `Created connection ${connection.id} (${sourcePodId} -> ${targetPodId})`);
 }
 
 export async function handleConnectionList(
@@ -86,8 +83,6 @@ export async function handleConnectionList(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.CONNECTION_LIST_RESULT, response);
-
-  console.log(`[Connection] Listed ${connections.length} connections`);
 }
 
 export async function handleConnectionDelete(
@@ -107,8 +102,6 @@ export async function handleConnectionDelete(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Connection] Failed to delete connection: Connection not found: ${connectionId}`);
     return;
   }
 
@@ -125,8 +118,6 @@ export async function handleConnectionDelete(
       undefined,
       'INTERNAL_ERROR'
     );
-
-    console.error(`[Connection] Failed to delete connection from store: ${connectionId}`);
     return;
   }
 
@@ -138,7 +129,7 @@ export async function handleConnectionDelete(
 
   emitSuccess(socket, WebSocketResponseEvents.CONNECTION_DELETED, response);
 
-  console.log(`[Connection] Deleted connection ${connectionId}`);
+  logger.log('Connection', 'Delete', `Deleted connection ${connectionId}`);
 }
 
 export async function handleConnectionUpdate(
@@ -158,8 +149,6 @@ export async function handleConnectionUpdate(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Connection] Failed to update connection: Connection not found: ${connectionId}`);
     return;
   }
 
@@ -179,8 +168,6 @@ export async function handleConnectionUpdate(
       undefined,
       'INTERNAL_ERROR'
     );
-
-    console.error(`[Connection] Failed to update connection: ${connectionId}`);
     return;
   }
 
@@ -191,6 +178,4 @@ export async function handleConnectionUpdate(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.CONNECTION_UPDATED, response);
-
-  console.log(`[Connection] Updated connection ${connectionId}`);
 }

@@ -4,6 +4,7 @@ import { persistenceService } from './index.js';
 import type { Pod, PersistedPod } from '../../types/index.js';
 import { Result, ok, err } from '../../types/index.js';
 import { config } from '../../config/index.js';
+import { logger } from '../../utils/logger.js';
 
 class PodPersistenceService {
   getPodFilePath(podId: string): string {
@@ -41,7 +42,6 @@ class PodPersistenceService {
       return err(`儲存 Pod 失敗 (${pod.id})`);
     }
 
-    console.log(`[PodPersistence] Saved Pod ${pod.id} to ${filePath}`);
     return ok(undefined);
   }
 
@@ -53,12 +53,7 @@ class PodPersistenceService {
       return null;
     }
 
-    const data = result.data ?? null;
-    if (data) {
-      console.log(`[PodPersistence] Loaded Pod ${podId}`);
-    }
-
-    return data;
+    return result.data ?? null;
   }
 
   async deletePodData(podId: string): Promise<Result<void>> {
@@ -69,7 +64,6 @@ class PodPersistenceService {
       return err(`刪除 Pod 資料失敗 (${podId})`);
     }
 
-    console.log(`[PodPersistence] Deleted Pod data ${filePath}`);
     return ok(undefined);
   }
 
@@ -92,14 +86,13 @@ class PodPersistenceService {
       const exists = await persistenceService.fileExists(podFilePath);
 
       if (!exists) {
-        console.warn(`[PodPersistence] Found orphan workspace directory: ${entry.name}`);
         continue;
       }
 
       podIds.push(podId);
     }
 
-    console.log(`[PodPersistence] Found ${podIds.length} Pods on disk`);
+    logger.log('Startup', 'Load', `[PodPersistence] Found ${podIds.length} Pods on disk`);
     return ok(podIds);
   }
 }

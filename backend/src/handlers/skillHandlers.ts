@@ -22,6 +22,7 @@ import { skillService } from '../services/skillService.js';
 import { skillNoteStore } from '../services/skillNoteStore.js';
 import { podStore } from '../services/podStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { logger } from '../utils/logger.js';
 
 export async function handleSkillList(
   socket: Socket,
@@ -37,7 +38,6 @@ export async function handleSkillList(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SKILL_LIST_RESULT, response);
-  console.log(`[Skill] Listed ${skills.length} skills`);
 }
 
 export async function handleSkillNoteCreate(
@@ -63,7 +63,6 @@ export async function handleSkillNoteCreate(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SKILL_NOTE_CREATED, response);
-  console.log(`[SkillNote] Created note ${note.id} (${note.name})`);
 }
 
 export async function handleSkillNoteList(
@@ -80,7 +79,6 @@ export async function handleSkillNoteList(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SKILL_NOTE_LIST_RESULT, response);
-  console.log(`[SkillNote] Listed ${notes.length} notes`);
 }
 
 export async function handleSkillNoteUpdate(
@@ -100,7 +98,6 @@ export async function handleSkillNoteUpdate(
       undefined,
       'NOT_FOUND'
     );
-    console.error(`[SkillNote] Note not found: ${noteId}`);
     return;
   }
 
@@ -121,7 +118,6 @@ export async function handleSkillNoteUpdate(
       undefined,
       'INTERNAL_ERROR'
     );
-    console.error(`[SkillNote] Failed to update note: ${noteId}`);
     return;
   }
 
@@ -132,7 +128,6 @@ export async function handleSkillNoteUpdate(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SKILL_NOTE_UPDATED, response);
-  console.log(`[SkillNote] Updated note ${noteId}`);
 }
 
 export async function handleSkillNoteDelete(
@@ -152,7 +147,6 @@ export async function handleSkillNoteDelete(
       undefined,
       'NOT_FOUND'
     );
-    console.error(`[SkillNote] Note not found: ${noteId}`);
     return;
   }
 
@@ -166,7 +160,6 @@ export async function handleSkillNoteDelete(
       undefined,
       'INTERNAL_ERROR'
     );
-    console.error(`[SkillNote] Failed to delete note from store: ${noteId}`);
     return;
   }
 
@@ -177,7 +170,6 @@ export async function handleSkillNoteDelete(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SKILL_NOTE_DELETED, response);
-  console.log(`[SkillNote] Deleted note ${noteId}`);
 }
 
 export async function handlePodBindSkill(
@@ -197,7 +189,6 @@ export async function handlePodBindSkill(
       podId,
       'NOT_FOUND'
     );
-    console.error(`[Skill] Pod not found: ${podId}`);
     return;
   }
 
@@ -211,7 +202,6 @@ export async function handlePodBindSkill(
       podId,
       'NOT_FOUND'
     );
-    console.error(`[Skill] Skill not found: ${skillId}`);
     return;
   }
 
@@ -224,7 +214,6 @@ export async function handlePodBindSkill(
       podId,
       'CONFLICT'
     );
-    console.error(`[Skill] Skill ${skillId} is already bound to Pod ${podId}`);
     return;
   }
 
@@ -240,7 +229,7 @@ export async function handlePodBindSkill(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.POD_SKILL_BOUND, response);
-  console.log(`[Skill] Bound skill ${skillId} to Pod ${podId}`);
+  logger.log('Skill', 'Bind', `Bound skill ${skillId} to Pod ${podId}`);
 }
 
 export async function handleSkillDelete(
@@ -260,7 +249,6 @@ export async function handleSkillDelete(
       undefined,
       'NOT_FOUND'
     );
-    console.error(`[Skill] Failed to delete: Skill not found: ${skillId}`);
     return;
   }
 
@@ -275,7 +263,6 @@ export async function handleSkillDelete(
       undefined,
       'IN_USE'
     );
-    console.error(`[Skill] Failed to delete: Skill ${skillId} is in use by pods: ${podNames}`);
     return;
   }
 
@@ -290,5 +277,5 @@ export async function handleSkillDelete(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SKILL_DELETED, response);
-  console.log(`[Skill] Deleted skill ${skillId} and ${deletedNoteIds.length} notes`);
+  logger.log('Skill', 'Delete', `Deleted skill ${skillId} and ${deletedNoteIds.length} notes`);
 }

@@ -16,6 +16,7 @@ import { socketService } from '../services/socketService.js';
 import { workflowService } from '../services/workflow/index.js';
 import { autoClearService } from '../services/autoClear/index.js';
 import { emitError } from '../utils/websocketResponse.js';
+import { logger } from '../utils/logger.js';
 
 // 整體流程：驗證 payload → 檢查 Pod 狀態 → 設定 chatting → 串流處理 Claude 回應
 // （包含文字、工具使用、工具結果、完成事件） → 更新 Pod 狀態為 idle
@@ -37,8 +38,6 @@ export async function handleChatSend(
       podId,
       'NOT_FOUND'
     );
-
-    console.error(`[Chat] Failed to process message: Pod not found: ${podId}`);
     return;
   }
 
@@ -52,8 +51,6 @@ export async function handleChatSend(
       podId,
       'POD_BUSY'
     );
-
-    console.error(`[Chat] Pod ${podId} is currently ${pod.status}, please wait`);
     return;
   }
 
@@ -61,8 +58,6 @@ export async function handleChatSend(
   podStore.setStatus(podId, 'chatting');
 
   const messageId = uuidv4();
-
-  console.log(`[Chat] Processing message for Pod ${podId}: ${message}`);
 
   let accumulatedContent = '';
 
@@ -131,7 +126,7 @@ export async function handleChatSend(
       }
 
       case 'error': {
-        console.error(`[Chat] Stream error for Pod ${podId}: ${event.error}`);
+        logger.error('Chat', 'Error', `Stream error for Pod ${podId}: ${event.error}`);
         break;
       }
     }
@@ -142,14 +137,12 @@ export async function handleChatSend(
 
   // Check if auto-clear should be triggered (for standalone POD)
   autoClearService.onPodComplete(podId).catch((error) => {
-    console.error(`[Chat] Failed to check auto-clear for Pod ${podId}:`, error);
+    logger.error('AutoClear', 'Error', `Failed to check auto-clear for Pod ${podId}`, error);
   });
 
   workflowService.checkAndTriggerWorkflows(podId).catch((error) => {
-    console.error(`[Chat] Failed to check auto-trigger workflows for Pod ${podId}:`, error);
+    logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error);
   });
-
-  console.log(`[Chat] Completed message processing for Pod ${podId}`);
 }
 
 export async function handleChatHistory(
@@ -158,8 +151,6 @@ export async function handleChatHistory(
   requestId: string
 ): Promise<void> {
   const { podId } = payload;
-
-  console.log(`[Chat] Loading chat history for Pod ${podId}`);
 
   // Check if Pod exists
   const pod = podStore.getById(podId);
@@ -171,8 +162,6 @@ export async function handleChatHistory(
     };
 
     socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, responsePayload);
-
-    console.error(`[Chat] Failed to load chat history: Pod not found: ${podId}`);
     return;
   }
 
@@ -190,6 +179,4 @@ export async function handleChatHistory(
   };
 
   socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, responsePayload);
-
-  console.log(`[Chat] Sent ${messages.length} messages for Pod ${podId}`);
 }

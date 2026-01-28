@@ -6,6 +6,7 @@ import {messageStore} from '../messageStore.js';
 import {outputStyleService} from '../outputStyleService.js';
 import {Message, ToolUseInfo} from '../../types/index.js';
 import {config} from '../../config/index.js';
+import { logger } from '../../utils/logger.js';
 
 export type StreamEvent =
   | TextStreamEvent
@@ -67,7 +68,7 @@ class ClaudeQueryService {
         ? path.join(config.repositoriesRoot, pod.repositoryId)
         : pod.workspacePath;
 
-      console.log(`[QueryService] Pod ${podId} cwd: ${cwd} (repositoryId: ${pod.repositoryId || 'none'})`);
+      // Intentionally not logging - too verbose
 
       const queryOptions: Options = {
         cwd,
@@ -81,24 +82,14 @@ class ClaudeQueryService {
         const styleContent = await outputStyleService.getStyleContent(pod.outputStyleId);
         if (styleContent) {
           queryOptions.systemPrompt = styleContent;
-          console.log(`[QueryService] Using output style ${pod.outputStyleId} for Pod ${podId}`);
-          console.log(`[QueryService] System prompt length: ${styleContent.length} chars`);
-        } else {
-          console.log(`[QueryService] Output style ${pod.outputStyleId} content is empty`);
         }
-      } else {
-        console.log(`[QueryService] Pod ${podId} has no output style`);
       }
 
       if (resumeSessionId) {
         queryOptions.resume = resumeSessionId;
-        console.log(`[QueryService] Resuming session ${resumeSessionId} for Pod ${podId}`);
-      } else {
-        console.log(`[QueryService] Starting new session for Pod ${podId}`);
       }
 
       queryOptions.model = pod.model;
-      console.log(`[QueryService] Using model ${pod.model} for Pod ${podId}`);
 
       const queryStream = query({
         prompt: message,
@@ -115,7 +106,6 @@ class ClaudeQueryService {
           'session_id' in sdkMessage
         ) {
           capturedSessionId = (sdkMessage as { session_id: string }).session_id;
-          console.log(`[QueryService] Captured session ID: ${capturedSessionId}`);
         }
         else if (sdkMessage.type === 'assistant' && sdkMessage.message?.content) {
           for (const block of sdkMessage.message.content) {
@@ -190,7 +180,6 @@ class ClaudeQueryService {
       }
 
       if (capturedSessionId && capturedSessionId !== pod.claudeSessionId) {
-        console.log(`[QueryService] Storing session ID ${capturedSessionId} for Pod ${podId}`);
         podStore.setClaudeSessionId(podId, capturedSessionId);
       }
 
@@ -220,7 +209,9 @@ class ClaudeQueryService {
         throw error;
       }
 
-      console.warn(
+      logger.log(
+        'Chat',
+        'Update',
         `[QueryService] Session resume failed for Pod ${podId}, clearing session ID and retrying`
       );
 

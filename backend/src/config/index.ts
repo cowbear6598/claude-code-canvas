@@ -43,9 +43,6 @@ function loadConfig(): Config {
     throw new Error('PORT must be a valid number between 1 and 65535');
   }
 
-  // Always use Claude Code CLI authentication
-  console.log('✓ Using Claude Code CLI authentication');
-
   return {
     port,
     nodeEnv,

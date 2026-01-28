@@ -16,6 +16,7 @@ import { outputStyleService } from '../services/outputStyleService.js';
 import { podStore } from '../services/podStore.js';
 import { noteStore } from '../services/noteStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { logger } from '../utils/logger.js';
 
 export async function handleOutputStyleList(
   socket: Socket,
@@ -32,7 +33,6 @@ export async function handleOutputStyleList(
 
   emitSuccess(socket, WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT, response);
 
-  console.log(`[OutputStyle] Listed ${styles.length} output styles`);
 }
 
 export async function handlePodBindOutputStyle(
@@ -53,7 +53,6 @@ export async function handlePodBindOutputStyle(
       'NOT_FOUND'
     );
 
-    console.error(`[OutputStyle] Failed to bind style: Pod not found: ${podId}`);
     return;
   }
 
@@ -68,7 +67,6 @@ export async function handlePodBindOutputStyle(
       'NOT_FOUND'
     );
 
-    console.error(`[OutputStyle] Failed to bind style: Output style not found: ${outputStyleId}`);
     return;
   }
 
@@ -84,7 +82,7 @@ export async function handlePodBindOutputStyle(
 
   emitSuccess(socket, WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, response);
 
-  console.log(`[OutputStyle] Bound style ${outputStyleId} to Pod ${podId}`);
+  logger.log('OutputStyle', 'Bind', `Bound style ${outputStyleId} to Pod ${podId}`);
 }
 
 export async function handlePodUnbindOutputStyle(
@@ -105,7 +103,6 @@ export async function handlePodUnbindOutputStyle(
       'NOT_FOUND'
     );
 
-    console.error(`[OutputStyle] Failed to unbind style: Pod not found: ${podId}`);
     return;
   }
 
@@ -121,7 +118,7 @@ export async function handlePodUnbindOutputStyle(
 
   emitSuccess(socket, WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, response);
 
-  console.log(`[OutputStyle] Unbound style from Pod ${podId}`);
+  logger.log('OutputStyle', 'Unbind', `Unbound style from Pod ${podId}`);
 }
 
 export async function handleOutputStyleDelete(
@@ -141,7 +138,6 @@ export async function handleOutputStyleDelete(
       undefined,
       'NOT_FOUND'
     );
-    console.error(`[OutputStyle] Failed to delete: Output style not found: ${outputStyleId}`);
     return;
   }
 
@@ -156,7 +152,6 @@ export async function handleOutputStyleDelete(
       undefined,
       'IN_USE'
     );
-    console.error(`[OutputStyle] Failed to delete: Output style ${outputStyleId} is in use by pods: ${podNames}`);
     return;
   }
 
@@ -171,5 +166,5 @@ export async function handleOutputStyleDelete(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.OUTPUT_STYLE_DELETED, response);
-  console.log(`[OutputStyle] Deleted output style ${outputStyleId} and ${deletedNoteIds.length} notes`);
+  logger.log('OutputStyle', 'Delete', `Deleted output style ${outputStyleId} and ${deletedNoteIds.length} notes`);
 }

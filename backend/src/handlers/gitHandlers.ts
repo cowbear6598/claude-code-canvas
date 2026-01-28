@@ -8,6 +8,7 @@ import type { GitClonePayload } from '../schemas/index.js';
 import { podStore } from '../services/podStore.js';
 import { gitService } from '../services/workspace/gitService.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { logger } from '../utils/logger.js';
 
 export async function handleGitClone(
   socket: Socket,
@@ -26,8 +27,6 @@ export async function handleGitClone(
       podId,
       'NOT_FOUND'
     );
-
-    console.error(`[Git] Failed to clone repository: Pod not found: ${podId}`);
     return;
   }
 
@@ -88,8 +87,6 @@ export async function handleGitClone(
       podId,
       'INTERNAL_ERROR'
     );
-
-    console.error(`[Git] Failed to update Pod after clone: ${podId}`);
     return;
   }
 
@@ -112,8 +109,10 @@ export async function handleGitClone(
 
   emitSuccess(socket, WebSocketResponseEvents.POD_GIT_CLONE_RESULT, response);
 
-  console.log(
-    `[Git] Successfully cloned ${repoUrl} for Pod ${podId}${
+  logger.log(
+    'Git',
+    'Complete',
+    `Successfully cloned ${repoUrl} for Pod ${podId}${
       branch ? ` (branch: ${branch})` : ''
     }`
   );

@@ -8,6 +8,7 @@ import type { Connection, AnchorPosition } from '../types/index.js';
 import type { PersistedConnection } from '../types/index.js';
 import { Result, ok, err } from '../types/index.js';
 import { config } from '../config/index.js';
+import { logger } from '../utils/logger.js';
 
 interface CreateConnectionData {
   sourcePodId: string;
@@ -146,7 +147,6 @@ class ConnectionStore {
     try {
       await fs.access(this.connectionsFilePath);
     } catch {
-      console.log('[ConnectionStore] No existing connections file found, starting fresh');
       this.connections.clear();
       return ok(undefined);
     }
@@ -167,10 +167,10 @@ class ConnectionStore {
         this.connections.set(connection.id, connection);
       }
 
-      console.log(`[ConnectionStore] Loaded ${this.connections.size} connections from disk`);
+      logger.log('Connection', 'Load', `[ConnectionStore] Loaded ${this.connections.size} connections`);
       return ok(undefined);
     } catch (error) {
-      console.error(`[ConnectionStore] Failed to load connections from disk: ${error}`);
+      logger.error('Connection', 'Error', `[ConnectionStore] Failed to load connections`, error);
       return err('載入連線資料失敗');
     }
   }
@@ -207,7 +207,7 @@ class ConnectionStore {
    */
   private saveToDiskAsync(): void {
     this.saveToDisk().catch((error) => {
-      console.error(`[ConnectionStore] Failed to persist connections: ${error}`);
+      logger.error('Connection', 'Error', `[ConnectionStore] Failed to persist connections`, error);
     });
   }
 }

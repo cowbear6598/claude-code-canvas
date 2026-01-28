@@ -25,10 +25,13 @@ import type {
 import { repositoryService } from '../services/repositoryService.js';
 import { repositoryNoteStore } from '../services/repositoryNoteStore.js';
 import { podStore } from '../services/podStore.js';
-import { skillService } from '../services/skillService.js';
-import { subAgentService } from '../services/subAgentService.js';
-import { messageStore } from '../services/messageStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import {
+  cleanupOldRepositoryResources,
+  copyResourcesToNewPath,
+  clearPodMessages,
+} from './repository/repositoryBindHelpers.js';
+import { logger } from '../utils/logger.js';
 
 export async function handleRepositoryList(
   socket: Socket,
@@ -44,8 +47,6 @@ export async function handleRepositoryList(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_LIST_RESULT, response);
-
-  console.log(`[Repository] Listed ${repositories.length} repositories`);
 }
 
 export async function handleRepositoryCreate(
@@ -65,8 +66,6 @@ export async function handleRepositoryCreate(
       undefined,
       'ALREADY_EXISTS'
     );
-
-    console.error(`[Repository] Failed to create repository: Repository already exists: ${name}`);
     return;
   }
 
@@ -80,7 +79,7 @@ export async function handleRepositoryCreate(
 
   emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_CREATED, response);
 
-  console.log(`[Repository] Created repository ${repository.id}`);
+  logger.log('Repository', 'Create', `Created repository ${repository.id}`);
 }
 
 export async function handleRepositoryNoteCreate(
@@ -100,8 +99,6 @@ export async function handleRepositoryNoteCreate(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Repository] Failed to create note: Repository not found: ${repositoryId}`);
     return;
   }
 
@@ -121,8 +118,6 @@ export async function handleRepositoryNoteCreate(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_NOTE_CREATED, response);
-
-  console.log(`[Repository] Created repository note ${note.id} (${note.name})`);
 }
 
 export async function handleRepositoryNoteList(
@@ -139,8 +134,6 @@ export async function handleRepositoryNoteList(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_NOTE_LIST_RESULT, response);
-
-  console.log(`[Repository] Listed ${notes.length} repository notes`);
 }
 
 export async function handleRepositoryNoteUpdate(
@@ -160,8 +153,6 @@ export async function handleRepositoryNoteUpdate(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Repository] Failed to update note: Repository note not found: ${noteId}`);
     return;
   }
 
@@ -182,8 +173,6 @@ export async function handleRepositoryNoteUpdate(
       undefined,
       'INTERNAL_ERROR'
     );
-
-    console.error(`[Repository] Failed to update repository note: ${noteId}`);
     return;
   }
 
@@ -194,8 +183,6 @@ export async function handleRepositoryNoteUpdate(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_NOTE_UPDATED, response);
-
-  console.log(`[Repository] Updated repository note ${noteId}`);
 }
 
 export async function handleRepositoryNoteDelete(
@@ -215,8 +202,6 @@ export async function handleRepositoryNoteDelete(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Repository] Failed to delete note: Repository note not found: ${noteId}`);
     return;
   }
 
@@ -231,8 +216,6 @@ export async function handleRepositoryNoteDelete(
       undefined,
       'INTERNAL_ERROR'
     );
-
-    console.error(`[Repository] Failed to delete repository note from store: ${noteId}`);
     return;
   }
 
@@ -243,8 +226,6 @@ export async function handleRepositoryNoteDelete(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_NOTE_DELETED, response);
-
-  console.log(`[Repository] Deleted repository note ${noteId}`);
 }
 
 export async function handlePodBindRepository(
@@ -264,8 +245,6 @@ export async function handlePodBindRepository(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Repository] Failed to bind repository: Pod not found: ${podId}`);
     return;
   }
 
@@ -279,8 +258,6 @@ export async function handlePodBindRepository(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Repository] Failed to bind repository: Repository not found: ${repositoryId}`);
     return;
   }
 
@@ -289,45 +266,14 @@ export async function handlePodBindRepository(
     ? repositoryService.getRepositoryPath(oldRepositoryId)
     : pod.workspacePath;
 
-  try {
-    await skillService.deleteSkillsFromPath(oldCwd);
-  } catch (error) {
-    console.error(`[Repository] Failed to delete old skills from ${oldCwd}:`, error);
-  }
-
-  try {
-    await subAgentService.deleteSubAgentsFromPath(oldCwd);
-  } catch (error) {
-    console.error(`[Repository] Failed to delete old subagents from ${oldCwd}:`, error);
-  }
+  await cleanupOldRepositoryResources(oldCwd);
 
   podStore.setRepositoryId(podId, repositoryId);
   podStore.setClaudeSessionId(podId, '');
 
   const newCwd = repositoryService.getRepositoryPath(repositoryId);
-
-  for (const skillId of pod.skillIds) {
-    try {
-      await skillService.copySkillToRepository(skillId, newCwd);
-    } catch (error) {
-      console.error(`[Repository] Failed to copy skill ${skillId} to repository:`, error);
-    }
-  }
-
-  for (const subAgentId of pod.subAgentIds) {
-    try {
-      await subAgentService.copySubAgentToRepository(subAgentId, newCwd);
-    } catch (error) {
-      console.error(`[Repository] Failed to copy subagent ${subAgentId} to repository:`, error);
-    }
-  }
-
-  try {
-    await messageStore.clearMessagesWithPersistence(podId);
-    socket.emit(WebSocketResponseEvents.POD_MESSAGES_CLEARED, { podId });
-  } catch (error) {
-    console.error(`[Repository] Failed to clear messages for Pod ${podId}:`, error);
-  }
+  await copyResourcesToNewPath(pod, newCwd, true);
+  await clearPodMessages(socket, podId);
 
   const updatedPod = podStore.getById(podId);
 
@@ -339,7 +285,7 @@ export async function handlePodBindRepository(
 
   emitSuccess(socket, WebSocketResponseEvents.POD_REPOSITORY_BOUND, response);
 
-  console.log(`[Repository] Bound repository ${repositoryId} to Pod ${podId}`);
+  logger.log('Repository', 'Bind', `Bound repository ${repositoryId} to Pod ${podId}`);
 }
 
 export async function handlePodUnbindRepository(
@@ -359,59 +305,23 @@ export async function handlePodUnbindRepository(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Repository] Failed to unbind repository: Pod not found: ${podId}`);
     return;
   }
 
   const oldRepositoryId = pod.repositoryId;
-  if (!oldRepositoryId) {
-    console.warn(`[Repository] Pod ${podId} has no repository to unbind`);
-  }
 
   const oldCwd = oldRepositoryId
     ? repositoryService.getRepositoryPath(oldRepositoryId)
     : pod.workspacePath;
 
-  try {
-    await skillService.deleteSkillsFromPath(oldCwd);
-  } catch (error) {
-    console.error(`[Repository] Failed to delete old skills from ${oldCwd}:`, error);
-  }
-
-  try {
-    await subAgentService.deleteSubAgentsFromPath(oldCwd);
-  } catch (error) {
-    console.error(`[Repository] Failed to delete old subagents from ${oldCwd}:`, error);
-  }
+  await cleanupOldRepositoryResources(oldCwd);
 
   podStore.setRepositoryId(podId, null);
   podStore.setClaudeSessionId(podId, '');
 
   const newCwd = pod.workspacePath;
-
-  for (const skillId of pod.skillIds) {
-    try {
-      await skillService.copySkillToRepository(skillId, newCwd);
-    } catch (error) {
-      console.error(`[Repository] Failed to copy skill ${skillId} to workspace:`, error);
-    }
-  }
-
-  for (const subAgentId of pod.subAgentIds) {
-    try {
-      await subAgentService.copySubAgentToRepository(subAgentId, newCwd);
-    } catch (error) {
-      console.error(`[Repository] Failed to copy subagent ${subAgentId} to workspace:`, error);
-    }
-  }
-
-  try {
-    await messageStore.clearMessagesWithPersistence(podId);
-    socket.emit(WebSocketResponseEvents.POD_MESSAGES_CLEARED, { podId });
-  } catch (error) {
-    console.error(`[Repository] Failed to clear messages for Pod ${podId}:`, error);
-  }
+  await copyResourcesToNewPath(pod, newCwd, false);
+  await clearPodMessages(socket, podId);
 
   const updatedPod = podStore.getById(podId);
 
@@ -423,7 +333,7 @@ export async function handlePodUnbindRepository(
 
   emitSuccess(socket, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, response);
 
-  console.log(`[Repository] Unbound repository from Pod ${podId}`);
+  logger.log('Repository', 'Unbind', `Unbound repository from Pod ${podId}`);
 }
 
 export async function handleRepositoryDelete(
@@ -443,7 +353,6 @@ export async function handleRepositoryDelete(
       undefined,
       'NOT_FOUND'
     );
-    console.error(`[Repository] Failed to delete: Repository not found: ${repositoryId}`);
     return;
   }
 
@@ -458,7 +367,6 @@ export async function handleRepositoryDelete(
       undefined,
       'IN_USE'
     );
-    console.error(`[Repository] Failed to delete: Repository ${repositoryId} is in use by pods: ${podNames}`);
     return;
   }
 
@@ -473,5 +381,6 @@ export async function handleRepositoryDelete(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_DELETED, response);
-  console.log(`[Repository] Deleted repository ${repositoryId} and ${deletedNoteIds.length} notes`);
+
+  logger.log('Repository', 'Delete', `Deleted repository ${repositoryId} and ${deletedNoteIds.length} notes`);
 }

@@ -14,6 +14,7 @@ import type {
 } from '../schemas/index.js';
 import { noteStore } from '../services/noteStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { logger } from '../utils/logger.js';
 
 export async function handleNoteCreate(
   socket: Socket,
@@ -39,7 +40,7 @@ export async function handleNoteCreate(
 
   emitSuccess(socket, WebSocketResponseEvents.NOTE_CREATED, response);
 
-  console.log(`[Note] Created note ${note.id} (${note.name})`);
+  logger.log('Note', 'Create', `Created note ${note.id} (${note.name})`);
 }
 
 export async function handleNoteList(
@@ -56,8 +57,6 @@ export async function handleNoteList(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.NOTE_LIST_RESULT, response);
-
-  console.log(`[Note] Listed ${notes.length} notes`);
 }
 
 export async function handleNoteUpdate(
@@ -77,8 +76,6 @@ export async function handleNoteUpdate(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Note] Failed to update note: Note not found: ${noteId}`);
     return;
   }
 
@@ -99,8 +96,6 @@ export async function handleNoteUpdate(
       undefined,
       'INTERNAL_ERROR'
     );
-
-    console.error(`[Note] Failed to update note: ${noteId}`);
     return;
   }
 
@@ -111,8 +106,6 @@ export async function handleNoteUpdate(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.NOTE_UPDATED, response);
-
-  console.log(`[Note] Updated note ${noteId}`);
 }
 
 export async function handleNoteDelete(
@@ -132,8 +125,6 @@ export async function handleNoteDelete(
       undefined,
       'NOT_FOUND'
     );
-
-    console.error(`[Note] Failed to delete note: Note not found: ${noteId}`);
     return;
   }
 
@@ -148,8 +139,6 @@ export async function handleNoteDelete(
       undefined,
       'INTERNAL_ERROR'
     );
-
-    console.error(`[Note] Failed to delete note from store: ${noteId}`);
     return;
   }
 
@@ -161,5 +150,5 @@ export async function handleNoteDelete(
 
   emitSuccess(socket, WebSocketResponseEvents.NOTE_DELETED, response);
 
-  console.log(`[Note] Deleted note ${noteId}`);
+  logger.log('Note', 'Delete', `Deleted note ${noteId}`);
 }

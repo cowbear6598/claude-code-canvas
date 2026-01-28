@@ -24,6 +24,7 @@ import { subAgentNoteStore } from '../services/subAgentNoteStore.js';
 import { podStore } from '../services/podStore.js';
 import { repositoryService } from '../services/repositoryService.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { logger } from '../utils/logger.js';
 
 export async function handleSubAgentList(
   socket: Socket,
@@ -39,7 +40,6 @@ export async function handleSubAgentList(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SUBAGENT_LIST_RESULT, response);
-  console.log(`[SubAgent] Listed ${subAgents.length} subagents`);
 }
 
 export async function handleSubAgentNoteCreate(
@@ -65,7 +65,8 @@ export async function handleSubAgentNoteCreate(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SUBAGENT_NOTE_CREATED, response);
-  console.log(`[SubAgentNote] Created note ${note.id} (${note.name})`);
+
+  logger.log('SubAgent', 'Create', `Created subagent note ${note.id} (${note.name})`);
 }
 
 export async function handleSubAgentNoteList(
@@ -82,7 +83,6 @@ export async function handleSubAgentNoteList(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SUBAGENT_NOTE_LIST_RESULT, response);
-  console.log(`[SubAgentNote] Listed ${notes.length} notes`);
 }
 
 export async function handleSubAgentNoteUpdate(
@@ -102,7 +102,6 @@ export async function handleSubAgentNoteUpdate(
       undefined,
       'NOT_FOUND'
     );
-    console.error(`[SubAgentNote] Note not found: ${noteId}`);
     return;
   }
 
@@ -122,7 +121,6 @@ export async function handleSubAgentNoteUpdate(
       undefined,
       'INTERNAL_ERROR'
     );
-    console.error(`[SubAgentNote] Failed to update note: ${noteId}`);
     return;
   }
 
@@ -133,7 +131,6 @@ export async function handleSubAgentNoteUpdate(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SUBAGENT_NOTE_UPDATED, response);
-  console.log(`[SubAgentNote] Updated note ${noteId}`);
 }
 
 export async function handleSubAgentNoteDelete(
@@ -153,7 +150,6 @@ export async function handleSubAgentNoteDelete(
       undefined,
       'NOT_FOUND'
     );
-    console.error(`[SubAgentNote] Note not found: ${noteId}`);
     return;
   }
 
@@ -167,7 +163,6 @@ export async function handleSubAgentNoteDelete(
       undefined,
       'INTERNAL_ERROR'
     );
-    console.error(`[SubAgentNote] Failed to delete note: ${noteId}`);
     return;
   }
 
@@ -178,7 +173,8 @@ export async function handleSubAgentNoteDelete(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SUBAGENT_NOTE_DELETED, response);
-  console.log(`[SubAgentNote] Deleted note ${noteId}`);
+
+  logger.log('SubAgent', 'Delete', `Deleted subagent note ${noteId}`);
 }
 
 export async function handlePodBindSubAgent(
@@ -198,7 +194,6 @@ export async function handlePodBindSubAgent(
       podId,
       'NOT_FOUND'
     );
-    console.error(`[SubAgent] Pod not found: ${podId}`);
     return;
   }
 
@@ -212,7 +207,6 @@ export async function handlePodBindSubAgent(
       podId,
       'NOT_FOUND'
     );
-    console.error(`[SubAgent] SubAgent not found: ${subAgentId}`);
     return;
   }
 
@@ -225,7 +219,6 @@ export async function handlePodBindSubAgent(
       podId,
       'CONFLICT'
     );
-    console.error(`[SubAgent] SubAgent ${subAgentId} is already bound to Pod ${podId}`);
     return;
   }
 
@@ -246,7 +239,8 @@ export async function handlePodBindSubAgent(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.POD_SUBAGENT_BOUND, response);
-  console.log(`[SubAgent] Bound subagent ${subAgentId} to Pod ${podId}`);
+
+  logger.log('SubAgent', 'Bind', `Bound subagent ${subAgentId} to Pod ${podId}`);
 }
 
 export async function handleSubAgentDelete(
@@ -266,7 +260,6 @@ export async function handleSubAgentDelete(
       undefined,
       'NOT_FOUND'
     );
-    console.error(`[SubAgent] Failed to delete: SubAgent not found: ${subAgentId}`);
     return;
   }
 
@@ -281,7 +274,6 @@ export async function handleSubAgentDelete(
       undefined,
       'IN_USE'
     );
-    console.error(`[SubAgent] Failed to delete: SubAgent ${subAgentId} is in use by pods: ${podNames}`);
     return;
   }
 
@@ -296,5 +288,6 @@ export async function handleSubAgentDelete(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.SUBAGENT_DELETED, response);
-  console.log(`[SubAgent] Deleted subagent ${subAgentId} and ${deletedNoteIds.length} notes`);
+
+  logger.log('SubAgent', 'Delete', `Deleted subagent ${subAgentId} and ${deletedNoteIds.length} notes`);
 }

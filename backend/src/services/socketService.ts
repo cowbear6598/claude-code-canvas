@@ -1,6 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { config } from '../config/index.js';
+import { logger } from '../utils/logger.js';
 import {
   WebSocketResponseEvents,
   ConnectionReadyPayload,
@@ -26,7 +27,7 @@ class SocketService {
 
   initialize(httpServer: HttpServer): void {
     if (this.io) {
-      console.log('[Socket.io] Already initialized');
+      logger.log('Startup', 'Complete', '[Socket.io] Already initialized');
       return;
     }
 
@@ -37,7 +38,7 @@ class SocketService {
       },
     });
 
-    console.log('[Socket.io] Server initialized');
+    logger.log('Startup', 'Complete', '[Socket.io] Server initialized');
   }
 
   getIO(): SocketIOServer {
@@ -49,24 +50,20 @@ class SocketService {
 
   emitToPod(podId: string, event: string, payload: unknown): void {
     if (!this.io) {
-      console.warn('[Socket.io] Cannot emit - not initialized');
       return;
     }
 
     const roomName = `pod:${podId}`;
     this.io.to(roomName).emit(event, payload);
-    console.log(`[Socket.io] Emitted ${event} to room ${roomName}`);
   }
 
   private emitToSocket(socketId: string, event: string, payload: unknown): void {
     if (!this.io) {
-      console.warn('[Socket.io] Cannot emit - not initialized');
       return;
     }
 
     const socket = this.io.sockets.sockets.get(socketId);
     if (!socket) {
-      console.warn(`[Socket.io] Socket ${socketId} not found`);
       return;
     }
 
@@ -139,13 +136,11 @@ class SocketService {
 
   joinPodRoom(socketId: string, podId: string): void {
     if (!this.io) {
-      console.warn('[Socket.io] Cannot join room - not initialized');
       return;
     }
 
     const socket = this.io.sockets.sockets.get(socketId);
     if (!socket) {
-      console.warn(`[Socket.io] Socket ${socketId} not found`);
       return;
     }
 
@@ -156,19 +151,15 @@ class SocketService {
       this.socketToPodRooms.set(socketId, new Set());
     }
     this.socketToPodRooms.get(socketId)!.add(podId);
-
-    console.log(`[Socket.io] Socket ${socketId} joined room ${roomName}`);
   }
 
   leavePodRoom(socketId: string, podId: string): void {
     if (!this.io) {
-      console.warn('[Socket.io] Cannot leave room - not initialized');
       return;
     }
 
     const socket = this.io.sockets.sockets.get(socketId);
     if (!socket) {
-      console.warn(`[Socket.io] Socket ${socketId} not found`);
       return;
     }
 
@@ -177,7 +168,6 @@ class SocketService {
 
     const rooms = this.socketToPodRooms.get(socketId);
     if (!rooms) {
-      console.log(`[Socket.io] Socket ${socketId} left room ${roomName}`);
       return;
     }
 
@@ -185,8 +175,6 @@ class SocketService {
     if (rooms.size === 0) {
       this.socketToPodRooms.delete(socketId);
     }
-
-    console.log(`[Socket.io] Socket ${socketId} left room ${roomName}`);
   }
 
   cleanupSocket(socketId: string): void {
@@ -194,7 +182,6 @@ class SocketService {
       this.leavePodRoom(socketId, podId);
     });
     this.socketToPodRooms.delete(socketId);
-    console.log(`[Socket.io] Cleaned up socket ${socketId}`);
   }
 }
 

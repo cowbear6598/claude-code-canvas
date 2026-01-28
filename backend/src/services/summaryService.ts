@@ -3,6 +3,7 @@ import { summaryPromptBuilder } from './summaryPromptBuilder.js';
 import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { outputStyleService } from './outputStyleService.js';
+import { logger } from '../utils/logger.js';
 
 export interface TargetSummaryResult {
   targetPodId: string;
@@ -73,12 +74,11 @@ class SummaryService {
     });
 
     if (!result.success) {
-      console.error(`[SummaryService] Failed to generate summary for target ${targetPodId}: ${result.error}`);
+      logger.error('Workflow', 'Error', `[SummaryService] Failed to generate summary for target ${targetPodId}: ${result.error}`);
 
       const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
       if (assistantMessages.length > 0) {
         const fallbackSummary = assistantMessages[assistantMessages.length - 1].content;
-        console.log(`[SummaryService] Using fallback summary for target ${targetPodId}`);
         return {
           targetPodId,
           summary: fallbackSummary,

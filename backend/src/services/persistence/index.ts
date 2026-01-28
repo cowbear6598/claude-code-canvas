@@ -4,6 +4,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { Result, ok, err } from '../../types/index.js';
+import { logger } from '../../utils/logger.js';
 
 class PersistenceService {
   /**
@@ -25,14 +26,14 @@ class PersistenceService {
       return ok(data as T);
     } catch (error) {
       if (error instanceof SyntaxError) {
-        console.error(`[Persistence] Invalid JSON in file ${filePath}: ${error.message}`);
+        logger.error('Startup', 'Error', `[Persistence] Invalid JSON in file ${filePath}: ${error.message}`);
         // Optionally backup corrupted file
         const backupPath = `${filePath}.corrupted.${Date.now()}`;
         try {
           await fs.copyFile(filePath, backupPath);
-          console.log(`[Persistence] Backed up corrupted file to ${backupPath}`);
+          logger.log('Startup', 'Save', `[Persistence] Backed up corrupted file to ${backupPath}`);
         } catch (backupError) {
-          console.error(`[Persistence] Failed to backup corrupted file: ${backupError}`);
+          logger.error('Startup', 'Error', `[Persistence] Failed to backup corrupted file`, backupError);
         }
         return err(`JSON 檔案格式錯誤: ${filePath}`);
       }

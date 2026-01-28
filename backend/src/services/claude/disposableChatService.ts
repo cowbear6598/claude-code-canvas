@@ -1,4 +1,5 @@
 import { query, type Options } from '@anthropic-ai/claude-agent-sdk';
+import { logger } from '../../utils/logger.js';
 
 export interface DisposableChatOptions {
   systemPrompt: string;
@@ -27,8 +28,6 @@ class DisposableChatService {
         includePartialMessages: true,
         systemPrompt,
       };
-
-      console.log(`[DisposableChatService] Executing disposable chat, prompt length: ${systemPrompt.length} chars`);
 
       const queryStream = query({
         prompt: userMessage,
@@ -60,15 +59,13 @@ class DisposableChatService {
         }
       }
 
-      console.log(`[DisposableChatService] Completed, response length: ${fullContent.length} chars`);
-
       return {
         content: fullContent,
         success: true,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[DisposableChatService] Failed:`, error);
+      logger.error('Chat', 'Error', `[DisposableChatService] Failed`, error);
 
       return {
         content: '',

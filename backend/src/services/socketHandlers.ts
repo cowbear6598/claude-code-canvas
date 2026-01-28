@@ -11,8 +11,6 @@ import {
 import { isValidPodId } from '../utils/payloadUtils.js';
 
 export function setupSocketHandlers(socket: Socket): void {
-  console.log(`[Socket.io] Client connected: ${socket.id}`);
-
   socketService.emitConnectionReady(socket.id, { socketId: socket.id });
 
   registerAllHandlers(socket);
@@ -28,7 +26,6 @@ export function setupSocketHandlers(socket: Socket): void {
     socketService.joinPodRoom(socket.id, podId);
 
     socket.emit(WebSocketResponseEvents.POD_JOINED, { podId });
-    console.log(`[Socket.io] Client ${socket.id} joined Pod ${podId}`);
   });
 
   socket.on(WebSocketRequestEvents.POD_JOIN_BATCH, (data: PodJoinBatchPayload) => {
@@ -53,7 +50,6 @@ export function setupSocketHandlers(socket: Socket): void {
     });
 
     socket.emit(WebSocketResponseEvents.POD_JOINED_BATCH, { joinedPodIds, failedPodIds });
-    console.log(`[Socket.io] Client ${socket.id} batch joined ${joinedPodIds.length} Pods (${failedPodIds.length} failed)`);
   });
 
   socket.on(WebSocketRequestEvents.POD_LEAVE, (data: PodLeavePayload) => {
@@ -67,12 +63,9 @@ export function setupSocketHandlers(socket: Socket): void {
     socketService.leavePodRoom(socket.id, podId);
 
     socket.emit(WebSocketResponseEvents.POD_LEFT, { podId });
-    console.log(`[Socket.io] Client ${socket.id} left Pod ${podId}`);
   });
 
   socket.on('disconnect', () => {
-    console.log(`[Socket.io] Client disconnected: ${socket.id}`);
-
     socketService.cleanupSocket(socket.id);
   });
 }
