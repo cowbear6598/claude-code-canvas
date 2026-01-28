@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Loader2, Check } from 'lucide-vue-next'
 import { tools } from '@/data/tools'
 import { useChatStore } from '@/stores/chatStore'
-import { Loader2, Check } from 'lucide-vue-next'
-import type { ToolUseInfo } from '@/types/chat'
+import type { ToolUseInfo, ToolUseStatus } from '@/types'
 
 const props = defineProps<{
   podId?: string
@@ -18,7 +18,7 @@ const activeTools = computed<ToolUseInfo[]>(() => {
 
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i]
-    if (msg && msg.toolUse && msg.toolUse.length > 0) {
+    if (msg?.toolUse && msg.toolUse.length > 0) {
       return msg.toolUse
     }
   }
@@ -26,32 +26,33 @@ const activeTools = computed<ToolUseInfo[]>(() => {
   return []
 })
 
-const hasRunningTools = computed(() => {
-  return activeTools.value.some(tool => tool.status === 'running')
-})
+const hasRunningTools = computed(() =>
+  activeTools.value.some(tool => tool.status === 'running')
+)
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return 'bg-green-500'
-    case 'running':
-      return 'bg-blue-500'
-    case 'error':
-      return 'bg-red-500'
-    default:
-      return 'bg-gray-400'
+const getStatusColor = (status: ToolUseStatus): string => {
+  const statusColors: Record<ToolUseStatus, string> = {
+    pending: 'bg-gray-400',
+    running: 'bg-blue-500',
+    completed: 'bg-green-500',
+    error: 'bg-red-500'
   }
+
+  return statusColors[status] || 'bg-gray-400'
 }
 </script>
 
 <template>
-  <div :class="[
-    'tool-panel w-48 p-3 flex flex-col gap-2 h-fit',
-    hasRunningTools ? 'animate-shake' : ''
-  ]">
-    <h3 class="font-sans text-lg text-doodle-ink mb-2 text-center">Tools</h3>
+  <div
+    :class="[
+      'tool-panel w-48 p-3 flex flex-col gap-2 h-fit',
+      hasRunningTools ? 'animate-shake' : ''
+    ]"
+  >
+    <h3 class="font-sans text-lg text-doodle-ink mb-2 text-center">
+      Tools
+    </h3>
 
-    <!-- Active Tools Section -->
     <div
       v-if="activeTools.length > 0"
       :class="[
@@ -67,13 +68,16 @@ const getStatusColor = (status: string) => {
           :size="14"
           class="animate-spin text-blue-600"
         />
-        <p :class="[
-          'text-xs font-mono font-semibold',
-          hasRunningTools ? 'text-blue-600' : 'text-foreground'
-        ]">
+        <p
+          :class="[
+            'text-xs font-mono font-semibold',
+            hasRunningTools ? 'text-blue-600' : 'text-foreground'
+          ]"
+        >
           {{ hasRunningTools ? '執行中...' : 'Active:' }}
         </p>
       </div>
+
       <div class="flex flex-col gap-1.5">
         <div
           v-for="tool in activeTools"
@@ -89,12 +93,13 @@ const getStatusColor = (status: string) => {
               tool.status === 'running' ? 'animate-spin text-blue-600' : 'text-green-600'
             ]"
           />
-          <span class="text-xs font-mono truncate">{{ tool.toolName }}</span>
+          <span class="text-xs font-mono truncate">
+            {{ tool.toolName }}
+          </span>
         </div>
       </div>
     </div>
 
-    <!-- Available Tools -->
     <div class="grid grid-cols-2 gap-2">
       <div
         v-for="tool in tools"
@@ -104,12 +109,14 @@ const getStatusColor = (status: string) => {
         <div
           :class="[
             'w-8 h-8 rounded-full border border-doodle-ink flex items-center justify-center',
-            tool.color,
+            tool.color
           ]"
         >
           <component :is="tool.icon" :size="16" class="text-card" />
         </div>
-        <span class="text-xs font-mono text-foreground">{{ tool.label }}</span>
+        <span class="text-xs font-mono text-foreground">
+          {{ tool.label }}
+        </span>
       </div>
     </div>
   </div>

@@ -180,36 +180,47 @@ export const useChatStore = defineStore('chat', {
     handleChatMessage(payload: PodChatMessagePayload): void {
       const { podId, messageId, content, isPartial, role } = payload
       const messages = this.messagesByPodId.get(podId) || []
-
       const messageIndex = messages.findIndex(m => m.id === messageId)
 
       if (messageIndex === -1) {
-        const newMessage: Message = {
-          id: messageId,
-          role: role || 'assistant',
-          content,
-          isPartial,
-          timestamp: new Date().toISOString()
-        }
-        this.messagesByPodId.set(podId, [...messages, newMessage])
-        this.currentStreamingMessageId = messageId
-
-        if (isPartial) {
-          this.setTyping(podId, true)
-        }
+        this.addNewChatMessage(podId, messageId, content, isPartial, role)
         return
       }
 
+      this.updateExistingChatMessage(podId, messages, messageIndex, content, isPartial)
+    },
+
+    addNewChatMessage(podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant'): void {
+      const messages = this.messagesByPodId.get(podId) || []
+      const newMessage: Message = {
+        id: messageId,
+        role: role || 'assistant',
+        content,
+        isPartial,
+        timestamp: new Date().toISOString()
+      }
+
+      this.messagesByPodId.set(podId, [...messages, newMessage])
+      this.currentStreamingMessageId = messageId
+
+      if (isPartial) {
+        this.setTyping(podId, true)
+      }
+    },
+
+    updateExistingChatMessage(podId: string, messages: Message[], messageIndex: number, content: string, isPartial: boolean): void {
       const updatedMessages = [...messages]
       const existingMessage = updatedMessages[messageIndex]
-      if (existingMessage) {
-        updatedMessages[messageIndex] = {
-          ...existingMessage,
-          content,
-          isPartial
-        }
-        this.messagesByPodId.set(podId, updatedMessages)
+
+      if (!existingMessage) return
+
+      updatedMessages[messageIndex] = {
+        ...existingMessage,
+        content,
+        isPartial
       }
+
+      this.messagesByPodId.set(podId, updatedMessages)
 
       if (isPartial) {
         this.setTyping(podId, true)
@@ -219,34 +230,44 @@ export const useChatStore = defineStore('chat', {
     handleChatToolUse(payload: PodChatToolUsePayload): void {
       const { podId, messageId, toolUseId, toolName, input } = payload
       const messages = this.messagesByPodId.get(podId) || []
-
       const messageIndex = messages.findIndex(m => m.id === messageId)
+
       if (messageIndex === -1) {
-        const newMessage: Message = {
-          id: messageId,
-          role: 'assistant',
-          content: '',
-          isPartial: true,
-          timestamp: new Date().toISOString(),
-          toolUse: [{
-            toolUseId,
-            toolName,
-            input,
-            status: 'running' as ToolUseStatus
-          }]
-        }
-        this.messagesByPodId.set(podId, [...messages, newMessage])
-        this.currentStreamingMessageId = messageId
+        this.createMessageWithToolUse(podId, messageId, toolUseId, toolName, input)
         return
       }
 
+      this.addToolUseToMessage(podId, messages, messageIndex, toolUseId, toolName, input)
+    },
+
+    createMessageWithToolUse(podId: string, messageId: string, toolUseId: string, toolName: string, input: Record<string, unknown>): void {
+      const messages = this.messagesByPodId.get(podId) || []
+      const newMessage: Message = {
+        id: messageId,
+        role: 'assistant',
+        content: '',
+        isPartial: true,
+        timestamp: new Date().toISOString(),
+        toolUse: [{
+          toolUseId,
+          toolName,
+          input,
+          status: 'running' as ToolUseStatus
+        }]
+      }
+
+      this.messagesByPodId.set(podId, [...messages, newMessage])
+      this.currentStreamingMessageId = messageId
+    },
+
+    addToolUseToMessage(podId: string, messages: Message[], messageIndex: number, toolUseId: string, toolName: string, input: Record<string, unknown>): void {
       const updatedMessages = [...messages]
       const message = updatedMessages[messageIndex]
+
       if (!message) return
 
       const toolUse = message.toolUse || []
       const toolIndex = toolUse.findIndex(t => t.toolUseId === toolUseId)
-
       const toolUseInfo: ToolUseInfo = {
         toolUseId,
         toolName,
@@ -267,16 +288,22 @@ export const useChatStore = defineStore('chat', {
     },
 
     handleChatToolResult(payload: PodChatToolResultPayload): void {
-      const { podId, messageId, toolUseId, toolName, output } = payload
+      const { podId, messageId, toolUseId, output } = payload
       const messages = this.messagesByPodId.get(podId) || []
-
       const messageIndex = messages.findIndex(m => m.id === messageId)
-      if (messageIndex === -1) {
-        return
-      }
 
+      if (messageIndex === -1) return
+
+      const message = messages[messageIndex]
+      if (!message?.toolUse) return
+
+      this.updateToolUseResult(podId, messages, messageIndex, toolUseId, output)
+    },
+
+    updateToolUseResult(podId: string, messages: Message[], messageIndex: number, toolUseId: string, output: string): void {
       const updatedMessages = [...messages]
       const message = updatedMessages[messageIndex]
+
       if (!message?.toolUse) return
 
       const updatedToolUse = message.toolUse.map(tool =>
@@ -296,62 +323,74 @@ export const useChatStore = defineStore('chat', {
     handleChatComplete(payload: PodChatCompletePayload): void {
       const { podId, messageId, fullContent } = payload
       const messages = this.messagesByPodId.get(podId) || []
-
       const messageIndex = messages.findIndex(m => m.id === messageId)
-      if (messageIndex === -1) {
-        this.setTyping(podId, false)
 
-        if (this.currentStreamingMessageId === messageId) {
-          this.currentStreamingMessageId = null
-        }
+      if (messageIndex === -1) {
+        this.finalizeStreaming(podId, messageId)
         return
       }
 
-      const updatedMessages = [...messages]
-      const existingMessage = updatedMessages[messageIndex]
-      if (existingMessage) {
-        if (existingMessage.toolUse && existingMessage.toolUse.length > 0) {
-          const updatedToolUse = existingMessage.toolUse.map(tool =>
-            tool.status === 'running'
-              ? { ...tool, status: 'completed' as ToolUseStatus }
-              : tool
-          )
-          updatedMessages[messageIndex] = {
-            ...existingMessage,
-            content: fullContent,
-            isPartial: false,
-            toolUse: updatedToolUse
-          }
-        } else {
-          updatedMessages[messageIndex] = {
-            ...existingMessage,
-            content: fullContent,
-            isPartial: false
-          }
-        }
-        this.messagesByPodId.set(podId, updatedMessages)
+      this.completeMessage(podId, messages, messageIndex, fullContent, messageId)
+    },
 
-        if (existingMessage.role === 'assistant') {
-          import('./pod/podStore').then(({ usePodStore }) => {
-            const podStore = usePodStore()
-            const pod = podStore.pods.find(p => p.id === podId)
-
-            if (pod) {
-              const truncatedContent = truncateContent(fullContent, RESPONSE_PREVIEW_LENGTH)
-              podStore.updatePod({
-                ...pod,
-                output: [...pod.output, truncatedContent]
-              })
-            }
-          })
-        }
-      }
-
+    finalizeStreaming(podId: string, messageId: string): void {
       this.setTyping(podId, false)
 
       if (this.currentStreamingMessageId === messageId) {
         this.currentStreamingMessageId = null
       }
+    },
+
+    completeMessage(podId: string, messages: Message[], messageIndex: number, fullContent: string, messageId: string): void {
+      const updatedMessages = [...messages]
+      const existingMessage = updatedMessages[messageIndex]
+
+      if (!existingMessage) return
+
+      const hasToolUse = existingMessage.toolUse && existingMessage.toolUse.length > 0
+
+      if (hasToolUse) {
+        const updatedToolUse = existingMessage.toolUse!.map(tool =>
+          tool.status === 'running'
+            ? { ...tool, status: 'completed' as ToolUseStatus }
+            : tool
+        )
+        updatedMessages[messageIndex] = {
+          ...existingMessage,
+          content: fullContent,
+          isPartial: false,
+          toolUse: updatedToolUse
+        }
+      } else {
+        updatedMessages[messageIndex] = {
+          ...existingMessage,
+          content: fullContent,
+          isPartial: false
+        }
+      }
+
+      this.messagesByPodId.set(podId, updatedMessages)
+
+      if (existingMessage.role === 'assistant') {
+        this.updatePodOutput(podId, fullContent)
+      }
+
+      this.finalizeStreaming(podId, messageId)
+    },
+
+    updatePodOutput(podId: string, content: string): void {
+      import('./pod/podStore').then(({ usePodStore }) => {
+        const podStore = usePodStore()
+        const pod = podStore.pods.find(p => p.id === podId)
+
+        if (!pod) return
+
+        const truncatedContent = truncateContent(content, RESPONSE_PREVIEW_LENGTH)
+        podStore.updatePod({
+          ...pod,
+          output: [...pod.output, truncatedContent]
+        })
+      })
     },
 
     handleError(payload: PodErrorPayload): void {
@@ -367,7 +406,8 @@ export const useChatStore = defineStore('chat', {
     setTyping(podId: string, isTyping: boolean): void {
       this.isTypingByPodId.set(podId, isTyping)
     },
-      clearMessagesByPodIds(podIds: string[]): void {
+
+    clearMessagesByPodIds(podIds: string[]): void {
       podIds.forEach(podId => {
         this.messagesByPodId.delete(podId)
         this.isTypingByPodId.delete(podId)
@@ -444,11 +484,12 @@ export const useChatStore = defineStore('chat', {
         this.allHistoryLoaded = true
         return
       }
-        await Promise.allSettled(
-            podIds.map(podId => this.loadPodChatHistory(podId))
-        );
 
-        this.allHistoryLoaded = true
+      await Promise.allSettled(
+        podIds.map(podId => this.loadPodChatHistory(podId))
+      )
+
+      this.allHistoryLoaded = true
     },
 
     handleChatHistoryResult(_: PodChatHistoryResultPayload): void {

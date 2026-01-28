@@ -1,23 +1,11 @@
 import type { Component } from 'vue'
 
-/**
- * Message role types
- */
 export type MessageRole = 'user' | 'assistant'
 
-/**
- * History loading status types
- */
 export type HistoryLoadingStatus = 'idle' | 'loading' | 'loaded' | 'error'
 
-/**
- * Tool use status types
- */
 export type ToolUseStatus = 'pending' | 'running' | 'completed' | 'error'
 
-/**
- * Tool use information
- */
 export interface ToolUseInfo {
   toolUseId: string
   toolName: string
@@ -26,9 +14,6 @@ export interface ToolUseInfo {
   status: ToolUseStatus
 }
 
-/**
- * Chat message
- */
 export interface Message {
   id: string
   role: MessageRole
@@ -40,9 +25,6 @@ export interface Message {
   sourceInfo?: { podId: string; podName: string }
 }
 
-/**
- * Tool configuration for display
- */
 export interface Tool {
   icon: Component
   label: string

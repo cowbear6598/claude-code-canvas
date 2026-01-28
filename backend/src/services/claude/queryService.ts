@@ -66,12 +66,9 @@ class ClaudeQueryService {
       await messageStore.addMessage(podId, 'user', message);
 
       const resumeSessionId = pod.claudeSessionId;
-
       const cwd = pod.repositoryId
         ? path.join(config.repositoriesRoot, pod.repositoryId)
         : pod.workspacePath;
-
-      // Intentionally not logging - too verbose
 
       const queryOptions: Options = {
         cwd,
@@ -99,8 +96,6 @@ class ClaudeQueryService {
         options: queryOptions,
       });
 
-      // Claude SDK 會發送多種類型的訊息（system init、assistant、tool_progress、result 等），
-      // 需要分別處理以擷取 session ID、文字內容、工具使用資訊和最終結果
       for await (const sdkMessage of queryStream) {
         if (
           sdkMessage.type === 'system' &&
@@ -155,33 +150,32 @@ class ClaudeQueryService {
             tool_use_id?: string;
           };
 
-          if (toolProgressMsg.output || toolProgressMsg.result) {
-            const outputText = toolProgressMsg.output || toolProgressMsg.result || '';
-            const toolUseId = toolProgressMsg.tool_use_id;
+          const outputText = toolProgressMsg.output || toolProgressMsg.result;
+          if (!outputText) continue;
 
-            if (toolUseId && activeTools.has(toolUseId)) {
-              const toolInfo = activeTools.get(toolUseId)!;
+          const toolUseId = toolProgressMsg.tool_use_id;
+          const toolInfo = toolUseId ? activeTools.get(toolUseId) : null;
 
-              if (toolUseInfo && toolUseInfo.toolUseId === toolUseId) {
-                toolUseInfo.output = outputText;
-              }
-
-              onStream({
-                type: 'tool_result',
-                toolUseId,
-                toolName: toolInfo.toolName,
-                output: outputText,
-              });
-            } else if (toolUseInfo) {
+          if (toolInfo && toolUseId) {
+            if (toolUseInfo?.toolUseId === toolUseId) {
               toolUseInfo.output = outputText;
-
-              onStream({
-                type: 'tool_result',
-                toolUseId: toolUseInfo.toolUseId,
-                toolName: toolUseInfo.toolName,
-                output: outputText,
-              });
             }
+
+            onStream({
+              type: 'tool_result',
+              toolUseId,
+              toolName: toolInfo.toolName,
+              output: outputText,
+            });
+          } else if (toolUseInfo) {
+            toolUseInfo.output = outputText;
+
+            onStream({
+              type: 'tool_result',
+              toolUseId: toolUseInfo.toolUseId,
+              toolName: toolUseInfo.toolName,
+              output: outputText,
+            });
           }
         }
         else if (sdkMessage.type === 'result') {
@@ -205,9 +199,6 @@ class ClaudeQueryService {
             throw new Error(errorMessage);
           }
         }
-        else if (sdkMessage.type === 'stream_event') {
-          // Ignore stream events
-        }
       }
 
       if (capturedSessionId && capturedSessionId !== pod.claudeSessionId) {
@@ -219,12 +210,12 @@ class ClaudeQueryService {
       }
 
       return {
-          id: messageId,
-          podId,
-          role: 'assistant',
-          content: fullContent,
-          toolUse: toolUseInfo,
-          createdAt: new Date(),
+        id: messageId,
+        podId,
+        role: 'assistant',
+        content: fullContent,
+        toolUse: toolUseInfo,
+        createdAt: new Date(),
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
