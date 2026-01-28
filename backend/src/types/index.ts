@@ -173,4 +173,7 @@ export {
   type SubAgentDeletePayload,
   type SubAgentDeletedPayload,
   type PasteSubAgentNoteItem,
+  type PodSetAutoClearPayload,
+  type PodAutoClearSetPayload,
+  type WorkflowAutoClearedPayload,
 } from './websocket.js';

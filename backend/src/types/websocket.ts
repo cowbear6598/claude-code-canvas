@@ -119,6 +119,9 @@ export {
   type SubAgentDeletePayload,
   type SubAgentDeletedPayload,
   type PasteSubAgentNoteItem,
+  type PodSetAutoClearPayload,
+  type PodAutoClearSetPayload,
+  type WorkflowAutoClearedPayload,
 } from './websocket-events.js';
 
 // Legacy enum for backward compatibility (deprecated)
