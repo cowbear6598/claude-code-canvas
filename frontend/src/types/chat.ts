@@ -19,6 +19,7 @@ export type ToolUseStatus = 'pending' | 'running' | 'completed' | 'error'
  * Tool use information
  */
 export interface ToolUseInfo {
+  toolUseId: string
   toolName: string
   input: Record<string, unknown>
   output?: string

@@ -217,11 +217,26 @@ export const useChatStore = defineStore('chat', {
     },
 
     handleChatToolUse(payload: PodChatToolUsePayload): void {
-      const { podId, messageId, toolName, input } = payload
+      const { podId, messageId, toolUseId, toolName, input } = payload
       const messages = this.messagesByPodId.get(podId) || []
 
       const messageIndex = messages.findIndex(m => m.id === messageId)
       if (messageIndex === -1) {
+        const newMessage: Message = {
+          id: messageId,
+          role: 'assistant',
+          content: '',
+          isPartial: true,
+          timestamp: new Date().toISOString(),
+          toolUse: [{
+            toolUseId,
+            toolName,
+            input,
+            status: 'running' as ToolUseStatus
+          }]
+        }
+        this.messagesByPodId.set(podId, [...messages, newMessage])
+        this.currentStreamingMessageId = messageId
         return
       }
 
@@ -230,9 +245,10 @@ export const useChatStore = defineStore('chat', {
       if (!message) return
 
       const toolUse = message.toolUse || []
-      const toolIndex = toolUse.findIndex(t => t.toolName === toolName)
+      const toolIndex = toolUse.findIndex(t => t.toolUseId === toolUseId)
 
       const toolUseInfo: ToolUseInfo = {
+        toolUseId,
         toolName,
         input,
         status: 'running' as ToolUseStatus
@@ -251,7 +267,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     handleChatToolResult(payload: PodChatToolResultPayload): void {
-      const { podId, messageId, toolName, output } = payload
+      const { podId, messageId, toolUseId, toolName, output } = payload
       const messages = this.messagesByPodId.get(podId) || []
 
       const messageIndex = messages.findIndex(m => m.id === messageId)
@@ -264,7 +280,7 @@ export const useChatStore = defineStore('chat', {
       if (!message?.toolUse) return
 
       const updatedToolUse = message.toolUse.map(tool =>
-        tool.toolName === toolName
+        tool.toolUseId === toolUseId
           ? { ...tool, output, status: 'completed' as ToolUseStatus }
           : tool
       )
@@ -294,10 +310,24 @@ export const useChatStore = defineStore('chat', {
       const updatedMessages = [...messages]
       const existingMessage = updatedMessages[messageIndex]
       if (existingMessage) {
-        updatedMessages[messageIndex] = {
-          ...existingMessage,
-          content: fullContent,
-          isPartial: false
+        if (existingMessage.toolUse && existingMessage.toolUse.length > 0) {
+          const updatedToolUse = existingMessage.toolUse.map(tool =>
+            tool.status === 'running'
+              ? { ...tool, status: 'completed' as ToolUseStatus }
+              : tool
+          )
+          updatedMessages[messageIndex] = {
+            ...existingMessage,
+            content: fullContent,
+            isPartial: false,
+            toolUse: updatedToolUse
+          }
+        } else {
+          updatedMessages[messageIndex] = {
+            ...existingMessage,
+            content: fullContent,
+            isPartial: false
+          }
         }
         this.messagesByPodId.set(podId, updatedMessages)
 

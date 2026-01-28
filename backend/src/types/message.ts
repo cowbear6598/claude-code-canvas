@@ -1,6 +1,7 @@
 export type MessageRole = 'user' | 'assistant';
 
 export interface ToolUseInfo {
+  toolUseId: string;
   toolName: string;
   input: Record<string, unknown>;
   output: string | null;

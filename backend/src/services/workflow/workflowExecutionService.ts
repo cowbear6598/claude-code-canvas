@@ -397,6 +397,7 @@ class WorkflowExecutionService {
             const toolUsePayload: PodChatToolUsePayload = {
               podId: targetPodId,
               messageId: assistantMessageId,
+              toolUseId: event.toolUseId,
               toolName: event.toolName,
               input: event.input,
             };
@@ -412,6 +413,7 @@ class WorkflowExecutionService {
             const toolResultPayload: PodChatToolResultPayload = {
               podId: targetPodId,
               messageId: assistantMessageId,
+              toolUseId: event.toolUseId,
               toolName: event.toolName,
               output: event.output,
             };

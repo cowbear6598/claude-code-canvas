@@ -80,6 +80,7 @@ export async function handleChatSend(
         const toolUsePayload: PodChatToolUsePayload = {
           podId,
           messageId,
+          toolUseId: event.toolUseId,
           toolName: event.toolName,
           input: event.input,
         };
@@ -95,6 +96,7 @@ export async function handleChatSend(
         const toolResultPayload: PodChatToolResultPayload = {
           podId,
           messageId,
+          toolUseId: event.toolUseId,
           toolName: event.toolName,
           output: event.output,
         };

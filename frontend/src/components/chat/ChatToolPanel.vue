@@ -26,6 +26,10 @@ const activeTools = computed<ToolUseInfo[]>(() => {
   return []
 })
 
+const hasRunningTools = computed(() => {
+  return activeTools.value.some(tool => tool.status === 'running')
+})
+
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'completed':
@@ -41,16 +45,39 @@ const getStatusColor = (status: string) => {
 </script>
 
 <template>
-  <div class="tool-panel w-48 p-3 flex flex-col gap-2 h-fit">
+  <div :class="[
+    'tool-panel w-48 p-3 flex flex-col gap-2 h-fit',
+    hasRunningTools ? 'animate-shake' : ''
+  ]">
     <h3 class="font-sans text-lg text-doodle-ink mb-2 text-center">Tools</h3>
 
     <!-- Active Tools Section -->
-    <div v-if="activeTools.length > 0" class="mb-3 p-2 bg-background rounded border-2 border-doodle-ink">
-      <p class="text-xs font-mono text-foreground mb-2 font-semibold">Active:</p>
+    <div
+      v-if="activeTools.length > 0"
+      :class="[
+        'mb-3 p-2 rounded border-2 transition-all duration-300',
+        hasRunningTools
+          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 animate-pulse-border'
+          : 'border-doodle-ink bg-background'
+      ]"
+    >
+      <div class="flex items-center gap-2 mb-2">
+        <Loader2
+          v-if="hasRunningTools"
+          :size="14"
+          class="animate-spin text-blue-600"
+        />
+        <p :class="[
+          'text-xs font-mono font-semibold',
+          hasRunningTools ? 'text-blue-600' : 'text-foreground'
+        ]">
+          {{ hasRunningTools ? '執行中...' : 'Active:' }}
+        </p>
+      </div>
       <div class="flex flex-col gap-1.5">
         <div
           v-for="tool in activeTools"
-          :key="tool.toolName"
+          :key="tool.toolUseId"
           class="flex items-center gap-2 p-1.5 rounded bg-card"
         >
           <div :class="['w-2 h-2 rounded-full', getStatusColor(tool.status)]" />
@@ -87,3 +114,28 @@ const getStatusColor = (status: string) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: rgb(59 130 246);
+  }
+  50% {
+    border-color: rgb(147 197 253);
+  }
+}
+
+.animate-pulse-border {
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out 2;
+}
+</style>

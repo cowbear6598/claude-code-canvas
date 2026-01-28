@@ -22,12 +22,14 @@ export interface TextStreamEvent {
 
 export interface ToolUseStreamEvent {
   type: 'tool_use';
+  toolUseId: string;
   toolName: string;
   input: Record<string, unknown>;
 }
 
 export interface ToolResultStreamEvent {
   type: 'tool_result';
+  toolUseId: string;
   toolName: string;
   output: string;
 }
@@ -58,6 +60,7 @@ class ClaudeQueryService {
     let toolUseInfo: ToolUseInfo | null = null;
     let fullContent = '';
     let capturedSessionId: string | null = null;
+    const activeTools = new Map<string, { toolName: string; input: Record<string, unknown> }>();
 
     try {
       await messageStore.addMessage(podId, 'user', message);
@@ -119,11 +122,18 @@ class ClaudeQueryService {
             else if ('type' in block && block.type === 'tool_use') {
               const toolBlock = block as {
                 type: 'tool_use';
+                id: string;
                 name: string;
                 input: Record<string, unknown>;
               };
 
+              activeTools.set(toolBlock.id, {
+                toolName: toolBlock.name,
+                input: toolBlock.input,
+              });
+
               toolUseInfo = {
+                toolUseId: toolBlock.id,
                 toolName: toolBlock.name,
                 input: toolBlock.input,
                 output: null,
@@ -131,6 +141,7 @@ class ClaudeQueryService {
 
               onStream({
                 type: 'tool_use',
+                toolUseId: toolBlock.id,
                 toolName: toolBlock.name,
                 input: toolBlock.input,
               });
@@ -138,19 +149,39 @@ class ClaudeQueryService {
           }
         }
         else if (sdkMessage.type === 'tool_progress') {
-          const toolProgressMsg = sdkMessage as { output?: string; result?: string };
+          const toolProgressMsg = sdkMessage as {
+            output?: string;
+            result?: string;
+            tool_use_id?: string;
+          };
+
           if (toolProgressMsg.output || toolProgressMsg.result) {
             const outputText = toolProgressMsg.output || toolProgressMsg.result || '';
+            const toolUseId = toolProgressMsg.tool_use_id;
 
-            if (toolUseInfo) {
+            if (toolUseId && activeTools.has(toolUseId)) {
+              const toolInfo = activeTools.get(toolUseId)!;
+
+              if (toolUseInfo && toolUseInfo.toolUseId === toolUseId) {
+                toolUseInfo.output = outputText;
+              }
+
+              onStream({
+                type: 'tool_result',
+                toolUseId,
+                toolName: toolInfo.toolName,
+                output: outputText,
+              });
+            } else if (toolUseInfo) {
               toolUseInfo.output = outputText;
-            }
 
-            onStream({
-              type: 'tool_result',
-              toolName: toolUseInfo?.toolName || 'unknown',
-              output: outputText,
-            });
+              onStream({
+                type: 'tool_result',
+                toolUseId: toolUseInfo.toolUseId,
+                toolName: toolUseInfo.toolName,
+                output: outputText,
+              });
+            }
           }
         }
         else if (sdkMessage.type === 'result') {

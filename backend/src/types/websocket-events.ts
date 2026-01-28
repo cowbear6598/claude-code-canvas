@@ -248,6 +248,7 @@ export interface PodChatMessagePayload {
 export interface PodChatToolUsePayload {
   podId: string;
   messageId: string;
+  toolUseId: string;
   toolName: string;
   input: Record<string, unknown>;
 }
@@ -255,6 +256,7 @@ export interface PodChatToolUsePayload {
 export interface PodChatToolResultPayload {
   podId: string;
   messageId: string;
+  toolUseId: string;
   toolName: string;
   output: string;
 }
