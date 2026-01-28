@@ -96,6 +96,12 @@ const isLongPress = ref(false)
 const isToggling = ref(false)
 const LONG_PRESS_DURATION = 500
 
+const isLongPressing = ref(false)
+const longPressProgress = ref(0)
+const mousePosition = ref({ x: 0, y: 0 })
+let progressAnimationFrame: number | null = null
+let longPressStartTime: number | null = null
+
 const isAutoClearEnabled = computed(() => props.pod.autoClear ?? false)
 const isAutoClearAnimating = computed(() => chatStore.autoClearAnimationPodId === props.pod.id)
 
@@ -118,6 +124,9 @@ onUnmounted(() => {
   if (longPressTimer.value) {
     clearTimeout(longPressTimer.value)
     longPressTimer.value = null
+  }
+  if (progressAnimationFrame) {
+    cancelAnimationFrame(progressAnimationFrame)
   }
 })
 
@@ -373,8 +382,31 @@ const handleModelChange = async (model: ModelType) => {
 const handleEraserMouseDown = (e: MouseEvent) => {
   e.stopPropagation()
   isLongPress.value = false
+  isLongPressing.value = true
+  longPressProgress.value = 0
+  longPressStartTime = performance.now()
+
+  // 記錄滑鼠位置（相對於 viewport）
+  mousePosition.value = { x: e.clientX, y: e.clientY }
+
+  // 使用 requestAnimationFrame 更新進度
+  const updateProgress = () => {
+    if (!longPressStartTime || !isLongPressing.value) return
+
+    const elapsed = performance.now() - longPressStartTime
+    longPressProgress.value = Math.min(elapsed / LONG_PRESS_DURATION, 1)
+
+    if (longPressProgress.value < 1) {
+      progressAnimationFrame = requestAnimationFrame(updateProgress)
+    }
+  }
+  progressAnimationFrame = requestAnimationFrame(updateProgress)
+
+  // 設定長按計時器
   longPressTimer.value = setTimeout(() => {
     isLongPress.value = true
+    isLongPressing.value = false
+    longPressProgress.value = 0
     toggleAutoClear()
   }, LONG_PRESS_DURATION)
 }
@@ -383,6 +415,12 @@ const handleEraserMouseUp = () => {
   if (longPressTimer.value) {
     clearTimeout(longPressTimer.value)
     longPressTimer.value = null
+  }
+  isLongPressing.value = false
+  longPressProgress.value = 0
+  if (progressAnimationFrame) {
+    cancelAnimationFrame(progressAnimationFrame)
+    progressAnimationFrame = null
   }
   if (!isLongPress.value) {
     handleClearWorkflow()
@@ -393,6 +431,12 @@ const handleEraserMouseLeave = () => {
   if (longPressTimer.value) {
     clearTimeout(longPressTimer.value)
     longPressTimer.value = null
+  }
+  isLongPressing.value = false
+  longPressProgress.value = 0
+  if (progressAnimationFrame) {
+    cancelAnimationFrame(progressAnimationFrame)
+    progressAnimationFrame = null
   }
 }
 
@@ -624,5 +668,60 @@ watch(isAutoClearAnimating, (newValue) => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <!-- Long Press Progress Indicator -->
+    <Teleport to="body">
+      <div
+        v-if="isLongPressing"
+        class="long-press-indicator"
+        :style="{
+          left: mousePosition.x + 'px',
+          top: mousePosition.y + 'px'
+        }"
+      >
+        <svg class="long-press-ring" width="52" height="52" viewBox="0 0 52 52">
+          <!-- 白色甜甜圈底（帶黑色邊框） -->
+          <circle
+            cx="26"
+            cy="26"
+            r="20"
+            fill="none"
+            stroke="var(--card)"
+            stroke-width="8"
+          />
+          <!-- 外邊框 -->
+          <circle
+            cx="26"
+            cy="26"
+            r="24"
+            fill="none"
+            stroke="var(--doodle-ink)"
+            stroke-width="2"
+          />
+          <!-- 內邊框 -->
+          <circle
+            cx="26"
+            cy="26"
+            r="16"
+            fill="none"
+            stroke="var(--doodle-ink)"
+            stroke-width="2"
+          />
+          <!-- 進度圓 -->
+          <circle
+            cx="26"
+            cy="26"
+            r="20"
+            fill="none"
+            stroke="var(--doodle-blue)"
+            stroke-width="6"
+            stroke-linecap="round"
+            :stroke-dasharray="125.66"
+            :stroke-dashoffset="125.66 * (1 - longPressProgress)"
+            transform="rotate(-90 26 26)"
+          />
+        </svg>
+      </div>
+    </Teleport>
   </div>
 </template>
