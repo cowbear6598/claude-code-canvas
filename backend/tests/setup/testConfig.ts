@@ -44,3 +44,9 @@ export async function overrideConfig(): Promise<void> {
   const configModule = await import('../../src/config/index.js');
   Object.assign(configModule.config, testConfig);
 }
+
+// 立即執行覆寫（在 setupFiles 階段）
+// 這確保在任何測試模組載入之前就覆寫 config
+const configModule = await import('../../src/config/index.js');
+Object.assign(configModule.config, testConfig);
+console.log('[Test Config] Overridden config to use temp directory:', testConfig.appDataRoot);

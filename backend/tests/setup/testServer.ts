@@ -8,12 +8,9 @@ import { createServer, Server as HttpServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { AddressInfo } from 'net';
 import { overrideConfig, testConfig } from './testConfig.js';
-import { socketService } from '../../src/services/socketService.js';
-import { setupSocketHandlers } from '../../src/services/socketHandlers.js';
-import { startupService } from '../../src/services/startupService.js';
-import apiRoutes from '../../src/routes/index.js';
-import { requestLogger } from '../../src/middleware/requestLogger.js';
-import { errorHandler } from '../../src/middleware/errorHandler.js';
+
+// 注意：不要在頂層 import 使用 config 的模組
+// 這些模組需要在 overrideConfig() 之後動態 import
 
 export interface TestServerInstance {
   httpServer: HttpServer;
@@ -29,8 +26,16 @@ export interface TestServerInstance {
  * 初始化 startupService 以載入資料
  */
 export async function createTestServer(): Promise<TestServerInstance> {
-  // 覆寫設定為測試環境
+  // 必須先覆寫設定，再 import 使用 config 的模組
   await overrideConfig();
+
+  // 動態 import 使用 config 的模組（確保使用測試配置）
+  const { socketService } = await import('../../src/services/socketService.js');
+  const { setupSocketHandlers } = await import('../../src/services/socketHandlers.js');
+  const { startupService } = await import('../../src/services/startupService.js');
+  const { default: apiRoutes } = await import('../../src/routes/index.js');
+  const { requestLogger } = await import('../../src/middleware/requestLogger.js');
+  const { errorHandler } = await import('../../src/middleware/errorHandler.js');
 
   const app = express();
 
