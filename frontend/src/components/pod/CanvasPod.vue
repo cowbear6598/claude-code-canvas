@@ -91,11 +91,9 @@ const isLoadingDownstream = ref(false)
 const isClearing = ref(false)
 const showDeleteDialog = ref(false)
 
-// 在 script setup 中添加用於追蹤當前事件監聽器的變數
 let currentMouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let currentMouseUpHandler: (() => void) | null = null
 
-// 清理函數
 const cleanupEventListeners = () => {
   if (currentMouseMoveHandler) {
     document.removeEventListener('mousemove', currentMouseMoveHandler)
@@ -107,7 +105,6 @@ const cleanupEventListeners = () => {
   }
 }
 
-// 在組件卸載時清理
 onUnmounted(() => {
   cleanupEventListeners()
 })
@@ -134,7 +131,6 @@ const handleMouseDown = (e: MouseEvent) => {
 
   podStore.setActivePod(props.pod.id)
 
-  // 取消 connection 選取
   connectionStore.selectConnection(null)
 
   cleanupEventListeners()

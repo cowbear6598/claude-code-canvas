@@ -1,6 +1,3 @@
-// Canvas Paste WebSocket Handler
-// Handles batch paste operations for Pods and Notes
-
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
@@ -27,9 +24,6 @@ import { skillService } from '../services/skillService.js';
 import { subAgentService } from '../services/subAgentService.js';
 import { emitSuccess, getErrorMessage } from '../utils/websocketResponse.js';
 
-/**
- * Map original pod ID to new pod ID for note binding
- */
 function resolveBoundPodId(
   boundToOriginalPodId: string | null,
   podIdMapping: Record<string, string>
@@ -38,9 +32,6 @@ function resolveBoundPodId(
   return podIdMapping[boundToOriginalPodId] ?? null;
 }
 
-/**
- * Record error in errors array and log it
- */
 function recordError(
   errors: PasteError[],
   type: PasteError['type'],
@@ -53,9 +44,6 @@ function recordError(
   console.error(`[Paste] ${context}: ${errorMessage}`);
 }
 
-/**
- * Handle canvas paste request
- */
 export async function handleCanvasPaste(
   socket: Socket,
   payload: CanvasPastePayload,
@@ -72,7 +60,6 @@ export async function handleCanvasPaste(
   const podIdMapping: Record<string, string> = {};
   const errors: PasteError[] = [];
 
-  // Process PODs - workspace and session creation involves third-party services
   for (const podItem of pods) {
     try {
       let finalRepositoryId = podItem.repositoryId ?? null;
@@ -152,7 +139,6 @@ export async function handleCanvasPaste(
     }
   }
 
-  // Process OutputStyleNotes
   for (const noteItem of outputStyleNotes) {
     try {
       const boundToPodId = resolveBoundPodId(noteItem.boundToOriginalPodId, podIdMapping);
@@ -173,7 +159,6 @@ export async function handleCanvasPaste(
     }
   }
 
-  // Process SkillNotes
   for (const noteItem of skillNotes) {
     try {
       const boundToPodId = resolveBoundPodId(noteItem.boundToOriginalPodId, podIdMapping);
@@ -194,7 +179,6 @@ export async function handleCanvasPaste(
     }
   }
 
-  // Process RepositoryNotes
   for (const noteItem of repositoryNotes) {
     try {
       const boundToPodId = resolveBoundPodId(noteItem.boundToOriginalPodId, podIdMapping);
@@ -215,7 +199,6 @@ export async function handleCanvasPaste(
     }
   }
 
-  // Process SubAgentNotes
   for (const noteItem of subAgentNotes) {
     try {
       const boundToPodId = resolveBoundPodId(noteItem.boundToOriginalPodId, podIdMapping);
@@ -236,14 +219,11 @@ export async function handleCanvasPaste(
     }
   }
 
-  // Process Connections
   for (const connItem of connections ?? []) {
     try {
-      // 轉換 POD ID
       const newSourcePodId = podIdMapping[connItem.originalSourcePodId];
       const newTargetPodId = podIdMapping[connItem.originalTargetPodId];
 
-      // 兩端 POD 都必須成功建立
       if (!newSourcePodId || !newTargetPodId) {
         console.log(`[Paste] Skipping connection: source or target pod not created`);
         continue;
@@ -260,7 +240,6 @@ export async function handleCanvasPaste(
       createdConnections.push(newConnection);
       console.log(`[Paste] Created Connection ${newConnection.id} (${newSourcePodId} -> ${newTargetPodId})`);
     } catch (error) {
-      // 記錄錯誤但繼續處理
       console.error(`[Paste] Failed to create connection: ${getErrorMessage(error)}`);
     }
   }

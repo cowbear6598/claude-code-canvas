@@ -1,6 +1,3 @@
-// Pod WebSocket Handlers
-// Handles Pod CRUD operations via WebSocket events
-
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
@@ -28,9 +25,6 @@ import { socketService } from '../services/socketService.js';
 import { workflowService } from '../services/workflow/index.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
-/**
- * Handle Pod creation request
- */
 export async function handlePodCreate(
   socket: Socket,
   payload: PodCreatePayload,
@@ -38,10 +32,8 @@ export async function handlePodCreate(
 ): Promise<void> {
   const { name, type, color, x, y, rotation } = payload;
 
-  // Create Pod in store with canvas position
   const pod = podStore.create({ name, type, color, x, y, rotation });
 
-  // Create workspace directory
   const workspaceResult = await workspaceService.createWorkspace(pod.id);
   if (!workspaceResult.success) {
     emitError(
@@ -55,10 +47,8 @@ export async function handlePodCreate(
     return;
   }
 
-  // Create Claude session for this Pod
   await claudeSessionManager.createSession(pod.id, pod.workspacePath);
 
-  // Emit success response
   const response: PodCreatedPayload = {
     requestId,
     success: true,
@@ -70,18 +60,13 @@ export async function handlePodCreate(
   console.log(`[Pod] Created Pod ${pod.id} (${pod.name})`);
 }
 
-/**
- * Handle Pod list request
- */
 export async function handlePodList(
   socket: Socket,
   _: PodListPayload,
   requestId: string
 ): Promise<void> {
-  // Get all Pods
   const pods = podStore.getAll();
 
-  // Emit success response
   const response: PodListResultPayload = {
     requestId,
     success: true,
@@ -93,9 +78,6 @@ export async function handlePodList(
   console.log(`[Pod] Listed ${pods.length} Pods`);
 }
 
-/**
- * Handle Pod get request
- */
 export async function handlePodGet(
   socket: Socket,
   payload: PodGetPayload,
@@ -103,7 +85,6 @@ export async function handlePodGet(
 ): Promise<void> {
   const { podId } = payload;
 
-  // Get Pod by ID
   const pod = podStore.getById(podId);
 
   if (!pod) {
@@ -120,7 +101,6 @@ export async function handlePodGet(
     return;
   }
 
-  // Emit success response
   const response: PodGetResultPayload = {
     requestId,
     success: true,
@@ -132,9 +112,6 @@ export async function handlePodGet(
   console.log(`[Pod] Retrieved Pod ${podId}`);
 }
 
-/**
- * Handle Pod delete request
- */
 export async function handlePodDelete(
   socket: Socket,
   payload: PodDeletePayload,
@@ -142,7 +119,6 @@ export async function handlePodDelete(
 ): Promise<void> {
   const { podId } = payload;
 
-  // Check if Pod exists
   const pod = podStore.getById(podId);
   if (!pod) {
     emitError(
@@ -158,35 +134,27 @@ export async function handlePodDelete(
     return;
   }
 
-  // Handle workflow pending targets before deletion
   workflowService.handleSourceDeletion(podId);
 
-  // Destroy Claude session
   await claudeSessionManager.destroySession(podId);
 
-  // Delete workspace
   const deleteResult = await workspaceService.deleteWorkspace(podId);
   if (!deleteResult.success) {
     console.error(`[Pod] Failed to delete workspace for Pod ${podId}: ${deleteResult.error}`);
   }
 
-  // Delete bound Output Style Notes
   const deletedOutputStyleNotes = noteStore.deleteByBoundPodId(podId);
   console.log(`[Pod] Deleted ${deletedOutputStyleNotes} bound output style notes for Pod ${podId}`);
 
-  // Delete bound Skill Notes
   const deletedSkillNotes = skillNoteStore.deleteByBoundPodId(podId);
   console.log(`[Pod] Deleted ${deletedSkillNotes} bound skill notes for Pod ${podId}`);
 
-  // Delete bound Repository Notes
   const deletedRepositoryNotes = repositoryNoteStore.deleteByBoundPodId(podId);
   console.log(`[Pod] Deleted ${deletedRepositoryNotes} bound repository notes for Pod ${podId}`);
 
-  // Delete related Connections
   const deletedConnections = connectionStore.deleteByPodId(podId);
   console.log(`[Pod] Deleted ${deletedConnections} related connections for Pod ${podId}`);
 
-  // Delete Pod from store
   const deleted = podStore.delete(podId);
 
   if (!deleted) {
@@ -203,14 +171,12 @@ export async function handlePodDelete(
     return;
   }
 
-  // Emit success response
   const response: PodDeletedPayload = {
     requestId,
     success: true,
     podId,
   };
 
-  // Broadcast to all clients in the Pod room
   socketService.emitPodDeletedBroadcast(podId, response);
 
   emitSuccess(socket, WebSocketResponseEvents.POD_DELETED, response);
@@ -255,7 +221,6 @@ export async function handlePodUpdate(
     // 保留 session，讓 SDK 嘗試用新 model 繼續對話
   }
 
-  // Update Pod in store
   const updatedPod = podStore.update(podId, updates);
 
   if (!updatedPod) {
@@ -272,7 +237,6 @@ export async function handlePodUpdate(
     return;
   }
 
-  // Emit success response
   const response: PodUpdatedPayload = {
     requestId,
     success: true,

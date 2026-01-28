@@ -24,7 +24,6 @@ const isHistoryLoading = computed(() => chatStore.isHistoryLoading(props.pod.id)
 const handleSend = async (content: string): Promise<void> => {
   if (!content.trim()) return
 
-  // Just send the message, output preview update is now handled by chatStore
   await chatStore.sendMessage(props.pod.id, content)
 }
 

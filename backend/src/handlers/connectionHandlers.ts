@@ -1,6 +1,3 @@
-// Connection WebSocket Handlers
-// Handles Connection CRUD operations via WebSocket events
-
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
@@ -20,9 +17,6 @@ import { podStore } from '../services/podStore.js';
 import { workflowService } from '../services/workflow/index.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
-/**
- * Handle connection creation request
- */
 export async function handleConnectionCreate(
   socket: Socket,
   payload: ConnectionCreatePayload,
@@ -30,7 +24,6 @@ export async function handleConnectionCreate(
 ): Promise<void> {
   const { sourcePodId, sourceAnchor, targetPodId, targetAnchor } = payload;
 
-  // Check if source Pod exists
   const sourcePod = podStore.getById(sourcePodId);
   if (!sourcePod) {
     emitError(
@@ -46,7 +39,6 @@ export async function handleConnectionCreate(
     return;
   }
 
-  // Check if target Pod exists
   const targetPod = podStore.getById(targetPodId);
   if (!targetPod) {
     emitError(
@@ -62,7 +54,6 @@ export async function handleConnectionCreate(
     return;
   }
 
-  // Create connection in store
   const connection = connectionStore.create({
     sourcePodId,
     sourceAnchor,
@@ -70,7 +61,6 @@ export async function handleConnectionCreate(
     targetAnchor,
   });
 
-  // Emit success response
   const response: ConnectionCreatedPayload = {
     requestId,
     success: true,
@@ -82,19 +72,13 @@ export async function handleConnectionCreate(
   console.log(`[Connection] Created connection ${connection.id} (${sourcePodId} -> ${targetPodId})`);
 }
 
-/**
- * Handle connection list request
- */
 export async function handleConnectionList(
   socket: Socket,
   _: ConnectionListPayload,
   requestId: string
 ): Promise<void> {
-
-  // Get all connections
   const connections = connectionStore.list();
 
-  // Emit success response
   const response: ConnectionListResultPayload = {
     requestId,
     success: true,
@@ -106,9 +90,6 @@ export async function handleConnectionList(
   console.log(`[Connection] Listed ${connections.length} connections`);
 }
 
-/**
- * Handle connection delete request
- */
 export async function handleConnectionDelete(
   socket: Socket,
   payload: ConnectionDeletePayload,
@@ -116,7 +97,6 @@ export async function handleConnectionDelete(
 ): Promise<void> {
   const { connectionId } = payload;
 
-  // Check if connection exists
   const connection = connectionStore.getById(connectionId);
   if (!connection) {
     emitError(
@@ -132,10 +112,8 @@ export async function handleConnectionDelete(
     return;
   }
 
-  // Handle workflow pending targets before deletion
   workflowService.handleConnectionDeletion(connectionId);
 
-  // Delete connection from store
   const deleted = connectionStore.delete(connectionId);
 
   if (!deleted) {
@@ -152,7 +130,6 @@ export async function handleConnectionDelete(
     return;
   }
 
-  // Emit success response
   const response: ConnectionDeletedPayload = {
     requestId,
     success: true,
@@ -164,9 +141,6 @@ export async function handleConnectionDelete(
   console.log(`[Connection] Deleted connection ${connectionId}`);
 }
 
-/**
- * Handle connection update request
- */
 export async function handleConnectionUpdate(
   socket: Socket,
   payload: ConnectionUpdatePayload,

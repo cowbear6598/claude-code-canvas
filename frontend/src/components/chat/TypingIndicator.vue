@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// 打字指示器組件 - 三個跳動的圓點
 </script>
 
 <template>

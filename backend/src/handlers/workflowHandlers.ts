@@ -1,6 +1,3 @@
-// Workflow WebSocket Handlers
-// Handles workflow-related operations via WebSocket events
-
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
@@ -15,9 +12,6 @@ import { workflowClearService } from '../services/workflowClearService.js';
 import { podStore } from '../services/podStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
-/**
- * Handle workflow get downstream PODs request
- */
 export async function handleWorkflowGetDownstreamPods(
   socket: Socket,
   payload: WorkflowGetDownstreamPodsPayload,
@@ -25,7 +19,6 @@ export async function handleWorkflowGetDownstreamPods(
 ): Promise<void> {
   const { sourcePodId } = payload;
 
-  // Check if source POD exists
   const sourcePod = podStore.getById(sourcePodId);
   if (!sourcePod) {
     emitError(
@@ -41,10 +34,8 @@ export async function handleWorkflowGetDownstreamPods(
     return;
   }
 
-  // Get downstream PODs
   const pods = workflowClearService.getDownstreamPods(sourcePodId);
 
-  // Emit success response
   const response: WorkflowGetDownstreamPodsResultPayload = {
     requestId,
     success: true,
@@ -56,9 +47,6 @@ export async function handleWorkflowGetDownstreamPods(
   console.log(`[Workflow] Retrieved ${pods.length} downstream PODs from ${sourcePodId}`);
 }
 
-/**
- * Handle workflow clear request
- */
 export async function handleWorkflowClear(
   socket: Socket,
   payload: WorkflowClearPayload,
@@ -66,7 +54,6 @@ export async function handleWorkflowClear(
 ): Promise<void> {
   const { sourcePodId } = payload;
 
-  // Check if source POD exists
   const sourcePod = podStore.getById(sourcePodId);
   if (!sourcePod) {
     emitError(
@@ -82,7 +69,6 @@ export async function handleWorkflowClear(
     return;
   }
 
-  // Clear workflow
   const result = await workflowClearService.clearWorkflow(sourcePodId);
 
   if (!result.success) {
@@ -99,7 +85,6 @@ export async function handleWorkflowClear(
     return;
   }
 
-  // Emit success response
   const response: WorkflowClearResultPayload = {
     requestId,
     success: true,

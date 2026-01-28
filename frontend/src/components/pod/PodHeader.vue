@@ -19,7 +19,6 @@ const emit = defineEmits<{
 
 const editName = ref(props.name)
 
-// 當 name prop 改變時更新 editName
 watch(() => props.name, (newName) => {
   editName.value = newName
 })

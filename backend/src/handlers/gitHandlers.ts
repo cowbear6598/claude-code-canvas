@@ -1,6 +1,3 @@
-// Git WebSocket Handlers
-// Handles Git operations via WebSocket events
-
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
@@ -12,9 +9,6 @@ import { podStore } from '../services/podStore.js';
 import { gitService } from '../services/workspace/gitService.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
-/**
- * Handle Git clone request
- */
 export async function handleGitClone(
   socket: Socket,
   payload: GitClonePayload,
@@ -37,7 +31,6 @@ export async function handleGitClone(
     return;
   }
 
-  // Emit progress: Starting clone
   const progressPayload1: PodGitCloneProgressPayload = {
     podId,
     progress: 0,
@@ -49,7 +42,6 @@ export async function handleGitClone(
     progressPayload1
   );
 
-  // Emit progress: Cloning repository
   const progressPayload2: PodGitCloneProgressPayload = {
     podId,
     progress: 30,
@@ -61,7 +53,6 @@ export async function handleGitClone(
     progressPayload2
   );
 
-  // Perform Git clone
   const cloneResult = await gitService.clone(repoUrl, pod.workspacePath, branch);
   if (!cloneResult.success) {
     emitError(
@@ -75,7 +66,6 @@ export async function handleGitClone(
     return;
   }
 
-  // Emit progress: Clone complete
   const progressPayload3: PodGitCloneProgressPayload = {
     podId,
     progress: 90,
@@ -87,7 +77,6 @@ export async function handleGitClone(
     progressPayload3
   );
 
-  // Update Pod with Git URL
   const updatedPod = podStore.update(podId, { gitUrl: repoUrl });
 
   if (!updatedPod) {
@@ -104,7 +93,6 @@ export async function handleGitClone(
     return;
   }
 
-  // Emit progress: Complete
   const progressPayload4: PodGitCloneProgressPayload = {
     podId,
     progress: 100,
@@ -116,7 +104,6 @@ export async function handleGitClone(
     progressPayload4
   );
 
-  // Emit success response
   const response: PodGitCloneResultPayload = {
     requestId,
     success: true,

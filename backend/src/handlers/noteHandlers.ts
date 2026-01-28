@@ -1,6 +1,3 @@
-// Output Style Note WebSocket Handlers
-// Handles note CRUD operations via WebSocket events
-
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
@@ -18,9 +15,6 @@ import type {
 import { noteStore } from '../services/noteStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
-/**
- * Handle note creation request
- */
 export async function handleNoteCreate(
   socket: Socket,
   payload: NoteCreatePayload,
@@ -28,7 +22,6 @@ export async function handleNoteCreate(
 ): Promise<void> {
   const { outputStyleId, name, x, y, boundToPodId, originalPosition } = payload;
 
-  // Create note in store
   const note = noteStore.create({
     outputStyleId,
     name,
@@ -38,7 +31,6 @@ export async function handleNoteCreate(
     originalPosition: originalPosition ?? null,
   });
 
-  // Emit success response
   const response: NoteCreatedPayload = {
     requestId,
     success: true,
@@ -50,18 +42,13 @@ export async function handleNoteCreate(
   console.log(`[Note] Created note ${note.id} (${note.name})`);
 }
 
-/**
- * Handle note list request
- */
 export async function handleNoteList(
   socket: Socket,
   _: NoteListPayload,
   requestId: string
 ): Promise<void> {
-  // Get all notes
   const notes = noteStore.list();
 
-  // Emit success response
   const response: NoteListResultPayload = {
     requestId,
     success: true,
@@ -73,9 +60,6 @@ export async function handleNoteList(
   console.log(`[Note] Listed ${notes.length} notes`);
 }
 
-/**
- * Handle note update request
- */
 export async function handleNoteUpdate(
   socket: Socket,
   payload: NoteUpdatePayload,
@@ -83,7 +67,6 @@ export async function handleNoteUpdate(
 ): Promise<void> {
   const { noteId, x, y, boundToPodId, originalPosition } = payload;
 
-  // Check if note exists
   const existingNote = noteStore.getById(noteId);
   if (!existingNote) {
     emitError(
@@ -99,14 +82,12 @@ export async function handleNoteUpdate(
     return;
   }
 
-  // Build update object with only provided fields
   const updates: Record<string, unknown> = {};
   if (x !== undefined) updates.x = x;
   if (y !== undefined) updates.y = y;
   if (boundToPodId !== undefined) updates.boundToPodId = boundToPodId;
   if (originalPosition !== undefined) updates.originalPosition = originalPosition;
 
-  // Update note in store
   const updatedNote = noteStore.update(noteId, updates);
 
   if (!updatedNote) {
@@ -123,7 +104,6 @@ export async function handleNoteUpdate(
     return;
   }
 
-  // Emit success response
   const response: NoteUpdatedPayload = {
     requestId,
     success: true,
@@ -135,9 +115,6 @@ export async function handleNoteUpdate(
   console.log(`[Note] Updated note ${noteId}`);
 }
 
-/**
- * Handle note delete request
- */
 export async function handleNoteDelete(
   socket: Socket,
   payload: NoteDeletePayload,
@@ -145,7 +122,6 @@ export async function handleNoteDelete(
 ): Promise<void> {
   const { noteId } = payload;
 
-  // Check if note exists
   const note = noteStore.getById(noteId);
   if (!note) {
     emitError(
@@ -161,7 +137,6 @@ export async function handleNoteDelete(
     return;
   }
 
-  // Delete note from store
   const deleted = noteStore.delete(noteId);
 
   if (!deleted) {
@@ -178,7 +153,6 @@ export async function handleNoteDelete(
     return;
   }
 
-  // Emit success response
   const response: NoteDeletedPayload = {
     requestId,
     success: true,

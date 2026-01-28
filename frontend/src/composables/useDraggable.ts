@@ -23,7 +23,6 @@ export function useDraggable(
   const onMouseDown = (event: MouseEvent) => {
     const target = event.target as HTMLElement
 
-    // 檢查是否點擊在排除區域
     const isExcluded = excludeSelectors.some((selector) =>
       target.closest(selector)
     )

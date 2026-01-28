@@ -56,14 +56,12 @@ onUnmounted(() => {
 // 2. 需要計算相對於 viewport 的坐標變化
 // 3. 需要在 unmount 時精確清理監聽器以防記憶體洩漏
 const handleMouseDown = (e: MouseEvent) => {
-  // 檢查此 Note 是否在選中列表中
   if (isElementSelected('skillNote', props.note.id) && selectionStore.selectedElements.length > 1) {
     if (startBatchDrag(e)) {
       return
     }
   }
 
-  // 點擊時選取當前 Note（若未選取則清除其他並選取當前）
   if (!isElementSelected('skillNote', props.note.id)) {
     selectionStore.setSelectedElements([{ type: 'skillNote', id: props.note.id }])
   }

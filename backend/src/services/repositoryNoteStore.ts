@@ -1,6 +1,3 @@
-// Repository Note Store
-// Manages Repository Notes with persistence to disk
-
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -25,9 +22,6 @@ class RepositoryNoteStore {
     this.notesFilePath = path.join(config.canvasRoot, 'data', 'repository-notes.json');
   }
 
-  /**
-   * Create a new repository note
-   */
   create(data: CreateRepositoryNoteData): RepositoryNote {
     const id = uuidv4();
 
@@ -47,23 +41,14 @@ class RepositoryNoteStore {
     return note;
   }
 
-  /**
-   * Get a repository note by ID
-   */
   getById(id: string): RepositoryNote | undefined {
     return this.notes.get(id);
   }
 
-  /**
-   * Get all repository notes
-   */
   list(): RepositoryNote[] {
     return Array.from(this.notes.values());
   }
 
-  /**
-   * Update a repository note
-   */
   update(id: string, updates: Partial<Omit<RepositoryNote, 'id'>>): RepositoryNote | undefined {
     const note = this.notes.get(id);
     if (!note) {
@@ -77,9 +62,6 @@ class RepositoryNoteStore {
     return updatedNote;
   }
 
-  /**
-   * Delete a repository note
-   */
   delete(id: string): boolean {
     const deleted = this.notes.delete(id);
     if (deleted) {
@@ -88,18 +70,12 @@ class RepositoryNoteStore {
     return deleted;
   }
 
-  /**
-   * Find repository notes bound to a specific Pod
-   */
   findByBoundPodId(podId: string): RepositoryNote[] {
     return Array.from(this.notes.values()).filter(
       (note) => note.boundToPodId === podId
     );
   }
 
-  /**
-   * Delete all repository notes bound to a specific Pod
-   */
   deleteByBoundPodId(podId: string): number {
     const notesToDelete = this.findByBoundPodId(podId);
 
@@ -114,18 +90,12 @@ class RepositoryNoteStore {
     return notesToDelete.length;
   }
 
-  /**
-   * Find repository notes by repository ID
-   */
   findByRepositoryId(repositoryId: string): RepositoryNote[] {
     return Array.from(this.notes.values()).filter(
       (note) => note.repositoryId === repositoryId
     );
   }
 
-  /**
-   * Delete all notes for a specific repository ID
-   */
   deleteByRepositoryId(repositoryId: string): string[] {
     const notesToDelete = this.findByRepositoryId(repositoryId);
     const deletedIds: string[] = [];
@@ -142,14 +112,10 @@ class RepositoryNoteStore {
     return deletedIds;
   }
 
-  /**
-   * Load repository notes from disk
-   */
   async loadFromDisk(): Promise<Result<void>> {
     const dataDir = path.dirname(this.notesFilePath);
     await fs.mkdir(dataDir, { recursive: true });
 
-    // 檢查檔案是否存在
     try {
       await fs.access(this.notesFilePath);
     } catch {
@@ -160,7 +126,6 @@ class RepositoryNoteStore {
 
     const data = await fs.readFile(this.notesFilePath, 'utf-8');
 
-    // JSON.parse 可能拋錯，保留 try-catch
     try {
       const notesArray: RepositoryNote[] = JSON.parse(data);
 
@@ -177,9 +142,6 @@ class RepositoryNoteStore {
     }
   }
 
-  /**
-   * Save repository notes to disk
-   */
   async saveToDisk(): Promise<Result<void>> {
     const dataDir = path.dirname(this.notesFilePath);
     await fs.mkdir(dataDir, { recursive: true });
@@ -190,9 +152,6 @@ class RepositoryNoteStore {
     return ok(undefined);
   }
 
-  /**
-   * Save repository notes to disk asynchronously (non-blocking)
-   */
   private saveToDiskAsync(): void {
     this.saveToDisk().catch((error) => {
       console.error(`[RepositoryNoteStore] Failed to persist repository notes: ${error}`);
@@ -200,5 +159,4 @@ class RepositoryNoteStore {
   }
 }
 
-// Export singleton instance
 export const repositoryNoteStore = new RepositoryNoteStore();

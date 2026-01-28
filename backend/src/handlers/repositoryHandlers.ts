@@ -1,6 +1,3 @@
-// Repository WebSocket Handlers
-// Handles repository and repository note CRUD operations via WebSocket events
-
 import type { Socket } from 'socket.io';
 import {
   WebSocketResponseEvents,
@@ -33,9 +30,6 @@ import { subAgentService } from '../services/subAgentService.js';
 import { messageStore } from '../services/messageStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
-/**
- * Handle repository list request
- */
 export async function handleRepositoryList(
   socket: Socket,
   _: RepositoryListPayload,
@@ -54,9 +48,6 @@ export async function handleRepositoryList(
   console.log(`[Repository] Listed ${repositories.length} repositories`);
 }
 
-/**
- * Handle repository creation request
- */
 export async function handleRepositoryCreate(
   socket: Socket,
   payload: RepositoryCreatePayload,
@@ -92,9 +83,6 @@ export async function handleRepositoryCreate(
   console.log(`[Repository] Created repository ${repository.id}`);
 }
 
-/**
- * Handle repository note creation request
- */
 export async function handleRepositoryNoteCreate(
   socket: Socket,
   payload: RepositoryNoteCreatePayload,
@@ -137,9 +125,6 @@ export async function handleRepositoryNoteCreate(
   console.log(`[Repository] Created repository note ${note.id} (${note.name})`);
 }
 
-/**
- * Handle repository note list request
- */
 export async function handleRepositoryNoteList(
   socket: Socket,
   _: RepositoryNoteListPayload,
@@ -158,9 +143,6 @@ export async function handleRepositoryNoteList(
   console.log(`[Repository] Listed ${notes.length} repository notes`);
 }
 
-/**
- * Handle repository note update request
- */
 export async function handleRepositoryNoteUpdate(
   socket: Socket,
   payload: RepositoryNoteUpdatePayload,
@@ -216,9 +198,6 @@ export async function handleRepositoryNoteUpdate(
   console.log(`[Repository] Updated repository note ${noteId}`);
 }
 
-/**
- * Handle repository note deletion request
- */
 export async function handleRepositoryNoteDelete(
   socket: Socket,
   payload: RepositoryNoteDeletePayload,
@@ -268,9 +247,6 @@ export async function handleRepositoryNoteDelete(
   console.log(`[Repository] Deleted repository note ${noteId}`);
 }
 
-/**
- * Handle pod bind repository request
- */
 export async function handlePodBindRepository(
   socket: Socket,
   payload: PodBindRepositoryPayload,
@@ -366,9 +342,6 @@ export async function handlePodBindRepository(
   console.log(`[Repository] Bound repository ${repositoryId} to Pod ${podId}`);
 }
 
-/**
- * Handle pod unbind repository request
- */
 export async function handlePodUnbindRepository(
   socket: Socket,
   payload: PodUnbindRepositoryPayload,
@@ -453,9 +426,6 @@ export async function handlePodUnbindRepository(
   console.log(`[Repository] Unbound repository from Pod ${podId}`);
 }
 
-/**
- * Handle repository deletion request
- */
 export async function handleRepositoryDelete(
   socket: Socket,
   payload: RepositoryDeletePayload,

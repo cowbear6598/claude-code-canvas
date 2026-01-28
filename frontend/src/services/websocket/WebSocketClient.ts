@@ -95,7 +95,6 @@ class WebSocketClient {
     })
 
     this.socket.on('reconnect_attempt', (_) => {
-      // Reconnection attempt
     })
 
     this.socket.on('reconnect_error', (error) => {

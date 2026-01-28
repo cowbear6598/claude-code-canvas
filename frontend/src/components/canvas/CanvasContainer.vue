@@ -48,55 +48,45 @@ const validateCoordinate = (value: number): number => {
 const handleDoubleClick = (e: MouseEvent) => {
   const target = e.target as HTMLElement
 
-  // 只在直接點擊畫布時才顯示選單（排除 Pod 元素）
   if (
     target.classList.contains('viewport') ||
     target.classList.contains('canvas-content')
   ) {
-    // 選單使用螢幕座標（因為是 position: fixed）
     podStore.showTypeMenu({ x: e.clientX, y: e.clientY })
   }
 }
 
 const handleCanvasClick = (e: MouseEvent) => {
-  // 如果剛完成框選，跳過清除選取
   if (selectionStore.boxSelectJustEnded) {
     return
   }
 
   const target = e.target as HTMLElement
 
-  // 如果點擊的是連線相關元素，不取消選取
   if (target.closest('.connection-line')) {
     return
   }
 
-  // 如果點擊的是 POD，不取消選取
   if (target.closest('.pod-doodle')) {
     return
   }
 
-  // 如果點擊的是 OutputStyleNote，不取消選取
   if (target.closest('.output-style-note')) {
     return
   }
 
-  // 如果點擊的是 SkillNote，不取消選取
   if (target.closest('.skill-note')) {
     return
   }
 
-  // 如果點擊的是 SubAgentNote，不取消選取
   if (target.closest('.subagent-note')) {
     return
   }
 
-  // 如果點擊的是 RepositoryNote，不取消選取
   if (target.closest('.repository-note')) {
     return
   }
 
-  // 點擊空白處時清除框選和連線選取
   selectionStore.clearSelection()
   connectionStore.selectConnection(null)
 }
@@ -104,8 +94,6 @@ const handleCanvasClick = (e: MouseEvent) => {
 const handleSelectType = async (config: PodTypeConfig) => {
   if (!podStore.typeMenu.position) return
 
-  // 將螢幕座標轉換為畫布座標
-  // 螢幕座標 -> 視口座標 -> 畫布座標
   const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
   const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
 
@@ -173,7 +161,6 @@ const handleCreateRepositoryNote = (repositoryId: string) => {
   repositoryStore.createNote(repositoryId, canvasX, canvasY)
 }
 
-// 拖拽過程中只更新本地狀態，不發 WebSocket
 const handleNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
   outputStyleStore.updateNotePositionLocal(data.noteId, data.x, data.y)
 }

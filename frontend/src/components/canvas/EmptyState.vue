@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
-// 計算視窗中央對應的畫布座標
 const centerX = ref(0)
 const centerY = ref(0)
 

@@ -18,19 +18,10 @@ import type {
 } from '@/types/websocket'
 import { RESPONSE_PREVIEW_LENGTH, CONTENT_PREVIEW_LENGTH } from '@/lib/constants'
 
-/**
- * WebSocket connection status types
- */
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
-/**
- * Timeout duration for history loading (ms)
- */
 const HISTORY_LOAD_TIMEOUT_MS = 10000
 
-/**
- * Truncate content to specified length
- */
 const truncateContent = (content: string, maxLength: number): string => {
   return content.length > maxLength
     ? `${content.slice(0, maxLength)}...`
@@ -167,7 +158,6 @@ export const useChatStore = defineStore('chat', {
       const messages = this.messagesByPodId.get(podId) || []
       this.messagesByPodId.set(podId, [...messages, userMessage])
 
-      // Update POD output preview in pod store
       import('./pod/podStore').then(({ usePodStore }) => {
         const podStore = usePodStore()
         const pod = podStore.pods.find(p => p.id === podId)
@@ -182,7 +172,6 @@ export const useChatStore = defineStore('chat', {
       })
     },
 
-    // 處理串流訊息：建立新訊息或更新現有訊息內容
     handleChatMessage(payload: PodChatMessagePayload): void {
       const { podId, messageId, content, isPartial, role } = payload
       const messages = this.messagesByPodId.get(podId) || []
@@ -222,7 +211,6 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    // 記錄工具使用狀態，追蹤多個工具的執行進度
     handleChatToolUse(payload: PodChatToolUsePayload): void {
       const { podId, messageId, toolName, input } = payload
       const messages = this.messagesByPodId.get(podId) || []
@@ -257,7 +245,6 @@ export const useChatStore = defineStore('chat', {
       this.messagesByPodId.set(podId, updatedMessages)
     },
 
-    // 更新工具執行結果，標記為已完成
     handleChatToolResult(payload: PodChatToolResultPayload): void {
       const { podId, messageId, toolName, output } = payload
       const messages = this.messagesByPodId.get(podId) || []
@@ -309,10 +296,7 @@ export const useChatStore = defineStore('chat', {
         }
         this.messagesByPodId.set(podId, updatedMessages)
 
-        // Update POD output preview in pod store
-        // Only update for assistant messages
         if (existingMessage.role === 'assistant') {
-          // Dynamically import pod store to avoid circular dependency
           import('./pod/podStore').then(({ usePodStore }) => {
             const podStore = usePodStore()
             const pod = podStore.pods.find(p => p.id === podId)
@@ -379,7 +363,6 @@ export const useChatStore = defineStore('chat', {
       this.historyLoadingError.set(podId, error)
     },
 
-    // 載入單一 Pod 的聊天歷史，使用 Promise 包裝 WebSocket 請求/響應流程
     async loadPodChatHistory(podId: string): Promise<void> {
       const currentStatus = this.historyLoadingStatus.get(podId)
       if (currentStatus === 'loaded' || currentStatus === 'loading') {
@@ -421,7 +404,6 @@ export const useChatStore = defineStore('chat', {
       this.setHistoryLoadingStatus(podId, 'loaded')
     },
 
-    // 平行載入所有 Pods 的聊天歷史，使用 Promise.allSettled 確保部分失敗不會影響其他
     async loadAllPodsHistory(podIds: string[]): Promise<void> {
       if (podIds.length === 0) {
         this.allHistoryLoaded = true
@@ -435,13 +417,11 @@ export const useChatStore = defineStore('chat', {
     },
 
     handleChatHistoryResult(_: PodChatHistoryResultPayload): void {
-      // Chat history result received
     },
 
     handleMessagesClearedEvent(payload: PodMessagesClearedPayload): void {
       this.clearMessagesByPodIds([payload.podId])
 
-      // 同時清除 POD 小螢幕的輸出
       import('./pod/podStore').then(({ usePodStore }) => {
         const podStore = usePodStore()
         podStore.clearPodOutputsByIds([payload.podId])

@@ -1,6 +1,3 @@
-// WebSocket Handlers Index
-// Registers all WebSocket event handlers using HandlerRegistry
-
 import type { Socket } from 'socket.io';
 import { HandlerRegistry } from './registry.js';
 import { podHandlerGroup } from './groups/podHandlerGroup.js';
@@ -15,10 +12,8 @@ import { gitHandlerGroup } from './groups/gitHandlerGroup.js';
 import { repositoryHandlerGroup } from './groups/repositoryHandlerGroup.js';
 import { subAgentHandlerGroup } from './groups/subAgentHandlerGroup.js';
 
-// Create and configure the registry
 const registry = new HandlerRegistry();
 
-// Register all handler groups
 registry.registerGroup(podHandlerGroup);
 registry.registerGroup(chatHandlerGroup);
 registry.registerGroup(connectionHandlerGroup);
@@ -31,15 +26,10 @@ registry.registerGroup(gitHandlerGroup);
 registry.registerGroup(repositoryHandlerGroup);
 registry.registerGroup(subAgentHandlerGroup);
 
-/**
- * Register all WebSocket event handlers for a socket
- * @param socket Socket.io socket instance
- */
 export function registerAllHandlers(socket: Socket): void {
   registry.applyToSocket(socket);
 }
 
-// Re-export individual handlers for testing or direct use
 export {
   handlePodCreate,
   handlePodList,

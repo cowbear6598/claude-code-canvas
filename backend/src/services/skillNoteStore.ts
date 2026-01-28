@@ -1,6 +1,3 @@
-// Skill Note Store
-// Manages Skill Notes with persistence to disk
-
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -25,9 +22,6 @@ class SkillNoteStore {
     this.notesFilePath = path.join(config.canvasRoot, 'data', 'skill-notes.json');
   }
 
-  /**
-   * Create a new skill note
-   */
   create(data: CreateSkillNoteData): SkillNote {
     const id = uuidv4();
 
@@ -47,23 +41,14 @@ class SkillNoteStore {
     return note;
   }
 
-  /**
-   * Get a skill note by ID
-   */
   getById(id: string): SkillNote | undefined {
     return this.notes.get(id);
   }
 
-  /**
-   * Get all skill notes
-   */
   list(): SkillNote[] {
     return Array.from(this.notes.values());
   }
 
-  /**
-   * Update a skill note
-   */
   update(id: string, updates: Partial<Omit<SkillNote, 'id'>>): SkillNote | undefined {
     const note = this.notes.get(id);
     if (!note) {
@@ -77,9 +62,6 @@ class SkillNoteStore {
     return updatedNote;
   }
 
-  /**
-   * Delete a skill note
-   */
   delete(id: string): boolean {
     const deleted = this.notes.delete(id);
     if (deleted) {
@@ -88,18 +70,12 @@ class SkillNoteStore {
     return deleted;
   }
 
-  /**
-   * Find skill notes bound to a specific Pod
-   */
   findByBoundPodId(podId: string): SkillNote[] {
     return Array.from(this.notes.values()).filter(
       (note) => note.boundToPodId === podId
     );
   }
 
-  /**
-   * Delete all skill notes bound to a specific Pod
-   */
   deleteByBoundPodId(podId: string): number {
     const notesToDelete = this.findByBoundPodId(podId);
 
@@ -114,18 +90,12 @@ class SkillNoteStore {
     return notesToDelete.length;
   }
 
-  /**
-   * Find skill notes by skill ID
-   */
   findBySkillId(skillId: string): SkillNote[] {
     return Array.from(this.notes.values()).filter(
       (note) => note.skillId === skillId
     );
   }
 
-  /**
-   * Delete all notes for a specific skill ID
-   */
   deleteBySkillId(skillId: string): string[] {
     const notesToDelete = this.findBySkillId(skillId);
     const deletedIds: string[] = [];
@@ -142,14 +112,10 @@ class SkillNoteStore {
     return deletedIds;
   }
 
-  /**
-   * Load skill notes from disk
-   */
   async loadFromDisk(): Promise<Result<void>> {
     const dataDir = path.dirname(this.notesFilePath);
     await fs.mkdir(dataDir, { recursive: true });
 
-    // 檢查檔案是否存在
     try {
       await fs.access(this.notesFilePath);
     } catch {
@@ -160,7 +126,6 @@ class SkillNoteStore {
 
     const data = await fs.readFile(this.notesFilePath, 'utf-8');
 
-    // JSON.parse 可能拋錯，保留 try-catch
     try {
       const notesArray: SkillNote[] = JSON.parse(data);
 
@@ -177,9 +142,6 @@ class SkillNoteStore {
     }
   }
 
-  /**
-   * Save skill notes to disk
-   */
   async saveToDisk(): Promise<Result<void>> {
     const dataDir = path.dirname(this.notesFilePath);
     await fs.mkdir(dataDir, { recursive: true });
@@ -190,9 +152,6 @@ class SkillNoteStore {
     return ok(undefined);
   }
 
-  /**
-   * Save skill notes to disk asynchronously (non-blocking)
-   */
   private saveToDiskAsync(): void {
     this.saveToDisk().catch((error) => {
       console.error(`[SkillNoteStore] Failed to persist skill notes: ${error}`);
@@ -200,5 +159,4 @@ class SkillNoteStore {
   }
 }
 
-// Export singleton instance
 export const skillNoteStore = new SkillNoteStore();
