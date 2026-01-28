@@ -29,6 +29,7 @@ export {
   type PodJoinedBatchPayload,
   type PodLeftPayload,
   type PodErrorPayload,
+  type PodStatusChangedPayload,
   type OutputStyleListPayload,
   type OutputStyleListResultPayload,
   type PodBindOutputStylePayload,

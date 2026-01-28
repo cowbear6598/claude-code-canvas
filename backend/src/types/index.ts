@@ -83,6 +83,7 @@ export {
   type PodJoinedPayload,
   type PodJoinedBatchPayload,
   type PodLeftPayload,
+  type PodStatusChangedPayload,
   type OutputStyleListPayload,
   type OutputStyleListResultPayload,
   type PodBindOutputStylePayload,

@@ -4,13 +4,6 @@
 
 import { vi } from 'vitest';
 
-export type ClaudeEventType = 'text' | 'tool_use' | 'tool_result' | 'complete' | 'error';
-
-export interface ClaudeEvent {
-  type: ClaudeEventType;
-  data?: unknown;
-}
-
 export interface MockTextEvent {
   type: 'text';
   content: string;
@@ -102,16 +95,17 @@ export function createToolUseResponse(
   output: string,
   finalContent: string
 ): MockClaudeEvent[] {
+  const toolUseId = `tool-${Date.now()}`;
   return [
     {
       type: 'tool_use',
       toolName,
-      toolUseId: `tool-${Date.now()}`,
+      toolUseId,
       input,
     },
     {
       type: 'tool_result',
-      toolUseId: `tool-${Date.now()}`,
+      toolUseId,
       output,
     },
     { type: 'text', content: finalContent, isPartial: false },
@@ -127,18 +121,83 @@ export function createErrorResponse(error: string): MockClaudeEvent[] {
 }
 
 /**
+ * 將 Mock 事件轉換為 SDK 訊息格式
+ */
+function convertMockEventToSdkMessage(event: MockClaudeEvent): any {
+  switch (event.type) {
+    case 'text':
+      return {
+        type: 'assistant',
+        message: {
+          content: [
+            {
+              text: event.content,
+            },
+          ],
+        },
+      };
+
+    case 'tool_use':
+      return {
+        type: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              id: event.toolUseId,
+              name: event.toolName,
+              input: event.input,
+            },
+          ],
+        },
+      };
+
+    case 'tool_result':
+      return {
+        type: 'tool_progress',
+        tool_use_id: event.toolUseId,
+        output: event.output,
+      };
+
+    case 'complete':
+      return {
+        type: 'result',
+        subtype: 'success',
+        result: event.fullContent,
+      };
+
+    case 'error':
+      return {
+        type: 'result',
+        subtype: 'error',
+        errors: [event.error],
+      };
+
+    default:
+      return {};
+  }
+}
+
+/**
  * Mock 的 query 函數
  * 模擬 Claude Agent SDK 的 query 行為
  */
-async function* mockQuery(): AsyncGenerator<MockClaudeEvent> {
+async function* mockQuery(): AsyncGenerator<any> {
+  // 先產生 init 訊息（包含 session_id）
+  yield {
+    type: 'system',
+    subtype: 'init',
+    session_id: `test-session-${Date.now()}`,
+  };
+
   // 如果設定了延遲，先等待
   if (mockDelay > 0) {
     await new Promise((resolve) => setTimeout(resolve, mockDelay));
   }
 
-  // 依序產生設定的事件
+  // 依序產生設定的事件，轉換為 SDK 格式
   for (const event of mockEvents) {
-    yield event;
+    yield convertMockEventToSdkMessage(event);
     // 在事件之間加入小延遲，模擬真實 streaming
     await new Promise((resolve) => setTimeout(resolve, 10));
   }

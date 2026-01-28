@@ -241,6 +241,10 @@ describe('Phase 1: Pod 管理 Flow', () => {
         createPayload
       );
 
+      // 確保 Pod 建立成功
+      expect(createResponse.success).toBe(true);
+      expect(createResponse.pod).toBeDefined();
+
       const podId = createResponse.pod!.id;
 
       // 刪除 Pod
@@ -251,6 +255,11 @@ describe('Phase 1: Pod 管理 Flow', () => {
         WebSocketResponseEvents.POD_DELETED,
         deletePayload
       );
+
+      // 如果失敗，輸出詳細錯誤資訊
+      if (!deleteResponse.success) {
+        console.error('Delete failed:', JSON.stringify(deleteResponse, null, 2));
+      }
 
       expect(deleteResponse.success).toBe(true);
       expect(deleteResponse.podId).toBe(podId);
