@@ -35,6 +35,28 @@ export function validatePodId(podId: string): boolean {
 }
 
 /**
+ * 驗證 subAgentId 格式
+ * 僅允許字母、數字、底線、橫線
+ */
+export function validateSubAgentId(subAgentId: string): boolean {
+  if (!subAgentId || typeof subAgentId !== 'string') {
+    return false;
+  }
+
+  // 僅允許字母、數字、底線、橫線
+  if (!/^[a-zA-Z0-9_-]+$/.test(subAgentId)) {
+    return false;
+  }
+
+  // 長度限制
+  if (subAgentId.length > 100) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * 驗證 Skill 名稱格式
  * 允許字母、數字、空格、底線、橫線
  */

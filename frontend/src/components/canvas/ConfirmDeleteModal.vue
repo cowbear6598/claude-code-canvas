@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
-type ItemType = 'outputStyle' | 'skill' | 'repository'
+type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent'
 
 interface Props {
   open: boolean

@@ -4,7 +4,7 @@ import { websocketClient, createWebSocketRequest, WebSocketRequestEvents, WebSoc
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { isEditingElement, isModifierKeyPressed, hasTextSelection } from '@/utils/domHelpers'
 import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT, PASTE_TIMEOUT_MS } from '@/lib/constants'
-import { useRepositoryStore } from '@/stores/note'
+import { useRepositoryStore, useSubAgentStore } from '@/stores/note'
 import type {
   CanvasPasteResultPayload,
   CanvasPastePayload,
@@ -14,6 +14,7 @@ import type {
   CopiedOutputStyleNote,
   CopiedSkillNote,
   CopiedRepositoryNote,
+  CopiedSubAgentNote,
   CopiedConnection
 } from '@/types'
 
@@ -29,6 +30,7 @@ export function useCopyPaste() {
   } = useCanvasContext()
 
   const repositoryStore = useRepositoryStore()
+  const subAgentStore = useSubAgentStore()
 
   const mousePosition = ref({ x: 0, y: 0 })
 
@@ -40,7 +42,8 @@ export function useCopyPaste() {
     podId: string,
     outputStyleNotes: CopiedOutputStyleNote[],
     skillNotes: CopiedSkillNote[],
-    repositoryNotes: CopiedRepositoryNote[]
+    repositoryNotes: CopiedRepositoryNote[],
+    subAgentNotes: CopiedSubAgentNote[]
   ): void => {
     const boundOutputStyleNotes = outputStyleStore.notes.filter(
       note => note.boundToPodId === podId
@@ -82,6 +85,21 @@ export function useCopyPaste() {
         x: note.x,
         y: note.y,
         boundToOriginalPodId: note.boundToPodId,
+        originalPosition: note.originalPosition,
+      })
+    }
+
+    const boundSubAgentNotes = subAgentStore.notes.filter(
+      note => note.boundToPodId === podId
+    )
+    for (const note of boundSubAgentNotes) {
+      subAgentNotes.push({
+        id: note.id,
+        subAgentId: note.subAgentId,
+        name: note.name,
+        x: note.x,
+        y: note.y,
+        boundToPodId: note.boundToPodId,
         originalPosition: note.originalPosition,
       })
     }
@@ -131,6 +149,21 @@ export function useCopyPaste() {
     }
   }
 
+  const collectUnboundSubAgentNote = (noteId: string): CopiedSubAgentNote | null => {
+    const note = subAgentStore.notes.find(n => n.id === noteId)
+    if (!note || note.boundToPodId !== null) return null
+
+    return {
+      id: note.id,
+      subAgentId: note.subAgentId,
+      name: note.name,
+      x: note.x,
+      y: note.y,
+      boundToPodId: note.boundToPodId,
+      originalPosition: note.originalPosition,
+    }
+  }
+
   const handleCopy = (event: KeyboardEvent): boolean => {
     const selectedElements = selectionStore.selectedElements
     if (selectedElements.length === 0) return false
@@ -141,6 +174,7 @@ export function useCopyPaste() {
     const copiedOutputStyleNotes: CopiedOutputStyleNote[] = []
     const copiedSkillNotes: CopiedSkillNote[] = []
     const copiedRepositoryNotes: CopiedRepositoryNote[] = []
+    const copiedSubAgentNotes: CopiedSubAgentNote[] = []
 
     const selectedPodIds = new Set(
       selectedElements.filter(el => el.type === 'pod').map(el => el.id)
@@ -160,6 +194,7 @@ export function useCopyPaste() {
             rotation: pod.rotation,
             outputStyleId: pod.outputStyleId,
             skillIds: pod.skillIds,
+            subAgentIds: pod.subAgentIds,
             model: pod.model,
             repositoryId: pod.repositoryId,
           })
@@ -168,7 +203,7 @@ export function useCopyPaste() {
     }
 
     for (const podId of selectedPodIds) {
-      collectBoundNotes(podId, copiedOutputStyleNotes, copiedSkillNotes, copiedRepositoryNotes)
+      collectBoundNotes(podId, copiedOutputStyleNotes, copiedSkillNotes, copiedRepositoryNotes, copiedSubAgentNotes)
     }
 
     for (const element of selectedElements) {
@@ -187,6 +222,11 @@ export function useCopyPaste() {
         if (note) {
           copiedRepositoryNotes.push(note)
         }
+      } else if (element.type === 'subAgentNote') {
+        const note = collectUnboundSubAgentNote(element.id)
+        if (note) {
+          copiedSubAgentNotes.push(note)
+        }
       }
     }
 
@@ -203,7 +243,7 @@ export function useCopyPaste() {
       }
     }
 
-    clipboardStore.setCopy(copiedPods, copiedOutputStyleNotes, copiedSkillNotes, copiedRepositoryNotes, copiedConnections)
+    clipboardStore.setCopy(copiedPods, copiedOutputStyleNotes, copiedSkillNotes, copiedRepositoryNotes, copiedSubAgentNotes, copiedConnections)
     return true
   }
 
@@ -221,10 +261,10 @@ export function useCopyPaste() {
   }
 
   const calculatePastePositions = (targetPosition: { x: number; y: number }) => {
-    const { pods, outputStyleNotes, skillNotes, repositoryNotes, connections } = clipboardStore.getCopiedData()
+    const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, connections } = clipboardStore.getCopiedData()
 
-    if (pods.length === 0 && outputStyleNotes.length === 0 && skillNotes.length === 0 && repositoryNotes.length === 0) {
-      return { pods: [], outputStyleNotes: [], skillNotes: [], repositoryNotes: [], connections: [] }
+    if (pods.length === 0 && outputStyleNotes.length === 0 && skillNotes.length === 0 && repositoryNotes.length === 0 && subAgentNotes.length === 0) {
+      return { pods: [], outputStyleNotes: [], skillNotes: [], repositoryNotes: [], subAgentNotes: [], connections: [] }
     }
 
     const bounds = {
@@ -256,6 +296,12 @@ export function useCopyPaste() {
       }
     }
 
+    for (const note of subAgentNotes) {
+      if (note.boundToPodId === null) {
+        updateBoundingBox(bounds, note.x, note.y, NOTE_WIDTH, NOTE_HEIGHT)
+      }
+    }
+
     const centerX = (bounds.minX + bounds.maxX) / 2
     const centerY = (bounds.minY + bounds.maxY) / 2
 
@@ -272,6 +318,7 @@ export function useCopyPaste() {
       rotation: pod.rotation,
       outputStyleId: pod.outputStyleId,
       skillIds: pod.skillIds,
+      subAgentIds: pod.subAgentIds,
       model: pod.model,
       repositoryId: pod.repositoryId,
     }))
@@ -303,6 +350,15 @@ export function useCopyPaste() {
       originalPosition: note.originalPosition,
     }))
 
+    const newSubAgentNotes = subAgentNotes.map(note => ({
+      subAgentId: note.subAgentId,
+      name: note.name,
+      x: note.boundToPodId !== null ? 0 : note.x + offsetX,
+      y: note.boundToPodId !== null ? 0 : note.y + offsetY,
+      boundToOriginalPodId: note.boundToPodId,
+      originalPosition: note.originalPosition,
+    }))
+
     const newConnections = connections.map(conn => ({
       originalSourcePodId: conn.sourcePodId,
       sourceAnchor: conn.sourceAnchor,
@@ -316,6 +372,7 @@ export function useCopyPaste() {
       outputStyleNotes: newOutputStyleNotes,
       skillNotes: newSkillNotes,
       repositoryNotes: newRepositoryNotes,
+      subAgentNotes: newSubAgentNotes,
       connections: newConnections,
     }
   }
@@ -326,7 +383,7 @@ export function useCopyPaste() {
     event.preventDefault()
 
     const canvasPos = viewportStore.screenToCanvas(mousePosition.value.x, mousePosition.value.y)
-    const { pods, outputStyleNotes, skillNotes, repositoryNotes, connections } = calculatePastePositions(canvasPos)
+    const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, connections } = calculatePastePositions(canvasPos)
 
     const { wrapWebSocketRequest } = useWebSocketErrorHandler()
 
@@ -339,6 +396,7 @@ export function useCopyPaste() {
           outputStyleNotes,
           skillNotes,
           repositoryNotes,
+          subAgentNotes,
           connections,
         },
         timeout: PASTE_TIMEOUT_MS
@@ -369,6 +427,10 @@ export function useCopyPaste() {
       repositoryStore.notes.push(note)
     }
 
+    for (const note of response.createdSubAgentNotes) {
+      subAgentStore.notes.push(note)
+    }
+
     for (const conn of response.createdConnections) {
       connectionStore.connections.push({
         ...conn,
@@ -389,6 +451,9 @@ export function useCopyPaste() {
       ...response.createdRepositoryNotes
         .filter(note => note.boundToPodId === null)
         .map(note => ({ type: 'repositoryNote' as const, id: note.id })),
+      ...response.createdSubAgentNotes
+        .filter(note => note.boundToPodId === null)
+        .map(note => ({ type: 'subAgentNote' as const, id: note.id })),
     ]
 
     selectionStore.setSelectedElements(newSelectedElements)

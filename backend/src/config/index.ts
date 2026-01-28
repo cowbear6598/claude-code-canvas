@@ -18,6 +18,7 @@ interface Config {
   githubToken?: string;
   outputStylesPath: string;
   skillsPath: string;
+  agentsPath: string;
 }
 
 function loadConfig(): Config {
@@ -35,6 +36,7 @@ function loadConfig(): Config {
   const repositoriesRoot = path.join(dataRoot, 'repositories');
   const outputStylesPath = path.join(dataRoot, 'output-styles');
   const skillsPath = path.join(dataRoot, 'skills');
+  const agentsPath = path.join(dataRoot, 'agents');
 
   // Validate port number
   if (isNaN(port) || port < 1 || port > 65535) {
@@ -54,6 +56,7 @@ function loadConfig(): Config {
     githubToken,
     outputStylesPath,
     skillsPath,
+    agentsPath,
   };
 }
 

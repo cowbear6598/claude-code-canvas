@@ -4,6 +4,7 @@ import type { Pod, PodStatus } from '../pod'
 import type { OutputStyleListItem, OutputStyleNote } from '@/types'
 import type { Skill, SkillNote } from '@/types'
 import type { Repository, RepositoryNote } from '@/types'
+import type { SubAgent, SubAgentNote } from '@/types'
 
 export interface ConnectionReadyPayload {
   socketId: string
@@ -265,7 +266,7 @@ export interface WorkflowClearResultPayload {
 }
 
 export interface PasteError {
-  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote'
+  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote'
   originalId: string
   error: string
 }
@@ -277,6 +278,7 @@ export interface CanvasPasteResultPayload {
   createdOutputStyleNotes: OutputStyleNote[]
   createdSkillNotes: SkillNote[]
   createdRepositoryNotes: RepositoryNote[]
+  createdSubAgentNotes: SubAgentNote[]
   createdConnections: Array<{
     id: string
     sourcePodId: string
@@ -358,4 +360,54 @@ export interface PodRepositoryUnboundPayload {
 
 export interface PodMessagesClearedPayload {
   podId: string
+}
+
+export interface SubAgentListResultPayload {
+  requestId: string
+  success: boolean
+  subAgents?: SubAgent[]
+  error?: string
+}
+
+export interface SubAgentDeletedPayload {
+  requestId: string
+  success: boolean
+  subAgentId?: string
+  deletedNoteIds?: string[]
+  error?: string
+}
+
+export interface SubAgentNoteCreatedPayload {
+  requestId: string
+  success: boolean
+  note?: SubAgentNote
+  error?: string
+}
+
+export interface SubAgentNoteListResultPayload {
+  requestId: string
+  success: boolean
+  notes?: SubAgentNote[]
+  error?: string
+}
+
+export interface SubAgentNoteUpdatedPayload {
+  requestId: string
+  success: boolean
+  note?: SubAgentNote
+  error?: string
+}
+
+export interface SubAgentNoteDeletedPayload {
+  requestId: string
+  success: boolean
+  noteId?: string
+  error?: string
+}
+
+export interface PodSubAgentBoundPayload {
+  requestId: string
+  success: boolean
+  pod?: Pod
+  error?: string
 }

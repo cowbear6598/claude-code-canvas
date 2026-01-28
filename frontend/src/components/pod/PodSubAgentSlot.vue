@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { SkillNote } from '@/types'
-import { useSkillStore } from '@/stores/note'
+import type { SubAgentNote } from '@/types'
+import { useSubAgentStore } from '@/stores/note'
 
 const props = defineProps<{
   podId: string
-  boundNotes: SkillNote[]
+  boundNotes: SubAgentNote[]
 }>()
 
 const emit = defineEmits<{
   'note-dropped': [noteId: string]
 }>()
 
-const skillStore = useSkillStore()
+const subAgentStore = useSubAgentStore()
 
 const slotRef = ref<HTMLElement | null>(null)
 const isDropTarget = ref(false)
@@ -20,8 +20,8 @@ const lastDraggedNoteId = ref<string | null>(null)
 const isInserting = ref(false)
 const showMenu = ref(false)
 
-const skillCount = computed(() => props.boundNotes.length)
-const hasSkills = computed(() => skillCount.value > 0)
+const subAgentCount = computed(() => props.boundNotes.length)
+const hasSubAgents = computed(() => subAgentCount.value > 0)
 
 let mouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let mouseUpHandler: (() => void) | null = null
@@ -44,12 +44,10 @@ const handleDrop = () => {
   const noteId = lastDraggedNoteId.value
   if (!isDropTarget.value || !noteId) return
 
-  const draggedNote = skillStore.getNoteById(noteId)
+  const draggedNote = subAgentStore.getNoteById(noteId)
   if (!draggedNote || draggedNote.boundToPodId !== null) return
 
-  // Check if this skill is already bound to this pod
-  if (skillStore.isSkillBoundToPod(draggedNote.skillId, props.podId)) {
-    console.warn('[PodSkillSlot] Skill already bound to this pod:', draggedNote.skillId)
+  if (subAgentStore.isSubAgentBoundToPod(draggedNote.subAgentId, props.podId)) {
     return
   }
 
@@ -85,7 +83,7 @@ const cleanupListeners = () => {
 }
 
 const handleSlotHover = () => {
-  if (hasSkills.value) {
+  if (hasSubAgents.value) {
     showMenu.value = true
   }
 }
@@ -94,7 +92,7 @@ const handleSlotLeave = () => {
   showMenu.value = false
 }
 
-watch(() => skillStore.draggedNoteId, (newVal) => {
+watch(() => subAgentStore.draggedNoteId, (newVal) => {
   if (newVal) {
     lastDraggedNoteId.value = newVal
     setupListeners()
@@ -104,8 +102,8 @@ watch(() => skillStore.draggedNoteId, (newVal) => {
 })
 
 onMounted(() => {
-  if (skillStore.draggedNoteId) {
-    lastDraggedNoteId.value = skillStore.draggedNoteId
+  if (subAgentStore.draggedNoteId) {
+    lastDraggedNoteId.value = subAgentStore.draggedNoteId
     setupListeners()
   }
 })
@@ -118,10 +116,10 @@ onUnmounted(() => {
 <template>
   <div
     ref="slotRef"
-    class="pod-skill-slot"
+    class="pod-subagent-slot"
     :class="{
       'drop-target': isDropTarget,
-      'has-notes': hasSkills,
+      'has-notes': hasSubAgents,
       inserting: isInserting
     }"
     @mouseenter="handleSlotHover"
@@ -129,21 +127,21 @@ onUnmounted(() => {
   >
     <span
       class="text-xs font-mono"
-      :class="{ 'opacity-50': !hasSkills }"
+      :class="{ 'opacity-50': !hasSubAgents }"
     >
-      <template v-if="hasSkills">({{ skillCount }}) </template>Skills
+      <template v-if="hasSubAgents">({{ subAgentCount }}) </template>SubAgents
     </span>
 
     <div
-      v-if="showMenu && hasSkills"
-      class="pod-skill-menu"
+      v-if="showMenu && hasSubAgents"
+      class="pod-subagent-menu"
       @wheel.stop.passive
     >
-      <div class="pod-skill-menu-scrollable">
+      <div class="pod-subagent-menu-scrollable">
         <div
           v-for="note in boundNotes"
           :key="note.id"
-          class="pod-skill-menu-item"
+          class="pod-subagent-menu-item"
         >
           {{ note.name }}
         </div>

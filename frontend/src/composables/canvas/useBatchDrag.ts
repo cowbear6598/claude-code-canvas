@@ -121,7 +121,7 @@ export function useBatchDrag() {
     movedRepositoryNotes.clear()
   }
 
-  const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote', id: string) => {
+  const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote', id: string) => {
     return selectionStore.selectedElements.some(
       el => el.type === type && el.id === id
     )

@@ -2,7 +2,7 @@ import { ref, onUnmounted } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
 
 export function useBoxSelect() {
-  const { viewportStore, selectionStore, podStore, outputStyleStore, skillStore, repositoryStore } = useCanvasContext()
+  const { viewportStore, selectionStore, podStore, outputStyleStore, skillStore, subAgentStore, repositoryStore } = useCanvasContext()
 
   const isBoxSelecting = ref(false)
 
@@ -48,7 +48,8 @@ export function useBoxSelect() {
         podStore.pods,
         outputStyleStore.notes,
         skillStore.notes,
-        repositoryStore.notes
+        repositoryStore.notes,
+        subAgentStore.notes
       )
     }
 

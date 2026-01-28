@@ -10,6 +10,7 @@ import {
   type OutputStyleNote,
   type SkillNote,
   type RepositoryNote,
+  type SubAgentNote,
   type Connection,
 } from '../types/index.js';
 import type { CanvasPastePayload } from '../schemas/index.js';
@@ -18,10 +19,12 @@ import { workspaceService } from '../services/workspace/index.js';
 import { claudeSessionManager } from '../services/claude/sessionManager.js';
 import { noteStore } from '../services/noteStore.js';
 import { skillNoteStore } from '../services/skillNoteStore.js';
+import { subAgentNoteStore } from '../services/subAgentNoteStore.js';
 import { repositoryNoteStore } from '../services/repositoryNoteStore.js';
 import { connectionStore } from '../services/connectionStore.js';
 import { repositoryService } from '../services/repositoryService.js';
 import { skillService } from '../services/skillService.js';
+import { subAgentService } from '../services/subAgentService.js';
 import { emitSuccess, getErrorMessage } from '../utils/websocketResponse.js';
 
 /**
@@ -58,12 +61,13 @@ export async function handleCanvasPaste(
   payload: CanvasPastePayload,
   requestId: string
 ): Promise<void> {
-  const { pods, outputStyleNotes, skillNotes, repositoryNotes, connections } = payload;
+  const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, connections } = payload;
 
   const createdPods: Pod[] = [];
   const createdOutputStyleNotes: OutputStyleNote[] = [];
   const createdSkillNotes: SkillNote[] = [];
   const createdRepositoryNotes: RepositoryNote[] = [];
+  const createdSubAgentNotes: SubAgentNote[] = [];
   const createdConnections: Connection[] = [];
   const podIdMapping: Record<string, string> = {};
   const errors: PasteError[] = [];
@@ -90,6 +94,7 @@ export async function handleCanvasPaste(
         rotation: podItem.rotation,
         outputStyleId: podItem.outputStyleId ?? null,
         skillIds: podItem.skillIds ?? [],
+        subAgentIds: podItem.subAgentIds ?? [],
         model: podItem.model,
         repositoryId: finalRepositoryId,
       });
@@ -116,6 +121,25 @@ export async function handleCanvasPaste(
             await skillService.copySkillToPod(skillId, pod.id);
           } catch (error) {
             console.error(`[Paste] Failed to copy skill ${skillId} to pod:`, error);
+          }
+        }
+      }
+
+      if (finalRepositoryId && podItem.subAgentIds && podItem.subAgentIds.length > 0) {
+        const repositoryPath = repositoryService.getRepositoryPath(finalRepositoryId);
+        for (const subAgentId of podItem.subAgentIds) {
+          try {
+            await subAgentService.copySubAgentToRepository(subAgentId, repositoryPath);
+          } catch (error) {
+            console.error(`[Paste] Failed to copy subagent ${subAgentId} to repository:`, error);
+          }
+        }
+      } else if (!finalRepositoryId && podItem.subAgentIds && podItem.subAgentIds.length > 0) {
+        for (const subAgentId of podItem.subAgentIds) {
+          try {
+            await subAgentService.copySubAgentToPod(subAgentId, pod.id);
+          } catch (error) {
+            console.error(`[Paste] Failed to copy subagent ${subAgentId} to pod:`, error);
           }
         }
       }
@@ -191,6 +215,27 @@ export async function handleCanvasPaste(
     }
   }
 
+  // Process SubAgentNotes
+  for (const noteItem of subAgentNotes) {
+    try {
+      const boundToPodId = resolveBoundPodId(noteItem.boundToOriginalPodId, podIdMapping);
+
+      const note = subAgentNoteStore.create({
+        subAgentId: noteItem.subAgentId,
+        name: noteItem.name,
+        x: noteItem.x,
+        y: noteItem.y,
+        boundToPodId,
+        originalPosition: noteItem.originalPosition,
+      });
+
+      createdSubAgentNotes.push(note);
+      console.log(`[Paste] Created SubAgentNote ${note.id} (${note.name})`);
+    } catch (error) {
+      recordError(errors, 'subAgentNote', noteItem.subAgentId, error, '建立子代理筆記失敗');
+    }
+  }
+
   // Process Connections
   for (const connItem of connections ?? []) {
     try {
@@ -227,6 +272,7 @@ export async function handleCanvasPaste(
     createdOutputStyleNotes,
     createdSkillNotes,
     createdRepositoryNotes,
+    createdSubAgentNotes,
     createdConnections,
     podIdMapping,
     errors,
@@ -239,6 +285,6 @@ export async function handleCanvasPaste(
   emitSuccess(socket, WebSocketResponseEvents.CANVAS_PASTE_RESULT, response);
 
   console.log(
-    `[Paste] Completed: ${createdPods.length} pods, ${createdOutputStyleNotes.length} output style notes, ${createdSkillNotes.length} skill notes, ${createdRepositoryNotes.length} repository notes, ${createdConnections.length} connections, ${errors.length} errors`
+    `[Paste] Completed: ${createdPods.length} pods, ${createdOutputStyleNotes.length} output style notes, ${createdSkillNotes.length} skill notes, ${createdRepositoryNotes.length} repository notes, ${createdSubAgentNotes.length} subagent notes, ${createdConnections.length} connections, ${errors.length} errors`
   );
 }

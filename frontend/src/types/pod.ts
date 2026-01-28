@@ -34,6 +34,7 @@ export interface Pod {
   updatedAt?: string
   outputStyleId?: string | null
   skillIds?: string[]
+  subAgentIds?: string[]
   model?: ModelType
   repositoryId?: string | null
 }

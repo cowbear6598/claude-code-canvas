@@ -32,3 +32,6 @@ export * from './gitSchemas.js';
 
 // Repository schemas
 export * from './repositorySchemas.js';
+
+// SubAgent schemas
+export * from './subAgentSchemas.js';

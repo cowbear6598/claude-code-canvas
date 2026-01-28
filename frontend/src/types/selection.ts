@@ -2,7 +2,7 @@
 
 // 可選取的元素類型
 export interface SelectableElement {
-  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote'
+  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote'
   id: string
 }
 

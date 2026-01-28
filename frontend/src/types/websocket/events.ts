@@ -43,6 +43,13 @@ export const WebSocketRequestEvents = {
   REPOSITORY_NOTE_DELETE: 'repository-note:delete',
   POD_BIND_REPOSITORY: 'pod:bind-repository',
   POD_UNBIND_REPOSITORY: 'pod:unbind-repository',
+  SUBAGENT_LIST: 'subagent:list',
+  SUBAGENT_DELETE: 'subagent:delete',
+  SUBAGENT_NOTE_CREATE: 'subagent-note:create',
+  SUBAGENT_NOTE_LIST: 'subagent-note:list',
+  SUBAGENT_NOTE_UPDATE: 'subagent-note:update',
+  SUBAGENT_NOTE_DELETE: 'subagent-note:delete',
+  POD_BIND_SUBAGENT: 'pod:bind-subagent',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -104,6 +111,13 @@ export const WebSocketResponseEvents = {
   POD_REPOSITORY_BOUND: 'pod:repository:bound',
   POD_REPOSITORY_UNBOUND: 'pod:repository:unbound',
   POD_MESSAGES_CLEARED: 'pod:messages:cleared',
+  SUBAGENT_LIST_RESULT: 'subagent:list:result',
+  SUBAGENT_DELETED: 'subagent:deleted',
+  SUBAGENT_NOTE_CREATED: 'subagent-note:created',
+  SUBAGENT_NOTE_LIST_RESULT: 'subagent-note:list:result',
+  SUBAGENT_NOTE_UPDATED: 'subagent-note:updated',
+  SUBAGENT_NOTE_DELETED: 'subagent-note:deleted',
+  POD_SUBAGENT_BOUND: 'pod:subagent:bound',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]

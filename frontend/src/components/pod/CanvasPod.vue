@@ -3,7 +3,7 @@ import {ref, computed, onUnmounted} from 'vue'
 import type {Pod, ModelType} from '@/types'
 import type {AnchorPosition} from '@/types/connection'
 import {usePodStore, useViewportStore, useSelectionStore} from '@/stores/pod'
-import {useOutputStyleStore, useSkillStore, useRepositoryStore} from '@/stores/note'
+import {useOutputStyleStore, useSkillStore, useRepositoryStore, useSubAgentStore} from '@/stores/note'
 import {useConnectionStore} from '@/stores/connectionStore'
 import {useChatStore} from '@/stores/chatStore'
 import {useAnchorDetection} from '@/composables/useAnchorDetection'
@@ -22,6 +22,7 @@ import PodHeader from './PodHeader.vue'
 import PodMiniScreen from './PodMiniScreen.vue'
 import PodOutputStyleSlot from './PodOutputStyleSlot.vue'
 import PodSkillSlot from './PodSkillSlot.vue'
+import PodSubAgentSlot from './PodSubAgentSlot.vue'
 import PodRepositorySlot from './PodRepositorySlot.vue'
 import PodAnchor from './PodAnchor.vue'
 import PodModelSelector from './PodModelSelector.vue'
@@ -45,6 +46,7 @@ const viewportStore = useViewportStore()
 const selectionStore = useSelectionStore()
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
+const subAgentStore = useSubAgentStore()
 const repositoryStore = useRepositoryStore()
 const connectionStore = useConnectionStore()
 const chatStore = useChatStore()
@@ -54,6 +56,7 @@ const {startBatchDrag, isElementSelected} = useBatchDrag()
 const isActive = computed(() => props.pod.id === podStore.activePodId)
 const boundNote = computed(() => outputStyleStore.getNoteByPodId(props.pod.id))
 const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
+const boundSubAgentNotes = computed(() => subAgentStore.getNotesByPodId(props.pod.id))
 const boundRepositoryNote = computed(() => repositoryStore.getNoteByPodId(props.pod.id))
 const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
 const currentModel = computed(() => props.pod.model ?? 'opus')
@@ -113,6 +116,7 @@ const handleMouseDown = (e: MouseEvent) => {
   if (
     (e.target as HTMLElement).closest('.pod-output-style-slot') ||
     (e.target as HTMLElement).closest('.pod-skill-slot') ||
+    (e.target as HTMLElement).closest('.pod-subagent-slot') ||
     (e.target as HTMLElement).closest('.pod-repository-slot')
   ) {
     return
@@ -219,6 +223,15 @@ const handleSkillNoteDropped = async (noteId: string) => {
   if (skillStore.isSkillBoundToPod(note.skillId, props.pod.id)) return
 
   await skillStore.bindToPod(noteId, props.pod.id)
+}
+
+const handleSubAgentNoteDropped = async (noteId: string) => {
+  const note = subAgentStore.getNoteById(noteId)
+  if (!note) return
+
+  if (subAgentStore.isSubAgentBoundToPod(note.subAgentId, props.pod.id)) return
+
+  await subAgentStore.bindToPod(noteId, props.pod.id)
 }
 
 const handleRepositoryNoteDropped = async (noteId: string) => {
@@ -362,7 +375,7 @@ const handleModelChange = async (model: ModelType) => {
   >
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
-      class="relative pod-with-notch pod-with-skill-notch pod-with-model-notch pod-with-repository-notch"
+      class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch"
       :style="{ transform: `rotate(${pod.rotation}deg)` }"
     >
       <!-- Model Selector -->
@@ -392,6 +405,15 @@ const handleModelChange = async (model: ModelType) => {
         />
       </div>
 
+      <!-- SubAgent 凹槽 -->
+      <div class="pod-subagent-notch-area">
+        <PodSubAgentSlot
+          :pod-id="pod.id"
+          :bound-notes="boundSubAgentNotes"
+          @note-dropped="handleSubAgentNoteDropped"
+        />
+      </div>
+
       <!-- Repository 凹槽（右側） -->
       <div class="pod-repository-notch-area">
         <PodRepositorySlot
@@ -407,6 +429,8 @@ const handleModelChange = async (model: ModelType) => {
       <div class="pod-doodle w-56 overflow-visible relative" :class="[podStatusClass, { selected: isSelected }]">
         <!-- Model 凹槽 -->
         <div class="model-notch"></div>
+        <!-- SubAgent 凹槽 -->
+        <div class="subagent-notch"></div>
         <!-- Repository 凹槽（右側） -->
         <div class="repository-notch"></div>
 

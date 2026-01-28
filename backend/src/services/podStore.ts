@@ -34,6 +34,7 @@ class PodStore {
       claudeSessionId: null,
       outputStyleId: data.outputStyleId ?? null,
       skillIds: data.skillIds ?? [],
+      subAgentIds: data.subAgentIds ?? [],
       model: data.model ?? 'opus',
       repositoryId: data.repositoryId ?? null,
       needsForkSession: false,
@@ -151,6 +152,25 @@ class PodStore {
     }
   }
 
+  addSubAgentId(podId: string, subAgentId: string): void {
+    const pod = this.pods.get(podId);
+    if (!pod) {
+      return;
+    }
+
+    if (!pod.subAgentIds.includes(subAgentId)) {
+      pod.subAgentIds.push(subAgentId);
+      this.pods.set(podId, pod);
+      this.persistPodAsync(pod);
+    }
+  }
+
+  findBySubAgentId(subAgentId: string): Pod[] {
+    return Array.from(this.pods.values()).filter(
+      (pod) => pod.subAgentIds.includes(subAgentId)
+    );
+  }
+
   setModel(id: string, model: ModelType): void {
     const pod = this.pods.get(id);
     if (!pod) {
@@ -235,6 +255,7 @@ class PodStore {
           claudeSessionId: persistedPod.claudeSessionId,
           outputStyleId: persistedPod.outputStyleId ?? null,
           skillIds: persistedPod.skillIds ?? [],
+          subAgentIds: persistedPod.subAgentIds ?? [],
           model: persistedPod.model ?? 'opus',
           repositoryId: persistedPod.repositoryId ?? null,
           needsForkSession: persistedPod.needsForkSession ?? false,

@@ -43,6 +43,13 @@ export enum WebSocketRequestEvents {
   OUTPUT_STYLE_DELETE = 'output-style:delete',
   SKILL_DELETE = 'skill:delete',
   REPOSITORY_DELETE = 'repository:delete',
+  SUBAGENT_LIST = 'subagent:list',
+  SUBAGENT_NOTE_CREATE = 'subagent-note:create',
+  SUBAGENT_NOTE_LIST = 'subagent-note:list',
+  SUBAGENT_NOTE_UPDATE = 'subagent-note:update',
+  SUBAGENT_NOTE_DELETE = 'subagent-note:delete',
+  POD_BIND_SUBAGENT = 'pod:bind-subagent',
+  SUBAGENT_DELETE = 'subagent:delete',
 }
 
 export enum WebSocketResponseEvents {
@@ -102,6 +109,13 @@ export enum WebSocketResponseEvents {
   OUTPUT_STYLE_DELETED = 'output-style:deleted',
   SKILL_DELETED = 'skill:deleted',
   REPOSITORY_DELETED = 'repository:deleted',
+  SUBAGENT_LIST_RESULT = 'subagent:list:result',
+  SUBAGENT_NOTE_CREATED = 'subagent-note:created',
+  SUBAGENT_NOTE_LIST_RESULT = 'subagent-note:list:result',
+  SUBAGENT_NOTE_UPDATED = 'subagent-note:updated',
+  SUBAGENT_NOTE_DELETED = 'subagent-note:deleted',
+  POD_SUBAGENT_BOUND = 'pod:subagent:bound',
+  SUBAGENT_DELETED = 'subagent:deleted',
 }
 
 export interface PodCreatePayload {
@@ -595,6 +609,7 @@ export interface PastePodItem {
   rotation: number;
   outputStyleId?: string | null;
   skillIds?: string[];
+  subAgentIds?: string[];
   model?: ModelType;
   repositoryId?: string | null;
 }
@@ -619,6 +634,10 @@ export interface PasteRepositoryNoteItem extends PasteNoteItemBase {
   repositoryId: string;
 }
 
+export interface PasteSubAgentNoteItem extends PasteNoteItemBase {
+  subAgentId: string;
+}
+
 export interface PasteConnectionItem {
   originalSourcePodId: string;
   sourceAnchor: import('./connection.js').AnchorPosition;
@@ -633,11 +652,12 @@ export interface CanvasPastePayload {
   outputStyleNotes: PasteOutputStyleNoteItem[];
   skillNotes: PasteSkillNoteItem[];
   repositoryNotes: PasteRepositoryNoteItem[];
+  subAgentNotes: PasteSubAgentNoteItem[];
   connections: PasteConnectionItem[];
 }
 
 export interface PasteError {
-  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote';
+  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote';
   originalId: string;
   error: string;
 }
@@ -649,6 +669,7 @@ export interface CanvasPasteResultPayload {
   createdOutputStyleNotes: import('./outputStyleNote.js').OutputStyleNote[];
   createdSkillNotes: import('./skillNote.js').SkillNote[];
   createdRepositoryNotes: import('./repositoryNote.js').RepositoryNote[];
+  createdSubAgentNotes: import('./subAgentNote.js').SubAgentNote[];
   createdConnections: import('./connection.js').Connection[];
   podIdMapping: Record<string, string>;
   errors: PasteError[];
@@ -798,6 +819,99 @@ export interface RepositoryDeletedPayload {
   requestId: string;
   success: boolean;
   repositoryId?: string;
+  deletedNoteIds?: string[];
+  error?: string;
+}
+
+export interface SubAgentListPayload {
+  requestId: string;
+}
+
+export interface SubAgentListResultPayload {
+  requestId: string;
+  success: boolean;
+  subAgents?: import('./subAgent.js').SubAgent[];
+  error?: string;
+}
+
+export interface SubAgentNoteCreatePayload {
+  requestId: string;
+  subAgentId: string;
+  name: string;
+  x: number;
+  y: number;
+  boundToPodId: string | null;
+  originalPosition: { x: number; y: number } | null;
+}
+
+export interface SubAgentNoteCreatedPayload {
+  requestId: string;
+  success: boolean;
+  note?: import('./subAgentNote.js').SubAgentNote;
+  error?: string;
+}
+
+export interface SubAgentNoteListPayload {
+  requestId: string;
+}
+
+export interface SubAgentNoteListResultPayload {
+  requestId: string;
+  success: boolean;
+  notes?: import('./subAgentNote.js').SubAgentNote[];
+  error?: string;
+}
+
+export interface SubAgentNoteUpdatePayload {
+  requestId: string;
+  noteId: string;
+  x?: number;
+  y?: number;
+  boundToPodId?: string | null;
+  originalPosition?: { x: number; y: number } | null;
+}
+
+export interface SubAgentNoteUpdatedPayload {
+  requestId: string;
+  success: boolean;
+  note?: import('./subAgentNote.js').SubAgentNote;
+  error?: string;
+}
+
+export interface SubAgentNoteDeletePayload {
+  requestId: string;
+  noteId: string;
+}
+
+export interface SubAgentNoteDeletedPayload {
+  requestId: string;
+  success: boolean;
+  noteId?: string;
+  error?: string;
+}
+
+export interface PodBindSubAgentPayload {
+  requestId: string;
+  podId: string;
+  subAgentId: string;
+}
+
+export interface PodSubAgentBoundPayload {
+  requestId: string;
+  success: boolean;
+  pod?: Pod;
+  error?: string;
+}
+
+export interface SubAgentDeletePayload {
+  requestId: string;
+  subAgentId: string;
+}
+
+export interface SubAgentDeletedPayload {
+  requestId: string;
+  success: boolean;
+  subAgentId?: string;
   deletedNoteIds?: string[];
   error?: string;
 }

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
-import type { SkillNote } from '@/types'
+import type { SubAgentNote } from '@/types'
 import { useViewportStore, useSelectionStore } from '@/stores/pod'
-import { useSkillStore } from '@/stores/note'
+import { useSubAgentStore } from '@/stores/note'
 import { useBatchDrag } from '@/composables/canvas'
 
 const props = defineProps<{
-  note: SkillNote
+  note: SubAgentNote
 }>()
 
 const emit = defineEmits<{
@@ -17,13 +17,13 @@ const emit = defineEmits<{
 
 const viewportStore = useViewportStore()
 const selectionStore = useSelectionStore()
-const skillStore = useSkillStore()
+const subAgentStore = useSubAgentStore()
 const { startBatchDrag, isElementSelected } = useBatchDrag()
 
 const isDragging = ref(false)
-const isAnimating = computed(() => skillStore.isNoteAnimating(props.note.id))
+const isAnimating = computed(() => subAgentStore.isNoteAnimating(props.note.id))
 const isSelected = computed(() =>
-  selectionStore.selectedSkillNoteIds.includes(props.note.id)
+  selectionStore.selectedSubAgentNoteIds.includes(props.note.id)
 )
 const dragRef = ref<{
   startX: number
@@ -57,22 +57,22 @@ onUnmounted(() => {
 // 3. 需要在 unmount 時精確清理監聽器以防記憶體洩漏
 const handleMouseDown = (e: MouseEvent) => {
   // 檢查此 Note 是否在選中列表中
-  if (isElementSelected('skillNote', props.note.id) && selectionStore.selectedElements.length > 1) {
+  if (isElementSelected('subAgentNote', props.note.id) && selectionStore.selectedElements.length > 1) {
     if (startBatchDrag(e)) {
       return
     }
   }
 
   // 點擊時選取當前 Note（若未選取則清除其他並選取當前）
-  if (!isElementSelected('skillNote', props.note.id)) {
-    selectionStore.setSelectedElements([{ type: 'skillNote', id: props.note.id }])
+  if (!isElementSelected('subAgentNote', props.note.id)) {
+    selectionStore.setSelectedElements([{ type: 'subAgentNote', id: props.note.id }])
   }
 
   cleanupEventListeners()
 
   isDragging.value = true
-  skillStore.setDraggedNote(props.note.id)
-  skillStore.setIsDraggingNote(true)
+  subAgentStore.setDraggedNote(props.note.id)
+  subAgentStore.setIsDraggingNote(true)
 
   startPosition.value = {
     x: props.note.x,
@@ -107,14 +107,14 @@ const handleMouseDown = (e: MouseEvent) => {
   const handleMouseUp = () => {
     emit('drag-complete', {
       noteId: props.note.id,
-      isOverTrash: skillStore.isOverTrash,
+      isOverTrash: subAgentStore.isOverTrash,
       startX: startPosition.value?.x ?? props.note.x,
       startY: startPosition.value?.y ?? props.note.y,
     })
 
     isDragging.value = false
-    skillStore.setDraggedNote(null)
-    skillStore.setIsDraggingNote(false)
+    subAgentStore.setDraggedNote(null)
+    subAgentStore.setIsDraggingNote(false)
     startPosition.value = null
     dragRef.value = null
     cleanupEventListeners()
@@ -130,7 +130,7 @@ const handleMouseDown = (e: MouseEvent) => {
 
 <template>
   <div
-    class="skill-note"
+    class="subagent-note"
     :class="{ dragging: isDragging, animating: isAnimating, selected: isSelected }"
     :style="{
       left: `${note.x}px`,
@@ -138,7 +138,7 @@ const handleMouseDown = (e: MouseEvent) => {
     }"
     @mousedown="handleMouseDown"
   >
-    <div class="skill-note-text">
+    <div class="subagent-note-text">
       {{ note.name }}
     </div>
   </div>

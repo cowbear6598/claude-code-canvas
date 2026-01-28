@@ -2,6 +2,7 @@ import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { noteStore } from './noteStore.js';
 import { skillNoteStore } from './skillNoteStore.js';
+import { subAgentNoteStore } from './subAgentNoteStore.js';
 import { repositoryNoteStore } from './repositoryNoteStore.js';
 import { connectionStore } from './connectionStore.js';
 import { Result, ok, err } from '../types/index.js';
@@ -59,6 +60,13 @@ class StartupService {
     }
     const skillNotes = skillNoteStore.list();
     console.log(`[Startup] Loaded ${skillNotes.length} skill notes from disk`);
+
+    const subAgentNoteResult = await subAgentNoteStore.loadFromDisk();
+    if (!subAgentNoteResult.success) {
+      return err(`伺服器初始化失敗: ${subAgentNoteResult.error}`);
+    }
+    const subAgentNotes = subAgentNoteStore.list();
+    console.log(`[Startup] Loaded ${subAgentNotes.length} subagent notes from disk`);
 
     const repoNoteResult = await repositoryNoteStore.loadFromDisk();
     if (!repoNoteResult.success) {

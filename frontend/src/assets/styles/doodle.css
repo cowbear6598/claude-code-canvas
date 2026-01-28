@@ -502,27 +502,31 @@
 
 /* Pod Menu Submenu Scrollable */
 .pod-menu-submenu-scrollable,
-.pod-skill-menu-scrollable {
+.pod-skill-menu-scrollable,
+.pod-subagent-menu-scrollable {
   max-height: calc(36px * 5 + 8px);
   overflow-y: auto;
 }
 
 .pod-menu-submenu-scrollable::-webkit-scrollbar,
 .pod-skill-menu::-webkit-scrollbar,
-.pod-skill-menu-scrollable::-webkit-scrollbar {
+.pod-skill-menu-scrollable::-webkit-scrollbar,
+.pod-subagent-menu-scrollable::-webkit-scrollbar {
   width: 8px;
 }
 
 .pod-menu-submenu-scrollable::-webkit-scrollbar-track,
 .pod-skill-menu::-webkit-scrollbar-track,
-.pod-skill-menu-scrollable::-webkit-scrollbar-track {
+.pod-skill-menu-scrollable::-webkit-scrollbar-track,
+.pod-subagent-menu-scrollable::-webkit-scrollbar-track {
   background: oklch(0.9 0.01 50);
   border-radius: 4px;
 }
 
 .pod-menu-submenu-scrollable::-webkit-scrollbar-thumb,
 .pod-skill-menu::-webkit-scrollbar-thumb,
-.pod-skill-menu-scrollable::-webkit-scrollbar-thumb {
+.pod-skill-menu-scrollable::-webkit-scrollbar-thumb,
+.pod-subagent-menu-scrollable::-webkit-scrollbar-thumb {
   background: oklch(0.6 0.02 50);
   border-radius: 4px;
   border: 1px solid var(--doodle-ink);
@@ -530,7 +534,8 @@
 
 .pod-menu-submenu-scrollable::-webkit-scrollbar-thumb:hover,
 .pod-skill-menu::-webkit-scrollbar-thumb:hover,
-.pod-skill-menu-scrollable::-webkit-scrollbar-thumb:hover {
+.pod-skill-menu-scrollable::-webkit-scrollbar-thumb:hover,
+.pod-subagent-menu-scrollable::-webkit-scrollbar-thumb:hover {
   background: oklch(0.5 0.02 50);
 }
 
@@ -1147,4 +1152,164 @@
 .skill-note.selected {
   box-shadow: 0 0 0 2px oklch(0.65 0.15 170 / 0.6);
   border-color: oklch(0.55 0.15 170);
+}
+
+/* ========================================
+   SubAgent Note - 沙漠色/奶油色筆記
+   ======================================== */
+
+.subagent-note {
+  position: absolute;
+  padding: 6px 12px;
+  background: var(--doodle-sand);
+  border: 2px dashed var(--doodle-ink);
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
+  cursor: grab;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  z-index: 20;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subagent-note.animating {
+  transition: left 0.3s ease, top 0.3s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.subagent-note:hover {
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
+  transform: translate(-0.5px, -0.5px) rotate(-1deg);
+}
+
+.subagent-note.dragging {
+  cursor: grabbing;
+  box-shadow: 4px 4px 0 oklch(0.4 0.02 50 / 0.5);
+  transform: rotate(2deg);
+  z-index: 100;
+}
+
+.subagent-note-text {
+  font-family: var(--font-mono), monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: oklch(0.3 0.02 50);
+  text-align: center;
+}
+
+.subagent-note.selected {
+  box-shadow: 0 0 0 2px oklch(0.65 0.15 170 / 0.6);
+  border-color: oklch(0.55 0.15 170);
+}
+
+/* Pod SubAgent Slot */
+.pod-subagent-slot {
+  padding: 6px 12px;
+  background: transparent;
+  border: 2px dashed oklch(0.6 0.02 50 / 0.4);
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  position: relative;
+}
+
+.pod-subagent-slot::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 0;
+  width: 16px;
+  height: 100%;
+}
+
+.pod-subagent-slot.drop-target {
+  background: oklch(0.7 0.1 150 / 0.3);
+  border: 2px solid oklch(0.6 0.1 150);
+  box-shadow: 0 0 12px oklch(0.6 0.1 150 / 0.6);
+  transform: scale(1.05);
+}
+
+.pod-subagent-slot.has-notes {
+  background: var(--doodle-sand);
+  border-color: var(--doodle-ink);
+  border-style: dashed;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
+  cursor: pointer;
+  transform: translateX(50%);
+}
+
+.pod-subagent-slot.has-notes:hover {
+  transform: translateX(50%) translate(-0.5px, -0.5px);
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
+}
+
+.pod-subagent-slot.inserting {
+  animation: slide-into-slot 0.3s ease-out;
+}
+
+/* SubAgent Slot 容器位置（在 Skill 下方） */
+.pod-subagent-notch-area {
+  position: absolute;
+  left: 0;
+  top: 98px;
+  transform: translateX(-100%);
+  z-index: -1;
+}
+
+/* SubAgent 凹槽視覺效果（POD 左側第三個凹槽） */
+.pod-with-subagent-notch .pod-doodle .subagent-notch {
+  position: absolute;
+  left: -6px;
+  top: 96px;
+  width: 8px;
+  height: 32px;
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  z-index: -1;
+}
+
+/* SubAgent Hover 選單 */
+.pod-subagent-menu {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: -2px;
+  min-width: 120px;
+  max-width: 200px;
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 4px;
+  padding: 4px;
+  box-shadow: 3px 3px 0 var(--doodle-ink);
+  z-index: 200;
+}
+
+.pod-subagent-menu-item {
+  width: 100%;
+  padding: 6px 10px;
+  font-family: var(--font-mono), monospace, sans-serif;
+  font-size: 0.75rem;
+  color: var(--foreground);
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pod-subagent-menu-item:hover {
+  background: var(--secondary);
 }

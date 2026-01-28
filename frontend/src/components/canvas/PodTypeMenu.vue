@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {ref, onMounted, computed} from 'vue'
-import {Palette, Wrench, FolderOpen} from 'lucide-vue-next'
-import type {Position, PodTypeConfig, OutputStyleListItem, Skill, Repository} from '@/types'
+import {Palette, Wrench, FolderOpen, Bot} from 'lucide-vue-next'
+import type {Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent} from '@/types'
 import {podTypes} from '@/data/podTypes'
-import {useOutputStyleStore, useSkillStore, useRepositoryStore} from '@/stores/note'
+import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore} from '@/stores/note'
 import CreateRepositoryModal from './CreateRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 import PodTypeMenuSubmenu from './PodTypeMenuSubmenu.vue'
@@ -16,19 +16,22 @@ const emit = defineEmits<{
   select: [config: PodTypeConfig]
   'create-output-style-note': [outputStyleId: string]
   'create-skill-note': [skillId: string]
+  'create-subagent-note': [subAgentId: string]
   'create-repository-note': [repositoryId: string]
   close: []
 }>()
 
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
+const subAgentStore = useSubAgentStore()
 const repositoryStore = useRepositoryStore()
 const showSubmenu = ref(false)
 const showSkillSubmenu = ref(false)
+const showSubAgentSubmenu = ref(false)
 const showRepositorySubmenu = ref(false)
 const showCreateRepositoryModal = ref(false)
 const showDeleteModal = ref(false)
-type ItemType = 'outputStyle' | 'skill' | 'repository'
+type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent'
 
 interface DeleteTarget {
   type: ItemType
@@ -47,6 +50,7 @@ const isDeleteTargetInUse = computed(() => {
   const inUseChecks = {
     outputStyle: () => outputStyleStore.isOutputStyleInUse(id),
     skill: () => skillStore.isSkillInUse(id),
+    subAgent: () => subAgentStore.isSubAgentInUse(id),
     repository: () => repositoryStore.isRepositoryInUse(id),
   }
 
@@ -57,6 +61,7 @@ onMounted(async () => {
   await Promise.all([
     outputStyleStore.loadOutputStyles(),
     skillStore.loadSkills(),
+    subAgentStore.loadSubAgents(),
     repositoryStore.loadRepositories()
   ])
 })
@@ -74,6 +79,12 @@ const handleOutputStyleSelect = (style: OutputStyleListItem) => {
 const handleSkillSelect = (skill: Skill) => {
   showSkillSubmenu.value = false
   emit('create-skill-note', skill.id)
+  emit('close')
+}
+
+const handleSubAgentSelect = (subAgent: SubAgent) => {
+  showSubAgentSubmenu.value = false
+  emit('create-subagent-note', subAgent.id)
   emit('close')
 }
 
@@ -107,16 +118,12 @@ const handleDeleteConfirm = async () => {
   const deleteActions = {
     outputStyle: () => outputStyleStore.deleteOutputStyle(id),
     skill: () => skillStore.deleteSkill(id),
+    subAgent: () => subAgentStore.deleteSubAgent(id),
     repository: () => repositoryStore.deleteRepository(id),
   }
 
   await deleteActions[type]()
 
-  showDeleteModal.value = false
-  deleteTarget.value = null
-}
-
-const handleDeleteModalClose = () => {
   showDeleteModal.value = false
   deleteTarget.value = null
 }
@@ -195,6 +202,29 @@ const handleDeleteModalClose = () => {
           :visible="showSkillSubmenu"
           @item-select="handleSkillSelect"
           @item-delete="(id, name, event) => handleDeleteClick('skill', id, name, event)"
+        />
+      </div>
+
+      <!-- SubAgents 按鈕 -->
+      <div class="relative" @mouseenter="showSubAgentSubmenu = true" @mouseleave="showSubAgentSubmenu = false">
+        <button
+          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
+        >
+          <span
+            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+            style="background-color: var(--doodle-sand)"
+          >
+            <Bot :size="16" class="text-card" />
+          </span>
+          <span class="font-mono text-sm text-foreground">SubAgents &gt;</span>
+        </button>
+
+        <PodTypeMenuSubmenu
+          v-model:hovered-item-id="hoveredItemId"
+          :items="subAgentStore.availableSubAgents"
+          :visible="showSubAgentSubmenu"
+          @item-select="handleSubAgentSelect"
+          @item-delete="(id, name, event) => handleDeleteClick('subAgent', id, name, event)"
         />
       </div>
 

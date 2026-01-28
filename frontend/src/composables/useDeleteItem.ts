@@ -16,10 +16,10 @@ export function useDeleteItem() {
     options: DeleteItemOptions<TPayload, TResponse>
   ): Promise<TResponse | null> {
     const response = await wrapWebSocketRequest(
-      createWebSocketRequest<TPayload, TResponse>({
+      createWebSocketRequest<TPayload & { requestId: string }, TResponse>({
         requestEvent: options.requestEvent,
         responseEvent: options.responseEvent,
-        payload: options.payload
+        payload: options.payload as Omit<TPayload & { requestId: string }, 'requestId'>
       }),
       options.errorMessage
     )

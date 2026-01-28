@@ -51,6 +51,14 @@ export const useSelectionStore = defineStore('selection', {
         .map(el => el.id),
 
     /**
+     * 取得選中的 SubAgentNote ID 列表
+     */
+    selectedSubAgentNoteIds: (state): string[] =>
+      state.selectedElements
+        .filter(el => el.type === 'subAgentNote')
+        .map(el => el.id),
+
+    /**
      * 是否有選中的元素
      */
     hasSelection: (state): boolean => state.selectedElements.length > 0,
@@ -107,7 +115,8 @@ export const useSelectionStore = defineStore('selection', {
       pods: Array<{id: string; x: number; y: number}>,
       outputStyleNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}>,
       skillNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}>,
-      repositoryNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = []
+      repositoryNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = [],
+      subAgentNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = []
     ): void {
       if (!this.box) return
 
@@ -174,6 +183,21 @@ export const useSelectionStore = defineStore('selection', {
 
         if (hasIntersection) {
           selected.push({type: 'repositoryNote', id: note.id})
+        }
+      }
+
+      for (const note of subAgentNotes) {
+        if (note.boundToPodId) continue
+
+        const noteMinX = note.x
+        const noteMaxX = note.x + NOTE_WIDTH
+        const noteMinY = note.y
+        const noteMaxY = note.y + NOTE_HEIGHT
+
+        const hasIntersection = !(noteMaxX < minX || noteMinX > maxX || noteMaxY < minY || noteMinY > maxY)
+
+        if (hasIntersection) {
+          selected.push({type: 'subAgentNote', id: note.id})
         }
       }
 

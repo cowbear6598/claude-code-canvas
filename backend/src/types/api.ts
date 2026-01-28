@@ -12,6 +12,7 @@ export interface CreatePodRequest {
   rotation: number;
   outputStyleId?: string | null;
   skillIds?: string[];
+  subAgentIds?: string[];
   model?: ModelType;
   repositoryId?: string | null;
 }

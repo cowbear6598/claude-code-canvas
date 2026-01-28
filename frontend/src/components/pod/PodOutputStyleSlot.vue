@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import {onMounted, onUnmounted, ref, watch} from 'vue'
-import type {OutputStyleNote} from '@/types'
-import {useOutputStyleStore} from '@/stores/note'
-import {useViewportStore} from '@/stores/pod'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
+import type { OutputStyleNote } from '@/types'
+import { useOutputStyleStore } from '@/stores/note'
+import { useViewportStore } from '@/stores/pod'
 
 const props = defineProps<{
   podId: string

@@ -28,6 +28,12 @@ export type { Repository } from './repository.js';
 // Repository Note types
 export type { RepositoryNote } from './repositoryNote.js';
 
+// SubAgent types
+export type { SubAgent } from './subAgent.js';
+
+// SubAgent Note types
+export type { SubAgentNote } from './subAgentNote.js';
+
 // Connection types
 export type { Connection, AnchorPosition } from './connection.js';
 
@@ -153,4 +159,19 @@ export {
   type SkillDeletedPayload,
   type RepositoryDeletePayload,
   type RepositoryDeletedPayload,
+  type SubAgentListPayload,
+  type SubAgentListResultPayload,
+  type SubAgentNoteCreatePayload,
+  type SubAgentNoteCreatedPayload,
+  type SubAgentNoteListPayload,
+  type SubAgentNoteListResultPayload,
+  type SubAgentNoteUpdatePayload,
+  type SubAgentNoteUpdatedPayload,
+  type SubAgentNoteDeletePayload,
+  type SubAgentNoteDeletedPayload,
+  type PodBindSubAgentPayload,
+  type PodSubAgentBoundPayload,
+  type SubAgentDeletePayload,
+  type SubAgentDeletedPayload,
+  type PasteSubAgentNoteItem,
 } from './websocket.js';

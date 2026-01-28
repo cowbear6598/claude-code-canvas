@@ -13,6 +13,7 @@ import { outputStyleHandlerGroup } from './groups/outputStyleHandlerGroup.js';
 import { pasteHandlerGroup } from './groups/pasteHandlerGroup.js';
 import { gitHandlerGroup } from './groups/gitHandlerGroup.js';
 import { repositoryHandlerGroup } from './groups/repositoryHandlerGroup.js';
+import { subAgentHandlerGroup } from './groups/subAgentHandlerGroup.js';
 
 // Create and configure the registry
 const registry = new HandlerRegistry();
@@ -28,6 +29,7 @@ registry.registerGroup(outputStyleHandlerGroup);
 registry.registerGroup(pasteHandlerGroup);
 registry.registerGroup(gitHandlerGroup);
 registry.registerGroup(repositoryHandlerGroup);
+registry.registerGroup(subAgentHandlerGroup);
 
 /**
  * Register all WebSocket event handlers for a socket
@@ -90,3 +92,12 @@ export {
   handlePodUnbindRepository,
   handleRepositoryDelete,
 } from './repositoryHandlers.js';
+export {
+  handleSubAgentList,
+  handleSubAgentNoteCreate,
+  handleSubAgentNoteList,
+  handleSubAgentNoteUpdate,
+  handleSubAgentNoteDelete,
+  handlePodBindSubAgent,
+  handleSubAgentDelete,
+} from './subAgentHandlers.js';

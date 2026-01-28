@@ -106,6 +106,21 @@ export {
   type SkillDeletedPayload,
   type RepositoryDeletePayload,
   type RepositoryDeletedPayload,
+  type SubAgentListPayload,
+  type SubAgentListResultPayload,
+  type SubAgentNoteCreatePayload,
+  type SubAgentNoteCreatedPayload,
+  type SubAgentNoteListPayload,
+  type SubAgentNoteListResultPayload,
+  type SubAgentNoteUpdatePayload,
+  type SubAgentNoteUpdatedPayload,
+  type SubAgentNoteDeletePayload,
+  type SubAgentNoteDeletedPayload,
+  type PodBindSubAgentPayload,
+  type PodSubAgentBoundPayload,
+  type SubAgentDeletePayload,
+  type SubAgentDeletedPayload,
+  type PasteSubAgentNoteItem,
 } from './websocket-events.js';
 
 // Legacy enum for backward compatibility (deprecated)

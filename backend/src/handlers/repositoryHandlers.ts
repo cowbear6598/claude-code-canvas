@@ -29,6 +29,7 @@ import { repositoryService } from '../services/repositoryService.js';
 import { repositoryNoteStore } from '../services/repositoryNoteStore.js';
 import { podStore } from '../services/podStore.js';
 import { skillService } from '../services/skillService.js';
+import { subAgentService } from '../services/subAgentService.js';
 import { messageStore } from '../services/messageStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 
@@ -318,6 +319,12 @@ export async function handlePodBindRepository(
     console.error(`[Repository] Failed to delete old skills from ${oldCwd}:`, error);
   }
 
+  try {
+    await subAgentService.deleteSubAgentsFromPath(oldCwd);
+  } catch (error) {
+    console.error(`[Repository] Failed to delete old subagents from ${oldCwd}:`, error);
+  }
+
   podStore.setRepositoryId(podId, repositoryId);
   podStore.setClaudeSessionId(podId, '');
 
@@ -328,6 +335,14 @@ export async function handlePodBindRepository(
       await skillService.copySkillToRepository(skillId, newCwd);
     } catch (error) {
       console.error(`[Repository] Failed to copy skill ${skillId} to repository:`, error);
+    }
+  }
+
+  for (const subAgentId of pod.subAgentIds) {
+    try {
+      await subAgentService.copySubAgentToRepository(subAgentId, newCwd);
+    } catch (error) {
+      console.error(`[Repository] Failed to copy subagent ${subAgentId} to repository:`, error);
     }
   }
 
@@ -391,6 +406,12 @@ export async function handlePodUnbindRepository(
     console.error(`[Repository] Failed to delete old skills from ${oldCwd}:`, error);
   }
 
+  try {
+    await subAgentService.deleteSubAgentsFromPath(oldCwd);
+  } catch (error) {
+    console.error(`[Repository] Failed to delete old subagents from ${oldCwd}:`, error);
+  }
+
   podStore.setRepositoryId(podId, null);
   podStore.setClaudeSessionId(podId, '');
 
@@ -401,6 +422,14 @@ export async function handlePodUnbindRepository(
       await skillService.copySkillToRepository(skillId, newCwd);
     } catch (error) {
       console.error(`[Repository] Failed to copy skill ${skillId} to workspace:`, error);
+    }
+  }
+
+  for (const subAgentId of pod.subAgentIds) {
+    try {
+      await subAgentService.copySubAgentToRepository(subAgentId, newCwd);
+    } catch (error) {
+      console.error(`[Repository] Failed to copy subagent ${subAgentId} to workspace:`, error);
     }
   }
 

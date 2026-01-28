@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {ref, computed} from 'vue'
 import {usePodStore, useViewportStore, useSelectionStore} from '@/stores/pod'
-import {useOutputStyleStore, useSkillStore, useRepositoryStore} from '@/stores/note'
+import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore} from '@/stores/note'
 import {useConnectionStore} from '@/stores/connectionStore'
 import {useDeleteSelection} from '@/composables/canvas'
 import CanvasViewport from './CanvasViewport.vue'
@@ -10,6 +10,7 @@ import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
 import OutputStyleNote from './OutputStyleNote.vue'
 import SkillNote from './SkillNote.vue'
+import SubAgentNote from './SubAgentNote.vue'
 import RepositoryNote from './RepositoryNote.vue'
 import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
@@ -26,6 +27,7 @@ const viewportStore = useViewportStore()
 const selectionStore = useSelectionStore()
 const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
+const subAgentStore = useSubAgentStore()
 const repositoryStore = useRepositoryStore()
 const connectionStore = useConnectionStore()
 
@@ -33,8 +35,8 @@ useDeleteSelection()
 
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
 
-const showTrashZone = computed(() => outputStyleStore.isDraggingNote || skillStore.isDraggingNote || repositoryStore.isDraggingNote)
-const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash || skillStore.isOverTrash || repositoryStore.isOverTrash)
+const showTrashZone = computed(() => outputStyleStore.isDraggingNote || skillStore.isDraggingNote || subAgentStore.isDraggingNote || repositoryStore.isDraggingNote)
+const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash || skillStore.isOverTrash || subAgentStore.isOverTrash || repositoryStore.isOverTrash)
 
 const validateCoordinate = (value: number): number => {
   if (!Number.isFinite(value)) {
@@ -81,6 +83,11 @@ const handleCanvasClick = (e: MouseEvent) => {
 
   // 如果點擊的是 SkillNote，不取消選取
   if (target.closest('.skill-note')) {
+    return
+  }
+
+  // 如果點擊的是 SubAgentNote，不取消選取
+  if (target.closest('.subagent-note')) {
     return
   }
 
@@ -146,6 +153,15 @@ const handleCreateSkillNote = (skillId: string) => {
   const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
 
   skillStore.createNote(skillId, canvasX, canvasY)
+}
+
+const handleCreateSubAgentNote = (subAgentId: string) => {
+  if (!podStore.typeMenu.position) return
+
+  const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
+  const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
+
+  subAgentStore.createNote(subAgentId, canvasX, canvasY)
 }
 
 const handleCreateRepositoryNote = (repositoryId: string) => {
@@ -222,6 +238,38 @@ const handleSkillNoteDragComplete = async (data: { noteId: string; isOverTrash: 
   skillStore.setIsOverTrash(false)
 }
 
+const handleSubAgentNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
+  subAgentStore.updateNotePositionLocal(data.noteId, data.x, data.y)
+}
+
+const handleSubAgentNoteDragMove = (data: { noteId: string; screenX: number; screenY: number }) => {
+  if (!trashZoneRef.value) return
+
+  const isOver = trashZoneRef.value.isPointInZone(data.screenX, data.screenY)
+  subAgentStore.setIsOverTrash(isOver)
+}
+
+const handleSubAgentNoteDragComplete = async (data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }) => {
+  const note = subAgentStore.getNoteById(data.noteId)
+  if (!note) return
+
+  if (data.isOverTrash) {
+    if (note.boundToPodId === null) {
+      await subAgentStore.deleteNote(data.noteId)
+    } else {
+      subAgentStore.setNoteAnimating(data.noteId, true)
+      await subAgentStore.updateNotePosition(data.noteId, data.startX, data.startY)
+      setTimeout(() => {
+        subAgentStore.setNoteAnimating(data.noteId, false)
+      }, 300)
+    }
+  } else {
+    await subAgentStore.updateNotePosition(data.noteId, note.x, note.y)
+  }
+
+  subAgentStore.setIsOverTrash(false)
+}
+
 const handleRepositoryNoteDragEnd = (data: {noteId: string; x: number; y: number}) => {
   repositoryStore.updateNotePositionLocal(data.noteId, data.x, data.y)
 }
@@ -294,6 +342,16 @@ const handleRepositoryNoteDragComplete = async (data: {noteId: string; isOverTra
       @drag-complete="handleSkillNoteDragComplete"
     />
 
+    <!-- SubAgent Notes -->
+    <SubAgentNote
+      v-for="note in subAgentStore.getUnboundNotes"
+      :key="note.id"
+      :note="note"
+      @drag-end="handleSubAgentNoteDragEnd"
+      @drag-move="handleSubAgentNoteDragMove"
+      @drag-complete="handleSubAgentNoteDragComplete"
+    />
+
     <!-- Repository Notes -->
     <RepositoryNote
       v-for="note in repositoryStore.getUnboundNotes"
@@ -315,6 +373,7 @@ const handleRepositoryNoteDragComplete = async (data: {noteId: string; isOverTra
     @select="handleSelectType"
     @create-output-style-note="handleCreateOutputStyleNote"
     @create-skill-note="handleCreateSkillNote"
+    @create-subagent-note="handleCreateSubAgentNote"
     @create-repository-note="handleCreateRepositoryNote"
     @close="podStore.hideTypeMenu"
   />

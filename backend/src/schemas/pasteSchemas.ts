@@ -13,6 +13,7 @@ export const pastePodItemSchema = z.object({
   rotation: z.number(),
   outputStyleId: z.string().nullable().optional(),
   skillIds: z.array(z.string()).optional(),
+  subAgentIds: z.array(z.string()).optional(),
   model: modelTypeSchema.optional(),
   repositoryId: z.string().nullable().optional(),
 });
@@ -44,6 +45,15 @@ export const pasteRepositoryNoteItemSchema = z.object({
   originalPosition: positionSchema.nullable(),
 });
 
+export const pasteSubAgentNoteItemSchema = z.object({
+  subAgentId: z.string(),
+  name: z.string().min(1).max(100),
+  x: z.number(),
+  y: z.number(),
+  boundToOriginalPodId: z.uuid().nullable(),
+  originalPosition: positionSchema.nullable(),
+});
+
 export const pasteConnectionItemSchema = z.object({
   originalSourcePodId: z.uuid(),
   sourceAnchor: anchorPositionSchema,
@@ -58,6 +68,7 @@ export const canvasPasteSchema = z.object({
   outputStyleNotes: z.array(pasteOutputStyleNoteItemSchema),
   skillNotes: z.array(pasteSkillNoteItemSchema),
   repositoryNotes: z.array(pasteRepositoryNoteItemSchema),
+  subAgentNotes: z.array(pasteSubAgentNoteItemSchema),
   connections: z.array(pasteConnectionItemSchema).optional(),
 });
 
@@ -66,5 +77,6 @@ export type PastePodItem = z.infer<typeof pastePodItemSchema>;
 export type PasteOutputStyleNoteItem = z.infer<typeof pasteOutputStyleNoteItemSchema>;
 export type PasteSkillNoteItem = z.infer<typeof pasteSkillNoteItemSchema>;
 export type PasteRepositoryNoteItem = z.infer<typeof pasteRepositoryNoteItemSchema>;
+export type PasteSubAgentNoteItem = z.infer<typeof pasteSubAgentNoteItemSchema>;
 export type PasteConnectionItem = z.infer<typeof pasteConnectionItemSchema>;
 export type CanvasPastePayload = z.infer<typeof canvasPasteSchema>;
