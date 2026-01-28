@@ -3,7 +3,7 @@ import {ref, computed} from 'vue'
 import {usePodStore, useViewportStore, useSelectionStore} from '@/stores/pod'
 import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore} from '@/stores/note'
 import {useConnectionStore} from '@/stores/connectionStore'
-import {useDeleteSelection} from '@/composables/canvas'
+import {useDeleteSelection, useNoteEventHandlers} from '@/composables/canvas'
 import CanvasViewport from './CanvasViewport.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
@@ -158,48 +158,10 @@ const handleCreateRepositoryNote = (repositoryId: string) => {
   repositoryStore.createNote(repositoryId, canvasX, canvasY)
 }
 
-type NoteStoreType = ReturnType<typeof useOutputStyleStore> | ReturnType<typeof useSkillStore> | ReturnType<typeof useSubAgentStore> | ReturnType<typeof useRepositoryStore>
-
-const createNoteDragHandlers = (store: NoteStoreType) => {
-  const handleDragEnd = (data: { noteId: string; x: number; y: number }) => {
-    store.updateNotePositionLocal(data.noteId, data.x, data.y)
-  }
-
-  const handleDragMove = (data: { noteId: string; screenX: number; screenY: number }) => {
-    if (!trashZoneRef.value) return
-
-    const isOver = trashZoneRef.value.isPointInZone(data.screenX, data.screenY)
-    store.setIsOverTrash(isOver)
-  }
-
-  const handleDragComplete = async (data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }) => {
-    const note = store.getNoteById(data.noteId)
-    if (!note) return
-
-    if (data.isOverTrash) {
-      if (note.boundToPodId === null) {
-        await store.deleteNote(data.noteId)
-      } else {
-        store.setNoteAnimating(data.noteId, true)
-        await store.updateNotePosition(data.noteId, data.startX, data.startY)
-        setTimeout(() => {
-          store.setNoteAnimating(data.noteId, false)
-        }, 300)
-      }
-    } else {
-      await store.updateNotePosition(data.noteId, note.x, note.y)
-    }
-
-    store.setIsOverTrash(false)
-  }
-
-  return { handleDragEnd, handleDragMove, handleDragComplete }
-}
-
-const outputStyleHandlers = createNoteDragHandlers(outputStyleStore)
-const skillHandlers = createNoteDragHandlers(skillStore)
-const subAgentHandlers = createNoteDragHandlers(subAgentStore)
-const repositoryHandlers = createNoteDragHandlers(repositoryStore)
+const outputStyleHandlers = useNoteEventHandlers({ store: outputStyleStore, trashZoneRef })
+const skillHandlers = useNoteEventHandlers({ store: skillStore, trashZoneRef })
+const subAgentHandlers = useNoteEventHandlers({ store: subAgentStore, trashZoneRef })
+const repositoryHandlers = useNoteEventHandlers({ store: repositoryStore, trashZoneRef })
 </script>
 
 <template>
