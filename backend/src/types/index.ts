@@ -131,6 +131,7 @@ export {
   type PastePodItem,
   type PasteOutputStyleNoteItem,
   type PasteSkillNoteItem,
+  type PasteConnectionItem,
   type CanvasPastePayload,
   type PasteError,
   type CanvasPasteResultPayload,
