@@ -1,6 +1,3 @@
-// Workflow Clear Service
-// Provides BFS traversal and clearing functionality for downstream PODs
-
 import { connectionStore } from './connectionStore.js';
 import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';

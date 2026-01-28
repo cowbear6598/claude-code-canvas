@@ -12,6 +12,5 @@ export const chatHistorySchema = z.object({
   podId: podIdSchema,
 });
 
-// Inferred types
 export type ChatSendPayload = z.infer<typeof chatSendSchema>;
 export type ChatHistoryPayload = z.infer<typeof chatHistorySchema>;

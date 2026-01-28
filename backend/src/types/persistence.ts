@@ -1,6 +1,3 @@
-// Persistence Type Definitions
-// Types for data stored on disk
-
 import type { PodTypeName, PodColor, PodStatus, ModelType } from './pod.js';
 import type { AnchorPosition } from './connection.js';
 

@@ -1,5 +1,3 @@
-// Output Style Note Type Definitions
-
 export interface OutputStyleNote {
   id: string;
   outputStyleId: string;

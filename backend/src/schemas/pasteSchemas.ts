@@ -72,7 +72,6 @@ export const canvasPasteSchema = z.object({
   connections: z.array(pasteConnectionItemSchema).optional(),
 });
 
-// Inferred types
 export type PastePodItem = z.infer<typeof pastePodItemSchema>;
 export type PasteOutputStyleNoteItem = z.infer<typeof pasteOutputStyleNoteItemSchema>;
 export type PasteSkillNoteItem = z.infer<typeof pasteSkillNoteItemSchema>;

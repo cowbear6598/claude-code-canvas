@@ -1,7 +1,3 @@
-// Claude Session Manager
-// Manages multiple Claude Agent SDK sessions (one per Pod)
-// Uses Claude Code CLI authentication (no API key required)
-
 import { query, Query } from '@anthropic-ai/claude-agent-sdk';
 
 class ClaudeSessionManager {
@@ -14,15 +10,12 @@ class ClaudeSessionManager {
    * @returns Query instance for this session
    */
   async createSession(podId: string, workspacePath: string): Promise<Query> {
-    // If session already exists, return it
     if (this.sessions.has(podId)) {
       return this.sessions.get(podId)!;
     }
 
-    // Create new session with workspace configuration
-    // Uses Claude Code CLI authentication automatically
     const session = query({
-      prompt: '', // Empty initial prompt, will be set in queryService
+      prompt: '',
       options: {
         cwd: workspacePath,
         settingSources: ['project'],
@@ -64,5 +57,4 @@ class ClaudeSessionManager {
   }
 }
 
-// Export singleton instance
 export const claudeSessionManager = new ClaudeSessionManager();

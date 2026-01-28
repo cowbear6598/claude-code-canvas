@@ -1,6 +1,3 @@
-// Git Service
-// Manages Git operations using simple-git
-
 import {simpleGit, StatusResult} from 'simple-git';
 import { Result, ok, err } from '../../types/index.js';
 import {config} from '../../config/index.js';
@@ -86,5 +83,4 @@ class GitService {
     }
 }
 
-// Export singleton instance
 export const gitService = new GitService();

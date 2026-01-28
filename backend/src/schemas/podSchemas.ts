@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { requestIdSchema, podIdSchema } from './base.js';
 
-// Pod enums
 export const podColorSchema = z.enum(['blue', 'coral', 'pink', 'yellow', 'green']);
 
 export const podTypeSchema = z.enum([
@@ -14,7 +13,6 @@ export const podTypeSchema = z.enum([
 
 export const modelTypeSchema = z.enum(['opus', 'sonnet', 'haiku']);
 
-// Pod CRUD schemas
 export const podCreateSchema = z.object({
   requestId: requestIdSchema,
   name: z.string().min(1).max(100),
@@ -49,7 +47,6 @@ export const podDeleteSchema = z.object({
   podId: podIdSchema,
 });
 
-// Inferred types
 export type PodCreatePayload = z.infer<typeof podCreateSchema>;
 export type PodListPayload = z.infer<typeof podListSchema>;
 export type PodGetPayload = z.infer<typeof podGetSchema>;

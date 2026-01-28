@@ -26,7 +26,6 @@ export const connectionUpdateSchema = z.object({
   autoTrigger: z.boolean().optional(),
 });
 
-// Inferred types
 export type ConnectionCreatePayload = z.infer<typeof connectionCreateSchema>;
 export type ConnectionListPayload = z.infer<typeof connectionListSchema>;
 export type ConnectionDeletePayload = z.infer<typeof connectionDeleteSchema>;

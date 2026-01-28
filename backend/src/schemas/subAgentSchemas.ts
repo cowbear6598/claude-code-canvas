@@ -44,7 +44,6 @@ export const subAgentDeleteSchema = z.object({
   subAgentId: z.string(),
 });
 
-// Inferred types
 export type SubAgentListPayload = z.infer<typeof subAgentListSchema>;
 export type SubAgentNoteCreatePayload = z.infer<typeof subAgentNoteCreateSchema>;
 export type SubAgentNoteListPayload = z.infer<typeof subAgentNoteListSchema>;

@@ -1,5 +1,3 @@
-// Pod Type Definitions
-
 export type PodColor = 'blue' | 'coral' | 'pink' | 'yellow' | 'green';
 
 export type PodTypeName =

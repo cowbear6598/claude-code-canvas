@@ -1,5 +1,3 @@
-// API Type Definitions
-
 import { Pod, PodTypeName, PodColor, ModelType } from './pod.js';
 
 export interface CreatePodRequest {

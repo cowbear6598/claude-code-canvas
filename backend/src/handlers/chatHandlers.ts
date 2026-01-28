@@ -18,8 +18,6 @@ import { autoClearService } from '../services/autoClear/index.js';
 import { emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 
-// 整體流程：驗證 payload → 檢查 Pod 狀態 → 設定 chatting → 串流處理 Claude 回應
-// （包含文字、工具使用、工具結果、完成事件） → 更新 Pod 狀態為 idle
 export async function handleChatSend(
   socket: Socket,
   payload: ChatSendPayload,
@@ -27,7 +25,6 @@ export async function handleChatSend(
 ): Promise<void> {
   const { podId, message } = payload;
 
-  // Check if Pod exists
   const pod = podStore.getById(podId);
   if (!pod) {
     emitError(
@@ -41,7 +38,6 @@ export async function handleChatSend(
     return;
   }
 
-  // Check if Pod is busy
   if (pod.status === 'chatting' || pod.status === 'summarizing') {
     emitError(
       socket,
@@ -54,7 +50,6 @@ export async function handleChatSend(
     return;
   }
 
-  // Set Pod to chatting
   podStore.setStatus(podId, 'chatting');
 
   const messageId = uuidv4();
@@ -135,7 +130,6 @@ export async function handleChatSend(
   podStore.setStatus(podId, 'idle');
   podStore.updateLastActive(podId);
 
-  // Check if auto-clear should be triggered (for standalone POD)
   autoClearService.onPodComplete(podId).catch((error) => {
     logger.error('AutoClear', 'Error', `Failed to check auto-clear for Pod ${podId}`, error);
   });
@@ -152,7 +146,6 @@ export async function handleChatHistory(
 ): Promise<void> {
   const { podId } = payload;
 
-  // Check if Pod exists
   const pod = podStore.getById(podId);
   if (!pod) {
     const responsePayload: PodChatHistoryResultPayload = {

@@ -11,6 +11,5 @@ export const workflowClearSchema = z.object({
   sourcePodId: podIdSchema,
 });
 
-// Inferred types
 export type WorkflowGetDownstreamPodsPayload = z.infer<typeof workflowGetDownstreamPodsSchema>;
 export type WorkflowClearPayload = z.infer<typeof workflowClearSchema>;

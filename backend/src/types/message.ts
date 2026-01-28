@@ -1,5 +1,3 @@
-// Message Type Definitions
-
 export type MessageRole = 'user' | 'assistant';
 
 export interface ToolUseInfo {

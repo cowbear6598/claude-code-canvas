@@ -1,6 +1,3 @@
-// Validation Utilities
-// Helper functions for validating request data
-
 import { PodTypeName, PodColor } from '../types/index.js';
 
 /**
@@ -8,7 +5,7 @@ import { PodTypeName, PodColor } from '../types/index.js';
  * Rules: non-empty, max 100 characters, no special characters
  */
 export function isValidPodName(name: string): boolean {
-  if (!name || typeof name !== 'string') {
+  if (!name) {
     return false;
   }
 
@@ -52,7 +49,7 @@ export function isValidPodColor(color: string): color is PodColor {
  * Supports HTTP(S) and SSH formats
  */
 export function isValidGitUrl(url: string): boolean {
-  if (!url || typeof url !== 'string') {
+  if (!url) {
     return false;
   }
 
@@ -66,16 +63,4 @@ export function isValidGitUrl(url: string): boolean {
   const shorthandPattern = /^[a-zA-Z0-9\-_]+\/[a-zA-Z0-9\-_]+$/;
 
   return httpPattern.test(url) || sshPattern.test(url) || shorthandPattern.test(url);
-}
-
-/**
- * Validates a UUID v4 format
- */
-export function isValidUUID(id: string): boolean {
-  if (!id || typeof id !== 'string') {
-    return false;
-  }
-
-  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidPattern.test(id);
 }

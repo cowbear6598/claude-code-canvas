@@ -1,6 +1,3 @@
-// Workspace Service
-// Manages filesystem operations for Pod workspaces
-
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Result, ok } from '../../types/index.js';
@@ -96,5 +93,4 @@ class WorkspaceService {
   }
 }
 
-// Export singleton instance
 export const workspaceService = new WorkspaceService();

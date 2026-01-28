@@ -1,6 +1,3 @@
-// Request Validation Schemas
-// Define validation schemas for API requests
-
 import { ValidationError } from './errors.js';
 import { isValidPodName, isValidPodType, isValidPodColor, isValidGitUrl } from './validators.js';
 import { CreatePodRequest, ChatRequest, GitCloneRequest } from '../types/index.js';

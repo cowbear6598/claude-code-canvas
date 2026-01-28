@@ -1,7 +1,3 @@
-// WebSocket Event Type Definitions
-// Re-exports from websocket-events.ts for backward compatibility and convenience
-
-// Import and re-export all event types
 export {
   WebSocketRequestEvents,
   WebSocketResponseEvents,

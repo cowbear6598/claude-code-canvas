@@ -17,5 +17,4 @@ export const gitCloneSchema = z.object({
   branch: z.string().optional(),
 });
 
-// Inferred types
 export type GitClonePayload = z.infer<typeof gitCloneSchema>;

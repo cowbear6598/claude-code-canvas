@@ -1,5 +1,3 @@
-// Workflow Service - Central Export
-
 export * from './types.js';
 export { workflowEventEmitter } from './workflowEventEmitter.js';
 export { workflowContentFormatter } from './workflowContentFormatter.js';

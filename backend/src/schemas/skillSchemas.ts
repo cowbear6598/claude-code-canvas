@@ -44,7 +44,6 @@ export const skillDeleteSchema = z.object({
   skillId: z.string(),
 });
 
-// Inferred types
 export type SkillListPayload = z.infer<typeof skillListSchema>;
 export type SkillNoteCreatePayload = z.infer<typeof skillNoteCreateSchema>;
 export type SkillNoteListPayload = z.infer<typeof skillNoteListSchema>;

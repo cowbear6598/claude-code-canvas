@@ -178,7 +178,6 @@ export async function handlePodUpdate(
 ): Promise<void> {
   const { podId, x, y, rotation, name, model } = payload;
 
-  // Check if Pod exists
   const existingPod = podStore.getById(podId);
   if (!existingPod) {
     emitError(
@@ -192,7 +191,6 @@ export async function handlePodUpdate(
     return;
   }
 
-  // Build update object with only provided fields
   const updates: Record<string, unknown> = {};
   if (x !== undefined) updates.x = x;
   if (y !== undefined) updates.y = y;

@@ -1,5 +1,3 @@
-// Main Router
-// Central routing configuration for the API
 // Note: This application uses WebSocket-first architecture.
 // All Pod operations are handled via Socket.io events.
 

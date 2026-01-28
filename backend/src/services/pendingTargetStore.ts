@@ -1,6 +1,3 @@
-// Pending Target Store
-// Manages Multi-Input waiting state for workflow targets
-
 interface PendingTarget {
   targetPodId: string;
   requiredSourcePodIds: string[];

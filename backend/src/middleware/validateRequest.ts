@@ -1,34 +1,25 @@
-// Request Validation Middleware
-// Generic request validation utilities
-
 import { Request, Response, NextFunction } from 'express';
 import { ValidationError } from '../utils/errors.js';
 
-// Validation schema type
 export type ValidationSchema = {
   body?: Record<string, Validator>;
   params?: Record<string, Validator>;
   query?: Record<string, Validator>;
 };
 
-// Validator function type
 export type Validator = (value: unknown) => boolean | string;
 
-// Create validation middleware from schema
 export function validateRequest(schema: ValidationSchema) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      // Validate request body
       if (schema.body) {
         validateObject(req.body, schema.body, 'body');
       }
 
-      // Validate request params
       if (schema.params) {
         validateObject(req.params, schema.params, 'params');
       }
 
-      // Validate request query
       if (schema.query) {
         validateObject(req.query, schema.query, 'query');
       }
@@ -40,7 +31,6 @@ export function validateRequest(schema: ValidationSchema) {
   };
 }
 
-// Validate object against schema
 function validateObject(
   obj: Record<string, unknown>,
   schema: Record<string, Validator>,
@@ -60,9 +50,7 @@ function validateObject(
   }
 }
 
-// Common validators
 export const validators = {
-  // Required string validator
   requiredString: (value: unknown): boolean | string => {
     if (typeof value !== 'string') {
       return 'Value must be a string';
@@ -73,7 +61,6 @@ export const validators = {
     return true;
   },
 
-  // Optional string validator
   optionalString: (value: unknown): boolean | string => {
     if (value === undefined || value === null) {
       return true;
@@ -84,7 +71,6 @@ export const validators = {
     return true;
   },
 
-  // String with max length validator
   maxLength:
     (max: number) =>
     (value: unknown): boolean | string => {
@@ -97,7 +83,6 @@ export const validators = {
       return true;
     },
 
-  // Enum validator
   oneOf:
     <T>(values: T[]) =>
     (value: unknown): boolean | string => {
@@ -107,7 +92,6 @@ export const validators = {
       return true;
     },
 
-  // Combine validators (all must pass)
   combine:
     (...validators: Validator[]) =>
     (value: unknown): boolean | string => {

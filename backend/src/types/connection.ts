@@ -1,6 +1,3 @@
-// Connection Type Definitions
-// Represents connections between Pods
-
 export type AnchorPosition = 'top' | 'bottom' | 'left' | 'right';
 
 export interface Connection {

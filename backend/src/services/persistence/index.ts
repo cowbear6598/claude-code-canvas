@@ -1,6 +1,3 @@
-// Core Persistence Service
-// Provides low-level file I/O operations for JSON data
-
 import fs from 'fs/promises';
 import path from 'path';
 import { Result, ok, err } from '../../types/index.js';
@@ -101,5 +98,4 @@ class PersistenceService {
   }
 }
 
-// Export singleton instance
 export const persistenceService = new PersistenceService();

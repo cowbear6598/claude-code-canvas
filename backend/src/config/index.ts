@@ -1,11 +1,7 @@
-// Configuration Module
-// Loads and validates environment variables
-
 import dotenv from 'dotenv';
 import os from 'os';
 import path from 'path';
 
-// Load environment variables
 dotenv.config();
 
 interface Config {
@@ -22,7 +18,6 @@ interface Config {
 }
 
 function loadConfig(): Config {
-  // Load environment variables with defaults
   const port = parseInt(process.env.PORT || '3001', 10);
   const nodeEnv = process.env.NODE_ENV || 'development';
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
@@ -57,5 +52,4 @@ function loadConfig(): Config {
   };
 }
 
-// Export singleton configuration object
 export const config = loadConfig();

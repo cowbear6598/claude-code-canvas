@@ -1,6 +1,3 @@
-// Repository Service
-// Manages repository directory operations
-
 import { promises as fs } from 'fs';
 import path from 'path';
 import { config } from '../config/index.js';
@@ -74,5 +71,4 @@ class RepositoryService {
   }
 }
 
-// Export singleton instance
 export const repositoryService = new RepositoryService();

@@ -21,7 +21,6 @@ export const outputStyleDeleteSchema = z.object({
   outputStyleId: z.string(),
 });
 
-// Inferred types
 export type OutputStyleListPayload = z.infer<typeof outputStyleListSchema>;
 export type PodBindOutputStylePayload = z.infer<typeof podBindOutputStyleSchema>;
 export type PodUnbindOutputStylePayload = z.infer<typeof podUnbindOutputStyleSchema>;

@@ -283,5 +283,4 @@ class PodStore {
   }
 }
 
-// Export singleton instance
 export const podStore = new PodStore();

@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-// Base schemas
 export const requestIdSchema = z.uuid();
 export const podIdSchema = z.uuid();
 export const positionSchema = z.object({

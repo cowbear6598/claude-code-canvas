@@ -453,7 +453,6 @@ class WorkflowExecutionService {
         `[WorkflowExecution] Completed workflow for connection ${connectionId}, target Pod ${targetPodId}`
       );
 
-      // Check if auto-clear should be triggered
       await autoClearService.onPodComplete(targetPodId);
     } catch (error) {
       podStore.setStatus(targetPodId, 'idle');

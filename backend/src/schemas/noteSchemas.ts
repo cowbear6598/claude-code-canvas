@@ -29,7 +29,6 @@ export const noteDeleteSchema = z.object({
   noteId: z.uuid(),
 });
 
-// Inferred types
 export type NoteCreatePayload = z.infer<typeof noteCreateSchema>;
 export type NoteListPayload = z.infer<typeof noteListSchema>;
 export type NoteUpdatePayload = z.infer<typeof noteUpdateSchema>;

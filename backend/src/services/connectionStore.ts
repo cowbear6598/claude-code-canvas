@@ -1,6 +1,3 @@
-// Connection Store
-// Manages Pod Connections with persistence to disk
-
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
