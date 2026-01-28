@@ -50,6 +50,7 @@ export enum WebSocketRequestEvents {
   SUBAGENT_NOTE_DELETE = 'subagent-note:delete',
   POD_BIND_SUBAGENT = 'pod:bind-subagent',
   SUBAGENT_DELETE = 'subagent:delete',
+  POD_SET_AUTO_CLEAR = 'pod:set-auto-clear',
 }
 
 export enum WebSocketResponseEvents {
@@ -116,6 +117,8 @@ export enum WebSocketResponseEvents {
   SUBAGENT_NOTE_DELETED = 'subagent-note:deleted',
   POD_SUBAGENT_BOUND = 'pod:subagent:bound',
   SUBAGENT_DELETED = 'subagent:deleted',
+  POD_AUTO_CLEAR_SET = 'pod:auto-clear:set',
+  WORKFLOW_AUTO_CLEARED = 'workflow:auto-cleared',
 }
 
 export interface PodCreatePayload {
@@ -914,4 +917,23 @@ export interface SubAgentDeletedPayload {
   subAgentId?: string;
   deletedNoteIds?: string[];
   error?: string;
+}
+
+export interface PodSetAutoClearPayload {
+  requestId: string;
+  podId: string;
+  autoClear: boolean;
+}
+
+export interface PodAutoClearSetPayload {
+  requestId: string;
+  success: boolean;
+  pod?: Pod;
+  error?: string;
+}
+
+export interface WorkflowAutoClearedPayload {
+  sourcePodId: string;
+  clearedPodIds: string[];
+  clearedPodNames: string[];
 }

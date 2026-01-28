@@ -35,3 +35,6 @@ export * from './repositorySchemas.js';
 
 // SubAgent schemas
 export * from './subAgentSchemas.js';
+
+// Auto Clear schemas
+export * from './autoClearSchemas.js';

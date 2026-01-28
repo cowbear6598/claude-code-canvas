@@ -37,6 +37,7 @@ export interface Pod {
   subAgentIds?: string[]
   model?: ModelType
   repositoryId?: string | null
+  autoClear?: boolean
 }
 
 // Pod 類型配置

@@ -14,6 +14,7 @@ import { messageStore } from '../services/messageStore.js';
 import { claudeQueryService } from '../services/claude/queryService.js';
 import { socketService } from '../services/socketService.js';
 import { workflowService } from '../services/workflow/index.js';
+import { autoClearService } from '../services/autoClear/index.js';
 import { emitError } from '../utils/websocketResponse.js';
 
 // 整體流程：驗證 payload → 檢查 Pod 狀態 → 設定 chatting → 串流處理 Claude 回應
@@ -138,6 +139,11 @@ export async function handleChatSend(
 
   podStore.setStatus(podId, 'idle');
   podStore.updateLastActive(podId);
+
+  // Check if auto-clear should be triggered (for standalone POD)
+  autoClearService.onPodComplete(podId).catch((error) => {
+    console.error(`[Chat] Failed to check auto-clear for Pod ${podId}:`, error);
+  });
 
   workflowService.checkAndTriggerWorkflows(podId).catch((error) => {
     console.error(`[Chat] Failed to check auto-trigger workflows for Pod ${podId}:`, error);

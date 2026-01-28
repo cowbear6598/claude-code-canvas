@@ -19,6 +19,7 @@ import { workflowValidationService } from './workflowValidationService.js';
 import { workflowStateService } from './workflowStateService.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
 import { workflowContentFormatter } from './workflowContentFormatter.js';
+import { autoClearService } from '../autoClear/index.js';
 
 class WorkflowExecutionService {
   async checkAndTriggerWorkflows(sourcePodId: string): Promise<void> {
@@ -32,6 +33,9 @@ class WorkflowExecutionService {
     console.log(
       `[WorkflowExecution] Found ${autoTriggerConnections.length} auto-trigger connections for Pod ${sourcePodId}`
     );
+
+    // Initialize auto-clear tracking if enabled
+    autoClearService.initializeWorkflowTracking(sourcePodId);
 
     let summary: string | null = null;
 
@@ -448,6 +452,9 @@ class WorkflowExecutionService {
       console.log(
         `[WorkflowExecution] Completed workflow for connection ${connectionId}, target Pod ${targetPodId}`
       );
+
+      // Check if auto-clear should be triggered
+      await autoClearService.onPodComplete(targetPodId);
     } catch (error) {
       podStore.setStatus(targetPodId, 'idle');
 

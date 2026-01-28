@@ -302,6 +302,12 @@ export interface PodUnbindRepositoryPayload {
   podId: string
 }
 
+export interface PodSetAutoClearPayload {
+  requestId: string
+  podId: string
+  autoClear: boolean
+}
+
 export interface SubAgentListPayload {
   requestId: string
 }

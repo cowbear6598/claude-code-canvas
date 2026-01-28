@@ -38,6 +38,7 @@ class PodStore {
       model: data.model ?? 'opus',
       repositoryId: data.repositoryId ?? null,
       needsForkSession: false,
+      autoClear: false,
     };
 
     this.pods.set(id, pod);
@@ -206,6 +207,17 @@ class PodStore {
     this.persistPodAsync(pod);
   }
 
+  setAutoClear(id: string, autoClear: boolean): void {
+    const pod = this.pods.get(id);
+    if (!pod) {
+      return;
+    }
+
+    pod.autoClear = autoClear;
+    this.pods.set(id, pod);
+    this.persistPodAsync(pod);
+  }
+
   findByOutputStyleId(outputStyleId: string): Pod[] {
     return Array.from(this.pods.values()).filter(
       (pod) => pod.outputStyleId === outputStyleId
@@ -259,6 +271,7 @@ class PodStore {
           model: persistedPod.model ?? 'opus',
           repositoryId: persistedPod.repositoryId ?? null,
           needsForkSession: persistedPod.needsForkSession ?? false,
+          autoClear: persistedPod.autoClear ?? false,
         };
 
         this.pods.set(pod.id, pod);

@@ -362,6 +362,19 @@ export interface PodMessagesClearedPayload {
   podId: string
 }
 
+export interface PodAutoClearSetPayload {
+  requestId: string
+  success: boolean
+  pod?: Pod
+  error?: string
+}
+
+export interface WorkflowAutoClearedPayload {
+  sourcePodId: string
+  clearedPodIds: string[]
+  clearedPodNames: string[]
+}
+
 export interface SubAgentListResultPayload {
   requestId: string
   success: boolean

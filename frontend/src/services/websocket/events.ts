@@ -50,6 +50,7 @@ export const WebSocketRequestEvents = {
   REPOSITORY_NOTE_DELETE: 'repository-note:delete',
   POD_BIND_REPOSITORY: 'pod:bind-repository',
   POD_UNBIND_REPOSITORY: 'pod:unbind-repository',
+  POD_SET_AUTO_CLEAR: 'pod:set-auto-clear',
   // SubAgent Events
   SUBAGENT_LIST: 'subagent:list',
   SUBAGENT_DELETE: 'subagent:delete',
@@ -123,6 +124,8 @@ export const WebSocketResponseEvents = {
   POD_REPOSITORY_BOUND: 'pod:repository:bound',
   POD_REPOSITORY_UNBOUND: 'pod:repository:unbound',
   POD_MESSAGES_CLEARED: 'pod:messages:cleared',
+  POD_AUTO_CLEAR_SET: 'pod:auto-clear:set',
+  WORKFLOW_AUTO_CLEARED: 'workflow:auto-cleared',
   // SubAgent Events
   SUBAGENT_LIST_RESULT: 'subagent:list:result',
   SUBAGENT_DELETED: 'subagent:deleted',

@@ -1037,6 +1037,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4);
+  position: relative;
 }
 
 .workflow-clear-button-in-group:hover {
@@ -1059,6 +1060,35 @@
 
 .workflow-clear-button-in-group:hover svg {
   color: oklch(0.25 0.02 50);
+}
+
+/* 自動清除 Badge 樣式 */
+.auto-clear-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: bold;
+  font-family: var(--font-mono);
+  color: oklch(0.98 0 0);
+  background: oklch(0.55 0.15 150);
+  border: 1.5px solid var(--doodle-ink);
+  border-radius: 50%;
+  z-index: 1;
+}
+
+/* 自動清除啟用狀態 */
+.workflow-clear-button-in-group.auto-clear-enabled {
+  background: oklch(0.85 0.08 150);
+}
+
+.workflow-clear-button-in-group.auto-clear-enabled:hover {
+  background: oklch(0.78 0.1 150);
 }
 
 /* POD Status Animation Styles */

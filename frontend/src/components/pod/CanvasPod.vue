@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref, computed, onUnmounted} from 'vue'
+import {ref, computed, onUnmounted, watch} from 'vue'
 import type {Pod, ModelType} from '@/types'
 import type {AnchorPosition} from '@/types/connection'
 import {usePodStore, useViewportStore, useSelectionStore} from '@/stores/pod'
@@ -62,7 +62,7 @@ const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
 const currentModel = computed(() => props.pod.model ?? 'opus')
 
 const isSelected = computed(() =>
-  selectionStore.selectedPodIds.includes(props.pod.id)
+    selectionStore.selectedPodIds.includes(props.pod.id)
 )
 
 const podStatusClass = computed(() => {
@@ -73,7 +73,7 @@ const emit = defineEmits<{
   select: [podId: string]
   update: [pod: Pod]
   delete: [id: string]
-  'drag-end': [data: {id: string; x: number; y: number}]
+  'drag-end': [data: { id: string; x: number; y: number }]
 }>()
 
 const isDragging = ref(false)
@@ -91,6 +91,14 @@ const isLoadingDownstream = ref(false)
 const isClearing = ref(false)
 const showDeleteDialog = ref(false)
 
+const longPressTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+const isLongPress = ref(false)
+const isToggling = ref(false)
+const LONG_PRESS_DURATION = 500
+
+const isAutoClearEnabled = computed(() => props.pod.autoClear ?? false)
+const isAutoClearAnimating = computed(() => chatStore.autoClearAnimationPodId === props.pod.id)
+
 let currentMouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let currentMouseUpHandler: (() => void) | null = null
 
@@ -107,14 +115,18 @@ const cleanupEventListeners = () => {
 
 onUnmounted(() => {
   cleanupEventListeners()
+  if (longPressTimer.value) {
+    clearTimeout(longPressTimer.value)
+    longPressTimer.value = null
+  }
 })
 
 const handleMouseDown = (e: MouseEvent) => {
   if (
-    (e.target as HTMLElement).closest('.pod-output-style-slot') ||
-    (e.target as HTMLElement).closest('.pod-skill-slot') ||
-    (e.target as HTMLElement).closest('.pod-subagent-slot') ||
-    (e.target as HTMLElement).closest('.pod-repository-slot')
+      (e.target as HTMLElement).closest('.pod-output-style-slot') ||
+      (e.target as HTMLElement).closest('.pod-skill-slot') ||
+      (e.target as HTMLElement).closest('.pod-subagent-slot') ||
+      (e.target as HTMLElement).closest('.pod-repository-slot')
   ) {
     return
   }
@@ -255,7 +267,7 @@ const handleAnchorDragStart = (data: {
   connectionStore.startDragging(data.podId, data.anchor, {x: canvasX, y: canvasY})
 }
 
-const handleAnchorDragMove = (data: {screenX: number; screenY: number}) => {
+const handleAnchorDragMove = (data: { screenX: number; screenY: number }) => {
   const canvasX = (data.screenX - viewportStore.offset.x) / viewportStore.zoom
   const canvasY = (data.screenY - viewportStore.offset.y) / viewportStore.zoom
 
@@ -274,10 +286,10 @@ const handleAnchorDragEnd = async () => {
 
   if (targetAnchor) {
     await connectionStore.createConnection(
-      sourcePodId,
-      sourceAnchor,
-      targetAnchor.podId,
-      targetAnchor.anchor
+        sourcePodId,
+        sourceAnchor,
+        targetAnchor.podId,
+        targetAnchor.anchor
     )
   }
 
@@ -287,15 +299,15 @@ const handleAnchorDragEnd = async () => {
 const handleClearWorkflow = async () => {
   isLoadingDownstream.value = true
 
-  const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+  const {wrapWebSocketRequest} = useWebSocketErrorHandler()
 
   const response = await wrapWebSocketRequest(
-    createWebSocketRequest<WorkflowGetDownstreamPodsPayload, WorkflowGetDownstreamPodsResultPayload>({
-      requestEvent: WebSocketRequestEvents.WORKFLOW_GET_DOWNSTREAM_PODS,
-      responseEvent: WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
-      payload: {sourcePodId: props.pod.id}
-    }),
-    '取得下游 Pod 失敗'
+      createWebSocketRequest<WorkflowGetDownstreamPodsPayload, WorkflowGetDownstreamPodsResultPayload>({
+        requestEvent: WebSocketRequestEvents.WORKFLOW_GET_DOWNSTREAM_PODS,
+        responseEvent: WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
+        payload: {sourcePodId: props.pod.id}
+      }),
+      '取得下游 Pod 失敗'
   )
 
   isLoadingDownstream.value = false
@@ -311,15 +323,15 @@ const handleClearWorkflow = async () => {
 const confirmClear = async () => {
   isClearing.value = true
 
-  const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+  const {wrapWebSocketRequest} = useWebSocketErrorHandler()
 
   const response = await wrapWebSocketRequest(
-    createWebSocketRequest<WorkflowClearPayload, WorkflowClearResultPayload>({
-      requestEvent: WebSocketRequestEvents.WORKFLOW_CLEAR,
-      responseEvent: WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
-      payload: {sourcePodId: props.pod.id}
-    }),
-    '清理 Workflow 失敗'
+      createWebSocketRequest<WorkflowClearPayload, WorkflowClearResultPayload>({
+        requestEvent: WebSocketRequestEvents.WORKFLOW_CLEAR,
+        responseEvent: WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
+        payload: {sourcePodId: props.pod.id}
+      }),
+      '清理 Workflow 失敗'
   )
 
   isClearing.value = false
@@ -340,15 +352,15 @@ const cancelClear = () => {
 }
 
 const handleModelChange = async (model: ModelType) => {
-  const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+  const {wrapWebSocketRequest} = useWebSocketErrorHandler()
 
   const response = await wrapWebSocketRequest(
-    createWebSocketRequest<PodUpdatePayload, PodUpdatedPayload>({
-      requestEvent: WebSocketRequestEvents.POD_UPDATE,
-      responseEvent: WebSocketResponseEvents.POD_UPDATED,
-      payload: {podId: props.pod.id, model}
-    }),
-    '更新模型失敗'
+      createWebSocketRequest<PodUpdatePayload, PodUpdatedPayload>({
+        requestEvent: WebSocketRequestEvents.POD_UPDATE,
+        responseEvent: WebSocketResponseEvents.POD_UPDATED,
+        payload: {podId: props.pod.id, model}
+      }),
+      '更新模型失敗'
   )
 
   if (!response) return
@@ -357,67 +369,111 @@ const handleModelChange = async (model: ModelType) => {
 
   podStore.updatePodModel(props.pod.id, response.pod.model ?? 'opus')
 }
+
+const handleEraserMouseDown = (e: MouseEvent) => {
+  e.stopPropagation()
+  isLongPress.value = false
+  longPressTimer.value = setTimeout(() => {
+    isLongPress.value = true
+    toggleAutoClear()
+  }, LONG_PRESS_DURATION)
+}
+
+const handleEraserMouseUp = () => {
+  if (longPressTimer.value) {
+    clearTimeout(longPressTimer.value)
+    longPressTimer.value = null
+  }
+  if (!isLongPress.value) {
+    handleClearWorkflow()
+  }
+}
+
+const handleEraserMouseLeave = () => {
+  if (longPressTimer.value) {
+    clearTimeout(longPressTimer.value)
+    longPressTimer.value = null
+  }
+}
+
+const toggleAutoClear = async () => {
+  if (isToggling.value) return
+  isToggling.value = true
+  try {
+    await podStore.setAutoClearWithBackend(props.pod.id, !isAutoClearEnabled.value)
+  } finally {
+    isToggling.value = false
+  }
+}
+
+watch(isAutoClearAnimating, (newValue) => {
+  if (newValue) {
+    setTimeout(() => {
+      chatStore.clearAutoClearAnimation()
+    }, 600)
+  }
+})
 </script>
 
 <template>
   <div
-    class="absolute select-none"
-    :style="{
+      class="absolute select-none"
+      :style="{
       left: `${pod.x}px`,
       top: `${pod.y}px`,
       zIndex: isActive ? 100 : 10,
     }"
-    @mousedown="handleMouseDown"
+      @mousedown="handleMouseDown"
   >
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
-      class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch"
-      :style="{ transform: `rotate(${pod.rotation}deg)` }"
+        class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch"
+        :style="{ transform: `rotate(${pod.rotation}deg)` }"
     >
       <!-- Model Selector -->
       <PodModelSelector
-        :pod-id="pod.id"
-        :current-model="currentModel"
-        @update:model="handleModelChange"
+          :pod-id="pod.id"
+          :current-model="currentModel"
+          @update:model="handleModelChange"
       />
 
       <!-- Output Style 凹槽 -->
       <div class="pod-notch-area">
         <PodOutputStyleSlot
-          :pod-id="pod.id"
-          :bound-note="boundNote"
-          :pod-rotation="pod.rotation"
-          @note-dropped="handleNoteDropped"
-          @note-removed="handleNoteRemoved"
+            :pod-id="pod.id"
+            :bound-note="boundNote"
+            :pod-rotation="pod.rotation"
+            @note-dropped="handleNoteDropped"
+            @note-removed="handleNoteRemoved"
         />
       </div>
 
       <!-- Skill 凹槽 -->
       <div class="pod-skill-notch-area">
         <PodSkillSlot
-          :pod-id="pod.id"
-          :bound-notes="boundSkillNotes"
-          @note-dropped="handleSkillNoteDropped"
+            :pod-id="pod.id"
+            :bound-notes="boundSkillNotes"
+            @note-dropped="handleSkillNoteDropped"
         />
       </div>
 
       <!-- SubAgent 凹槽 -->
       <div class="pod-subagent-notch-area">
         <PodSubAgentSlot
-          :pod-id="pod.id"
-          :bound-notes="boundSubAgentNotes"
-          @note-dropped="handleSubAgentNoteDropped"
+            :pod-id="pod.id"
+            :bound-notes="boundSubAgentNotes"
+            @note-dropped="handleSubAgentNoteDropped"
         />
       </div>
 
       <!-- Repository 凹槽（右側） -->
       <div class="pod-repository-notch-area">
         <PodRepositorySlot
-          :pod-id="pod.id"
-          :bound-note="boundRepositoryNote"
-          :pod-rotation="pod.rotation"
-          @note-dropped="handleRepositoryNoteDropped"
-          @note-removed="handleRepositoryNoteRemoved"
+            :pod-id="pod.id"
+            :bound-note="boundRepositoryNote"
+            :pod-rotation="pod.rotation"
+            @note-dropped="handleRepositoryNoteDropped"
+            @note-removed="handleRepositoryNoteRemoved"
         />
       </div>
 
@@ -432,48 +488,48 @@ const handleModelChange = async (model: ModelType) => {
 
         <!-- Anchors -->
         <PodAnchor
-          position="top"
-          :pod-id="pod.id"
-          @drag-start="handleAnchorDragStart"
-          @drag-move="handleAnchorDragMove"
-          @drag-end="handleAnchorDragEnd"
+            position="top"
+            :pod-id="pod.id"
+            @drag-start="handleAnchorDragStart"
+            @drag-move="handleAnchorDragMove"
+            @drag-end="handleAnchorDragEnd"
         />
         <PodAnchor
-          position="bottom"
-          :pod-id="pod.id"
-          @drag-start="handleAnchorDragStart"
-          @drag-move="handleAnchorDragMove"
-          @drag-end="handleAnchorDragEnd"
+            position="bottom"
+            :pod-id="pod.id"
+            @drag-start="handleAnchorDragStart"
+            @drag-move="handleAnchorDragMove"
+            @drag-end="handleAnchorDragEnd"
         />
         <PodAnchor
-          position="left"
-          :pod-id="pod.id"
-          @drag-start="handleAnchorDragStart"
-          @drag-move="handleAnchorDragMove"
-          @drag-end="handleAnchorDragEnd"
+            position="left"
+            :pod-id="pod.id"
+            @drag-start="handleAnchorDragStart"
+            @drag-move="handleAnchorDragMove"
+            @drag-end="handleAnchorDragEnd"
         />
         <PodAnchor
-          position="right"
-          :pod-id="pod.id"
-          @drag-start="handleAnchorDragStart"
-          @drag-move="handleAnchorDragMove"
-          @drag-end="handleAnchorDragEnd"
+            position="right"
+            :pod-id="pod.id"
+            @drag-start="handleAnchorDragStart"
+            @drag-move="handleAnchorDragMove"
+            @drag-end="handleAnchorDragEnd"
         />
 
         <div class="p-3">
           <!-- 標題 -->
           <PodHeader
-            :name="pod.name"
-            :type="pod.type"
-            :color="pod.color"
-            :is-editing="isEditing"
-            @update:name="handleUpdateName"
-            @save="handleSaveName"
-            @rename="handleRename"
+              :name="pod.name"
+              :type="pod.type"
+              :color="pod.color"
+              :is-editing="isEditing"
+              @update:name="handleUpdateName"
+              @save="handleSaveName"
+              @rename="handleRename"
           />
 
           <!-- 迷你螢幕 -->
-          <PodMiniScreen :output="pod.output" @dblclick="handleSelectPod" />
+          <PodMiniScreen :output="pod.output" @dblclick="handleSelectPod"/>
         </div>
 
       </div>
@@ -483,28 +539,35 @@ const handleModelChange = async (model: ModelType) => {
       <div v-if="isSourcePod" class="pod-action-buttons-group">
         <!-- 刪除按鈕（左） -->
         <button
-          class="pod-delete-button"
-          @click.stop="handleDelete"
+            class="pod-delete-button"
+            @click.stop="handleDelete"
         >
-          <Trash2 :size="16" />
+          <Trash2 :size="16"/>
         </button>
         <!-- 橡皮擦按鈕（右） -->
         <button
-          class="workflow-clear-button-in-group"
-          :disabled="isLoadingDownstream || isClearing"
-          @click.stop="handleClearWorkflow"
+            class="workflow-clear-button-in-group"
+            :class="{
+            'auto-clear-enabled': isAutoClearEnabled,
+            'auto-clear-animating': isAutoClearAnimating
+          }"
+            :disabled="isLoadingDownstream || isClearing || isToggling"
+            @mousedown="handleEraserMouseDown"
+            @mouseup="handleEraserMouseUp"
+            @mouseleave="handleEraserMouseLeave"
         >
-          <Eraser :size="16" />
+          <Eraser :size="16"/>
+          <span v-show="isAutoClearEnabled" class="auto-clear-badge">A</span>
         </button>
       </div>
 
       <!-- 非 Source Pod: 只顯示刪除按鈕 -->
       <button
-        v-else
-        class="pod-delete-button pod-delete-button-standalone"
-        @click.stop="handleDelete"
+          v-else
+          class="pod-delete-button pod-delete-button-standalone"
+          @click.stop="handleDelete"
       >
-        <Trash2 :size="16" />
+        <Trash2 :size="16"/>
       </button>
     </div>
 
@@ -521,9 +584,9 @@ const handleModelChange = async (model: ModelType) => {
         <div class="py-4">
           <ul class="space-y-2">
             <li
-              v-for="pod in downstreamPods"
-              :key="pod.id"
-              class="text-sm font-mono text-foreground"
+                v-for="pod in downstreamPods"
+                :key="pod.id"
+                class="text-sm font-mono text-foreground"
             >
               • {{ pod.name }}
             </li>

@@ -28,6 +28,7 @@ class PodPersistenceService {
       skillIds: pod.skillIds,
       model: pod.model,
       repositoryId: pod.repositoryId,
+      autoClear: pod.autoClear,
     };
   }
 

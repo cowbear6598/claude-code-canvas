@@ -11,6 +11,7 @@ import { pasteHandlerGroup } from './groups/pasteHandlerGroup.js';
 import { gitHandlerGroup } from './groups/gitHandlerGroup.js';
 import { repositoryHandlerGroup } from './groups/repositoryHandlerGroup.js';
 import { subAgentHandlerGroup } from './groups/subAgentHandlerGroup.js';
+import { autoClearHandlerGroup } from './groups/autoClearHandlerGroup.js';
 
 const registry = new HandlerRegistry();
 
@@ -25,6 +26,7 @@ registry.registerGroup(pasteHandlerGroup);
 registry.registerGroup(gitHandlerGroup);
 registry.registerGroup(repositoryHandlerGroup);
 registry.registerGroup(subAgentHandlerGroup);
+registry.registerGroup(autoClearHandlerGroup);
 
 export function registerAllHandlers(socket: Socket): void {
   registry.applyToSocket(socket);
@@ -91,3 +93,4 @@ export {
   handlePodBindSubAgent,
   handleSubAgentDelete,
 } from './subAgentHandlers.js';
+export { handlePodSetAutoClear } from './autoClearHandlers.js';

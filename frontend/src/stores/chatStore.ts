@@ -14,7 +14,8 @@ import type {
   PersistedMessage,
   PodErrorPayload,
   ConnectionReadyPayload,
-  PodMessagesClearedPayload
+  PodMessagesClearedPayload,
+  WorkflowAutoClearedPayload
 } from '@/types/websocket'
 import { RESPONSE_PREVIEW_LENGTH, CONTENT_PREVIEW_LENGTH } from '@/lib/constants'
 
@@ -37,6 +38,7 @@ interface ChatState {
   historyLoadingStatus: Map<string, HistoryLoadingStatus>
   historyLoadingError: Map<string, string>
   allHistoryLoaded: boolean
+  autoClearAnimationPodId: string | null
 }
 
 export const useChatStore = defineStore('chat', {
@@ -48,7 +50,8 @@ export const useChatStore = defineStore('chat', {
     socketId: null,
     historyLoadingStatus: new Map(),
     historyLoadingError: new Map(),
-    allHistoryLoaded: false
+    allHistoryLoaded: false,
+    autoClearAnimationPodId: null
   }),
 
   getters: {
@@ -109,6 +112,7 @@ export const useChatStore = defineStore('chat', {
       websocketClient.on<PodChatHistoryResultPayload>(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, this.handleChatHistoryResult)
       websocketClient.on<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
       websocketClient.on<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
+      websocketClient.on<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
     },
 
     unregisterListeners(): void {
@@ -120,6 +124,7 @@ export const useChatStore = defineStore('chat', {
       websocketClient.off<PodChatHistoryResultPayload>(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, this.handleChatHistoryResult)
       websocketClient.off<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
       websocketClient.off<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
+      websocketClient.off<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
     },
 
     handleConnectionReady(payload: ConnectionReadyPayload): void {
@@ -426,6 +431,21 @@ export const useChatStore = defineStore('chat', {
         const podStore = usePodStore()
         podStore.clearPodOutputsByIds([payload.podId])
       })
+    },
+
+    handleWorkflowAutoCleared(payload: WorkflowAutoClearedPayload): void {
+      this.clearMessagesByPodIds(payload.clearedPodIds)
+
+      import('./pod/podStore').then(({ usePodStore }) => {
+        const podStore = usePodStore()
+        podStore.clearPodOutputsByIds(payload.clearedPodIds)
+      })
+
+      this.autoClearAnimationPodId = payload.sourcePodId
+    },
+
+    clearAutoClearAnimation(): void {
+      this.autoClearAnimationPodId = null
     }
   }
 })

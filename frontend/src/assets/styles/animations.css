@@ -17,3 +17,28 @@
 .pod-float {
   animation: float 3s ease-in-out infinite;
 }
+
+/* Auto-clear eraser shake animation */
+@keyframes eraser-shake {
+  0%, 100% { transform: translate(-1px, -1px) rotate(0deg); }
+  10% { transform: translate(-1px, -1px) rotate(-8deg); }
+  20% { transform: translate(-1px, -1px) rotate(8deg); }
+  30% { transform: translate(-1px, -1px) rotate(-8deg); }
+  40% { transform: translate(-1px, -1px) rotate(8deg); }
+  50% { transform: translate(-1px, -1px) rotate(-4deg); }
+  60% { transform: translate(-1px, -1px) rotate(4deg); }
+  70% { transform: translate(-1px, -1px) rotate(-2deg); }
+  80% { transform: translate(-1px, -1px) rotate(2deg); }
+  90% { transform: translate(-1px, -1px) rotate(-1deg); }
+}
+
+.workflow-clear-button-in-group.auto-clear-animating {
+  animation: eraser-shake 0.6s ease-in-out;
+  background: oklch(0.9 0.12 100);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workflow-clear-button-in-group.auto-clear-animating {
+    animation: none;
+  }
+}

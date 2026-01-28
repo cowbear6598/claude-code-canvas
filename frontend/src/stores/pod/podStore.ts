@@ -13,7 +13,9 @@ import type {
   PodListPayload,
   PodUpdatePayload,
   PodJoinPayload,
-  PodLeavePayload
+  PodLeavePayload,
+  PodSetAutoClearPayload,
+  PodAutoClearSetPayload
 } from '@/types/websocket'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { POSITION_SYNC_DELAY_MS } from '@/lib/constants'
@@ -146,6 +148,7 @@ export const usePodStore = defineStore('pod', {
         output: pod.output ?? [],
         outputStyleId: pod.outputStyleId ?? null,
         model: pod.model ?? 'opus',
+        autoClear: pod.autoClear ?? false,
       }))
       this.pods = enrichedPods.filter(pod => this.isValidPod(pod))
     },
@@ -256,6 +259,31 @@ export const usePodStore = defineStore('pod', {
       if (!pod) return
 
       pod.repositoryId = repositoryId
+    },
+
+    updatePodAutoClear(podId: string, autoClear: boolean): void {
+      const pod = this.pods.find((p) => p.id === podId)
+      if (pod) {
+        pod.autoClear = autoClear
+      }
+    },
+
+    async setAutoClearWithBackend(podId: string, autoClear: boolean): Promise<Pod | null> {
+      const response = await createWebSocketRequest<PodSetAutoClearPayload, PodAutoClearSetPayload>({
+        requestEvent: WebSocketRequestEvents.POD_SET_AUTO_CLEAR,
+        responseEvent: WebSocketResponseEvents.POD_AUTO_CLEAR_SET,
+        payload: {
+          podId,
+          autoClear
+        }
+      })
+
+      if (response.success && response.pod) {
+        this.updatePodAutoClear(podId, autoClear)
+        return response.pod
+      }
+
+      return null
     },
   },
 })
