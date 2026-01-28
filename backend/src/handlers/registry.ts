@@ -2,16 +2,30 @@ import type { Socket } from 'socket.io';
 import { z } from 'zod';
 import { createValidatedHandler, type ValidatedHandler } from '../middleware/wsMiddleware.js';
 
-export interface HandlerDefinition<T = unknown> {
+export interface HandlerDefinition {
   event: string;
-  handler: ValidatedHandler<T>;
-  schema: z.ZodType<T>;
+  handler: ValidatedHandler<unknown>;
+  schema: z.ZodType<unknown>;
   responseEvent: string;
 }
 
 export interface HandlerGroup {
   name: string;
-  handlers: HandlerDefinition<unknown>[];
+  handlers: HandlerDefinition[];
+}
+
+export function createHandlerDefinition<TSchema extends z.ZodType>(
+  event: string,
+  handler: ValidatedHandler<z.infer<TSchema>>,
+  schema: TSchema,
+  responseEvent: string
+): HandlerDefinition {
+  return {
+    event,
+    handler: handler as ValidatedHandler<unknown>,
+    schema: schema as z.ZodType<unknown>,
+    responseEvent,
+  };
 }
 
 export class HandlerRegistry {

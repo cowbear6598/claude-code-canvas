@@ -13,41 +13,41 @@ import {
   handlePodUpdate,
   handlePodDelete,
 } from '../podHandlers.js';
+import { createHandlerDefinition } from '../registry.js';
 import type { HandlerGroup } from '../registry.js';
-import type { ValidatedHandler } from '../../middleware/wsMiddleware.js';
 
 export const podHandlerGroup: HandlerGroup = {
   name: 'pod',
   handlers: [
-    {
-      event: WebSocketRequestEvents.POD_CREATE,
-      handler: handlePodCreate as unknown as ValidatedHandler<unknown>,
-      schema: podCreateSchema,
-      responseEvent: WebSocketResponseEvents.POD_CREATED,
-    },
-    {
-      event: WebSocketRequestEvents.POD_LIST,
-      handler: handlePodList as unknown as ValidatedHandler<unknown>,
-      schema: podListSchema,
-      responseEvent: WebSocketResponseEvents.POD_LIST_RESULT,
-    },
-    {
-      event: WebSocketRequestEvents.POD_GET,
-      handler: handlePodGet as unknown as ValidatedHandler<unknown>,
-      schema: podGetSchema,
-      responseEvent: WebSocketResponseEvents.POD_GET_RESULT,
-    },
-    {
-      event: WebSocketRequestEvents.POD_UPDATE,
-      handler: handlePodUpdate as unknown as ValidatedHandler<unknown>,
-      schema: podUpdateSchema,
-      responseEvent: WebSocketResponseEvents.POD_UPDATED,
-    },
-    {
-      event: WebSocketRequestEvents.POD_DELETE,
-      handler: handlePodDelete as unknown as ValidatedHandler<unknown>,
-      schema: podDeleteSchema,
-      responseEvent: WebSocketResponseEvents.POD_DELETED,
-    },
+    createHandlerDefinition(
+      WebSocketRequestEvents.POD_CREATE,
+      handlePodCreate,
+      podCreateSchema,
+      WebSocketResponseEvents.POD_CREATED
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.POD_LIST,
+      handlePodList,
+      podListSchema,
+      WebSocketResponseEvents.POD_LIST_RESULT
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.POD_GET,
+      handlePodGet,
+      podGetSchema,
+      WebSocketResponseEvents.POD_GET_RESULT
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.POD_UPDATE,
+      handlePodUpdate,
+      podUpdateSchema,
+      WebSocketResponseEvents.POD_UPDATED
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.POD_DELETE,
+      handlePodDelete,
+      podDeleteSchema,
+      WebSocketResponseEvents.POD_DELETED
+    ),
   ],
 };

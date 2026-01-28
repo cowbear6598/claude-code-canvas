@@ -11,35 +11,35 @@ import {
   handleConnectionDelete,
   handleConnectionUpdate,
 } from '../connectionHandlers.js';
+import { createHandlerDefinition } from '../registry.js';
 import type { HandlerGroup } from '../registry.js';
-import type { ValidatedHandler } from '../../middleware/wsMiddleware.js';
 
 export const connectionHandlerGroup: HandlerGroup = {
   name: 'connection',
   handlers: [
-    {
-      event: WebSocketRequestEvents.CONNECTION_CREATE,
-      handler: handleConnectionCreate as unknown as ValidatedHandler<unknown>,
-      schema: connectionCreateSchema,
-      responseEvent: WebSocketResponseEvents.CONNECTION_CREATED,
-    },
-    {
-      event: WebSocketRequestEvents.CONNECTION_LIST,
-      handler: handleConnectionList as unknown as ValidatedHandler<unknown>,
-      schema: connectionListSchema,
-      responseEvent: WebSocketResponseEvents.CONNECTION_LIST_RESULT,
-    },
-    {
-      event: WebSocketRequestEvents.CONNECTION_DELETE,
-      handler: handleConnectionDelete as unknown as ValidatedHandler<unknown>,
-      schema: connectionDeleteSchema,
-      responseEvent: WebSocketResponseEvents.CONNECTION_DELETED,
-    },
-    {
-      event: WebSocketRequestEvents.CONNECTION_UPDATE,
-      handler: handleConnectionUpdate as unknown as ValidatedHandler<unknown>,
-      schema: connectionUpdateSchema,
-      responseEvent: WebSocketResponseEvents.CONNECTION_UPDATED,
-    },
+    createHandlerDefinition(
+      WebSocketRequestEvents.CONNECTION_CREATE,
+      handleConnectionCreate,
+      connectionCreateSchema,
+      WebSocketResponseEvents.CONNECTION_CREATED
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.CONNECTION_LIST,
+      handleConnectionList,
+      connectionListSchema,
+      WebSocketResponseEvents.CONNECTION_LIST_RESULT
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.CONNECTION_DELETE,
+      handleConnectionDelete,
+      connectionDeleteSchema,
+      WebSocketResponseEvents.CONNECTION_DELETED
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.CONNECTION_UPDATE,
+      handleConnectionUpdate,
+      connectionUpdateSchema,
+      WebSocketResponseEvents.CONNECTION_UPDATED
+    ),
   ],
 };
