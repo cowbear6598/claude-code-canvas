@@ -4,6 +4,18 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // 使用測試專用的 TypeScript 配置
+  esbuild: {
+    tsconfigRaw: {
+      compilerOptions: {
+        target: 'ES2022',
+        module: 'NodeNext',
+        moduleResolution: 'NodeNext',
+        esModuleInterop: true,
+        strict: true,
+      },
+    },
+  },
   test: {
     // Use Node.js environment for backend tests
     environment: 'node',
@@ -13,6 +25,12 @@ export default defineConfig({
 
     // Global test configuration
     globals: true,
+
+    // Global setup (teardown 函數也在同一檔案中)
+    globalSetup: ['./tests/setup/globalSetup.ts'],
+
+    // Setup files to run before each test file
+    setupFiles: ['./tests/setup/testConfig.ts'],
 
     // Environment variables for testing
     env: {
