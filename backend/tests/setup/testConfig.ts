@@ -4,6 +4,10 @@
 import path from 'path';
 import os from 'os';
 
+// 增加 EventEmitter 的 max listeners 限制，避免測試中的警告
+// 每個測試都會建立 socket 連線，導致 listeners 累積
+process.setMaxListeners(50);
+
 const timestamp = Date.now();
 
 export interface TestConfig {
