@@ -20,7 +20,8 @@
       "Skill(nodejs)",
       "Bash(node:*)",
       "Bash(npx vue-tsc:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npm test:*)"
     ]
   },
   "outputStyle": "conductor"
