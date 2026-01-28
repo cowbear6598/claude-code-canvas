@@ -4,6 +4,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { config } from '../config/index.js';
+import { isPathWithinDirectory } from '../utils/pathValidator.js';
 
 class RepositoryService {
   /**
@@ -61,11 +62,17 @@ class RepositoryService {
   }
 
   /**
-   * Delete a repository
-   * Note: This removes the repository from the list but does not delete the actual directory
+   * Delete a repository directory
    */
-  async delete(_repositoryId: string): Promise<void> {
-    console.log(`[RepositoryService] Repository delete called - only removes from list, does not delete actual directory`);
+  async delete(repositoryId: string): Promise<void> {
+    const repositoryPath = this.getRepositoryPath(repositoryId);
+
+    if (!isPathWithinDirectory(repositoryPath, config.repositoriesRoot)) {
+      throw new Error(`Invalid repository path: ${repositoryId}`);
+    }
+
+    await fs.rm(repositoryPath, { recursive: true, force: true });
+    console.log(`[Repository] [Delete] Deleted repository directory: ${repositoryId}`);
   }
 }
 
