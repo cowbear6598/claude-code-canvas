@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref, computed, onUnmounted, watch} from 'vue'
+import {ref, computed, onUnmounted} from 'vue'
 import type {Pod, ModelType} from '@/types'
 import type {AnchorPosition} from '@/types/connection'
 import {usePodStore, useViewportStore, useSelectionStore} from '@/stores/pod'
@@ -18,24 +18,12 @@ import type {
   WorkflowClearPayload,
   PodUpdatePayload
 } from '@/types/websocket'
-import PodHeader from './PodHeader.vue'
-import PodMiniScreen from './PodMiniScreen.vue'
-import PodOutputStyleSlot from './PodOutputStyleSlot.vue'
-import PodSkillSlot from './PodSkillSlot.vue'
-import PodSubAgentSlot from './PodSubAgentSlot.vue'
-import PodRepositorySlot from './PodRepositorySlot.vue'
-import PodAnchor from './PodAnchor.vue'
-import PodModelSelector from './PodModelSelector.vue'
-import {Eraser, Trash2} from 'lucide-vue-next'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import {Button} from '@/components/ui/button'
+import PodHeader from '@/components/pod/PodHeader.vue'
+import PodMiniScreen from '@/components/pod/PodMiniScreen.vue'
+import PodSlots from '@/components/pod/PodSlots.vue'
+import PodAnchors from '@/components/pod/PodAnchors.vue'
+import PodActions from '@/components/pod/PodActions.vue'
+import PodModelSelector from '@/components/pod/PodModelSelector.vue'
 
 const props = defineProps<{
   pod: Pod
@@ -91,17 +79,6 @@ const isLoadingDownstream = ref(false)
 const isClearing = ref(false)
 const showDeleteDialog = ref(false)
 
-const longPressTimer = ref<ReturnType<typeof setTimeout> | null>(null)
-const isLongPress = ref(false)
-const isToggling = ref(false)
-const LONG_PRESS_DURATION = 500
-
-const isLongPressing = ref(false)
-const longPressProgress = ref(0)
-const mousePosition = ref({ x: 0, y: 0 })
-let progressAnimationFrame: number | null = null
-let longPressStartTime: number | null = null
-
 const isAutoClearEnabled = computed(() => props.pod.autoClear ?? false)
 const isAutoClearAnimating = computed(() => chatStore.autoClearAnimationPodId === props.pod.id)
 
@@ -121,13 +98,6 @@ const cleanupEventListeners = () => {
 
 onUnmounted(() => {
   cleanupEventListeners()
-  if (longPressTimer.value) {
-    clearTimeout(longPressTimer.value)
-    longPressTimer.value = null
-  }
-  if (progressAnimationFrame) {
-    cancelAnimationFrame(progressAnimationFrame)
-  }
 })
 
 const handleMouseDown = (e: MouseEvent) => {
@@ -203,15 +173,7 @@ const handleSaveName = () => {
 }
 
 const handleDelete = () => {
-  showDeleteDialog.value = true
-}
-
-const confirmDelete = () => {
   emit('delete', props.pod.id)
-  showDeleteDialog.value = false
-}
-
-const cancelDelete = () => {
   showDeleteDialog.value = false
 }
 
@@ -329,7 +291,7 @@ const handleClearWorkflow = async () => {
   showClearDialog.value = true
 }
 
-const confirmClear = async () => {
+const handleConfirmClear = async () => {
   isClearing.value = true
 
   const {wrapWebSocketRequest} = useWebSocketErrorHandler()
@@ -355,7 +317,7 @@ const confirmClear = async () => {
   downstreamPods.value = []
 }
 
-const cancelClear = () => {
+const handleCancelClear = () => {
   showClearDialog.value = false
   downstreamPods.value = []
 }
@@ -379,84 +341,9 @@ const handleModelChange = async (model: ModelType) => {
   podStore.updatePodModel(props.pod.id, response.pod.model ?? 'opus')
 }
 
-const handleEraserMouseDown = (e: MouseEvent) => {
-  e.stopPropagation()
-  isLongPress.value = false
-  isLongPressing.value = true
-  longPressProgress.value = 0
-  longPressStartTime = performance.now()
-
-  // 記錄滑鼠位置（相對於 viewport）
-  mousePosition.value = { x: e.clientX, y: e.clientY }
-
-  // 使用 requestAnimationFrame 更新進度
-  const updateProgress = () => {
-    if (!longPressStartTime || !isLongPressing.value) return
-
-    const elapsed = performance.now() - longPressStartTime
-    longPressProgress.value = Math.min(elapsed / LONG_PRESS_DURATION, 1)
-
-    if (longPressProgress.value < 1) {
-      progressAnimationFrame = requestAnimationFrame(updateProgress)
-    }
-  }
-  progressAnimationFrame = requestAnimationFrame(updateProgress)
-
-  // 設定長按計時器
-  longPressTimer.value = setTimeout(() => {
-    isLongPress.value = true
-    isLongPressing.value = false
-    longPressProgress.value = 0
-    toggleAutoClear()
-  }, LONG_PRESS_DURATION)
+const handleToggleAutoClear = async () => {
+  await podStore.setAutoClearWithBackend(props.pod.id, !isAutoClearEnabled.value)
 }
-
-const handleEraserMouseUp = () => {
-  if (longPressTimer.value) {
-    clearTimeout(longPressTimer.value)
-    longPressTimer.value = null
-  }
-  isLongPressing.value = false
-  longPressProgress.value = 0
-  if (progressAnimationFrame) {
-    cancelAnimationFrame(progressAnimationFrame)
-    progressAnimationFrame = null
-  }
-  if (!isLongPress.value) {
-    handleClearWorkflow()
-  }
-}
-
-const handleEraserMouseLeave = () => {
-  if (longPressTimer.value) {
-    clearTimeout(longPressTimer.value)
-    longPressTimer.value = null
-  }
-  isLongPressing.value = false
-  longPressProgress.value = 0
-  if (progressAnimationFrame) {
-    cancelAnimationFrame(progressAnimationFrame)
-    progressAnimationFrame = null
-  }
-}
-
-const toggleAutoClear = async () => {
-  if (isToggling.value) return
-  isToggling.value = true
-  try {
-    await podStore.setAutoClearWithBackend(props.pod.id, !isAutoClearEnabled.value)
-  } finally {
-    isToggling.value = false
-  }
-}
-
-watch(isAutoClearAnimating, (newValue) => {
-  if (newValue) {
-    setTimeout(() => {
-      chatStore.clearAutoClearAnimation()
-    }, 600)
-  }
-})
 </script>
 
 <template>
@@ -481,45 +368,21 @@ watch(isAutoClearAnimating, (newValue) => {
           @update:model="handleModelChange"
       />
 
-      <!-- Output Style 凹槽 -->
-      <div class="pod-notch-area">
-        <PodOutputStyleSlot
-            :pod-id="pod.id"
-            :bound-note="boundNote"
-            :pod-rotation="pod.rotation"
-            @note-dropped="handleNoteDropped"
-            @note-removed="handleNoteRemoved"
-        />
-      </div>
-
-      <!-- Skill 凹槽 -->
-      <div class="pod-skill-notch-area">
-        <PodSkillSlot
-            :pod-id="pod.id"
-            :bound-notes="boundSkillNotes"
-            @note-dropped="handleSkillNoteDropped"
-        />
-      </div>
-
-      <!-- SubAgent 凹槽 -->
-      <div class="pod-subagent-notch-area">
-        <PodSubAgentSlot
-            :pod-id="pod.id"
-            :bound-notes="boundSubAgentNotes"
-            @note-dropped="handleSubAgentNoteDropped"
-        />
-      </div>
-
-      <!-- Repository 凹槽（右側） -->
-      <div class="pod-repository-notch-area">
-        <PodRepositorySlot
-            :pod-id="pod.id"
-            :bound-note="boundRepositoryNote"
-            :pod-rotation="pod.rotation"
-            @note-dropped="handleRepositoryNoteDropped"
-            @note-removed="handleRepositoryNoteRemoved"
-        />
-      </div>
+      <!-- Slots -->
+      <PodSlots
+          :pod-id="pod.id"
+          :pod-rotation="pod.rotation"
+          :bound-output-style-note="boundNote"
+          :bound-skill-notes="boundSkillNotes"
+          :bound-sub-agent-notes="boundSubAgentNotes"
+          :bound-repository-note="boundRepositoryNote"
+          @output-style-dropped="handleNoteDropped"
+          @output-style-removed="handleNoteRemoved"
+          @skill-dropped="handleSkillNoteDropped"
+          @subagent-dropped="handleSubAgentNoteDropped"
+          @repository-dropped="handleRepositoryNoteDropped"
+          @repository-removed="handleRepositoryNoteRemoved"
+      />
 
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
       <div class="pod-doodle w-56 overflow-visible relative" :class="[podStatusClass, { selected: isSelected }]">
@@ -531,29 +394,7 @@ watch(isAutoClearAnimating, (newValue) => {
         <div class="repository-notch"></div>
 
         <!-- Anchors -->
-        <PodAnchor
-            position="top"
-            :pod-id="pod.id"
-            @drag-start="handleAnchorDragStart"
-            @drag-move="handleAnchorDragMove"
-            @drag-end="handleAnchorDragEnd"
-        />
-        <PodAnchor
-            position="bottom"
-            :pod-id="pod.id"
-            @drag-start="handleAnchorDragStart"
-            @drag-move="handleAnchorDragMove"
-            @drag-end="handleAnchorDragEnd"
-        />
-        <PodAnchor
-            position="left"
-            :pod-id="pod.id"
-            @drag-start="handleAnchorDragStart"
-            @drag-move="handleAnchorDragMove"
-            @drag-end="handleAnchorDragEnd"
-        />
-        <PodAnchor
-            position="right"
+        <PodAnchors
             :pod-id="pod.id"
             @drag-start="handleAnchorDragStart"
             @drag-move="handleAnchorDragMove"
@@ -578,150 +419,28 @@ watch(isAutoClearAnimating, (newValue) => {
 
       </div>
 
-      <!-- 右下角按鈕區域 -->
-      <!-- Source Pod: 顯示按鈕群組 (刪除 + 橡皮擦) -->
-      <div v-if="isSourcePod" class="pod-action-buttons-group">
-        <!-- 刪除按鈕（左） -->
-        <button
-            class="pod-delete-button"
-            @click.stop="handleDelete"
-        >
-          <Trash2 :size="16"/>
-        </button>
-        <!-- 橡皮擦按鈕（右） -->
-        <button
-            class="workflow-clear-button-in-group"
-            :class="{
-            'auto-clear-enabled': isAutoClearEnabled,
-            'auto-clear-animating': isAutoClearAnimating
-          }"
-            :disabled="isLoadingDownstream || isClearing || isToggling"
-            @mousedown="handleEraserMouseDown"
-            @mouseup="handleEraserMouseUp"
-            @mouseleave="handleEraserMouseLeave"
-        >
-          <Eraser :size="16"/>
-          <span v-show="isAutoClearEnabled" class="auto-clear-badge">A</span>
-        </button>
-      </div>
-
-      <!-- 非 Source Pod: 只顯示刪除按鈕 -->
-      <button
-          v-else
-          class="pod-delete-button pod-delete-button-standalone"
-          @click.stop="handleDelete"
-      >
-        <Trash2 :size="16"/>
-      </button>
+      <!-- Actions -->
+      <PodActions
+          :pod-id="pod.id"
+          :pod-name="pod.name"
+          :is-source-pod="isSourcePod"
+          :is-auto-clear-enabled="isAutoClearEnabled"
+          :is-auto-clear-animating="isAutoClearAnimating"
+          :is-loading-downstream="isLoadingDownstream"
+          :is-clearing="isClearing"
+          :downstream-pods="downstreamPods"
+          :show-clear-dialog="showClearDialog"
+          :show-delete-dialog="showDeleteDialog"
+          @update:show-clear-dialog="showClearDialog = $event"
+          @update:show-delete-dialog="showDeleteDialog = $event"
+          @delete="handleDelete"
+          @clear-workflow="handleClearWorkflow"
+          @toggle-auto-clear="handleToggleAutoClear"
+          @confirm-clear="handleConfirmClear"
+          @cancel-clear="handleCancelClear"
+          @confirm-delete="handleDelete"
+          @cancel-delete="showDeleteDialog = false"
+      />
     </div>
-
-    <!-- Clear Workflow Dialog -->
-    <Dialog v-model:open="showClearDialog">
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>清理 Workflow</DialogTitle>
-          <DialogDescription>
-            即將清空以下 POD 的所有訊息：
-          </DialogDescription>
-        </DialogHeader>
-
-        <div class="py-4">
-          <ul class="space-y-2">
-            <li
-                v-for="pod in downstreamPods"
-                :key="pod.id"
-                class="text-sm font-mono text-foreground"
-            >
-              • {{ pod.name }}
-            </li>
-          </ul>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" @click="cancelClear" :disabled="isClearing">
-            取消
-          </Button>
-          <Button variant="destructive" @click="confirmClear" :disabled="isClearing">
-            {{ isClearing ? '清理中...' : '確認清理' }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <!-- Delete Pod Dialog -->
-    <Dialog v-model:open="showDeleteDialog">
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>刪除 Pod</DialogTitle>
-          <DialogDescription>
-            確定要刪除「{{ pod.name }}」嗎？此操作無法復原。
-          </DialogDescription>
-        </DialogHeader>
-
-        <DialogFooter>
-          <Button variant="outline" @click="cancelDelete">
-            取消
-          </Button>
-          <Button variant="destructive" @click="confirmDelete">
-            確認刪除
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <!-- Long Press Progress Indicator -->
-    <Teleport to="body">
-      <div
-        v-if="isLongPressing"
-        class="long-press-indicator"
-        :style="{
-          left: mousePosition.x + 'px',
-          top: mousePosition.y + 'px'
-        }"
-      >
-        <svg class="long-press-ring" width="52" height="52" viewBox="0 0 52 52">
-          <!-- 白色甜甜圈底（帶黑色邊框） -->
-          <circle
-            cx="26"
-            cy="26"
-            r="20"
-            fill="none"
-            stroke="var(--card)"
-            stroke-width="8"
-          />
-          <!-- 外邊框 -->
-          <circle
-            cx="26"
-            cy="26"
-            r="24"
-            fill="none"
-            stroke="var(--doodle-ink)"
-            stroke-width="2"
-          />
-          <!-- 內邊框 -->
-          <circle
-            cx="26"
-            cy="26"
-            r="16"
-            fill="none"
-            stroke="var(--doodle-ink)"
-            stroke-width="2"
-          />
-          <!-- 進度圓 -->
-          <circle
-            cx="26"
-            cy="26"
-            r="20"
-            fill="none"
-            stroke="var(--doodle-blue)"
-            stroke-width="6"
-            stroke-linecap="round"
-            :stroke-dasharray="125.66"
-            :stroke-dashoffset="125.66 * (1 - longPressProgress)"
-            transform="rotate(-90 26 26)"
-          />
-        </svg>
-      </div>
-    </Teleport>
   </div>
 </template>

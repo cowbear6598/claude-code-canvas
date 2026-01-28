@@ -4,7 +4,7 @@ import { createWebSocketRequest } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { useDeleteItem } from '@/composables/useDeleteItem'
 
-export interface NoteStoreConfig<TItem, TNote extends BaseNote> {
+export interface NoteStoreConfig<TItem, _TNote extends BaseNote> {
   storeName: string
   relationship: 'one-to-one' | 'one-to-many'
   responseItemsKey: string
@@ -34,7 +34,7 @@ export interface NoteStoreConfig<TItem, TNote extends BaseNote> {
   customActions?: Record<string, Function>
 }
 
-export interface BaseNoteState<TItem, TNote extends BaseNote> {
+interface BaseNoteState<TItem, TNote extends BaseNote> {
   availableItems: TItem[]
   notes: TNote[]
   isLoading: boolean
@@ -43,32 +43,6 @@ export interface BaseNoteState<TItem, TNote extends BaseNote> {
   animatingNoteIds: Set<string>
   isDraggingNote: boolean
   isOverTrash: boolean
-}
-
-export interface BaseNoteGetters<TItem, TNote extends BaseNote> {
-  getUnboundNotes: TNote[]
-  getNotesByPodId: (podId: string) => TNote[]
-  getNoteById: (noteId: string) => TNote | undefined
-  isNoteAnimating: (noteId: string) => boolean
-  canDeleteDraggedNote: boolean
-  isItemInUse: (itemId: string) => boolean
-  isItemBoundToPod?: (itemId: string, podId: string) => boolean
-}
-
-export interface BaseNoteActions<TItem> {
-  loadItems(): Promise<void>
-  loadNotesFromBackend(): Promise<void>
-  createNote(itemId: string, x: number, y: number): Promise<void>
-  updateNotePositionLocal(noteId: string, x: number, y: number): void
-  updateNotePosition(noteId: string, x: number, y: number): Promise<void>
-  bindToPod(noteId: string, podId: string): Promise<void>
-  unbindFromPod?(podId: string, returnToOriginal?: boolean): Promise<void>
-  setDraggedNote(noteId: string | null): void
-  setNoteAnimating(noteId: string, isAnimating: boolean): void
-  setIsDraggingNote(isDragging: boolean): void
-  setIsOverTrash(isOver: boolean): void
-  deleteNote(noteId: string): Promise<void>
-  deleteItem?(itemId: string): Promise<void>
 }
 
 export function createNoteStore<TItem, TNote extends BaseNote>(
@@ -87,10 +61,10 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
     }),
 
     getters: {
-      getUnboundNotes: (state): TNote[] =>
+      getUnboundNotes: (state) =>
         state.notes.filter(note => note.boundToPodId === null),
 
-      getNotesByPodId: (state) => (podId: string): TNote[] => {
+      getNotesByPodId: (state) => (podId: string) => {
         if (config.relationship === 'one-to-one') {
           const note = state.notes.find(note => note.boundToPodId === podId)
           return note ? [note] : []
@@ -98,25 +72,23 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
         return state.notes.filter(note => note.boundToPodId === podId)
       },
 
-      getNoteById: (state) => (noteId: string): TNote | undefined =>
+      getNoteById: (state) => (noteId: string) =>
         state.notes.find(note => note.id === noteId),
 
-      isNoteAnimating: (state) => (noteId: string): boolean =>
+      isNoteAnimating: (state) => (noteId: string) =>
         state.animatingNoteIds.has(noteId),
 
-      canDeleteDraggedNote: (state): boolean => {
+      canDeleteDraggedNote: (state) => {
         if (state.draggedNoteId === null) return false
         const note = state.notes.find(n => n.id === state.draggedNoteId)
         return note?.boundToPodId === null
       },
 
-      isItemInUse: (state) => (itemId: string): boolean =>
+      isItemInUse: (state) => (itemId: string) =>
         state.notes.some(note => (note as any)[config.itemIdField] === itemId && note.boundToPodId !== null),
 
-      isItemBoundToPod: config.relationship === 'one-to-many'
-        ? (state) => (itemId: string, podId: string): boolean =>
-            state.notes.some(note => (note as any)[config.itemIdField] === itemId && note.boundToPodId === podId)
-        : undefined,
+      isItemBoundToPod: (state) => (itemId: string, podId: string) =>
+        state.notes.some(note => (note as any)[config.itemIdField] === itemId && note.boundToPodId === podId),
     },
 
     actions: {
@@ -175,13 +147,13 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
       },
 
       async createNote(itemId: string, x: number, y: number): Promise<void> {
-        const item = this.availableItems.find(i => config.getItemId(i) === itemId)
+        const item = this.availableItems.find(i => config.getItemId(i as TItem) === itemId)
         if (!item) return
 
-        const itemName = config.getItemName(item)
+        const itemName = config.getItemName(item as TItem)
 
         const payload = {
-          ...config.createNotePayload(item, x, y),
+          ...config.createNotePayload(item as TItem, x, y),
           name: itemName,
           x,
           y,
@@ -313,9 +285,9 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
         if (!config.unbindEvents || config.relationship !== 'one-to-one') return
 
         const notes = this.getNotesByPodId(podId)
-        if (notes.length === 0) return
-
         const note = notes[0]
+        if (!note) return
+
         const noteId = note.id
 
         const updatePayload: any = {
@@ -390,7 +362,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
           payload: { [config.itemIdField]: itemId },
           errorMessage: '刪除項目失敗',
           onSuccess: (res) => {
-            const index = this.availableItems.findIndex(item => config.getItemId(item) === itemId)
+            const index = this.availableItems.findIndex(item => config.getItemId(item as TItem) === itemId)
             if (index !== -1) {
               this.availableItems.splice(index, 1)
             }
