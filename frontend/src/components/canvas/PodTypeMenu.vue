@@ -48,10 +48,10 @@ const isDeleteTargetInUse = computed(() => {
   const { type, id } = deleteTarget.value
 
   const inUseChecks = {
-    outputStyle: () => outputStyleStore.isOutputStyleInUse(id),
-    skill: () => skillStore.isSkillInUse(id),
-    subAgent: () => subAgentStore.isSubAgentInUse(id),
-    repository: () => repositoryStore.isRepositoryInUse(id),
+    outputStyle: () => outputStyleStore.isItemInUse(id),
+    skill: () => skillStore.isItemInUse(id),
+    subAgent: () => subAgentStore.isItemInUse(id),
+    repository: () => repositoryStore.isItemInUse(id),
   }
 
   return inUseChecks[type]()
@@ -175,7 +175,7 @@ const handleDeleteConfirm = async () => {
 
         <PodTypeMenuSubmenu
           v-model:hovered-item-id="hoveredItemId"
-          :items="outputStyleStore.availableStyles"
+          :items="outputStyleStore.availableItems"
           :visible="showSubmenu"
           @item-select="handleOutputStyleSelect"
           @item-delete="(id, name, event) => handleDeleteClick('outputStyle', id, name, event)"
@@ -198,7 +198,7 @@ const handleDeleteConfirm = async () => {
 
         <PodTypeMenuSubmenu
           v-model:hovered-item-id="hoveredItemId"
-          :items="skillStore.availableSkills"
+          :items="skillStore.availableItems"
           :visible="showSkillSubmenu"
           @item-select="handleSkillSelect"
           @item-delete="(id, name, event) => handleDeleteClick('skill', id, name, event)"
@@ -221,7 +221,7 @@ const handleDeleteConfirm = async () => {
 
         <PodTypeMenuSubmenu
           v-model:hovered-item-id="hoveredItemId"
-          :items="subAgentStore.availableSubAgents"
+          :items="subAgentStore.availableItems"
           :visible="showSubAgentSubmenu"
           @item-select="handleSubAgentSelect"
           @item-delete="(id, name, event) => handleDeleteClick('subAgent', id, name, event)"
@@ -244,7 +244,7 @@ const handleDeleteConfirm = async () => {
 
         <PodTypeMenuSubmenu
           v-model:hovered-item-id="hoveredItemId"
-          :items="repositoryStore.availableRepositories"
+          :items="repositoryStore.availableItems"
           :visible="showRepositorySubmenu"
           @item-select="handleRepositorySelect"
           @item-delete="(id, name, event) => handleDeleteClick('repository', id, name, event)"

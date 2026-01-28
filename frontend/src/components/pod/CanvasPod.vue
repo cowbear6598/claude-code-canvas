@@ -54,10 +54,10 @@ const {detectTargetAnchor} = useAnchorDetection()
 const {startBatchDrag, isElementSelected} = useBatchDrag()
 
 const isActive = computed(() => props.pod.id === podStore.activePodId)
-const boundNote = computed(() => outputStyleStore.getNoteByPodId(props.pod.id))
+const boundNote = computed(() => outputStyleStore.getNotesByPodId(props.pod.id)[0])
 const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
 const boundSubAgentNotes = computed(() => subAgentStore.getNotesByPodId(props.pod.id))
-const boundRepositoryNote = computed(() => repositoryStore.getNoteByPodId(props.pod.id))
+const boundRepositoryNote = computed(() => repositoryStore.getNotesByPodId(props.pod.id)[0])
 const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
 const currentModel = computed(() => props.pod.model ?? 'opus')
 
@@ -237,7 +237,7 @@ const handleSkillNoteDropped = async (noteId: string) => {
   const note = skillStore.getNoteById(noteId)
   if (!note) return
 
-  if (skillStore.isSkillBoundToPod(note.skillId, props.pod.id)) return
+  if (skillStore.isItemBoundToPod(note.skillId, props.pod.id)) return
 
   await skillStore.bindToPod(noteId, props.pod.id)
 }
@@ -246,7 +246,7 @@ const handleSubAgentNoteDropped = async (noteId: string) => {
   const note = subAgentStore.getNoteById(noteId)
   if (!note) return
 
-  if (subAgentStore.isSubAgentBoundToPod(note.subAgentId, props.pod.id)) return
+  if (subAgentStore.isItemBoundToPod(note.subAgentId, props.pod.id)) return
 
   await subAgentStore.bindToPod(noteId, props.pod.id)
 }

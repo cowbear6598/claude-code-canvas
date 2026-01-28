@@ -47,7 +47,7 @@ const handleDrop = () => {
   const draggedNote = subAgentStore.getNoteById(noteId)
   if (!draggedNote || draggedNote.boundToPodId !== null) return
 
-  if (subAgentStore.isSubAgentBoundToPod(draggedNote.subAgentId, props.podId)) {
+  if (subAgentStore.isItemBoundToPod && subAgentStore.isItemBoundToPod(draggedNote.subAgentId, props.podId)) {
     return
   }
 

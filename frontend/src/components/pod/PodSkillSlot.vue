@@ -47,7 +47,7 @@ const handleDrop = () => {
   const draggedNote = skillStore.getNoteById(noteId)
   if (!draggedNote || draggedNote.boundToPodId !== null) return
 
-  if (skillStore.isSkillBoundToPod(draggedNote.skillId, props.podId)) {
+  if (skillStore.isItemBoundToPod && skillStore.isItemBoundToPod(draggedNote.skillId, props.podId)) {
     console.warn('[PodSkillSlot] Skill already bound to this pod:', draggedNote.skillId)
     return
   }

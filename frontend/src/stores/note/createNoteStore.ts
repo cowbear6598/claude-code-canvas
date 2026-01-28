@@ -2,9 +2,13 @@ import { defineStore } from 'pinia'
 import type { BaseNote } from '@/types'
 import { createWebSocketRequest } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
+import { useDeleteItem } from '@/composables/useDeleteItem'
 
-export interface NoteStoreConfig<TItem> {
+export interface NoteStoreConfig<TItem, TNote extends BaseNote> {
   storeName: string
+  relationship: 'one-to-one' | 'one-to-many'
+  responseItemsKey: string
+  itemIdField: string
   events: {
     listItems: { request: string; response: string }
     listNotes: { request: string; response: string }
@@ -12,9 +16,22 @@ export interface NoteStoreConfig<TItem> {
     updateNote: { request: string; response: string }
     deleteNote: { request: string; response: string }
   }
+  bindEvents?: {
+    request: string
+    response: string
+  }
+  unbindEvents?: {
+    request: string
+    response: string
+  }
+  deleteItemEvents?: {
+    request: string
+    response: string
+  }
   createNotePayload: (item: TItem, x: number, y: number) => object
   getItemId: (item: TItem) => string
   getItemName: (item: TItem) => string
+  customActions?: Record<string, Function>
 }
 
 export interface BaseNoteState<TItem, TNote extends BaseNote> {
@@ -28,31 +45,37 @@ export interface BaseNoteState<TItem, TNote extends BaseNote> {
   isOverTrash: boolean
 }
 
-export interface BaseNoteGetters<TNote extends BaseNote> {
+export interface BaseNoteGetters<TItem, TNote extends BaseNote> {
   getUnboundNotes: TNote[]
+  getNotesByPodId: (podId: string) => TNote[]
   getNoteById: (noteId: string) => TNote | undefined
   isNoteAnimating: (noteId: string) => boolean
   canDeleteDraggedNote: boolean
+  isItemInUse: (itemId: string) => boolean
+  isItemBoundToPod?: (itemId: string, podId: string) => boolean
 }
 
 export interface BaseNoteActions<TItem> {
   loadItems(): Promise<void>
   loadNotesFromBackend(): Promise<void>
-  createNote(item: TItem, x: number, y: number): Promise<void>
+  createNote(itemId: string, x: number, y: number): Promise<void>
   updateNotePositionLocal(noteId: string, x: number, y: number): void
   updateNotePosition(noteId: string, x: number, y: number): Promise<void>
+  bindToPod(noteId: string, podId: string): Promise<void>
+  unbindFromPod?(podId: string, returnToOriginal?: boolean): Promise<void>
   setDraggedNote(noteId: string | null): void
   setNoteAnimating(noteId: string, isAnimating: boolean): void
   setIsDraggingNote(isDragging: boolean): void
   setIsOverTrash(isOver: boolean): void
   deleteNote(noteId: string): Promise<void>
+  deleteItem?(itemId: string): Promise<void>
 }
 
-export function createNoteStore<TItem>(
-  config: NoteStoreConfig<TItem>
+export function createNoteStore<TItem, TNote extends BaseNote>(
+  config: NoteStoreConfig<TItem, TNote>
 ) {
   return defineStore(config.storeName, {
-    state: (): BaseNoteState<TItem, BaseNote> => ({
+    state: (): BaseNoteState<TItem, TNote> => ({
       availableItems: [],
       notes: [],
       isLoading: false,
@@ -64,10 +87,18 @@ export function createNoteStore<TItem>(
     }),
 
     getters: {
-      getUnboundNotes: (state): BaseNote[] =>
+      getUnboundNotes: (state): TNote[] =>
         state.notes.filter(note => note.boundToPodId === null),
 
-      getNoteById: (state) => (noteId: string): BaseNote | undefined =>
+      getNotesByPodId: (state) => (podId: string): TNote[] => {
+        if (config.relationship === 'one-to-one') {
+          const note = state.notes.find(note => note.boundToPodId === podId)
+          return note ? [note] : []
+        }
+        return state.notes.filter(note => note.boundToPodId === podId)
+      },
+
+      getNoteById: (state) => (noteId: string): TNote | undefined =>
         state.notes.find(note => note.id === noteId),
 
       isNoteAnimating: (state) => (noteId: string): boolean =>
@@ -78,6 +109,14 @@ export function createNoteStore<TItem>(
         const note = state.notes.find(n => n.id === state.draggedNoteId)
         return note?.boundToPodId === null
       },
+
+      isItemInUse: (state) => (itemId: string): boolean =>
+        state.notes.some(note => (note as any)[config.itemIdField] === itemId && note.boundToPodId !== null),
+
+      isItemBoundToPod: config.relationship === 'one-to-many'
+        ? (state) => (itemId: string, podId: string): boolean =>
+            state.notes.some(note => (note as any)[config.itemIdField] === itemId && note.boundToPodId === podId)
+        : undefined,
     },
 
     actions: {
@@ -103,10 +142,8 @@ export function createNoteStore<TItem>(
           return
         }
 
-        if (response.styles) {
-          this.availableItems = response.styles
-        } else if (response.skills) {
-          this.availableItems = response.skills
+        if (response[config.responseItemsKey]) {
+          this.availableItems = response[config.responseItemsKey]
         }
       },
 
@@ -137,7 +174,10 @@ export function createNoteStore<TItem>(
         }
       },
 
-      async createNote(item: TItem, x: number, y: number): Promise<void> {
+      async createNote(itemId: string, x: number, y: number): Promise<void> {
+        const item = this.availableItems.find(i => config.getItemId(i) === itemId)
+        if (!item) return
+
         const itemName = config.getItemName(item)
 
         const payload = {
@@ -226,6 +266,90 @@ export function createNoteStore<TItem>(
         this.isOverTrash = isOver
       },
 
+      async bindToPod(noteId: string, podId: string): Promise<void> {
+        const note = this.notes.find(n => n.id === noteId)
+        if (!note) return
+
+        if (config.relationship === 'one-to-one') {
+          const existingNotes = this.getNotesByPodId(podId)
+          if (existingNotes.length > 0 && config.unbindEvents) {
+            await this.unbindFromPod!(podId, true)
+          }
+        }
+
+        const originalPosition = { x: note.x, y: note.y }
+
+        if (!config.bindEvents) return
+
+        const [, updateResponse] = await Promise.all([
+          createWebSocketRequest<any, any>({
+            requestEvent: config.bindEvents.request,
+            responseEvent: config.bindEvents.response,
+            payload: {
+              podId,
+              [config.itemIdField]: (note as any)[config.itemIdField]
+            }
+          }),
+          createWebSocketRequest<any, any>({
+            requestEvent: config.events.updateNote.request,
+            responseEvent: config.events.updateNote.response,
+            payload: {
+              noteId,
+              boundToPodId: podId,
+              originalPosition,
+            }
+          })
+        ])
+
+        if (updateResponse.note) {
+          const index = this.notes.findIndex(n => n.id === noteId)
+          if (index !== -1) {
+            this.notes[index] = updateResponse.note
+          }
+        }
+      },
+
+      async unbindFromPod(podId: string, returnToOriginal: boolean = false): Promise<void> {
+        if (!config.unbindEvents || config.relationship !== 'one-to-one') return
+
+        const notes = this.getNotesByPodId(podId)
+        if (notes.length === 0) return
+
+        const note = notes[0]
+        const noteId = note.id
+
+        const updatePayload: any = {
+          noteId,
+          boundToPodId: null,
+          originalPosition: null,
+        }
+
+        if (returnToOriginal && note.originalPosition) {
+          updatePayload.x = note.originalPosition.x
+          updatePayload.y = note.originalPosition.y
+        }
+
+        const [, updateResponse] = await Promise.all([
+          createWebSocketRequest<any, any>({
+            requestEvent: config.unbindEvents.request,
+            responseEvent: config.unbindEvents.response,
+            payload: { podId }
+          }),
+          createWebSocketRequest<any, any>({
+            requestEvent: config.events.updateNote.request,
+            responseEvent: config.events.updateNote.response,
+            payload: updatePayload
+          })
+        ])
+
+        if (updateResponse.note) {
+          const index = this.notes.findIndex(n => n.id === noteId)
+          if (index !== -1) {
+            this.notes[index] = updateResponse.note
+          }
+        }
+      },
+
       async deleteNote(noteId: string): Promise<void> {
         const index = this.notes.findIndex(n => n.id === noteId)
         if (index === -1) return
@@ -254,6 +378,31 @@ export function createNoteStore<TItem>(
           return
         }
       },
+
+      async deleteItem(itemId: string): Promise<void> {
+        if (!config.deleteItemEvents) return
+
+        const { deleteItem } = useDeleteItem()
+
+        await deleteItem<any, any>({
+          requestEvent: config.deleteItemEvents.request,
+          responseEvent: config.deleteItemEvents.response,
+          payload: { [config.itemIdField]: itemId },
+          errorMessage: '刪除項目失敗',
+          onSuccess: (res) => {
+            const index = this.availableItems.findIndex(item => config.getItemId(item) === itemId)
+            if (index !== -1) {
+              this.availableItems.splice(index, 1)
+            }
+
+            if (res.deletedNoteIds) {
+              this.notes = this.notes.filter(note => !res.deletedNoteIds!.includes(note.id))
+            }
+          }
+        })
+      },
+
+      ...(config.customActions || {})
     },
   })
 }

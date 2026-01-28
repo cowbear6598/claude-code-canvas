@@ -19,7 +19,8 @@
       "Bash(tree:*)",
       "Skill(nodejs)",
       "Bash(node:*)",
-      "Bash(npx vue-tsc:*)"
+      "Bash(npx vue-tsc:*)",
+      "Bash(ls:*)"
     ]
   },
   "outputStyle": "conductor"
