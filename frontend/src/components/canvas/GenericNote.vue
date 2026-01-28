@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue'
-import type { SkillNote } from '@/types'
+import { ref, onUnmounted, computed } from 'vue'
+import type { BaseNote } from '@/types'
 import { useViewportStore, useSelectionStore } from '@/stores/pod'
-import { useSkillStore } from '@/stores/note'
+import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore } from '@/stores/note'
 import { useBatchDrag } from '@/composables/canvas'
 
-const props = defineProps<{
-  note: SkillNote
-}>()
+type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository'
+
+interface Props {
+  note: BaseNote
+  noteType: NoteType
+}
+
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'drag-end': [data: { noteId: string; x: number; y: number }]
@@ -15,16 +20,56 @@ const emit = defineEmits<{
   'drag-complete': [data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }]
 }>()
 
+const cssClassMap: Record<NoteType, string> = {
+  outputStyle: 'output-style-note',
+  skill: 'skill-note',
+  subAgent: 'subagent-note',
+  repository: 'repository-note'
+}
+
+const selectionTypeMap: Record<NoteType, string> = {
+  outputStyle: 'outputStyleNote',
+  skill: 'skillNote',
+  subAgent: 'subAgentNote',
+  repository: 'repositoryNote'
+}
+
 const viewportStore = useViewportStore()
 const selectionStore = useSelectionStore()
+const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
+const subAgentStore = useSubAgentStore()
+const repositoryStore = useRepositoryStore()
 const { startBatchDrag, isElementSelected } = useBatchDrag()
 
+const noteStore = computed(() => {
+  switch (props.noteType) {
+    case 'outputStyle':
+      return outputStyleStore
+    case 'skill':
+      return skillStore
+    case 'subAgent':
+      return subAgentStore
+    case 'repository':
+      return repositoryStore
+  }
+})
+
 const isDragging = ref(false)
-const isAnimating = computed(() => skillStore.isNoteAnimating(props.note.id))
-const isSelected = computed(() =>
-  selectionStore.selectedSkillNoteIds.includes(props.note.id)
-)
+const isAnimating = computed(() => noteStore.value.isNoteAnimating(props.note.id))
+const isSelected = computed(() => {
+  switch (props.noteType) {
+    case 'outputStyle':
+      return selectionStore.selectedOutputStyleNoteIds.includes(props.note.id)
+    case 'skill':
+      return selectionStore.selectedSkillNoteIds.includes(props.note.id)
+    case 'subAgent':
+      return selectionStore.selectedSubAgentNoteIds.includes(props.note.id)
+    case 'repository':
+      return selectionStore.selectedRepositoryNoteIds.includes(props.note.id)
+  }
+})
+
 const dragRef = ref<{
   startX: number
   startY: number
@@ -56,21 +101,23 @@ onUnmounted(() => {
 // 2. 需要計算相對於 viewport 的坐標變化
 // 3. 需要在 unmount 時精確清理監聽器以防記憶體洩漏
 const handleMouseDown = (e: MouseEvent) => {
-  if (isElementSelected('skillNote', props.note.id) && selectionStore.selectedElements.length > 1) {
+  const selectionType = selectionTypeMap[props.noteType]
+
+  if (isElementSelected(selectionType, props.note.id) && selectionStore.selectedElements.length > 1) {
     if (startBatchDrag(e)) {
       return
     }
   }
 
-  if (!isElementSelected('skillNote', props.note.id)) {
-    selectionStore.setSelectedElements([{ type: 'skillNote', id: props.note.id }])
+  if (!isElementSelected(selectionType, props.note.id)) {
+    selectionStore.setSelectedElements([{ type: selectionType, id: props.note.id }])
   }
 
   cleanupEventListeners()
 
   isDragging.value = true
-  skillStore.setDraggedNote(props.note.id)
-  skillStore.setIsDraggingNote(true)
+  noteStore.value.setDraggedNote(props.note.id)
+  noteStore.value.setIsDraggingNote(true)
 
   startPosition.value = {
     x: props.note.x,
@@ -105,14 +152,14 @@ const handleMouseDown = (e: MouseEvent) => {
   const handleMouseUp = () => {
     emit('drag-complete', {
       noteId: props.note.id,
-      isOverTrash: skillStore.isOverTrash,
+      isOverTrash: noteStore.value.isOverTrash,
       startX: startPosition.value?.x ?? props.note.x,
       startY: startPosition.value?.y ?? props.note.y,
     })
 
     isDragging.value = false
-    skillStore.setDraggedNote(null)
-    skillStore.setIsDraggingNote(false)
+    noteStore.value.setDraggedNote(null)
+    noteStore.value.setIsDraggingNote(false)
     startPosition.value = null
     dragRef.value = null
     cleanupEventListeners()
@@ -124,19 +171,21 @@ const handleMouseDown = (e: MouseEvent) => {
   document.addEventListener('mousemove', handleMouseMove)
   document.addEventListener('mouseup', handleMouseUp)
 }
+
+const cssClass = computed(() => cssClassMap[props.noteType])
+const textClass = computed(() => `${cssClassMap[props.noteType]}-text`)
 </script>
 
 <template>
   <div
-    class="skill-note"
-    :class="{ dragging: isDragging, animating: isAnimating, selected: isSelected }"
+    :class="[cssClass, { dragging: isDragging, animating: isAnimating, selected: isSelected }]"
     :style="{
       left: `${note.x}px`,
       top: `${note.y}px`,
     }"
     @mousedown="handleMouseDown"
   >
-    <div class="skill-note-text">
+    <div :class="textClass">
       {{ note.name }}
     </div>
   </div>

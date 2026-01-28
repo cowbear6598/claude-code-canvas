@@ -8,10 +8,7 @@ import CanvasViewport from './CanvasViewport.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
-import OutputStyleNote from './OutputStyleNote.vue'
-import SkillNote from './SkillNote.vue'
-import SubAgentNote from './SubAgentNote.vue'
-import RepositoryNote from './RepositoryNote.vue'
+import GenericNote from './GenericNote.vue'
 import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
 import SelectionBox from './SelectionBox.vue'
@@ -161,133 +158,48 @@ const handleCreateRepositoryNote = (repositoryId: string) => {
   repositoryStore.createNote(repositoryId, canvasX, canvasY)
 }
 
-const handleNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
-  outputStyleStore.updateNotePositionLocal(data.noteId, data.x, data.y)
-}
+type NoteStoreType = ReturnType<typeof useOutputStyleStore> | ReturnType<typeof useSkillStore> | ReturnType<typeof useSubAgentStore> | ReturnType<typeof useRepositoryStore>
 
-const handleNoteDragMove = (data: { noteId: string; screenX: number; screenY: number }) => {
-  if (!trashZoneRef.value) return
-
-  const isOver = trashZoneRef.value.isPointInZone(data.screenX, data.screenY)
-  outputStyleStore.setIsOverTrash(isOver)
-}
-
-const handleNoteDragComplete = async (data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }) => {
-  const note = outputStyleStore.getNoteById(data.noteId)
-  if (!note) return
-
-  if (data.isOverTrash) {
-    if (note.boundToPodId === null) {
-      await outputStyleStore.deleteNote(data.noteId)
-    } else {
-      outputStyleStore.setNoteAnimating(data.noteId, true)
-      await outputStyleStore.updateNotePosition(data.noteId, data.startX, data.startY)
-      setTimeout(() => {
-        outputStyleStore.setNoteAnimating(data.noteId, false)
-      }, 300)
-    }
-  } else {
-    await outputStyleStore.updateNotePosition(data.noteId, note.x, note.y)
+const createNoteDragHandlers = (store: NoteStoreType) => {
+  const handleDragEnd = (data: { noteId: string; x: number; y: number }) => {
+    store.updateNotePositionLocal(data.noteId, data.x, data.y)
   }
 
-  outputStyleStore.setIsOverTrash(false)
-}
+  const handleDragMove = (data: { noteId: string; screenX: number; screenY: number }) => {
+    if (!trashZoneRef.value) return
 
-const handleSkillNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
-  skillStore.updateNotePositionLocal(data.noteId, data.x, data.y)
-}
-
-const handleSkillNoteDragMove = (data: { noteId: string; screenX: number; screenY: number }) => {
-  if (!trashZoneRef.value) return
-
-  const isOver = trashZoneRef.value.isPointInZone(data.screenX, data.screenY)
-  skillStore.setIsOverTrash(isOver)
-}
-
-const handleSkillNoteDragComplete = async (data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }) => {
-  const note = skillStore.getNoteById(data.noteId)
-  if (!note) return
-
-  if (data.isOverTrash) {
-    if (note.boundToPodId === null) {
-      await skillStore.deleteNote(data.noteId)
-    } else {
-      skillStore.setNoteAnimating(data.noteId, true)
-      await skillStore.updateNotePosition(data.noteId, data.startX, data.startY)
-      setTimeout(() => {
-        skillStore.setNoteAnimating(data.noteId, false)
-      }, 300)
-    }
-  } else {
-    await skillStore.updateNotePosition(data.noteId, note.x, note.y)
+    const isOver = trashZoneRef.value.isPointInZone(data.screenX, data.screenY)
+    store.setIsOverTrash(isOver)
   }
 
-  skillStore.setIsOverTrash(false)
-}
+  const handleDragComplete = async (data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }) => {
+    const note = store.getNoteById(data.noteId)
+    if (!note) return
 
-const handleSubAgentNoteDragEnd = (data: { noteId: string; x: number; y: number }) => {
-  subAgentStore.updateNotePositionLocal(data.noteId, data.x, data.y)
-}
-
-const handleSubAgentNoteDragMove = (data: { noteId: string; screenX: number; screenY: number }) => {
-  if (!trashZoneRef.value) return
-
-  const isOver = trashZoneRef.value.isPointInZone(data.screenX, data.screenY)
-  subAgentStore.setIsOverTrash(isOver)
-}
-
-const handleSubAgentNoteDragComplete = async (data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }) => {
-  const note = subAgentStore.getNoteById(data.noteId)
-  if (!note) return
-
-  if (data.isOverTrash) {
-    if (note.boundToPodId === null) {
-      await subAgentStore.deleteNote(data.noteId)
+    if (data.isOverTrash) {
+      if (note.boundToPodId === null) {
+        await store.deleteNote(data.noteId)
+      } else {
+        store.setNoteAnimating(data.noteId, true)
+        await store.updateNotePosition(data.noteId, data.startX, data.startY)
+        setTimeout(() => {
+          store.setNoteAnimating(data.noteId, false)
+        }, 300)
+      }
     } else {
-      subAgentStore.setNoteAnimating(data.noteId, true)
-      await subAgentStore.updateNotePosition(data.noteId, data.startX, data.startY)
-      setTimeout(() => {
-        subAgentStore.setNoteAnimating(data.noteId, false)
-      }, 300)
+      await store.updateNotePosition(data.noteId, note.x, note.y)
     }
-  } else {
-    await subAgentStore.updateNotePosition(data.noteId, note.x, note.y)
+
+    store.setIsOverTrash(false)
   }
 
-  subAgentStore.setIsOverTrash(false)
+  return { handleDragEnd, handleDragMove, handleDragComplete }
 }
 
-const handleRepositoryNoteDragEnd = (data: {noteId: string; x: number; y: number}) => {
-  repositoryStore.updateNotePositionLocal(data.noteId, data.x, data.y)
-}
-
-const handleRepositoryNoteDragMove = (data: {noteId: string; screenX: number; screenY: number}) => {
-  if (!trashZoneRef.value) return
-
-  const isOver = trashZoneRef.value.isPointInZone(data.screenX, data.screenY)
-  repositoryStore.setIsOverTrash(isOver)
-}
-
-const handleRepositoryNoteDragComplete = async (data: {noteId: string; isOverTrash: boolean; startX: number; startY: number}) => {
-  const note = repositoryStore.getNoteById(data.noteId)
-  if (!note) return
-
-  if (data.isOverTrash) {
-    if (note.boundToPodId === null) {
-      await repositoryStore.deleteNote(data.noteId)
-    } else {
-      repositoryStore.setNoteAnimating(data.noteId, true)
-      await repositoryStore.updateNotePosition(data.noteId, data.startX, data.startY)
-      setTimeout(() => {
-        repositoryStore.setNoteAnimating(data.noteId, false)
-      }, 300)
-    }
-  } else {
-    await repositoryStore.updateNotePosition(data.noteId, note.x, note.y)
-  }
-
-  repositoryStore.setIsOverTrash(false)
-}
+const outputStyleHandlers = createNoteDragHandlers(outputStyleStore)
+const skillHandlers = createNoteDragHandlers(skillStore)
+const subAgentHandlers = createNoteDragHandlers(subAgentStore)
+const repositoryHandlers = createNoteDragHandlers(repositoryStore)
 </script>
 
 <template>
@@ -310,43 +222,47 @@ const handleRepositoryNoteDragComplete = async (data: {noteId: string; isOverTra
     />
 
     <!-- Output Style Notes -->
-    <OutputStyleNote
+    <GenericNote
       v-for="note in outputStyleStore.getUnboundNotes"
       :key="note.id"
       :note="note"
-      @drag-end="handleNoteDragEnd"
-      @drag-move="handleNoteDragMove"
-      @drag-complete="handleNoteDragComplete"
+      note-type="outputStyle"
+      @drag-end="outputStyleHandlers.handleDragEnd"
+      @drag-move="outputStyleHandlers.handleDragMove"
+      @drag-complete="outputStyleHandlers.handleDragComplete"
     />
 
     <!-- Skill Notes -->
-    <SkillNote
+    <GenericNote
       v-for="note in skillStore.getUnboundNotes"
       :key="note.id"
       :note="note"
-      @drag-end="handleSkillNoteDragEnd"
-      @drag-move="handleSkillNoteDragMove"
-      @drag-complete="handleSkillNoteDragComplete"
+      note-type="skill"
+      @drag-end="skillHandlers.handleDragEnd"
+      @drag-move="skillHandlers.handleDragMove"
+      @drag-complete="skillHandlers.handleDragComplete"
     />
 
     <!-- SubAgent Notes -->
-    <SubAgentNote
+    <GenericNote
       v-for="note in subAgentStore.getUnboundNotes"
       :key="note.id"
       :note="note"
-      @drag-end="handleSubAgentNoteDragEnd"
-      @drag-move="handleSubAgentNoteDragMove"
-      @drag-complete="handleSubAgentNoteDragComplete"
+      note-type="subAgent"
+      @drag-end="subAgentHandlers.handleDragEnd"
+      @drag-move="subAgentHandlers.handleDragMove"
+      @drag-complete="subAgentHandlers.handleDragComplete"
     />
 
     <!-- Repository Notes -->
-    <RepositoryNote
+    <GenericNote
       v-for="note in repositoryStore.getUnboundNotes"
       :key="note.id"
       :note="note"
-      @drag-end="handleRepositoryNoteDragEnd"
-      @drag-move="handleRepositoryNoteDragMove"
-      @drag-complete="handleRepositoryNoteDragComplete"
+      note-type="repository"
+      @drag-end="repositoryHandlers.handleDragEnd"
+      @drag-move="repositoryHandlers.handleDragMove"
+      @drag-complete="repositoryHandlers.handleDragComplete"
     />
 
     <!-- 空狀態 - 在畫布座標中央 -->
