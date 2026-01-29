@@ -17,8 +17,6 @@ import {
   createPastedConnections,
 } from './paste/pasteHelpers.js';
 import { podStore } from '../services/podStore.js';
-import { commandService } from '../services/commandService.js';
-import { repositoryService } from '../services/repositoryService.js';
 
 export async function handleCanvasPaste(
   socket: Socket,
@@ -54,22 +52,12 @@ export async function handleCanvasPaste(
 
   const createdConnections = createPastedConnections(connections, podIdMapping);
 
-  // 後處理：從 command notes 補齊 Pod 的 commandId 和檔案複製
+  // 後處理：從 command notes 補齊 Pod 的 commandId
   for (const note of createdCommandNotes) {
     if (note.boundToPodId) {
       const pod = podStore.getById(note.boundToPodId);
       if (pod && !pod.commandId) {
         podStore.setCommandId(note.boundToPodId, note.commandId);
-        try {
-          if (pod.repositoryId) {
-            const repoPath = repositoryService.getRepositoryPath(pod.repositoryId);
-            await commandService.copyCommandToRepository(note.commandId, repoPath);
-          } else {
-            await commandService.copyCommandToPod(note.commandId, note.boundToPodId);
-          }
-        } catch (error) {
-          logger.error('Paste', 'Error', `Failed to copy command from note: ${error}`);
-        }
       }
     }
   }

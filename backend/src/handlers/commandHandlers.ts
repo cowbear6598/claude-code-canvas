@@ -252,8 +252,7 @@ export async function handlePodUnbindCommand(
     return;
   }
 
-  const podPath = pod.workspacePath;
-  await commandService.deleteCommandFromPath(podPath);
+  await commandService.deleteCommandFromPath(pod.workspacePath);
 
   podStore.setCommandId(podId, null);
   const updatedPod = podStore.getById(podId);

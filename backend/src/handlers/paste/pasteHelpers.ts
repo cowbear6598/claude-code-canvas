@@ -22,11 +22,10 @@ import { repositoryNoteStore } from '../../services/repositoryNoteStore.js';
 import { commandNoteStore } from '../../services/commandNoteStore.js';
 import { connectionStore } from '../../services/connectionStore.js';
 import { repositoryService } from '../../services/repositoryService.js';
-import { skillService } from '../../services/skillService.js';
-import { subAgentService } from '../../services/subAgentService.js';
-import { commandService } from '../../services/commandService.js';
 import { getErrorMessage } from '../../utils/websocketResponse.js';
 import { logger } from '../../utils/logger.js';
+import fs from 'fs/promises';
+import path from 'path';
 
 function resolveBoundPodId(
   boundToOriginalPodId: string | null,
@@ -48,43 +47,20 @@ function recordError(
   logger.error('Paste', 'Error', `${context}: ${errorMessage}`);
 }
 
-async function copySkillsToPath(skillIds: string[], targetPath: string, isRepository: boolean): Promise<void> {
-  for (const skillId of skillIds) {
-    try {
-      if (isRepository) {
-        await skillService.copySkillToRepository(skillId, targetPath);
-      } else {
-        await skillService.copySkillToPod(skillId, targetPath);
-      }
-    } catch (error) {
-      logger.error('Paste', 'Error', `Failed to copy skill ${skillId} to ${isRepository ? 'repository' : 'pod'}`, error);
-    }
-  }
-}
+async function copyClaudeDir(srcCwd: string, destCwd: string): Promise<void> {
+  const srcClaudeDir = path.join(srcCwd, '.claude');
+  const destClaudeDir = path.join(destCwd, '.claude');
 
-async function copySubAgentsToPath(subAgentIds: string[], targetPath: string, isRepository: boolean): Promise<void> {
-  for (const subAgentId of subAgentIds) {
-    try {
-      if (isRepository) {
-        await subAgentService.copySubAgentToRepository(subAgentId, targetPath);
-      } else {
-        await subAgentService.copySubAgentToPod(subAgentId, targetPath);
-      }
-    } catch (error) {
-      logger.error('Paste', 'Error', `Failed to copy subagent ${subAgentId} to ${isRepository ? 'repository' : 'pod'}`, error);
-    }
-  }
-}
-
-async function copyCommandToPath(commandId: string, targetPath: string, isRepository: boolean): Promise<void> {
   try {
-    if (isRepository) {
-      await commandService.copyCommandToRepository(commandId, targetPath);
-    } else {
-      await commandService.copyCommandToPod(commandId, targetPath);
-    }
+    await fs.access(srcClaudeDir);
+  } catch {
+    return; // 原始 .claude 不存在，不需要複製
+  }
+
+  try {
+    await fs.cp(srcClaudeDir, destClaudeDir, { recursive: true });
   } catch (error) {
-    logger.error('Paste', 'Error', `Failed to copy command ${commandId} to ${isRepository ? 'repository' : 'pod'}: ${error}`);
+    logger.error('Paste', 'Error', `Failed to copy .claude directory: ${error}`);
   }
 }
 
@@ -129,19 +105,16 @@ export async function createPastedPods(
       await workspaceService.createWorkspace(pod.id);
       await claudeSessionManager.createSession(pod.id, cwd);
 
-      if (podItem.skillIds && podItem.skillIds.length > 0) {
-        const targetPath = finalRepositoryId ? repositoryService.getRepositoryPath(finalRepositoryId) : pod.id;
-        await copySkillsToPath(podItem.skillIds, targetPath, !!finalRepositoryId);
-      }
-
-      if (podItem.subAgentIds && podItem.subAgentIds.length > 0) {
-        const targetPath = finalRepositoryId ? repositoryService.getRepositoryPath(finalRepositoryId) : pod.id;
-        await copySubAgentsToPath(podItem.subAgentIds, targetPath, !!finalRepositoryId);
-      }
-
-      if (podItem.commandId) {
-        const targetPath = finalRepositoryId ? repositoryService.getRepositoryPath(finalRepositoryId) : pod.id;
-        await copyCommandToPath(podItem.commandId, targetPath, !!finalRepositoryId);
+      // 從原始 Pod 的工作目錄複製 .claude/ 到新 Pod 的工作目錄
+      const originalPod = podStore.getById(podItem.originalId);
+      if (originalPod) {
+        const srcCwd = originalPod.repositoryId
+          ? repositoryService.getRepositoryPath(originalPod.repositoryId)
+          : originalPod.workspacePath;
+        const destCwd = finalRepositoryId
+          ? repositoryService.getRepositoryPath(finalRepositoryId)
+          : pod.workspacePath;
+        await copyClaudeDir(srcCwd, destCwd);
       }
 
       createdPods.push(pod);
