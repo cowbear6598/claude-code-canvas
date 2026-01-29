@@ -9,6 +9,7 @@ import type {
   PasteSkillNoteItem,
   PasteRepositoryNoteItem,
   PasteSubAgentNoteItem,
+  PasteCommandNoteItem,
   PasteConnectionItem,
   Pod,
   Connection,
@@ -16,6 +17,7 @@ import type {
   SkillNote,
   RepositoryNote,
   SubAgentNote,
+  CommandNote,
 } from '../../src/types/index.js';
 
 /**
@@ -35,6 +37,7 @@ export function createPastePodItemFromPod(pod: Pod): PastePodItem {
     subAgentIds: pod.subAgentIds,
     model: pod.model,
     repositoryId: pod.repositoryId,
+    commandId: pod.commandId,
   };
 }
 
@@ -116,6 +119,22 @@ export function createPasteSubAgentNoteItemFromNote(
 }
 
 /**
+ * 從 CommandNote 建立 PasteCommandNoteItem
+ */
+export function createPasteCommandNoteItemFromNote(
+  note: CommandNote
+): PasteCommandNoteItem {
+  return {
+    commandId: note.commandId,
+    name: note.name,
+    x: note.x,
+    y: note.y,
+    boundToOriginalPodId: note.boundToPodId,
+    originalPosition: note.originalPosition,
+  };
+}
+
+/**
  * 建立測試用 Canvas Paste Payload
  */
 export function createTestPastePayload(
@@ -124,7 +143,8 @@ export function createTestPastePayload(
   outputStyleNotes: OutputStyleNote[] = [],
   skillNotes: SkillNote[] = [],
   repositoryNotes: RepositoryNote[] = [],
-  subAgentNotes: SubAgentNote[] = []
+  subAgentNotes: SubAgentNote[] = [],
+  commandNotes: CommandNote[] = []
 ): CanvasPastePayload {
   return {
     requestId: uuidv4(),
@@ -133,6 +153,7 @@ export function createTestPastePayload(
     skillNotes: skillNotes.map(createPasteSkillNoteItemFromNote),
     repositoryNotes: repositoryNotes.map(createPasteRepositoryNoteItemFromNote),
     subAgentNotes: subAgentNotes.map(createPasteSubAgentNoteItemFromNote),
+    commandNotes: commandNotes.map(createPasteCommandNoteItemFromNote),
     connections: connections.map(createPasteConnectionItemFromConnection),
   };
 }
@@ -158,6 +179,7 @@ export function createSimpleTestPastePayload(podCount: number): CanvasPastePaylo
     skillNotes: [],
     repositoryNotes: [],
     subAgentNotes: [],
+    commandNotes: [],
     connections: [],
   };
 }
