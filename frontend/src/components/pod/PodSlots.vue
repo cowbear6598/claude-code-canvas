@@ -101,7 +101,7 @@ const handleCommandRemoved = () => {
     />
   </div>
 
-  <!-- Command 凹槽（上方，Model 右側） -->
+  <!-- Command 凹槽（右側，Repository 下方） -->
   <div class="pod-command-notch-area">
     <PodCommandSlot
       :pod-id="podId"

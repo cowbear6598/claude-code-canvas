@@ -633,6 +633,7 @@ export interface PastePodItem {
   subAgentIds?: string[];
   model?: ModelType;
   repositoryId?: string | null;
+  commandId?: string | null;
 }
 
 interface PasteNoteItemBase {
@@ -659,6 +660,10 @@ export interface PasteSubAgentNoteItem extends PasteNoteItemBase {
   subAgentId: string;
 }
 
+export interface PasteCommandNoteItem extends PasteNoteItemBase {
+  commandId: string;
+}
+
 export interface PasteConnectionItem {
   originalSourcePodId: string;
   sourceAnchor: import('./connection.js').AnchorPosition;
@@ -674,11 +679,12 @@ export interface CanvasPastePayload {
   skillNotes: PasteSkillNoteItem[];
   repositoryNotes: PasteRepositoryNoteItem[];
   subAgentNotes: PasteSubAgentNoteItem[];
+  commandNotes: PasteCommandNoteItem[];
   connections: PasteConnectionItem[];
 }
 
 export interface PasteError {
-  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote';
+  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote';
   originalId: string;
   error: string;
 }
@@ -691,6 +697,7 @@ export interface CanvasPasteResultPayload {
   createdSkillNotes: import('./skillNote.js').SkillNote[];
   createdRepositoryNotes: import('./repositoryNote.js').RepositoryNote[];
   createdSubAgentNotes: import('./subAgentNote.js').SubAgentNote[];
+  createdCommandNotes: import('./commandNote.js').CommandNote[];
   createdConnections: import('./connection.js').Connection[];
   podIdMapping: Record<string, string>;
   errors: PasteError[];

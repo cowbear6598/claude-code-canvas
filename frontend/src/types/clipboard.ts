@@ -14,6 +14,7 @@ export interface CopiedPod {
   subAgentIds?: string[]
   model?: ModelType
   repositoryId?: string | null
+  commandId?: string | null
 }
 
 export interface CopiedOutputStyleNote {
@@ -52,6 +53,15 @@ export interface CopiedSubAgentNote {
   x: number
   y: number
   boundToPodId: string | null
+  originalPosition: { x: number; y: number } | null
+}
+
+export interface CopiedCommandNote {
+  commandId: string
+  name: string
+  x: number
+  y: number
+  boundToOriginalPodId: string | null
   originalPosition: { x: number; y: number } | null
 }
 

@@ -13,15 +13,19 @@ import {
   createPastedSkillNotes,
   createPastedRepositoryNotes,
   createPastedSubAgentNotes,
+  createPastedCommandNotes,
   createPastedConnections,
 } from './paste/pasteHelpers.js';
+import { podStore } from '../services/podStore.js';
+import { commandService } from '../services/commandService.js';
+import { repositoryService } from '../services/repositoryService.js';
 
 export async function handleCanvasPaste(
   socket: Socket,
   payload: CanvasPastePayload,
   requestId: string
 ): Promise<void> {
-  const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, connections } = payload;
+  const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, commandNotes, connections } = payload;
 
   const podIdMapping: Record<string, string> = {};
   const errors: PasteError[] = [];
@@ -44,7 +48,31 @@ export async function handleCanvasPaste(
   const createdSubAgentNotes = subAgentNotesResult.notes;
   errors.push(...subAgentNotesResult.errors);
 
+  const commandNotesResult = createPastedCommandNotes(commandNotes ?? [], podIdMapping);
+  const createdCommandNotes = commandNotesResult.notes;
+  errors.push(...commandNotesResult.errors);
+
   const createdConnections = createPastedConnections(connections, podIdMapping);
+
+  // 後處理：從 command notes 補齊 Pod 的 commandId 和檔案複製
+  for (const note of createdCommandNotes) {
+    if (note.boundToPodId) {
+      const pod = podStore.getById(note.boundToPodId);
+      if (pod && !pod.commandId) {
+        podStore.setCommandId(note.boundToPodId, note.commandId);
+        try {
+          if (pod.repositoryId) {
+            const repoPath = repositoryService.getRepositoryPath(pod.repositoryId);
+            await commandService.copyCommandToRepository(note.commandId, repoPath);
+          } else {
+            await commandService.copyCommandToPod(note.commandId, note.boundToPodId);
+          }
+        } catch (error) {
+          logger.error('Paste', 'Error', `Failed to copy command from note: ${error}`);
+        }
+      }
+    }
+  }
 
   const response: CanvasPasteResultPayload = {
     requestId,
@@ -54,6 +82,7 @@ export async function handleCanvasPaste(
     createdSkillNotes,
     createdRepositoryNotes,
     createdSubAgentNotes,
+    createdCommandNotes,
     createdConnections,
     podIdMapping,
     errors,
@@ -68,6 +97,6 @@ export async function handleCanvasPaste(
   logger.log(
     'Paste',
     'Complete',
-    `Paste completed: ${createdPods.length} pods, ${createdOutputStyleNotes.length} output style notes, ${createdSkillNotes.length} skill notes, ${createdRepositoryNotes.length} repository notes, ${createdSubAgentNotes.length} subagent notes, ${createdConnections.length} connections, ${errors.length} errors`
+    `Paste completed: ${createdPods.length} pods, ${createdOutputStyleNotes.length} output style notes, ${createdSkillNotes.length} skill notes, ${createdRepositoryNotes.length} repository notes, ${createdSubAgentNotes.length} subagent notes, ${createdCommandNotes.length} command notes, ${createdConnections.length} connections, ${errors.length} errors`
   );
 }

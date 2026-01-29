@@ -202,6 +202,7 @@ export interface PastePodItem {
   skillIds?: string[]
   model?: ModelType
   repositoryId?: string | null
+  commandId?: string | null
 }
 
 export interface PasteOutputStyleNoteItem {

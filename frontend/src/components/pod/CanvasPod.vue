@@ -406,12 +406,12 @@ const handleToggleAutoClear = async () => {
       <div class="pod-doodle w-56 overflow-visible relative" :class="[podStatusClass, { selected: isSelected }]">
         <!-- Model 凹槽 -->
         <div class="model-notch"></div>
-        <!-- Command 凹槽 -->
-        <div class="command-notch"></div>
         <!-- SubAgent 凹槽 -->
         <div class="subagent-notch"></div>
         <!-- Repository 凹槽（右側） -->
         <div class="repository-notch"></div>
+        <!-- Command 凹槽（右側，Repository 下方） -->
+        <div class="command-notch"></div>
 
         <!-- Anchors -->
         <PodAnchors

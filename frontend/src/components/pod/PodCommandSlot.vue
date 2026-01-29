@@ -92,7 +92,7 @@ const handleSlotClick = async (e: MouseEvent) => {
   const slotElement = slotRef.value
   if (!slotElement) return
 
-  const slotHeight = slotElement.getBoundingClientRect().height
+  const slotWidth = slotElement.getBoundingClientRect().width
   const zoom = viewportStore.zoom
 
   const podElement = slotElement.closest('.pod-with-notch')
@@ -101,14 +101,14 @@ const handleSlotClick = async (e: MouseEvent) => {
   const podRect = podElement.getBoundingClientRect()
   const viewportOffset = viewportStore.offset
 
-  const podCenterX = (podRect.left - viewportOffset.x) / zoom
-  const podCenterY = (podRect.top - viewportOffset.y + 12) / zoom
+  // Command 在右側，所以用 Pod 的右邊作為基準
+  const podCenterX = (podRect.right - viewportOffset.x) / zoom
+  const podCenterY = (podRect.top - viewportOffset.y + 58) / zoom
 
   const extraDistance = 30
-  const ejectDistance = slotHeight / zoom + extraDistance
-
-  const baseX = 0
-  const baseY = -ejectDistance
+  // 正值 = 向右彈出
+  const baseX = slotWidth / zoom + extraDistance
+  const baseY = 0
 
   const rotation = props.podRotation || 0
   const radians = rotation * Math.PI / 180

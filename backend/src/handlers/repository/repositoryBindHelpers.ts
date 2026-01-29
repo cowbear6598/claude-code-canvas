@@ -3,6 +3,7 @@ import type { Pod } from '../../types/index.js';
 import { WebSocketResponseEvents } from '../../types/index.js';
 import { skillService } from '../../services/skillService.js';
 import { subAgentService } from '../../services/subAgentService.js';
+import { commandService } from '../../services/commandService.js';
 import { messageStore } from '../../services/messageStore.js';
 import { logger } from '../../utils/logger.js';
 
@@ -17,6 +18,12 @@ export async function cleanupOldRepositoryResources(oldCwd: string): Promise<voi
     await subAgentService.deleteSubAgentsFromPath(oldCwd);
   } catch (error) {
     logger.error('Repository', 'Delete', `Failed to delete old subagents from ${oldCwd}`, error);
+  }
+
+  try {
+    await commandService.deleteCommandFromPath(oldCwd);
+  } catch (error) {
+    logger.error('Repository', 'Delete', `Failed to delete old commands from ${oldCwd}`, error);
   }
 }
 
@@ -48,6 +55,15 @@ export async function copyResourcesToNewPath(
     } catch (error) {
       const destination = isRepository ? 'repository' : 'workspace';
       logger.error('Repository', 'Error', `Failed to copy subagent ${subAgentId} to ${destination}`, error);
+    }
+  }
+
+  if (pod.commandId) {
+    try {
+      await commandService.copyCommandToRepository(pod.commandId, targetPath);
+    } catch (error) {
+      const destination = isRepository ? 'repository' : 'workspace';
+      logger.error('Repository', 'Error', `Failed to copy command ${pod.commandId} to ${destination}`, error);
     }
   }
 }

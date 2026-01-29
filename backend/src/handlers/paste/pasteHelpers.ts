@@ -4,6 +4,7 @@ import type {
   SkillNote,
   RepositoryNote,
   SubAgentNote,
+  CommandNote,
   Connection,
   PasteError,
 } from '../../types/index.js';
@@ -18,10 +19,12 @@ import { noteStore } from '../../services/noteStore.js';
 import { skillNoteStore } from '../../services/skillNoteStore.js';
 import { subAgentNoteStore } from '../../services/subAgentNoteStore.js';
 import { repositoryNoteStore } from '../../services/repositoryNoteStore.js';
+import { commandNoteStore } from '../../services/commandNoteStore.js';
 import { connectionStore } from '../../services/connectionStore.js';
 import { repositoryService } from '../../services/repositoryService.js';
 import { skillService } from '../../services/skillService.js';
 import { subAgentService } from '../../services/subAgentService.js';
+import { commandService } from '../../services/commandService.js';
 import { getErrorMessage } from '../../utils/websocketResponse.js';
 import { logger } from '../../utils/logger.js';
 
@@ -73,6 +76,18 @@ async function copySubAgentsToPath(subAgentIds: string[], targetPath: string, is
   }
 }
 
+async function copyCommandToPath(commandId: string, targetPath: string, isRepository: boolean): Promise<void> {
+  try {
+    if (isRepository) {
+      await commandService.copyCommandToRepository(commandId, targetPath);
+    } else {
+      await commandService.copyCommandToPod(commandId, targetPath);
+    }
+  } catch (error) {
+    logger.error('Paste', 'Error', `Failed to copy command ${commandId} to ${isRepository ? 'repository' : 'pod'}: ${error}`);
+  }
+}
+
 export async function createPastedPods(
   pods: PastePodItem[],
   podIdMapping: Record<string, string>,
@@ -104,6 +119,7 @@ export async function createPastedPods(
         subAgentIds: podItem.subAgentIds ?? [],
         model: podItem.model,
         repositoryId: finalRepositoryId,
+        commandId: podItem.commandId ?? null,
       });
 
       const cwd = finalRepositoryId
@@ -121,6 +137,11 @@ export async function createPastedPods(
       if (podItem.subAgentIds && podItem.subAgentIds.length > 0) {
         const targetPath = finalRepositoryId ? repositoryService.getRepositoryPath(finalRepositoryId) : pod.id;
         await copySubAgentsToPath(podItem.subAgentIds, targetPath, !!finalRepositoryId);
+      }
+
+      if (podItem.commandId) {
+        const targetPath = finalRepositoryId ? repositoryService.getRepositoryPath(finalRepositoryId) : pod.id;
+        await copyCommandToPath(podItem.commandId, targetPath, !!finalRepositoryId);
       }
 
       createdPods.push(pod);
@@ -150,7 +171,7 @@ export function createPastedNotes<
   noteItems: TNoteItem[],
   noteStore: NoteStoreType<TNote>,
   podIdMapping: Record<string, string>,
-  noteType: 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote',
+  noteType: 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote',
   getResourceId: (item: TNoteItem) => string,
   createParams: (item: TNoteItem, boundToPodId: string | null) => NoteCreateParams<TNote>
 ): { notes: TNote[]; errors: PasteError[] } {
@@ -173,6 +194,7 @@ export function createPastedNotes<
         skillNote: 'skillNote' as const,
         repositoryNote: 'repositoryNote' as const,
         subAgentNote: 'subAgentNote' as const,
+        commandNote: 'commandNote' as const,
       };
       recordError(errors, errorTypeMap[noteType], resourceId, error, `建立${noteType}失敗`);
     }
@@ -219,6 +241,7 @@ type OutputStyleNoteItem = { boundToOriginalPodId: string | null; outputStyleId:
 type SkillNoteItem = { boundToOriginalPodId: string | null; skillId: string; name: string; x: number; y: number; originalPosition: { x: number; y: number } | null };
 type RepositoryNoteItem = { boundToOriginalPodId: string | null; repositoryId: string; name: string; x: number; y: number; originalPosition: { x: number; y: number } | null };
 type SubAgentNoteItem = { boundToOriginalPodId: string | null; subAgentId: string; name: string; x: number; y: number; originalPosition: { x: number; y: number } | null };
+type CommandNoteItem = { boundToOriginalPodId: string | null; commandId: string; name: string; x: number; y: number; originalPosition: { x: number; y: number } | null };
 
 export function createPastedOutputStyleNotes(
   noteItems: OutputStyleNoteItem[],
@@ -295,6 +318,27 @@ export function createPastedSubAgentNotes(
     (item) => item.subAgentId,
     (item, boundToPodId) => ({
       subAgentId: item.subAgentId,
+      name: item.name,
+      x: item.x,
+      y: item.y,
+      boundToPodId,
+      originalPosition: item.originalPosition,
+    })
+  );
+}
+
+export function createPastedCommandNotes(
+  noteItems: CommandNoteItem[],
+  podIdMapping: Record<string, string>
+): { notes: CommandNote[]; errors: PasteError[] } {
+  return createPastedNotes<CommandNoteItem, CommandNote>(
+    noteItems,
+    commandNoteStore,
+    podIdMapping,
+    'commandNote',
+    (item) => item.commandId,
+    (item, boundToPodId) => ({
+      commandId: item.commandId,
       name: item.name,
       x: item.x,
       y: item.y,
