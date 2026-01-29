@@ -5,6 +5,7 @@ import { useChatStore } from '@/stores/chatStore'
 const chatStore = useChatStore()
 
 const connectionStatus = computed(() => chatStore.connectionStatus)
+const disconnectReason = computed(() => chatStore.getDisconnectReason)
 
 const statusConfig = computed(() => {
   switch (connectionStatus.value) {
@@ -23,9 +24,10 @@ const statusConfig = computed(() => {
         ringColor: 'ring-yellow-200'
       }
     case 'disconnected':
+      const reasonText = disconnectReason.value ? ` (${disconnectReason.value})` : ''
       return {
         color: 'bg-gray-400',
-        text: 'Disconnected',
+        text: `Disconnected${reasonText}`,
         textColor: 'text-gray-600',
         ringColor: 'ring-gray-200'
       }
@@ -46,13 +48,20 @@ const statusConfig = computed(() => {
   }
 })
 
+const tooltipText = computed(() => {
+  if (connectionStatus.value === 'disconnected' && disconnectReason.value) {
+    return `WebSocket status: ${statusConfig.value.text} - ${disconnectReason.value}`
+  }
+  return `WebSocket status: ${statusConfig.value.text}`
+})
+
 const isConnecting = computed(() => connectionStatus.value === 'connecting')
 </script>
 
 <template>
   <div
     class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm"
-    :title="`WebSocket status: ${statusConfig.text}`"
+    :title="tooltipText"
   >
     <!-- Status Indicator Dot -->
     <div class="relative">

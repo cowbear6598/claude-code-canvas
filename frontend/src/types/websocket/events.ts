@@ -137,6 +137,7 @@ export const WebSocketResponseEvents = {
   COMMAND_NOTE_DELETED: 'command-note:deleted',
   POD_COMMAND_BOUND: 'pod:command:bound',
   POD_COMMAND_UNBOUND: 'pod:command:unbound',
+  HEARTBEAT_PING: 'heartbeat:ping',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]

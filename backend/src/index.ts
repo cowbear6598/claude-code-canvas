@@ -50,9 +50,15 @@ startServer();
 const shutdown = async (signal: string): Promise<void> => {
   logger.log('Startup', 'Complete', `${signal} received, shutting down gracefully`);
 
+  socketService.stopHeartbeat();
+
   const io = socketService.getIO();
   io.close();
-  httpServer.close(() => process.exit(0));
+
+  httpServer.close(() => {
+    logger.log('Startup', 'Complete', 'Server closed successfully');
+    process.exit(0);
+  });
 };
 
 process.on('SIGINT', () => shutdown('SIGINT'));

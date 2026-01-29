@@ -1405,6 +1405,167 @@
   transition: stroke-dashoffset 0.05s linear;
 }
 
+/* ========================================
+   Disconnect Overlay - TV Static Effect
+   ======================================== */
+
+.disconnect-overlay {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9998;
+  background: oklch(0.08 0 0 / 0.85);
+  overflow: hidden;
+}
+
+.disconnect-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(45deg, oklch(0.12 0 0 / 0.3) 25%, transparent 25%, transparent 75%, oklch(0.12 0 0 / 0.3) 75%, oklch(0.12 0 0 / 0.3)),
+    linear-gradient(-45deg, oklch(0.15 0 0 / 0.3) 25%, transparent 25%, transparent 75%, oklch(0.15 0 0 / 0.3) 75%, oklch(0.15 0 0 / 0.3));
+  background-size: 3px 3px;
+  background-position: 0 0, 1.5px 1.5px;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+.disconnect-overlay-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 60px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.disconnect-overlay-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.disconnect-line-layer-1 {
+  stroke: oklch(0.6 0 0 / 0.5);
+  stroke-width: 1.5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 8 3 15 4 6 8 12 3;
+}
+
+.disconnect-line-layer-2 {
+  stroke: oklch(0.6 0 0 / 0.7);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 10 4 12 5 8 6 14 4;
+}
+
+.disconnect-line-layer-3 {
+  stroke: oklch(0.6 0 0 / 0.4);
+  stroke-width: 1;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 6 4 18 3 10 7 9 5;
+}
+
+
+.disconnect-overlay.tv-turn-off {
+  animation: tv-turn-off 0.5s ease-out forwards;
+  transform-origin: center center;
+}
+
+.disconnect-overlay.tv-turn-on {
+  animation: tv-turn-on 0.6s ease-in forwards;
+  transform-origin: center center;
+}
+
+@keyframes tv-turn-off {
+  0% {
+    filter: brightness(0);
+    transform: scale(0, 0.005);
+    background: oklch(0.95 0 0);
+    opacity: 0;
+  }
+  10% {
+    filter: brightness(2);
+    transform: scale(0, 0.005);
+    background: oklch(0.95 0 0);
+    opacity: 1;
+  }
+  30% {
+    filter: brightness(2);
+    transform: scaleY(0.005);
+    background: oklch(0.95 0 0);
+  }
+  60% {
+    filter: brightness(1.5);
+    transform: scale(1, 1);
+    background: oklch(0.08 0 0 / 0.85);
+  }
+  100% {
+    filter: brightness(1);
+    transform: scale(1, 1);
+    background: oklch(0.08 0 0 / 0.85);
+  }
+}
+
+@keyframes tv-turn-on {
+  0% {
+    filter: brightness(1);
+    transform: scale(1, 1);
+    background: oklch(0.08 0 0 / 0.85);
+  }
+  30% {
+    filter: brightness(1.5);
+    transform: scale(1, 1);
+  }
+  50% {
+    filter: brightness(2);
+    transform: scaleY(0.005);
+    background: oklch(0.95 0 0);
+  }
+  80% {
+    filter: brightness(2);
+    transform: scaleY(0.005);
+    background: oklch(0.95 0 0);
+  }
+  100% {
+    filter: brightness(0);
+    transform: scale(0, 0);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes tv-turn-off {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes tv-turn-on {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+}
+
 .pod-subagent-slot::before {
   content: '';
   position: absolute;

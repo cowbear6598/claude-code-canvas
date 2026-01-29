@@ -55,12 +55,8 @@ export type { PersistedMessage, ChatHistory, PersistedPod, PersistedConnection }
 
 // WebSocket types
 export {
-  WebSocketEvents,
   WebSocketRequestEvents,
   WebSocketResponseEvents,
-  type PodMessagePayload,
-  type PodToolUsePayload,
-  type PodCompletePayload,
   type PodErrorPayload,
   type PodCreatePayload,
   type PodListPayload,

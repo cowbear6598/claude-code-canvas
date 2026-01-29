@@ -1,188 +1,217 @@
-import { Server as HttpServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import { config } from '../config/index.js';
-import { logger } from '../utils/logger.js';
+import {Server as HttpServer} from 'http';
+import {Server as SocketIOServer} from 'socket.io';
+import {config} from '../config/index.js';
+import {logger} from '../utils/logger.js';
 import {
-  WebSocketResponseEvents,
-  ConnectionReadyPayload,
-  PodCreatedPayload,
-  PodListResultPayload,
-  PodGetResultPayload,
-  PodDeletedPayload,
-  PodGitCloneProgressPayload,
-  PodGitCloneResultPayload,
-  PodChatMessagePayload,
-  PodChatToolUsePayload,
-  PodChatToolResultPayload,
-  PodChatCompletePayload,
-  PodErrorPayload,
-  WorkflowTriggeredPayload,
-  WorkflowCompletePayload,
-  WorkflowErrorPayload,
+    WebSocketResponseEvents,
+    ConnectionReadyPayload,
+    PodDeletedPayload,
 } from '../types/index.js';
 
 class SocketService {
-  private io: SocketIOServer | null = null;
-  private socketToPodRooms: Map<string, Set<string>> = new Map();
+    private io: SocketIOServer | null = null;
+    private socketToPodRooms: Map<string, Set<string>> = new Map();
+    private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+    private socketMissedHeartbeats: Map<string, number> = new Map();
+    private socketTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
-  initialize(httpServer: HttpServer): void {
-    if (this.io) {
-      logger.log('Startup', 'Complete', '[Socket.io] Already initialized');
-      return;
+    private readonly HEARTBEAT_INTERVAL = 15000;
+    private readonly HEARTBEAT_TIMEOUT = 10000;
+    private readonly MAX_MISSED_HEARTBEATS = 2;
+
+    initialize(httpServer: HttpServer): void {
+        if (this.io) {
+            logger.log('Startup', 'Complete', '[Socket.io] Already initialized');
+            return;
+        }
+
+        this.io = new SocketIOServer(httpServer, {
+            cors: {
+                origin: config.corsOrigin,
+                methods: ['GET', 'POST'],
+            },
+            pingInterval: 10000,
+            pingTimeout: 5000,
+        });
+
+        logger.log('Startup', 'Complete', '[Socket.io] Server initialized');
+
+        this.startHeartbeat();
     }
 
-    this.io = new SocketIOServer(httpServer, {
-      cors: {
-        origin: config.corsOrigin,
-        methods: ['GET', 'POST'],
-      },
-    });
-
-    logger.log('Startup', 'Complete', '[Socket.io] Server initialized');
-  }
-
-  getIO(): SocketIOServer {
-    if (!this.io) {
-      throw new Error('Socket.io 尚未初始化。請先呼叫 initialize()');
-    }
-    return this.io;
-  }
-
-  emitToPod(podId: string, event: string, payload: unknown): void {
-    if (!this.io) {
-      return;
+    getIO(): SocketIOServer {
+        if (!this.io) {
+            throw new Error('Socket.io 尚未初始化。請先呼叫 initialize()');
+        }
+        return this.io;
     }
 
-    const roomName = `pod:${podId}`;
-    this.io.to(roomName).emit(event, payload);
-  }
+    emitToPod(podId: string, event: string, payload: unknown): void {
+        if (!this.io) {
+            return;
+        }
 
-  private emitToSocket(socketId: string, event: string, payload: unknown): void {
-    if (!this.io) {
-      return;
+        const roomName = `pod:${podId}`;
+        this.io.to(roomName).emit(event, payload);
     }
 
-    const socket = this.io.sockets.sockets.get(socketId);
-    if (!socket) {
-      return;
+    private emitToSocket(socketId: string, event: string, payload: unknown): void {
+        if (!this.io) {
+            return;
+        }
+
+        const socket = this.io.sockets.sockets.get(socketId);
+        if (!socket) {
+            return;
+        }
+
+        socket.emit(event, payload);
     }
 
-    socket.emit(event, payload);
-  }
-
-  emitConnectionReady(socketId: string, payload: ConnectionReadyPayload): void {
-    this.emitToSocket(socketId, WebSocketResponseEvents.CONNECTION_READY, payload);
-  }
-
-  emitPodCreated(socketId: string, payload: PodCreatedPayload): void {
-    this.emitToSocket(socketId, WebSocketResponseEvents.POD_CREATED, payload);
-  }
-
-  emitPodListResult(socketId: string, payload: PodListResultPayload): void {
-    this.emitToSocket(socketId, WebSocketResponseEvents.POD_LIST_RESULT, payload);
-  }
-
-  emitPodGetResult(socketId: string, payload: PodGetResultPayload): void {
-    this.emitToSocket(socketId, WebSocketResponseEvents.POD_GET_RESULT, payload);
-  }
-
-  emitPodDeleted(socketId: string, payload: PodDeletedPayload): void {
-    this.emitToSocket(socketId, WebSocketResponseEvents.POD_DELETED, payload);
-  }
-
-  emitPodDeletedBroadcast(podId: string, payload: PodDeletedPayload): void {
-    this.emitToPod(podId, WebSocketResponseEvents.POD_DELETED, payload);
-  }
-
-  emitGitCloneProgress(podId: string, payload: PodGitCloneProgressPayload): void {
-    this.emitToPod(podId, WebSocketResponseEvents.POD_GIT_CLONE_PROGRESS, payload);
-  }
-
-  emitGitCloneResult(socketId: string, payload: PodGitCloneResultPayload): void {
-    this.emitToSocket(socketId, WebSocketResponseEvents.POD_GIT_CLONE_RESULT, payload);
-  }
-
-  emitChatMessage(podId: string, payload: PodChatMessagePayload): void {
-    this.emitToPod(podId, WebSocketResponseEvents.POD_CHAT_MESSAGE, payload);
-  }
-
-  emitChatToolUse(podId: string, payload: PodChatToolUsePayload): void {
-    this.emitToPod(podId, WebSocketResponseEvents.POD_CHAT_TOOL_USE, payload);
-  }
-
-  emitChatToolResult(podId: string, payload: PodChatToolResultPayload): void {
-    this.emitToPod(podId, WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, payload);
-  }
-
-  emitChatComplete(podId: string, payload: PodChatCompletePayload): void {
-    this.emitToPod(podId, WebSocketResponseEvents.POD_CHAT_COMPLETE, payload);
-  }
-
-  emitError(socketId: string, payload: PodErrorPayload): void {
-    this.emitToSocket(socketId, WebSocketResponseEvents.POD_ERROR, payload);
-  }
-
-  emitWorkflowTriggered(socketId: string, payload: WorkflowTriggeredPayload): void {
-    this.emitToSocket(socketId, WebSocketResponseEvents.WORKFLOW_TRIGGERED, payload);
-  }
-
-  emitWorkflowComplete(socketId: string, payload: WorkflowCompletePayload): void {
-    this.emitToSocket(socketId, WebSocketResponseEvents.WORKFLOW_COMPLETE, payload);
-  }
-
-  emitWorkflowError(socketId: string, payload: WorkflowErrorPayload): void {
-    this.emitToSocket(socketId, WebSocketResponseEvents.WORKFLOW_ERROR, payload);
-  }
-
-  joinPodRoom(socketId: string, podId: string): void {
-    if (!this.io) {
-      return;
+    emitConnectionReady(socketId: string, payload: ConnectionReadyPayload): void {
+        this.emitToSocket(socketId, WebSocketResponseEvents.CONNECTION_READY, payload);
     }
 
-    const socket = this.io.sockets.sockets.get(socketId);
-    if (!socket) {
-      return;
+    emitPodDeletedBroadcast(podId: string, payload: PodDeletedPayload): void {
+        this.emitToPod(podId, WebSocketResponseEvents.POD_DELETED, payload);
     }
 
-    const roomName = `pod:${podId}`;
-    socket.join(roomName);
+    joinPodRoom(socketId: string, podId: string): void {
+        if (!this.io) {
+            return;
+        }
 
-    if (!this.socketToPodRooms.has(socketId)) {
-      this.socketToPodRooms.set(socketId, new Set());
-    }
-    this.socketToPodRooms.get(socketId)!.add(podId);
-  }
+        const socket = this.io.sockets.sockets.get(socketId);
+        if (!socket) {
+            return;
+        }
 
-  leavePodRoom(socketId: string, podId: string): void {
-    if (!this.io) {
-      return;
-    }
+        const roomName = `pod:${podId}`;
+        socket.join(roomName);
 
-    const socket = this.io.sockets.sockets.get(socketId);
-    if (!socket) {
-      return;
-    }
-
-    const roomName = `pod:${podId}`;
-    socket.leave(roomName);
-
-    const rooms = this.socketToPodRooms.get(socketId);
-    if (!rooms) {
-      return;
+        if (!this.socketToPodRooms.has(socketId)) {
+            this.socketToPodRooms.set(socketId, new Set());
+        }
+        this.socketToPodRooms.get(socketId)!.add(podId);
     }
 
-    rooms.delete(podId);
-    if (rooms.size === 0) {
-      this.socketToPodRooms.delete(socketId);
-    }
-  }
+    leavePodRoom(socketId: string, podId: string): void {
+        if (!this.io) {
+            return;
+        }
 
-  cleanupSocket(socketId: string): void {
-    this.socketToPodRooms.get(socketId)?.forEach((podId) => {
-      this.leavePodRoom(socketId, podId);
-    });
-    this.socketToPodRooms.delete(socketId);
-  }
+        const socket = this.io.sockets.sockets.get(socketId);
+        if (!socket) {
+            return;
+        }
+
+        const roomName = `pod:${podId}`;
+        socket.leave(roomName);
+
+        const rooms = this.socketToPodRooms.get(socketId);
+        if (!rooms) {
+            return;
+        }
+
+        rooms.delete(podId);
+        if (rooms.size === 0) {
+            this.socketToPodRooms.delete(socketId);
+        }
+    }
+
+    cleanupSocket(socketId: string): void {
+        this.socketToPodRooms.get(socketId)?.forEach((podId) => {
+            this.leavePodRoom(socketId, podId);
+        });
+        this.socketToPodRooms.delete(socketId);
+        this.socketMissedHeartbeats.delete(socketId);
+        this.clearSocketTimeout(socketId);
+    }
+
+    private clearSocketTimeout(socketId: string): void {
+        const timeout = this.socketTimeouts.get(socketId);
+        if (!timeout) {
+            return;
+        }
+
+        clearTimeout(timeout);
+        this.socketTimeouts.delete(socketId);
+    }
+
+    private startHeartbeat(): void {
+        if (this.heartbeatInterval) {
+            return;
+        }
+
+        this.heartbeatInterval = setInterval(() => {
+            if (!this.io) {
+                return;
+            }
+
+            this.io.sockets.sockets.forEach((socket) => {
+                this.sendHeartbeatPing(socket);
+            });
+        }, this.HEARTBEAT_INTERVAL);
+
+        logger.log('Startup', 'Complete', '[Heartbeat] Started');
+    }
+
+    private sendHeartbeatPing(socket: any): void {
+        const socketId = socket.id;
+        const timestamp = Date.now();
+
+        this.clearSocketTimeout(socketId);
+
+        let ackReceived = false;
+
+        socket.emit(
+            WebSocketResponseEvents.HEARTBEAT_PING,
+            {timestamp},
+            (_: { timestamp: number }) => {
+                ackReceived = true;
+                this.socketMissedHeartbeats.set(socketId, 0);
+            }
+        );
+
+        const timeout = setTimeout(() => {
+            if (ackReceived) {
+                return;
+            }
+
+            if (!this.io?.sockets.sockets.has(socketId)) {
+                return;
+            }
+
+            const currentMissed = this.socketMissedHeartbeats.get(socketId) || 0;
+            const newMissed = currentMissed + 1;
+            this.socketMissedHeartbeats.set(socketId, newMissed);
+
+            logger.log('Connection', 'Error', `Socket ${socketId} missed heartbeat (${newMissed}/${this.MAX_MISSED_HEARTBEATS})`);
+
+            if (newMissed >= this.MAX_MISSED_HEARTBEATS) {
+                logger.log('Connection', 'Delete', `Socket ${socketId} disconnected due to heartbeat timeout`);
+                this.clearSocketTimeout(socketId);
+                socket.disconnect(true);
+            }
+        }, this.HEARTBEAT_TIMEOUT);
+
+        this.socketTimeouts.set(socketId, timeout);
+    }
+
+    stopHeartbeat(): void {
+        if (!this.heartbeatInterval) {
+            return;
+        }
+
+        clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = null;
+        this.socketMissedHeartbeats.clear();
+
+        this.socketTimeouts.forEach((timeout) => clearTimeout(timeout));
+        this.socketTimeouts.clear();
+
+        logger.log('Startup', 'Complete', '[Heartbeat] Stopped');
+    }
 }
 
 export const socketService = new SocketService();

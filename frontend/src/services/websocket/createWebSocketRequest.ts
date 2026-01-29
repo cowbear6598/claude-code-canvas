@@ -11,6 +11,12 @@ export interface WebSocketRequestConfig<TPayload, TResult> {
 
 const DEFAULT_TIMEOUT = 10000
 
+interface WebSocketResponse {
+  requestId?: string
+  success?: boolean
+  error?: string
+}
+
 export async function createWebSocketRequest<TPayload extends { requestId: string }, TResult>(
   config: WebSocketRequestConfig<TPayload, TResult>
 ): Promise<TResult> {
@@ -23,13 +29,20 @@ export async function createWebSocketRequest<TPayload extends { requestId: strin
   } = config
 
   return new Promise<TResult>((resolve, reject) => {
+    if (!websocketClient.isSocketConnected()) {
+      reject(new Error('WebSocket not connected'))
+      return
+    }
+
     const requestId = generateRequestId()
     let timeoutId: ReturnType<typeof setTimeout> | null = null
 
     const handleResponse = (response: TResult) => {
+      const responseWithBase = response as TResult & WebSocketResponse
+
       const shouldMatch = matchResponse
         ? matchResponse(response, requestId)
-        : (response as any).requestId === requestId
+        : responseWithBase.requestId === requestId
 
       if (!shouldMatch) return
 
@@ -40,8 +53,8 @@ export async function createWebSocketRequest<TPayload extends { requestId: strin
 
       websocketClient.off(responseEvent, handleResponse)
 
-      if ((response as any).success === false) {
-        const error = (response as any).error || 'Unknown error'
+      if (responseWithBase.success === false) {
+        const error = responseWithBase.error || 'Unknown error'
         reject(new Error(error))
         return
       }

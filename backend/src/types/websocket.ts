@@ -141,35 +141,3 @@ export {
   type CommandDeletePayload,
   type CommandDeletedPayload,
 } from './websocket-events.js';
-
-// Legacy enum for backward compatibility (deprecated)
-// @deprecated Use WebSocketResponseEvents instead
-export enum WebSocketEvents {
-  POD_MESSAGE = 'pod:message',
-  POD_TOOL_USE = 'pod:tool_use',
-  POD_COMPLETE = 'pod:complete',
-  POD_ERROR = 'pod:error',
-}
-
-// Legacy types for backward compatibility (deprecated)
-// @deprecated Use PodChatMessagePayload instead
-export interface PodMessagePayload {
-  podId: string;
-  messageId: string;
-  content: string;
-  isPartial: boolean;
-}
-
-// @deprecated Use PodChatToolUsePayload instead
-export interface PodToolUsePayload {
-  podId: string;
-  messageId: string;
-  toolName: string;
-  input: Record<string, unknown>;
-}
-
-// @deprecated Use PodChatCompletePayload instead
-export interface PodCompletePayload {
-  podId: string;
-  messageId: string;
-}

@@ -486,3 +486,7 @@ export interface PodCommandUnboundPayload {
   podId?: string
   error?: string
 }
+
+export interface HeartbeatPingPayload {
+  timestamp: number
+}

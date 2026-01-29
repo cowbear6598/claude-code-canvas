@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { websocketClient, createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { generateRequestId } from '@/services/utils'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
+import { useToast } from '@/composables/useToast'
 import type { Message, ToolUseInfo, HistoryLoadingStatus, ToolUseStatus } from '@/types/chat'
 import type {
   PodChatMessagePayload,
@@ -15,13 +16,17 @@ import type {
   PodErrorPayload,
   ConnectionReadyPayload,
   PodMessagesClearedPayload,
-  WorkflowAutoClearedPayload
+  WorkflowAutoClearedPayload,
+  HeartbeatPingPayload,
+  PodJoinBatchPayload
 } from '@/types/websocket'
 import { RESPONSE_PREVIEW_LENGTH, CONTENT_PREVIEW_LENGTH } from '@/lib/constants'
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 const HISTORY_LOAD_TIMEOUT_MS = 10000
+const HEARTBEAT_CHECK_INTERVAL_MS = 5000
+const HEARTBEAT_TIMEOUT_MS = 20000
 
 const truncateContent = (content: string, maxLength: number): string => {
   return content.length > maxLength
@@ -39,6 +44,9 @@ interface ChatState {
   historyLoadingError: Map<string, string>
   allHistoryLoaded: boolean
   autoClearAnimationPodId: string | null
+  disconnectReason: string | null
+  lastHeartbeatAt: number | null
+  heartbeatCheckTimer: number | null
 }
 
 export const useChatStore = defineStore('chat', {
@@ -51,7 +59,10 @@ export const useChatStore = defineStore('chat', {
     historyLoadingStatus: new Map(),
     historyLoadingError: new Map(),
     allHistoryLoaded: false,
-    autoClearAnimationPodId: null
+    autoClearAnimationPodId: null,
+    disconnectReason: null,
+    lastHeartbeatAt: null,
+    heartbeatCheckTimer: null
   }),
 
   getters: {
@@ -85,6 +96,10 @@ export const useChatStore = defineStore('chat', {
 
     isAllHistoryLoaded: (state): boolean => {
       return state.allHistoryLoaded
+    },
+
+    getDisconnectReason: (state): string | null => {
+      return state.disconnectReason
     }
   },
 
@@ -96,6 +111,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     disconnectWebSocket(): void {
+      this.stopHeartbeatCheck()
       this.unregisterListeners()
       websocketClient.disconnect()
 
@@ -113,6 +129,8 @@ export const useChatStore = defineStore('chat', {
       websocketClient.on<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
       websocketClient.on<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
       websocketClient.on<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
+      websocketClient.onWithAck<HeartbeatPingPayload>(WebSocketResponseEvents.HEARTBEAT_PING, this.handleHeartbeatPing)
+      websocketClient.onDisconnect(this.handleSocketDisconnect)
     },
 
     unregisterListeners(): void {
@@ -125,11 +143,85 @@ export const useChatStore = defineStore('chat', {
       websocketClient.off<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
       websocketClient.off<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
       websocketClient.off<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
+      websocketClient.offWithAck<HeartbeatPingPayload>(WebSocketResponseEvents.HEARTBEAT_PING, this.handleHeartbeatPing)
+      websocketClient.offDisconnect(this.handleSocketDisconnect)
     },
 
-    handleConnectionReady(payload: ConnectionReadyPayload): void {
+    async handleConnectionReady(payload: ConnectionReadyPayload): Promise<void> {
       this.connectionStatus = 'connected'
       this.socketId = payload.socketId
+
+      this.startHeartbeatCheck()
+
+      if (this.allHistoryLoaded) {
+        const { usePodStore } = await import('./pod/podStore')
+        const podStore = usePodStore()
+        const podIds = podStore.pods.map(p => p.id)
+
+        if (podIds.length > 0) {
+          websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, { podIds })
+        }
+
+        const { toast } = useToast()
+        toast({
+          title: '已重新連線',
+          description: 'WebSocket 連線已恢復',
+        })
+      }
+    },
+
+    handleHeartbeatPing(payload: HeartbeatPingPayload, ack: (response?: unknown) => void): void {
+      this.lastHeartbeatAt = Date.now()
+
+      ack({ timestamp: Date.now() })
+
+      if (this.connectionStatus !== 'connected') {
+        this.connectionStatus = 'connected'
+      }
+    },
+
+    startHeartbeatCheck(): void {
+      if (this.heartbeatCheckTimer !== null) {
+        clearInterval(this.heartbeatCheckTimer)
+      }
+
+      this.heartbeatCheckTimer = window.setInterval(() => {
+        if (this.lastHeartbeatAt === null) {
+          return
+        }
+
+        const now = Date.now()
+        const elapsed = now - this.lastHeartbeatAt
+
+        if (elapsed > HEARTBEAT_TIMEOUT_MS) {
+          this.connectionStatus = 'disconnected'
+
+          const { toast } = useToast()
+          toast({
+            title: '連線逾時',
+            description: '未收到伺服器心跳回應',
+          })
+        }
+      }, HEARTBEAT_CHECK_INTERVAL_MS)
+    },
+
+    stopHeartbeatCheck(): void {
+      if (this.heartbeatCheckTimer !== null) {
+        clearInterval(this.heartbeatCheckTimer)
+        this.heartbeatCheckTimer = null
+      }
+    },
+
+    handleSocketDisconnect(reason: string): void {
+      this.disconnectReason = reason
+      this.connectionStatus = 'disconnected'
+      this.stopHeartbeatCheck()
+
+      const { toast } = useToast()
+      toast({
+        title: '連線中斷',
+        description: `原因: ${reason}`,
+      })
     },
 
     async sendMessage(podId: string, content: string): Promise<void> {

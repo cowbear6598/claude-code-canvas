@@ -135,6 +135,7 @@ export enum WebSocketResponseEvents {
   POD_COMMAND_BOUND = 'pod:command:bound',
   POD_COMMAND_UNBOUND = 'pod:command:unbound',
   COMMAND_DELETED = 'command:deleted',
+  HEARTBEAT_PING = 'heartbeat:ping',
 }
 
 export interface PodCreatePayload {
