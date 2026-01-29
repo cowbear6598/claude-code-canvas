@@ -51,6 +51,14 @@ export const WebSocketRequestEvents = {
   SUBAGENT_NOTE_UPDATE: 'subagent-note:update',
   SUBAGENT_NOTE_DELETE: 'subagent-note:delete',
   POD_BIND_SUBAGENT: 'pod:bind-subagent',
+  COMMAND_LIST: 'command:list',
+  COMMAND_DELETE: 'command:delete',
+  COMMAND_NOTE_CREATE: 'command-note:create',
+  COMMAND_NOTE_LIST: 'command-note:list',
+  COMMAND_NOTE_UPDATE: 'command-note:update',
+  COMMAND_NOTE_DELETE: 'command-note:delete',
+  POD_BIND_COMMAND: 'pod:bind-command',
+  POD_UNBIND_COMMAND: 'pod:unbind-command',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -121,6 +129,14 @@ export const WebSocketResponseEvents = {
   SUBAGENT_NOTE_UPDATED: 'subagent-note:updated',
   SUBAGENT_NOTE_DELETED: 'subagent-note:deleted',
   POD_SUBAGENT_BOUND: 'pod:subagent:bound',
+  COMMAND_LIST_RESULT: 'command:list:result',
+  COMMAND_DELETED: 'command:deleted',
+  COMMAND_NOTE_CREATED: 'command-note:created',
+  COMMAND_NOTE_LIST_RESULT: 'command-note:list:result',
+  COMMAND_NOTE_UPDATED: 'command-note:updated',
+  COMMAND_NOTE_DELETED: 'command-note:deleted',
+  POD_COMMAND_BOUND: 'pod:command:bound',
+  POD_COMMAND_UNBOUND: 'pod:command:unbound',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import type { RepositoryNote } from '@/types'
-import { useRepositoryStore } from '@/stores/note'
+import type { CommandNote } from '@/types'
+import { useCommandStore } from '@/stores/note'
 import { useViewportStore } from '@/stores/pod'
 
 const props = defineProps<{
   podId: string
-  boundNote: RepositoryNote | undefined
+  boundNote: CommandNote | undefined
   podRotation?: number
 }>()
 
@@ -15,7 +15,7 @@ const emit = defineEmits<{
   'note-removed': []
 }>()
 
-const repositoryStore = useRepositoryStore()
+const commandStore = useCommandStore()
 const viewportStore = useViewportStore()
 const slotRef = ref<HTMLElement | null>(null)
 const isDropTarget = ref(false)
@@ -47,7 +47,7 @@ const handleDrop = () => {
     return
   }
 
-  const draggedNote = repositoryStore.getNoteById(noteId)
+  const draggedNote = commandStore.getNoteById(noteId)
 
   if (draggedNote && !draggedNote.boundToPodId) {
     isInserting.value = true
@@ -64,7 +64,7 @@ const setupListeners = () => {
   mouseMoveHandler = checkDropTarget
   mouseUpHandler = handleDrop
   document.addEventListener('mousemove', mouseMoveHandler)
-  document.addEventListener('mouseup', mouseUpHandler, {capture: true})
+  document.addEventListener('mouseup', mouseUpHandler, { capture: true })
 }
 
 const cleanupListeners = () => {
@@ -73,7 +73,7 @@ const cleanupListeners = () => {
     mouseMoveHandler = null
   }
   if (mouseUpHandler) {
-    document.removeEventListener('mouseup', mouseUpHandler, {capture: true})
+    document.removeEventListener('mouseup', mouseUpHandler, { capture: true })
     mouseUpHandler = null
   }
 }
@@ -85,13 +85,14 @@ const handleSlotClick = async (e: MouseEvent) => {
   e.preventDefault()
 
   const noteId = props.boundNote.id
-  const note = repositoryStore.getNoteById(noteId)
+  const note = commandStore.getNoteById(noteId)
+
   if (!note) return
 
   const slotElement = slotRef.value
   if (!slotElement) return
 
-  const slotWidth = slotElement.getBoundingClientRect().width
+  const slotHeight = slotElement.getBoundingClientRect().height
   const zoom = viewportStore.zoom
 
   const podElement = slotElement.closest('.pod-with-notch')
@@ -100,14 +101,14 @@ const handleSlotClick = async (e: MouseEvent) => {
   const podRect = podElement.getBoundingClientRect()
   const viewportOffset = viewportStore.offset
 
-  // Repository 在右側，所以用 Pod 的右邊作為基準
-  const podCenterX = (podRect.right - viewportOffset.x) / zoom
+  const podCenterX = (podRect.left - viewportOffset.x) / zoom
   const podCenterY = (podRect.top - viewportOffset.y + 12) / zoom
 
   const extraDistance = 30
-  // 正值 = 向右彈出
-  const baseX = slotWidth / zoom + extraDistance
-  const baseY = 0
+  const ejectDistance = slotHeight / zoom + extraDistance
+
+  const baseX = 0
+  const baseY = -ejectDistance
 
   const rotation = props.podRotation || 0
   const radians = rotation * Math.PI / 180
@@ -119,20 +120,21 @@ const handleSlotClick = async (e: MouseEvent) => {
   const ejectY = podCenterY + rotatedY
 
   isEjecting.value = true
-  repositoryStore.setNoteAnimating(noteId, true)
+  commandStore.setNoteAnimating(noteId, true)
 
   emit('note-removed')
 
-  await repositoryStore.unbindFromPod(props.podId, false)
-  await repositoryStore.updateNotePosition(noteId, ejectX, ejectY)
+  await commandStore.unbindFromPod(props.podId, false)
+
+  await commandStore.updateNotePosition(noteId, ejectX, ejectY)
 
   setTimeout(() => {
     isEjecting.value = false
-    repositoryStore.setNoteAnimating(noteId, false)
+    commandStore.setNoteAnimating(noteId, false)
   }, 300)
 }
 
-watch(() => repositoryStore.draggedNoteId, (newVal) => {
+watch(() => commandStore.draggedNoteId, (newVal) => {
   if (newVal) {
     lastDraggedNoteId.value = newVal
     setupListeners()
@@ -144,8 +146,8 @@ watch(() => repositoryStore.draggedNoteId, (newVal) => {
 })
 
 onMounted(() => {
-  if (repositoryStore.draggedNoteId) {
-    lastDraggedNoteId.value = repositoryStore.draggedNoteId
+  if (commandStore.draggedNoteId) {
+    lastDraggedNoteId.value = commandStore.draggedNoteId
     setupListeners()
   }
 })
@@ -158,7 +160,7 @@ onUnmounted(() => {
 <template>
   <div
     ref="slotRef"
-    class="pod-repository-slot"
+    class="pod-command-slot"
     :class="{
       'drop-target': isDropTarget,
       'has-note': boundNote !== undefined,
@@ -171,7 +173,7 @@ onUnmounted(() => {
       <span class="text-xs font-mono">{{ boundNote.name }}</span>
     </template>
     <template v-else>
-      <span class="text-xs font-mono opacity-50">Repo</span>
+      <span class="text-xs font-mono opacity-50">command</span>
     </template>
   </div>
 </template>

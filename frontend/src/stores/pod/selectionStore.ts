@@ -59,6 +59,14 @@ export const useSelectionStore = defineStore('selection', {
         .map(el => el.id),
 
     /**
+     * 取得選中的 CommandNote ID 列表
+     */
+    selectedCommandNoteIds: (state): string[] =>
+      state.selectedElements
+        .filter(el => el.type === 'commandNote')
+        .map(el => el.id),
+
+    /**
      * 是否有選中的元素
      */
     hasSelection: (state): boolean => state.selectedElements.length > 0,

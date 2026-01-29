@@ -5,7 +5,7 @@ import path from 'path';
  * 僅允許字母、數字、底線、橫線
  */
 export function validateSkillId(skillId: string): boolean {
-  if (!skillId || typeof skillId !== 'string') {
+  if (!skillId) {
     return false;
   }
 
@@ -15,18 +15,14 @@ export function validateSkillId(skillId: string): boolean {
   }
 
   // 長度限制
-  if (skillId.length > 100) {
-    return false;
-  }
-
-  return true;
+  return skillId.length <= 100;
 }
 
 /**
  * 驗證 podId 格式 (UUID)
  */
 export function validatePodId(podId: string): boolean {
-  if (!podId || typeof podId !== 'string') {
+  if (!podId) {
     return false;
   }
 
@@ -34,26 +30,24 @@ export function validatePodId(podId: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(podId);
 }
 
-/**
- * 驗證 subAgentId 格式
- * 僅允許字母、數字、底線、橫線
- */
+function validateIdFormat(id: string): boolean {
+  if (!id) {
+    return false;
+  }
+
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+    return false;
+  }
+
+  return id.length <= 100;
+}
+
 export function validateSubAgentId(subAgentId: string): boolean {
-  if (!subAgentId || typeof subAgentId !== 'string') {
-    return false;
-  }
+  return validateIdFormat(subAgentId);
+}
 
-  // 僅允許字母、數字、底線、橫線
-  if (!/^[a-zA-Z0-9_-]+$/.test(subAgentId)) {
-    return false;
-  }
-
-  // 長度限制
-  if (subAgentId.length > 100) {
-    return false;
-  }
-
-  return true;
+export function validateCommandId(commandId: string): boolean {
+  return validateIdFormat(commandId);
 }
 
 /**
@@ -61,16 +55,12 @@ export function validateSubAgentId(subAgentId: string): boolean {
  * 允許字母、數字、空格、底線、橫線
  */
 export function validateSkillName(name: string): boolean {
-  if (!name || typeof name !== 'string') {
+  if (!name) {
     return false;
   }
 
   // 允許字母、數字、空格、底線、橫線
-  if (!/^[a-zA-Z0-9 _-]{1,100}$/.test(name)) {
-    return false;
-  }
-
-  return true;
+  return /^[a-zA-Z0-9 _-]{1,100}$/.test(name);
 }
 
 /**

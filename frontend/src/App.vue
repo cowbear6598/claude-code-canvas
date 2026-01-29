@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 import { usePodStore, useViewportStore } from '@/stores/pod'
 import { useChatStore } from '@/stores/chatStore'
-import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore } from '@/stores/note'
+import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { websocketClient, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import type { PodStatusChangedPayload, PodJoinBatchPayload } from '@/types/websocket'
@@ -23,6 +23,7 @@ const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
 const subAgentStore = useSubAgentStore()
 const repositoryStore = useRepositoryStore()
+const commandStore = useCommandStore()
 const connectionStore = useConnectionStore()
 
 const selectedPod = computed(() => podStore.selectedPod)
@@ -98,6 +99,9 @@ const initializeApp = async (): Promise<void> => {
 
   await repositoryStore.loadRepositories()
   await repositoryStore.loadNotesFromBackend()
+
+  await commandStore.loadCommands()
+  await commandStore.loadNotesFromBackend()
 
   await connectionStore.loadConnectionsFromBackend()
 

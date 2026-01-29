@@ -3,7 +3,7 @@ import {ref, computed, onUnmounted} from 'vue'
 import type {Pod, ModelType} from '@/types'
 import type {AnchorPosition} from '@/types/connection'
 import {usePodStore, useViewportStore, useSelectionStore} from '@/stores/pod'
-import {useOutputStyleStore, useSkillStore, useRepositoryStore, useSubAgentStore} from '@/stores/note'
+import {useOutputStyleStore, useSkillStore, useRepositoryStore, useSubAgentStore, useCommandStore} from '@/stores/note'
 import {useConnectionStore} from '@/stores/connectionStore'
 import {useChatStore} from '@/stores/chatStore'
 import {useAnchorDetection} from '@/composables/useAnchorDetection'
@@ -36,6 +36,7 @@ const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
 const subAgentStore = useSubAgentStore()
 const repositoryStore = useRepositoryStore()
+const commandStore = useCommandStore()
 const connectionStore = useConnectionStore()
 const chatStore = useChatStore()
 const {detectTargetAnchor} = useAnchorDetection()
@@ -46,6 +47,7 @@ const boundNote = computed(() => outputStyleStore.getNotesByPodId(props.pod.id)[
 const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
 const boundSubAgentNotes = computed(() => subAgentStore.getNotesByPodId(props.pod.id))
 const boundRepositoryNote = computed(() => repositoryStore.getNotesByPodId(props.pod.id)[0])
+const boundCommandNote = computed(() => commandStore.getNotesByPodId(props.pod.id)[0])
 const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
 const currentModel = computed(() => props.pod.model ?? 'opus')
 
@@ -226,6 +228,19 @@ const handleRepositoryNoteRemoved = async () => {
   podStore.updatePodRepository(props.pod.id, null)
 }
 
+const handleCommandNoteDropped = async (noteId: string) => {
+  await commandStore.bindToPod(noteId, props.pod.id)
+  const note = commandStore.getNoteById(noteId)
+  if (note) {
+    podStore.updatePodCommand(props.pod.id, note.commandId)
+  }
+}
+
+const handleCommandNoteRemoved = async () => {
+  await commandStore.unbindFromPod(props.pod.id, true)
+  podStore.updatePodCommand(props.pod.id, null)
+}
+
 const handleAnchorDragStart = (data: {
   podId: string
   anchor: AnchorPosition
@@ -358,7 +373,7 @@ const handleToggleAutoClear = async () => {
   >
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
-        class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch"
+        class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch pod-with-command-notch"
         :style="{ transform: `rotate(${pod.rotation}deg)` }"
     >
       <!-- Model Selector -->
@@ -376,18 +391,23 @@ const handleToggleAutoClear = async () => {
           :bound-skill-notes="boundSkillNotes"
           :bound-sub-agent-notes="boundSubAgentNotes"
           :bound-repository-note="boundRepositoryNote"
+          :bound-command-note="boundCommandNote"
           @output-style-dropped="handleNoteDropped"
           @output-style-removed="handleNoteRemoved"
           @skill-dropped="handleSkillNoteDropped"
           @subagent-dropped="handleSubAgentNoteDropped"
           @repository-dropped="handleRepositoryNoteDropped"
           @repository-removed="handleRepositoryNoteRemoved"
+          @command-dropped="handleCommandNoteDropped"
+          @command-removed="handleCommandNoteRemoved"
       />
 
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
       <div class="pod-doodle w-56 overflow-visible relative" :class="[podStatusClass, { selected: isSelected }]">
         <!-- Model 凹槽 -->
         <div class="model-notch"></div>
+        <!-- Command 凹槽 -->
+        <div class="command-notch"></div>
         <!-- SubAgent 凹槽 -->
         <div class="subagent-notch"></div>
         <!-- Repository 凹槽（右側） -->

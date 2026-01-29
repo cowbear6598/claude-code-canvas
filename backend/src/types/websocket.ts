@@ -122,6 +122,22 @@ export {
   type PodSetAutoClearPayload,
   type PodAutoClearSetPayload,
   type WorkflowAutoClearedPayload,
+  type CommandListPayload,
+  type CommandListResultPayload,
+  type CommandNoteCreatePayload,
+  type CommandNoteCreatedPayload,
+  type CommandNoteListPayload,
+  type CommandNoteListResultPayload,
+  type CommandNoteUpdatePayload,
+  type CommandNoteUpdatedPayload,
+  type CommandNoteDeletePayload,
+  type CommandNoteDeletedPayload,
+  type PodBindCommandPayload,
+  type PodCommandBoundPayload,
+  type PodUnbindCommandPayload,
+  type PodCommandUnboundPayload,
+  type CommandDeletePayload,
+  type CommandDeletedPayload,
 } from './websocket-events.js';
 
 // Legacy enum for backward compatibility (deprecated)

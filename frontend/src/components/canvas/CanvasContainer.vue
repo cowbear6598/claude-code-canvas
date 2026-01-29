@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {ref, computed} from 'vue'
 import {usePodStore, useViewportStore, useSelectionStore} from '@/stores/pod'
-import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore} from '@/stores/note'
+import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore} from '@/stores/note'
 import {useConnectionStore} from '@/stores/connectionStore'
 import {useDeleteSelection, useNoteEventHandlers} from '@/composables/canvas'
 import CanvasViewport from './CanvasViewport.vue'
@@ -26,14 +26,15 @@ const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
 const subAgentStore = useSubAgentStore()
 const repositoryStore = useRepositoryStore()
+const commandStore = useCommandStore()
 const connectionStore = useConnectionStore()
 
 useDeleteSelection()
 
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
 
-const showTrashZone = computed(() => outputStyleStore.isDraggingNote || skillStore.isDraggingNote || subAgentStore.isDraggingNote || repositoryStore.isDraggingNote)
-const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash || skillStore.isOverTrash || subAgentStore.isOverTrash || repositoryStore.isOverTrash)
+const showTrashZone = computed(() => outputStyleStore.isDraggingNote || skillStore.isDraggingNote || subAgentStore.isDraggingNote || repositoryStore.isDraggingNote || commandStore.isDraggingNote)
+const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash || skillStore.isOverTrash || subAgentStore.isOverTrash || repositoryStore.isOverTrash || commandStore.isOverTrash)
 
 const validateCoordinate = (value: number): number => {
   if (!Number.isFinite(value)) {
@@ -81,6 +82,10 @@ const handleCanvasClick = (e: MouseEvent) => {
   }
 
   if (target.closest('.repository-note')) {
+    return
+  }
+
+  if (target.closest('.command-note')) {
     return
   }
 
@@ -158,10 +163,20 @@ const handleCreateRepositoryNote = (repositoryId: string) => {
   repositoryStore.createNote(repositoryId, canvasX, canvasY)
 }
 
+const handleCreateCommandNote = (commandId: string) => {
+  if (!podStore.typeMenu.position) return
+
+  const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
+  const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
+
+  commandStore.createNote(commandId, canvasX, canvasY)
+}
+
 const outputStyleHandlers = useNoteEventHandlers({ store: outputStyleStore, trashZoneRef })
 const skillHandlers = useNoteEventHandlers({ store: skillStore, trashZoneRef })
 const subAgentHandlers = useNoteEventHandlers({ store: subAgentStore, trashZoneRef })
 const repositoryHandlers = useNoteEventHandlers({ store: repositoryStore, trashZoneRef })
+const commandHandlers = useNoteEventHandlers({ store: commandStore, trashZoneRef })
 </script>
 
 <template>
@@ -227,6 +242,17 @@ const repositoryHandlers = useNoteEventHandlers({ store: repositoryStore, trashZ
       @drag-complete="repositoryHandlers.handleDragComplete"
     />
 
+    <!-- Command Notes -->
+    <GenericNote
+      v-for="note in commandStore.getUnboundNotes"
+      :key="note.id"
+      :note="note"
+      note-type="command"
+      @drag-end="commandHandlers.handleDragEnd"
+      @drag-move="commandHandlers.handleDragMove"
+      @drag-complete="commandHandlers.handleDragComplete"
+    />
+
     <!-- 空狀態 - 在畫布座標中央 -->
     <EmptyState v-if="podStore.podCount === 0" />
   </CanvasViewport>
@@ -240,6 +266,7 @@ const repositoryHandlers = useNoteEventHandlers({ store: repositoryStore, trashZ
     @create-skill-note="handleCreateSkillNote"
     @create-subagent-note="handleCreateSubAgentNote"
     @create-repository-note="handleCreateRepositoryNote"
+    @create-command-note="handleCreateCommandNote"
     @close="podStore.hideTypeMenu"
   />
 

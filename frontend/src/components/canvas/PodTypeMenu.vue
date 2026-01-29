@@ -3,7 +3,7 @@ import {ref, onMounted, computed} from 'vue'
 import {Palette, Wrench, FolderOpen, Bot} from 'lucide-vue-next'
 import type {Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent} from '@/types'
 import {podTypes} from '@/data/podTypes'
-import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore} from '@/stores/note'
+import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore} from '@/stores/note'
 import CreateRepositoryModal from './CreateRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 import PodTypeMenuSubmenu from './PodTypeMenuSubmenu.vue'
@@ -18,6 +18,7 @@ const emit = defineEmits<{
   'create-skill-note': [skillId: string]
   'create-subagent-note': [subAgentId: string]
   'create-repository-note': [repositoryId: string]
+  'create-command-note': [commandId: string]
   close: []
 }>()
 
@@ -25,13 +26,15 @@ const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
 const subAgentStore = useSubAgentStore()
 const repositoryStore = useRepositoryStore()
+const commandStore = useCommandStore()
 const showSubmenu = ref(false)
 const showSkillSubmenu = ref(false)
 const showSubAgentSubmenu = ref(false)
 const showRepositorySubmenu = ref(false)
+const showCommandSubmenu = ref(false)
 const showCreateRepositoryModal = ref(false)
 const showDeleteModal = ref(false)
-type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent'
+type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
 
 interface DeleteTarget {
   type: ItemType
@@ -52,6 +55,7 @@ const isDeleteTargetInUse = computed(() => {
     skill: () => skillStore.isItemInUse(id),
     subAgent: () => subAgentStore.isItemInUse(id),
     repository: () => repositoryStore.isItemInUse(id),
+    command: () => commandStore.isItemInUse(id),
   }
 
   return inUseChecks[type]()
@@ -62,7 +66,8 @@ onMounted(async () => {
     outputStyleStore.loadOutputStyles(),
     skillStore.loadSkills(),
     subAgentStore.loadSubAgents(),
-    repositoryStore.loadRepositories()
+    repositoryStore.loadRepositories(),
+    commandStore.loadCommands()
   ])
 })
 
@@ -94,6 +99,12 @@ const handleRepositorySelect = (repository: Repository) => {
   emit('close')
 }
 
+const handleCommandSelect = (command: any) => {
+  showCommandSubmenu.value = false
+  emit('create-command-note', command.id)
+  emit('close')
+}
+
 const handleClose = () => {
   emit('close')
 }
@@ -120,6 +131,7 @@ const handleDeleteConfirm = async () => {
     skill: () => skillStore.deleteSkill(id),
     subAgent: () => subAgentStore.deleteSubAgent(id),
     repository: () => repositoryStore.deleteRepository(id),
+    command: () => commandStore.deleteCommand(id),
   }
 
   await deleteActions[type]()
@@ -256,6 +268,29 @@ const handleDeleteConfirm = async () => {
             </div>
           </template>
         </PodTypeMenuSubmenu>
+      </div>
+
+      <!-- Command 按鈕 -->
+      <div class="relative" @mouseenter="showCommandSubmenu = true" @mouseleave="showCommandSubmenu = false">
+        <button
+          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
+        >
+          <span
+            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+            style="background-color: var(--doodle-mint)"
+          >
+            <span class="text-xs text-card font-mono font-bold">/</span>
+          </span>
+          <span class="font-mono text-sm text-foreground">Commands &gt;</span>
+        </button>
+
+        <PodTypeMenuSubmenu
+          v-model:hovered-item-id="hoveredItemId"
+          :items="commandStore.availableItems"
+          :visible="showCommandSubmenu"
+          @item-select="handleCommandSelect"
+          @item-delete="(id, name, event) => handleDeleteClick('command', id, name, event)"
+        />
       </div>
     </div>
 

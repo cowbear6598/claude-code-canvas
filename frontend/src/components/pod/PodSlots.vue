@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { OutputStyleNote, SkillNote, SubAgentNote, RepositoryNote } from '@/types'
+import type { OutputStyleNote, SkillNote, SubAgentNote, RepositoryNote, CommandNote } from '@/types'
 import PodOutputStyleSlot from '@/components/pod/PodOutputStyleSlot.vue'
 import PodSkillSlot from '@/components/pod/PodSkillSlot.vue'
 import PodSubAgentSlot from '@/components/pod/PodSubAgentSlot.vue'
 import PodRepositorySlot from '@/components/pod/PodRepositorySlot.vue'
+import PodCommandSlot from '@/components/pod/PodCommandSlot.vue'
 
 const props = defineProps<{
   podId: string
@@ -12,6 +13,7 @@ const props = defineProps<{
   boundSkillNotes: SkillNote[]
   boundSubAgentNotes: SubAgentNote[]
   boundRepositoryNote: RepositoryNote | undefined
+  boundCommandNote: CommandNote | undefined
 }>()
 
 const emit = defineEmits<{
@@ -21,6 +23,8 @@ const emit = defineEmits<{
   'subagent-dropped': [noteId: string]
   'repository-dropped': [noteId: string]
   'repository-removed': []
+  'command-dropped': [noteId: string]
+  'command-removed': []
 }>()
 
 const handleOutputStyleDropped = (noteId: string) => {
@@ -45,6 +49,14 @@ const handleRepositoryDropped = (noteId: string) => {
 
 const handleRepositoryRemoved = () => {
   emit('repository-removed')
+}
+
+const handleCommandDropped = (noteId: string) => {
+  emit('command-dropped', noteId)
+}
+
+const handleCommandRemoved = () => {
+  emit('command-removed')
 }
 </script>
 
@@ -86,6 +98,17 @@ const handleRepositoryRemoved = () => {
       :pod-rotation="podRotation"
       @note-dropped="handleRepositoryDropped"
       @note-removed="handleRepositoryRemoved"
+    />
+  </div>
+
+  <!-- Command 凹槽（上方，Model 右側） -->
+  <div class="pod-command-notch-area">
+    <PodCommandSlot
+      :pod-id="podId"
+      :bound-note="boundCommandNote"
+      :pod-rotation="podRotation"
+      @note-dropped="handleCommandDropped"
+      @note-removed="handleCommandRemoved"
     />
   </div>
 </template>

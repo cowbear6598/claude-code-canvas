@@ -9,6 +9,7 @@ export type LogCategory =
   | 'Pod'
   | 'Chat'
   | 'Skill'
+  | 'Command'
   | 'Repository'
   | 'SubAgent'
   | 'Workflow'

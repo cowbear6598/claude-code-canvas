@@ -51,6 +51,14 @@ export enum WebSocketRequestEvents {
   POD_BIND_SUBAGENT = 'pod:bind-subagent',
   SUBAGENT_DELETE = 'subagent:delete',
   POD_SET_AUTO_CLEAR = 'pod:set-auto-clear',
+  COMMAND_LIST = 'command:list',
+  COMMAND_NOTE_CREATE = 'command-note:create',
+  COMMAND_NOTE_LIST = 'command-note:list',
+  COMMAND_NOTE_UPDATE = 'command-note:update',
+  COMMAND_NOTE_DELETE = 'command-note:delete',
+  POD_BIND_COMMAND = 'pod:bind-command',
+  POD_UNBIND_COMMAND = 'pod:unbind-command',
+  COMMAND_DELETE = 'command:delete',
 }
 
 export enum WebSocketResponseEvents {
@@ -119,6 +127,14 @@ export enum WebSocketResponseEvents {
   SUBAGENT_DELETED = 'subagent:deleted',
   POD_AUTO_CLEAR_SET = 'pod:auto-clear:set',
   WORKFLOW_AUTO_CLEARED = 'workflow:auto-cleared',
+  COMMAND_LIST_RESULT = 'command:list:result',
+  COMMAND_NOTE_CREATED = 'command-note:created',
+  COMMAND_NOTE_LIST_RESULT = 'command-note:list:result',
+  COMMAND_NOTE_UPDATED = 'command-note:updated',
+  COMMAND_NOTE_DELETED = 'command-note:deleted',
+  POD_COMMAND_BOUND = 'pod:command:bound',
+  POD_COMMAND_UNBOUND = 'pod:command:unbound',
+  COMMAND_DELETED = 'command:deleted',
 }
 
 export interface PodCreatePayload {
@@ -938,4 +954,109 @@ export interface WorkflowAutoClearedPayload {
   sourcePodId: string;
   clearedPodIds: string[];
   clearedPodNames: string[];
+}
+
+export interface CommandListPayload {
+  requestId: string;
+}
+
+export interface CommandListResultPayload {
+  requestId: string;
+  success: boolean;
+  commands?: import('./command.js').Command[];
+  error?: string;
+}
+
+export interface CommandNoteCreatePayload {
+  requestId: string;
+  commandId: string;
+  name: string;
+  x: number;
+  y: number;
+  boundToPodId: string | null;
+  originalPosition: { x: number; y: number } | null;
+}
+
+export interface CommandNoteCreatedPayload {
+  requestId: string;
+  success: boolean;
+  note?: import('./commandNote.js').CommandNote;
+  error?: string;
+}
+
+export interface CommandNoteListPayload {
+  requestId: string;
+}
+
+export interface CommandNoteListResultPayload {
+  requestId: string;
+  success: boolean;
+  notes?: import('./commandNote.js').CommandNote[];
+  error?: string;
+}
+
+export interface CommandNoteUpdatePayload {
+  requestId: string;
+  noteId: string;
+  x?: number;
+  y?: number;
+  boundToPodId?: string | null;
+  originalPosition?: { x: number; y: number } | null;
+}
+
+export interface CommandNoteUpdatedPayload {
+  requestId: string;
+  success: boolean;
+  note?: import('./commandNote.js').CommandNote;
+  error?: string;
+}
+
+export interface CommandNoteDeletePayload {
+  requestId: string;
+  noteId: string;
+}
+
+export interface CommandNoteDeletedPayload {
+  requestId: string;
+  success: boolean;
+  noteId?: string;
+  error?: string;
+}
+
+export interface PodBindCommandPayload {
+  requestId: string;
+  podId: string;
+  commandId: string;
+}
+
+export interface PodCommandBoundPayload {
+  requestId: string;
+  success: boolean;
+  pod?: Pod;
+  error?: string;
+}
+
+export interface PodUnbindCommandPayload {
+  requestId: string;
+  podId: string;
+}
+
+export interface PodCommandUnboundPayload {
+  requestId: string;
+  success: boolean;
+  pod?: Pod;
+  error?: string;
+}
+
+export interface CommandDeletePayload {
+  requestId: string;
+  commandId: string;
+}
+
+export interface CommandDeletedPayload {
+  requestId: string;
+  success: boolean;
+  commandId?: string;
+  deletedNoteIds?: string[];
+  error?: string;
 }

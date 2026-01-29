@@ -143,10 +143,25 @@ export const useChatStore = defineStore('chat', {
 
       this.addUserMessage(podId, content)
 
+      let finalMessage = content
+
+      const { usePodStore } = await import('./pod/podStore')
+      const { useCommandStore } = await import('./note/commandStore')
+      const podStore = usePodStore()
+      const commandStore = useCommandStore()
+
+      const pod = podStore.pods.find(p => p.id === podId)
+      if (pod?.commandId) {
+        const command = commandStore.availableItems.find(c => c.id === pod.commandId)
+        if (command) {
+          finalMessage = `/${command.name} ${content}`
+        }
+      }
+
       websocketClient.emit<PodChatSendPayload>(WebSocketRequestEvents.POD_CHAT_SEND, {
         requestId: generateRequestId(),
         podId,
-        message: content
+        message: finalMessage
       })
 
       this.setTyping(podId, true)

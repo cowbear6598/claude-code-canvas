@@ -42,6 +42,7 @@ export interface PersistedPod {
   subAgentIds?: string[]; // Bound SubAgent IDs
   model: ModelType; // Model type for Claude API
   repositoryId: string | null; // Bound Repository ID
+  commandId?: string | null; // Bound Command ID
   needsForkSession?: boolean; // Flag to fork session on next query
   autoClear?: boolean; // Auto-clear messages after workflow completion
 }

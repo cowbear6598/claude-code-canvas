@@ -6,6 +6,7 @@ import { connectionHandlerGroup } from './groups/connectionHandlerGroup.js';
 import { workflowHandlerGroup } from './groups/workflowHandlerGroup.js';
 import { noteHandlerGroup } from './groups/noteHandlerGroup.js';
 import { skillHandlerGroup } from './groups/skillHandlerGroup.js';
+import { commandHandlerGroup } from './groups/commandHandlerGroup.js';
 import { outputStyleHandlerGroup } from './groups/outputStyleHandlerGroup.js';
 import { pasteHandlerGroup } from './groups/pasteHandlerGroup.js';
 import { gitHandlerGroup } from './groups/gitHandlerGroup.js';
@@ -21,6 +22,7 @@ registry.registerGroup(connectionHandlerGroup);
 registry.registerGroup(workflowHandlerGroup);
 registry.registerGroup(noteHandlerGroup);
 registry.registerGroup(skillHandlerGroup);
+registry.registerGroup(commandHandlerGroup);
 registry.registerGroup(outputStyleHandlerGroup);
 registry.registerGroup(pasteHandlerGroup);
 registry.registerGroup(gitHandlerGroup);
@@ -62,6 +64,16 @@ export {
   handlePodBindSkill,
   handleSkillDelete,
 } from './skillHandlers.js';
+export {
+  handleCommandList,
+  handleCommandNoteCreate,
+  handleCommandNoteList,
+  handleCommandNoteUpdate,
+  handleCommandNoteDelete,
+  handlePodBindCommand,
+  handlePodUnbindCommand,
+  handleCommandDelete,
+} from './commandHandlers.js';
 export {
   handleConnectionCreate,
   handleConnectionList,

@@ -2,10 +2,10 @@
 import { ref, onUnmounted, computed } from 'vue'
 import type { BaseNote } from '@/types'
 import { useViewportStore, useSelectionStore } from '@/stores/pod'
-import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore } from '@/stores/note'
+import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
 import { useBatchDrag } from '@/composables/canvas'
 
-type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository'
+type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command'
 
 interface Props {
   note: BaseNote
@@ -24,14 +24,16 @@ const cssClassMap: Record<NoteType, string> = {
   outputStyle: 'output-style-note',
   skill: 'skill-note',
   subAgent: 'subagent-note',
-  repository: 'repository-note'
+  repository: 'repository-note',
+  command: 'command-note'
 }
 
 const selectionTypeMap: Record<NoteType, string> = {
   outputStyle: 'outputStyleNote',
   skill: 'skillNote',
   subAgent: 'subAgentNote',
-  repository: 'repositoryNote'
+  repository: 'repositoryNote',
+  command: 'commandNote'
 }
 
 const viewportStore = useViewportStore()
@@ -40,6 +42,7 @@ const outputStyleStore = useOutputStyleStore()
 const skillStore = useSkillStore()
 const subAgentStore = useSubAgentStore()
 const repositoryStore = useRepositoryStore()
+const commandStore = useCommandStore()
 const { startBatchDrag, isElementSelected } = useBatchDrag()
 
 const noteStore = computed(() => {
@@ -52,6 +55,8 @@ const noteStore = computed(() => {
       return subAgentStore
     case 'repository':
       return repositoryStore
+    case 'command':
+      return commandStore
   }
 })
 
@@ -67,6 +72,8 @@ const isSelected = computed(() => {
       return selectionStore.selectedSubAgentNoteIds.includes(props.note.id)
     case 'repository':
       return selectionStore.selectedRepositoryNoteIds.includes(props.note.id)
+    case 'command':
+      return selectionStore.selectedCommandNoteIds.includes(props.note.id)
   }
 })
 

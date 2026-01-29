@@ -38,6 +38,7 @@ export interface Pod {
   model?: ModelType
   repositoryId?: string | null
   autoClear?: boolean
+  commandId?: string | null
 }
 
 // Pod 類型配置

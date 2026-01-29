@@ -19,6 +19,12 @@ export type { Skill } from './skill.js';
 // Skill Note types
 export type { SkillNote } from './skillNote.js';
 
+// Command types
+export type { Command } from './command.js';
+
+// Command Note types
+export type { CommandNote } from './commandNote.js';
+
 // Repository types
 export type { Repository } from './repository.js';
 
@@ -176,4 +182,20 @@ export {
   type PodSetAutoClearPayload,
   type PodAutoClearSetPayload,
   type WorkflowAutoClearedPayload,
+  type CommandListPayload,
+  type CommandListResultPayload,
+  type CommandNoteCreatePayload,
+  type CommandNoteCreatedPayload,
+  type CommandNoteListPayload,
+  type CommandNoteListResultPayload,
+  type CommandNoteUpdatePayload,
+  type CommandNoteUpdatedPayload,
+  type CommandNoteDeletePayload,
+  type CommandNoteDeletedPayload,
+  type PodBindCommandPayload,
+  type PodCommandBoundPayload,
+  type PodUnbindCommandPayload,
+  type PodCommandUnboundPayload,
+  type CommandDeletePayload,
+  type CommandDeletedPayload,
 } from './websocket.js';

@@ -5,6 +5,7 @@ export * from './connectionSchemas.js';
 export * from './workflowSchemas.js';
 export * from './noteSchemas.js';
 export * from './skillSchemas.js';
+export * from './commandSchemas.js';
 export * from './outputStyleSchemas.js';
 export * from './pasteSchemas.js';
 export * from './gitSchemas.js';

@@ -246,6 +246,7 @@ export interface CanvasPastePayload {
   skillNotes: PasteSkillNoteItem[]
   repositoryNotes: PasteRepositoryNoteItem[]
   subAgentNotes: PasteSubAgentNoteItem[]
+  commandNotes: PasteCommandNoteItem[]
   connections: PasteConnectionItem[]
 }
 
@@ -353,6 +354,63 @@ export interface PodBindSubAgentPayload {
 
 export interface PasteSubAgentNoteItem {
   subAgentId: string
+  name: string
+  x: number
+  y: number
+  boundToOriginalPodId: string | null
+  originalPosition: { x: number; y: number } | null
+}
+
+export interface CommandListPayload {
+  requestId: string
+}
+
+export interface CommandDeletePayload {
+  requestId: string
+  commandId: string
+}
+
+export interface CommandNoteCreatePayload {
+  requestId: string
+  commandId: string
+  name: string
+  x: number
+  y: number
+  boundToPodId: string | null
+  originalPosition: { x: number; y: number } | null
+}
+
+export interface CommandNoteListPayload {
+  requestId: string
+}
+
+export interface CommandNoteUpdatePayload {
+  requestId: string
+  noteId: string
+  x?: number
+  y?: number
+  boundToPodId?: string | null
+  originalPosition?: { x: number; y: number } | null
+}
+
+export interface CommandNoteDeletePayload {
+  requestId: string
+  noteId: string
+}
+
+export interface PodBindCommandPayload {
+  requestId: string
+  podId: string
+  commandId: string
+}
+
+export interface PodUnbindCommandPayload {
+  requestId: string
+  podId: string
+}
+
+export interface PasteCommandNoteItem {
+  commandId: string
   name: string
   x: number
   y: number

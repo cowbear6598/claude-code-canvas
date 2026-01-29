@@ -65,6 +65,11 @@ class ClaudeQueryService {
     try {
       await messageStore.addMessage(podId, 'user', message);
 
+      let processedMessage = message;
+      if (pod.commandId) {
+        processedMessage = `/${pod.commandId} ${message}`;
+      }
+
       const resumeSessionId = pod.claudeSessionId;
       const cwd = pod.repositoryId
         ? path.join(config.repositoriesRoot, pod.repositoryId)
@@ -92,7 +97,7 @@ class ClaudeQueryService {
       queryOptions.model = pod.model;
 
       const queryStream = query({
-        prompt: message,
+        prompt: processedMessage,
         options: queryOptions,
       });
 
@@ -157,7 +162,7 @@ class ClaudeQueryService {
           const toolInfo = toolUseId ? activeTools.get(toolUseId) : null;
 
           if (toolInfo && toolUseId) {
-            if (toolUseInfo?.toolUseId === toolUseId) {
+            if (toolUseInfo && toolUseInfo.toolUseId === toolUseId) {
               toolUseInfo.output = outputText;
             }
 

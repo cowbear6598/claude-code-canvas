@@ -149,6 +149,7 @@ export const usePodStore = defineStore('pod', {
         outputStyleId: pod.outputStyleId ?? null,
         model: pod.model ?? 'opus',
         autoClear: pod.autoClear ?? false,
+        commandId: pod.commandId ?? null,
       }))
       this.pods = enrichedPods.filter(pod => this.isValidPod(pod))
     },
@@ -259,6 +260,13 @@ export const usePodStore = defineStore('pod', {
       if (!pod) return
 
       pod.repositoryId = repositoryId
+    },
+
+    updatePodCommand(podId: string, commandId: string | null): void {
+      const pod = this.pods.find((p) => p.id === podId)
+      if (!pod) return
+
+      pod.commandId = commandId
     },
 
     updatePodAutoClear(podId: string, autoClear: boolean): void {

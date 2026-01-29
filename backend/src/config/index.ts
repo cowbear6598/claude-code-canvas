@@ -15,6 +15,7 @@ interface Config {
   outputStylesPath: string;
   skillsPath: string;
   agentsPath: string;
+  commandsPath: string;
 }
 
 function loadConfig(): Config {
@@ -32,6 +33,7 @@ function loadConfig(): Config {
   const outputStylesPath = path.join(dataRoot, 'output-styles');
   const skillsPath = path.join(dataRoot, 'skills');
   const agentsPath = path.join(dataRoot, 'agents');
+  const commandsPath = path.join(dataRoot, 'commands');
 
   // Validate port number
   if (isNaN(port) || port < 1 || port > 65535) {
@@ -49,6 +51,7 @@ function loadConfig(): Config {
     outputStylesPath,
     skillsPath,
     agentsPath,
+    commandsPath,
   };
 }
 

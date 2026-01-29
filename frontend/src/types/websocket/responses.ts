@@ -5,6 +5,7 @@ import type { OutputStyleListItem, OutputStyleNote } from '@/types'
 import type { Skill, SkillNote } from '@/types'
 import type { Repository, RepositoryNote } from '@/types'
 import type { SubAgent, SubAgentNote } from '@/types'
+import type { Command, CommandNote } from '@/types'
 
 export interface ConnectionReadyPayload {
   socketId: string
@@ -268,7 +269,7 @@ export interface WorkflowClearResultPayload {
 }
 
 export interface PasteError {
-  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote'
+  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote'
   originalId: string
   error: string
 }
@@ -281,6 +282,7 @@ export interface CanvasPasteResultPayload {
   createdSkillNotes: SkillNote[]
   createdRepositoryNotes: RepositoryNote[]
   createdSubAgentNotes: SubAgentNote[]
+  createdCommandNotes: CommandNote[]
   createdConnections: Array<{
     id: string
     sourcePodId: string
@@ -424,5 +426,63 @@ export interface PodSubAgentBoundPayload {
   requestId: string
   success: boolean
   pod?: Pod
+  error?: string
+}
+
+export interface CommandListResultPayload {
+  requestId: string
+  success: boolean
+  commands?: Command[]
+  error?: string
+}
+
+export interface CommandDeletedPayload {
+  requestId: string
+  success: boolean
+  commandId?: string
+  deletedNoteIds?: string[]
+  error?: string
+}
+
+export interface CommandNoteCreatedPayload {
+  requestId: string
+  success: boolean
+  note?: CommandNote
+  error?: string
+}
+
+export interface CommandNoteListResultPayload {
+  requestId: string
+  success: boolean
+  notes?: CommandNote[]
+  error?: string
+}
+
+export interface CommandNoteUpdatedPayload {
+  requestId: string
+  success: boolean
+  note?: CommandNote
+  error?: string
+}
+
+export interface CommandNoteDeletedPayload {
+  requestId: string
+  success: boolean
+  noteId?: string
+  error?: string
+}
+
+export interface PodCommandBoundPayload {
+  requestId: string
+  success: boolean
+  podId?: string
+  commandId?: string
+  error?: string
+}
+
+export interface PodCommandUnboundPayload {
+  requestId: string
+  success: boolean
+  podId?: string
   error?: string
 }

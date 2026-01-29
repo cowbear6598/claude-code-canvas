@@ -13,6 +13,7 @@ export interface CreatePodRequest {
   subAgentIds?: string[];
   model?: ModelType;
   repositoryId?: string | null;
+  commandId?: string | null;
 }
 
 export interface CreatePodResponse {

@@ -2,6 +2,7 @@ import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { noteStore } from './noteStore.js';
 import { skillNoteStore } from './skillNoteStore.js';
+import { commandNoteStore } from './commandNoteStore.js';
 import { subAgentNoteStore } from './subAgentNoteStore.js';
 import { repositoryNoteStore } from './repositoryNoteStore.js';
 import { connectionStore } from './connectionStore.js';
@@ -46,6 +47,11 @@ class StartupService {
     const skillNoteResult = await skillNoteStore.loadFromDisk();
     if (!skillNoteResult.success) {
       return err(`伺服器初始化失敗: ${skillNoteResult.error}`);
+    }
+
+    const commandNoteResult = await commandNoteStore.loadFromDisk();
+    if (!commandNoteResult.success) {
+      return err(`伺服器初始化失敗: ${commandNoteResult.error}`);
     }
 
     const subAgentNoteResult = await subAgentNoteStore.loadFromDisk();
