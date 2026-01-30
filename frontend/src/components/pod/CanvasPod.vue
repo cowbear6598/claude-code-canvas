@@ -373,7 +373,7 @@ const handleToggleAutoClear = async (): Promise<void> => {
   >
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
-      class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch pod-with-command-notch"
+      class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch"
       :style="{ transform: `rotate(${pod.rotation}deg)` }"
     >
       <!-- Model Selector -->
@@ -413,7 +413,7 @@ const handleToggleAutoClear = async (): Promise<void> => {
         <div class="subagent-notch" />
         <!-- Repository 凹槽（右側） -->
         <div class="repository-notch" />
-        <!-- Command 凹槽（右側，Repository 下方） -->
+        <!-- Command 凹槽（上方） -->
         <div class="command-notch" />
 
         <!-- Anchors -->

@@ -455,10 +455,10 @@
   z-index: -1;
 }
 
-/* Command Note - 橫向卡片（薄荷綠） */
+/* Command Note - 垂直卡片（薄荷綠） */
 .command-note {
   position: absolute;
-  padding: 6px 12px;
+  padding: 12px 0;
   background: var(--doodle-mint);
   border: 2px solid var(--doodle-ink);
   border-radius: 2px;
@@ -470,7 +470,9 @@
   justify-content: center;
   user-select: none;
   z-index: 20;
-  white-space: nowrap;
+  writing-mode: vertical-rl;
+  width: 24px;
+  box-sizing: border-box;
 }
 
 .command-note.animating {
@@ -502,9 +504,9 @@
   border-color: oklch(0.55 0.15 170);
 }
 
-/* Pod Command Slot - 位於右側，橫向書寫 */
+/* Pod Command Slot（位於 POD 上方右側，垂直書寫） */
 .pod-command-slot {
-  padding: 6px 12px;
+  padding: 12px 0;
   background: transparent;
   border: 2px dashed oklch(0.6 0.02 50 / 0.4);
   border-radius: 2px;
@@ -512,9 +514,10 @@
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  white-space: nowrap;
+  writing-mode: vertical-rl;
+  width: 24px;
+  box-sizing: border-box;
 }
-
 
 .pod-command-slot.drop-target {
   background: oklch(0.7 0.1 150 / 0.3);
@@ -529,11 +532,11 @@
   border-style: solid;
   box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
   cursor: pointer;
-  transform: translateX(-50%);
+  transform: translateY(20px);
 }
 
 .pod-command-slot.has-note:hover {
-  transform: translateX(-50%) translate(0.5px, -0.5px);
+  transform: translateY(20px) translate(0.5px, -0.5px);
   box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
 }
 
@@ -547,46 +550,46 @@
 
 @keyframes slide-into-slot-command {
   from {
-    transform: translateX(100%);
+    transform: translateY(-100%);
     opacity: 0;
   }
   to {
-    transform: translateX(-50%);
+    transform: translateY(20px);
     opacity: 1;
   }
 }
 
 @keyframes eject-from-slot-command {
   from {
-    transform: translateX(-50%);
+    transform: translateY(20px);
     opacity: 1;
   }
   to {
-    transform: translateX(100%);
+    transform: translateY(-100%);
     opacity: 0;
   }
 }
 
-/* Command Slot 容器位置（POD 右側，Repository 下方） */
+/* Command Slot 容器位置（POD 上方右側） */
 .pod-command-notch-area {
   position: absolute;
-  right: 0;
-  top: 58px;  /* Repository 的 top (18px) + 40px 間距 */
-  transform: translateX(100%);
+  bottom: 100%;
+  right: 16px;
+  margin-bottom: -12px;
   z-index: -1;
 }
 
-/* Command 凹槽視覺效果（POD 右側，Repository 下方） */
+/* Command 凹槽視覺效果（POD 上方右側） */
 .command-notch {
   position: absolute;
-  right: -6px;
-  top: 56px;  /* Repository 凹槽 (16px) + 40px 間距 */
-  width: 8px;
-  height: 32px;
+  right: 12px;
+  top: -6px;
+  width: 28px;
+  height: 8px;
   background: var(--card);
   border: 2px solid var(--doodle-ink);
-  border-left: none;
-  border-radius: 0 4px 4px 0;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
   z-index: -1;
 }
 

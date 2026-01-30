@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
-import type { CommandNote } from '@/types'
-import { useCommandStore } from '@/stores/note'
-import { useViewportStore } from '@/stores/pod'
+import {onMounted, onUnmounted, ref, watch} from 'vue'
+import type {CommandNote} from '@/types'
+import {useCommandStore} from '@/stores/note'
+import {useViewportStore} from '@/stores/pod'
 
 const props = defineProps<{
   podId: string
@@ -64,7 +64,7 @@ const setupListeners = (): void => {
   mouseMoveHandler = checkDropTarget
   mouseUpHandler = handleDrop
   document.addEventListener('mousemove', mouseMoveHandler)
-  document.addEventListener('mouseup', mouseUpHandler, { capture: true })
+  document.addEventListener('mouseup', mouseUpHandler, {capture: true})
 }
 
 const cleanupListeners = (): void => {
@@ -73,7 +73,7 @@ const cleanupListeners = (): void => {
     mouseMoveHandler = null
   }
   if (mouseUpHandler) {
-    document.removeEventListener('mouseup', mouseUpHandler, { capture: true })
+    document.removeEventListener('mouseup', mouseUpHandler, {capture: true})
     mouseUpHandler = null
   }
 }
@@ -92,23 +92,22 @@ const handleSlotClick = async (e: MouseEvent): Promise<void> => {
   const slotElement = slotRef.value
   if (!slotElement) return
 
-  const slotWidth = slotElement.getBoundingClientRect().width
+  const slotRect = slotElement.getBoundingClientRect()
+  const slotHeight = slotRect.height
   const zoom = viewportStore.zoom
 
   const podElement = slotElement.closest('.pod-with-notch')
   if (!podElement) return
-
-  const podRect = podElement.getBoundingClientRect()
+  podElement.getBoundingClientRect();
   const viewportOffset = viewportStore.offset
 
-  // Command 在右側，所以用 Pod 的右邊作為基準
-  const podCenterX = (podRect.right - viewportOffset.x) / zoom
-  const podCenterY = (podRect.top - viewportOffset.y + 58) / zoom
+  // Command 插槽位於 POD 上方右側，向上彈出
+  const slotCenterX = (slotRect.left + slotRect.width / 2 - viewportOffset.x) / zoom
+  const slotTopY = (slotRect.top - viewportOffset.y) / zoom
 
   const extraDistance = 30
-  // 正值 = 向右彈出
-  const baseX = slotWidth / zoom + extraDistance
-  const baseY = 0
+  const baseX = 0  // 不需要水平偏移
+  const baseY = -(slotHeight / zoom + extraDistance)  // 向上彈出（負 Y 方向）
 
   const rotation = props.podRotation || 0
   const radians = rotation * Math.PI / 180
@@ -116,8 +115,8 @@ const handleSlotClick = async (e: MouseEvent): Promise<void> => {
   const rotatedX = baseX * Math.cos(radians) - baseY * Math.sin(radians)
   const rotatedY = baseX * Math.sin(radians) + baseY * Math.cos(radians)
 
-  const ejectX = podCenterX + rotatedX
-  const ejectY = podCenterY + rotatedY
+  const ejectX = slotCenterX + rotatedX - (slotRect.width / 2 / zoom)
+  const ejectY = slotTopY + rotatedY
 
   isEjecting.value = true
   commandStore.setNoteAnimating(noteId, true)
@@ -159,15 +158,15 @@ onUnmounted(() => {
 
 <template>
   <div
-    ref="slotRef"
-    class="pod-command-slot"
-    :class="{
+      ref="slotRef"
+      class="pod-command-slot"
+      :class="{
       'drop-target': isDropTarget,
       'has-note': boundNote !== undefined,
       'ejecting': isEjecting,
       'inserting': isInserting
     }"
-    @click="handleSlotClick"
+      @click="handleSlotClick"
   >
     <template v-if="boundNote">
       <span class="text-xs font-mono">{{ boundNote.name }}</span>
