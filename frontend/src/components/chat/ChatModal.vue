@@ -60,7 +60,10 @@ onUnmounted(() => {
           :is-typing="isTyping"
           :is-loading-history="isHistoryLoading"
         />
-        <ChatInput @send="handleSend" />
+        <ChatInput
+          :is-typing="isTyping"
+          @send="handleSend"
+        />
       </div>
     </div>
   </div>

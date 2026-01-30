@@ -22,6 +22,12 @@ export const RESPONSE_PREVIEW_LENGTH = 40
 export const RESPONSE_DELAY_MIN = 1000
 export const RESPONSE_DELAY_MAX = 2000
 
+// Textarea Constants
+export const TEXTAREA_MAX_LINES = 5
+export const TEXTAREA_LINE_HEIGHT = 20
+export const TEXTAREA_PADDING = 24
+export const TEXTAREA_MAX_HEIGHT = TEXTAREA_MAX_LINES * TEXTAREA_LINE_HEIGHT + TEXTAREA_PADDING
+
 // Pod Constants
 export const OUTPUT_LINES_PREVIEW_COUNT = 4
 export const DEFAULT_POD_ROTATION_RANGE = 2
