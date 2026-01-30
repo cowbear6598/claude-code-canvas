@@ -2,6 +2,11 @@ import type { Skill, SkillNote } from '@/types'
 import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 
+interface SkillStoreCustomActions {
+  deleteSkill(skillId: string): Promise<void>
+  loadSkills(): Promise<void>
+}
+
 const store = createNoteStore<Skill, SkillNote>({
   storeName: 'skill',
   relationship: 'one-to-many',
@@ -53,4 +58,4 @@ const store = createNoteStore<Skill, SkillNote>({
   }
 })
 
-export const useSkillStore = store
+export const useSkillStore: (() => ReturnType<typeof store> & SkillStoreCustomActions) & { $id: string } = store as any

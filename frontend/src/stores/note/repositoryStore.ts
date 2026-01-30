@@ -4,6 +4,12 @@ import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import type { RepositoryCreatePayload, RepositoryCreatedPayload } from '@/types/websocket'
 
+interface RepositoryStoreCustomActions {
+  createRepository(name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }>
+  deleteRepository(repositoryId: string): Promise<void>
+  loadRepositories(): Promise<void>
+}
+
 const store = createNoteStore<Repository, RepositoryNote>({
   storeName: 'repository',
   relationship: 'one-to-one',
@@ -83,4 +89,4 @@ const store = createNoteStore<Repository, RepositoryNote>({
   }
 })
 
-export const useRepositoryStore = store
+export const useRepositoryStore: (() => ReturnType<typeof store> & RepositoryStoreCustomActions) & { $id: string } = store as any

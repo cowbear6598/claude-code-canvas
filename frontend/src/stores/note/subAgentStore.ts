@@ -2,6 +2,11 @@ import type { SubAgent, SubAgentNote } from '@/types'
 import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 
+interface SubAgentStoreCustomActions {
+  deleteSubAgent(subAgentId: string): Promise<void>
+  loadSubAgents(): Promise<void>
+}
+
 const store = createNoteStore<SubAgent, SubAgentNote>({
   storeName: 'subAgent',
   relationship: 'one-to-many',
@@ -53,4 +58,4 @@ const store = createNoteStore<SubAgent, SubAgentNote>({
   }
 })
 
-export const useSubAgentStore = store
+export const useSubAgentStore: (() => ReturnType<typeof store> & SubAgentStoreCustomActions) & { $id: string } = store as any

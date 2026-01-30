@@ -28,13 +28,13 @@ const cssClassMap: Record<NoteType, string> = {
   command: 'command-note'
 }
 
-const selectionTypeMap: Record<NoteType, string> = {
+const selectionTypeMap = {
   outputStyle: 'outputStyleNote',
   skill: 'skillNote',
   subAgent: 'subAgentNote',
   repository: 'repositoryNote',
   command: 'commandNote'
-}
+} as const
 
 const viewportStore = useViewportStore()
 const selectionStore = useSelectionStore()

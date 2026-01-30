@@ -3,6 +3,12 @@ import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
 import type { NoteCreatePayload, NoteCreatedPayload } from '@/types/websocket'
 
+interface OutputStyleStoreCustomActions {
+  rebuildNotesFromPods(pods: Pod[]): Promise<void>
+  deleteOutputStyle(outputStyleId: string): Promise<void>
+  loadOutputStyles(): Promise<void>
+}
+
 const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
   storeName: 'outputStyle',
   relationship: 'one-to-one',
@@ -95,4 +101,4 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
   }
 })
 
-export const useOutputStyleStore = store
+export const useOutputStyleStore: (() => ReturnType<typeof store> & OutputStyleStoreCustomActions) & { $id: string } = store as any

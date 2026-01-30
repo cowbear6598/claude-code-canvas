@@ -4,7 +4,7 @@ import { useCanvasContext } from './useCanvasContext'
 export function useBatchDrag(): {
   isBatchDragging: import('vue').Ref<boolean>
   startBatchDrag: (e: MouseEvent) => boolean
-  isElementSelected: (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote', id: string) => boolean
+  isElementSelected: (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote', id: string) => boolean
 } {
   const { podStore, viewportStore, selectionStore, outputStyleStore, skillStore, repositoryStore } = useCanvasContext()
 
@@ -125,7 +125,7 @@ export function useBatchDrag(): {
     movedRepositoryNotes.clear()
   }
 
-  const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote', id: string): boolean => {
+  const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote', id: string): boolean => {
     return selectionStore.selectedElements.some(
       el => el.type === type && el.id === id
     )
