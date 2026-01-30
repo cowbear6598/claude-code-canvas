@@ -233,8 +233,6 @@ export const useChatStore = defineStore('chat', {
         return
       }
 
-      this.addUserMessage(podId, content)
-
       let finalMessage = content
 
       const { usePodStore } = await import('./pod/podStore')
@@ -249,6 +247,8 @@ export const useChatStore = defineStore('chat', {
           finalMessage = `/${command.name} ${content}`
         }
       }
+
+      this.addUserMessage(podId, finalMessage)
 
       websocketClient.emit<PodChatSendPayload>(WebSocketRequestEvents.POD_CHAT_SEND, {
         requestId: generateRequestId(),
