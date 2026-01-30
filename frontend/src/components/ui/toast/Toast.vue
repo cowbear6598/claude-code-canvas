@@ -15,10 +15,20 @@ const { toasts, dismiss } = useToast()
           class="toast-item"
         >
           <div class="toast-content">
-            <p class="toast-title">{{ toast.title }}</p>
-            <p v-if="toast.description" class="toast-description">{{ toast.description }}</p>
+            <p class="toast-title">
+              {{ toast.title }}
+            </p>
+            <p
+              v-if="toast.description"
+              class="toast-description"
+            >
+              {{ toast.description }}
+            </p>
           </div>
-          <button class="toast-close" @click="dismiss(toast.id)">
+          <button
+            class="toast-close"
+            @click="dismiss(toast.id)"
+          >
             <X :size="14" />
           </button>
         </div>

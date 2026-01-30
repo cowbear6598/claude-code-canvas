@@ -51,8 +51,15 @@ onUnmounted(() => {
 
     <div class="relative max-w-3xl w-full h-[85vh]">
       <div class="chat-window flex flex-col h-full overflow-hidden">
-        <ChatHeader :pod="pod" @close="handleClose" />
-        <ChatMessages :messages="messages" :is-typing="isTyping" :is-loading-history="isHistoryLoading" />
+        <ChatHeader
+          :pod="pod"
+          @close="handleClose"
+        />
+        <ChatMessages
+          :messages="messages"
+          :is-typing="isTyping"
+          :is-loading-history="isHistoryLoading"
+        />
         <ChatInput @send="handleSend" />
       </div>
     </div>

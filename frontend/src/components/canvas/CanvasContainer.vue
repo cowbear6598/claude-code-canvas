@@ -43,7 +43,7 @@ const validateCoordinate = (value: number): number => {
   return value
 }
 
-const handleDoubleClick = (e: MouseEvent) => {
+const handleDoubleClick = (e: MouseEvent): void => {
   const target = e.target as HTMLElement
 
   if (
@@ -54,7 +54,7 @@ const handleDoubleClick = (e: MouseEvent) => {
   }
 }
 
-const handleCanvasClick = (e: MouseEvent) => {
+const handleCanvasClick = (e: MouseEvent): void => {
   if (selectionStore.boxSelectJustEnded) {
     return
   }
@@ -93,7 +93,7 @@ const handleCanvasClick = (e: MouseEvent) => {
   connectionStore.selectConnection(null)
 }
 
-const handleSelectType = async (config: PodTypeConfig) => {
+const handleSelectType = async (config: PodTypeConfig): Promise<void> => {
   if (!podStore.typeMenu.position) return
 
   const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
@@ -115,19 +115,19 @@ const handleSelectType = async (config: PodTypeConfig) => {
   await podStore.createPodWithBackend(newPod)
 }
 
-const handleSelectPod = (podId: string) => {
+const handleSelectPod = (podId: string): void => {
   podStore.selectPod(podId)
 }
 
-const handleDeletePod = async (id: string) => {
+const handleDeletePod = async (id: string): Promise<void> => {
   await podStore.deletePodWithBackend(id)
 }
 
-const handleDragEnd = (data: { id: string; x: number; y: number }) => {
+const handleDragEnd = (data: { id: string; x: number; y: number }): void => {
   podStore.movePod(data.id, data.x, data.y)
 }
 
-const handleCreateOutputStyleNote = (outputStyleId: string) => {
+const handleCreateOutputStyleNote = (outputStyleId: string): void => {
   if (!podStore.typeMenu.position) return
 
   const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
@@ -136,7 +136,7 @@ const handleCreateOutputStyleNote = (outputStyleId: string) => {
   outputStyleStore.createNote(outputStyleId, canvasX, canvasY)
 }
 
-const handleCreateSkillNote = (skillId: string) => {
+const handleCreateSkillNote = (skillId: string): void => {
   if (!podStore.typeMenu.position) return
 
   const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
@@ -145,7 +145,7 @@ const handleCreateSkillNote = (skillId: string) => {
   skillStore.createNote(skillId, canvasX, canvasY)
 }
 
-const handleCreateSubAgentNote = (subAgentId: string) => {
+const handleCreateSubAgentNote = (subAgentId: string): void => {
   if (!podStore.typeMenu.position) return
 
   const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
@@ -154,7 +154,7 @@ const handleCreateSubAgentNote = (subAgentId: string) => {
   subAgentStore.createNote(subAgentId, canvasX, canvasY)
 }
 
-const handleCreateRepositoryNote = (repositoryId: string) => {
+const handleCreateRepositoryNote = (repositoryId: string): void => {
   if (!podStore.typeMenu.position) return
 
   const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
@@ -163,7 +163,7 @@ const handleCreateRepositoryNote = (repositoryId: string) => {
   repositoryStore.createNote(repositoryId, canvasX, canvasY)
 }
 
-const handleCreateCommandNote = (commandId: string) => {
+const handleCreateCommandNote = (commandId: string): void => {
   if (!podStore.typeMenu.position) return
 
   const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
@@ -180,7 +180,10 @@ const commandHandlers = useNoteEventHandlers({ store: commandStore, trashZoneRef
 </script>
 
 <template>
-  <CanvasViewport @dblclick="handleDoubleClick" @click="handleCanvasClick">
+  <CanvasViewport
+    @dblclick="handleDoubleClick"
+    @click="handleCanvasClick"
+  >
     <!-- Connection Layer -->
     <ConnectionLayer />
 

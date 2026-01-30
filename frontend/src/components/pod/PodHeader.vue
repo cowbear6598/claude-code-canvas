@@ -49,8 +49,11 @@ const handleSave = () => {
         class="flex-1 bg-transparent border-b-2 border-doodle-ink/50 outline-none font-sans text-lg"
         @blur="handleSave"
         @keydown.enter="handleSave"
-      />
-      <h3 v-else class="flex-1 font-sans text-xl text-foreground truncate">
+      >
+      <h3
+        v-else
+        class="flex-1 font-sans text-xl text-foreground truncate"
+      >
         {{ name }}
       </h3>
       <button
@@ -58,7 +61,10 @@ const handleSave = () => {
         class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         @click="$emit('rename')"
       >
-        <Pencil :size="14" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300" />
+        <Pencil
+          :size="14"
+          class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+        />
       </button>
     </div>
   </div>

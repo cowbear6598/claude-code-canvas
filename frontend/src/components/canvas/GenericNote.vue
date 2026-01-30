@@ -57,6 +57,8 @@ const noteStore = computed(() => {
       return repositoryStore
     case 'command':
       return commandStore
+    default:
+      return outputStyleStore
   }
 })
 
@@ -74,6 +76,8 @@ const isSelected = computed(() => {
       return selectionStore.selectedRepositoryNoteIds.includes(props.note.id)
     case 'command':
       return selectionStore.selectedCommandNoteIds.includes(props.note.id)
+    default:
+      return false
   }
 })
 
@@ -88,7 +92,7 @@ const startPosition = ref<{ x: number; y: number } | null>(null)
 let currentMouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let currentMouseUpHandler: (() => void) | null = null
 
-const cleanupEventListeners = () => {
+const cleanupEventListeners = (): void => {
   if (currentMouseMoveHandler) {
     document.removeEventListener('mousemove', currentMouseMoveHandler)
     currentMouseMoveHandler = null
@@ -107,7 +111,7 @@ onUnmounted(() => {
 // 1. 需要追蹤全局 mousemove/mouseup 事件（不受組件邊界限制）
 // 2. 需要計算相對於 viewport 的坐標變化
 // 3. 需要在 unmount 時精確清理監聽器以防記憶體洩漏
-const handleMouseDown = (e: MouseEvent) => {
+const handleMouseDown = (e: MouseEvent): void => {
   const selectionType = selectionTypeMap[props.noteType]
 
   if (isElementSelected(selectionType, props.note.id) && selectionStore.selectedElements.length > 1) {

@@ -18,17 +18,17 @@ const draggingPathData = computed(() => {
   return `M ${startPoint.x} ${startPoint.y} L ${currentPoint.x} ${currentPoint.y}`
 })
 
-const handleSelectConnection = (connectionId: string) => {
+const handleSelectConnection = (connectionId: string): void => {
   connectionStore.selectConnection(connectionId)
 }
 
-const handleCanvasClick = (e: MouseEvent) => {
+const handleCanvasClick = (e: MouseEvent): void => {
   if (e.target === e.currentTarget) {
     connectionStore.selectConnection(null)
   }
 }
 
-const handleKeyDown = (e: KeyboardEvent) => {
+const handleKeyDown = (e: KeyboardEvent): void => {
   if (e.key === 'Delete' || e.key === 'Backspace') {
     if (connectionStore.selectedConnectionId) {
       connectionStore.deleteConnection(connectionStore.selectedConnectionId)
@@ -46,7 +46,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <svg class="connection-layer" @click="handleCanvasClick">
+  <svg
+    class="connection-layer"
+    @click="handleCanvasClick"
+  >
     <ConnectionLine
       v-for="connection in connectionStore.connections"
       :key="connection.id"
@@ -57,7 +60,10 @@ onUnmounted(() => {
       @select="handleSelectConnection"
     />
 
-    <g v-if="connectionStore.draggingConnection" class="dragging-line">
+    <g
+      v-if="connectionStore.draggingConnection"
+      class="dragging-line"
+    >
       <path
         :d="draggingPathData"
         stroke="oklch(0.6 0.02 50)"

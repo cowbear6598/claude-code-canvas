@@ -9,14 +9,14 @@ const emit = defineEmits<{
 
 const input = ref('')
 
-const handleSend = () => {
+const handleSend = (): void => {
   if (!input.value.trim()) return
   if (input.value.length > MAX_MESSAGE_LENGTH) return
   emit('send', input.value)
   input.value = ''
 }
 
-const handleKeyDown = (e: KeyboardEvent) => {
+const handleKeyDown = (e: KeyboardEvent): void => {
   if (e.key === 'Enter') {
     handleSend()
   }
@@ -34,19 +34,25 @@ const handleKeyDown = (e: KeyboardEvent) => {
         class="flex-1 px-4 py-3 border-2 border-doodle-ink rounded-lg bg-card font-mono text-sm outline-none focus:ring-2 focus:ring-primary"
         :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
         @keydown="handleKeyDown"
-      />
+      >
       <button
         class="px-4 py-3 bg-doodle-green border-2 border-doodle-ink rounded-lg hover:translate-x-[-1px] hover:translate-y-[-1px] transition-transform"
         :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
         @click="handleSend"
       >
-        <Send :size="20" class="text-card" />
+        <Send
+          :size="20"
+          class="text-card"
+        />
       </button>
       <button
         class="px-4 py-3 bg-doodle-coral border-2 border-doodle-ink rounded-lg hover:translate-x-[-1px] hover:translate-y-[-1px] transition-transform"
         :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
       >
-        <Mic :size="20" class="text-card" />
+        <Mic
+          :size="20"
+          class="text-card"
+        />
       </button>
     </div>
   </div>

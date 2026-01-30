@@ -3,7 +3,17 @@ import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStor
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useClipboardStore } from '@/stores/clipboardStore'
 
-export function useCanvasContext() {
+export function useCanvasContext(): {
+  podStore: ReturnType<typeof usePodStore>
+  viewportStore: ReturnType<typeof useViewportStore>
+  selectionStore: ReturnType<typeof useSelectionStore>
+  outputStyleStore: ReturnType<typeof useOutputStyleStore>
+  skillStore: ReturnType<typeof useSkillStore>
+  subAgentStore: ReturnType<typeof useSubAgentStore>
+  repositoryStore: ReturnType<typeof useRepositoryStore>
+  connectionStore: ReturnType<typeof useConnectionStore>
+  clipboardStore: ReturnType<typeof useClipboardStore>
+} {
   const podStore = usePodStore()
   const viewportStore = useViewportStore()
   const selectionStore = useSelectionStore()

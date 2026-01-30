@@ -17,11 +17,18 @@ defineEmits<{
       <div
         class="w-10 h-10 rounded-full bg-doodle-green border-2 border-doodle-ink flex items-center justify-center"
       >
-        <Sparkles :size="20" class="text-card" />
+        <Sparkles
+          :size="20"
+          class="text-card"
+        />
       </div>
       <div>
-        <h2 class="font-sans text-2xl text-foreground">{{ pod.name }}</h2>
-        <p class="text-sm font-mono text-muted-foreground">{{ pod.type }}</p>
+        <h2 class="font-sans text-2xl text-foreground">
+          {{ pod.name }}
+        </h2>
+        <p class="text-sm font-mono text-muted-foreground">
+          {{ pod.type }}
+        </p>
       </div>
     </div>
     <button

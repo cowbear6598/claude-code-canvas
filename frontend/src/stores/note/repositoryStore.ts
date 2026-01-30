@@ -49,7 +49,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
   getItemId: (item: Repository) => item.id,
   getItemName: (item: Repository) => item.name,
   customActions: {
-    async createRepository(this: any, name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }> {
+    async createRepository(this, name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
 
       const response = await wrapWebSocketRequest(
@@ -73,11 +73,11 @@ const store = createNoteStore<Repository, RepositoryNote>({
       return { success: true, repository: response.repository }
     },
 
-    async deleteRepository(this: any, repositoryId: string): Promise<void> {
+    async deleteRepository(this, repositoryId: string): Promise<void> {
       return this.deleteItem(repositoryId)
     },
 
-    async loadRepositories(this: any): Promise<void> {
+    async loadRepositories(this): Promise<void> {
       return this.loadItems()
     },
   }

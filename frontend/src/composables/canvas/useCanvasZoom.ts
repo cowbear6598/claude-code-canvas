@@ -1,9 +1,11 @@
 import { useCanvasContext } from './useCanvasContext'
 
-export function useCanvasZoom() {
+export function useCanvasZoom(): {
+  handleWheel: (e: WheelEvent) => void
+} {
   const { viewportStore } = useCanvasContext()
 
-  const handleWheel = (e: WheelEvent) => {
+  const handleWheel = (e: WheelEvent): void => {
     e.preventDefault()
 
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()

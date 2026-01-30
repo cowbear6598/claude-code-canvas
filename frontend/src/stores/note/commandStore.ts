@@ -48,7 +48,7 @@ const store = createNoteStore<Command, CommandNote>({
   getItemId: (item: Command) => item.id,
   getItemName: (item: Command) => item.name,
   customActions: {
-    async rebuildNotesFromPods(this: any, pods: Pod[]): Promise<void> {
+    async rebuildNotesFromPods(this, pods: Pod[]): Promise<void> {
       const promises: Promise<void>[] = []
 
       for (const pod of pods) {
@@ -85,11 +85,11 @@ const store = createNoteStore<Command, CommandNote>({
       }
     },
 
-    async deleteCommand(this: any, commandId: string): Promise<void> {
+    async deleteCommand(this, commandId: string): Promise<void> {
       return this.deleteItem(commandId)
     },
 
-    async loadCommands(this: any): Promise<void> {
+    async loadCommands(this): Promise<void> {
       return this.loadItems()
     }
   }

@@ -15,11 +15,11 @@ const emit = defineEmits<{
 
 const hoveredItemId = defineModel<string | null>('hoveredItemId')
 
-const handleItemSelect = (item: T) => {
+const handleItemSelect = (item: T): void => {
   emit('item-select', item)
 }
 
-const handleItemDelete = (item: T, event: Event) => {
+const handleItemDelete = (item: T, event: Event): void => {
   emit('item-delete', item.id, item.name, event)
 }
 </script>

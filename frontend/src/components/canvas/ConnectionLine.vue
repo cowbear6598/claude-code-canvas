@@ -97,12 +97,12 @@ const arrowPositions = computed(() => {
   )
 })
 
-const handleClick = (e: MouseEvent) => {
+const handleClick = (e: MouseEvent): void => {
   e.stopPropagation()
   emit('select', props.connection.id)
 }
 
-const handleDoubleClick = (e: MouseEvent) => {
+const handleDoubleClick = (e: MouseEvent): void => {
   e.stopPropagation()
   connectionStore.deleteConnection(props.connection.id)
 }

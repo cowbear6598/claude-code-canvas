@@ -23,7 +23,7 @@ const statusConfig = computed(() => {
         textColor: 'text-yellow-700',
         ringColor: 'ring-yellow-200'
       }
-    case 'disconnected':
+    case 'disconnected': {
       const reasonText = disconnectReason.value ? ` (${disconnectReason.value})` : ''
       return {
         color: 'bg-gray-400',
@@ -31,6 +31,7 @@ const statusConfig = computed(() => {
         textColor: 'text-gray-600',
         ringColor: 'ring-gray-200'
       }
+    }
     case 'error':
       return {
         color: 'bg-red-500',

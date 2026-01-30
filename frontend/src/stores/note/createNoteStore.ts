@@ -4,7 +4,7 @@ import { createWebSocketRequest } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { useDeleteItem } from '@/composables/useDeleteItem'
 
-export interface NoteStoreConfig<TItem, _TNote extends BaseNote> {
+export interface NoteStoreConfig<TItem> {
   storeName: string
   relationship: 'one-to-one' | 'one-to-many'
   responseItemsKey: string
@@ -31,7 +31,7 @@ export interface NoteStoreConfig<TItem, _TNote extends BaseNote> {
   createNotePayload: (item: TItem, x: number, y: number) => object
   getItemId: (item: TItem) => string
   getItemName: (item: TItem) => string
-  customActions?: Record<string, Function>
+  customActions?: Record<string, (...args: unknown[]) => unknown>
 }
 
 interface BaseNoteState<TItem, TNote extends BaseNote> {
@@ -85,10 +85,10 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
       },
 
       isItemInUse: (state) => (itemId: string) =>
-        state.notes.some(note => (note as any)[config.itemIdField] === itemId && note.boundToPodId !== null),
+        state.notes.some(note => (note as Record<string, unknown>)[config.itemIdField] === itemId && note.boundToPodId !== null),
 
       isItemBoundToPod: (state) => (itemId: string, podId: string) =>
-        state.notes.some(note => (note as any)[config.itemIdField] === itemId && note.boundToPodId === podId),
+        state.notes.some(note => (note as Record<string, unknown>)[config.itemIdField] === itemId && note.boundToPodId === podId),
     },
 
     actions: {
@@ -99,7 +99,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
         const { wrapWebSocketRequest } = useWebSocketErrorHandler()
 
         const response = await wrapWebSocketRequest(
-          createWebSocketRequest<any, any>({
+          createWebSocketRequest<Record<string, unknown>, Record<string, unknown>>({
             requestEvent: config.events.listItems.request,
             responseEvent: config.events.listItems.response,
             payload: {}
@@ -126,7 +126,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
         const { wrapWebSocketRequest } = useWebSocketErrorHandler()
 
         const response = await wrapWebSocketRequest(
-          createWebSocketRequest<any, any>({
+          createWebSocketRequest<Record<string, unknown>, Record<string, unknown>>({
             requestEvent: config.events.listNotes.request,
             responseEvent: config.events.listNotes.response,
             payload: {}
@@ -161,7 +161,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
           originalPosition: null,
         }
 
-        const response = await createWebSocketRequest<any, any>({
+        const response = await createWebSocketRequest<Record<string, unknown>, Record<string, unknown>>({
           requestEvent: config.events.createNote.request,
           responseEvent: config.events.createNote.response,
           payload
@@ -192,7 +192,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
         const { wrapWebSocketRequest } = useWebSocketErrorHandler()
 
         const response = await wrapWebSocketRequest(
-          createWebSocketRequest<any, any>({
+          createWebSocketRequest<Record<string, unknown>, Record<string, unknown>>({
             requestEvent: config.events.updateNote.request,
             responseEvent: config.events.updateNote.response,
             payload: {
@@ -254,15 +254,15 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
         if (!config.bindEvents) return
 
         const [, updateResponse] = await Promise.all([
-          createWebSocketRequest<any, any>({
+          createWebSocketRequest<Record<string, unknown>, Record<string, unknown>>({
             requestEvent: config.bindEvents.request,
             responseEvent: config.bindEvents.response,
             payload: {
               podId,
-              [config.itemIdField]: (note as any)[config.itemIdField]
+              [config.itemIdField]: (note as Record<string, unknown>)[config.itemIdField]
             }
           }),
-          createWebSocketRequest<any, any>({
+          createWebSocketRequest<Record<string, unknown>, Record<string, unknown>>({
             requestEvent: config.events.updateNote.request,
             responseEvent: config.events.updateNote.response,
             payload: {
@@ -290,7 +290,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
 
         const noteId = note.id
 
-        const updatePayload: any = {
+        const updatePayload: Record<string, unknown> = {
           noteId,
           boundToPodId: null,
           originalPosition: null,
@@ -302,12 +302,12 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
         }
 
         const [, updateResponse] = await Promise.all([
-          createWebSocketRequest<any, any>({
+          createWebSocketRequest<Record<string, unknown>, Record<string, unknown>>({
             requestEvent: config.unbindEvents.request,
             responseEvent: config.unbindEvents.response,
             payload: { podId }
           }),
-          createWebSocketRequest<any, any>({
+          createWebSocketRequest<Record<string, unknown>, Record<string, unknown>>({
             requestEvent: config.events.updateNote.request,
             responseEvent: config.events.updateNote.response,
             payload: updatePayload
@@ -335,7 +335,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
         const { wrapWebSocketRequest } = useWebSocketErrorHandler()
 
         const response = await wrapWebSocketRequest(
-          createWebSocketRequest<any, any>({
+          createWebSocketRequest<Record<string, unknown>, Record<string, unknown>>({
             requestEvent: config.events.deleteNote.request,
             responseEvent: config.events.deleteNote.response,
             payload: {
@@ -356,7 +356,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
 
         const { deleteItem } = useDeleteItem()
 
-        await deleteItem<any, any>({
+        await deleteItem<Record<string, unknown>, Record<string, unknown>>({
           requestEvent: config.deleteItemEvents.request,
           responseEvent: config.deleteItemEvents.response,
           payload: { [config.itemIdField]: itemId },

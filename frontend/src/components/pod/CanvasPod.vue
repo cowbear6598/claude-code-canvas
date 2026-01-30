@@ -87,7 +87,7 @@ const isAutoClearAnimating = computed(() => chatStore.autoClearAnimationPodId ==
 let currentMouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let currentMouseUpHandler: (() => void) | null = null
 
-const cleanupEventListeners = () => {
+const cleanupEventListeners = (): void => {
   if (currentMouseMoveHandler) {
     document.removeEventListener('mousemove', currentMouseMoveHandler)
     currentMouseMoveHandler = null
@@ -102,7 +102,7 @@ onUnmounted(() => {
   cleanupEventListeners()
 })
 
-const handleMouseDown = (e: MouseEvent) => {
+const handleMouseDown = (e: MouseEvent): void => {
   if (
       (e.target as HTMLElement).closest('.pod-output-style-slot') ||
       (e.target as HTMLElement).closest('.pod-skill-slot') ||
@@ -136,7 +136,7 @@ const handleMouseDown = (e: MouseEvent) => {
     podY: props.pod.y,
   }
 
-  const handleMouseMove = (moveEvent: MouseEvent) => {
+  const handleMouseMove = (moveEvent: MouseEvent): void => {
     if (!dragRef.value) return
 
     const dx = (moveEvent.clientX - dragRef.value.startX) / viewportStore.zoom
@@ -149,7 +149,7 @@ const handleMouseDown = (e: MouseEvent) => {
     })
   }
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (): void => {
     isDragging.value = false
     dragRef.value = null
     cleanupEventListeners()
@@ -162,29 +162,29 @@ const handleMouseDown = (e: MouseEvent) => {
   document.addEventListener('mouseup', handleMouseUp)
 }
 
-const handleRename = () => {
+const handleRename = (): void => {
   isEditing.value = true
 }
 
-const handleUpdateName = (name: string) => {
+const handleUpdateName = (name: string): void => {
   emit('update', {...props.pod, name})
 }
 
-const handleSaveName = () => {
+const handleSaveName = (): void => {
   isEditing.value = false
 }
 
-const handleDelete = () => {
+const handleDelete = (): void => {
   emit('delete', props.pod.id)
   showDeleteDialog.value = false
 }
 
-const handleSelectPod = () => {
+const handleSelectPod = (): void => {
   podStore.setActivePod(props.pod.id)
   emit('select', props.pod.id)
 }
 
-const handleNoteDropped = async (noteId: string) => {
+const handleNoteDropped = async (noteId: string): Promise<void> => {
   await outputStyleStore.bindToPod(noteId, props.pod.id)
   const note = outputStyleStore.getNoteById(noteId)
   if (note) {
@@ -192,12 +192,12 @@ const handleNoteDropped = async (noteId: string) => {
   }
 }
 
-const handleNoteRemoved = async () => {
+const handleNoteRemoved = async (): Promise<void> => {
   await outputStyleStore.unbindFromPod(props.pod.id, true)
   podStore.updatePodOutputStyle(props.pod.id, null)
 }
 
-const handleSkillNoteDropped = async (noteId: string) => {
+const handleSkillNoteDropped = async (noteId: string): Promise<void> => {
   const note = skillStore.getNoteById(noteId)
   if (!note) return
 
@@ -206,7 +206,7 @@ const handleSkillNoteDropped = async (noteId: string) => {
   await skillStore.bindToPod(noteId, props.pod.id)
 }
 
-const handleSubAgentNoteDropped = async (noteId: string) => {
+const handleSubAgentNoteDropped = async (noteId: string): Promise<void> => {
   const note = subAgentStore.getNoteById(noteId)
   if (!note) return
 
@@ -215,7 +215,7 @@ const handleSubAgentNoteDropped = async (noteId: string) => {
   await subAgentStore.bindToPod(noteId, props.pod.id)
 }
 
-const handleRepositoryNoteDropped = async (noteId: string) => {
+const handleRepositoryNoteDropped = async (noteId: string): Promise<void> => {
   await repositoryStore.bindToPod(noteId, props.pod.id)
   const note = repositoryStore.getNoteById(noteId)
   if (note) {
@@ -223,12 +223,12 @@ const handleRepositoryNoteDropped = async (noteId: string) => {
   }
 }
 
-const handleRepositoryNoteRemoved = async () => {
+const handleRepositoryNoteRemoved = async (): Promise<void> => {
   await repositoryStore.unbindFromPod(props.pod.id, true)
   podStore.updatePodRepository(props.pod.id, null)
 }
 
-const handleCommandNoteDropped = async (noteId: string) => {
+const handleCommandNoteDropped = async (noteId: string): Promise<void> => {
   await commandStore.bindToPod(noteId, props.pod.id)
   const note = commandStore.getNoteById(noteId)
   if (note) {
@@ -236,7 +236,7 @@ const handleCommandNoteDropped = async (noteId: string) => {
   }
 }
 
-const handleCommandNoteRemoved = async () => {
+const handleCommandNoteRemoved = async (): Promise<void> => {
   await commandStore.unbindFromPod(props.pod.id, true)
   podStore.updatePodCommand(props.pod.id, null)
 }
@@ -246,21 +246,21 @@ const handleAnchorDragStart = (data: {
   anchor: AnchorPosition
   screenX: number
   screenY: number
-}) => {
+}): void => {
   const canvasX = (data.screenX - viewportStore.offset.x) / viewportStore.zoom
   const canvasY = (data.screenY - viewportStore.offset.y) / viewportStore.zoom
 
   connectionStore.startDragging(data.podId, data.anchor, {x: canvasX, y: canvasY})
 }
 
-const handleAnchorDragMove = (data: { screenX: number; screenY: number }) => {
+const handleAnchorDragMove = (data: { screenX: number; screenY: number }): void => {
   const canvasX = (data.screenX - viewportStore.offset.x) / viewportStore.zoom
   const canvasY = (data.screenY - viewportStore.offset.y) / viewportStore.zoom
 
   connectionStore.updateDraggingPosition({x: canvasX, y: canvasY})
 }
 
-const handleAnchorDragEnd = async () => {
+const handleAnchorDragEnd = async (): Promise<void> => {
   if (!connectionStore.draggingConnection) {
     connectionStore.endDragging()
     return
@@ -282,7 +282,7 @@ const handleAnchorDragEnd = async () => {
   connectionStore.endDragging()
 }
 
-const handleClearWorkflow = async () => {
+const handleClearWorkflow = async (): Promise<void> => {
   isLoadingDownstream.value = true
 
   const {wrapWebSocketRequest} = useWebSocketErrorHandler()
@@ -306,7 +306,7 @@ const handleClearWorkflow = async () => {
   showClearDialog.value = true
 }
 
-const handleConfirmClear = async () => {
+const handleConfirmClear = async (): Promise<void> => {
   isClearing.value = true
 
   const {wrapWebSocketRequest} = useWebSocketErrorHandler()
@@ -332,12 +332,12 @@ const handleConfirmClear = async () => {
   downstreamPods.value = []
 }
 
-const handleCancelClear = () => {
+const handleCancelClear = (): void => {
   showClearDialog.value = false
   downstreamPods.value = []
 }
 
-const handleModelChange = async (model: ModelType) => {
+const handleModelChange = async (model: ModelType): Promise<void> => {
   const {wrapWebSocketRequest} = useWebSocketErrorHandler()
 
   const response = await wrapWebSocketRequest(
@@ -356,110 +356,115 @@ const handleModelChange = async (model: ModelType) => {
   podStore.updatePodModel(props.pod.id, response.pod.model ?? 'opus')
 }
 
-const handleToggleAutoClear = async () => {
+const handleToggleAutoClear = async (): Promise<void> => {
   await podStore.setAutoClearWithBackend(props.pod.id, !isAutoClearEnabled.value)
 }
 </script>
 
 <template>
   <div
-      class="absolute select-none"
-      :style="{
+    class="absolute select-none"
+    :style="{
       left: `${pod.x}px`,
       top: `${pod.y}px`,
       zIndex: isActive ? 100 : 10,
     }"
-      @mousedown="handleMouseDown"
+    @mousedown="handleMouseDown"
   >
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
-        class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch pod-with-command-notch"
-        :style="{ transform: `rotate(${pod.rotation}deg)` }"
+      class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch pod-with-command-notch"
+      :style="{ transform: `rotate(${pod.rotation}deg)` }"
     >
       <!-- Model Selector -->
       <PodModelSelector
-          :pod-id="pod.id"
-          :current-model="currentModel"
-          @update:model="handleModelChange"
+        :pod-id="pod.id"
+        :current-model="currentModel"
+        @update:model="handleModelChange"
       />
 
       <!-- Slots -->
       <PodSlots
-          :pod-id="pod.id"
-          :pod-rotation="pod.rotation"
-          :bound-output-style-note="boundNote"
-          :bound-skill-notes="boundSkillNotes"
-          :bound-sub-agent-notes="boundSubAgentNotes"
-          :bound-repository-note="boundRepositoryNote"
-          :bound-command-note="boundCommandNote"
-          @output-style-dropped="handleNoteDropped"
-          @output-style-removed="handleNoteRemoved"
-          @skill-dropped="handleSkillNoteDropped"
-          @subagent-dropped="handleSubAgentNoteDropped"
-          @repository-dropped="handleRepositoryNoteDropped"
-          @repository-removed="handleRepositoryNoteRemoved"
-          @command-dropped="handleCommandNoteDropped"
-          @command-removed="handleCommandNoteRemoved"
+        :pod-id="pod.id"
+        :pod-rotation="pod.rotation"
+        :bound-output-style-note="boundNote"
+        :bound-skill-notes="boundSkillNotes"
+        :bound-sub-agent-notes="boundSubAgentNotes"
+        :bound-repository-note="boundRepositoryNote"
+        :bound-command-note="boundCommandNote"
+        @output-style-dropped="handleNoteDropped"
+        @output-style-removed="handleNoteRemoved"
+        @skill-dropped="handleSkillNoteDropped"
+        @subagent-dropped="handleSubAgentNoteDropped"
+        @repository-dropped="handleRepositoryNoteDropped"
+        @repository-removed="handleRepositoryNoteRemoved"
+        @command-dropped="handleCommandNoteDropped"
+        @command-removed="handleCommandNoteRemoved"
       />
 
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
-      <div class="pod-doodle w-56 overflow-visible relative" :class="[podStatusClass, { selected: isSelected }]">
+      <div
+        class="pod-doodle w-56 overflow-visible relative"
+        :class="[podStatusClass, { selected: isSelected }]"
+      >
         <!-- Model 凹槽 -->
-        <div class="model-notch"></div>
+        <div class="model-notch" />
         <!-- SubAgent 凹槽 -->
-        <div class="subagent-notch"></div>
+        <div class="subagent-notch" />
         <!-- Repository 凹槽（右側） -->
-        <div class="repository-notch"></div>
+        <div class="repository-notch" />
         <!-- Command 凹槽（右側，Repository 下方） -->
-        <div class="command-notch"></div>
+        <div class="command-notch" />
 
         <!-- Anchors -->
         <PodAnchors
-            :pod-id="pod.id"
-            @drag-start="handleAnchorDragStart"
-            @drag-move="handleAnchorDragMove"
-            @drag-end="handleAnchorDragEnd"
+          :pod-id="pod.id"
+          @drag-start="handleAnchorDragStart"
+          @drag-move="handleAnchorDragMove"
+          @drag-end="handleAnchorDragEnd"
         />
 
         <div class="p-3">
           <!-- 標題 -->
           <PodHeader
-              :name="pod.name"
-              :type="pod.type"
-              :color="pod.color"
-              :is-editing="isEditing"
-              @update:name="handleUpdateName"
-              @save="handleSaveName"
-              @rename="handleRename"
+            :name="pod.name"
+            :type="pod.type"
+            :color="pod.color"
+            :is-editing="isEditing"
+            @update:name="handleUpdateName"
+            @save="handleSaveName"
+            @rename="handleRename"
           />
 
           <!-- 迷你螢幕 -->
-          <PodMiniScreen :output="pod.output" @dblclick="handleSelectPod"/>
+          <PodMiniScreen
+            :output="pod.output"
+            @dblclick="handleSelectPod"
+          />
         </div>
-
       </div>
 
       <!-- Actions -->
       <PodActions
-          :pod-id="pod.id"
-          :pod-name="pod.name"
-          :is-source-pod="isSourcePod"
-          :is-auto-clear-enabled="isAutoClearEnabled"
-          :is-auto-clear-animating="isAutoClearAnimating"
-          :is-loading-downstream="isLoadingDownstream"
-          :is-clearing="isClearing"
-          :downstream-pods="downstreamPods"
-          :show-clear-dialog="showClearDialog"
-          :show-delete-dialog="showDeleteDialog"
-          @update:show-clear-dialog="showClearDialog = $event"
-          @update:show-delete-dialog="showDeleteDialog = $event"
-          @delete="handleDelete"
-          @clear-workflow="handleClearWorkflow"
-          @toggle-auto-clear="handleToggleAutoClear"
-          @confirm-clear="handleConfirmClear"
-          @cancel-clear="handleCancelClear"
-          @confirm-delete="handleDelete"
-          @cancel-delete="showDeleteDialog = false"
+        :pod-id="pod.id"
+        :pod-name="pod.name"
+        :is-source-pod="isSourcePod"
+        :is-auto-clear-enabled="isAutoClearEnabled"
+        :is-auto-clear-animating="isAutoClearAnimating"
+        :is-loading-downstream="isLoadingDownstream"
+        :is-clearing="isClearing"
+        :downstream-pods="downstreamPods"
+        :show-clear-dialog="showClearDialog"
+        :show-delete-dialog="showDeleteDialog"
+        @update:show-clear-dialog="showClearDialog = $event"
+        @update:show-delete-dialog="showDeleteDialog = $event"
+        @delete="handleDelete"
+        @clear-workflow="handleClearWorkflow"
+        @toggle-auto-clear="handleToggleAutoClear"
+        @confirm-clear="handleConfirmClear"
+        @cancel-clear="handleCancelClear"
+        @confirm-delete="handleDelete"
+        @cancel-delete="showDeleteDialog = false"
       />
     </div>
   </div>

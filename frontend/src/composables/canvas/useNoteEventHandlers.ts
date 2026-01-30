@@ -1,12 +1,18 @@
 import type { Ref } from 'vue'
 
+interface Note {
+  x: number
+  y: number
+  boundToPodId: string | null
+}
+
 interface NoteStore {
   updateNotePositionLocal: (noteId: string, x: number, y: number) => void
   updateNotePosition: (noteId: string, x: number, y: number) => Promise<void>
   setIsOverTrash: (isOver: boolean) => void
   setNoteAnimating: (noteId: string, isAnimating: boolean) => void
   deleteNote: (noteId: string) => Promise<void>
-  getNoteById: (noteId: string) => any
+  getNoteById: (noteId: string) => Note | undefined
 }
 
 interface TrashZone {
@@ -18,21 +24,25 @@ interface NoteEventHandlerOptions {
   trashZoneRef: Ref<TrashZone | null>
 }
 
-export function useNoteEventHandlers(options: NoteEventHandlerOptions) {
+export function useNoteEventHandlers(options: NoteEventHandlerOptions): {
+  handleDragEnd: (data: { noteId: string; x: number; y: number }) => void
+  handleDragMove: (data: { noteId: string; screenX: number; screenY: number }) => void
+  handleDragComplete: (data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }) => Promise<void>
+} {
   const { store, trashZoneRef } = options
 
-  const handleDragEnd = (data: { noteId: string; x: number; y: number }) => {
+  const handleDragEnd = (data: { noteId: string; x: number; y: number }): void => {
     store.updateNotePositionLocal(data.noteId, data.x, data.y)
   }
 
-  const handleDragMove = (data: { noteId: string; screenX: number; screenY: number }) => {
+  const handleDragMove = (data: { noteId: string; screenX: number; screenY: number }): void => {
     if (!trashZoneRef.value) return
 
     const isOver = trashZoneRef.value.isPointInZone(data.screenX, data.screenY)
     store.setIsOverTrash(isOver)
   }
 
-  const handleDragComplete = async (data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }) => {
+  const handleDragComplete = async (data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }): Promise<void> => {
     const note = store.getNoteById(data.noteId)
     if (!note) return
 

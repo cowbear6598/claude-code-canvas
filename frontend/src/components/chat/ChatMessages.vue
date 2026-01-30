@@ -56,7 +56,10 @@ watch(
   <ScrollArea class="flex-1 p-4">
     <div class="space-y-4">
       <!-- 載入歷史訊息中 -->
-      <div v-if="isLoadingHistory && messages.length === 0" class="flex justify-center items-center h-full">
+      <div
+        v-if="isLoadingHistory && messages.length === 0"
+        class="flex justify-center items-center h-full"
+      >
         <div class="flex flex-col items-center gap-3 text-muted-foreground">
           <TypingIndicator />
           <span class="text-sm">正在載入對話歷史...</span>
@@ -65,7 +68,10 @@ watch(
 
       <!-- 訊息列表 -->
       <template v-else>
-        <template v-for="msg in messages" :key="msg.id">
+        <template
+          v-for="msg in messages"
+          :key="msg.id"
+        >
           <!-- 使用者訊息：直接渲染 -->
           <ChatMessageBubble
             v-if="msg.role === 'user'"
@@ -103,7 +109,10 @@ watch(
         </template>
 
         <!-- 打字指示器 - 僅在沒有 partial 訊息時顯示 -->
-        <div v-if="isTyping && !hasPartialMessage" class="flex justify-start">
+        <div
+          v-if="isTyping && !hasPartialMessage"
+          class="flex justify-start"
+        >
           <div
             class="p-3 rounded-lg border-2 border-doodle-ink bg-card"
             :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"

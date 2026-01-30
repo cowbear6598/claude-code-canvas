@@ -24,7 +24,8 @@
       "Bash(npm test:*)",
       "Bash(npm run:*)",
       "Bash(find:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(npx eslint:*)"
     ]
   },
   "outputStyle": "conductor"

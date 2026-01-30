@@ -6,7 +6,15 @@ import PodSubAgentSlot from '@/components/pod/PodSubAgentSlot.vue'
 import PodRepositorySlot from '@/components/pod/PodRepositorySlot.vue'
 import PodCommandSlot from '@/components/pod/PodCommandSlot.vue'
 
-const props = defineProps<{
+const {
+  podId,
+  podRotation,
+  boundOutputStyleNote,
+  boundSkillNotes,
+  boundSubAgentNotes,
+  boundRepositoryNote,
+  boundCommandNote
+} = defineProps<{
   podId: string
   podRotation: number
   boundOutputStyleNote: OutputStyleNote | undefined

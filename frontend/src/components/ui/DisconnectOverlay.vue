@@ -86,7 +86,11 @@ onUnmounted(() => {
       :class="{ 'tv-turn-on': isTurningOn, 'tv-turn-off': isTurningOff }"
     >
       <div class="disconnect-overlay-line">
-        <svg viewBox="0 0 1200 60" preserveAspectRatio="none" class="disconnect-overlay-svg">
+        <svg
+          viewBox="0 0 1200 60"
+          preserveAspectRatio="none"
+          class="disconnect-overlay-svg"
+        >
           <path
             :d="pathData1"
             class="disconnect-line-layer-1"

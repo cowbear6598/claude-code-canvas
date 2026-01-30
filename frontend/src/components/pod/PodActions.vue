@@ -150,13 +150,16 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
 <template>
   <!-- 右下角按鈕區域 -->
   <!-- Source Pod: 顯示按鈕群組 (刪除 + 橡皮擦) -->
-  <div v-if="isSourcePod" class="pod-action-buttons-group">
+  <div
+    v-if="isSourcePod"
+    class="pod-action-buttons-group"
+  >
     <!-- 刪除按鈕（左） -->
     <button
       class="pod-delete-button"
       @click.stop="handleDelete"
     >
-      <Trash2 :size="16"/>
+      <Trash2 :size="16" />
     </button>
     <!-- 橡皮擦按鈕（右） -->
     <button
@@ -170,8 +173,11 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
       @mouseup="handleEraserMouseUp"
       @mouseleave="handleEraserMouseLeave"
     >
-      <Eraser :size="16"/>
-      <span v-show="isAutoClearEnabled" class="auto-clear-badge">A</span>
+      <Eraser :size="16" />
+      <span
+        v-show="isAutoClearEnabled"
+        class="auto-clear-badge"
+      >A</span>
     </button>
   </div>
 
@@ -181,11 +187,14 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
     class="pod-delete-button pod-delete-button-standalone"
     @click.stop="handleDelete"
   >
-    <Trash2 :size="16"/>
+    <Trash2 :size="16" />
   </button>
 
   <!-- Clear Workflow Dialog -->
-  <Dialog :open="showClearDialog" @update:open="(val) => emit('update:show-clear-dialog', val)">
+  <Dialog
+    :open="showClearDialog"
+    @update:open="(val) => emit('update:show-clear-dialog', val)"
+  >
     <DialogContent>
       <DialogHeader>
         <DialogTitle>清理 Workflow</DialogTitle>
@@ -207,10 +216,18 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
       </div>
 
       <DialogFooter>
-        <Button variant="outline" @click="cancelClear" :disabled="isClearing">
+        <Button
+          variant="outline"
+          :disabled="isClearing"
+          @click="cancelClear"
+        >
           取消
         </Button>
-        <Button variant="destructive" @click="confirmClear" :disabled="isClearing">
+        <Button
+          variant="destructive"
+          :disabled="isClearing"
+          @click="confirmClear"
+        >
           {{ isClearing ? '清理中...' : '確認清理' }}
         </Button>
       </DialogFooter>
@@ -218,7 +235,10 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
   </Dialog>
 
   <!-- Delete Pod Dialog -->
-  <Dialog :open="showDeleteDialog" @update:open="(val) => emit('update:show-delete-dialog', val)">
+  <Dialog
+    :open="showDeleteDialog"
+    @update:open="(val) => emit('update:show-delete-dialog', val)"
+  >
     <DialogContent>
       <DialogHeader>
         <DialogTitle>刪除 Pod</DialogTitle>
@@ -228,10 +248,16 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
       </DialogHeader>
 
       <DialogFooter>
-        <Button variant="outline" @click="cancelDelete">
+        <Button
+          variant="outline"
+          @click="cancelDelete"
+        >
           取消
         </Button>
-        <Button variant="destructive" @click="confirmDelete">
+        <Button
+          variant="destructive"
+          @click="confirmDelete"
+        >
           確認刪除
         </Button>
       </DialogFooter>
@@ -248,7 +274,12 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
         top: mousePosition.y + 'px'
       }"
     >
-      <svg class="long-press-ring" width="52" height="52" viewBox="0 0 52 52">
+      <svg
+        class="long-press-ring"
+        width="52"
+        height="52"
+        viewBox="0 0 52 52"
+      >
         <!-- 白色甜甜圈底（帶黑色邊框） -->
         <circle
           cx="26"

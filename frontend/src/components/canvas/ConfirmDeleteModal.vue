@@ -25,18 +25,21 @@ const emit = defineEmits<{
   confirm: []
 }>()
 
-const handleClose = () => {
+const handleClose = (): void => {
   emit('update:open', false)
 }
 
-const handleConfirm = () => {
+const handleConfirm = (): void => {
   emit('confirm')
   emit('update:open', false)
 }
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="handleClose">
+  <Dialog
+    :open="open"
+    @update:open="handleClose"
+  >
     <DialogContent class="max-w-md">
       <DialogHeader>
         <DialogTitle>{{ isInUse ? '無法刪除' : '確認刪除' }}</DialogTitle>
@@ -50,15 +53,24 @@ const handleConfirm = () => {
 
       <DialogFooter>
         <template v-if="isInUse">
-          <Button variant="outline" @click="handleClose">
+          <Button
+            variant="outline"
+            @click="handleClose"
+          >
             確定
           </Button>
         </template>
         <template v-else>
-          <Button variant="outline" @click="handleClose">
+          <Button
+            variant="outline"
+            @click="handleClose"
+          >
             取消
           </Button>
-          <Button variant="destructive" @click="handleConfirm">
+          <Button
+            variant="destructive"
+            @click="handleConfirm"
+          >
             刪除
           </Button>
         </template>

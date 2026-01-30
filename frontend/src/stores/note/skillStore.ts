@@ -43,11 +43,11 @@ const store = createNoteStore<Skill, SkillNote>({
   getItemId: (item: Skill) => item.id,
   getItemName: (item: Skill) => item.name,
   customActions: {
-    async deleteSkill(this: any, skillId: string): Promise<void> {
+    async deleteSkill(this, skillId: string): Promise<void> {
       return this.deleteItem(skillId)
     },
 
-    async loadSkills(this: any): Promise<void> {
+    async loadSkills(this): Promise<void> {
       return this.loadItems()
     },
   }

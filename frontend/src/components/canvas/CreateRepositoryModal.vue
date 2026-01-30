@@ -37,7 +37,7 @@ const validateFolderName = (name: string): string | null => {
   return null
 }
 
-const handleSubmit = async () => {
+const handleSubmit = async (): Promise<void> => {
   const validationError = validateFolderName(folderName.value)
   if (validationError) {
     errorMessage.value = validationError
@@ -61,7 +61,7 @@ const handleSubmit = async () => {
   }
 }
 
-const handleClose = () => {
+const handleClose = (): void => {
   emit('update:open', false)
   folderName.value = ''
   errorMessage.value = ''
@@ -69,7 +69,10 @@ const handleClose = () => {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="handleClose">
+  <Dialog
+    :open="open"
+    @update:open="handleClose"
+  >
     <DialogContent class="max-w-md">
       <DialogHeader>
         <DialogTitle>新建資料夾</DialogTitle>
@@ -84,15 +87,25 @@ const handleClose = () => {
         @keyup.enter="handleSubmit"
       />
 
-      <p v-if="errorMessage" class="text-sm text-destructive">
+      <p
+        v-if="errorMessage"
+        class="text-sm text-destructive"
+      >
         {{ errorMessage }}
       </p>
 
       <DialogFooter>
-        <Button variant="outline" @click="handleClose">
+        <Button
+          variant="outline"
+          @click="handleClose"
+        >
           取消
         </Button>
-        <Button variant="default" :disabled="isSubmitting" @click="handleSubmit">
+        <Button
+          variant="default"
+          :disabled="isSubmitting"
+          @click="handleSubmit"
+        >
           建立
         </Button>
       </DialogFooter>

@@ -43,11 +43,11 @@ const store = createNoteStore<SubAgent, SubAgentNote>({
   getItemId: (item: SubAgent) => item.id,
   getItemName: (item: SubAgent) => item.name,
   customActions: {
-    async deleteSubAgent(this: any, subAgentId: string): Promise<void> {
+    async deleteSubAgent(this, subAgentId: string): Promise<void> {
       return this.deleteItem(subAgentId)
     },
 
-    async loadSubAgents(this: any): Promise<void> {
+    async loadSubAgents(this): Promise<void> {
       return this.loadItems()
     },
   }

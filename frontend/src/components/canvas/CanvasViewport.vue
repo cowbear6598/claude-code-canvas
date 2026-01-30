@@ -23,12 +23,12 @@ const gridStyle = computed(() => {
   }
 })
 
-const handleDoubleClick = (e: MouseEvent) => {
+const handleDoubleClick = (e: MouseEvent): void => {
   e.preventDefault()
   emit('dblclick', e)
 }
 
-const handleMouseDown = (e: MouseEvent) => {
+const handleMouseDown = (e: MouseEvent): void => {
   if (e.button === 2) {
     startPan(e)
     return

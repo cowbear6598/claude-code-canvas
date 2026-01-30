@@ -71,57 +71,57 @@ onMounted(async () => {
   ])
 })
 
-const handleSelect = (config: PodTypeConfig) => {
+const handleSelect = (config: PodTypeConfig): void => {
   emit('select', config)
 }
 
-const handleOutputStyleSelect = (style: OutputStyleListItem) => {
+const handleOutputStyleSelect = (style: OutputStyleListItem): void => {
   showSubmenu.value = false
   emit('create-output-style-note', style.id)
   emit('close')
 }
 
-const handleSkillSelect = (skill: Skill) => {
+const handleSkillSelect = (skill: Skill): void => {
   showSkillSubmenu.value = false
   emit('create-skill-note', skill.id)
   emit('close')
 }
 
-const handleSubAgentSelect = (subAgent: SubAgent) => {
+const handleSubAgentSelect = (subAgent: SubAgent): void => {
   showSubAgentSubmenu.value = false
   emit('create-subagent-note', subAgent.id)
   emit('close')
 }
 
-const handleRepositorySelect = (repository: Repository) => {
+const handleRepositorySelect = (repository: Repository): void => {
   showRepositorySubmenu.value = false
   emit('create-repository-note', repository.id)
   emit('close')
 }
 
-const handleCommandSelect = (command: any) => {
+const handleCommandSelect = (command: { id: string; name: string }): void => {
   showCommandSubmenu.value = false
   emit('create-command-note', command.id)
   emit('close')
 }
 
-const handleClose = () => {
+const handleClose = (): void => {
   emit('close')
 }
 
-const handleRepositoryCreated = (repository: { id: string; name: string }) => {
+const handleRepositoryCreated = (repository: { id: string; name: string }): void => {
   showRepositorySubmenu.value = false
   emit('create-repository-note', repository.id)
   emit('close')
 }
 
-const handleDeleteClick = (type: ItemType, id: string, name: string, event: Event) => {
+const handleDeleteClick = (type: ItemType, id: string, name: string, event: Event): void => {
   event.stopPropagation()
   deleteTarget.value = { type, id, name }
   showDeleteModal.value = true
 }
 
-const handleDeleteConfirm = async () => {
+const handleDeleteConfirm = async (): Promise<void> => {
   if (!deleteTarget.value) return
 
   const { type, id } = deleteTarget.value
@@ -144,7 +144,10 @@ const handleDeleteConfirm = async () => {
 <template>
   <div>
     <!-- 背景遮罩 -->
-    <div class="fixed inset-0 z-40" @click="handleClose" />
+    <div
+      class="fixed inset-0 z-40"
+      @click="handleClose"
+    />
 
     <!-- 選單內容 -->
     <div
@@ -166,13 +169,21 @@ const handleDeleteConfirm = async () => {
           class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
           :style="{ backgroundColor: `var(--doodle-${podTypes[0].color})` }"
         >
-          <component :is="podTypes[0].icon" :size="16" class="text-card" />
+          <component
+            :is="podTypes[0].icon"
+            :size="16"
+            class="text-card"
+          />
         </span>
         <span class="font-mono text-sm text-foreground">Pod</span>
       </button>
 
       <!-- Output Styles 按鈕 -->
-      <div class="relative" @mouseenter="showSubmenu = true" @mouseleave="showSubmenu = false">
+      <div
+        class="relative"
+        @mouseenter="showSubmenu = true"
+        @mouseleave="showSubmenu = false"
+      >
         <button
           class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
         >
@@ -180,7 +191,10 @@ const handleDeleteConfirm = async () => {
             class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
             style="background-color: var(--doodle-pink)"
           >
-            <Palette :size="16" class="text-card" />
+            <Palette
+              :size="16"
+              class="text-card"
+            />
           </span>
           <span class="font-mono text-sm text-foreground">Output Styles &gt;</span>
         </button>
@@ -195,7 +209,11 @@ const handleDeleteConfirm = async () => {
       </div>
 
       <!-- Skills 按鈕 -->
-      <div class="relative" @mouseenter="showSkillSubmenu = true" @mouseleave="showSkillSubmenu = false">
+      <div
+        class="relative"
+        @mouseenter="showSkillSubmenu = true"
+        @mouseleave="showSkillSubmenu = false"
+      >
         <button
           class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
         >
@@ -203,7 +221,10 @@ const handleDeleteConfirm = async () => {
             class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
             style="background-color: var(--doodle-green)"
           >
-            <Wrench :size="16" class="text-card" />
+            <Wrench
+              :size="16"
+              class="text-card"
+            />
           </span>
           <span class="font-mono text-sm text-foreground">Skills &gt;</span>
         </button>
@@ -218,7 +239,11 @@ const handleDeleteConfirm = async () => {
       </div>
 
       <!-- SubAgents 按鈕 -->
-      <div class="relative" @mouseenter="showSubAgentSubmenu = true" @mouseleave="showSubAgentSubmenu = false">
+      <div
+        class="relative"
+        @mouseenter="showSubAgentSubmenu = true"
+        @mouseleave="showSubAgentSubmenu = false"
+      >
         <button
           class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
         >
@@ -226,7 +251,10 @@ const handleDeleteConfirm = async () => {
             class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
             style="background-color: var(--doodle-sand)"
           >
-            <Bot :size="16" class="text-card" />
+            <Bot
+              :size="16"
+              class="text-card"
+            />
           </span>
           <span class="font-mono text-sm text-foreground">SubAgents &gt;</span>
         </button>
@@ -241,7 +269,11 @@ const handleDeleteConfirm = async () => {
       </div>
 
       <!-- Repository 按鈕 -->
-      <div class="relative" @mouseenter="showRepositorySubmenu = true" @mouseleave="showRepositorySubmenu = false">
+      <div
+        class="relative"
+        @mouseenter="showRepositorySubmenu = true"
+        @mouseleave="showRepositorySubmenu = false"
+      >
         <button
           class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
         >
@@ -249,7 +281,10 @@ const handleDeleteConfirm = async () => {
             class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
             style="background-color: var(--doodle-orange)"
           >
-            <FolderOpen :size="16" class="text-card" />
+            <FolderOpen
+              :size="16"
+              class="text-card"
+            />
           </span>
           <span class="font-mono text-sm text-foreground">Repository &gt;</span>
         </button>
@@ -263,7 +298,10 @@ const handleDeleteConfirm = async () => {
         >
           <template #footer>
             <div class="border-t border-doodle-ink/30 my-1" />
-            <div class="pod-menu-submenu-item" @click="showCreateRepositoryModal = true">
+            <div
+              class="pod-menu-submenu-item"
+              @click="showCreateRepositoryModal = true"
+            >
               + 新建資料夾
             </div>
           </template>
@@ -271,7 +309,11 @@ const handleDeleteConfirm = async () => {
       </div>
 
       <!-- Command 按鈕 -->
-      <div class="relative" @mouseenter="showCommandSubmenu = true" @mouseleave="showCommandSubmenu = false">
+      <div
+        class="relative"
+        @mouseenter="showCommandSubmenu = true"
+        @mouseleave="showCommandSubmenu = false"
+      >
         <button
           class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
         >

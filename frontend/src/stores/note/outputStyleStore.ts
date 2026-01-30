@@ -48,7 +48,7 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
   getItemId: (item: OutputStyleListItem) => item.id,
   getItemName: (item: OutputStyleListItem) => item.name,
   customActions: {
-    async rebuildNotesFromPods(this: any, pods: Pod[]): Promise<void> {
+    async rebuildNotesFromPods(this, pods: Pod[]): Promise<void> {
       const promises: Promise<void>[] = []
 
       for (const pod of pods) {
@@ -85,11 +85,11 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
       }
     },
 
-    async deleteOutputStyle(this: any, outputStyleId: string): Promise<void> {
+    async deleteOutputStyle(this, outputStyleId: string): Promise<void> {
       return this.deleteItem(outputStyleId)
     },
 
-    async loadOutputStyles(this: any): Promise<void> {
+    async loadOutputStyles(this): Promise<void> {
       return this.loadItems()
     },
   }

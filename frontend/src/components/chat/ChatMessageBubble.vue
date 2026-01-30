@@ -31,7 +31,10 @@ const hasToolUse = computed(() => props.toolUse && props.toolUse.length > 0)
       :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
     >
       <div class="p-3">
-        <div v-if="hasToolUse" class="mb-2 flex flex-wrap gap-1.5">
+        <div
+          v-if="hasToolUse"
+          class="mb-2 flex flex-wrap gap-1.5"
+        >
           <div
             v-for="tool in toolUse"
             :key="tool.toolUseId"
@@ -54,7 +57,10 @@ const hasToolUse = computed(() => props.toolUse && props.toolUse.length > 0)
           </div>
         </div>
 
-        <div v-if="isSummarized" class="message-summary-badge">
+        <div
+          v-if="isSummarized"
+          class="message-summary-badge"
+        >
           <FileText :size="10" />
           <span>摘要</span>
         </div>

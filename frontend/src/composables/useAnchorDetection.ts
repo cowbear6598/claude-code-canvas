@@ -5,7 +5,10 @@ const DETECTION_RADIUS = 20
 const POD_WIDTH = 224
 const POD_HEIGHT = 168
 
-export function useAnchorDetection() {
+export function useAnchorDetection(): {
+  getAnchorPositions: (pod: Pod) => AnchorPoint[]
+  detectTargetAnchor: (point: { x: number; y: number }, pods: Pod[], sourcePodId: string) => AnchorPoint | null
+} {
   const getAnchorPositions = (pod: Pod): AnchorPoint[] => {
     const anchors: AnchorPoint[] = []
     const positions: AnchorPosition[] = ['top', 'bottom', 'left', 'right']

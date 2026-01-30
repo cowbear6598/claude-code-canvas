@@ -2,7 +2,7 @@
 import type { AnchorPosition } from '@/types/connection'
 import PodAnchor from '@/components/pod/PodAnchor.vue'
 
-const props = defineProps<{
+const { podId } = defineProps<{
   podId: string
 }>()
 

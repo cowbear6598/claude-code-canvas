@@ -23,7 +23,12 @@ onMounted(() => {
       <div
         class="w-20 h-20 mx-auto mb-4 border-2 border-dashed border-muted-foreground rounded-full flex items-center justify-center"
       >
-        <svg class="w-8 h-8 text-muted-foreground fill-none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <svg
+          class="w-8 h-8 text-muted-foreground fill-none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
           <path d="M12 5v14M5 12h14" />
         </svg>
       </div>
