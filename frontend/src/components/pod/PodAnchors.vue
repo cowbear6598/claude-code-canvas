@@ -12,15 +12,15 @@ const emit = defineEmits<{
   'drag-end': []
 }>()
 
-const handleDragStart = (data: { podId: string; anchor: AnchorPosition; screenX: number; screenY: number }) => {
+const handleDragStart = (data: { podId: string; anchor: AnchorPosition; screenX: number; screenY: number }): void => {
   emit('drag-start', data)
 }
 
-const handleDragMove = (data: { screenX: number; screenY: number }) => {
+const handleDragMove = (data: { screenX: number; screenY: number }): void => {
   emit('drag-move', data)
 }
 
-const handleDragEnd = () => {
+const handleDragEnd = (): void => {
   emit('drag-end')
 }
 </script>

@@ -17,7 +17,7 @@ const isDragging = ref(false)
 let currentMouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let currentMouseUpHandler: (() => void) | null = null
 
-const cleanupEventListeners = () => {
+const cleanupEventListeners = (): void => {
   if (currentMouseMoveHandler) {
     document.removeEventListener('mousemove', currentMouseMoveHandler)
     currentMouseMoveHandler = null
@@ -32,7 +32,7 @@ onUnmounted(() => {
   cleanupEventListeners()
 })
 
-const handleMouseDown = (e: MouseEvent) => {
+const handleMouseDown = (e: MouseEvent): void => {
   e.stopPropagation()
   e.preventDefault()
 
@@ -46,14 +46,14 @@ const handleMouseDown = (e: MouseEvent) => {
     screenY: e.clientY,
   })
 
-  const handleMouseMove = (moveEvent: MouseEvent) => {
+  const handleMouseMove = (moveEvent: MouseEvent): void => {
     emit('dragMove', {
       screenX: moveEvent.clientX,
       screenY: moveEvent.clientY,
     })
   }
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (): void => {
     isDragging.value = false
     emit('dragEnd')
     cleanupEventListeners()

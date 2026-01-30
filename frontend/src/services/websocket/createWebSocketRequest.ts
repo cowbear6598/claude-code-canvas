@@ -37,7 +37,7 @@ export async function createWebSocketRequest<TPayload extends { requestId: strin
     const requestId = generateRequestId()
     let timeoutId: ReturnType<typeof setTimeout> | null = null
 
-    const handleResponse = (response: TResult) => {
+    const handleResponse = (response: TResult): void => {
       const responseWithBase = response as TResult & WebSocketResponse
 
       const shouldMatch = matchResponse

@@ -9,7 +9,9 @@ interface DeleteItemOptions<TPayload, TResponse> {
   onSuccess?: (response: TResponse) => void
 }
 
-export function useDeleteItem() {
+export function useDeleteItem(): {
+  deleteItem: <TPayload, TResponse extends { success: boolean }>(options: DeleteItemOptions<TPayload, TResponse>) => Promise<TResponse | null>
+} {
   const { wrapWebSocketRequest } = useWebSocketErrorHandler()
 
   async function deleteItem<TPayload, TResponse extends { success: boolean }>(

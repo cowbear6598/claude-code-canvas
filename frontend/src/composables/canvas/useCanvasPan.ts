@@ -1,7 +1,10 @@
 import { ref, onUnmounted } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
 
-export function useCanvasPan() {
+export function useCanvasPan(): {
+  isPanning: import('vue').Ref<boolean>
+  startPan: (e: MouseEvent) => void
+} {
   const { viewportStore } = useCanvasContext()
   const isPanning = ref(false)
 
@@ -10,7 +13,7 @@ export function useCanvasPan() {
   let startOffsetX = 0
   let startOffsetY = 0
 
-  const startPan = (e: MouseEvent) => {
+  const startPan = (e: MouseEvent): void => {
     if (e.button !== 2) return
 
     const target = e.target as HTMLElement
@@ -31,7 +34,7 @@ export function useCanvasPan() {
     }
   }
 
-  const onPanMove = (e: MouseEvent) => {
+  const onPanMove = (e: MouseEvent): void => {
     if (!isPanning.value) return
 
     const dx = e.clientX - startX
@@ -40,7 +43,7 @@ export function useCanvasPan() {
     viewportStore.setOffset(startOffsetX + dx, startOffsetY + dy)
   }
 
-  const stopPan = () => {
+  const stopPan = (): void => {
     isPanning.value = false
     document.removeEventListener('mousemove', onPanMove)
     document.removeEventListener('mouseup', stopPan)

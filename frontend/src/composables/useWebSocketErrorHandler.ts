@@ -1,6 +1,9 @@
 import { useToast } from '@/composables/useToast'
 
-export function useWebSocketErrorHandler() {
+export function useWebSocketErrorHandler(): {
+  handleWebSocketError: (error: unknown, title?: string) => void
+  wrapWebSocketRequest: <T>(promise: Promise<T>, errorTitle?: string) => Promise<T | null>
+} {
   const { toast } = useToast()
 
   const handleWebSocketError = (error: unknown, title = '操作失敗'): void => {

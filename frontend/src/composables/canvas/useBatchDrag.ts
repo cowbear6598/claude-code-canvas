@@ -1,7 +1,11 @@
 import { ref, onUnmounted } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
 
-export function useBatchDrag() {
+export function useBatchDrag(): {
+  isBatchDragging: import('vue').Ref<boolean>
+  startBatchDrag: (e: MouseEvent) => boolean
+  isElementSelected: (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote', id: string) => boolean
+} {
   const { podStore, viewportStore, selectionStore, outputStyleStore, skillStore, repositoryStore } = useCanvasContext()
 
   const isBatchDragging = ref(false)
@@ -16,7 +20,7 @@ export function useBatchDrag() {
   let currentMoveHandler: ((e: MouseEvent) => void) | null = null
   let currentUpHandler: (() => void) | null = null
 
-  const cleanupEventListeners = () => {
+  const cleanupEventListeners = (): void => {
     if (currentMoveHandler) {
       document.removeEventListener('mousemove', currentMoveHandler)
       currentMoveHandler = null
@@ -27,7 +31,7 @@ export function useBatchDrag() {
     }
   }
 
-  const startBatchDrag = (e: MouseEvent) => {
+  const startBatchDrag = (e: MouseEvent): boolean => {
     if (e.button !== 0) return false
 
     if (!selectionStore.hasSelection) return false
@@ -42,7 +46,7 @@ export function useBatchDrag() {
 
     cleanupEventListeners()
 
-    currentMoveHandler = (moveEvent: MouseEvent) => {
+    currentMoveHandler = (moveEvent: MouseEvent): void => {
       const dx = (moveEvent.clientX - startX) / viewportStore.zoom
       const dy = (moveEvent.clientY - startY) / viewportStore.zoom
 
@@ -52,7 +56,7 @@ export function useBatchDrag() {
       startY = moveEvent.clientY
     }
 
-    currentUpHandler = async () => {
+    currentUpHandler = async (): Promise<void> => {
       isBatchDragging.value = false
       cleanupEventListeners()
 
@@ -65,7 +69,7 @@ export function useBatchDrag() {
     return true
   }
 
-  const moveSelectedElements = (dx: number, dy: number) => {
+  const moveSelectedElements = (dx: number, dy: number): void => {
     for (const element of selectionStore.selectedElements) {
       if (element.type === 'pod') {
         const pod = podStore.pods.find(p => p.id === element.id)
@@ -94,7 +98,7 @@ export function useBatchDrag() {
     }
   }
 
-  const syncNotesToBackend = async () => {
+  const syncNotesToBackend = async (): Promise<void> => {
     for (const noteId of movedOutputStyleNotes) {
       const note = outputStyleStore.notes.find(n => n.id === noteId)
       if (note) {
@@ -121,7 +125,7 @@ export function useBatchDrag() {
     movedRepositoryNotes.clear()
   }
 
-  const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote', id: string) => {
+  const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote', id: string): boolean => {
     return selectionStore.selectedElements.some(
       el => el.type === type && el.id === id
     )

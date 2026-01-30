@@ -51,11 +51,11 @@ const isDeleteTargetInUse = computed(() => {
   const { type, id } = deleteTarget.value
 
   const inUseChecks = {
-    outputStyle: () => outputStyleStore.isItemInUse(id),
-    skill: () => skillStore.isItemInUse(id),
-    subAgent: () => subAgentStore.isItemInUse(id),
-    repository: () => repositoryStore.isItemInUse(id),
-    command: () => commandStore.isItemInUse(id),
+    outputStyle: (): boolean => outputStyleStore.isItemInUse(id),
+    skill: (): boolean => skillStore.isItemInUse(id),
+    subAgent: (): boolean => subAgentStore.isItemInUse(id),
+    repository: (): boolean => repositoryStore.isItemInUse(id),
+    command: (): boolean => commandStore.isItemInUse(id),
   }
 
   return inUseChecks[type]()
@@ -127,11 +127,11 @@ const handleDeleteConfirm = async (): Promise<void> => {
   const { type, id } = deleteTarget.value
 
   const deleteActions = {
-    outputStyle: () => outputStyleStore.deleteOutputStyle(id),
-    skill: () => skillStore.deleteSkill(id),
-    subAgent: () => subAgentStore.deleteSubAgent(id),
-    repository: () => repositoryStore.deleteRepository(id),
-    command: () => commandStore.deleteCommand(id),
+    outputStyle: (): Promise<void> => outputStyleStore.deleteOutputStyle(id),
+    skill: (): Promise<void> => skillStore.deleteSkill(id),
+    subAgent: (): Promise<void> => subAgentStore.deleteSubAgent(id),
+    repository: (): Promise<void> => repositoryStore.deleteRepository(id),
+    command: (): Promise<void> => commandStore.deleteCommand(id),
   }
 
   await deleteActions[type]()

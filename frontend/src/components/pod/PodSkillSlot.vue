@@ -26,7 +26,7 @@ const hasSkills = computed(() => skillCount.value > 0)
 let mouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let mouseUpHandler: (() => void) | null = null
 
-const checkDropTarget = (e: MouseEvent) => {
+const checkDropTarget = (e: MouseEvent): void => {
   if (!slotRef.value) {
     isDropTarget.value = false
     return
@@ -40,7 +40,7 @@ const checkDropTarget = (e: MouseEvent) => {
     e.clientY <= rect.bottom
 }
 
-const handleDrop = () => {
+const handleDrop = (): void => {
   const noteId = lastDraggedNoteId.value
   if (!isDropTarget.value || !noteId) return
 
@@ -60,9 +60,9 @@ const handleDrop = () => {
   }, 300)
 }
 
-const setupListeners = () => {
+const setupListeners = (): void => {
   mouseMoveHandler = checkDropTarget
-  mouseUpHandler = () => {
+  mouseUpHandler = (): void => {
     handleDrop()
     cleanupListeners()
   }
@@ -71,7 +71,7 @@ const setupListeners = () => {
   document.addEventListener('mouseup', mouseUpHandler, { capture: true })
 }
 
-const cleanupListeners = () => {
+const cleanupListeners = (): void => {
   if (mouseMoveHandler) {
     document.removeEventListener('mousemove', mouseMoveHandler)
     mouseMoveHandler = null
@@ -83,13 +83,13 @@ const cleanupListeners = () => {
   isDropTarget.value = false
 }
 
-const handleSlotHover = () => {
+const handleSlotHover = (): void => {
   if (hasSkills.value) {
     showMenu.value = true
   }
 }
 
-const handleSlotLeave = () => {
+const handleSlotLeave = (): void => {
   showMenu.value = false
 }
 

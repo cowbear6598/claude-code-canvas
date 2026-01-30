@@ -9,7 +9,11 @@ interface DraggableOptions {
 export function useDraggable(
   _targetRef: Ref<HTMLElement | null>,
   options: DraggableOptions = {}
-) {
+): {
+  isDragging: Ref<boolean>
+  position: Ref<{ x: number; y: number }>
+  onMouseDown: (event: MouseEvent) => void
+} {
   const { initialX = 0, initialY = 0, excludeSelectors = [] } = options
 
   const isDragging = ref(false)
@@ -20,7 +24,7 @@ export function useDraggable(
   let offsetX = 0
   let offsetY = 0
 
-  const onMouseDown = (event: MouseEvent) => {
+  const onMouseDown = (event: MouseEvent): void => {
     const target = event.target as HTMLElement
 
     const isExcluded = excludeSelectors.some((selector) =>
@@ -41,7 +45,7 @@ export function useDraggable(
     document.addEventListener('mouseup', onMouseUp)
   }
 
-  const onMouseMove = (event: MouseEvent) => {
+  const onMouseMove = (event: MouseEvent): void => {
     if (!isDragging.value) return
 
     const deltaX = event.clientX - startX
@@ -53,7 +57,7 @@ export function useDraggable(
     }
   }
 
-  const onMouseUp = () => {
+  const onMouseUp = (): void => {
     isDragging.value = false
     document.removeEventListener('mousemove', onMouseMove)
     document.removeEventListener('mouseup', onMouseUp)

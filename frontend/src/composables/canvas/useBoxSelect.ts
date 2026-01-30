@@ -1,7 +1,10 @@
 import { ref, onUnmounted } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
 
-export function useBoxSelect() {
+export function useBoxSelect(): {
+  isBoxSelecting: import('vue').Ref<boolean>
+  startBoxSelect: (e: MouseEvent) => void
+} {
   const { viewportStore, selectionStore, podStore, outputStyleStore, skillStore, subAgentStore, repositoryStore } = useCanvasContext()
 
   const isBoxSelecting = ref(false)
@@ -9,7 +12,7 @@ export function useBoxSelect() {
   let currentMoveHandler: ((e: MouseEvent) => void) | null = null
   let currentUpHandler: (() => void) | null = null
 
-  const cleanupEventListeners = () => {
+  const cleanupEventListeners = (): void => {
     if (currentMoveHandler) {
       document.removeEventListener('mousemove', currentMoveHandler)
       currentMoveHandler = null
@@ -20,7 +23,7 @@ export function useBoxSelect() {
     }
   }
 
-  const startBoxSelect = (e: MouseEvent) => {
+  const startBoxSelect = (e: MouseEvent): void => {
     if (e.button !== 0) return
 
     const target = e.target as HTMLElement
@@ -40,7 +43,7 @@ export function useBoxSelect() {
 
     cleanupEventListeners()
 
-    currentMoveHandler = (moveEvent: MouseEvent) => {
+    currentMoveHandler = (moveEvent: MouseEvent): void => {
       const moveCanvasX = (moveEvent.clientX - viewportStore.offset.x) / viewportStore.zoom
       const moveCanvasY = (moveEvent.clientY - viewportStore.offset.y) / viewportStore.zoom
       selectionStore.updateSelection(moveCanvasX, moveCanvasY)
@@ -53,7 +56,7 @@ export function useBoxSelect() {
       )
     }
 
-    currentUpHandler = () => {
+    currentUpHandler = (): void => {
       selectionStore.endSelection()
       isBoxSelecting.value = false
       cleanupEventListeners()

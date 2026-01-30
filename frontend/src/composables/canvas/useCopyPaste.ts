@@ -19,7 +19,7 @@ import type {
   CopiedConnection
 } from '@/types'
 
-export function useCopyPaste() {
+export function useCopyPaste(): void {
   const {
     podStore,
     viewportStore,
@@ -291,14 +291,22 @@ export function useCopyPaste() {
     y: number,
     width: number,
     height: number
-  ) => {
+  ): void => {
     bounds.minX = Math.min(bounds.minX, x)
     bounds.maxX = Math.max(bounds.maxX, x + width)
     bounds.minY = Math.min(bounds.minY, y)
     bounds.maxY = Math.max(bounds.maxY, y + height)
   }
 
-  const calculatePastePositions = (targetPosition: { x: number; y: number }) => {
+  const calculatePastePositions = (targetPosition: { x: number; y: number }): {
+    pods: Array<{ id: string; name: string; x: number; y: number; color: string; rotation: number; model: string }>
+    outputStyleNotes: CopiedOutputStyleNote[]
+    skillNotes: CopiedSkillNote[]
+    repositoryNotes: CopiedRepositoryNote[]
+    subAgentNotes: CopiedSubAgentNote[]
+    commandNotes: CopiedCommandNote[]
+    connections: CopiedConnection[]
+  } | null => {
     const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, commandNotes, connections } = clipboardStore.getCopiedData()
 
     if (pods.length === 0 && outputStyleNotes.length === 0 && skillNotes.length === 0 && repositoryNotes.length === 0 && subAgentNotes.length === 0 && commandNotes.length === 0) {

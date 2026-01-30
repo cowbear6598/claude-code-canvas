@@ -29,7 +29,7 @@ const sortedOptions = computed(() => {
   return active ? [active, ...others] : allOptions
 })
 
-const handleMouseEnter = () => {
+const handleMouseEnter = (): void => {
   // 動畫中不允許 hover
   if (isAnimating.value) return
 
@@ -40,7 +40,7 @@ const handleMouseEnter = () => {
   isHovered.value = true
 }
 
-const handleMouseLeave = () => {
+const handleMouseLeave = (): void => {
   // 動畫中不處理 leave
   if (isAnimating.value) return
 
@@ -50,7 +50,7 @@ const handleMouseLeave = () => {
   }, 150)
 }
 
-const selectModel = (model: ModelType) => {
+const selectModel = (model: ModelType): void => {
   // 動畫中不允許點擊
   if (isAnimating.value || isCollapsing.value) return
 

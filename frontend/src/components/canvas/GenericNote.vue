@@ -142,7 +142,7 @@ const handleMouseDown = (e: MouseEvent): void => {
     noteY: props.note.y,
   }
 
-  const handleMouseMove = (moveEvent: MouseEvent) => {
+  const handleMouseMove = (moveEvent: MouseEvent): void => {
     if (!dragRef.value) return
     const dx = (moveEvent.clientX - dragRef.value.startX) / viewportStore.zoom
     const dy = (moveEvent.clientY - dragRef.value.startY) / viewportStore.zoom
@@ -160,7 +160,7 @@ const handleMouseDown = (e: MouseEvent): void => {
     })
   }
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (): void => {
     emit('drag-complete', {
       noteId: props.note.id,
       isOverTrash: noteStore.value.isOverTrash,

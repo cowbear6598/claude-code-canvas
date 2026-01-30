@@ -14,7 +14,7 @@ const pathData2 = ref('')
 const pathData3 = ref('')
 let jitterInterval: ReturnType<typeof setInterval> | null = null
 
-const generateJitterPath = (yOffset: number = 0) => {
+const generateJitterPath = (yOffset: number = 0): string => {
   const segments = 35
   const width = 1200
   const centerY = 30 + yOffset
@@ -33,7 +33,7 @@ const generateJitterPath = (yOffset: number = 0) => {
   return path
 }
 
-const startJitter = () => {
+const startJitter = (): void => {
   pathData1.value = generateJitterPath(-0.5)
   pathData2.value = generateJitterPath(0)
   pathData3.value = generateJitterPath(0.8)
@@ -45,7 +45,7 @@ const startJitter = () => {
   }, 100)
 }
 
-const stopJitter = () => {
+const stopJitter = (): void => {
   if (jitterInterval) {
     clearInterval(jitterInterval)
     jitterInterval = null

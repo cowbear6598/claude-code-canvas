@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 
 const props = withDefaults(defineProps<ScrollAreaScrollbarProps & { class?: HTMLAttributes["class"] }>(), {
   orientation: "vertical",
+  class: "",
 })
 
 const delegatedProps = reactiveOmit(props, "class")

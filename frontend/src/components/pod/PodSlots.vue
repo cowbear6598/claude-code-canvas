@@ -35,35 +35,35 @@ const emit = defineEmits<{
   'command-removed': []
 }>()
 
-const handleOutputStyleDropped = (noteId: string) => {
+const handleOutputStyleDropped = (noteId: string): void => {
   emit('output-style-dropped', noteId)
 }
 
-const handleOutputStyleRemoved = () => {
+const handleOutputStyleRemoved = (): void => {
   emit('output-style-removed')
 }
 
-const handleSkillDropped = (noteId: string) => {
+const handleSkillDropped = (noteId: string): void => {
   emit('skill-dropped', noteId)
 }
 
-const handleSubAgentDropped = (noteId: string) => {
+const handleSubAgentDropped = (noteId: string): void => {
   emit('subagent-dropped', noteId)
 }
 
-const handleRepositoryDropped = (noteId: string) => {
+const handleRepositoryDropped = (noteId: string): void => {
   emit('repository-dropped', noteId)
 }
 
-const handleRepositoryRemoved = () => {
+const handleRepositoryRemoved = (): void => {
   emit('repository-removed')
 }
 
-const handleCommandDropped = (noteId: string) => {
+const handleCommandDropped = (noteId: string): void => {
   emit('command-dropped', noteId)
 }
 
-const handleCommandRemoved = () => {
+const handleCommandRemoved = (): void => {
   emit('command-removed')
 }
 </script>

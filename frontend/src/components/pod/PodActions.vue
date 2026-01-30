@@ -50,7 +50,7 @@ const mousePosition = ref({ x: 0, y: 0 })
 let progressAnimationFrame: number | null = null
 let longPressStartTime: number | null = null
 
-const handleEraserMouseDown = (e: MouseEvent) => {
+const handleEraserMouseDown = (e: MouseEvent): void => {
   e.stopPropagation()
   isLongPress.value = false
   isLongPressing.value = true
@@ -59,7 +59,7 @@ const handleEraserMouseDown = (e: MouseEvent) => {
 
   mousePosition.value = { x: e.clientX, y: e.clientY }
 
-  const updateProgress = () => {
+  const updateProgress = (): void => {
     if (!longPressStartTime || !isLongPressing.value) return
 
     const elapsed = performance.now() - longPressStartTime
@@ -79,7 +79,7 @@ const handleEraserMouseDown = (e: MouseEvent) => {
   }, LONG_PRESS_DURATION)
 }
 
-const handleEraserMouseUp = () => {
+const handleEraserMouseUp = (): void => {
   if (longPressTimer.value) {
     clearTimeout(longPressTimer.value)
     longPressTimer.value = null
@@ -95,7 +95,7 @@ const handleEraserMouseUp = () => {
   }
 }
 
-const handleEraserMouseLeave = () => {
+const handleEraserMouseLeave = (): void => {
   if (longPressTimer.value) {
     clearTimeout(longPressTimer.value)
     longPressTimer.value = null
@@ -108,23 +108,23 @@ const handleEraserMouseLeave = () => {
   }
 }
 
-const handleDelete = () => {
+const handleDelete = (): void => {
   emit('update:show-delete-dialog', true)
 }
 
-const confirmDelete = () => {
+const confirmDelete = (): void => {
   emit('confirm-delete')
 }
 
-const cancelDelete = () => {
+const cancelDelete = (): void => {
   emit('cancel-delete')
 }
 
-const confirmClear = () => {
+const confirmClear = (): void => {
   emit('confirm-clear')
 }
 
-const cancelClear = () => {
+const cancelClear = (): void => {
   emit('cancel-clear')
 }
 

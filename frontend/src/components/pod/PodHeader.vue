@@ -23,7 +23,7 @@ watch(() => props.name, (newName) => {
   editName.value = newName
 })
 
-const handleSave = () => {
+const handleSave = (): void => {
   const trimmedName = editName.value.trim()
   if (trimmedName && trimmedName.length <= MAX_POD_NAME_LENGTH) {
     emit('update:name', trimmedName)

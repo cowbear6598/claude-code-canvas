@@ -12,7 +12,10 @@ export interface ArrowPosition {
   angle: number
 }
 
-export function useConnectionPath() {
+export function useConnectionPath(): {
+  calculatePathData: (startX: number, startY: number, endX: number, endY: number, sourceAnchor: AnchorPosition, targetAnchor: AnchorPosition) => PathData
+  calculateMultipleArrowPositions: (startX: number, startY: number, endX: number, endY: number, sourceAnchor: AnchorPosition, targetAnchor: AnchorPosition, spacing?: number) => ArrowPosition[]
+} {
   const calculateControlPoints = (
     startX: number,
     startY: number,

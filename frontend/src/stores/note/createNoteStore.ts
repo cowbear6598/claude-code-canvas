@@ -46,8 +46,8 @@ interface BaseNoteState<TItem, TNote extends BaseNote> {
 }
 
 export function createNoteStore<TItem, TNote extends BaseNote>(
-  config: NoteStoreConfig<TItem, TNote>
-) {
+  config: NoteStoreConfig<TItem>
+): ReturnType<typeof defineStore> {
   return defineStore(config.storeName, {
     state: (): BaseNoteState<TItem, TNote> => ({
       availableItems: [],
@@ -64,7 +64,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
       getUnboundNotes: (state) =>
         state.notes.filter(note => note.boundToPodId === null),
 
-      getNotesByPodId: (state) => (podId: string) => {
+      getNotesByPodId: (state) => (podId: string): TNote[] => {
         if (config.relationship === 'one-to-one') {
           const note = state.notes.find(note => note.boundToPodId === podId)
           return note ? [note] : []
@@ -72,10 +72,10 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
         return state.notes.filter(note => note.boundToPodId === podId)
       },
 
-      getNoteById: (state) => (noteId: string) =>
+      getNoteById: (state) => (noteId: string): TNote | undefined =>
         state.notes.find(note => note.id === noteId),
 
-      isNoteAnimating: (state) => (noteId: string) =>
+      isNoteAnimating: (state) => (noteId: string): boolean =>
         state.animatingNoteIds.has(noteId),
 
       canDeleteDraggedNote: (state) => {
@@ -84,10 +84,10 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
         return note?.boundToPodId === null
       },
 
-      isItemInUse: (state) => (itemId: string) =>
+      isItemInUse: (state) => (itemId: string): boolean =>
         state.notes.some(note => (note as Record<string, unknown>)[config.itemIdField] === itemId && note.boundToPodId !== null),
 
-      isItemBoundToPod: (state) => (itemId: string, podId: string) =>
+      isItemBoundToPod: (state) => (itemId: string, podId: string): boolean =>
         state.notes.some(note => (note as Record<string, unknown>)[config.itemIdField] === itemId && note.boundToPodId === podId),
     },
 

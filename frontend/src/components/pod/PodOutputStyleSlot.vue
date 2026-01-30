@@ -26,7 +26,7 @@ const isInserting = ref(false)
 let mouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let mouseUpHandler: (() => void) | null = null
 
-const checkDropTarget = (e: MouseEvent) => {
+const checkDropTarget = (e: MouseEvent): void => {
   if (!slotRef.value) {
     isDropTarget.value = false
     return
@@ -40,7 +40,7 @@ const checkDropTarget = (e: MouseEvent) => {
       e.clientY <= rect.bottom
 }
 
-const handleDrop = () => {
+const handleDrop = (): void => {
   const noteId = lastDraggedNoteId.value
   if (isDropTarget.value && noteId) {
     const draggedNote = outputStyleStore.getNoteById(noteId)
@@ -56,14 +56,14 @@ const handleDrop = () => {
   isDropTarget.value = false
 }
 
-const setupListeners = () => {
+const setupListeners = (): void => {
   mouseMoveHandler = checkDropTarget
   mouseUpHandler = handleDrop
   document.addEventListener('mousemove', mouseMoveHandler)
   document.addEventListener('mouseup', mouseUpHandler, { capture: true })
 }
 
-const cleanupListeners = () => {
+const cleanupListeners = (): void => {
   if (mouseMoveHandler) {
     document.removeEventListener('mousemove', mouseMoveHandler)
     mouseMoveHandler = null
@@ -74,7 +74,7 @@ const cleanupListeners = () => {
   }
 }
 
-const handleSlotClick = async (e: MouseEvent) => {
+const handleSlotClick = async (e: MouseEvent): Promise<void> => {
   if (!props.boundNote || isEjecting.value) return
 
   e.stopPropagation()

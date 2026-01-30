@@ -77,7 +77,7 @@ function handleKeyDown(e: KeyboardEvent): void {
   deleteSelectedElements()
 }
 
-export function useDeleteSelection() {
+export function useDeleteSelection(): { deleteSelectedElements: () => Promise<void> } {
   onMounted(() => {
     document.addEventListener('keydown', handleKeyDown)
   })
