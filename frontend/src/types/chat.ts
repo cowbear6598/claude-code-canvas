@@ -14,6 +14,13 @@ export interface ToolUseInfo {
   status: ToolUseStatus
 }
 
+export interface SubMessage {
+  id: string
+  content: string
+  isPartial?: boolean
+  toolUse?: ToolUseInfo[]
+}
+
 export interface Message {
   id: string
   role: MessageRole
@@ -23,6 +30,8 @@ export interface Message {
   timestamp?: string
   isSummarized?: boolean
   sourceInfo?: { podId: string; podName: string }
+  subMessages?: SubMessage[]
+  expectingNewBlock?: boolean
 }
 
 export interface Tool {

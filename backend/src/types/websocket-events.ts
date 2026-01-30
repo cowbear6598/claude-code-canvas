@@ -292,6 +292,17 @@ export interface PodChatHistoryResultPayload {
     role: 'user' | 'assistant';
     content: string;
     timestamp: string;
+    subMessages?: Array<{
+      id: string;
+      content: string;
+      toolUse?: Array<{
+        toolUseId: string;
+        toolName: string;
+        input: Record<string, unknown>;
+        output?: string;
+        status: string;
+      }>;
+    }>;
   }>;
   error?: string;
 }

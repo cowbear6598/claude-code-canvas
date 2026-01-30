@@ -51,7 +51,7 @@ export type {
 } from './api.js';
 
 // Persistence types
-export type { PersistedMessage, ChatHistory, PersistedPod, PersistedConnection } from './persistence.js';
+export type { PersistedMessage, PersistedSubMessage, PersistedToolUseInfo, ChatHistory, PersistedPod, PersistedConnection } from './persistence.js';
 
 // WebSocket types
 export {

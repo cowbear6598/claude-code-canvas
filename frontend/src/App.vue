@@ -54,7 +54,15 @@ const syncHistoryToPodOutput = (): void => {
       if (message.role === 'user') {
         output.push(`> ${truncateContent(message.content, CONTENT_PREVIEW_LENGTH)}`)
       } else if (message.role === 'assistant' && !message.isPartial) {
-        output.push(truncateContent(message.content, RESPONSE_PREVIEW_LENGTH))
+        if (message.subMessages && message.subMessages.length > 0) {
+          for (const sub of message.subMessages) {
+            if (sub.content) {
+              output.push(truncateContent(sub.content, RESPONSE_PREVIEW_LENGTH))
+            }
+          }
+        } else {
+          output.push(truncateContent(message.content, RESPONSE_PREVIEW_LENGTH))
+        }
       }
     }
 

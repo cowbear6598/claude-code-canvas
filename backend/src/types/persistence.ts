@@ -1,6 +1,20 @@
 import type { PodTypeName, PodColor, PodStatus, ModelType } from './pod.js';
 import type { AnchorPosition } from './connection.js';
 
+export interface PersistedToolUseInfo {
+  toolUseId: string;
+  toolName: string;
+  input: Record<string, unknown>;
+  output?: string;
+  status: 'completed' | 'error';
+}
+
+export interface PersistedSubMessage {
+  id: string;
+  content: string;
+  toolUse?: PersistedToolUseInfo[];
+}
+
 /**
  * Message stored in chat history
  */
@@ -9,6 +23,7 @@ export interface PersistedMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string; // ISO 8601 format
+  subMessages?: PersistedSubMessage[];
 }
 
 /**

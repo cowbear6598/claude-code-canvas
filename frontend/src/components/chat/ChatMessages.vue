@@ -65,7 +65,42 @@ watch(
 
       <!-- 訊息列表 -->
       <template v-else>
-        <ChatMessageBubble v-for="msg in messages" :key="msg.id" :message="msg" />
+        <template v-for="msg in messages" :key="msg.id">
+          <!-- 使用者訊息：直接渲染 -->
+          <ChatMessageBubble
+            v-if="msg.role === 'user'"
+            :content="msg.content"
+            :role="msg.role"
+            :is-partial="msg.isPartial"
+            :is-summarized="msg.isSummarized"
+          />
+
+          <!-- Assistant 訊息：渲染 subMessages -->
+          <template v-else-if="msg.role === 'assistant'">
+            <!-- 如果有 subMessages，逐個渲染 -->
+            <template v-if="msg.subMessages && msg.subMessages.length > 0">
+              <ChatMessageBubble
+                v-for="sub in msg.subMessages"
+                :key="sub.id"
+                :content="sub.content"
+                :role="msg.role"
+                :is-partial="sub.isPartial"
+                :tool-use="sub.toolUse"
+                :is-summarized="msg.isSummarized"
+              />
+            </template>
+
+            <!-- Fallback: 直接渲染整個 message -->
+            <ChatMessageBubble
+              v-else
+              :content="msg.content"
+              :role="msg.role"
+              :is-partial="msg.isPartial"
+              :tool-use="msg.toolUse"
+              :is-summarized="msg.isSummarized"
+            />
+          </template>
+        </template>
 
         <!-- 打字指示器 - 僅在沒有 partial 訊息時顯示 -->
         <div v-if="isTyping && !hasPartialMessage" class="flex justify-start">

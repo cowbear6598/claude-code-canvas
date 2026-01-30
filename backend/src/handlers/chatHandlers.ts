@@ -7,6 +7,8 @@ import {
   type PodChatToolUsePayload,
   type PodChatToolResultPayload,
   type PodChatCompletePayload,
+  type PersistedSubMessage,
+  type PersistedToolUseInfo,
 } from '../types/index.js';
 import type { ChatSendPayload, ChatHistoryPayload } from '../schemas/index.js';
 import { podStore } from '../services/podStore.js';
@@ -55,11 +57,28 @@ export async function handleChatSend(
   const messageId = uuidv4();
 
   let accumulatedContent = '';
+  const subMessages: PersistedSubMessage[] = [];
+  let currentSubContent = '';
+  let currentSubToolUse: PersistedToolUseInfo[] = [];
+  let subMessageCounter = 0;
+
+  const flushCurrentSubMessage = () => {
+    if (currentSubContent || currentSubToolUse.length > 0) {
+      subMessages.push({
+        id: `${messageId}-sub-${subMessageCounter++}`,
+        content: currentSubContent,
+        toolUse: currentSubToolUse.length > 0 ? [...currentSubToolUse] : undefined,
+      });
+      currentSubContent = '';
+      currentSubToolUse = [];
+    }
+  };
 
   await claudeQueryService.sendMessage(podId, message, (event) => {
     switch (event.type) {
       case 'text': {
         accumulatedContent += event.content;
+        currentSubContent += event.content;
 
         const textPayload: PodChatMessagePayload = {
           podId,
@@ -77,6 +96,14 @@ export async function handleChatSend(
       }
 
       case 'tool_use': {
+        currentSubToolUse.push({
+          toolUseId: event.toolUseId,
+          toolName: event.toolName,
+          input: event.input,
+          status: 'completed',
+        });
+        flushCurrentSubMessage();
+
         const toolUsePayload: PodChatToolUsePayload = {
           podId,
           messageId,
@@ -93,6 +120,20 @@ export async function handleChatSend(
       }
 
       case 'tool_result': {
+        for (const sub of subMessages) {
+          if (sub.toolUse) {
+            const tool = sub.toolUse.find(t => t.toolUseId === event.toolUseId);
+            if (tool) {
+              tool.output = event.output;
+              break;
+            }
+          }
+        }
+        const currentTool = currentSubToolUse.find(t => t.toolUseId === event.toolUseId);
+        if (currentTool) {
+          currentTool.output = event.output;
+        }
+
         const toolResultPayload: PodChatToolResultPayload = {
           podId,
           messageId,
@@ -109,6 +150,8 @@ export async function handleChatSend(
       }
 
       case 'complete': {
+        flushCurrentSubMessage();
+
         const completePayload: PodChatCompletePayload = {
           podId,
           messageId,
@@ -128,6 +171,10 @@ export async function handleChatSend(
       }
     }
   });
+
+  if (accumulatedContent || subMessages.length > 0) {
+    await messageStore.addMessage(podId, 'assistant', accumulatedContent, subMessages.length > 0 ? subMessages : undefined);
+  }
 
   podStore.setStatus(podId, 'idle');
   podStore.updateLastActive(podId);
@@ -170,6 +217,7 @@ export async function handleChatHistory(
       role: msg.role,
       content: msg.content,
       timestamp: msg.timestamp,
+      subMessages: msg.subMessages,
     })),
   };
 

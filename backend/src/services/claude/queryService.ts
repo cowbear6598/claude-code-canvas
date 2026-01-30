@@ -185,7 +185,9 @@ class ClaudeQueryService {
         }
         else if (sdkMessage.type === 'result') {
           if (sdkMessage.subtype === 'success') {
-            fullContent = sdkMessage.result || fullContent;
+            if (!fullContent && sdkMessage.result) {
+              fullContent = sdkMessage.result;
+            }
 
             onStream({
               type: 'complete',
@@ -208,10 +210,6 @@ class ClaudeQueryService {
 
       if (capturedSessionId && capturedSessionId !== pod.claudeSessionId) {
         podStore.setClaudeSessionId(podId, capturedSessionId);
-      }
-
-      if (fullContent) {
-        await messageStore.addMessage(podId, 'assistant', fullContent);
       }
 
       return {

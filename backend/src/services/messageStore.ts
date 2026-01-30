@@ -1,5 +1,5 @@
 import {v4 as uuidv4} from 'uuid';
-import type {PersistedMessage} from '../types/index.js';
+import type {PersistedMessage, PersistedSubMessage} from '../types/index.js';
 import {Result, ok, err} from '../types/index.js';
 import {chatPersistenceService} from './persistence/chatPersistence.js';
 import {logger} from '../utils/logger.js';
@@ -10,13 +10,15 @@ class MessageStore {
     async addMessage(
         podId: string,
         role: 'user' | 'assistant',
-        content: string
+        content: string,
+        subMessages?: PersistedSubMessage[]
     ): Promise<Result<PersistedMessage>> {
         const message: PersistedMessage = {
             id: uuidv4(),
             role,
             content,
             timestamp: new Date().toISOString(),
+            ...(subMessages && { subMessages }),
         };
 
         const messages = this.messagesByPodId.get(podId) ?? [];

@@ -47,6 +47,7 @@ interface ChatState {
   disconnectReason: string | null
   lastHeartbeatAt: number | null
   heartbeatCheckTimer: number | null
+  accumulatedLengthByMessageId: Map<string, number>
 }
 
 export const useChatStore = defineStore('chat', {
@@ -62,7 +63,8 @@ export const useChatStore = defineStore('chat', {
     autoClearAnimationPodId: null,
     disconnectReason: null,
     lastHeartbeatAt: null,
-    heartbeatCheckTimer: null
+    heartbeatCheckTimer: null,
+    accumulatedLengthByMessageId: new Map()
   }),
 
   getters: {
@@ -289,22 +291,37 @@ export const useChatStore = defineStore('chat', {
       const messages = this.messagesByPodId.get(podId) || []
       const messageIndex = messages.findIndex(m => m.id === messageId)
 
+      const lastLength = this.accumulatedLengthByMessageId.get(messageId) || 0
+      const delta = content.slice(lastLength)
+      this.accumulatedLengthByMessageId.set(messageId, content.length)
+
       if (messageIndex === -1) {
-        this.addNewChatMessage(podId, messageId, content, isPartial, role)
+        this.addNewChatMessage(podId, messageId, content, isPartial, role, delta)
         return
       }
 
-      this.updateExistingChatMessage(podId, messages, messageIndex, content, isPartial)
+      this.updateExistingChatMessage(podId, messages, messageIndex, content, isPartial, delta)
     },
 
-    addNewChatMessage(podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant'): void {
+    addNewChatMessage(podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string): void {
       const messages = this.messagesByPodId.get(podId) || []
+
       const newMessage: Message = {
         id: messageId,
         role: role || 'assistant',
         content,
         isPartial,
         timestamp: new Date().toISOString()
+      }
+
+      if ((role || 'assistant') === 'assistant') {
+        const firstSubMessage: import('@/types/chat').SubMessage = {
+          id: `${messageId}-sub-0`,
+          content: delta || content,
+          isPartial
+        }
+        newMessage.subMessages = [firstSubMessage]
+        newMessage.expectingNewBlock = true
       }
 
       this.messagesByPodId.set(podId, [...messages, newMessage])
@@ -315,7 +332,7 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    updateExistingChatMessage(podId: string, messages: Message[], messageIndex: number, content: string, isPartial: boolean): void {
+    updateExistingChatMessage(podId: string, messages: Message[], messageIndex: number, content: string, isPartial: boolean, delta: string): void {
       const updatedMessages = [...messages]
       const existingMessage = updatedMessages[messageIndex]
 
@@ -325,6 +342,34 @@ export const useChatStore = defineStore('chat', {
         ...existingMessage,
         content,
         isPartial
+      }
+
+      if (existingMessage.role === 'assistant' && existingMessage.subMessages) {
+        const subMessages = [...existingMessage.subMessages]
+
+        if (existingMessage.expectingNewBlock) {
+          const newSubMessage: import('@/types/chat').SubMessage = {
+            id: `${existingMessage.id}-sub-${subMessages.length}`,
+            content: delta,
+            isPartial
+          }
+          subMessages.push(newSubMessage)
+          updatedMessages[messageIndex].expectingNewBlock = false
+        } else {
+          const lastSubIndex = subMessages.length - 1
+          if (lastSubIndex >= 0) {
+            const sumOfPreviousContents = subMessages.slice(0, lastSubIndex).reduce((sum, sub) => sum + sub.content.length, 0)
+            const lastSubContent = content.slice(sumOfPreviousContents)
+
+            subMessages[lastSubIndex] = {
+              ...subMessages[lastSubIndex],
+              content: lastSubContent,
+              isPartial
+            }
+          }
+        }
+
+        updatedMessages[messageIndex].subMessages = subMessages
       }
 
       this.messagesByPodId.set(podId, updatedMessages)
@@ -349,18 +394,27 @@ export const useChatStore = defineStore('chat', {
 
     createMessageWithToolUse(podId: string, messageId: string, toolUseId: string, toolName: string, input: Record<string, unknown>): void {
       const messages = this.messagesByPodId.get(podId) || []
+      const toolUseInfo: ToolUseInfo = {
+        toolUseId,
+        toolName,
+        input,
+        status: 'running' as ToolUseStatus
+      }
+
       const newMessage: Message = {
         id: messageId,
         role: 'assistant',
         content: '',
         isPartial: true,
         timestamp: new Date().toISOString(),
-        toolUse: [{
-          toolUseId,
-          toolName,
-          input,
-          status: 'running' as ToolUseStatus
-        }]
+        toolUse: [toolUseInfo],
+        subMessages: [{
+          id: `${messageId}-sub-0`,
+          content: '',
+          isPartial: true,
+          toolUse: [toolUseInfo]
+        }],
+        expectingNewBlock: true
       }
 
       this.messagesByPodId.set(podId, [...messages, newMessage])
@@ -388,7 +442,28 @@ export const useChatStore = defineStore('chat', {
 
       updatedMessages[messageIndex] = {
         ...message,
-        toolUse: updatedToolUse
+        toolUse: updatedToolUse,
+        expectingNewBlock: true
+      }
+
+      if (message.subMessages && message.subMessages.length > 0) {
+        const subMessages = [...message.subMessages]
+        const lastSubIndex = subMessages.length - 1
+        const lastSub = subMessages[lastSubIndex]
+
+        const subToolUse = lastSub.toolUse || []
+        const subToolIndex = subToolUse.findIndex(t => t.toolUseId === toolUseId)
+
+        const updatedSubToolUse = subToolIndex === -1
+          ? [...subToolUse, toolUseInfo]
+          : subToolUse.map((tool, idx) => idx === subToolIndex ? toolUseInfo : tool)
+
+        subMessages[lastSubIndex] = {
+          ...lastSub,
+          toolUse: updatedSubToolUse
+        }
+
+        updatedMessages[messageIndex].subMessages = subMessages
       }
 
       this.messagesByPodId.set(podId, updatedMessages)
@@ -424,6 +499,27 @@ export const useChatStore = defineStore('chat', {
         toolUse: updatedToolUse
       }
 
+      if (message.subMessages) {
+        const subMessages = [...message.subMessages]
+
+        for (let i = 0; i < subMessages.length; i++) {
+          const sub = subMessages[i]
+          if (sub.toolUse) {
+            const updatedSubToolUse = sub.toolUse.map(tool =>
+              tool.toolUseId === toolUseId
+                ? { ...tool, output, status: 'completed' as ToolUseStatus }
+                : tool
+            )
+            subMessages[i] = {
+              ...sub,
+              toolUse: updatedSubToolUse
+            }
+          }
+        }
+
+        updatedMessages[messageIndex].subMessages = subMessages
+      }
+
       this.messagesByPodId.set(podId, updatedMessages)
     },
 
@@ -431,6 +527,8 @@ export const useChatStore = defineStore('chat', {
       const { podId, messageId, fullContent } = payload
       const messages = this.messagesByPodId.get(podId) || []
       const messageIndex = messages.findIndex(m => m.id === messageId)
+
+      this.accumulatedLengthByMessageId.delete(messageId)
 
       if (messageIndex === -1) {
         this.finalizeStreaming(podId, messageId)
@@ -476,6 +574,36 @@ export const useChatStore = defineStore('chat', {
         }
       }
 
+      if (existingMessage.subMessages && existingMessage.subMessages.length > 0) {
+        const subMessages = [...existingMessage.subMessages]
+
+        for (let i = 0; i < subMessages.length; i++) {
+          const sub = subMessages[i]
+
+          if (sub.toolUse && sub.toolUse.length > 0) {
+            const updatedSubToolUse = sub.toolUse.map(tool =>
+              tool.status === 'running'
+                ? { ...tool, status: 'completed' as ToolUseStatus }
+                : tool
+            )
+            subMessages[i] = {
+              ...sub,
+              isPartial: false,
+              toolUse: updatedSubToolUse
+            }
+          } else {
+            subMessages[i] = {
+              ...sub,
+              isPartial: false
+            }
+          }
+        }
+
+        updatedMessages[messageIndex].subMessages = subMessages
+      }
+
+      updatedMessages[messageIndex].expectingNewBlock = undefined
+
       this.messagesByPodId.set(podId, updatedMessages)
 
       if (existingMessage.role === 'assistant') {
@@ -492,11 +620,29 @@ export const useChatStore = defineStore('chat', {
 
         if (!pod) return
 
-        const truncatedContent = truncateContent(content, RESPONSE_PREVIEW_LENGTH)
-        podStore.updatePod({
-          ...pod,
-          output: [...pod.output, truncatedContent]
-        })
+        const messages = this.messagesByPodId.get(podId) || []
+        const lastMessage = messages[messages.length - 1]
+
+        if (lastMessage && lastMessage.role === 'assistant' && lastMessage.subMessages && lastMessage.subMessages.length > 0) {
+          const newOutputLines: string[] = []
+          for (const sub of lastMessage.subMessages) {
+            if (sub.content) {
+              newOutputLines.push(truncateContent(sub.content, RESPONSE_PREVIEW_LENGTH))
+            }
+          }
+
+          const existingUserMessages = pod.output.filter(line => line.startsWith('> '))
+          podStore.updatePod({
+            ...pod,
+            output: [...existingUserMessages, ...newOutputLines]
+          })
+        } else {
+          const truncatedContent = truncateContent(content, RESPONSE_PREVIEW_LENGTH)
+          podStore.updatePod({
+            ...pod,
+            output: [...pod.output, truncatedContent]
+          })
+        }
       })
     },
 
@@ -524,13 +670,48 @@ export const useChatStore = defineStore('chat', {
     },
 
     convertPersistedToMessage(persistedMessage: PersistedMessage): Message {
-      return {
+      const message: Message = {
         id: persistedMessage.id,
         role: persistedMessage.role,
         content: persistedMessage.content,
         timestamp: persistedMessage.timestamp,
         isPartial: false
       }
+
+      if (persistedMessage.role === 'assistant') {
+        if (persistedMessage.subMessages && persistedMessage.subMessages.length > 0) {
+          message.subMessages = persistedMessage.subMessages.map(sub => ({
+            id: sub.id,
+            content: sub.content,
+            isPartial: false,
+            toolUse: sub.toolUse?.map(tool => ({
+              toolUseId: tool.toolUseId,
+              toolName: tool.toolName,
+              input: tool.input,
+              output: tool.output,
+              status: (tool.status as ToolUseStatus) || 'completed',
+            })),
+          }))
+
+          const allToolUse: ToolUseInfo[] = []
+          for (const sub of message.subMessages) {
+            if (sub.toolUse) {
+              allToolUse.push(...sub.toolUse)
+            }
+          }
+          if (allToolUse.length > 0) {
+            message.toolUse = allToolUse
+          }
+        } else {
+          message.subMessages = [{
+            id: `${persistedMessage.id}-sub-0`,
+            content: persistedMessage.content,
+            isPartial: false
+          }]
+        }
+      }
+
+      return message
     },
 
     setPodMessages(podId: string, messages: Message[]): void {

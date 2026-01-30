@@ -4,7 +4,6 @@ import type { Pod } from '@/types'
 import ChatHeader from './ChatHeader.vue'
 import ChatMessages from './ChatMessages.vue'
 import ChatInput from './ChatInput.vue'
-import ChatToolPanel from './ChatToolPanel.vue'
 import { useChatStore } from '@/stores/chatStore'
 
 const props = defineProps<{
@@ -50,14 +49,12 @@ onUnmounted(() => {
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 modal-overlay" />
 
-    <div class="relative flex gap-4 max-w-5xl w-full max-h-[85vh]">
-      <div class="chat-window flex-1 flex flex-col overflow-hidden">
+    <div class="relative max-w-3xl w-full h-[85vh]">
+      <div class="chat-window flex flex-col h-full overflow-hidden">
         <ChatHeader :pod="pod" @close="handleClose" />
         <ChatMessages :messages="messages" :is-typing="isTyping" :is-loading-history="isHistoryLoading" />
         <ChatInput @send="handleSend" />
       </div>
-
-      <ChatToolPanel :pod-id="pod.id" />
     </div>
   </div>
 </template>
