@@ -632,28 +632,29 @@ export const useChatStore = defineStore('chat', {
                 if (!pod) return
 
                 const messages = this.messagesByPodId.get(podId) || []
-                const lastMessage = messages[messages.length - 1]
+                const outputLines: string[] = []
 
-                if (lastMessage && lastMessage.role === 'assistant' && lastMessage.subMessages && lastMessage.subMessages.length > 0) {
-                    const newOutputLines: string[] = []
-                    for (const sub of lastMessage.subMessages) {
-                        if (sub.content) {
-                            newOutputLines.push(truncateContent(sub.content, RESPONSE_PREVIEW_LENGTH))
+                for (const msg of messages) {
+                    if (msg.role === 'user') {
+                        const userContent = typeof msg.content === 'string' ? msg.content : ''
+                        if (userContent) {
+                            outputLines.push(`> ${truncateContent(userContent, RESPONSE_PREVIEW_LENGTH)}`)
+                        }
+                    } else if (msg.role === 'assistant') {
+                        if (msg.subMessages && msg.subMessages.length > 0) {
+                            for (const sub of msg.subMessages) {
+                                if (sub.content) {
+                                    outputLines.push(truncateContent(sub.content, RESPONSE_PREVIEW_LENGTH))
+                                }
+                            }
                         }
                     }
-
-                    const existingUserMessages = pod.output.filter(line => line.startsWith('> '))
-                    podStore.updatePod({
-                        ...pod,
-                        output: [...existingUserMessages, ...newOutputLines]
-                    })
-                } else {
-                    const truncatedContent = truncateContent(content, RESPONSE_PREVIEW_LENGTH)
-                    podStore.updatePod({
-                        ...pod,
-                        output: [...pod.output, truncatedContent]
-                    })
                 }
+
+                podStore.updatePod({
+                    ...pod,
+                    output: outputLines
+                })
             })
         },
 
