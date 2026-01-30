@@ -26,7 +26,7 @@ const handleItemDelete = (item: T, event: Event): void => {
 
 <template>
   <div
-    v-if="visible && items.length > 0"
+    v-if="visible"
     class="pod-menu-submenu"
     @wheel.stop.passive
   >
