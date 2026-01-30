@@ -107,7 +107,8 @@ const handleMouseDown = (e: MouseEvent): void => {
       (e.target as HTMLElement).closest('.pod-output-style-slot') ||
       (e.target as HTMLElement).closest('.pod-skill-slot') ||
       (e.target as HTMLElement).closest('.pod-subagent-slot') ||
-      (e.target as HTMLElement).closest('.pod-repository-slot')
+      (e.target as HTMLElement).closest('.pod-repository-slot') ||
+      (e.target as HTMLElement).closest('.pod-command-slot')
   ) {
     return
   }
@@ -413,7 +414,7 @@ const handleToggleAutoClear = async (): Promise<void> => {
         <div class="subagent-notch" />
         <!-- Repository 凹槽（右側） -->
         <div class="repository-notch" />
-        <!-- Command 凹槽（上方） -->
+        <!-- Command 凹槽（右側） -->
         <div class="command-notch" />
 
         <!-- Anchors -->

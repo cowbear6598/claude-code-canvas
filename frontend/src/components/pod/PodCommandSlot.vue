@@ -92,22 +92,22 @@ const handleSlotClick = async (e: MouseEvent): Promise<void> => {
   const slotElement = slotRef.value
   if (!slotElement) return
 
-  const slotRect = slotElement.getBoundingClientRect()
-  const slotHeight = slotRect.height
+  const slotWidth = slotElement.getBoundingClientRect().width
   const zoom = viewportStore.zoom
 
   const podElement = slotElement.closest('.pod-with-notch')
   if (!podElement) return
-  podElement.getBoundingClientRect();
+
+  const podRect = podElement.getBoundingClientRect()
+  const slotRect = slotElement.getBoundingClientRect()
   const viewportOffset = viewportStore.offset
 
-  // Command 插槽位於 POD 上方右側，向上彈出
-  const slotCenterX = (slotRect.left + slotRect.width / 2 - viewportOffset.x) / zoom
-  const slotTopY = (slotRect.top - viewportOffset.y) / zoom
+  const podCenterX = (podRect.right - viewportOffset.x) / zoom
+  const podCenterY = (slotRect.top - viewportOffset.y) / zoom
 
   const extraDistance = 30
-  const baseX = 0  // 不需要水平偏移
-  const baseY = -(slotHeight / zoom + extraDistance)  // 向上彈出（負 Y 方向）
+  const baseX = slotWidth / zoom + extraDistance
+  const baseY = 0
 
   const rotation = props.podRotation || 0
   const radians = rotation * Math.PI / 180
@@ -115,8 +115,8 @@ const handleSlotClick = async (e: MouseEvent): Promise<void> => {
   const rotatedX = baseX * Math.cos(radians) - baseY * Math.sin(radians)
   const rotatedY = baseX * Math.sin(radians) + baseY * Math.cos(radians)
 
-  const ejectX = slotCenterX + rotatedX - (slotRect.width / 2 / zoom)
-  const ejectY = slotTopY + rotatedY
+  const ejectX = podCenterX + rotatedX
+  const ejectY = podCenterY + rotatedY
 
   isEjecting.value = true
   commandStore.setNoteAnimating(noteId, true)

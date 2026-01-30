@@ -95,10 +95,11 @@ const handleSlotClick = async (e: MouseEvent): Promise<void> => {
   if (!podElement) return
 
   const podRect = podElement.getBoundingClientRect()
+  const slotRect = slotElement.getBoundingClientRect()
   const viewportOffset = viewportStore.offset
 
   const podCenterX = (podRect.right - viewportOffset.x) / zoom
-  const podCenterY = (podRect.top - viewportOffset.y + 23) / zoom
+  const podCenterY = (slotRect.top - viewportOffset.y) / zoom
 
   const extraDistance = 30
 
