@@ -93,6 +93,10 @@ class CommandService {
     }
 
     async deleteCommandFromPath(basePath: string): Promise<void> {
+        if (!isPathWithinDirectory(basePath, config.canvasRoot)) {
+            throw new Error('無效的路徑');
+        }
+
         const commandsDir = path.join(basePath, '.claude', 'commands');
         await fs.rm(commandsDir, {recursive: true, force: true});
     }

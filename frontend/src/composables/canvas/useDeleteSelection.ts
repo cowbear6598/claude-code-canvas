@@ -4,7 +4,7 @@ import { useToast } from '@/composables/useToast'
 import { isEditingElement } from '@/utils/domHelpers'
 
 async function deleteSelectedElements(): Promise<void> {
-  const { podStore, selectionStore, outputStyleStore, skillStore, repositoryStore, subAgentStore } = useCanvasContext()
+  const { podStore, selectionStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore } = useCanvasContext()
   const { toast } = useToast()
 
   const selectedElements = selectionStore.selectedElements
@@ -30,6 +30,10 @@ async function deleteSelectedElements(): Promise<void> {
     .filter(el => el.type === 'subAgentNote')
     .map(el => el.id)
 
+  const commandNotes = selectedElements
+    .filter(el => el.type === 'commandNote')
+    .map(el => el.id)
+
   const deletePromises: Promise<void>[] = []
 
   pods.forEach(id => {
@@ -52,11 +56,22 @@ async function deleteSelectedElements(): Promise<void> {
     deletePromises.push(subAgentStore.deleteNote(id))
   })
 
+  commandNotes.forEach(id => {
+    deletePromises.push(commandStore.deleteNote(id))
+  })
+
   const results = await Promise.allSettled(deletePromises)
 
-  const failedCount = results.filter(r => r.status === 'rejected').length
+  const failedResults = results.filter(r => r.status === 'rejected')
+  const failedCount = failedResults.length
 
   if (failedCount > 0) {
+    failedResults.forEach((result) => {
+      if (result.status === 'rejected') {
+        console.error('刪除元素失敗:', result.reason)
+      }
+    })
+
     toast({
       title: '刪除部分失敗',
       description: `${failedCount} 個物件刪除失敗`,

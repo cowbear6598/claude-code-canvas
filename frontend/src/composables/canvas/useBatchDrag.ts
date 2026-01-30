@@ -6,7 +6,7 @@ export function useBatchDrag(): {
   startBatchDrag: (e: MouseEvent) => boolean
   isElementSelected: (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote', id: string) => boolean
 } {
-  const { podStore, viewportStore, selectionStore, outputStyleStore, skillStore, repositoryStore } = useCanvasContext()
+  const { podStore, viewportStore, selectionStore, outputStyleStore, skillStore, repositoryStore, commandStore } = useCanvasContext()
 
   const isBatchDragging = ref(false)
 
@@ -16,6 +16,7 @@ export function useBatchDrag(): {
   const movedOutputStyleNotes = new Set<string>()
   const movedSkillNotes = new Set<string>()
   const movedRepositoryNotes = new Set<string>()
+  const movedCommandNotes = new Set<string>()
 
   let currentMoveHandler: ((e: MouseEvent) => void) | null = null
   let currentUpHandler: (() => void) | null = null
@@ -43,6 +44,7 @@ export function useBatchDrag(): {
     movedOutputStyleNotes.clear()
     movedSkillNotes.clear()
     movedRepositoryNotes.clear()
+    movedCommandNotes.clear()
 
     cleanupEventListeners()
 
@@ -94,6 +96,12 @@ export function useBatchDrag(): {
           repositoryStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
           movedRepositoryNotes.add(element.id)
         }
+      } else if (element.type === 'commandNote') {
+        const note = commandStore.notes.find(n => n.id === element.id)
+        if (note && !note.boundToPodId) {
+          commandStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
+          movedCommandNotes.add(element.id)
+        }
       }
     }
   }
@@ -120,9 +128,17 @@ export function useBatchDrag(): {
       }
     }
 
+    for (const noteId of movedCommandNotes) {
+      const note = commandStore.notes.find(n => n.id === noteId)
+      if (note) {
+        await commandStore.updateNotePosition(noteId, note.x, note.y)
+      }
+    }
+
     movedOutputStyleNotes.clear()
     movedSkillNotes.clear()
     movedRepositoryNotes.clear()
+    movedCommandNotes.clear()
   }
 
   const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote', id: string): boolean => {

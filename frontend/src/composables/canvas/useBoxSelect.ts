@@ -5,7 +5,7 @@ export function useBoxSelect(): {
   isBoxSelecting: import('vue').Ref<boolean>
   startBoxSelect: (e: MouseEvent) => void
 } {
-  const { viewportStore, selectionStore, podStore, outputStyleStore, skillStore, subAgentStore, repositoryStore } = useCanvasContext()
+  const { viewportStore, selectionStore, podStore, outputStyleStore, skillStore, subAgentStore, repositoryStore, commandStore } = useCanvasContext()
 
   const isBoxSelecting = ref(false)
 
@@ -34,6 +34,8 @@ export function useBoxSelect(): {
 
     e.preventDefault()
 
+    if (viewportStore.zoom === 0) return
+
     const canvasX = (e.clientX - viewportStore.offset.x) / viewportStore.zoom
     const canvasY = (e.clientY - viewportStore.offset.y) / viewportStore.zoom
 
@@ -52,7 +54,8 @@ export function useBoxSelect(): {
         outputStyleStore.notes,
         skillStore.notes,
         repositoryStore.notes,
-        subAgentStore.notes
+        subAgentStore.notes,
+        commandStore.notes
       )
     }
 

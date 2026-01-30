@@ -9,6 +9,22 @@ interface SelectionState {
   boxSelectJustEnded: boolean
 }
 
+function isNoteInSelectionBox(
+  noteX: number,
+  noteY: number,
+  minX: number,
+  maxX: number,
+  minY: number,
+  maxY: number
+): boolean {
+  const noteMinX = noteX
+  const noteMaxX = noteX + NOTE_WIDTH
+  const noteMinY = noteY
+  const noteMaxY = noteY + NOTE_HEIGHT
+
+  return !(noteMaxX < minX || noteMinX > maxX || noteMaxY < minY || noteMinY > maxY)
+}
+
 export const useSelectionStore = defineStore('selection', {
   state: (): SelectionState => ({
     isSelecting: false,
@@ -124,7 +140,8 @@ export const useSelectionStore = defineStore('selection', {
       outputStyleNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}>,
       skillNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}>,
       repositoryNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = [],
-      subAgentNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = []
+      subAgentNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = [],
+      commandNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = []
     ): void {
       if (!this.box) return
 
@@ -152,14 +169,7 @@ export const useSelectionStore = defineStore('selection', {
       for (const note of outputStyleNotes) {
         if (note.boundToPodId) continue
 
-        const noteMinX = note.x
-        const noteMaxX = note.x + NOTE_WIDTH
-        const noteMinY = note.y
-        const noteMaxY = note.y + NOTE_HEIGHT
-
-        const hasIntersection = !(noteMaxX < minX || noteMinX > maxX || noteMaxY < minY || noteMinY > maxY)
-
-        if (hasIntersection) {
+        if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
           selected.push({type: 'outputStyleNote', id: note.id})
         }
       }
@@ -167,14 +177,7 @@ export const useSelectionStore = defineStore('selection', {
       for (const note of skillNotes) {
         if (note.boundToPodId) continue
 
-        const noteMinX = note.x
-        const noteMaxX = note.x + NOTE_WIDTH
-        const noteMinY = note.y
-        const noteMaxY = note.y + NOTE_HEIGHT
-
-        const hasIntersection = !(noteMaxX < minX || noteMinX > maxX || noteMaxY < minY || noteMinY > maxY)
-
-        if (hasIntersection) {
+        if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
           selected.push({type: 'skillNote', id: note.id})
         }
       }
@@ -182,14 +185,7 @@ export const useSelectionStore = defineStore('selection', {
       for (const note of repositoryNotes) {
         if (note.boundToPodId) continue
 
-        const noteMinX = note.x
-        const noteMaxX = note.x + NOTE_WIDTH
-        const noteMinY = note.y
-        const noteMaxY = note.y + NOTE_HEIGHT
-
-        const hasIntersection = !(noteMaxX < minX || noteMinX > maxX || noteMaxY < minY || noteMinY > maxY)
-
-        if (hasIntersection) {
+        if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
           selected.push({type: 'repositoryNote', id: note.id})
         }
       }
@@ -197,15 +193,16 @@ export const useSelectionStore = defineStore('selection', {
       for (const note of subAgentNotes) {
         if (note.boundToPodId) continue
 
-        const noteMinX = note.x
-        const noteMaxX = note.x + NOTE_WIDTH
-        const noteMinY = note.y
-        const noteMaxY = note.y + NOTE_HEIGHT
-
-        const hasIntersection = !(noteMaxX < minX || noteMinX > maxX || noteMaxY < minY || noteMinY > maxY)
-
-        if (hasIntersection) {
+        if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
           selected.push({type: 'subAgentNote', id: note.id})
+        }
+      }
+
+      for (const note of commandNotes) {
+        if (note.boundToPodId) continue
+
+        if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
+          selected.push({type: 'commandNote', id: note.id})
         }
       }
 
