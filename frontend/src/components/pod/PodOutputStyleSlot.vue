@@ -97,14 +97,12 @@ const handleSlotClick = async (e: MouseEvent): Promise<void> => {
   const podRect = podElement.getBoundingClientRect()
   const viewportOffset = viewportStore.offset
 
-  const podCenterX = (podRect.left - viewportOffset.x) / zoom
-  const podCenterY = (podRect.top - viewportOffset.y + 12) / zoom
+  const podCenterX = (podRect.right - viewportOffset.x) / zoom
+  const podCenterY = (podRect.top - viewportOffset.y + 23) / zoom
 
   const extraDistance = 30
-  // slotWidth 是螢幕像素，需要除以 zoom 轉換為 canvas 座標
-  const ejectDistance = slotWidth / zoom + extraDistance
 
-  const baseX = -ejectDistance
+  const baseX = slotWidth / zoom + extraDistance
   const baseY = 0
 
   const rotation = props.podRotation || 0

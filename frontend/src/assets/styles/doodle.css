@@ -83,36 +83,36 @@
   z-index: -1;
 }
 
-/* Output Style Slot 容器位置 */
+/* Output Style Slot 容器位置（移至右側） */
 .pod-notch-area {
   position: absolute;
-  left: 0;
+  right: 0;
   top: 18px;  /* 調整此值來移動 Slot 的垂直位置 */
-  transform: translateX(-100%);
+  transform: translateX(100%);
   z-index: -1;
 }
 
-/* Output Style 凹槽視覺效果（POD 左側的小突出） */
+/* Output Style 凹槽視覺效果（POD 右側的小突出） */
 .pod-with-notch .pod-doodle::before {
   content: '';
   position: absolute;
-  left: -6px;   /* 凹槽往左延伸的距離 */
+  right: -6px;  /* 凹槽往右延伸的距離 */
   top: 16px;    /* 凹槽的垂直位置（相對於 .pod-doodle） */
   width: 8px;   /* 凹槽寬度 */
   height: 32px; /* 凹槽高度 */
   background: var(--card);
   border: 2px solid var(--doodle-ink);
-  border-right: none;
-  border-radius: 4px 0 0 4px;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
   z-index: -1;
 }
 
-/* Skill 凹槽視覺效果（在 Output Style 下方） */
+/* Skill 凹槽視覺效果（POD 左側） */
 .pod-with-skill-notch .pod-doodle::after {
   content: '';
   position: absolute;
   left: -6px;   /* 凹槽往左延伸的距離 */
-  top: 56px;    /* 凹槽的垂直位置（Output Style 凹槽 + 40px 間距） */
+  top: 16px;    /* 凹槽的垂直位置（與 Output Style 同高） */
   width: 8px;   /* 凹槽寬度 */
   height: 32px; /* 凹槽高度 */
   background: var(--card);
@@ -283,20 +283,20 @@
   border-style: solid;
   box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
   cursor: pointer;
-  transform: translateX(50%);
+  transform: translateX(-50%);
 }
 
 .pod-output-style-slot.has-note:hover {
-  transform: translateX(50%) translate(-0.5px, -0.5px);
+  transform: translateX(-50%) translate(0.5px, -0.5px);
   box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
 }
 
 .pod-output-style-slot.ejecting {
-  animation: eject-from-slot 0.3s ease-out forwards;
+  animation: eject-from-slot-right 0.3s ease-out forwards;
 }
 
 .pod-output-style-slot.inserting {
-  animation: slide-into-slot 0.3s ease-out;
+  animation: slide-into-slot-right 0.3s ease-out;
 }
 
 @keyframes slide-into-slot {
@@ -436,7 +436,7 @@
 .pod-repository-notch-area {
   position: absolute;
   right: 0;
-  top: 18px;
+  top: 58px;
   transform: translateX(100%);
   z-index: -1;
 }
@@ -445,7 +445,7 @@
 .repository-notch {
   position: absolute;
   right: -6px;
-  top: 16px;    /* 與 Output Style 凹槽同高 */
+  top: 56px;    /* 與 SubAgent 凹槽同高 */
   width: 8px;
   height: 32px;
   background: var(--card);
@@ -871,7 +871,7 @@
 .pod-skill-notch-area {
   position: absolute;
   left: 0;
-  top: 58px;  /* 調整此值來移動 Skill Slot 的垂直位置 */
+  top: 18px;  /* 調整此值來移動 Skill Slot 的垂直位置 */
   transform: translateX(-100%);
   z-index: -1;
 }
@@ -1607,16 +1607,16 @@
 .pod-subagent-notch-area {
   position: absolute;
   left: 0;
-  top: 98px;
+  top: 58px;
   transform: translateX(-100%);
   z-index: -1;
 }
 
-/* SubAgent 凹槽視覺效果（POD 左側第三個凹槽） */
+/* SubAgent 凹槽視覺效果（POD 左側第二個凹槽） */
 .pod-with-subagent-notch .pod-doodle .subagent-notch {
   position: absolute;
   left: -6px;
-  top: 96px;
+  top: 56px;
   width: 8px;
   height: 32px;
   background: var(--card);

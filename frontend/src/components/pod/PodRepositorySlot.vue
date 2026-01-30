@@ -100,12 +100,10 @@ const handleSlotClick = async (e: MouseEvent): Promise<void> => {
   const podRect = podElement.getBoundingClientRect()
   const viewportOffset = viewportStore.offset
 
-  // Repository 在右側，所以用 Pod 的右邊作為基準
   const podCenterX = (podRect.right - viewportOffset.x) / zoom
-  const podCenterY = (podRect.top - viewportOffset.y + 12) / zoom
+  const podCenterY = (podRect.top - viewportOffset.y + 63) / zoom
 
   const extraDistance = 30
-  // 正值 = 向右彈出
   const baseX = slotWidth / zoom + extraDistance
   const baseY = 0
 
