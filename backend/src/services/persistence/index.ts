@@ -87,13 +87,14 @@ class PersistenceService {
     try {
       await fs.unlink(filePath);
       return ok(undefined);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 如果檔案不存在（ENOENT），這就是我們想要的結果
-      if (error.code === 'ENOENT') {
+      if (error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
         return ok(undefined);
       }
       // 其他錯誤才需要回報
-      return err(`刪除檔案失敗: ${filePath} - ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      return err(`刪除檔案失敗: ${filePath} - ${message}`);
     }
   }
 }

@@ -11,6 +11,7 @@ import {
 } from '../../types/index.js';
 import { connectionStore } from '../connectionStore.js';
 import { podStore } from '../podStore.js';
+import { messageStore } from '../messageStore.js';
 import { claudeQueryService } from '../claude/queryService.js';
 import { socketService } from '../socketService.js';
 import { summaryService } from '../summaryService.js';
@@ -445,6 +446,10 @@ class WorkflowExecutionService {
           }
         }
       });
+
+      if (accumulatedContent) {
+        await messageStore.addMessage(targetPodId, 'assistant', accumulatedContent);
+      }
 
       podStore.setStatus(targetPodId, 'idle');
       podStore.updateLastActive(targetPodId);

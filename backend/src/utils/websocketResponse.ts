@@ -49,25 +49,3 @@ export function getErrorMessage(error: unknown): string {
   }
   return 'Unknown error occurred';
 }
-
-/**
- * Generate error code from error type
- */
-export function getErrorCode(error: unknown): string {
-  if (error instanceof Error) {
-    // Map common error types to codes
-    if (error.message.includes('not found')) {
-      return 'NOT_FOUND';
-    }
-    if (error.message.includes('already exists')) {
-      return 'ALREADY_EXISTS';
-    }
-    if (error.message.includes('validation')) {
-      return 'VALIDATION_ERROR';
-    }
-    if (error.message.includes('permission')) {
-      return 'PERMISSION_DENIED';
-    }
-  }
-  return 'INTERNAL_ERROR';
-}

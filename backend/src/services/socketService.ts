@@ -1,5 +1,5 @@
 import {Server as HttpServer} from 'http';
-import {Server as SocketIOServer} from 'socket.io';
+import {Server as SocketIOServer, Socket} from 'socket.io';
 import {config} from '../config/index.js';
 import {logger} from '../utils/logger.js';
 import {
@@ -156,7 +156,7 @@ class SocketService {
         logger.log('Startup', 'Complete', '[Heartbeat] Started');
     }
 
-    private sendHeartbeatPing(socket: any): void {
+    private sendHeartbeatPing(socket: Socket): void {
         const socketId = socket.id;
         const timestamp = Date.now();
 

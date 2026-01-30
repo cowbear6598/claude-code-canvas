@@ -1,225 +1,205 @@
-import type { Socket } from 'socket.io';
+import type {Socket} from 'socket.io';
 import {
-  WebSocketResponseEvents,
-  type PodCreatedPayload,
-  type PodListResultPayload,
-  type PodGetResultPayload,
-  type PodUpdatedPayload,
-  type PodDeletedPayload,
+    WebSocketResponseEvents,
+    type PodCreatedPayload,
+    type PodListResultPayload,
+    type PodGetResultPayload,
+    type PodUpdatedPayload,
+    type PodDeletedPayload,
 } from '../types/index.js';
 import type {
-  PodCreatePayload,
-  PodListPayload,
-  PodGetPayload,
-  PodUpdatePayload,
-  PodDeletePayload,
+    PodCreatePayload,
+    PodListPayload,
+    PodGetPayload,
+    PodUpdatePayload,
+    PodDeletePayload,
 } from '../schemas/index.js';
-import { podStore } from '../services/podStore.js';
-import { workspaceService } from '../services/workspace/index.js';
-import { claudeSessionManager } from '../services/claude/sessionManager.js';
-import { noteStore } from '../services/noteStore.js';
-import { skillNoteStore } from '../services/skillNoteStore.js';
-import { repositoryNoteStore } from '../services/repositoryNoteStore.js';
-import { connectionStore } from '../services/connectionStore.js';
-import { socketService } from '../services/socketService.js';
-import { workflowService } from '../services/workflow/index.js';
-import { emitSuccess, emitError } from '../utils/websocketResponse.js';
-import { logger } from '../utils/logger.js';
+import {podStore} from '../services/podStore.js';
+import {workspaceService} from '../services/workspace/index.js';
+import {claudeSessionManager} from '../services/claude/sessionManager.js';
+import {noteStore} from '../services/noteStore.js';
+import {skillNoteStore} from '../services/skillNoteStore.js';
+import {repositoryNoteStore} from '../services/repositoryNoteStore.js';
+import {connectionStore} from '../services/connectionStore.js';
+import {socketService} from '../services/socketService.js';
+import {workflowService} from '../services/workflow/index.js';
+import {emitSuccess, emitError} from '../utils/websocketResponse.js';
+import {logger} from '../utils/logger.js';
+import {validatePod} from '../utils/handlerHelpers.js';
 
 export async function handlePodCreate(
-  socket: Socket,
-  payload: PodCreatePayload,
-  requestId: string
+    socket: Socket,
+    payload: PodCreatePayload,
+    requestId: string
 ): Promise<void> {
-  const { name, type, color, x, y, rotation } = payload;
+    const {name, type, color, x, y, rotation} = payload;
 
-  const pod = podStore.create({ name, type, color, x, y, rotation });
+    const pod = podStore.create({name, type, color, x, y, rotation});
 
-  const workspaceResult = await workspaceService.createWorkspace(pod.id);
-  if (!workspaceResult.success) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_CREATED,
-      `建立工作區失敗 (Pod ${pod.id})`,
-      requestId,
-      pod.id,
-      'INTERNAL_ERROR'
-    );
-    return;
-  }
+    const workspaceResult = await workspaceService.createWorkspace(pod.id);
+    if (!workspaceResult.success) {
+        emitError(
+            socket,
+            WebSocketResponseEvents.POD_CREATED,
+            `建立工作區失敗 (Pod ${pod.id})`,
+            requestId,
+            pod.id,
+            'INTERNAL_ERROR'
+        );
+        return;
+    }
 
-  await claudeSessionManager.createSession(pod.id, pod.workspacePath);
+    await claudeSessionManager.createSession(pod.id, pod.workspacePath);
 
-  const response: PodCreatedPayload = {
-    requestId,
-    success: true,
-    pod,
-  };
+    const response: PodCreatedPayload = {
+        requestId,
+        success: true,
+        pod,
+    };
 
-  emitSuccess(socket, WebSocketResponseEvents.POD_CREATED, response);
+    emitSuccess(socket, WebSocketResponseEvents.POD_CREATED, response);
 
-  logger.log('Pod', 'Create', `Created Pod ${pod.id} (${pod.name})`);
+    logger.log('Pod', 'Create', `Created Pod ${pod.id} (${pod.name})`);
 }
 
 export async function handlePodList(
-  socket: Socket,
-  _: PodListPayload,
-  requestId: string
+    socket: Socket,
+    _: PodListPayload,
+    requestId: string
 ): Promise<void> {
-  const pods = podStore.getAll();
+    const pods = podStore.getAll();
 
-  const response: PodListResultPayload = {
-    requestId,
-    success: true,
-    pods,
-  };
+    const response: PodListResultPayload = {
+        requestId,
+        success: true,
+        pods,
+    };
 
-  emitSuccess(socket, WebSocketResponseEvents.POD_LIST_RESULT, response);
+    emitSuccess(socket, WebSocketResponseEvents.POD_LIST_RESULT, response);
 }
 
 export async function handlePodGet(
-  socket: Socket,
-  payload: PodGetPayload,
-  requestId: string
+    socket: Socket,
+    payload: PodGetPayload,
+    requestId: string
 ): Promise<void> {
-  const { podId } = payload;
+    const {podId} = payload;
 
-  const pod = podStore.getById(podId);
+    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_GET_RESULT, requestId);
 
-  if (!pod) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_GET_RESULT,
-      `Pod not found: ${podId}`,
-      requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
-  }
+    if (!pod) {
+        return;
+    }
 
-  const response: PodGetResultPayload = {
-    requestId,
-    success: true,
-    pod,
-  };
+    const response: PodGetResultPayload = {
+        requestId,
+        success: true,
+        pod,
+    };
 
-  emitSuccess(socket, WebSocketResponseEvents.POD_GET_RESULT, response);
+    emitSuccess(socket, WebSocketResponseEvents.POD_GET_RESULT, response);
 }
 
 export async function handlePodDelete(
-  socket: Socket,
-  payload: PodDeletePayload,
-  requestId: string
+    socket: Socket,
+    payload: PodDeletePayload,
+    requestId: string
 ): Promise<void> {
-  const { podId } = payload;
+    const {podId} = payload;
 
-  const pod = podStore.getById(podId);
-  if (!pod) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_DELETED,
-      `Pod not found: ${podId}`,
-      requestId,
-      podId,
-      'NOT_FOUND'
-    );
-    return;
-  }
+    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_DELETED, requestId);
 
-  workflowService.handleSourceDeletion(podId);
+    if (!pod) {
+        return;
+    }
 
-  await claudeSessionManager.destroySession(podId);
+    workflowService.handleSourceDeletion(podId);
 
-  const deleteResult = await workspaceService.deleteWorkspace(podId);
-  if (!deleteResult.success) {
-    logger.error('Pod', 'Delete', `Failed to delete workspace for Pod ${podId}`, deleteResult.error);
-  }
+    await claudeSessionManager.destroySession(podId);
 
-  noteStore.deleteByBoundPodId(podId);
-  skillNoteStore.deleteByBoundPodId(podId);
-  repositoryNoteStore.deleteByBoundPodId(podId);
-  connectionStore.deleteByPodId(podId);
+    const deleteResult = await workspaceService.deleteWorkspace(podId);
+    if (!deleteResult.success) {
+        logger.error('Pod', 'Delete', `Failed to delete workspace for Pod ${podId}`, deleteResult.error);
+    }
 
-  const deleted = podStore.delete(podId);
+    noteStore.deleteByBoundPodId(podId);
+    skillNoteStore.deleteByBoundPodId(podId);
+    repositoryNoteStore.deleteByBoundPodId(podId);
+    connectionStore.deleteByPodId(podId);
 
-  if (!deleted) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_DELETED,
-      `Failed to delete Pod from store: ${podId}`,
-      requestId,
-      podId,
-      'INTERNAL_ERROR'
-    );
-    return;
-  }
+    const deleted = podStore.delete(podId);
 
-  const response: PodDeletedPayload = {
-    requestId,
-    success: true,
-    podId,
-  };
+    if (!deleted) {
+        emitError(
+            socket,
+            WebSocketResponseEvents.POD_DELETED,
+            `Failed to delete Pod from store: ${podId}`,
+            requestId,
+            podId,
+            'INTERNAL_ERROR'
+        );
+        return;
+    }
 
-  socketService.emitPodDeletedBroadcast(podId, response);
+    const response: PodDeletedPayload = {
+        requestId,
+        success: true,
+        podId,
+    };
 
-  emitSuccess(socket, WebSocketResponseEvents.POD_DELETED, response);
+    socketService.emitPodDeletedBroadcast(podId, response);
 
-  logger.log('Pod', 'Delete', `Deleted Pod ${podId}`);
+    emitSuccess(socket, WebSocketResponseEvents.POD_DELETED, response);
+
+    logger.log('Pod', 'Delete', `Deleted Pod ${podId}`);
 }
 
 /**
  * Handle Pod update request (position, name, etc.)
  */
 export async function handlePodUpdate(
-  socket: Socket,
-  payload: PodUpdatePayload,
-  requestId: string
+    socket: Socket,
+    payload: PodUpdatePayload,
+    requestId: string
 ): Promise<void> {
-  const { podId, x, y, rotation, name, model } = payload;
+    const {podId, x, y, rotation, name, model} = payload;
 
-  const existingPod = podStore.getById(podId);
-  if (!existingPod) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_UPDATED,
-      `Pod not found: ${podId}`,
-      requestId,
-      podId,
-      'NOT_FOUND'
-    );
-    return;
-  }
+    const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_UPDATED, requestId);
 
-  const updates: Record<string, unknown> = {};
-  if (x !== undefined) updates.x = x;
-  if (y !== undefined) updates.y = y;
-  if (rotation !== undefined) updates.rotation = rotation;
-  if (name !== undefined) updates.name = name;
-  if (model !== undefined) {
-    updates.model = model;
-    // 保留 session，讓 SDK 嘗試用新 model 繼續對話
-  }
+    if (!existingPod) {
+        return;
+    }
 
-  const updatedPod = podStore.update(podId, updates);
+    const updates: Record<string, unknown> = {};
 
-  if (!updatedPod) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_UPDATED,
-      `Failed to update Pod: ${podId}`,
-      requestId,
-      podId,
-      'INTERNAL_ERROR'
-    );
-    return;
-  }
+    if (x !== undefined) updates.x = x;
+    if (y !== undefined) updates.y = y;
+    if (rotation !== undefined) updates.rotation = rotation;
+    if (name !== undefined) updates.name = name;
+    if (model !== undefined) {
+        updates.model = model;
+        // 保留 session，讓 SDK 嘗試用新 model 繼續對話
+    }
 
-  const response: PodUpdatedPayload = {
-    requestId,
-    success: true,
-    pod: updatedPod,
-  };
+    const updatedPod = podStore.update(podId, updates);
 
-  emitSuccess(socket, WebSocketResponseEvents.POD_UPDATED, response);
+    if (!updatedPod) {
+        emitError(
+            socket,
+            WebSocketResponseEvents.POD_UPDATED,
+            `Failed to update Pod: ${podId}`,
+            requestId,
+            podId,
+            'INTERNAL_ERROR'
+        );
+        return;
+    }
+
+    const response: PodUpdatedPayload = {
+        requestId,
+        success: true,
+        pod: updatedPod,
+    };
+
+    emitSuccess(socket, WebSocketResponseEvents.POD_UPDATED, response);
 }

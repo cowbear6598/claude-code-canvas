@@ -4,7 +4,6 @@ import {
   type OutputStyleListResultPayload,
   type PodOutputStyleBoundPayload,
   type PodOutputStyleUnboundPayload,
-  type OutputStyleDeletedPayload,
 } from '../types/index.js';
 import type {
   OutputStyleListPayload,
@@ -17,6 +16,7 @@ import { podStore } from '../services/podStore.js';
 import { noteStore } from '../services/noteStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
+import { validatePod, handleResourceDelete } from '../utils/handlerHelpers.js';
 
 export async function handleOutputStyleList(
   socket: Socket,
@@ -42,17 +42,8 @@ export async function handlePodBindOutputStyle(
 ): Promise<void> {
   const { podId, outputStyleId } = payload;
 
-  const pod = podStore.getById(podId);
+  const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, requestId);
   if (!pod) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND,
-      `Pod not found: ${podId}`,
-      requestId,
-      podId,
-      'NOT_FOUND'
-    );
-
     return;
   }
 
@@ -92,17 +83,8 @@ export async function handlePodUnbindOutputStyle(
 ): Promise<void> {
   const { podId } = payload;
 
-  const pod = podStore.getById(podId);
+  const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, requestId);
   if (!pod) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND,
-      `Pod not found: ${podId}`,
-      requestId,
-      podId,
-      'NOT_FOUND'
-    );
-
     return;
   }
 
@@ -128,43 +110,15 @@ export async function handleOutputStyleDelete(
 ): Promise<void> {
   const { outputStyleId } = payload;
 
-  const exists = await outputStyleService.exists(outputStyleId);
-  if (!exists) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
-      `Output style not found: ${outputStyleId}`,
-      requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
-  }
-
-  const podsUsingStyle = podStore.findByOutputStyleId(outputStyleId);
-  if (podsUsingStyle.length > 0) {
-    const podNames = podsUsingStyle.map((pod) => pod.name).join(', ');
-    emitError(
-      socket,
-      WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
-      `Output style is in use by pods: ${podNames}`,
-      requestId,
-      undefined,
-      'IN_USE'
-    );
-    return;
-  }
-
-  const deletedNoteIds = noteStore.deleteByOutputStyleId(outputStyleId);
-  await outputStyleService.delete(outputStyleId);
-
-  const response: OutputStyleDeletedPayload = {
+  await handleResourceDelete({
+    socket,
     requestId,
-    success: true,
-    outputStyleId,
-    deletedNoteIds,
-  };
-
-  emitSuccess(socket, WebSocketResponseEvents.OUTPUT_STYLE_DELETED, response);
-  logger.log('OutputStyle', 'Delete', `Deleted output style ${outputStyleId} and ${deletedNoteIds.length} notes`);
+    resourceId: outputStyleId,
+    resourceName: 'OutputStyle',
+    responseEvent: WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
+    existsCheck: () => outputStyleService.exists(outputStyleId),
+    findPodsUsing: () => podStore.findByOutputStyleId(outputStyleId),
+    deleteNotes: () => noteStore.deleteByOutputStyleId(outputStyleId),
+    deleteResource: () => outputStyleService.delete(outputStyleId),
+  });
 }

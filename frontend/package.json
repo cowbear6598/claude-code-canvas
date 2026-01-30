@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "style": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@vueuse/core": "^14.1.0",

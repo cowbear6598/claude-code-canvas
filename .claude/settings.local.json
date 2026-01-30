@@ -22,7 +22,9 @@
       "Bash(npx vue-tsc:*)",
       "Bash(ls:*)",
       "Bash(npm test:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(find:*)",
+      "Bash(npx vitest:*)"
     ]
   },
   "outputStyle": "conductor"

@@ -1,281 +1,124 @@
-import type { Socket } from 'socket.io';
+import type {Socket} from 'socket.io';
 import {
-  WebSocketResponseEvents,
-  type SkillListResultPayload,
-  type SkillNoteCreatedPayload,
-  type SkillNoteListResultPayload,
-  type SkillNoteUpdatedPayload,
-  type SkillNoteDeletedPayload,
-  type PodSkillBoundPayload,
-  type SkillDeletedPayload,
+    WebSocketResponseEvents,
+    type SkillListResultPayload,
+    type PodSkillBoundPayload,
 } from '../types/index.js';
 import type {
-  SkillListPayload,
-  SkillNoteCreatePayload,
-  SkillNoteListPayload,
-  SkillNoteUpdatePayload,
-  SkillNoteDeletePayload,
-  PodBindSkillPayload,
-  SkillDeletePayload,
+    SkillListPayload,
+    PodBindSkillPayload,
+    SkillDeletePayload,
 } from '../schemas/index.js';
-import { skillService } from '../services/skillService.js';
-import { skillNoteStore } from '../services/skillNoteStore.js';
-import { podStore } from '../services/podStore.js';
-import { emitSuccess, emitError } from '../utils/websocketResponse.js';
-import { logger } from '../utils/logger.js';
+import {skillService} from '../services/skillService.js';
+import {skillNoteStore} from '../services/skillNoteStore.js';
+import {podStore} from '../services/podStore.js';
+import {emitSuccess, emitError} from '../utils/websocketResponse.js';
+import {logger} from '../utils/logger.js';
+import {createNoteHandlers} from './factories/createNoteHandlers.js';
+import {validatePod, handleResourceDelete} from '../utils/handlerHelpers.js';
+
+const skillNoteHandlers = createNoteHandlers({
+    noteStore: skillNoteStore,
+    events: {
+        created: WebSocketResponseEvents.SKILL_NOTE_CREATED,
+        listResult: WebSocketResponseEvents.SKILL_NOTE_LIST_RESULT,
+        updated: WebSocketResponseEvents.SKILL_NOTE_UPDATED,
+        deleted: WebSocketResponseEvents.SKILL_NOTE_DELETED,
+    },
+    foreignKeyField: 'skillId',
+    entityName: 'Skill',
+});
+
+export const handleSkillNoteCreate = skillNoteHandlers.handleNoteCreate;
+export const handleSkillNoteList = skillNoteHandlers.handleNoteList;
+export const handleSkillNoteUpdate = skillNoteHandlers.handleNoteUpdate;
+export const handleSkillNoteDelete = skillNoteHandlers.handleNoteDelete;
 
 export async function handleSkillList(
-  socket: Socket,
-  _: SkillListPayload,
-  requestId: string
+    socket: Socket,
+    _: SkillListPayload,
+    requestId: string
 ): Promise<void> {
-  const skills = await skillService.listSkills();
+    const skills = await skillService.listSkills();
 
-  const response: SkillListResultPayload = {
-    requestId,
-    success: true,
-    skills,
-  };
+    const response: SkillListResultPayload = {
+        requestId,
+        success: true,
+        skills,
+    };
 
-  emitSuccess(socket, WebSocketResponseEvents.SKILL_LIST_RESULT, response);
-}
-
-export async function handleSkillNoteCreate(
-  socket: Socket,
-  payload: SkillNoteCreatePayload,
-  requestId: string
-): Promise<void> {
-  const { skillId, name, x, y, boundToPodId, originalPosition } = payload;
-
-  const note = skillNoteStore.create({
-    skillId,
-    name,
-    x,
-    y,
-    boundToPodId: boundToPodId ?? null,
-    originalPosition: originalPosition ?? null,
-  });
-
-  const response: SkillNoteCreatedPayload = {
-    requestId,
-    success: true,
-    note,
-  };
-
-  emitSuccess(socket, WebSocketResponseEvents.SKILL_NOTE_CREATED, response);
-}
-
-export async function handleSkillNoteList(
-  socket: Socket,
-  _: SkillNoteListPayload,
-  requestId: string
-): Promise<void> {
-  const notes = skillNoteStore.list();
-
-  const response: SkillNoteListResultPayload = {
-    requestId,
-    success: true,
-    notes,
-  };
-
-  emitSuccess(socket, WebSocketResponseEvents.SKILL_NOTE_LIST_RESULT, response);
-}
-
-export async function handleSkillNoteUpdate(
-  socket: Socket,
-  payload: SkillNoteUpdatePayload,
-  requestId: string
-): Promise<void> {
-  const { noteId, x, y, boundToPodId, originalPosition } = payload;
-
-  const existingNote = skillNoteStore.getById(noteId);
-  if (!existingNote) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.SKILL_NOTE_UPDATED,
-      `Note not found: ${noteId}`,
-      requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
-  }
-
-  const updates: Partial<Omit<import('../types/skillNote.js').SkillNote, 'id'>> = {};
-  if (x !== undefined) updates.x = x;
-  if (y !== undefined) updates.y = y;
-  if (boundToPodId !== undefined) updates.boundToPodId = boundToPodId;
-  if (originalPosition !== undefined) updates.originalPosition = originalPosition;
-
-  const updatedNote = skillNoteStore.update(noteId, updates);
-
-  if (!updatedNote) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.SKILL_NOTE_UPDATED,
-      `Failed to update note: ${noteId}`,
-      requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
-    return;
-  }
-
-  const response: SkillNoteUpdatedPayload = {
-    requestId,
-    success: true,
-    note: updatedNote,
-  };
-
-  emitSuccess(socket, WebSocketResponseEvents.SKILL_NOTE_UPDATED, response);
-}
-
-export async function handleSkillNoteDelete(
-  socket: Socket,
-  payload: SkillNoteDeletePayload,
-  requestId: string
-): Promise<void> {
-  const { noteId } = payload;
-
-  const note = skillNoteStore.getById(noteId);
-  if (!note) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.SKILL_NOTE_DELETED,
-      `Note not found: ${noteId}`,
-      requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
-  }
-
-  const deleted = skillNoteStore.delete(noteId);
-  if (!deleted) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.SKILL_NOTE_DELETED,
-      `Failed to delete note from store: ${noteId}`,
-      requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
-    return;
-  }
-
-  const response: SkillNoteDeletedPayload = {
-    requestId,
-    success: true,
-    noteId,
-  };
-
-  emitSuccess(socket, WebSocketResponseEvents.SKILL_NOTE_DELETED, response);
+    emitSuccess(socket, WebSocketResponseEvents.SKILL_LIST_RESULT, response);
 }
 
 export async function handlePodBindSkill(
-  socket: Socket,
-  payload: PodBindSkillPayload,
-  requestId: string
+    socket: Socket,
+    payload: PodBindSkillPayload,
+    requestId: string
 ): Promise<void> {
-  const { podId, skillId } = payload;
+    const {podId, skillId} = payload;
 
-  const pod = podStore.getById(podId);
-  if (!pod) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_SKILL_BOUND,
-      `Pod not found: ${podId}`,
-      requestId,
-      podId,
-      'NOT_FOUND'
-    );
-    return;
-  }
+    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_SKILL_BOUND, requestId);
 
-  const skillExists = await skillService.exists(skillId);
-  if (!skillExists) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_SKILL_BOUND,
-      `Skill not found: ${skillId}`,
-      requestId,
-      podId,
-      'NOT_FOUND'
-    );
-    return;
-  }
+    if (!pod) {
+        return;
+    }
 
-  if (pod.skillIds.includes(skillId)) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_SKILL_BOUND,
-      `Skill ${skillId} is already bound to Pod ${podId}`,
-      requestId,
-      podId,
-      'CONFLICT'
-    );
-    return;
-  }
+    const skillExists = await skillService.exists(skillId);
+    if (!skillExists) {
+        emitError(
+            socket,
+            WebSocketResponseEvents.POD_SKILL_BOUND,
+            `Skill not found: ${skillId}`,
+            requestId,
+            podId,
+            'NOT_FOUND'
+        );
+        return;
+    }
 
-  await skillService.copySkillToPod(skillId, podId);
+    if (pod.skillIds.includes(skillId)) {
+        emitError(
+            socket,
+            WebSocketResponseEvents.POD_SKILL_BOUND,
+            `Skill ${skillId} is already bound to Pod ${podId}`,
+            requestId,
+            podId,
+            'CONFLICT'
+        );
+        return;
+    }
 
-  podStore.addSkillId(podId, skillId);
-  const updatedPod = podStore.getById(podId);
+    await skillService.copySkillToPod(skillId, podId);
 
-  const response: PodSkillBoundPayload = {
-    requestId,
-    success: true,
-    pod: updatedPod,
-  };
+    podStore.addSkillId(podId, skillId);
+    const updatedPod = podStore.getById(podId);
 
-  emitSuccess(socket, WebSocketResponseEvents.POD_SKILL_BOUND, response);
-  logger.log('Skill', 'Bind', `Bound skill ${skillId} to Pod ${podId}`);
+    const response: PodSkillBoundPayload = {
+        requestId,
+        success: true,
+        pod: updatedPod,
+    };
+
+    emitSuccess(socket, WebSocketResponseEvents.POD_SKILL_BOUND, response);
+    logger.log('Skill', 'Bind', `Bound skill ${skillId} to Pod ${podId}`);
 }
 
 export async function handleSkillDelete(
-  socket: Socket,
-  payload: SkillDeletePayload,
-  requestId: string
+    socket: Socket,
+    payload: SkillDeletePayload,
+    requestId: string
 ): Promise<void> {
-  const { skillId } = payload;
+    const {skillId} = payload;
 
-  const exists = await skillService.exists(skillId);
-  if (!exists) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.SKILL_DELETED,
-      `Skill not found: ${skillId}`,
-      requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
-  }
-
-  const podsUsingSkill = podStore.findBySkillId(skillId);
-  if (podsUsingSkill.length > 0) {
-    const podNames = podsUsingSkill.map((pod) => pod.name).join(', ');
-    emitError(
-      socket,
-      WebSocketResponseEvents.SKILL_DELETED,
-      `Skill is in use by pods: ${podNames}`,
-      requestId,
-      undefined,
-      'IN_USE'
-    );
-    return;
-  }
-
-  const deletedNoteIds = skillNoteStore.deleteBySkillId(skillId);
-  await skillService.delete(skillId);
-
-  const response: SkillDeletedPayload = {
-    requestId,
-    success: true,
-    skillId,
-    deletedNoteIds,
-  };
-
-  emitSuccess(socket, WebSocketResponseEvents.SKILL_DELETED, response);
-  logger.log('Skill', 'Delete', `Deleted skill ${skillId} and ${deletedNoteIds.length} notes`);
+    await handleResourceDelete({
+        socket,
+        requestId,
+        resourceId: skillId,
+        resourceName: 'Skill',
+        responseEvent: WebSocketResponseEvents.SKILL_DELETED,
+        existsCheck: () => skillService.exists(skillId),
+        findPodsUsing: () => podStore.findBySkillId(skillId),
+        deleteNotes: () => skillNoteStore.deleteBySkillId(skillId),
+        deleteResource: () => skillService.delete(skillId),
+    });
 }

@@ -21,6 +21,7 @@ export interface TestConfig {
   outputStylesPath: string;
   skillsPath: string;
   agentsPath: string;
+  commandsPath: string;
 }
 
 // 使用暫存目錄避免影響實際資料
@@ -37,6 +38,7 @@ export const testConfig: TestConfig = {
   outputStylesPath: path.join(testRoot, 'output-styles'),
   skillsPath: path.join(testRoot, 'skills'),
   agentsPath: path.join(testRoot, 'agents'),
+  commandsPath: path.join(testRoot, 'commands'),
 };
 
 // 覆寫 config 模組的設定
