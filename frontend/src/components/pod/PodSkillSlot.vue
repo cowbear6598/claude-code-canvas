@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { SkillNote } from '@/types'
 import { useSkillStore } from '@/stores/note'
 import { useSlotDropTarget } from '@/composables/pod/useSlotDropTarget'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{
   podId: string
@@ -14,6 +15,7 @@ const emit = defineEmits<{
 }>()
 
 const skillStore = useSkillStore()
+const { toast } = useToast()
 
 const slotRef = ref<HTMLElement | null>(null)
 const showMenu = ref(false)
@@ -29,7 +31,7 @@ const { isDropTarget, isInserting } = useSlotDropTarget({
     if (!draggedNote || draggedNote.boundToPodId !== null) return false
 
     if (skillStore.isItemBoundToPod && skillStore.isItemBoundToPod(draggedNote.skillId, props.podId)) {
-      console.warn('[PodSkillSlot] Skill already bound to this pod:', draggedNote.skillId)
+      toast({ title: '已存在，無法插入', description: '此 Skill 已綁定到此 Pod', duration: 3000 })
       return false
     }
 
@@ -39,16 +41,6 @@ const { isDropTarget, isInserting } = useSlotDropTarget({
     emit('note-dropped', noteId)
   }
 })
-
-const handleSlotHover = (): void => {
-  if (hasSkills.value) {
-    showMenu.value = true
-  }
-}
-
-const handleSlotLeave = (): void => {
-  showMenu.value = false
-}
 </script>
 
 <template>
@@ -60,8 +52,8 @@ const handleSlotLeave = (): void => {
       'has-notes': hasSkills,
       inserting: isInserting
     }"
-    @mouseenter="handleSlotHover"
-    @mouseleave="handleSlotLeave"
+    @mouseenter="showMenu = true"
+    @mouseleave="showMenu = false"
   >
     <span
       class="text-xs font-mono"

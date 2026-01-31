@@ -15,7 +15,6 @@ class PodPersistenceService {
     return {
       id: pod.id,
       name: pod.name,
-      type: pod.type,
       color: pod.color,
       status: pod.status,
       gitUrl: pod.gitUrl,

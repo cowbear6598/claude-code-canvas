@@ -1,11 +1,10 @@
-import type { PodColor, PodTypeName, ModelType } from '../pod'
+import type { PodColor, ModelType } from '../pod'
 
 export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
 
 export interface PodCreatePayload {
   requestId: string
   name: string
-  type: PodTypeName
   color: PodColor
   x: number
   y: number
@@ -216,7 +215,6 @@ export interface WorkflowClearPayload {
 export interface PastePodItem {
   originalId: string
   name: string
-  type: PodTypeName
   color: PodColor
   x: number
   y: number

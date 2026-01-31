@@ -1,10 +1,9 @@
-import type { PodColor, PodTypeName, ModelType } from './pod'
+import type { PodColor, ModelType } from './pod'
 import type { AnchorPosition } from './connection'
 
 export interface CopiedPod {
   id: string
   name: string
-  type: PodTypeName
   color: PodColor
   x: number
   y: number

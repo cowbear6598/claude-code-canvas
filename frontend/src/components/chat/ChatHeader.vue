@@ -26,9 +26,6 @@ defineEmits<{
         <h2 class="font-sans text-2xl text-foreground">
           {{ pod.name }}
         </h2>
-        <p class="text-sm font-mono text-muted-foreground">
-          {{ pod.type }}
-        </p>
       </div>
     </div>
     <button

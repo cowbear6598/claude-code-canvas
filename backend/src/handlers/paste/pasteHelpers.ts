@@ -81,7 +81,6 @@ export async function createPastedPods(
 
       const pod = podStore.create({
         name: podItem.name,
-        type: podItem.type,
         color: podItem.color,
         x: podItem.x,
         y: podItem.y,

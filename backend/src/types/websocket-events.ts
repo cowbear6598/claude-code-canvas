@@ -1,4 +1,4 @@
-import type { Pod, PodColor, PodTypeName, ModelType } from './pod.js';
+import type { Pod, PodColor, ModelType } from './pod.js';
 import type { ContentBlock, MessageRole } from './message.js';
 
 export enum WebSocketRequestEvents {
@@ -160,7 +160,6 @@ export enum WebSocketResponseEvents {
 export interface PodCreatePayload {
   requestId: string;
   name: string;
-  type: PodTypeName;
   color: PodColor;
   x: number;
   y: number;
@@ -678,7 +677,6 @@ export interface WorkflowClearResultPayload {
 export interface PastePodItem {
   originalId: string;
   name: string;
-  type: PodTypeName;
   color: PodColor;
   x: number;
   y: number;

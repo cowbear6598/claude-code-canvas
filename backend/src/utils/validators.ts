@@ -1,4 +1,4 @@
-import { PodTypeName, PodColor } from '../types/index.js';
+import { PodColor } from '../types/index.js';
 
 /**
  * Validates a Pod name
@@ -18,21 +18,6 @@ export function isValidPodName(name: string): boolean {
   // Allow alphanumeric, spaces, hyphens, underscores
   const validPattern = /^[a-zA-Z0-9\s\-_]+$/;
   return validPattern.test(trimmed);
-}
-
-/**
- * Validates a Pod type
- * Must be one of the valid PodTypeName values
- */
-export function isValidPodType(type: string): type is PodTypeName {
-  const validTypes: PodTypeName[] = [
-    'Code Assistant',
-    'Chat Companion',
-    'Creative Writer',
-    'Data Analyst',
-    'General AI',
-  ];
-  return validTypes.includes(type as PodTypeName);
 }
 
 /**

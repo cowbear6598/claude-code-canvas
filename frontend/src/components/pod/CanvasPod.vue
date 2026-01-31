@@ -6,6 +6,7 @@ import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
 import {useAnchorDetection} from '@/composables/useAnchorDetection'
 import {useBatchDrag} from '@/composables/canvas'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
+import {useToast} from '@/composables/useToast'
 import {isCtrlOrCmdPressed} from '@/utils/keyboardHelpers'
 import {createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
 import type {
@@ -40,6 +41,7 @@ const {
   chatStore
 } = useCanvasContext()
 const {detectTargetAnchor} = useAnchorDetection()
+const {toast} = useToast()
 const {startBatchDrag, isElementSelected} = useBatchDrag()
 
 const isActive = computed(() => props.pod.id === podStore.activePodId)
@@ -248,7 +250,14 @@ const handleNoteDrop = async (noteType: NoteType, noteId: string): Promise<void>
 
   if (mapping.isItemBoundToPod) {
     const itemId = mapping.getItemId(note)
-    if (mapping.isItemBoundToPod(itemId, props.pod.id)) return
+    if (mapping.isItemBoundToPod(itemId, props.pod.id)) {
+      if (noteType === 'skill') {
+        toast({title: '已存在，無法插入', description: '此 Skill 已綁定到此 Pod', duration: 3000})
+      } else if (noteType === 'subAgent') {
+        toast({title: '已存在，無法插入', description: '此 SubAgent 已綁定到此 Pod', duration: 3000})
+      }
+      return
+    }
   }
 
   await mapping.bindToPod(noteId, props.pod.id)
@@ -457,7 +466,6 @@ const handleToggleAutoClear = async (): Promise<void> => {
           <!-- 標題 -->
           <PodHeader
             :name="pod.name"
-            :type="pod.type"
             :color="pod.color"
             :is-editing="isEditing"
             @update:name="handleUpdateName"

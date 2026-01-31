@@ -3,20 +3,11 @@ import { requestIdSchema, podIdSchema } from './base.js';
 
 export const podColorSchema = z.enum(['blue', 'coral', 'pink', 'yellow', 'green']);
 
-export const podTypeSchema = z.enum([
-  'Code Assistant',
-  'Chat Companion',
-  'Creative Writer',
-  'Data Analyst',
-  'General AI',
-]);
-
 export const modelTypeSchema = z.enum(['opus', 'sonnet', 'haiku']);
 
 export const podCreateSchema = z.object({
   requestId: requestIdSchema,
   name: z.string().min(1).max(100),
-  type: podTypeSchema,
   color: podColorSchema,
   x: z.number(),
   y: z.number(),

@@ -30,9 +30,9 @@ export async function handlePodCreate(
     payload: PodCreatePayload,
     requestId: string
 ): Promise<void> {
-    const {name, type, color, x, y, rotation} = payload;
+    const {name, color, x, y, rotation} = payload;
 
-    const pod = podStore.create({name, type, color, x, y, rotation});
+    const pod = podStore.create({name, color, x, y, rotation});
 
     const workspaceResult = await workspaceService.createWorkspace(pod.id);
     if (!workspaceResult.success) {

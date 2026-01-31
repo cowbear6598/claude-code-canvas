@@ -225,7 +225,6 @@ export function useCopyPaste(): void {
           copiedPods.push({
             id: pod.id,
             name: pod.name,
-            type: pod.type,
             color: pod.color,
             x: pod.x,
             y: pod.y,
@@ -350,7 +349,6 @@ export function useCopyPaste(): void {
     const newPods = pods.map(pod => ({
       originalId: pod.id,
       name: pod.name,
-      type: pod.type,
       color: pod.color,
       x: pod.x + offsetX,
       y: pod.y + offsetY,

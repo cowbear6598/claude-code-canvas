@@ -95,7 +95,6 @@ const handleSelectType = async (config: PodTypeConfig): Promise<void> => {
   const rotation = Math.random() * DEFAULT_POD_ROTATION_RANGE - (DEFAULT_POD_ROTATION_RANGE / 2)
   const newPod = {
     name: `Pod ${podStore.podCount + 1}`,
-    type: config.type,
     x: canvasX - POD_MENU_X_OFFSET,
     y: canvasY - POD_MENU_Y_OFFSET,
     color: config.color,

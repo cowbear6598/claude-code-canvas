@@ -1,12 +1,11 @@
 import { z } from 'zod';
 import { requestIdSchema, positionSchema } from './base.js';
-import { podTypeSchema, podColorSchema, modelTypeSchema } from './podSchemas.js';
+import { podColorSchema, modelTypeSchema } from './podSchemas.js';
 import { anchorPositionSchema } from './connectionSchemas.js';
 
 export const pastePodItemSchema = z.object({
   originalId: z.uuid(),
   name: z.string().min(1).max(100),
-  type: podTypeSchema,
   color: podColorSchema,
   x: z.number(),
   y: z.number(),

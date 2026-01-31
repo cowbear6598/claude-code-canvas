@@ -105,7 +105,6 @@ export const usePodStore = defineStore('pod', {
                 responseEvent: WebSocketResponseEvents.POD_CREATED,
                 payload: {
                     name: pod.name,
-                    type: pod.type,
                     color: pod.color,
                     x: pod.x,
                     y: pod.y,

@@ -1,4 +1,4 @@
-import type { PodTypeName, PodColor, PodStatus, ModelType } from './pod.js';
+import type { PodColor, PodStatus, ModelType } from './pod.js';
 import type { AnchorPosition } from './connection.js';
 
 export interface PersistedToolUseInfo {
@@ -40,7 +40,6 @@ export interface ChatHistory {
 export interface PersistedPod {
   id: string;
   name: string;
-  type: PodTypeName;
   color: PodColor;
   status: PodStatus;
   gitUrl: string | null;

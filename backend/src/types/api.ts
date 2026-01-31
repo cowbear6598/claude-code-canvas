@@ -1,8 +1,7 @@
-import { Pod, PodTypeName, PodColor, ModelType } from './pod.js';
+import { Pod, PodColor, ModelType } from './pod.js';
 
 export interface CreatePodRequest {
   name: string;
-  type: PodTypeName;
   color: PodColor;
   // Canvas-specific fields
   x: number;

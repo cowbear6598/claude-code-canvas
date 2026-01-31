@@ -1,5 +1,5 @@
 import { ValidationError } from './errors.js';
-import { isValidPodName, isValidPodType, isValidPodColor } from './validators.js';
+import { isValidPodName, isValidPodColor } from './validators.js';
 import { CreatePodRequest, ChatRequest } from '../types/index.js';
 
 /**
@@ -15,16 +15,6 @@ export function validateCreatePodRequest(data: unknown): asserts data is CreateP
   if (!isValidPodName(body.name)) {
     throw new ValidationError(
       'Pod name must be non-empty, max 100 characters, and contain only alphanumeric characters, spaces, hyphens, and underscores'
-    );
-  }
-
-  // Validate type
-  if (!body.type || typeof body.type !== 'string') {
-    throw new ValidationError('Pod type is required and must be a string');
-  }
-  if (!isValidPodType(body.type)) {
-    throw new ValidationError(
-      'Pod type must be one of: Code Assistant, Chat Companion, Creative Writer, Data Analyst, General AI'
     );
   }
 

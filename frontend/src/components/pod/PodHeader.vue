@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import type { PodTypeName, PodColor } from '@/types'
+import type { PodColor } from '@/types'
 import { COLOR_MAP, MAX_POD_NAME_LENGTH } from '@/lib/constants'
 import { Pencil } from 'lucide-vue-next'
 
 const props = defineProps<{
   name: string
-  type: PodTypeName
   color: PodColor
   isEditing: boolean
 }>()

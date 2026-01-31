@@ -21,7 +21,6 @@ class PodStore {
     const pod: Pod = {
       id,
       name: data.name,
-      type: data.type,
       color: data.color,
       status: 'idle',
       workspacePath: `${config.canvasRoot}/pod-${id}`,
@@ -271,7 +270,6 @@ class PodStore {
         const pod: Pod = {
           id: persistedPod.id,
           name: persistedPod.name,
-          type: persistedPod.type,
           color: persistedPod.color,
           status: loadedStatus === 'busy' ? 'idle' : persistedPod.status,
           workspacePath: `${config.canvasRoot}/pod-${persistedPod.id}`,

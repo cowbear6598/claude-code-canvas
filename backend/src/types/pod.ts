@@ -1,12 +1,5 @@
 export type PodColor = 'blue' | 'coral' | 'pink' | 'yellow' | 'green';
 
-export type PodTypeName =
-  | 'Code Assistant'
-  | 'Chat Companion'
-  | 'Creative Writer'
-  | 'Data Analyst'
-  | 'General AI';
-
 export type PodStatus = 'idle' | 'chatting' | 'summarizing' | 'error';
 
 export type ModelType = 'opus' | 'sonnet' | 'haiku';
@@ -14,7 +7,6 @@ export type ModelType = 'opus' | 'sonnet' | 'haiku';
 export interface Pod {
   id: string; // UUID
   name: string;
-  type: PodTypeName;
   color: PodColor;
   status: PodStatus;
   workspacePath: string; // path to git repo
