@@ -54,7 +54,7 @@ export async function handleRepositoryList(
   _: RepositoryListPayload,
   requestId: string
 ): Promise<void> {
-  const repositories = await repositoryService.listRepositories();
+  const repositories = await repositoryService.list();
 
   const response: RepositoryListResultPayload = {
     requestId,
@@ -85,7 +85,7 @@ export async function handleRepositoryCreate(
     return;
   }
 
-  const repository = await repositoryService.createRepository(name);
+  const repository = await repositoryService.create(name);
 
   const response: RepositoryCreatedPayload = {
     requestId,
@@ -233,7 +233,7 @@ export async function handleRepositoryGitClone(
     return;
   }
 
-  await repositoryService.createRepository(repoName);
+  await repositoryService.create(repoName);
 
   emitCloneProgress(socket, requestId, 5, 'Repository created, starting clone...');
 

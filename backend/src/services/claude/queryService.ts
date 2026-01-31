@@ -292,7 +292,7 @@ class ClaudeQueryService {
       };
 
       if (pod.outputStyleId) {
-        const styleContent = await outputStyleService.getStyleContent(pod.outputStyleId);
+        const styleContent = await outputStyleService.getContent(pod.outputStyleId);
         if (styleContent) {
           queryOptions.systemPrompt = styleContent;
         }

@@ -2,12 +2,10 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { config } from '../config/index.js';
 import { isPathWithinDirectory } from '../utils/pathValidator.js';
+import {fileExists} from './shared/fileResourceHelpers.js';
 
 class RepositoryService {
-  /**
-   * List all repositories
-   */
-  async listRepositories(): Promise<Array<{ id: string; name: string }>> {
+  async list(): Promise<Array<{ id: string; name: string }>> {
     await fs.mkdir(config.repositoriesRoot, { recursive: true });
 
     const entries = await fs.readdir(config.repositoriesRoot, { withFileTypes: true });
@@ -25,10 +23,7 @@ class RepositoryService {
     return repositories;
   }
 
-  /**
-   * Create a new repository directory
-   */
-  async createRepository(name: string): Promise<{ id: string; name: string }> {
+  async create(name: string): Promise<{ id: string; name: string }> {
     const repositoryPath = path.join(config.repositoriesRoot, name);
 
     await fs.mkdir(repositoryPath, { recursive: true });
@@ -36,18 +31,9 @@ class RepositoryService {
     return { id: name, name };
   }
 
-  /**
-   * Check if a repository exists
-   */
   async exists(repositoryId: string): Promise<boolean> {
     const repositoryPath = this.getRepositoryPath(repositoryId);
-
-    try {
-      await fs.access(repositoryPath);
-      return true;
-    } catch {
-      return false;
-    }
+    return fileExists(repositoryPath);
   }
 
   /**

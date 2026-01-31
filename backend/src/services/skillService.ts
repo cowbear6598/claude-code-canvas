@@ -3,12 +3,10 @@ import path from 'path';
 import {config} from '../config/index.js';
 import type {Skill} from '../types/index.js';
 import {isPathWithinDirectory, validatePodId, validateSkillId} from '../utils/pathValidator.js';
+import {readFileOrNull, fileExists, parseFrontmatterDescription} from './shared/fileResourceHelpers.js';
 
 class SkillService {
-    /**
-     * List all available skills by reading SKILL.md files from skills directory
-     */
-    async listSkills(): Promise<Skill[]> {
+    async list(): Promise<Skill[]> {
         await fs.mkdir(config.skillsPath, {recursive: true});
         const entries = await fs.readdir(config.skillsPath, {withFileTypes: true});
 
@@ -23,7 +21,7 @@ class SkillService {
             const skillFilePath = this.getSkillFilePath(skillId);
 
             const content = await fs.readFile(skillFilePath, 'utf-8');
-            const {description} = this.parseFrontmatter(content, skillId);
+            const description = parseFrontmatterDescription(content);
 
             skills.push({
                 id: skillId,
@@ -35,32 +33,14 @@ class SkillService {
         return skills;
     }
 
-    /**
-     * Get the full content of a skill's SKILL.md file
-     * @returns The content string, or null if skill not found
-     */
-    async getSkillContent(skillId: string): Promise<string | null> {
+    async getContent(skillId: string): Promise<string | null> {
         const filePath = this.getSkillFilePath(skillId);
-
-        try {
-            return await fs.readFile(filePath, 'utf-8');
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-                return null;
-            }
-            throw error;
-        }
+        return readFileOrNull(filePath);
     }
 
     async exists(skillId: string): Promise<boolean> {
         const filePath = this.getSkillFilePath(skillId);
-
-        try {
-            await fs.access(filePath);
-            return true;
-        } catch {
-            return false;
-        }
+        return fileExists(filePath);
     }
 
     /**
@@ -175,23 +155,6 @@ class SkillService {
         }
     }
 
-    private parseFrontmatter(content: string, _skillId: string): { description: string } {
-        const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---/;
-        const match = content.match(frontmatterRegex);
-
-        if (!match) {
-            return {
-                description: 'No description available',
-            };
-        }
-
-        const frontmatterContent = match[1];
-        const descriptionMatch = frontmatterContent.match(/^description:\s*(.+)$/m);
-
-        return {
-            description: descriptionMatch ? descriptionMatch[1].trim() : 'No description available',
-        };
-    }
 }
 
 export const skillService = new SkillService();

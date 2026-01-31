@@ -59,7 +59,7 @@ export async function handleCommandList(
     _: CommandListPayload,
     requestId: string
 ): Promise<void> {
-    const commands = await commandService.listCommands();
+    const commands = await commandService.list();
 
     const response: CommandListResultPayload = {
         requestId,

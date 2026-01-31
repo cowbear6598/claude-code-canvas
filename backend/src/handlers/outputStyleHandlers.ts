@@ -41,7 +41,7 @@ export async function handleOutputStyleList(
   _: OutputStyleListPayload,
   requestId: string
 ): Promise<void> {
-  const styles = await outputStyleService.listStyles();
+  const styles = await outputStyleService.list();
 
   const response: OutputStyleListResultPayload = {
     requestId,

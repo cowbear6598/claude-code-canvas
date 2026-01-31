@@ -58,7 +58,7 @@ export async function handleSubAgentList(
     _: SubAgentListPayload,
     requestId: string
 ): Promise<void> {
-    const subAgents = await subAgentService.listSubAgents();
+    const subAgents = await subAgentService.list();
 
     const response: SubAgentListResultPayload = {
         requestId,

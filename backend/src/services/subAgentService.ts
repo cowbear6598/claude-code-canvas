@@ -3,30 +3,25 @@ import path from 'path';
 import {config} from '../config/index.js';
 import type {SubAgent} from '../types/index.js';
 import {validateSubAgentId, validatePodId, isPathWithinDirectory} from '../utils/pathValidator.js';
+import {readFileOrNull, fileExists, ensureDirectoryAndWriteFile, parseFrontmatterDescription} from './shared/fileResourceHelpers.js';
 
 class SubAgentService {
-    /**
-     * List all available subagents by reading .md files from agents directory
-     * Format: agents/{agentId}.md (e.g., agents/plan.md, agents/code-reviewer.md)
-     */
-    async listSubAgents(): Promise<SubAgent[]> {
+    async list(): Promise<SubAgent[]> {
         await fs.mkdir(config.agentsPath, {recursive: true});
         const entries = await fs.readdir(config.agentsPath, {withFileTypes: true});
 
         const subAgents: SubAgent[] = [];
 
         for (const entry of entries) {
-            // Only process .md files
             if (!entry.isFile() || !entry.name.endsWith('.md')) {
                 continue;
             }
 
-            // Agent ID is the filename without .md extension
             const agentId = entry.name.replace(/\.md$/, '');
             const agentFilePath = this.getSubAgentFilePath(agentId);
 
             const content = await fs.readFile(agentFilePath, 'utf-8');
-            const {description} = this.parseFrontmatter(content);
+            const description = parseFrontmatterDescription(content);
 
             subAgents.push({
                 id: agentId,
@@ -38,32 +33,14 @@ class SubAgentService {
         return subAgents;
     }
 
-    /**
-     * Get the full content of a subagent's .md file
-     * @returns The content string, or null if subagent not found
-     */
-    async getSubAgentContent(subAgentId: string): Promise<string | null> {
+    async getContent(subAgentId: string): Promise<string | null> {
         const filePath = this.getSubAgentFilePath(subAgentId);
-
-        try {
-            return await fs.readFile(filePath, 'utf-8');
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-                return null;
-            }
-            throw error;
-        }
+        return readFileOrNull(filePath);
     }
 
     async exists(subAgentId: string): Promise<boolean> {
         const filePath = this.getSubAgentFilePath(subAgentId);
-
-        try {
-            await fs.access(filePath);
-            return true;
-        } catch {
-            return false;
-        }
+        return fileExists(filePath);
     }
 
     /**
@@ -132,10 +109,8 @@ class SubAgentService {
     }
 
     async create(name: string, content: string): Promise<{ id: string; name: string }> {
-        await fs.mkdir(config.agentsPath, { recursive: true });
-
         const filePath = this.getSubAgentFilePath(name);
-        await fs.writeFile(filePath, content, 'utf-8');
+        await ensureDirectoryAndWriteFile(filePath, content);
 
         return {
             id: name,
@@ -146,10 +121,6 @@ class SubAgentService {
     async update(subAgentId: string, content: string): Promise<void> {
         const filePath = this.getSubAgentFilePath(subAgentId);
         await fs.writeFile(filePath, content, 'utf-8');
-    }
-
-    async getContent(subAgentId: string): Promise<string | null> {
-        return this.getSubAgentContent(subAgentId);
     }
 
     /**
@@ -170,21 +141,6 @@ class SubAgentService {
         return safePath;
     }
 
-    private parseFrontmatter(content: string): { description: string } {
-        const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---/;
-        const match = content.match(frontmatterRegex);
-
-        if (!match) {
-            return {description: 'No description available'};
-        }
-
-        const frontmatterContent = match[1];
-        const descriptionMatch = frontmatterContent.match(/^description:\s*(.+)$/m);
-
-        return {
-            description: descriptionMatch ? descriptionMatch[1].trim() : 'No description available',
-        };
-    }
 }
 
 export const subAgentService = new SubAgentService();

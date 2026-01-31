@@ -3,9 +3,10 @@ import path from 'path';
 import {config} from '../config/index.js';
 import type {Command} from '../types/index.js';
 import {isPathWithinDirectory, validatePodId, validateCommandId} from '../utils/pathValidator.js';
+import {readFileOrNull, fileExists, ensureDirectoryAndWriteFile} from './shared/fileResourceHelpers.js';
 
 class CommandService {
-    async listCommands(): Promise<Command[]> {
+    async list(): Promise<Command[]> {
         await fs.mkdir(config.commandsPath, {recursive: true});
         const entries = await fs.readdir(config.commandsPath, {withFileTypes: true});
 
@@ -27,28 +28,14 @@ class CommandService {
         return commands;
     }
 
-    async getCommandContent(commandId: string): Promise<string | null> {
+    async getContent(commandId: string): Promise<string | null> {
         const filePath = this.getCommandFilePath(commandId);
-
-        try {
-            return await fs.readFile(filePath, 'utf-8');
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-                return null;
-            }
-            throw error;
-        }
+        return readFileOrNull(filePath);
     }
 
     async exists(commandId: string): Promise<boolean> {
         const filePath = this.getCommandFilePath(commandId);
-
-        try {
-            await fs.access(filePath);
-            return true;
-        } catch {
-            return false;
-        }
+        return fileExists(filePath);
     }
 
     async copyCommandToPod(commandId: string, podId: string): Promise<void> {
@@ -107,10 +94,8 @@ class CommandService {
     }
 
     async create(name: string, content: string): Promise<{ id: string; name: string }> {
-        await fs.mkdir(config.commandsPath, { recursive: true });
-
         const filePath = this.getCommandFilePath(name);
-        await fs.writeFile(filePath, content, 'utf-8');
+        await ensureDirectoryAndWriteFile(filePath, content);
 
         return {
             id: name,
@@ -121,10 +106,6 @@ class CommandService {
     async update(commandId: string, content: string): Promise<void> {
         const filePath = this.getCommandFilePath(commandId);
         await fs.writeFile(filePath, content, 'utf-8');
-    }
-
-    async getContent(commandId: string): Promise<string | null> {
-        return this.getCommandContent(commandId);
     }
 
     private getCommandFilePath(commandId: string): string {

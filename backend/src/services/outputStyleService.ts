@@ -2,9 +2,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config/index.js';
 import type { OutputStyleListItem } from '../types/index.js';
+import {readFileOrNull, fileExists, ensureDirectoryAndWriteFile} from './shared/fileResourceHelpers.js';
 
 class OutputStyleService {
-  async listStyles(): Promise<OutputStyleListItem[]> {
+  async list(): Promise<OutputStyleListItem[]> {
     await fs.mkdir(config.outputStylesPath, { recursive: true });
     const files = await fs.readdir(config.outputStylesPath);
 
@@ -25,32 +26,14 @@ class OutputStyleService {
     return styles;
   }
 
-  async getStyleContent(styleId: string): Promise<string | null> {
-    const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
-
-    try {
-      return await fs.readFile(filePath, 'utf-8');
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return null;
-      }
-      throw error;
-    }
-  }
-
   async getContent(styleId: string): Promise<string | null> {
-    return this.getStyleContent(styleId);
+    const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
+    return readFileOrNull(filePath);
   }
 
   async exists(styleId: string): Promise<boolean> {
     const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
-
-    try {
-      await fs.access(filePath);
-      return true;
-    } catch {
-      return false;
-    }
+    return fileExists(filePath);
   }
 
   async delete(styleId: string): Promise<void> {
@@ -59,10 +42,8 @@ class OutputStyleService {
   }
 
   async create(name: string, content: string): Promise<{ id: string; name: string }> {
-    await fs.mkdir(config.outputStylesPath, { recursive: true });
-
     const filePath = path.join(config.outputStylesPath, `${name}.md`);
-    await fs.writeFile(filePath, content, 'utf-8');
+    await ensureDirectoryAndWriteFile(filePath, content);
 
     return {
       id: name,

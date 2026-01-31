@@ -46,12 +46,12 @@ class SummaryService {
 
     let sourcePodOutputStyle: string | null = null;
     if (sourcePod.outputStyleId) {
-      sourcePodOutputStyle = await outputStyleService.getStyleContent(sourcePod.outputStyleId);
+      sourcePodOutputStyle = await outputStyleService.getContent(sourcePod.outputStyleId);
     }
 
     let targetPodOutputStyle: string | null = null;
     if (targetPod.outputStyleId) {
-      targetPodOutputStyle = await outputStyleService.getStyleContent(targetPod.outputStyleId);
+      targetPodOutputStyle = await outputStyleService.getContent(targetPod.outputStyleId);
     }
 
     const conversationHistory = summaryPromptBuilder.formatConversationHistory(messages);

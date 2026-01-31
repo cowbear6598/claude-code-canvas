@@ -39,7 +39,7 @@ export async function handleSkillList(
     _: SkillListPayload,
     requestId: string
 ): Promise<void> {
-    const skills = await skillService.listSkills();
+    const skills = await skillService.list();
 
     const response: SkillListResultPayload = {
         requestId,
