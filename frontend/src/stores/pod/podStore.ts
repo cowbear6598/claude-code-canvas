@@ -82,7 +82,17 @@ export const usePodStore = defineStore('pod', {
             if (!this.isValidPod(pod)) return
             const index = this.pods.findIndex((p) => p.id === pod.id)
             if (index !== -1) {
+                const oldPod = this.pods[index]
                 this.pods.splice(index, 1, pod)
+
+                // Sync name change to backend
+                if (oldPod.name !== pod.name) {
+                    websocketClient.emit<PodUpdatePayload>(WebSocketRequestEvents.POD_UPDATE, {
+                        requestId: generateRequestId(),
+                        podId: pod.id,
+                        name: pod.name
+                    })
+                }
             }
         },
 
