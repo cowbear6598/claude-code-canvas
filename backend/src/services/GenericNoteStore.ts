@@ -160,3 +160,9 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
     });
   }
 }
+
+export function createNoteStore<T extends BaseNote, K extends keyof T>(
+  config: GenericNoteStoreConfig<T, K>
+): GenericNoteStore<T, K> {
+  return new GenericNoteStore(config);
+}

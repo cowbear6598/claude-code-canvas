@@ -12,7 +12,7 @@ import type {
     CommandDeletePayload,
 } from '../schemas/index.js';
 import {commandService} from '../services/commandService.js';
-import {commandNoteStore} from '../services/commandNoteStore.js';
+import {commandNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
@@ -174,7 +174,7 @@ export async function handleCommandDelete(
         responseEvent: WebSocketResponseEvents.COMMAND_DELETED,
         existsCheck: () => commandService.exists(commandId),
         findPodsUsing: () => podStore.findByCommandId(commandId),
-        deleteNotes: () => commandNoteStore.deleteByCommandId(commandId),
+        deleteNotes: () => commandNoteStore.deleteByForeignKey(commandId),
         deleteResource: () => commandService.delete(commandId),
     });
 }

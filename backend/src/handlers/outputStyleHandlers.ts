@@ -13,7 +13,7 @@ import type {
 } from '../schemas/index.js';
 import { outputStyleService } from '../services/outputStyleService.js';
 import { podStore } from '../services/podStore.js';
-import { noteStore } from '../services/noteStore.js';
+import { noteStore } from '../services/noteStores.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { validatePod, handleResourceDelete } from '../utils/handlerHelpers.js';
@@ -135,7 +135,7 @@ export async function handleOutputStyleDelete(
     responseEvent: WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
     existsCheck: () => outputStyleService.exists(outputStyleId),
     findPodsUsing: () => podStore.findByOutputStyleId(outputStyleId),
-    deleteNotes: () => noteStore.deleteByOutputStyleId(outputStyleId),
+    deleteNotes: () => noteStore.deleteByForeignKey(outputStyleId),
     deleteResource: () => outputStyleService.delete(outputStyleId),
   });
 }

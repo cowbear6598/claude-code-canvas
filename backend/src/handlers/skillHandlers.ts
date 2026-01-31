@@ -10,7 +10,7 @@ import type {
     SkillDeletePayload,
 } from '../schemas/index.js';
 import {skillService} from '../services/skillService.js';
-import {skillNoteStore} from '../services/skillNoteStore.js';
+import {skillNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
@@ -118,7 +118,7 @@ export async function handleSkillDelete(
         responseEvent: WebSocketResponseEvents.SKILL_DELETED,
         existsCheck: () => skillService.exists(skillId),
         findPodsUsing: () => podStore.findBySkillId(skillId),
-        deleteNotes: () => skillNoteStore.deleteBySkillId(skillId),
+        deleteNotes: () => skillNoteStore.deleteByForeignKey(skillId),
         deleteResource: () => skillService.delete(skillId),
     });
 }

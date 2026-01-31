@@ -17,7 +17,7 @@ import type {
   RepositoryGitClonePayload,
 } from '../schemas/index.js';
 import { repositoryService } from '../services/repositoryService.js';
-import { repositoryNoteStore } from '../services/repositoryNoteStore.js';
+import { repositoryNoteStore } from '../services/noteStores.js';
 import { podStore } from '../services/podStore.js';
 import { gitService } from '../services/workspace/gitService.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
@@ -204,7 +204,7 @@ export async function handleRepositoryDelete(
     responseEvent: WebSocketResponseEvents.REPOSITORY_DELETED,
     existsCheck: () => repositoryService.exists(repositoryId),
     findPodsUsing: () => podStore.findByRepositoryId(repositoryId),
-    deleteNotes: () => repositoryNoteStore.deleteByRepositoryId(repositoryId),
+    deleteNotes: () => repositoryNoteStore.deleteByForeignKey(repositoryId),
     deleteResource: () => repositoryService.delete(repositoryId),
   });
 }

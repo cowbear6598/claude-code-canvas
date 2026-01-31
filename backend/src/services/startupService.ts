@@ -1,10 +1,6 @@
 import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
-import { noteStore } from './noteStore.js';
-import { skillNoteStore } from './skillNoteStore.js';
-import { commandNoteStore } from './commandNoteStore.js';
-import { subAgentNoteStore } from './subAgentNoteStore.js';
-import { repositoryNoteStore } from './repositoryNoteStore.js';
+import { noteStore, skillNoteStore, commandNoteStore, subAgentNoteStore, repositoryNoteStore } from './noteStores.js';
 import { connectionStore } from './connectionStore.js';
 import { Result, ok, err } from '../types/index.js';
 import { config } from '../config/index.js';

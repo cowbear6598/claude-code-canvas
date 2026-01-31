@@ -15,11 +15,7 @@ import type {
 import { podStore } from '../../services/podStore.js';
 import { workspaceService } from '../../services/workspace/index.js';
 import { claudeSessionManager } from '../../services/claude/sessionManager.js';
-import { noteStore } from '../../services/noteStore.js';
-import { skillNoteStore } from '../../services/skillNoteStore.js';
-import { subAgentNoteStore } from '../../services/subAgentNoteStore.js';
-import { repositoryNoteStore } from '../../services/repositoryNoteStore.js';
-import { commandNoteStore } from '../../services/commandNoteStore.js';
+import { noteStore, skillNoteStore, subAgentNoteStore, repositoryNoteStore, commandNoteStore } from '../../services/noteStores.js';
 import { connectionStore } from '../../services/connectionStore.js';
 import { repositoryService } from '../../services/repositoryService.js';
 import { getErrorMessage } from '../../utils/websocketResponse.js';

@@ -10,7 +10,7 @@ import type {
     SubAgentDeletePayload,
 } from '../schemas/index.js';
 import {subAgentService} from '../services/subAgentService.js';
-import {subAgentNoteStore} from '../services/subAgentNoteStore.js';
+import {subAgentNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
 import {repositoryService} from '../services/repositoryService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
@@ -143,7 +143,7 @@ export async function handleSubAgentDelete(
         responseEvent: WebSocketResponseEvents.SUBAGENT_DELETED,
         existsCheck: () => subAgentService.exists(subAgentId),
         findPodsUsing: () => podStore.findBySubAgentId(subAgentId),
-        deleteNotes: () => subAgentNoteStore.deleteBySubAgentId(subAgentId),
+        deleteNotes: () => subAgentNoteStore.deleteByForeignKey(subAgentId),
         deleteResource: () => subAgentService.delete(subAgentId),
     });
 }

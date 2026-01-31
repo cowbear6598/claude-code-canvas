@@ -17,9 +17,7 @@ import type {
 import {podStore} from '../services/podStore.js';
 import {workspaceService} from '../services/workspace/index.js';
 import {claudeSessionManager} from '../services/claude/sessionManager.js';
-import {noteStore} from '../services/noteStore.js';
-import {skillNoteStore} from '../services/skillNoteStore.js';
-import {repositoryNoteStore} from '../services/repositoryNoteStore.js';
+import {noteStore, skillNoteStore, repositoryNoteStore} from '../services/noteStores.js';
 import {connectionStore} from '../services/connectionStore.js';
 import {socketService} from '../services/socketService.js';
 import {workflowService} from '../services/workflow/index.js';

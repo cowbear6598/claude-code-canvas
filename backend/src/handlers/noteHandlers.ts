@@ -1,5 +1,5 @@
 import { WebSocketResponseEvents } from '../types/index.js';
-import { noteStore } from '../services/noteStore.js';
+import { noteStore } from '../services/noteStores.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';
 
 const noteHandlersImpl = createNoteHandlers({
