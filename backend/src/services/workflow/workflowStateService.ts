@@ -6,6 +6,8 @@ import {
   type WorkflowPendingPayload,
   type WorkflowSourcesMergedPayload,
 } from '../../types/index.js';
+import { logger } from '../../utils/logger.js';
+
 class WorkflowStateService {
   private formatMergedSummaries(summaries: Map<string, string>): string {
     const formatted: string[] = [];
@@ -36,9 +38,7 @@ class WorkflowStateService {
 
   initializePendingTarget(targetPodId: string, requiredSourcePodIds: string[]): void {
     pendingTargetStore.initializePendingTarget(targetPodId, requiredSourcePodIds);
-    console.log(
-      `[WorkflowState] Initialized pending target ${targetPodId}, waiting for ${requiredSourcePodIds.length} sources`
-    );
+    logger.log('Workflow', 'Create', `Initialized pending target ${targetPodId}, waiting for ${requiredSourcePodIds.length} sources`);
   }
 
   recordSourceCompletion(targetPodId: string, sourcePodId: string, summary: string): boolean {
@@ -64,7 +64,7 @@ class WorkflowStateService {
 
       if (pending.requiredSourcePodIds.length === 0) {
         pendingTargetStore.clearPendingTarget(targetPodId);
-        console.log(`[WorkflowState] Cleared pending target ${targetPodId} - no sources remaining`);
+        logger.log('Workflow', 'Delete', `Cleared pending target ${targetPodId} - no sources remaining`);
         continue;
       }
 
@@ -75,7 +75,7 @@ class WorkflowStateService {
         continue;
       }
 
-      console.log(`[WorkflowState] Source deleted, but remaining sources complete for ${targetPodId}`);
+      logger.log('Workflow', 'Update', `Source deleted, but remaining sources complete for ${targetPodId}`);
 
       const completedSummaries = pendingTargetStore.getCompletedSummaries(targetPodId);
       if (!completedSummaries) {
@@ -118,7 +118,7 @@ class WorkflowStateService {
 
     if (pending.requiredSourcePodIds.length === 0) {
       pendingTargetStore.clearPendingTarget(targetPodId);
-      console.log(`[WorkflowState] Cleared pending target ${targetPodId} - connection deleted`);
+      logger.log('Workflow', 'Delete', `Cleared pending target ${targetPodId} - connection deleted`);
       return;
     }
 
@@ -129,7 +129,7 @@ class WorkflowStateService {
       return;
     }
 
-    console.log(`[WorkflowState] Connection deleted, but remaining sources complete for ${targetPodId}`);
+    logger.log('Workflow', 'Update', `Connection deleted, but remaining sources complete for ${targetPodId}`);
 
     const completedSummaries = pendingTargetStore.getCompletedSummaries(targetPodId);
     if (!completedSummaries) {
@@ -164,9 +164,7 @@ class WorkflowStateService {
 
     workflowEventEmitter.emitWorkflowPending(targetPodId, pendingPayload);
 
-    console.log(
-      `[WorkflowState] Updated pending target ${targetPodId}: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources`
-    );
+    logger.log('Workflow', 'Update', `Updated pending target ${targetPodId}: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources`);
   }
 }
 

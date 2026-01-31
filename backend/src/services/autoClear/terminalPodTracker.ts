@@ -1,3 +1,5 @@
+import { logger } from '../../utils/logger.js';
+
 interface PendingAutoClear {
   sourcePodId: string;
   terminalPodIds: string[];
@@ -19,9 +21,7 @@ class TerminalPodTracker {
       createdAt: new Date(),
     });
 
-    console.log(
-      `[TerminalPodTracker] Initialized tracking for source ${sourcePodId}, terminal PODs: ${terminalPodIds.join(', ')}`
-    );
+    logger.log('AutoClear', 'Create', `Initialized tracking for source ${sourcePodId}, terminal PODs: ${terminalPodIds.join(', ')}`);
   }
 
   recordCompletion(podId: string): { allComplete: boolean; sourcePodId: string | null } {
@@ -30,9 +30,7 @@ class TerminalPodTracker {
         pending.completedPodIds.add(podId);
         const allComplete = pending.completedPodIds.size === pending.terminalPodIds.length;
 
-        console.log(
-          `[TerminalPodTracker] Recorded completion for ${podId}, source ${sourcePodId}: ${pending.completedPodIds.size}/${pending.terminalPodIds.length} complete`
-        );
+        logger.log('AutoClear', 'Update', `Recorded completion for ${podId}, source ${sourcePodId}: ${pending.completedPodIds.size}/${pending.terminalPodIds.length} complete`);
 
         return { allComplete, sourcePodId: allComplete ? sourcePodId : null };
       }
@@ -44,7 +42,7 @@ class TerminalPodTracker {
   clearTracking(sourcePodId: string): void {
     const deleted = this.pendingAutoClearMap.delete(sourcePodId);
     if (deleted) {
-      console.log(`[TerminalPodTracker] Cleared tracking for source ${sourcePodId}`);
+      logger.log('AutoClear', 'Delete', `Cleared tracking for source ${sourcePodId}`);
     }
   }
 

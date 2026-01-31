@@ -36,16 +36,10 @@ class RepositoryService {
     return fileExists(repositoryPath);
   }
 
-  /**
-   * Get the full path of a repository
-   */
   getRepositoryPath(repositoryId: string): string {
     return path.join(config.repositoriesRoot, repositoryId);
   }
 
-  /**
-   * Delete a repository directory
-   */
   async delete(repositoryId: string): Promise<void> {
     const repositoryPath = this.getRepositoryPath(repositoryId);
 

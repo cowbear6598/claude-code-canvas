@@ -43,9 +43,6 @@ class SkillService {
         return fileExists(filePath);
     }
 
-    /**
-     * Copy a skill directory to a pod's workspace
-     */
     async copySkillToPod(skillId: string, podId: string): Promise<void> {
         if (!validateSkillId(skillId)) {
             throw new Error('無效的技能 ID 格式');
@@ -85,9 +82,6 @@ class SkillService {
         await this.copyDirectoryRecursive(srcDir, destDir);
     }
 
-    /**
-     * Delete the .claude/skills directory from a path
-     */
     async deleteSkillsFromPath(basePath: string): Promise<void> {
         const skillsDir = path.join(basePath, '.claude', 'skills');
         await fs.rm(skillsDir, {recursive: true, force: true});

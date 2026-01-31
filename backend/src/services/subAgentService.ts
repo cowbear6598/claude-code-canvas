@@ -43,9 +43,6 @@ class SubAgentService {
         return fileExists(filePath);
     }
 
-    /**
-     * Copy a subagent file to a pod's workspace
-     */
     async copySubAgentToPod(subAgentId: string, podId: string): Promise<void> {
         if (!validateSubAgentId(subAgentId)) {
             throw new Error('無效的子代理 ID 格式');
@@ -85,17 +82,11 @@ class SubAgentService {
         await fs.copyFile(srcPath, destPath);
     }
 
-    /**
-     * Delete the .claude/agents directory from a path
-     */
     async deleteSubAgentsFromPath(basePath: string): Promise<void> {
         const agentsDir = path.join(basePath, '.claude', 'agents');
         await fs.rm(agentsDir, {recursive: true, force: true});
     }
 
-    /**
-     * Delete a subagent file
-     */
     async delete(subAgentId: string): Promise<void> {
         const filePath = this.getSubAgentFilePath(subAgentId);
         await fs.rm(filePath, {force: true});
@@ -116,10 +107,6 @@ class SubAgentService {
         await fs.writeFile(filePath, content, 'utf-8');
     }
 
-    /**
-     * Get the file path for a subagent
-     * Format: {agentsPath}/{subAgentId}.md
-     */
     private getSubAgentFilePath(subAgentId: string): string {
         if (!validateSubAgentId(subAgentId)) {
             throw new Error('無效的子代理 ID 格式');

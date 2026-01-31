@@ -19,6 +19,7 @@ import { pendingTargetStore } from '../pendingTargetStore.js';
 import { workflowStateService } from './workflowStateService.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
 import { autoClearService } from '../autoClear/index.js';
+import { logger } from '../../utils/logger.js';
 
 class WorkflowExecutionService {
   private formatMergedSummaries(summaries: Map<string, string>): string {
@@ -50,7 +51,7 @@ ${content}
     const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
 
     if (assistantMessages.length === 0) {
-      console.error('[WorkflowContentFormatter] No assistant messages available for fallback');
+      logger.error('Workflow', 'Error', 'No assistant messages available for fallback');
       return null;
     }
 
@@ -63,9 +64,7 @@ ${content}
   ): Promise<{ content: string; isSummarized: boolean } | null> {
     try {
       podStore.setStatus(sourcePodId, 'summarizing');
-      console.log(
-        `[WorkflowExecution] Generating customized summary for source POD ${sourcePodId} to target POD ${targetPodId}`
-      );
+      logger.log('Workflow', 'Create', `Generating customized summary for source POD ${sourcePodId} to target POD ${targetPodId}`);
       const summaryResult = await summaryService.generateSummaryForTarget(
         sourcePodId,
         targetPodId
@@ -76,12 +75,12 @@ ${content}
         return { content: summaryResult.summary, isSummarized: true };
       }
 
-      console.error(`[WorkflowExecution] Failed to generate summary: ${summaryResult.error}`);
+      logger.error('Workflow', 'Error', `Failed to generate summary: ${summaryResult.error}`);
       const fallback = this.getLastAssistantMessage(sourcePodId);
       podStore.setStatus(sourcePodId, 'idle');
       return fallback ? { content: fallback, isSummarized: false } : null;
     } catch (error) {
-      console.error('[WorkflowExecution] Failed to generate summary:', error);
+      logger.error('Workflow', 'Error', 'Failed to generate summary', error);
       const fallback = this.getLastAssistantMessage(sourcePodId);
       podStore.setStatus(sourcePodId, 'idle');
       return fallback ? { content: fallback, isSummarized: false } : null;
@@ -96,11 +95,8 @@ ${content}
       return;
     }
 
-    console.log(
-      `[WorkflowExecution] Found ${autoTriggerConnections.length} auto-trigger connections for Pod ${sourcePodId}`
-    );
+    logger.log('Workflow', 'Create', `Found ${autoTriggerConnections.length} auto-trigger connections for Pod ${sourcePodId}`);
 
-    // Initialize auto-clear tracking if enabled
     autoClearService.initializeWorkflowTracking(sourcePodId);
 
     let summaryContent: string | null = null;
@@ -108,16 +104,12 @@ ${content}
     for (const connection of autoTriggerConnections) {
       const podStatus = podStore.getById(connection.targetPodId)?.status;
       if (!podStatus) {
-        console.warn(
-          `[WorkflowExecution] Target Pod ${connection.targetPodId} not found, skipping auto-trigger`
-        );
+        logger.log('Workflow', 'Error', `Target Pod ${connection.targetPodId} not found, skipping auto-trigger`);
         continue;
       }
 
       if (podStatus === 'chatting' || podStatus === 'summarizing') {
-        console.warn(
-          `[WorkflowExecution] Target Pod ${connection.targetPodId} is ${podStatus}, skipping auto-trigger`
-        );
+        logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is ${podStatus}, skipping auto-trigger`);
         continue;
       }
 
@@ -127,10 +119,7 @@ ${content}
 
       if (!isMultiInput) {
         this.triggerWorkflowInternal(connection.id).catch((error) => {
-          console.error(
-            `[WorkflowExecution] Failed to auto-trigger workflow ${connection.id}:`,
-            error
-          );
+          logger.error('Workflow', 'Error', `Failed to auto-trigger workflow ${connection.id}`, error);
         });
         continue;
       }
@@ -180,17 +169,15 @@ ${content}
           pendingPayload
         );
 
-        console.log(
-          `[WorkflowExecution] Target ${connection.targetPodId} waiting: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources complete`
-        );
+        logger.log('Workflow', 'Update', `Target ${connection.targetPodId} waiting: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources complete`);
         continue;
       }
 
-      console.log(`[WorkflowExecution] All sources complete for target ${connection.targetPodId}`);
+      logger.log('Workflow', 'Complete', `All sources complete for target ${connection.targetPodId}`);
 
       const completedSummaries = workflowStateService.getCompletedSummaries(connection.targetPodId);
       if (!completedSummaries) {
-        console.error('[WorkflowExecution] Failed to get completed summaries');
+        logger.error('Workflow', 'Error', 'Failed to get completed summaries');
         continue;
       }
 
@@ -219,10 +206,7 @@ ${content}
       }
 
       this.triggerWorkflowWithSummary(connection.id, mergedContent, true).catch((error) => {
-        console.error(
-          `[WorkflowExecution] Failed to trigger merged workflow ${connection.id}:`,
-          error
-        );
+        logger.error('Workflow', 'Error', `Failed to trigger merged workflow ${connection.id}`, error);
       });
 
       workflowStateService.clearPendingTarget(connection.targetPodId);
@@ -261,9 +245,7 @@ ${content}
     const transferredContent = result.content;
     const isSummarized = result.isSummarized;
 
-    console.log(
-      `[WorkflowExecution] Auto-triggering workflow from Pod ${sourcePodId} to Pod ${targetPodId} (summarized: ${isSummarized})`
-    );
+    logger.log('Workflow', 'Create', `Auto-triggering workflow from Pod ${sourcePodId} to Pod ${targetPodId} (summarized: ${isSummarized})`);
 
     const autoTriggeredPayload: WorkflowAutoTriggeredPayload = {
       connectionId,
@@ -285,10 +267,7 @@ ${content}
     await this.executeClaudeQuery(connectionId, sourcePodId, targetPodId, transferredContent);
 
     this.checkAndTriggerWorkflows(targetPodId).catch((error) => {
-      console.error(
-        `[WorkflowExecution] Failed to check auto-trigger workflows for Pod ${targetPodId}:`,
-        error
-      );
+      logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${targetPodId}`, error);
     });
   }
 
@@ -309,9 +288,7 @@ ${content}
       throw new Error(`Pod not found: ${targetPodId}`);
     }
 
-    console.log(
-      `[WorkflowExecution] Triggering workflow with pre-generated summary from Pod ${sourcePodId} to Pod ${targetPodId}`
-    );
+    logger.log('Workflow', 'Create', `Triggering workflow with pre-generated summary from Pod ${sourcePodId} to Pod ${targetPodId}`);
 
     const autoTriggeredPayload: WorkflowAutoTriggeredPayload = {
       connectionId,
@@ -333,10 +310,7 @@ ${content}
     await this.executeClaudeQuery(connectionId, sourcePodId, targetPodId, summary);
 
     this.checkAndTriggerWorkflows(targetPodId).catch((error) => {
-      console.error(
-        `[WorkflowExecution] Failed to check auto-trigger workflows for Pod ${targetPodId}:`,
-        error
-      );
+      logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${targetPodId}`, error);
     });
   }
 
@@ -446,7 +420,7 @@ ${content}
           }
 
           case 'error': {
-            console.error(`[WorkflowExecution] Stream error for Pod ${targetPodId}: ${event.error}`);
+            logger.error('Workflow', 'Error', `Stream error for Pod ${targetPodId}: ${event.error}`);
             break;
           }
         }
@@ -461,9 +435,7 @@ ${content}
 
       workflowEventEmitter.emitWorkflowComplete(connectionId, sourcePodId, targetPodId, true);
 
-      console.log(
-        `[WorkflowExecution] Completed workflow for connection ${connectionId}, target Pod ${targetPodId}`
-      );
+      logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod ${targetPodId}`);
 
       await autoClearService.onPodComplete(targetPodId);
     } catch (error) {
@@ -478,7 +450,7 @@ ${content}
         errorMessage
       );
 
-      console.error(`[WorkflowExecution] Failed to complete workflow:`, error);
+      logger.error('Workflow', 'Error', 'Failed to complete workflow', error);
       throw error;
     }
   }
