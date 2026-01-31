@@ -20,7 +20,7 @@ import {claudeSessionManager} from '../services/claude/sessionManager.js';
 import {noteStore, skillNoteStore, repositoryNoteStore} from '../services/noteStores.js';
 import {connectionStore} from '../services/connectionStore.js';
 import {socketService} from '../services/socketService.js';
-import {workflowService} from '../services/workflow/index.js';
+import { workflowStateService } from '../services/workflow/index.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {validatePod} from '../utils/handlerHelpers.js';
@@ -111,7 +111,7 @@ export async function handlePodDelete(
         return;
     }
 
-    workflowService.handleSourceDeletion(podId);
+    workflowStateService.handleSourceDeletion(podId);
 
     await claudeSessionManager.destroySession(podId);
 

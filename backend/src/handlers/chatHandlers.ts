@@ -1,5 +1,5 @@
-import type { Socket } from 'socket.io';
-import { v4 as uuidv4 } from 'uuid';
+import type {Socket} from 'socket.io';
+import {v4 as uuidv4} from 'uuid';
 import {
     WebSocketResponseEvents,
     type PodChatHistoryResultPayload,
@@ -11,16 +11,16 @@ import {
     type PersistedToolUseInfo,
     type ContentBlock,
 } from '../types/index.js';
-import type { ChatSendPayload, ChatHistoryPayload } from '../schemas/index.js';
-import { podStore } from '../services/podStore.js';
-import { messageStore } from '../services/messageStore.js';
-import { claudeQueryService } from '../services/claude/queryService.js';
-import { socketService } from '../services/socketService.js';
-import { workflowService } from '../services/workflow/index.js';
-import { autoClearService } from '../services/autoClear/index.js';
-import { emitError } from '../utils/websocketResponse.js';
-import { logger } from '../utils/logger.js';
-import { validatePod } from '../utils/handlerHelpers.js';
+import type {ChatSendPayload, ChatHistoryPayload} from '../schemas/index.js';
+import {podStore} from '../services/podStore.js';
+import {messageStore} from '../services/messageStore.js';
+import {claudeQueryService} from '../services/claude/queryService.js';
+import {socketService} from '../services/socketService.js';
+import {workflowExecutionService} from '../services/workflow/index.js';
+import {autoClearService} from '../services/autoClear/index.js';
+import {emitError} from '../utils/websocketResponse.js';
+import {logger} from '../utils/logger.js';
+import {validatePod} from '../utils/handlerHelpers.js';
 
 function extractDisplayContent(message: string | ContentBlock[]): string {
     if (typeof message === 'string') {
@@ -37,7 +37,7 @@ export async function handleChatSend(
     payload: ChatSendPayload,
     requestId: string
 ): Promise<void> {
-    const { podId, message } = payload;
+    const {podId, message} = payload;
 
     const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_ERROR, requestId);
 
@@ -191,7 +191,7 @@ export async function handleChatSend(
         logger.error('AutoClear', 'Error', `Failed to check auto-clear for Pod ${podId}`, error);
     });
 
-    workflowService.checkAndTriggerWorkflows(podId).catch((error) => {
+    workflowExecutionService.checkAndTriggerWorkflows(podId).catch((error) => {
         logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error);
     });
 }
@@ -201,7 +201,7 @@ export async function handleChatHistory(
     payload: ChatHistoryPayload,
     requestId: string
 ): Promise<void> {
-    const { podId } = payload;
+    const {podId} = payload;
 
     const pod = podStore.getById(podId);
     if (!pod) {

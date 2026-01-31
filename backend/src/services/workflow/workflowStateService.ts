@@ -1,14 +1,28 @@
 import { connectionStore } from '../connectionStore.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
-import { socketService } from '../socketService.js';
+import { podStore } from '../podStore.js';
+import { workflowEventEmitter } from './workflowEventEmitter.js';
 import {
-  WebSocketResponseEvents,
   type WorkflowPendingPayload,
   type WorkflowSourcesMergedPayload,
 } from '../../types/index.js';
-import { workflowContentFormatter } from './workflowContentFormatter.js';
-
 class WorkflowStateService {
+  private formatMergedSummaries(summaries: Map<string, string>): string {
+    const formatted: string[] = [];
+
+    for (const [sourcePodId, content] of summaries.entries()) {
+      const sourcePod = podStore.getById(sourcePodId);
+      const podName = sourcePod?.name || sourcePodId;
+
+      formatted.push(`## Source: ${podName}\n${content}\n\n---`);
+    }
+
+    let result = formatted.join('\n\n');
+    result = result.replace(/\n\n---$/, '');
+
+    return result;
+  }
+
   checkMultiInputScenario(targetPodId: string): { isMultiInput: boolean; requiredSourcePodIds: string[] } {
     const incomingConnections = connectionStore.findByTargetPodId(targetPodId);
     const autoTriggerConnections = incomingConnections.filter((conn) => conn.autoTrigger);
@@ -64,7 +78,7 @@ class WorkflowStateService {
           continue;
         }
 
-        const mergedContent = workflowContentFormatter.formatMergedSummaries(completedSummaries);
+        const mergedContent = this.formatMergedSummaries(completedSummaries);
         const sourcePodIds = Array.from(completedSummaries.keys());
 
         const mergedPayload: WorkflowSourcesMergedPayload = {
@@ -73,7 +87,7 @@ class WorkflowStateService {
           mergedContentPreview: mergedContent.substring(0, 200),
         };
 
-        socketService.emitToPod(targetPodId, WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, mergedPayload);
+        workflowEventEmitter.emitWorkflowSourcesMerged(targetPodId, sourcePodIds, mergedPayload);
       } else {
         this.emitPendingStatus(targetPodId, pending);
       }
@@ -117,7 +131,7 @@ class WorkflowStateService {
         return;
       }
 
-      const mergedContent = workflowContentFormatter.formatMergedSummaries(completedSummaries);
+      const mergedContent = this.formatMergedSummaries(completedSummaries);
       const sourcePodIds = Array.from(completedSummaries.keys());
 
       const mergedPayload: WorkflowSourcesMergedPayload = {
@@ -126,7 +140,7 @@ class WorkflowStateService {
         mergedContentPreview: mergedContent.substring(0, 200),
       };
 
-      socketService.emitToPod(targetPodId, WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, mergedPayload);
+      workflowEventEmitter.emitWorkflowSourcesMerged(targetPodId, sourcePodIds, mergedPayload);
     } else {
       this.emitPendingStatus(targetPodId, pending);
     }
@@ -146,7 +160,7 @@ class WorkflowStateService {
       completedCount: pending.completedSources.size,
     };
 
-    socketService.emitToPod(targetPodId, WebSocketResponseEvents.WORKFLOW_PENDING, pendingPayload);
+    workflowEventEmitter.emitWorkflowPending(targetPodId, pendingPayload);
 
     console.log(
       `[WorkflowState] Updated pending target ${targetPodId}: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources`

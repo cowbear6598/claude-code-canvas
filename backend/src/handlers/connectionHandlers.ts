@@ -14,7 +14,7 @@ import type {
 } from '../schemas/index.js';
 import { connectionStore } from '../services/connectionStore.js';
 import { podStore } from '../services/podStore.js';
-import { workflowService } from '../services/workflow/index.js';
+import { workflowStateService } from '../services/workflow/index.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 
@@ -105,7 +105,7 @@ export async function handleConnectionDelete(
     return;
   }
 
-  workflowService.handleConnectionDeletion(connectionId);
+  workflowStateService.handleConnectionDeletion(connectionId);
 
   const deleted = connectionStore.delete(connectionId);
 

@@ -16,13 +16,47 @@ import { claudeQueryService } from '../claude/queryService.js';
 import { socketService } from '../socketService.js';
 import { summaryService } from '../summaryService.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
-import { workflowValidationService } from './workflowValidationService.js';
 import { workflowStateService } from './workflowStateService.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
-import { workflowContentFormatter } from './workflowContentFormatter.js';
 import { autoClearService } from '../autoClear/index.js';
 
 class WorkflowExecutionService {
+  private formatMergedSummaries(summaries: Map<string, string>): string {
+    const formatted: string[] = [];
+
+    for (const [sourcePodId, content] of summaries.entries()) {
+      const sourcePod = podStore.getById(sourcePodId);
+      const podName = sourcePod?.name || sourcePodId;
+
+      formatted.push(`## Source: ${podName}\n${content}\n\n---`);
+    }
+
+    let result = formatted.join('\n\n');
+    result = result.replace(/\n\n---$/, '');
+
+    return result;
+  }
+
+  private buildTransferMessage(content: string): string {
+    return `以下是從另一個 POD 傳遞過來的內容,請根據這些資訊繼續處理:
+
+---
+${content}
+---`;
+  }
+
+  private getLastAssistantMessage(sourcePodId: string): string | null {
+    const messages = messageStore.getMessages(sourcePodId);
+    const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
+
+    if (assistantMessages.length === 0) {
+      console.error('[WorkflowContentFormatter] No assistant messages available for fallback');
+      return null;
+    }
+
+    return assistantMessages[assistantMessages.length - 1].content;
+  }
+
   async checkAndTriggerWorkflows(sourcePodId: string): Promise<void> {
     const connections = connectionStore.findBySourcePodId(sourcePodId);
     const autoTriggerConnections = connections.filter((conn) => conn.autoTrigger);
@@ -85,7 +119,7 @@ class WorkflowExecutionService {
             summary = summaryResult.summary;
           } else {
             console.error(`[WorkflowExecution] Failed to generate summary: ${summaryResult.error}`);
-            summary = workflowContentFormatter.getLastAssistantMessage(sourcePodId);
+            summary = this.getLastAssistantMessage(sourcePodId);
 
             if (!summary) {
               podStore.setStatus(sourcePodId, 'idle');
@@ -95,7 +129,7 @@ class WorkflowExecutionService {
           podStore.setStatus(sourcePodId, 'idle');
         } catch (error) {
           console.error('[WorkflowExecution] Failed to generate summary:', error);
-          summary = workflowContentFormatter.getLastAssistantMessage(sourcePodId);
+          summary = this.getLastAssistantMessage(sourcePodId);
 
           if (!summary) {
             podStore.setStatus(sourcePodId, 'idle');
@@ -124,7 +158,7 @@ class WorkflowExecutionService {
           continue;
         }
 
-        const mergedContent = workflowContentFormatter.formatMergedSummaries(completedSummaries);
+        const mergedContent = this.formatMergedSummaries(completedSummaries);
         const mergedPreview = mergedContent.substring(0, 200);
 
         const sourcePodIds = Array.from(completedSummaries.keys());
@@ -189,27 +223,27 @@ class WorkflowExecutionService {
   }
 
   async triggerWorkflowInternal(connectionId: string): Promise<void> {
-    const connectionValidation = workflowValidationService.validateConnection(connectionId);
-    if (!connectionValidation.valid || !connectionValidation.data) {
-      throw new Error(connectionValidation.error);
+    const connection = connectionStore.getById(connectionId);
+    if (!connection) {
+      throw new Error(`Connection not found: ${connectionId}`);
     }
 
-    const connection = connectionValidation.data;
     const { sourcePodId, targetPodId } = connection;
 
-    const sourcePodValidation = workflowValidationService.validatePod(sourcePodId);
-    if (!sourcePodValidation.valid) {
-      throw new Error(sourcePodValidation.error);
+    const sourcePod = podStore.getById(sourcePodId);
+    if (!sourcePod) {
+      throw new Error(`Pod not found: ${sourcePodId}`);
     }
 
-    const targetPodValidation = workflowValidationService.validatePod(targetPodId);
-    if (!targetPodValidation.valid || !targetPodValidation.data) {
-      throw new Error(targetPodValidation.error);
+    const targetPod = podStore.getById(targetPodId);
+    if (!targetPod) {
+      throw new Error(`Pod not found: ${targetPodId}`);
     }
 
-    const messagesValidation = workflowValidationService.validateSourceHasMessages(sourcePodId);
-    if (!messagesValidation.valid) {
-      throw new Error(messagesValidation.error);
+    const messages = messageStore.getMessages(sourcePodId);
+    const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
+    if (assistantMessages.length === 0) {
+      throw new Error(`Source Pod ${sourcePodId} has no assistant messages to transfer`);
     }
 
     let transferredContent: string;
@@ -233,7 +267,7 @@ class WorkflowExecutionService {
         console.error(
           `[WorkflowExecution] Failed to generate summary: ${summaryResult.error}, using last assistant message`
         );
-        const fallbackContent = workflowContentFormatter.getLastAssistantMessage(sourcePodId);
+        const fallbackContent = this.getLastAssistantMessage(sourcePodId);
         if (!fallbackContent) {
           throw new Error('無可用的備用內容');
         }
@@ -247,7 +281,7 @@ class WorkflowExecutionService {
         '[WorkflowExecution] Failed to generate summary, using last assistant message:',
         error
       );
-      const fallbackContent = workflowContentFormatter.getLastAssistantMessage(sourcePodId);
+      const fallbackContent = this.getLastAssistantMessage(sourcePodId);
       if (!fallbackContent) {
         throw new Error('無可用的備用內容');
       }
@@ -291,17 +325,16 @@ class WorkflowExecutionService {
     summary: string,
     isSummarized: boolean
   ): Promise<void> {
-    const connectionValidation = workflowValidationService.validateConnection(connectionId);
-    if (!connectionValidation.valid || !connectionValidation.data) {
-      throw new Error(connectionValidation.error);
+    const connection = connectionStore.getById(connectionId);
+    if (!connection) {
+      throw new Error(`Connection not found: ${connectionId}`);
     }
 
-    const connection = connectionValidation.data;
     const { sourcePodId, targetPodId } = connection;
 
-    const targetPodValidation = workflowValidationService.validatePod(targetPodId);
-    if (!targetPodValidation.valid) {
-      throw new Error(targetPodValidation.error);
+    const targetPod = podStore.getById(targetPodId);
+    if (!targetPod) {
+      throw new Error(`Pod not found: ${targetPodId}`);
     }
 
     console.log(
@@ -343,7 +376,7 @@ class WorkflowExecutionService {
   ): Promise<void> {
     podStore.setStatus(targetPodId, 'chatting');
 
-    const messageToSend = workflowContentFormatter.buildTransferMessage(content);
+    const messageToSend = this.buildTransferMessage(content);
 
     const userMessageId = uuidv4();
     const assistantMessageId = uuidv4();
