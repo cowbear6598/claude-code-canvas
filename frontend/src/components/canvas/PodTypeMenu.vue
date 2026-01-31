@@ -227,13 +227,13 @@ const openEditModal = async (
   }
 }
 
-const handleOutputStyleEdit = (id: string, name: string, event: Event): Promise<void> =>
+const handleOutputStyleEdit = (id: string, _name: string, event: Event): Promise<void> =>
   openEditModal('outputStyle', id, event)
 
-const handleSubAgentEdit = (id: string, name: string, event: Event): Promise<void> =>
+const handleSubAgentEdit = (id: string, _name: string, event: Event): Promise<void> =>
   openEditModal('subAgent', id, event)
 
-const handleCommandEdit = (id: string, name: string, event: Event): Promise<void> =>
+const handleCommandEdit = (id: string, _name: string, event: Event): Promise<void> =>
   openEditModal('command', id, event)
 
 const handleCreateEditSubmit = async (payload: { name: string; content: string }): Promise<void> => {

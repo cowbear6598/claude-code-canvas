@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { usePodStore, useViewportStore } from '@/stores/pod'
-import { useChatStore } from '@/stores/chatStore'
-import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
-import { useConnectionStore } from '@/stores/connectionStore'
-import { websocketClient, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
-import type { PodStatusChangedPayload, PodJoinBatchPayload } from '@/types/websocket'
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
+import {usePodStore, useViewportStore} from '@/stores/pod'
+import {useChatStore} from '@/stores/chatStore'
+import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore} from '@/stores/note'
+import {useConnectionStore} from '@/stores/connectionStore'
+import {websocketClient, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
+import type {PodStatusChangedPayload, PodJoinBatchPayload} from '@/types/websocket'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
 import ChatModal from '@/components/chat/ChatModal.vue'
-import { Toast } from '@/components/ui/toast'
+import {Toast} from '@/components/ui/toast'
 import DisconnectOverlay from '@/components/ui/DisconnectOverlay.vue'
-import { useCopyPaste } from '@/composables/canvas'
+import {useCopyPaste} from '@/composables/canvas'
 import {
   CONTENT_PREVIEW_LENGTH,
   RESPONSE_PREVIEW_LENGTH,
@@ -37,8 +37,8 @@ const isLoading = ref(false)
 
 const truncateContent = (content: string, maxLength: number): string => {
   return content.length > maxLength
-    ? `${content.slice(0, maxLength)}...`
-    : content
+      ? `${content.slice(0, maxLength)}...`
+      : content
 }
 
 const syncHistoryToPodOutput = (): void => {
@@ -91,50 +91,45 @@ const loadAppData = async (): Promise<void> => {
 
   isLoading.value = true
 
-  try {
-    await podStore.loadPodsFromBackend()
+  await podStore.loadPodsFromBackend()
 
-    useViewportStore().fitToAllPods(podStore.pods)
+  useViewportStore().fitToAllPods(podStore.pods)
 
-    const podIds = podStore.pods.map(p => p.id)
-    if (podIds.length > 0) {
-      websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, { podIds })
-    }
-
-    await outputStyleStore.loadOutputStyles()
-    await outputStyleStore.loadNotesFromBackend()
-    await outputStyleStore.rebuildNotesFromPods(podStore.pods)
-
-    await skillStore.loadSkills()
-    await skillStore.loadNotesFromBackend()
-
-    await subAgentStore.loadItems()
-    await subAgentStore.loadNotesFromBackend()
-
-    await repositoryStore.loadRepositories()
-    await repositoryStore.loadNotesFromBackend()
-
-    await commandStore.loadCommands()
-    await commandStore.loadNotesFromBackend()
-
-    await connectionStore.loadConnectionsFromBackend()
-
-    connectionStore.setupWorkflowListeners()
-
-    if (podIds.length > 0) {
-      await chatStore.loadAllPodsHistory(podIds)
-
-      syncHistoryToPodOutput()
-    }
-
-    websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
-
-    isInitialized.value = true
-  } catch (error) {
-    console.error('[App] Failed to load app data:', error)
-  } finally {
-    isLoading.value = false
+  const podIds = podStore.pods.map(p => p.id)
+  if (podIds.length > 0) {
+    websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, {podIds})
   }
+
+  await outputStyleStore.loadOutputStyles()
+  await outputStyleStore.loadNotesFromBackend()
+  await outputStyleStore.rebuildNotesFromPods(podStore.pods)
+
+  await skillStore.loadSkills()
+  await skillStore.loadNotesFromBackend()
+
+  await subAgentStore.loadItems()
+  await subAgentStore.loadNotesFromBackend()
+
+  await repositoryStore.loadRepositories()
+  await repositoryStore.loadNotesFromBackend()
+
+  await commandStore.loadCommands()
+  await commandStore.loadNotesFromBackend()
+
+  await connectionStore.loadConnectionsFromBackend()
+
+  connectionStore.setupWorkflowListeners()
+
+  if (podIds.length > 0) {
+    await chatStore.loadAllPodsHistory(podIds)
+
+    syncHistoryToPodOutput()
+  }
+
+  websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
+
+  isInitialized.value = true
+  isLoading.value = false
 }
 
 const initializeApp = async (): Promise<void> => {
@@ -146,12 +141,12 @@ const initializeApp = async (): Promise<void> => {
 }
 
 watch(
-  () => chatStore.connectionStatus,
-  (newStatus) => {
-    if (newStatus === 'connected' && !chatStore.allHistoryLoaded && !isInitialized.value) {
-      loadAppData()
+    () => chatStore.connectionStatus,
+    (newStatus) => {
+      if (newStatus === 'connected' && !chatStore.allHistoryLoaded && !isInitialized.value) {
+        loadAppData()
+      }
     }
-  }
 )
 
 onMounted(() => {
@@ -167,24 +162,24 @@ onUnmounted(() => {
 <template>
   <div class="h-screen bg-background overflow-hidden flex flex-col">
     <!-- Header -->
-    <AppHeader />
+    <AppHeader/>
 
     <!-- Canvas -->
     <main class="flex-1 relative">
-      <CanvasContainer />
+      <CanvasContainer/>
     </main>
 
     <!-- Chat Modal -->
     <ChatModal
-      v-if="selectedPod"
-      :pod="selectedPod"
-      @close="handleCloseChat"
+        v-if="selectedPod"
+        :pod="selectedPod"
+        @close="handleCloseChat"
     />
 
     <!-- Toast -->
-    <Toast />
+    <Toast/>
 
     <!-- Disconnect Overlay -->
-    <DisconnectOverlay />
+    <DisconnectOverlay/>
   </div>
 </template>

@@ -143,7 +143,6 @@ export const useChatStore = defineStore('chat', {
             websocketClient.on<PodChatToolUsePayload>(WebSocketResponseEvents.POD_CHAT_TOOL_USE, this.handleChatToolUse)
             websocketClient.on<PodChatToolResultPayload>(WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, this.handleChatToolResult)
             websocketClient.on<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)
-            websocketClient.on<PodChatHistoryResultPayload>(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, this.handleChatHistoryResult)
             websocketClient.on<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
             websocketClient.on<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
             websocketClient.on<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
@@ -157,7 +156,6 @@ export const useChatStore = defineStore('chat', {
             websocketClient.off<PodChatToolUsePayload>(WebSocketResponseEvents.POD_CHAT_TOOL_USE, this.handleChatToolUse)
             websocketClient.off<PodChatToolResultPayload>(WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, this.handleChatToolResult)
             websocketClient.off<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)
-            websocketClient.off<PodChatHistoryResultPayload>(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, this.handleChatHistoryResult)
             websocketClient.off<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
             websocketClient.off<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
             websocketClient.off<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
@@ -295,7 +293,7 @@ export const useChatStore = defineStore('chat', {
             this.setTyping(podId, true)
         },
 
-        addUserMessage(podId: string, content: string): void {
+        async addUserMessage(podId: string, content: string): Promise<void> {
             const userMessage: Message = {
                 id: generateRequestId(),
                 role: 'user',
@@ -306,17 +304,16 @@ export const useChatStore = defineStore('chat', {
             const messages = this.messagesByPodId.get(podId) || []
             this.messagesByPodId.set(podId, [...messages, userMessage])
 
-            import('./pod/podStore').then(({usePodStore}) => {
-                const podStore = usePodStore()
-                const pod = podStore.pods.find(p => p.id === podId)
+            const {usePodStore} = await import('./pod/podStore')
+            const podStore = usePodStore()
+            const pod = podStore.pods.find(p => p.id === podId)
 
-                if (pod) {
-                    const truncatedContent = `> ${truncateContent(content, CONTENT_PREVIEW_LENGTH)}`
-                    podStore.updatePod({
-                        ...pod,
-                        output: [...pod.output, truncatedContent]
-                    })
-                }
+            if (!pod) return
+
+            const truncatedContent = `> ${truncateContent(content, CONTENT_PREVIEW_LENGTH)}`
+            podStore.updatePod({
+                ...pod,
+                output: [...pod.output, truncatedContent]
             })
         },
 
@@ -593,24 +590,19 @@ export const useChatStore = defineStore('chat', {
 
             const hasToolUse = existingMessage.toolUse && existingMessage.toolUse.length > 0
 
-            if (hasToolUse) {
-                const updatedToolUse = existingMessage.toolUse!.map(tool =>
+            const updatedToolUse = hasToolUse
+                ? existingMessage.toolUse!.map(tool =>
                     tool.status === 'running'
                         ? {...tool, status: 'completed' as ToolUseStatus}
                         : tool
                 )
-                updatedMessages[messageIndex] = {
-                    ...existingMessage,
-                    content: fullContent,
-                    isPartial: false,
-                    toolUse: updatedToolUse
-                }
-            } else {
-                updatedMessages[messageIndex] = {
-                    ...existingMessage,
-                    content: fullContent,
-                    isPartial: false
-                }
+                : undefined
+
+            updatedMessages[messageIndex] = {
+                ...existingMessage,
+                content: fullContent,
+                isPartial: false,
+                ...(updatedToolUse && { toolUse: updatedToolUse })
             }
 
             if (existingMessage.subMessages && existingMessage.subMessages.length > 0) {
@@ -653,37 +645,36 @@ export const useChatStore = defineStore('chat', {
             this.finalizeStreaming(podId, messageId)
         },
 
-        updatePodOutput(podId: string, _content: string): void {
-            import('./pod/podStore').then(({usePodStore}) => {
-                const podStore = usePodStore()
-                const pod = podStore.pods.find(p => p.id === podId)
+        async updatePodOutput(podId: string, _content: string): Promise<void> {
+            const {usePodStore} = await import('./pod/podStore')
+            const podStore = usePodStore()
+            const pod = podStore.pods.find(p => p.id === podId)
 
-                if (!pod) return
+            if (!pod) return
 
-                const messages = this.messagesByPodId.get(podId) || []
-                const outputLines: string[] = []
+            const messages = this.messagesByPodId.get(podId) || []
+            const outputLines: string[] = []
 
-                for (const msg of messages) {
-                    if (msg.role === 'user') {
-                        const userContent = typeof msg.content === 'string' ? msg.content : ''
-                        if (userContent) {
-                            outputLines.push(`> ${truncateContent(userContent, RESPONSE_PREVIEW_LENGTH)}`)
-                        }
-                    } else if (msg.role === 'assistant') {
-                        if (msg.subMessages && msg.subMessages.length > 0) {
-                            for (const sub of msg.subMessages) {
-                                if (sub.content) {
-                                    outputLines.push(truncateContent(sub.content, RESPONSE_PREVIEW_LENGTH))
-                                }
+            for (const msg of messages) {
+                if (msg.role === 'user') {
+                    const userContent = typeof msg.content === 'string' ? msg.content : ''
+                    if (userContent) {
+                        outputLines.push(`> ${truncateContent(userContent, RESPONSE_PREVIEW_LENGTH)}`)
+                    }
+                } else if (msg.role === 'assistant') {
+                    if (msg.subMessages && msg.subMessages.length > 0) {
+                        for (const sub of msg.subMessages) {
+                            if (sub.content) {
+                                outputLines.push(truncateContent(sub.content, RESPONSE_PREVIEW_LENGTH))
                             }
                         }
                     }
                 }
+            }
 
-                podStore.updatePod({
-                    ...pod,
-                    output: outputLines
-                })
+            podStore.updatePod({
+                ...pod,
+                output: outputLines
             })
         },
 
@@ -821,25 +812,21 @@ export const useChatStore = defineStore('chat', {
             this.allHistoryLoaded = true
         },
 
-        handleChatHistoryResult(_: PodChatHistoryResultPayload): void {
-        },
 
-        handleMessagesClearedEvent(payload: PodMessagesClearedPayload): void {
+        async handleMessagesClearedEvent(payload: PodMessagesClearedPayload): Promise<void> {
             this.clearMessagesByPodIds([payload.podId])
 
-            import('./pod/podStore').then(({usePodStore}) => {
-                const podStore = usePodStore()
-                podStore.clearPodOutputsByIds([payload.podId])
-            })
+            const {usePodStore} = await import('./pod/podStore')
+            const podStore = usePodStore()
+            podStore.clearPodOutputsByIds([payload.podId])
         },
 
-        handleWorkflowAutoCleared(payload: WorkflowAutoClearedPayload): void {
+        async handleWorkflowAutoCleared(payload: WorkflowAutoClearedPayload): Promise<void> {
             this.clearMessagesByPodIds(payload.clearedPodIds)
 
-            import('./pod/podStore').then(({usePodStore}) => {
-                const podStore = usePodStore()
-                podStore.clearPodOutputsByIds(payload.clearedPodIds)
-            })
+            const {usePodStore} = await import('./pod/podStore')
+            const podStore = usePodStore()
+            podStore.clearPodOutputsByIds(payload.clearedPodIds)
 
             this.autoClearAnimationPodId = payload.sourcePodId
         },
