@@ -17,6 +17,7 @@ export async function setup(): Promise<void> {
     await mkdir(testConfig.outputStylesPath, { recursive: true });
     await mkdir(testConfig.skillsPath, { recursive: true });
     await mkdir(testConfig.agentsPath, { recursive: true });
+    await mkdir(testConfig.commandsPath, { recursive: true });
 
     console.log('[Test Setup] Created test directories at:', testConfig.appDataRoot);
   } catch (error) {
