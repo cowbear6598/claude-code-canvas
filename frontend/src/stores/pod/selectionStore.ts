@@ -7,6 +7,8 @@ interface SelectionState {
   box: SelectionBox | null
   selectedElements: SelectableElement[]
   boxSelectJustEnded: boolean
+  isCtrlMode: boolean
+  initialSelectedElements: SelectableElement[]
 }
 
 function isNoteInSelectionBox(
@@ -31,6 +33,8 @@ export const useSelectionStore = defineStore('selection', {
     box: null,
     selectedElements: [],
     boxSelectJustEnded: false,
+    isCtrlMode: false,
+    initialSelectedElements: [],
   }),
 
   getters: {
@@ -86,16 +90,30 @@ export const useSelectionStore = defineStore('selection', {
      * 是否有選中的元素
      */
     hasSelection: (state): boolean => state.selectedElements.length > 0,
+
+    /**
+     * 檢查元素是否已選取
+     */
+    isElementSelected: (state) => (type: string, id: string): boolean => {
+      return state.selectedElements.some(el => el.type === type && el.id === id)
+    },
   },
 
   actions: {
     /**
      * 開始框選
      */
-    startSelection(startX: number, startY: number): void {
+    startSelection(startX: number, startY: number, isCtrlPressed: boolean = false): void {
       this.isSelecting = true
       this.box = { startX, startY, endX: startX, endY: startY }
-      this.selectedElements = []
+      this.isCtrlMode = isCtrlPressed
+
+      if (isCtrlPressed) {
+        this.initialSelectedElements = [...this.selectedElements]
+      } else {
+        this.selectedElements = []
+        this.initialSelectedElements = []
+      }
     },
 
     /**
@@ -114,6 +132,8 @@ export const useSelectionStore = defineStore('selection', {
       this.isSelecting = false
       this.box = null
       this.boxSelectJustEnded = true
+      this.isCtrlMode = false
+      this.initialSelectedElements = []
       requestAnimationFrame(() => {
         this.boxSelectJustEnded = false
       })
@@ -133,6 +153,43 @@ export const useSelectionStore = defineStore('selection', {
      */
     setSelectedElements(elements: SelectableElement[]): void {
       this.selectedElements = elements
+    },
+
+    /**
+     * Toggle 元素選取狀態
+     */
+    toggleElement(element: SelectableElement): void {
+      const index = this.selectedElements.findIndex(
+        el => el.type === element.type && el.id === element.id
+      )
+
+      if (index !== -1) {
+        this.selectedElements.splice(index, 1)
+      } else {
+        this.selectedElements.push(element)
+      }
+    },
+
+    /**
+     * 加入元素到選取中
+     */
+    addElement(element: SelectableElement): void {
+      const exists = this.selectedElements.some(
+        el => el.type === element.type && el.id === element.id
+      )
+
+      if (!exists) {
+        this.selectedElements.push(element)
+      }
+    },
+
+    /**
+     * 從選取中移除元素
+     */
+    removeElement(element: SelectableElement): void {
+      this.selectedElements = this.selectedElements.filter(
+        el => !(el.type === element.type && el.id === element.id)
+      )
     },
 
     calculateSelectedElements(
@@ -206,7 +263,25 @@ export const useSelectionStore = defineStore('selection', {
         }
       }
 
-      this.selectedElements = selected
+      if (this.isCtrlMode) {
+        const result = [...this.initialSelectedElements]
+
+        for (const element of selected) {
+          const index = result.findIndex(
+            el => el.type === element.type && el.id === element.id
+          )
+
+          if (index !== -1) {
+            result.splice(index, 1)
+          } else {
+            result.push(element)
+          }
+        }
+
+        this.selectedElements = result
+      } else {
+        this.selectedElements = selected
+      }
     },
   },
 })

@@ -113,6 +113,13 @@ const handleMouseDown = (e: MouseEvent): void => {
     return
   }
 
+  if (e.ctrlKey || e.metaKey) {
+    selectionStore.toggleElement({type: 'pod', id: props.pod.id})
+    podStore.setActivePod(props.pod.id)
+    connectionStore.selectConnection(null)
+    return
+  }
+
   if (isElementSelected('pod', props.pod.id)) {
     if (startBatchDrag(e)) {
       return

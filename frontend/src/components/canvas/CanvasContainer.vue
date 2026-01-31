@@ -92,6 +92,10 @@ const handleCanvasClick = (e: MouseEvent): void => {
     return
   }
 
+  if (e.ctrlKey || e.metaKey) {
+    return
+  }
+
   selectionStore.clearSelection()
   connectionStore.selectConnection(null)
 }

@@ -114,6 +114,11 @@ onUnmounted(() => {
 const handleMouseDown = (e: MouseEvent): void => {
   const selectionType = selectionTypeMap[props.noteType]
 
+  if (e.ctrlKey || e.metaKey) {
+    selectionStore.toggleElement({ type: selectionType, id: props.note.id })
+    return
+  }
+
   if (isElementSelected(selectionType, props.note.id) && selectionStore.selectedElements.length > 1) {
     if (startBatchDrag(e)) {
       return

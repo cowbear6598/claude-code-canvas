@@ -39,8 +39,8 @@ export function useBoxSelect(): {
     const canvasX = (e.clientX - viewportStore.offset.x) / viewportStore.zoom
     const canvasY = (e.clientY - viewportStore.offset.y) / viewportStore.zoom
 
-    selectionStore.clearSelection()
-    selectionStore.startSelection(canvasX, canvasY)
+    const isCtrlPressed = e.ctrlKey || e.metaKey
+    selectionStore.startSelection(canvasX, canvasY, isCtrlPressed)
     isBoxSelecting.value = true
 
     cleanupEventListeners()

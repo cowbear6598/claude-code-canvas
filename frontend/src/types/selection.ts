@@ -19,4 +19,7 @@ export interface SelectionState {
   isSelecting: boolean           // 是否正在框選中
   box: SelectionBox | null       // 框選框座標
   selectedElements: SelectableElement[]  // 被選中的元素
+  boxSelectJustEnded: boolean    // 框選是否剛結束
+  isCtrlMode: boolean            // 是否為 Ctrl 框選模式
+  initialSelectedElements: SelectableElement[]  // 框選開始時的已選取元素
 }
