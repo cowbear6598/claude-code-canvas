@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
-import {usePodStore, useViewportStore} from '@/stores/pod'
-import {useChatStore} from '@/stores/chat'
-import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore} from '@/stores/note'
-import {useConnectionStore} from '@/stores/connectionStore'
+import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
 import {websocketClient, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
 import type {PodStatusChangedPayload, PodJoinBatchPayload} from '@/types/websocket'
 import AppHeader from '@/components/layout/AppHeader.vue'
@@ -18,14 +15,17 @@ import {
   OUTPUT_LINES_PREVIEW_COUNT,
 } from '@/lib/constants'
 
-const podStore = usePodStore()
-const chatStore = useChatStore()
-const outputStyleStore = useOutputStyleStore()
-const skillStore = useSkillStore()
-const subAgentStore = useSubAgentStore()
-const repositoryStore = useRepositoryStore()
-const commandStore = useCommandStore()
-const connectionStore = useConnectionStore()
+const {
+  podStore,
+  viewportStore,
+  chatStore,
+  outputStyleStore,
+  skillStore,
+  subAgentStore,
+  repositoryStore,
+  commandStore,
+  connectionStore
+} = useCanvasContext()
 
 const selectedPod = computed(() => podStore.selectedPod)
 
@@ -93,7 +93,7 @@ const loadAppData = async (): Promise<void> => {
 
   await podStore.loadPodsFromBackend()
 
-  useViewportStore().fitToAllPods(podStore.pods)
+  viewportStore.fitToAllPods(podStore.pods)
 
   const podIds = podStore.pods.map(p => p.id)
   if (podIds.length > 0) {

@@ -2,6 +2,7 @@ import { usePodStore, useViewportStore, useSelectionStore } from '@/stores/pod'
 import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useClipboardStore } from '@/stores/clipboardStore'
+import { useChatStore } from '@/stores/chat'
 
 export function useCanvasContext(): {
   podStore: ReturnType<typeof usePodStore>
@@ -14,6 +15,7 @@ export function useCanvasContext(): {
   commandStore: ReturnType<typeof useCommandStore>
   connectionStore: ReturnType<typeof useConnectionStore>
   clipboardStore: ReturnType<typeof useClipboardStore>
+  chatStore: ReturnType<typeof useChatStore>
 } {
   const podStore = usePodStore()
   const viewportStore = useViewportStore()
@@ -25,6 +27,7 @@ export function useCanvasContext(): {
   const commandStore = useCommandStore()
   const connectionStore = useConnectionStore()
   const clipboardStore = useClipboardStore()
+  const chatStore = useChatStore()
 
   return {
     podStore,
@@ -36,6 +39,7 @@ export function useCanvasContext(): {
     repositoryStore,
     commandStore,
     connectionStore,
-    clipboardStore
+    clipboardStore,
+    chatStore
   }
 }

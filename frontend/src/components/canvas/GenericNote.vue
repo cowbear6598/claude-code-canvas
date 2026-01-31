@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted, computed } from 'vue'
 import type { BaseNote } from '@/types'
-import { useViewportStore, useSelectionStore } from '@/stores/pod'
-import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
+import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import { useBatchDrag } from '@/composables/canvas'
 import { isCtrlOrCmdPressed } from '@/utils/keyboardHelpers'
 
@@ -37,13 +36,15 @@ const selectionTypeMap = {
   command: 'commandNote'
 } as const
 
-const viewportStore = useViewportStore()
-const selectionStore = useSelectionStore()
-const outputStyleStore = useOutputStyleStore()
-const skillStore = useSkillStore()
-const subAgentStore = useSubAgentStore()
-const repositoryStore = useRepositoryStore()
-const commandStore = useCommandStore()
+const {
+  viewportStore,
+  selectionStore,
+  outputStyleStore,
+  skillStore,
+  subAgentStore,
+  repositoryStore,
+  commandStore
+} = useCanvasContext()
 const { startBatchDrag, isElementSelected } = useBatchDrag()
 
 const noteStore = computed(() => {

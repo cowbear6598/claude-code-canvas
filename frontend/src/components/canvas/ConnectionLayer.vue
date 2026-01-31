@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
-import { useConnectionStore } from '@/stores/connectionStore'
-import { usePodStore } from '@/stores/pod'
+import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import ConnectionLine from './ConnectionLine.vue'
 
-const connectionStore = useConnectionStore()
-const podStore = usePodStore()
+const { connectionStore, podStore } = useCanvasContext()
 
 const draggingPathData = computed(() => {
   if (!connectionStore.draggingConnection) {

@@ -4,7 +4,6 @@ import { websocketClient, createWebSocketRequest, WebSocketRequestEvents, WebSoc
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { isEditingElement, isModifierKeyPressed, hasTextSelection } from '@/utils/domHelpers'
 import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT, PASTE_TIMEOUT_MS } from '@/lib/constants'
-import { useRepositoryStore, useSubAgentStore, useCommandStore } from '@/stores/note'
 import type {
   CanvasPasteResultPayload,
   CanvasPastePayload,
@@ -33,13 +32,12 @@ export function useCopyPaste(): void {
     selectionStore,
     outputStyleStore,
     skillStore,
+    repositoryStore,
+    subAgentStore,
+    commandStore,
     clipboardStore,
     connectionStore
   } = useCanvasContext()
-
-  const repositoryStore = useRepositoryStore()
-  const subAgentStore = useSubAgentStore()
-  const commandStore = useCommandStore()
 
   const mousePosition = ref({ x: 0, y: 0 })
 

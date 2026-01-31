@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
-import { usePodStore, useViewportStore, useSelectionStore } from '@/stores/pod'
-import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
-import { useConnectionStore } from '@/stores/connectionStore'
+import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import { useDeleteSelection, useNoteEventHandlers, useGitCloneProgress } from '@/composables/canvas'
 import { isCtrlOrCmdPressed } from '@/utils/keyboardHelpers'
 import CanvasViewport from './CanvasViewport.vue'
@@ -21,15 +19,17 @@ import {
   DEFAULT_POD_ROTATION_RANGE,
 } from '@/lib/constants'
 
-const podStore = usePodStore()
-const viewportStore = useViewportStore()
-const selectionStore = useSelectionStore()
-const outputStyleStore = useOutputStyleStore()
-const skillStore = useSkillStore()
-const subAgentStore = useSubAgentStore()
-const repositoryStore = useRepositoryStore()
-const commandStore = useCommandStore()
-const connectionStore = useConnectionStore()
+const {
+  podStore,
+  viewportStore,
+  selectionStore,
+  outputStyleStore,
+  skillStore,
+  subAgentStore,
+  repositoryStore,
+  commandStore,
+  connectionStore
+} = useCanvasContext()
 
 useDeleteSelection()
 

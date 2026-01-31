@@ -3,8 +3,7 @@ import { websocketClient } from '@/services/websocket'
 import { WebSocketResponseEvents } from '@/types/websocket'
 import type { RepositoryGitCloneProgressPayload, RepositoryGitCloneResultPayload } from '@/types/websocket'
 import { useToast } from '@/composables/useToast'
-import { useRepositoryStore } from '@/stores/note'
-import { useChatStore } from '@/stores/chat'
+import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 
 export type CloneStatus = 'cloning' | 'completed' | 'failed'
 
@@ -19,8 +18,7 @@ export interface CloneTask {
 export function useGitCloneProgress() {
   const cloneTasks = ref<Map<string, CloneTask>>(new Map())
   const { toast } = useToast()
-  const repositoryStore = useRepositoryStore()
-  const chatStore = useChatStore()
+  const { repositoryStore, chatStore } = useCanvasContext()
   const listenersRegistered = ref(false)
 
   const addTask = (requestId: string, repoName: string): void => {

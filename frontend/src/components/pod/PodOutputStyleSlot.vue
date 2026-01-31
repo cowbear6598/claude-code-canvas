@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { OutputStyleNote } from '@/types'
-import { useOutputStyleStore } from '@/stores/note'
-import { useViewportStore } from '@/stores/pod'
+import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import { useSlotDropTarget } from '@/composables/pod/useSlotDropTarget'
 import { useSlotEject } from '@/composables/pod/useSlotEject'
 
@@ -17,8 +16,7 @@ const emit = defineEmits<{
   'note-removed': []
 }>()
 
-const outputStyleStore = useOutputStyleStore()
-const viewportStore = useViewportStore()
+const { outputStyleStore, viewportStore } = useCanvasContext()
 const slotRef = ref<HTMLElement | null>(null)
 
 const { isDropTarget, isInserting } = useSlotDropTarget({

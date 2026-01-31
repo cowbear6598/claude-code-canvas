@@ -2,10 +2,7 @@
 import {ref, computed, onUnmounted} from 'vue'
 import type {Pod, ModelType} from '@/types'
 import type {AnchorPosition} from '@/types/connection'
-import {usePodStore, useViewportStore, useSelectionStore} from '@/stores/pod'
-import {useOutputStyleStore, useSkillStore, useRepositoryStore, useSubAgentStore, useCommandStore} from '@/stores/note'
-import {useConnectionStore} from '@/stores/connectionStore'
-import {useChatStore} from '@/stores/chat'
+import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
 import {useAnchorDetection} from '@/composables/useAnchorDetection'
 import {useBatchDrag} from '@/composables/canvas'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
@@ -30,16 +27,18 @@ const props = defineProps<{
   pod: Pod
 }>()
 
-const podStore = usePodStore()
-const viewportStore = useViewportStore()
-const selectionStore = useSelectionStore()
-const outputStyleStore = useOutputStyleStore()
-const skillStore = useSkillStore()
-const subAgentStore = useSubAgentStore()
-const repositoryStore = useRepositoryStore()
-const commandStore = useCommandStore()
-const connectionStore = useConnectionStore()
-const chatStore = useChatStore()
+const {
+  podStore,
+  viewportStore,
+  selectionStore,
+  outputStyleStore,
+  skillStore,
+  subAgentStore,
+  repositoryStore,
+  commandStore,
+  connectionStore,
+  chatStore
+} = useCanvasContext()
 const {detectTargetAnchor} = useAnchorDetection()
 const {startBatchDrag, isElementSelected} = useBatchDrag()
 

@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus, FilePlus } from 'lucide-vue-next'
 import type { Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent } from '@/types'
 import { podTypes } from '@/data/podTypes'
-import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
+import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import CreateRepositoryModal from './CreateRepositoryModal.vue'
 import CloneRepositoryModal from './CloneRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
@@ -27,11 +27,13 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const outputStyleStore = useOutputStyleStore()
-const skillStore = useSkillStore()
-const subAgentStore = useSubAgentStore()
-const repositoryStore = useRepositoryStore()
-const commandStore = useCommandStore()
+const {
+  outputStyleStore,
+  skillStore,
+  subAgentStore,
+  repositoryStore,
+  commandStore
+} = useCanvasContext()
 
 type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
 type ResourceType = 'outputStyle' | 'subAgent' | 'command'
