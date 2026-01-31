@@ -13,6 +13,7 @@ import {subAgentService} from '../services/subAgentService.js';
 import {subAgentNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
 import {repositoryService} from '../services/repositoryService.js';
+import {repositorySyncService} from '../services/repositorySyncService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
@@ -115,6 +116,11 @@ export async function handlePodBindSubAgent(
     }
 
     podStore.addSubAgentId(podId, subAgentId);
+
+    if (pod.repositoryId) {
+        await repositorySyncService.syncRepositoryResources(pod.repositoryId);
+    }
+
     const updatedPod = podStore.getById(podId);
 
     const response: PodSubAgentBoundPayload = {

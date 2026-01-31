@@ -14,6 +14,7 @@ import type {
 import {commandService} from '../services/commandService.js';
 import {commandNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
+import {repositorySyncService} from '../services/repositorySyncService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
@@ -110,6 +111,11 @@ export async function handlePodBindCommand(
     await commandService.copyCommandToPod(commandId, podId);
 
     podStore.setCommandId(podId, commandId);
+
+    if (pod.repositoryId) {
+        await repositorySyncService.syncRepositoryResources(pod.repositoryId);
+    }
+
     const updatedPod = podStore.getById(podId);
 
     const response: PodCommandBoundPayload = {
@@ -147,6 +153,11 @@ export async function handlePodUnbindCommand(
     await commandService.deleteCommandFromPath(pod.workspacePath);
 
     podStore.setCommandId(podId, null);
+
+    if (pod.repositoryId) {
+        await repositorySyncService.syncRepositoryResources(pod.repositoryId);
+    }
+
     const updatedPod = podStore.getById(podId);
 
     const response: PodCommandUnboundPayload = {

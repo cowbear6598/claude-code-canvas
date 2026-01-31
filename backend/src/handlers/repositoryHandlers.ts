@@ -20,12 +20,12 @@ import { repositoryService } from '../services/repositoryService.js';
 import { repositoryNoteStore } from '../services/noteStores.js';
 import { podStore } from '../services/podStore.js';
 import { gitService } from '../services/workspace/gitService.js';
+import { repositorySyncService } from '../services/repositorySyncService.js';
+import { skillService } from '../services/skillService.js';
+import { subAgentService } from '../services/subAgentService.js';
+import { commandService } from '../services/commandService.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
-import {
-  cleanupOldRepositoryResources,
-  copyResourcesToNewPath,
-  clearPodMessages,
-} from './repository/repositoryBindHelpers.js';
+import { clearPodMessages } from './repository/repositoryBindHelpers.js';
 import { logger } from '../utils/logger.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';
 import { validatePod, handleResourceDelete } from '../utils/handlerHelpers.js';
@@ -124,17 +124,16 @@ export async function handlePodBindRepository(
   }
 
   const oldRepositoryId = pod.repositoryId;
-  const oldCwd = oldRepositoryId
-    ? repositoryService.getRepositoryPath(oldRepositoryId)
-    : pod.workspacePath;
-
-  await cleanupOldRepositoryResources(oldCwd);
 
   podStore.setRepositoryId(podId, repositoryId);
   podStore.setClaudeSessionId(podId, '');
 
-  const newCwd = repositoryService.getRepositoryPath(repositoryId);
-  await copyResourcesToNewPath(pod, newCwd, true);
+  await repositorySyncService.syncRepositoryResources(repositoryId);
+
+  if (oldRepositoryId && oldRepositoryId !== repositoryId) {
+    await repositorySyncService.syncRepositoryResources(oldRepositoryId);
+  }
+
   await clearPodMessages(socket, podId);
 
   const updatedPod = podStore.getById(podId);
@@ -163,17 +162,39 @@ export async function handlePodUnbindRepository(
   }
 
   const oldRepositoryId = pod.repositoryId;
-  const oldCwd = oldRepositoryId
-    ? repositoryService.getRepositoryPath(oldRepositoryId)
-    : pod.workspacePath;
-
-  await cleanupOldRepositoryResources(oldCwd);
 
   podStore.setRepositoryId(podId, null);
   podStore.setClaudeSessionId(podId, '');
 
-  const newCwd = pod.workspacePath;
-  await copyResourcesToNewPath(pod, newCwd, false);
+  if (oldRepositoryId) {
+    await repositorySyncService.syncRepositoryResources(oldRepositoryId);
+  }
+
+  // 將當前 POD 的資源複製到 POD 自己的 workspacePath
+  for (const skillId of pod.skillIds) {
+    try {
+      await skillService.copySkillToPod(skillId, podId);
+    } catch (error) {
+      logger.error('Repository', 'Unbind', `Failed to copy skill ${skillId} to Pod ${podId}`, error);
+    }
+  }
+
+  for (const subAgentId of pod.subAgentIds) {
+    try {
+      await subAgentService.copySubAgentToPod(subAgentId, podId);
+    } catch (error) {
+      logger.error('Repository', 'Unbind', `Failed to copy subagent ${subAgentId} to Pod ${podId}`, error);
+    }
+  }
+
+  if (pod.commandId) {
+    try {
+      await commandService.copyCommandToPod(pod.commandId, podId);
+    } catch (error) {
+      logger.error('Repository', 'Unbind', `Failed to copy command ${pod.commandId} to Pod ${podId}`, error);
+    }
+  }
+
   await clearPodMessages(socket, podId);
 
   const updatedPod = podStore.getById(podId);
@@ -303,7 +324,7 @@ function getStageMessage(stage: string): string {
 }
 
 function parseRepoName(repoUrl: string): string {
-  let urlPath = repoUrl;
+  let urlPath: string;
 
   if (repoUrl.startsWith('git@')) {
     urlPath = repoUrl.split(':')[1] || '';

@@ -17,10 +17,11 @@ import type {
 import {podStore} from '../services/podStore.js';
 import {workspaceService} from '../services/workspace/index.js';
 import {claudeSessionManager} from '../services/claude/sessionManager.js';
-import {noteStore, skillNoteStore, repositoryNoteStore} from '../services/noteStores.js';
+import {noteStore, skillNoteStore, repositoryNoteStore, commandNoteStore, subAgentNoteStore} from '../services/noteStores.js';
 import {connectionStore} from '../services/connectionStore.js';
 import {socketService} from '../services/socketService.js';
 import { workflowStateService } from '../services/workflow/index.js';
+import {repositorySyncService} from '../services/repositorySyncService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {validatePod} from '../utils/handlerHelpers.js';
@@ -123,9 +124,21 @@ export async function handlePodDelete(
     noteStore.deleteByBoundPodId(podId);
     skillNoteStore.deleteByBoundPodId(podId);
     repositoryNoteStore.deleteByBoundPodId(podId);
+    commandNoteStore.deleteByBoundPodId(podId);
+    subAgentNoteStore.deleteByBoundPodId(podId);
     connectionStore.deleteByPodId(podId);
 
+    const repositoryId = pod.repositoryId;
+
     const deleted = podStore.delete(podId);
+
+    if (repositoryId) {
+        try {
+            await repositorySyncService.syncRepositoryResources(repositoryId);
+        } catch (error) {
+            logger.error('Pod', 'Delete', `Failed to sync repository ${repositoryId} after pod deletion`, error);
+        }
+    }
 
     if (!deleted) {
         emitError(

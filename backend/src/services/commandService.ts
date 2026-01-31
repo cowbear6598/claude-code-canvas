@@ -80,7 +80,7 @@ class CommandService {
     }
 
     async deleteCommandFromPath(basePath: string): Promise<void> {
-        if (!isPathWithinDirectory(basePath, config.canvasRoot)) {
+        if (!isPathWithinDirectory(basePath, config.canvasRoot) && !isPathWithinDirectory(basePath, config.repositoriesRoot)) {
             throw new Error('無效的路徑');
         }
 
