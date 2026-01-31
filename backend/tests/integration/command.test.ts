@@ -10,6 +10,7 @@ import {
   type TestServerInstance,
 } from '../setup/index.js';
 import { createPod, createCommand, FAKE_UUID, FAKE_COMMAND_ID } from '../helpers/index.js';
+import { podStore } from '../../src/services/podStore.js';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
@@ -305,6 +306,24 @@ describe('command', () => {
       );
 
       expect(response.success).toBe(false);
+    });
+
+    it('success_when_command_bound_persists_after_reload', async () => {
+      const pod = await createPod(client);
+      const cmd = await makeCommand();
+
+      await emitAndWaitResponse<PodBindCommandPayload, PodCommandBoundPayload>(
+        client,
+        WebSocketRequestEvents.POD_BIND_COMMAND,
+        WebSocketResponseEvents.POD_COMMAND_BOUND,
+        { requestId: uuidv4(), podId: pod.id, commandId: cmd.id }
+      );
+
+      await podStore.loadFromDisk();
+
+      const reloadedPod = podStore.getById(pod.id);
+      expect(reloadedPod).toBeDefined();
+      expect(reloadedPod!.commandId).toBe(cmd.id);
     });
   });
 

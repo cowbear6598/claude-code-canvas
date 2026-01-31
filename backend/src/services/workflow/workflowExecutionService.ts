@@ -1,25 +1,26 @@
-import { v4 as uuidv4 } from 'uuid';
+import {v4 as uuidv4} from 'uuid';
 import {
-  WebSocketResponseEvents,
-  type PodChatMessagePayload,
-  type PodChatToolUsePayload,
-  type PodChatToolResultPayload,
-  type PodChatCompletePayload,
-  type WorkflowAutoTriggeredPayload,
-  type WorkflowPendingPayload,
-  type WorkflowSourcesMergedPayload,
+    type PodChatCompletePayload,
+    type PodChatMessagePayload,
+    type PodChatToolResultPayload,
+    type PodChatToolUsePayload,
+    WebSocketResponseEvents,
+    type WorkflowAutoTriggeredPayload,
+    type WorkflowPendingPayload,
+    type WorkflowSourcesMergedPayload,
 } from '../../types/index.js';
-import { connectionStore } from '../connectionStore.js';
-import { podStore } from '../podStore.js';
-import { messageStore } from '../messageStore.js';
-import { claudeQueryService } from '../claude/queryService.js';
-import { socketService } from '../socketService.js';
-import { summaryService } from '../summaryService.js';
-import { pendingTargetStore } from '../pendingTargetStore.js';
-import { workflowStateService } from './workflowStateService.js';
-import { workflowEventEmitter } from './workflowEventEmitter.js';
-import { autoClearService } from '../autoClear/index.js';
-import { logger } from '../../utils/logger.js';
+import {connectionStore} from '../connectionStore.js';
+import {podStore} from '../podStore.js';
+import {messageStore} from '../messageStore.js';
+import {claudeQueryService} from '../claude/queryService.js';
+import {socketService} from '../socketService.js';
+import {summaryService} from '../summaryService.js';
+import {pendingTargetStore} from '../pendingTargetStore.js';
+import {workflowStateService} from './workflowStateService.js';
+import {workflowEventEmitter} from './workflowEventEmitter.js';
+import {autoClearService} from '../autoClear/index.js';
+import {logger} from '../../utils/logger.js';
+import {commandService} from '../commandService.js';
 
 class WorkflowExecutionService {
   private formatMergedSummaries(summaries: Map<string, string>): string {
@@ -44,6 +45,21 @@ class WorkflowExecutionService {
 ---
 ${content}
 ---`;
+  }
+
+  private async buildMessageWithCommand(targetPodId: string, baseMessage: string): Promise<string> {
+    const targetPod = podStore.getById(targetPodId);
+    if (!targetPod?.commandId) {
+      return baseMessage;
+    }
+
+    const commands = await commandService.list();
+    const command = commands.find((cmd) => cmd.id === targetPod.commandId);
+    if (!command) {
+      return baseMessage;
+    }
+
+    return `/${command.name} ${baseMessage}`;
   }
 
   private getLastAssistantMessage(sourcePodId: string): string | null {
@@ -322,7 +338,8 @@ ${content}
   ): Promise<void> {
     podStore.setStatus(targetPodId, 'chatting');
 
-    const messageToSend = this.buildTransferMessage(content);
+    const baseMessage = this.buildTransferMessage(content);
+    const messageToSend = await this.buildMessageWithCommand(targetPodId, baseMessage);
 
     const userMessageId = uuidv4();
     const assistantMessageId = uuidv4();
@@ -352,6 +369,8 @@ ${content}
         WebSocketResponseEvents.POD_CHAT_COMPLETE,
         userCompletePayload
       );
+
+      await messageStore.addMessage(targetPodId, 'user', messageToSend);
 
       await claudeQueryService.sendMessage(targetPodId, messageToSend, (event) => {
         switch (event.type) {

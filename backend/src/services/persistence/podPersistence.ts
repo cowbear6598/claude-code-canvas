@@ -30,6 +30,9 @@ class PodPersistenceService {
       model: pod.model,
       repositoryId: pod.repositoryId,
       autoClear: pod.autoClear,
+      commandId: pod.commandId,
+      subAgentIds: pod.subAgentIds,
+      needsForkSession: pod.needsForkSession,
     };
   }
 
