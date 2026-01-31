@@ -1,27 +1,45 @@
-import {simpleGit, StatusResult} from 'simple-git';
+import {simpleGit, StatusResult, SimpleGitProgressEvent} from 'simple-git';
 import { Result, ok, err } from '../../types/index.js';
 import {config} from '../../config/index.js';
 import { logger } from '../../utils/logger.js';
+
+export interface GitCloneProgress {
+    stage: string;
+    progress: number;
+}
+
+export interface GitCloneOptions {
+    branch?: string;
+    onProgress?: (progress: GitCloneProgress) => void;
+}
 
 class GitService {
     /**
      * Clone a Git repository
      * @param repoUrl Repository URL (supports HTTPS and SSH)
      * @param targetPath Absolute path to clone into
-     * @param branch Optional branch name (defaults to main)
+     * @param options Clone options including branch and progress callback
      */
     async clone(
         repoUrl: string,
         targetPath: string,
-        branch?: string
+        options?: GitCloneOptions
     ): Promise<Result<void>> {
         try {
-            const git = simpleGit();
+            const git = simpleGit({
+                progress: options?.onProgress
+                    ? (event: SimpleGitProgressEvent): void => {
+                          const progressData: GitCloneProgress = {
+                              stage: event.stage,
+                              progress: event.progress,
+                          };
+                          options.onProgress!(progressData);
+                      }
+                    : undefined,
+            });
 
-            // Add GitHub token authentication if available
             let authenticatedUrl = repoUrl;
             if (config.githubToken && repoUrl.includes('github.com')) {
-                // Convert HTTPS URLs to use token authentication
                 if (repoUrl.startsWith('https://github.com/')) {
                     authenticatedUrl = repoUrl.replace(
                         'https://github.com/',
@@ -30,7 +48,7 @@ class GitService {
                 }
             }
 
-            const cloneOptions = branch ? ['--branch', branch] : [];
+            const cloneOptions = options?.branch ? ['--branch', options.branch] : [];
 
             await git.clone(authenticatedUrl, targetPath, cloneOptions);
             return ok(undefined);

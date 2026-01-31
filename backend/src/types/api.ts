@@ -28,11 +28,6 @@ export interface ChatResponse {
   messageId: string;
 }
 
-export interface GitCloneRequest {
-  repoUrl: string;
-  branch?: string; // optional, defaults to main
-}
-
 export interface ApiError {
   error: string;
   code: string;

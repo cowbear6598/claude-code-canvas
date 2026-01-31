@@ -6,7 +6,6 @@ export {
   type PodGetPayload,
   type PodUpdatePayload,
   type PodDeletePayload,
-  type PodGitClonePayload,
   type PodChatSendPayload,
   type PodChatHistoryPayload,
   type PodJoinPayload,
@@ -18,8 +17,6 @@ export {
   type PodGetResultPayload,
   type PodUpdatedPayload,
   type PodDeletedPayload,
-  type PodGitCloneProgressPayload,
-  type PodGitCloneResultPayload,
   type PodChatMessagePayload,
   type PodChatToolUsePayload,
   type PodChatToolResultPayload,
@@ -140,4 +137,6 @@ export {
   type PodCommandUnboundPayload,
   type CommandDeletePayload,
   type CommandDeletedPayload,
+  type RepositoryGitCloneProgressPayload,
+  type RepositoryGitCloneResultPayload,
 } from './websocket-events.js';

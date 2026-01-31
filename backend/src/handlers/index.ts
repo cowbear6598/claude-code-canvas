@@ -9,7 +9,6 @@ import { skillHandlerGroup } from './groups/skillHandlerGroup.js';
 import { commandHandlerGroup } from './groups/commandHandlerGroup.js';
 import { outputStyleHandlerGroup } from './groups/outputStyleHandlerGroup.js';
 import { pasteHandlerGroup } from './groups/pasteHandlerGroup.js';
-import { gitHandlerGroup } from './groups/gitHandlerGroup.js';
 import { repositoryHandlerGroup } from './groups/repositoryHandlerGroup.js';
 import { subAgentHandlerGroup } from './groups/subAgentHandlerGroup.js';
 import { autoClearHandlerGroup } from './groups/autoClearHandlerGroup.js';
@@ -25,7 +24,6 @@ registry.registerGroup(skillHandlerGroup);
 registry.registerGroup(commandHandlerGroup);
 registry.registerGroup(outputStyleHandlerGroup);
 registry.registerGroup(pasteHandlerGroup);
-registry.registerGroup(gitHandlerGroup);
 registry.registerGroup(repositoryHandlerGroup);
 registry.registerGroup(subAgentHandlerGroup);
 registry.registerGroup(autoClearHandlerGroup);
@@ -41,7 +39,6 @@ export {
   handlePodUpdate,
   handlePodDelete,
 } from './podHandlers.js';
-export { handleGitClone } from './gitHandlers.js';
 export { handleChatSend, handleChatHistory } from './chatHandlers.js';
 export {
   handleOutputStyleList,
@@ -95,6 +92,7 @@ export {
   handlePodBindRepository,
   handlePodUnbindRepository,
   handleRepositoryDelete,
+  handleRepositoryGitClone,
 } from './repositoryHandlers.js';
 export {
   handleSubAgentList,

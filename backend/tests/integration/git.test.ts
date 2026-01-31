@@ -16,14 +16,12 @@ import { createTestPodPayload } from '../fixtures/index.js';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
-  type PodCreatePayload,
-  type PodCreatedPayload,
-  type PodGitClonePayload,
-  type PodGitCloneResultPayload,
-  type PodGitCloneProgressPayload,
-  type PodJoinPayload,
-  type PodJoinedPayload,
+  type RepositoryGitCloneProgressPayload,
+  type RepositoryGitCloneResultPayload,
 } from '../../src/types/index.js';
+import type {
+  RepositoryGitClonePayload,
+} from '../../src/schemas/index.js';
 
 // Mock simple-git 模組
 let mockCloneResult: { success: boolean; error?: string } = { success: true };
@@ -75,64 +73,39 @@ describe('Phase 6: Git 操作 Flow', () => {
 
   describe('Git Clone', () => {
     it('應能 Clone Git Repository', async () => {
-      // 設定 Git Mock 回傳成功
       mockCloneResult = { success: true };
 
-      // 建立 Pod
-      const createPayload = createTestPodPayload({ name: 'Git Clone Test Pod' });
-      const createResponse = await emitAndWaitResponse<PodCreatePayload, PodCreatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_CREATE,
-        WebSocketResponseEvents.POD_CREATED,
-        createPayload
-      );
-
-      expect(createResponse.success).toBe(true);
-      expect(createResponse.pod).toBeDefined();
-
-      const podId = createResponse.pod!.id;
-
-      // 加入 Pod Room 以接收 progress 事件
-      await emitAndWaitResponse<PodJoinPayload, PodJoinedPayload>(
-        client,
-        WebSocketRequestEvents.POD_JOIN,
-        WebSocketResponseEvents.POD_JOINED,
-        { podId }
-      );
-
-      // 收集 progress 事件
-      const progressEvents: PodGitCloneProgressPayload[] = [];
-      const progressHandler = (payload: PodGitCloneProgressPayload) => {
+      const progressEvents: RepositoryGitCloneProgressPayload[] = [];
+      const progressHandler = (payload: RepositoryGitCloneProgressPayload) => {
         progressEvents.push(payload);
       };
 
-      client.on(WebSocketResponseEvents.POD_GIT_CLONE_PROGRESS, progressHandler);
+      client.on(WebSocketResponseEvents.REPOSITORY_GIT_CLONE_PROGRESS, progressHandler);
 
-      // 發送 Git Clone 請求
-      const clonePayload: PodGitClonePayload = {
+      const clonePayload: RepositoryGitClonePayload = {
         requestId: uuidv4(),
-        podId,
         repoUrl: 'https://github.com/example/repo.git',
       };
 
       const cloneResponse = await emitAndWaitResponse<
-        PodGitClonePayload,
-        PodGitCloneResultPayload
+        RepositoryGitClonePayload,
+        RepositoryGitCloneResultPayload
       >(
         client,
-        WebSocketRequestEvents.POD_GIT_CLONE,
-        WebSocketResponseEvents.POD_GIT_CLONE_RESULT,
+        WebSocketRequestEvents.REPOSITORY_GIT_CLONE,
+        WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT,
         clonePayload,
-        10000 // 增加超時時間
+        10000
       );
 
       // 移除 progress 事件監聽器
-      client.off(WebSocketResponseEvents.POD_GIT_CLONE_PROGRESS, progressHandler);
+      client.off(WebSocketResponseEvents.REPOSITORY_GIT_CLONE_PROGRESS, progressHandler);
 
       // 驗證最終結果
       expect(cloneResponse.success).toBe(true);
-      expect(cloneResponse.pod).toBeDefined();
-      expect(cloneResponse.pod?.gitUrl).toBe('https://github.com/example/repo.git');
+      expect(cloneResponse.repository).toBeDefined();
+      expect(cloneResponse.repository?.id).toBe('repo');
+      expect(cloneResponse.repository?.name).toBe('repo');
 
       // 驗證 progress 事件
       expect(progressEvents.length).toBeGreaterThan(0);
@@ -148,9 +121,8 @@ describe('Phase 6: Git 操作 Flow', () => {
       expect(hasStartProgress).toBe(true);
       expect(hasEndProgress).toBe(true);
 
-      // 驗證所有 progress 事件的 podId 都正確
+      // 驗證所有 progress 事件都有正確的訊息
       progressEvents.forEach((event) => {
-        expect(event.podId).toBe(podId);
         expect(event.message).toBeDefined();
       });
     });
@@ -159,32 +131,19 @@ describe('Phase 6: Git 操作 Flow', () => {
       // 設定 Git Mock 回傳失敗
       mockCloneResult = { success: false, error: 'Repository not found' };
 
-      // 建立 Pod
-      const createPayload = createTestPodPayload({ name: 'Git Clone Fail Test Pod' });
-      const createResponse = await emitAndWaitResponse<PodCreatePayload, PodCreatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_CREATE,
-        WebSocketResponseEvents.POD_CREATED,
-        createPayload
-      );
-
-      expect(createResponse.success).toBe(true);
-      const podId = createResponse.pod!.id;
-
       // 發送 Git Clone 請求
-      const clonePayload: PodGitClonePayload = {
+      const clonePayload: RepositoryGitClonePayload = {
         requestId: uuidv4(),
-        podId,
-        repoUrl: 'https://github.com/invalid/repo.git',
+        repoUrl: 'https://github.com/invalid/clone-fail-test.git',
       };
 
       const cloneResponse = await emitAndWaitResponse<
-        PodGitClonePayload,
-        PodGitCloneResultPayload
+        RepositoryGitClonePayload,
+        RepositoryGitCloneResultPayload
       >(
         client,
-        WebSocketRequestEvents.POD_GIT_CLONE,
-        WebSocketResponseEvents.POD_GIT_CLONE_RESULT,
+        WebSocketRequestEvents.REPOSITORY_GIT_CLONE,
+        WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT,
         clonePayload,
         10000
       );
@@ -195,32 +154,50 @@ describe('Phase 6: Git 操作 Flow', () => {
       expect(cloneResponse.error).toContain('複製儲存庫失敗');
     });
 
-    it('Clone 到不存在的 Pod 應回傳錯誤', async () => {
-      // 不建立 Pod，直接使用不存在的 ID
-      const nonExistentPodId = '00000000-0000-0000-0000-000000000000';
+    it('Clone 已存在的 Repository 應回傳錯誤', async () => {
+      // 設定 Git Mock 回傳成功
+      mockCloneResult = { success: true };
 
-      // 發送 Git Clone 請求
-      const clonePayload: PodGitClonePayload = {
+      // 第一次 clone
+      const clonePayload1: RepositoryGitClonePayload = {
         requestId: uuidv4(),
-        podId: nonExistentPodId,
-        repoUrl: 'https://github.com/example/repo.git',
+        repoUrl: 'https://github.com/example/duplicate.git',
       };
 
-      const cloneResponse = await emitAndWaitResponse<
-        PodGitClonePayload,
-        PodGitCloneResultPayload
+      const cloneResponse1 = await emitAndWaitResponse<
+        RepositoryGitClonePayload,
+        RepositoryGitCloneResultPayload
       >(
         client,
-        WebSocketRequestEvents.POD_GIT_CLONE,
-        WebSocketResponseEvents.POD_GIT_CLONE_RESULT,
-        clonePayload,
+        WebSocketRequestEvents.REPOSITORY_GIT_CLONE,
+        WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT,
+        clonePayload1,
+        10000
+      );
+
+      expect(cloneResponse1.success).toBe(true);
+
+      // 第二次 clone 同一個 repository
+      const clonePayload2: RepositoryGitClonePayload = {
+        requestId: uuidv4(),
+        repoUrl: 'https://github.com/example/duplicate.git',
+      };
+
+      const cloneResponse2 = await emitAndWaitResponse<
+        RepositoryGitClonePayload,
+        RepositoryGitCloneResultPayload
+      >(
+        client,
+        WebSocketRequestEvents.REPOSITORY_GIT_CLONE,
+        WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT,
+        clonePayload2,
         10000
       );
 
       // 驗證錯誤回應
-      expect(cloneResponse.success).toBe(false);
-      expect(cloneResponse.error).toBeDefined();
-      expect(cloneResponse.error).toContain('not found');
+      expect(cloneResponse2.success).toBe(false);
+      expect(cloneResponse2.error).toBeDefined();
+      expect(cloneResponse2.error).toContain('already exists');
     });
   });
 });

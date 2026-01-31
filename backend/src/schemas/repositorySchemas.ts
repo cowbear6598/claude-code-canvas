@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { requestIdSchema, positionSchema } from './base.js';
 
+function isValidGitUrl(url: string): boolean {
+  const gitUrlPattern = /^(https?:\/\/|git@|git:\/\/).+/;
+  return gitUrlPattern.test(url);
+}
+
 export const repositoryListSchema = z.object({
   requestId: requestIdSchema,
 });
@@ -54,6 +59,14 @@ export const repositoryDeleteSchema = z.object({
   repositoryId: z.string(),
 });
 
+export const repositoryGitCloneSchema = z.object({
+  requestId: requestIdSchema,
+  repoUrl: z.string().min(1).refine(isValidGitUrl, {
+    message: 'Invalid Git repository URL',
+  }),
+  branch: z.string().optional(),
+});
+
 export type RepositoryListPayload = z.infer<typeof repositoryListSchema>;
 export type RepositoryCreatePayload = z.infer<typeof repositoryCreateSchema>;
 export type RepositoryNoteCreatePayload = z.infer<typeof repositoryNoteCreateSchema>;
@@ -63,3 +76,4 @@ export type RepositoryNoteDeletePayload = z.infer<typeof repositoryNoteDeleteSch
 export type PodBindRepositoryPayload = z.infer<typeof podBindRepositorySchema>;
 export type PodUnbindRepositoryPayload = z.infer<typeof podUnbindRepositorySchema>;
 export type RepositoryDeletePayload = z.infer<typeof repositoryDeleteSchema>;
+export type RepositoryGitClonePayload = z.infer<typeof repositoryGitCloneSchema>;

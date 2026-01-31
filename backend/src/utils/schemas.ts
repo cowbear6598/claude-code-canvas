@@ -1,6 +1,6 @@
 import { ValidationError } from './errors.js';
-import { isValidPodName, isValidPodType, isValidPodColor, isValidGitUrl } from './validators.js';
-import { CreatePodRequest, ChatRequest, GitCloneRequest } from '../types/index.js';
+import { isValidPodName, isValidPodType, isValidPodColor } from './validators.js';
+import { CreatePodRequest, ChatRequest } from '../types/index.js';
 
 /**
  * Validates the create pod request payload
@@ -60,36 +60,8 @@ export function validateChatMessageRequest(data: unknown): asserts data is ChatR
   }
 }
 
-/**
- * Validates the git clone request payload
- */
-export function validateGitCloneRequest(data: unknown): asserts data is GitCloneRequest {
-  const body = data as Record<string, unknown>;
-
-  // Validate repoUrl
-  if (!body.repoUrl || typeof body.repoUrl !== 'string') {
-    throw new ValidationError('Repository URL is required and must be a string');
-  }
-  if (!isValidGitUrl(body.repoUrl)) {
-    throw new ValidationError(
-      'Invalid Git URL format. Must be HTTPS, SSH, or GitHub shorthand (user/repo)'
-    );
-  }
-
-  // Validate branch (optional)
-  if (body.branch !== undefined) {
-    if (typeof body.branch !== 'string') {
-      throw new ValidationError('Branch must be a string');
-    }
-    if (body.branch.trim().length === 0) {
-      throw new ValidationError('Branch cannot be empty if provided');
-    }
-  }
-}
-
 // Export schema objects for use in validateRequest middleware
 export const schemas = {
   createPod: validateCreatePodRequest,
   chatMessage: validateChatMessageRequest,
-  gitClone: validateGitCloneRequest,
 };

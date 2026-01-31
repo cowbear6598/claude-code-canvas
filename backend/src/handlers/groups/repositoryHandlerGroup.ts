@@ -9,6 +9,7 @@ import {
   podBindRepositorySchema,
   podUnbindRepositorySchema,
   repositoryDeleteSchema,
+  repositoryGitCloneSchema,
 } from '../../schemas/index.js';
 import {
   handleRepositoryList,
@@ -20,6 +21,7 @@ import {
   handlePodBindRepository,
   handlePodUnbindRepository,
   handleRepositoryDelete,
+  handleRepositoryGitClone,
 } from '../repositoryHandlers.js';
 import { createHandlerDefinition } from '../registry.js';
 import type { HandlerGroup } from '../registry.js';
@@ -80,6 +82,12 @@ export const repositoryHandlerGroup: HandlerGroup = {
       handleRepositoryDelete,
       repositoryDeleteSchema,
       WebSocketResponseEvents.REPOSITORY_DELETED
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.REPOSITORY_GIT_CLONE,
+      handleRepositoryGitClone,
+      repositoryGitCloneSchema,
+      WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT
     ),
   ],
 };

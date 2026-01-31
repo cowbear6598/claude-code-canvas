@@ -1,5 +1,3 @@
-// WebSocket Request Payload Types (Client -> Server)
-
 import type { PodColor, PodTypeName, ModelType } from '../pod'
 
 export interface PodCreatePayload {
@@ -34,13 +32,6 @@ export interface PodUpdatePayload {
 export interface PodDeletePayload {
   requestId: string
   podId: string
-}
-
-export interface PodGitClonePayload {
-  requestId: string
-  podId: string
-  repoUrl: string
-  branch?: string
 }
 
 export interface PodChatSendPayload {
@@ -263,6 +254,12 @@ export interface RepositoryCreatePayload {
 export interface RepositoryDeletePayload {
   requestId: string
   repositoryId: string
+}
+
+export interface RepositoryGitClonePayload {
+  requestId: string
+  repoUrl: string
+  branch?: string
 }
 
 export interface RepositoryNoteCreatePayload {

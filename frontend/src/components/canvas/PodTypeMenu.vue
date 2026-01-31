@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import {ref, onMounted, computed} from 'vue'
-import {Palette, Wrench, FolderOpen, Bot} from 'lucide-vue-next'
-import type {Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent} from '@/types'
-import {podTypes} from '@/data/podTypes'
-import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore} from '@/stores/note'
+import { ref, onMounted, computed } from 'vue'
+import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus } from 'lucide-vue-next'
+import type { Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent } from '@/types'
+import { podTypes } from '@/data/podTypes'
+import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
 import CreateRepositoryModal from './CreateRepositoryModal.vue'
+import CloneRepositoryModal from './CloneRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 import PodTypeMenuSubmenu from './PodTypeMenuSubmenu.vue'
 
-defineProps<{
+interface Props {
   position: Position
-}>()
+}
+
+defineProps<Props>()
 
 const emit = defineEmits<{
   select: [config: PodTypeConfig]
@@ -19,6 +22,7 @@ const emit = defineEmits<{
   'create-subagent-note': [subAgentId: string]
   'create-repository-note': [repositoryId: string]
   'create-command-note': [commandId: string]
+  'clone-started': [payload: { requestId: string; repoName: string }]
   close: []
 }>()
 
@@ -27,13 +31,6 @@ const skillStore = useSkillStore()
 const subAgentStore = useSubAgentStore()
 const repositoryStore = useRepositoryStore()
 const commandStore = useCommandStore()
-const showSubmenu = ref(false)
-const showSkillSubmenu = ref(false)
-const showSubAgentSubmenu = ref(false)
-const showRepositorySubmenu = ref(false)
-const showCommandSubmenu = ref(false)
-const showCreateRepositoryModal = ref(false)
-const showDeleteModal = ref(false)
 type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
 
 interface DeleteTarget {
@@ -42,6 +39,14 @@ interface DeleteTarget {
   name: string
 }
 
+const showSubmenu = ref(false)
+const showSkillSubmenu = ref(false)
+const showSubAgentSubmenu = ref(false)
+const showRepositorySubmenu = ref(false)
+const showCommandSubmenu = ref(false)
+const showCreateRepositoryModal = ref(false)
+const showCloneRepositoryModal = ref(false)
+const showDeleteModal = ref(false)
 const deleteTarget = ref<DeleteTarget | null>(null)
 const hoveredItemId = ref<string | null>(null)
 
@@ -112,6 +117,12 @@ const handleClose = (): void => {
 const handleRepositoryCreated = (repository: { id: string; name: string }): void => {
   showRepositorySubmenu.value = false
   emit('create-repository-note', repository.id)
+  emit('close')
+}
+
+const handleCloneStarted = (payload: { requestId: string; repoName: string }): void => {
+  showRepositorySubmenu.value = false
+  emit('clone-started', payload)
   emit('close')
 }
 
@@ -299,10 +310,18 @@ const handleDeleteConfirm = async (): Promise<void> => {
           <template #footer>
             <div class="border-t border-doodle-ink/30 my-1" />
             <div
-              class="pod-menu-submenu-item"
+              class="pod-menu-submenu-item flex items-center gap-2"
               @click="showCreateRepositoryModal = true"
             >
-              + 新建資料夾
+              <FolderPlus :size="16" />
+              New...
+            </div>
+            <div
+              class="pod-menu-submenu-item flex items-center gap-2"
+              @click="showCloneRepositoryModal = true"
+            >
+              <Github :size="16" />
+              Clone
             </div>
           </template>
         </PodTypeMenuSubmenu>
@@ -339,6 +358,11 @@ const handleDeleteConfirm = async (): Promise<void> => {
     <CreateRepositoryModal
       v-model:open="showCreateRepositoryModal"
       @created="handleRepositoryCreated"
+    />
+
+    <CloneRepositoryModal
+      v-model:open="showCloneRepositoryModal"
+      @clone-started="handleCloneStarted"
     />
 
     <ConfirmDeleteModal

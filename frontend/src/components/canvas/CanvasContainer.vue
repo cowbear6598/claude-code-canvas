@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import {ref, computed} from 'vue'
-import {usePodStore, useViewportStore, useSelectionStore} from '@/stores/pod'
-import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore} from '@/stores/note'
-import {useConnectionStore} from '@/stores/connectionStore'
-import {useDeleteSelection, useNoteEventHandlers} from '@/composables/canvas'
+import { ref, computed, onUnmounted } from 'vue'
+import { usePodStore, useViewportStore, useSelectionStore } from '@/stores/pod'
+import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
+import { useConnectionStore } from '@/stores/connectionStore'
+import { useDeleteSelection, useNoteEventHandlers, useGitCloneProgress } from '@/composables/canvas'
 import CanvasViewport from './CanvasViewport.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
 import GenericNote from './GenericNote.vue'
+import CloneProgressNote from './CloneProgressNote.vue'
 import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
 import SelectionBox from './SelectionBox.vue'
@@ -30,6 +31,8 @@ const commandStore = useCommandStore()
 const connectionStore = useConnectionStore()
 
 useDeleteSelection()
+
+const gitCloneProgress = useGitCloneProgress()
 
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
 
@@ -177,6 +180,14 @@ const skillHandlers = useNoteEventHandlers({ store: skillStore, trashZoneRef })
 const subAgentHandlers = useNoteEventHandlers({ store: subAgentStore, trashZoneRef })
 const repositoryHandlers = useNoteEventHandlers({ store: repositoryStore, trashZoneRef })
 const commandHandlers = useNoteEventHandlers({ store: commandStore, trashZoneRef })
+
+const handleCloneStarted = (payload: { requestId: string; repoName: string }): void => {
+  gitCloneProgress.addTask(payload.requestId, payload.repoName)
+}
+
+onUnmounted(() => {
+  gitCloneProgress.cleanupListeners()
+})
 </script>
 
 <template>
@@ -260,6 +271,9 @@ const commandHandlers = useNoteEventHandlers({ store: commandStore, trashZoneRef
     <EmptyState v-if="podStore.podCount === 0" />
   </CanvasViewport>
 
+  <!-- Clone Progress Panel - Fixed at bottom-right corner -->
+  <CloneProgressNote :tasks="gitCloneProgress.cloneTasks.value" />
+
   <!-- Pod 類型選單 - 放在 transform 容器外面 -->
   <PodTypeMenu
     v-if="podStore.typeMenu.visible && podStore.typeMenu.position"
@@ -270,6 +284,7 @@ const commandHandlers = useNoteEventHandlers({ store: commandStore, trashZoneRef
     @create-subagent-note="handleCreateSubAgentNote"
     @create-repository-note="handleCreateRepositoryNote"
     @create-command-note="handleCreateCommandNote"
+    @clone-started="handleCloneStarted"
     @close="podStore.hideTypeMenu"
   />
 

@@ -1,15 +1,9 @@
-// WebSocket Event Name Definitions
-
-/**
- * Client -> Server Events (Request Events)
- */
 export const WebSocketRequestEvents = {
   POD_CREATE: 'pod:create',
   POD_LIST: 'pod:list',
   POD_GET: 'pod:get',
   POD_UPDATE: 'pod:update',
   POD_DELETE: 'pod:delete',
-  POD_GIT_CLONE: 'pod:git:clone',
   POD_CHAT_SEND: 'pod:chat:send',
   POD_CHAT_HISTORY: 'pod:chat:history',
   POD_JOIN: 'pod:join',
@@ -40,6 +34,7 @@ export const WebSocketRequestEvents = {
   REPOSITORY_LIST: 'repository:list',
   REPOSITORY_CREATE: 'repository:create',
   REPOSITORY_DELETE: 'repository:delete',
+  REPOSITORY_GIT_CLONE: 'repository:git:clone',
   REPOSITORY_NOTE_CREATE: 'repository-note:create',
   REPOSITORY_NOTE_LIST: 'repository-note:list',
   REPOSITORY_NOTE_UPDATE: 'repository-note:update',
@@ -66,9 +61,6 @@ export const WebSocketRequestEvents = {
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
 
-/**
- * Server -> Client Events (Response Events)
- */
 export const WebSocketResponseEvents = {
   CONNECTION_READY: 'connection:ready',
   POD_CREATED: 'pod:created',
@@ -76,8 +68,6 @@ export const WebSocketResponseEvents = {
   POD_GET_RESULT: 'pod:get:result',
   POD_UPDATED: 'pod:updated',
   POD_DELETED: 'pod:deleted',
-  POD_GIT_CLONE_PROGRESS: 'pod:git:clone:progress',
-  POD_GIT_CLONE_RESULT: 'pod:git:clone:result',
   POD_CHAT_MESSAGE: 'pod:chat:message',
   POD_CHAT_TOOL_USE: 'pod:chat:tool_use',
   POD_CHAT_TOOL_RESULT: 'pod:chat:tool_result',
@@ -119,6 +109,8 @@ export const WebSocketResponseEvents = {
   REPOSITORY_LIST_RESULT: 'repository:list:result',
   REPOSITORY_CREATED: 'repository:created',
   REPOSITORY_DELETED: 'repository:deleted',
+  REPOSITORY_GIT_CLONE_PROGRESS: 'repository:git:clone:progress',
+  REPOSITORY_GIT_CLONE_RESULT: 'repository:git:clone:result',
   REPOSITORY_NOTE_CREATED: 'repository-note:created',
   REPOSITORY_NOTE_LIST_RESULT: 'repository-note:list:result',
   REPOSITORY_NOTE_UPDATED: 'repository-note:updated',

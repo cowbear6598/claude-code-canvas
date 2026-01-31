@@ -1,5 +1,3 @@
-// WebSocket Response Payload Types (Server -> Client)
-
 import type { Pod, PodStatus } from '../pod'
 import type { OutputStyleListItem, OutputStyleNote } from '@/types'
 import type { Skill, SkillNote } from '@/types'
@@ -327,6 +325,19 @@ export interface RepositoryDeletedPayload {
   success: boolean
   repositoryId?: string
   deletedNoteIds?: string[]
+  error?: string
+}
+
+export interface RepositoryGitCloneProgressPayload {
+  requestId: string
+  progress: number
+  message: string
+}
+
+export interface RepositoryGitCloneResultPayload {
+  requestId: string
+  success: boolean
+  repository?: { id: string; name: string }
   error?: string
 }
 

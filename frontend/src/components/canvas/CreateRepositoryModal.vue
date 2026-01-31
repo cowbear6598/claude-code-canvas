@@ -12,9 +12,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useRepositoryStore } from '@/stores/note'
 
-defineProps<{
+interface Props {
   open: boolean
-}>()
+}
+
+defineProps<Props>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]

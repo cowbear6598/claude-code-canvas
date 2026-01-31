@@ -6,7 +6,6 @@ export enum WebSocketRequestEvents {
   POD_GET = 'pod:get',
   POD_UPDATE = 'pod:update',
   POD_DELETE = 'pod:delete',
-  POD_GIT_CLONE = 'pod:git:clone',
   POD_CHAT_SEND = 'pod:chat:send',
   POD_CHAT_HISTORY = 'pod:chat:history',
   POD_JOIN = 'pod:join',
@@ -59,6 +58,7 @@ export enum WebSocketRequestEvents {
   POD_BIND_COMMAND = 'pod:bind-command',
   POD_UNBIND_COMMAND = 'pod:unbind-command',
   COMMAND_DELETE = 'command:delete',
+  REPOSITORY_GIT_CLONE = 'repository:git:clone',
 }
 
 export enum WebSocketResponseEvents {
@@ -68,8 +68,6 @@ export enum WebSocketResponseEvents {
   POD_GET_RESULT = 'pod:get:result',
   POD_UPDATED = 'pod:updated',
   POD_DELETED = 'pod:deleted',
-  POD_GIT_CLONE_PROGRESS = 'pod:git:clone:progress',
-  POD_GIT_CLONE_RESULT = 'pod:git:clone:result',
   POD_CHAT_MESSAGE = 'pod:chat:message',
   POD_CHAT_TOOL_USE = 'pod:chat:tool_use',
   POD_CHAT_TOOL_RESULT = 'pod:chat:tool_result',
@@ -135,6 +133,8 @@ export enum WebSocketResponseEvents {
   POD_COMMAND_BOUND = 'pod:command:bound',
   POD_COMMAND_UNBOUND = 'pod:command:unbound',
   COMMAND_DELETED = 'command:deleted',
+  REPOSITORY_GIT_CLONE_PROGRESS = 'repository:git:clone:progress',
+  REPOSITORY_GIT_CLONE_RESULT = 'repository:git:clone:result',
   HEARTBEAT_PING = 'heartbeat:ping',
 }
 
@@ -170,13 +170,6 @@ export interface PodUpdatePayload {
 export interface PodDeletePayload {
   requestId: string;
   podId: string;
-}
-
-export interface PodGitClonePayload {
-  requestId: string;
-  podId: string;
-  repoUrl: string;
-  branch?: string;
 }
 
 export interface PodChatSendPayload {
@@ -238,19 +231,6 @@ export interface PodDeletedPayload {
   requestId: string;
   success: boolean;
   podId?: string;
-  error?: string;
-}
-
-export interface PodGitCloneProgressPayload {
-  podId: string;
-  progress: number;
-  message: string;
-}
-
-export interface PodGitCloneResultPayload {
-  requestId: string;
-  success: boolean;
-  pod?: Pod;
   error?: string;
 }
 
@@ -1077,5 +1057,18 @@ export interface CommandDeletedPayload {
   success: boolean;
   commandId?: string;
   deletedNoteIds?: string[];
+  error?: string;
+}
+
+export interface RepositoryGitCloneProgressPayload {
+  requestId: string;
+  progress: number;
+  message: string;
+}
+
+export interface RepositoryGitCloneResultPayload {
+  requestId: string;
+  success: boolean;
+  repository?: { id: string; name: string };
   error?: string;
 }
