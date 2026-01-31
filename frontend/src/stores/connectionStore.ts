@@ -188,13 +188,21 @@ export const useConnectionStore = defineStore('connection', {
         },
 
         setupWorkflowListeners(): void {
-            websocketClient.on<WorkflowAutoTriggeredPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, (payload) => {
-                this.updateConnectionStatusByTargetPod(payload.targetPodId, 'active')
-            })
+            websocketClient.on<WorkflowAutoTriggeredPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, this.handleWorkflowAutoTriggered)
+            websocketClient.on<WorkflowCompletePayload>(WebSocketResponseEvents.WORKFLOW_COMPLETE, this.handleWorkflowComplete)
+        },
 
-            websocketClient.on<WorkflowCompletePayload>(WebSocketResponseEvents.WORKFLOW_COMPLETE, (payload) => {
-                this.updateConnectionStatusByTargetPod(payload.targetPodId, 'inactive')
-            })
+        cleanupWorkflowListeners(): void {
+            websocketClient.off<WorkflowAutoTriggeredPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, this.handleWorkflowAutoTriggered)
+            websocketClient.off<WorkflowCompletePayload>(WebSocketResponseEvents.WORKFLOW_COMPLETE, this.handleWorkflowComplete)
+        },
+
+        handleWorkflowAutoTriggered(payload: WorkflowAutoTriggeredPayload): void {
+            this.updateConnectionStatusByTargetPod(payload.targetPodId, 'active')
+        },
+
+        handleWorkflowComplete(payload: WorkflowCompletePayload): void {
+            this.updateConnectionStatusByTargetPod(payload.targetPodId, 'inactive')
         },
     },
 })

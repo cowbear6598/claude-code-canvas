@@ -163,6 +163,7 @@ onMounted(() => {
 onUnmounted(() => {
   chatStore.disconnectWebSocket()
   websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
+  connectionStore.cleanupWorkflowListeners()
 })
 </script>
 
