@@ -6,7 +6,7 @@ export function useBatchDrag(): {
   startBatchDrag: (e: MouseEvent) => boolean
   isElementSelected: (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote', id: string) => boolean
 } {
-  const { podStore, viewportStore, selectionStore, outputStyleStore, skillStore, repositoryStore, commandStore } = useCanvasContext()
+  const { podStore, viewportStore, selectionStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore } = useCanvasContext()
 
   const isBatchDragging = ref(false)
 
@@ -16,6 +16,7 @@ export function useBatchDrag(): {
   const movedOutputStyleNotes = new Set<string>()
   const movedSkillNotes = new Set<string>()
   const movedRepositoryNotes = new Set<string>()
+  const movedSubAgentNotes = new Set<string>()
   const movedCommandNotes = new Set<string>()
 
   let currentMoveHandler: ((e: MouseEvent) => void) | null = null
@@ -44,6 +45,7 @@ export function useBatchDrag(): {
     movedOutputStyleNotes.clear()
     movedSkillNotes.clear()
     movedRepositoryNotes.clear()
+    movedSubAgentNotes.clear()
     movedCommandNotes.clear()
 
     cleanupEventListeners()
@@ -96,6 +98,12 @@ export function useBatchDrag(): {
           repositoryStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
           movedRepositoryNotes.add(element.id)
         }
+      } else if (element.type === 'subAgentNote') {
+        const note = subAgentStore.notes.find(n => n.id === element.id)
+        if (note && !note.boundToPodId) {
+          subAgentStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
+          movedSubAgentNotes.add(element.id)
+        }
       } else if (element.type === 'commandNote') {
         const note = commandStore.notes.find(n => n.id === element.id)
         if (note && !note.boundToPodId) {
@@ -128,6 +136,13 @@ export function useBatchDrag(): {
       }
     }
 
+    for (const noteId of movedSubAgentNotes) {
+      const note = subAgentStore.notes.find(n => n.id === noteId)
+      if (note) {
+        await subAgentStore.updateNotePosition(noteId, note.x, note.y)
+      }
+    }
+
     for (const noteId of movedCommandNotes) {
       const note = commandStore.notes.find(n => n.id === noteId)
       if (note) {
@@ -138,6 +153,7 @@ export function useBatchDrag(): {
     movedOutputStyleNotes.clear()
     movedSkillNotes.clear()
     movedRepositoryNotes.clear()
+    movedSubAgentNotes.clear()
     movedCommandNotes.clear()
   }
 
