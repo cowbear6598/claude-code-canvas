@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { ref } from 'vue'
 import type { OutputStyleNote } from '@/types'
 import { useOutputStyleStore } from '@/stores/note'
 import { useViewportStore } from '@/stores/pod'
+import { useSlotDropTarget } from '@/composables/pod/useSlotDropTarget'
+import { useSlotEject } from '@/composables/pod/useSlotEject'
 
 const props = defineProps<{
   podId: string
@@ -18,138 +20,34 @@ const emit = defineEmits<{
 const outputStyleStore = useOutputStyleStore()
 const viewportStore = useViewportStore()
 const slotRef = ref<HTMLElement | null>(null)
-const isDropTarget = ref(false)
-const lastDraggedNoteId = ref<string | null>(null)
-const isEjecting = ref(false)
-const isInserting = ref(false)
 
-let mouseMoveHandler: ((e: MouseEvent) => void) | null = null
-let mouseUpHandler: (() => void) | null = null
-
-const checkDropTarget = (e: MouseEvent): void => {
-  if (!slotRef.value) {
-    isDropTarget.value = false
-    return
-  }
-
-  const rect = slotRef.value.getBoundingClientRect()
-
-  isDropTarget.value = e.clientX >= rect.left &&
-      e.clientX <= rect.right &&
-      e.clientY >= rect.top &&
-      e.clientY <= rect.bottom
-}
-
-const handleDrop = (): void => {
-  const noteId = lastDraggedNoteId.value
-  if (isDropTarget.value && noteId) {
+const { isDropTarget, isInserting } = useSlotDropTarget({
+  slotRef,
+  draggedNoteId: () => outputStyleStore.draggedNoteId,
+  validateDrop: (noteId: string) => {
     const draggedNote = outputStyleStore.getNoteById(noteId)
-
-    if (draggedNote && !draggedNote.boundToPodId) {
-      isInserting.value = true
-      emit('note-dropped', noteId)
-      setTimeout(() => {
-        isInserting.value = false
-      }, 300)
-    }
+    return draggedNote !== undefined && !draggedNote.boundToPodId
+  },
+  onDrop: (noteId: string) => {
+    emit('note-dropped', noteId)
   }
-  isDropTarget.value = false
-}
+})
 
-const setupListeners = (): void => {
-  mouseMoveHandler = checkDropTarget
-  mouseUpHandler = handleDrop
-  document.addEventListener('mousemove', mouseMoveHandler)
-  document.addEventListener('mouseup', mouseUpHandler, { capture: true })
-}
-
-const cleanupListeners = (): void => {
-  if (mouseMoveHandler) {
-    document.removeEventListener('mousemove', mouseMoveHandler)
-    mouseMoveHandler = null
-  }
-  if (mouseUpHandler) {
-    document.removeEventListener('mouseup', mouseUpHandler, { capture: true })
-    mouseUpHandler = null
-  }
-}
+const { isEjecting, handleSlotClick: ejectSlotClick } = useSlotEject({
+  slotRef,
+  podRotation: () => props.podRotation || 0,
+  getNoteById: (id: string) => outputStyleStore.getNoteById(id),
+  setNoteAnimating: (noteId: string, animating: boolean) => outputStyleStore.setNoteAnimating(noteId, animating),
+  unbindFromPod: (podId: string, notify: boolean) => outputStyleStore.unbindFromPod(podId, notify),
+  updateNotePosition: (noteId: string, x: number, y: number) => outputStyleStore.updateNotePosition(noteId, x, y),
+  getViewportZoom: () => viewportStore.zoom,
+  getViewportOffset: () => viewportStore.offset
+})
 
 const handleSlotClick = async (e: MouseEvent): Promise<void> => {
-  if (!props.boundNote || isEjecting.value) return
-
-  e.stopPropagation()
-  e.preventDefault()
-
-  const noteId = props.boundNote.id
-  const note = outputStyleStore.getNoteById(noteId)
-
-  if (!note) return
-
-  const slotElement = slotRef.value
-  if (!slotElement) return
-
-  const slotWidth = slotElement.getBoundingClientRect().width
-  const zoom = viewportStore.zoom
-
-  const podElement = slotElement.closest('.pod-with-notch')
-  if (!podElement) return
-
-  const podRect = podElement.getBoundingClientRect()
-  const slotRect = slotElement.getBoundingClientRect()
-  const viewportOffset = viewportStore.offset
-
-  const podCenterX = (podRect.right - viewportOffset.x) / zoom
-  const podCenterY = (slotRect.top - viewportOffset.y) / zoom
-
-  const extraDistance = 30
-
-  const baseX = slotWidth / zoom + extraDistance
-  const baseY = 0
-
-  const rotation = props.podRotation || 0
-  const radians = rotation * Math.PI / 180
-
-  const rotatedX = baseX * Math.cos(radians) - baseY * Math.sin(radians)
-  const rotatedY = baseX * Math.sin(radians) + baseY * Math.cos(radians)
-
-  const ejectX = podCenterX + rotatedX
-  const ejectY = podCenterY + rotatedY
-
-  isEjecting.value = true
-  outputStyleStore.setNoteAnimating(noteId, true)
-
-  emit('note-removed')
-
-  await outputStyleStore.unbindFromPod(props.podId, false)
-
-  await outputStyleStore.updateNotePosition(noteId, ejectX, ejectY)
-
-  setTimeout(() => {
-    isEjecting.value = false
-    outputStyleStore.setNoteAnimating(noteId, false)
-  }, 300)
+  if (!props.boundNote) return
+  await ejectSlotClick(e, props.boundNote.id, props.podId, () => emit('note-removed'))
 }
-
-watch(() => outputStyleStore.draggedNoteId, (newVal) => {
-  if (newVal) {
-    lastDraggedNoteId.value = newVal
-    setupListeners()
-  } else {
-    cleanupListeners()
-    isDropTarget.value = false
-  }
-})
-
-onMounted(() => {
-  if (outputStyleStore.draggedNoteId) {
-    lastDraggedNoteId.value = outputStyleStore.draggedNoteId
-    setupListeners()
-  }
-})
-
-onUnmounted(() => {
-  cleanupListeners()
-})
 </script>
 
 <template>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import type { SkillNote } from '@/types'
 import { useSkillStore } from '@/stores/note'
+import { useSlotDropTarget } from '@/composables/pod/useSlotDropTarget'
 
 const props = defineProps<{
   podId: string
@@ -15,73 +16,29 @@ const emit = defineEmits<{
 const skillStore = useSkillStore()
 
 const slotRef = ref<HTMLElement | null>(null)
-const isDropTarget = ref(false)
-const lastDraggedNoteId = ref<string | null>(null)
-const isInserting = ref(false)
 const showMenu = ref(false)
 
 const skillCount = computed(() => props.boundNotes.length)
 const hasSkills = computed(() => skillCount.value > 0)
 
-let mouseMoveHandler: ((e: MouseEvent) => void) | null = null
-let mouseUpHandler: (() => void) | null = null
+const { isDropTarget, isInserting } = useSlotDropTarget({
+  slotRef,
+  draggedNoteId: () => skillStore.draggedNoteId,
+  validateDrop: (noteId: string) => {
+    const draggedNote = skillStore.getNoteById(noteId)
+    if (!draggedNote || draggedNote.boundToPodId !== null) return false
 
-const checkDropTarget = (e: MouseEvent): void => {
-  if (!slotRef.value) {
-    isDropTarget.value = false
-    return
+    if (skillStore.isItemBoundToPod && skillStore.isItemBoundToPod(draggedNote.skillId, props.podId)) {
+      console.warn('[PodSkillSlot] Skill already bound to this pod:', draggedNote.skillId)
+      return false
+    }
+
+    return true
+  },
+  onDrop: (noteId: string) => {
+    emit('note-dropped', noteId)
   }
-
-  const rect = slotRef.value.getBoundingClientRect()
-
-  isDropTarget.value = e.clientX >= rect.left &&
-    e.clientX <= rect.right &&
-    e.clientY >= rect.top &&
-    e.clientY <= rect.bottom
-}
-
-const handleDrop = (): void => {
-  const noteId = lastDraggedNoteId.value
-  if (!isDropTarget.value || !noteId) return
-
-  const draggedNote = skillStore.getNoteById(noteId)
-  if (!draggedNote || draggedNote.boundToPodId !== null) return
-
-  if (skillStore.isItemBoundToPod && skillStore.isItemBoundToPod(draggedNote.skillId, props.podId)) {
-    console.warn('[PodSkillSlot] Skill already bound to this pod:', draggedNote.skillId)
-    return
-  }
-
-  isInserting.value = true
-  emit('note-dropped', noteId)
-
-  setTimeout(() => {
-    isInserting.value = false
-  }, 300)
-}
-
-const setupListeners = (): void => {
-  mouseMoveHandler = checkDropTarget
-  mouseUpHandler = (): void => {
-    handleDrop()
-    cleanupListeners()
-  }
-
-  document.addEventListener('mousemove', mouseMoveHandler)
-  document.addEventListener('mouseup', mouseUpHandler, { capture: true })
-}
-
-const cleanupListeners = (): void => {
-  if (mouseMoveHandler) {
-    document.removeEventListener('mousemove', mouseMoveHandler)
-    mouseMoveHandler = null
-  }
-  if (mouseUpHandler) {
-    document.removeEventListener('mouseup', mouseUpHandler, { capture: true })
-    mouseUpHandler = null
-  }
-  isDropTarget.value = false
-}
+})
 
 const handleSlotHover = (): void => {
   if (hasSkills.value) {
@@ -92,26 +49,6 @@ const handleSlotHover = (): void => {
 const handleSlotLeave = (): void => {
   showMenu.value = false
 }
-
-watch(() => skillStore.draggedNoteId, (newVal) => {
-  if (newVal) {
-    lastDraggedNoteId.value = newVal
-    setupListeners()
-  } else {
-    cleanupListeners()
-  }
-})
-
-onMounted(() => {
-  if (skillStore.draggedNoteId) {
-    lastDraggedNoteId.value = skillStore.draggedNoteId
-    setupListeners()
-  }
-})
-
-onUnmounted(() => {
-  cleanupListeners()
-})
 </script>
 
 <template>
