@@ -195,61 +195,80 @@ const handleSelectPod = (): void => {
   emit('select', props.pod.id)
 }
 
-const handleNoteDropped = async (noteId: string): Promise<void> => {
-  await outputStyleStore.bindToPod(noteId, props.pod.id)
-  const note = outputStyleStore.getNoteById(noteId)
-  if (note) {
-    podStore.updatePodOutputStyle(props.pod.id, note.outputStyleId)
+type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command'
+
+interface NoteStoreMapping {
+  bindToPod: (noteId: string, podId: string) => Promise<void>
+  getNoteById: (noteId: string) => any
+  isItemBoundToPod?: (itemId: string, podId: string) => boolean
+  unbindFromPod?: (podId: string, returnToOriginal: boolean) => Promise<void>
+  getItemId: (note: any) => string
+  updatePodField?: (podId: string, itemId: string | null) => void
+}
+
+const noteStoreMap: Record<NoteType, NoteStoreMapping> = {
+  outputStyle: {
+    bindToPod: (noteId, podId) => outputStyleStore.bindToPod(noteId, podId),
+    getNoteById: (noteId) => outputStyleStore.getNoteById(noteId),
+    unbindFromPod: (podId, returnToOriginal) => outputStyleStore.unbindFromPod(podId, returnToOriginal),
+    getItemId: (note) => note.outputStyleId,
+    updatePodField: (podId, itemId) => podStore.updatePodOutputStyle(podId, itemId)
+  },
+  skill: {
+    bindToPod: (noteId, podId) => skillStore.bindToPod(noteId, podId),
+    getNoteById: (noteId) => skillStore.getNoteById(noteId),
+    isItemBoundToPod: (itemId, podId) => skillStore.isItemBoundToPod(itemId, podId),
+    getItemId: (note) => note.skillId
+  },
+  subAgent: {
+    bindToPod: (noteId, podId) => subAgentStore.bindToPod(noteId, podId),
+    getNoteById: (noteId) => subAgentStore.getNoteById(noteId),
+    isItemBoundToPod: (itemId, podId) => subAgentStore.isItemBoundToPod(itemId, podId),
+    getItemId: (note) => note.subAgentId
+  },
+  repository: {
+    bindToPod: (noteId, podId) => repositoryStore.bindToPod(noteId, podId),
+    getNoteById: (noteId) => repositoryStore.getNoteById(noteId),
+    unbindFromPod: (podId, returnToOriginal) => repositoryStore.unbindFromPod(podId, returnToOriginal),
+    getItemId: (note) => note.repositoryId,
+    updatePodField: (podId, itemId) => podStore.updatePodRepository(podId, itemId)
+  },
+  command: {
+    bindToPod: (noteId, podId) => commandStore.bindToPod(noteId, podId),
+    getNoteById: (noteId) => commandStore.getNoteById(noteId),
+    unbindFromPod: (podId, returnToOriginal) => commandStore.unbindFromPod(podId, returnToOriginal),
+    getItemId: (note) => note.commandId,
+    updatePodField: (podId, itemId) => podStore.updatePodCommand(podId, itemId)
   }
 }
 
-const handleNoteRemoved = async (): Promise<void> => {
-  await outputStyleStore.unbindFromPod(props.pod.id, true)
-  podStore.updatePodOutputStyle(props.pod.id, null)
-}
-
-const handleSkillNoteDropped = async (noteId: string): Promise<void> => {
-  const note = skillStore.getNoteById(noteId)
+const handleNoteDrop = async (noteType: NoteType, noteId: string): Promise<void> => {
+  const mapping = noteStoreMap[noteType]
+  const note = mapping.getNoteById(noteId)
   if (!note) return
 
-  if (skillStore.isItemBoundToPod(note.skillId, props.pod.id)) return
+  if (mapping.isItemBoundToPod) {
+    const itemId = mapping.getItemId(note)
+    if (mapping.isItemBoundToPod(itemId, props.pod.id)) return
+  }
 
-  await skillStore.bindToPod(noteId, props.pod.id)
-}
+  await mapping.bindToPod(noteId, props.pod.id)
 
-const handleSubAgentNoteDropped = async (noteId: string): Promise<void> => {
-  const note = subAgentStore.getNoteById(noteId)
-  if (!note) return
-
-  if (subAgentStore.isItemBoundToPod(note.subAgentId, props.pod.id)) return
-
-  await subAgentStore.bindToPod(noteId, props.pod.id)
-}
-
-const handleRepositoryNoteDropped = async (noteId: string): Promise<void> => {
-  await repositoryStore.bindToPod(noteId, props.pod.id)
-  const note = repositoryStore.getNoteById(noteId)
-  if (note) {
-    podStore.updatePodRepository(props.pod.id, note.repositoryId)
+  if (mapping.updatePodField) {
+    const itemId = mapping.getItemId(note)
+    mapping.updatePodField(props.pod.id, itemId)
   }
 }
 
-const handleRepositoryNoteRemoved = async (): Promise<void> => {
-  await repositoryStore.unbindFromPod(props.pod.id, true)
-  podStore.updatePodRepository(props.pod.id, null)
-}
+const handleNoteRemove = async (noteType: NoteType): Promise<void> => {
+  const mapping = noteStoreMap[noteType]
+  if (!mapping.unbindFromPod) return
 
-const handleCommandNoteDropped = async (noteId: string): Promise<void> => {
-  await commandStore.bindToPod(noteId, props.pod.id)
-  const note = commandStore.getNoteById(noteId)
-  if (note) {
-    podStore.updatePodCommand(props.pod.id, note.commandId)
+  await mapping.unbindFromPod(props.pod.id, true)
+
+  if (mapping.updatePodField) {
+    mapping.updatePodField(props.pod.id, null)
   }
-}
-
-const handleCommandNoteRemoved = async (): Promise<void> => {
-  await commandStore.unbindFromPod(props.pod.id, true)
-  podStore.updatePodCommand(props.pod.id, null)
 }
 
 const handleAnchorDragStart = (data: {
@@ -403,14 +422,14 @@ const handleToggleAutoClear = async (): Promise<void> => {
         :bound-sub-agent-notes="boundSubAgentNotes"
         :bound-repository-note="boundRepositoryNote"
         :bound-command-note="boundCommandNote"
-        @output-style-dropped="handleNoteDropped"
-        @output-style-removed="handleNoteRemoved"
-        @skill-dropped="handleSkillNoteDropped"
-        @subagent-dropped="handleSubAgentNoteDropped"
-        @repository-dropped="handleRepositoryNoteDropped"
-        @repository-removed="handleRepositoryNoteRemoved"
-        @command-dropped="handleCommandNoteDropped"
-        @command-removed="handleCommandNoteRemoved"
+        @output-style-dropped="(noteId) => handleNoteDrop('outputStyle', noteId)"
+        @output-style-removed="() => handleNoteRemove('outputStyle')"
+        @skill-dropped="(noteId) => handleNoteDrop('skill', noteId)"
+        @subagent-dropped="(noteId) => handleNoteDrop('subAgent', noteId)"
+        @repository-dropped="(noteId) => handleNoteDrop('repository', noteId)"
+        @repository-removed="() => handleNoteRemove('repository')"
+        @command-dropped="(noteId) => handleNoteDrop('command', noteId)"
+        @command-removed="() => handleNoteRemove('command')"
       />
 
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
