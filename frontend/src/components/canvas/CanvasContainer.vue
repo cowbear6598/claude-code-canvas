@@ -4,6 +4,7 @@ import { usePodStore, useViewportStore, useSelectionStore } from '@/stores/pod'
 import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useDeleteSelection, useNoteEventHandlers, useGitCloneProgress } from '@/composables/canvas'
+import { isCtrlOrCmdPressed } from '@/utils/keyboardHelpers'
 import CanvasViewport from './CanvasViewport.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
@@ -64,35 +65,20 @@ const handleCanvasClick = (e: MouseEvent): void => {
 
   const target = e.target as HTMLElement
 
-  if (target.closest('.connection-line')) {
+  const ignoredSelectors = [
+    '.connection-line',
+    '.pod-doodle',
+    '.output-style-note',
+    '.skill-note',
+    '.subagent-note',
+    '.repository-note',
+    '.command-note'
+  ]
+  if (ignoredSelectors.some(s => target.closest(s))) {
     return
   }
 
-  if (target.closest('.pod-doodle')) {
-    return
-  }
-
-  if (target.closest('.output-style-note')) {
-    return
-  }
-
-  if (target.closest('.skill-note')) {
-    return
-  }
-
-  if (target.closest('.subagent-note')) {
-    return
-  }
-
-  if (target.closest('.repository-note')) {
-    return
-  }
-
-  if (target.closest('.command-note')) {
-    return
-  }
-
-  if (e.ctrlKey || e.metaKey) {
+  if (isCtrlOrCmdPressed(e)) {
     return
   }
 

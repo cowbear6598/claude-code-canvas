@@ -4,6 +4,7 @@ import type { BaseNote } from '@/types'
 import { useViewportStore, useSelectionStore } from '@/stores/pod'
 import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
 import { useBatchDrag } from '@/composables/canvas'
+import { isCtrlOrCmdPressed } from '@/utils/keyboardHelpers'
 
 type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command'
 
@@ -114,7 +115,7 @@ onUnmounted(() => {
 const handleMouseDown = (e: MouseEvent): void => {
   const selectionType = selectionTypeMap[props.noteType]
 
-  if (e.ctrlKey || e.metaKey) {
+  if (isCtrlOrCmdPressed(e)) {
     selectionStore.toggleElement({ type: selectionType, id: props.note.id })
     return
   }

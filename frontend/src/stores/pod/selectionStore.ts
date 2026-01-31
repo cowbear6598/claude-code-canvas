@@ -1,15 +1,6 @@
 import {defineStore} from 'pinia'
-import type {SelectableElement, SelectionBox} from '@/types'
+import type {SelectableElement, SelectionState} from '@/types'
 import {POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT} from '@/lib/constants'
-
-interface SelectionState {
-  isSelecting: boolean
-  box: SelectionBox | null
-  selectedElements: SelectableElement[]
-  boxSelectJustEnded: boolean
-  isCtrlMode: boolean
-  initialSelectedElements: SelectableElement[]
-}
 
 function isNoteInSelectionBox(
   noteX: number,
@@ -219,47 +210,23 @@ export const useSelectionStore = defineStore('selection', {
         const hasIntersection = !(podMaxX < minX || podMinX > maxX || podMaxY < minY || podMinY > maxY)
 
         if (hasIntersection) {
-          selected.push({type: 'pod', id: pod.id})
+          selected.push({ type: 'pod', id: pod.id })
         }
       }
 
-      for (const note of outputStyleNotes) {
-        if (note.boundToPodId) continue
-
-        if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
-          selected.push({type: 'outputStyleNote', id: note.id})
-        }
-      }
-
-      for (const note of skillNotes) {
-        if (note.boundToPodId) continue
-
-        if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
-          selected.push({type: 'skillNote', id: note.id})
-        }
-      }
-
-      for (const note of repositoryNotes) {
-        if (note.boundToPodId) continue
-
-        if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
-          selected.push({type: 'repositoryNote', id: note.id})
-        }
-      }
-
-      for (const note of subAgentNotes) {
-        if (note.boundToPodId) continue
-
-        if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
-          selected.push({type: 'subAgentNote', id: note.id})
-        }
-      }
-
-      for (const note of commandNotes) {
-        if (note.boundToPodId) continue
-
-        if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
-          selected.push({type: 'commandNote', id: note.id})
+      const noteTypes = [
+        { notes: outputStyleNotes, type: 'outputStyleNote' as const },
+        { notes: skillNotes, type: 'skillNote' as const },
+        { notes: repositoryNotes, type: 'repositoryNote' as const },
+        { notes: subAgentNotes, type: 'subAgentNote' as const },
+        { notes: commandNotes, type: 'commandNote' as const }
+      ]
+      for (const { notes, type } of noteTypes) {
+        for (const note of notes) {
+          if (note.boundToPodId) continue
+          if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
+            selected.push({ type, id: note.id })
+          }
         }
       }
 

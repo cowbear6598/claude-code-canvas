@@ -9,6 +9,7 @@ import {useChatStore} from '@/stores/chatStore'
 import {useAnchorDetection} from '@/composables/useAnchorDetection'
 import {useBatchDrag} from '@/composables/canvas'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
+import {isCtrlOrCmdPressed} from '@/utils/keyboardHelpers'
 import {createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
 import type {
   WorkflowGetDownstreamPodsResultPayload,
@@ -103,18 +104,20 @@ onUnmounted(() => {
 })
 
 const handleMouseDown = (e: MouseEvent): void => {
-  if (
-      (e.target as HTMLElement).closest('.pod-output-style-slot') ||
-      (e.target as HTMLElement).closest('.pod-skill-slot') ||
-      (e.target as HTMLElement).closest('.pod-subagent-slot') ||
-      (e.target as HTMLElement).closest('.pod-repository-slot') ||
-      (e.target as HTMLElement).closest('.pod-command-slot')
-  ) {
+  const slotClasses = [
+    '.pod-output-style-slot',
+    '.pod-skill-slot',
+    '.pod-subagent-slot',
+    '.pod-repository-slot',
+    '.pod-command-slot'
+  ]
+  const target = e.target as HTMLElement
+  if (slotClasses.some(cls => target.closest(cls))) {
     return
   }
 
-  if (e.ctrlKey || e.metaKey) {
-    selectionStore.toggleElement({type: 'pod', id: props.pod.id})
+  if (isCtrlOrCmdPressed(e)) {
+    selectionStore.toggleElement({ type: 'pod', id: props.pod.id })
     podStore.setActivePod(props.pod.id)
     connectionStore.selectConnection(null)
     return
@@ -127,7 +130,7 @@ const handleMouseDown = (e: MouseEvent): void => {
   }
 
   if (!isElementSelected('pod', props.pod.id)) {
-    selectionStore.setSelectedElements([{type: 'pod', id: props.pod.id}])
+    selectionStore.setSelectedElements([{ type: 'pod', id: props.pod.id }])
   }
 
   podStore.setActivePod(props.pod.id)

@@ -1,5 +1,6 @@
 import { ref, onUnmounted } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
+import { isCtrlOrCmdPressed } from '@/utils/keyboardHelpers'
 
 export function useBoxSelect(): {
   isBoxSelecting: import('vue').Ref<boolean>
@@ -39,7 +40,7 @@ export function useBoxSelect(): {
     const canvasX = (e.clientX - viewportStore.offset.x) / viewportStore.zoom
     const canvasY = (e.clientY - viewportStore.offset.y) / viewportStore.zoom
 
-    const isCtrlPressed = e.ctrlKey || e.metaKey
+    const isCtrlPressed = isCtrlOrCmdPressed(e)
     selectionStore.startSelection(canvasX, canvasY, isCtrlPressed)
     isBoxSelecting.value = true
 
