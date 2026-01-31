@@ -90,14 +90,7 @@ class SubAgentService {
      */
     async deleteSubAgentsFromPath(basePath: string): Promise<void> {
         const agentsDir = path.join(basePath, '.claude', 'agents');
-
-        try {
-            await fs.rm(agentsDir, {recursive: true, force: true});
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-                // Intentionally not logging - too verbose
-            }
-        }
+        await fs.rm(agentsDir, {recursive: true, force: true});
     }
 
     /**

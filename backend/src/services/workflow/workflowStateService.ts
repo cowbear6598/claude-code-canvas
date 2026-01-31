@@ -70,27 +70,28 @@ class WorkflowStateService {
 
       const allComplete = pending.completedSources.size >= pending.requiredSourcePodIds.length;
 
-      if (allComplete) {
-        console.log(`[WorkflowState] Source deleted, but remaining sources complete for ${targetPodId}`);
-
-        const completedSummaries = pendingTargetStore.getCompletedSummaries(targetPodId);
-        if (!completedSummaries) {
-          continue;
-        }
-
-        const mergedContent = this.formatMergedSummaries(completedSummaries);
-        const sourcePodIds = Array.from(completedSummaries.keys());
-
-        const mergedPayload: WorkflowSourcesMergedPayload = {
-          targetPodId,
-          sourcePodIds,
-          mergedContentPreview: mergedContent.substring(0, 200),
-        };
-
-        workflowEventEmitter.emitWorkflowSourcesMerged(targetPodId, sourcePodIds, mergedPayload);
-      } else {
+      if (!allComplete) {
         this.emitPendingStatus(targetPodId, pending);
+        continue;
       }
+
+      console.log(`[WorkflowState] Source deleted, but remaining sources complete for ${targetPodId}`);
+
+      const completedSummaries = pendingTargetStore.getCompletedSummaries(targetPodId);
+      if (!completedSummaries) {
+        continue;
+      }
+
+      const mergedContent = this.formatMergedSummaries(completedSummaries);
+      const sourcePodIds = Array.from(completedSummaries.keys());
+
+      const mergedPayload: WorkflowSourcesMergedPayload = {
+        targetPodId,
+        sourcePodIds,
+        mergedContentPreview: mergedContent.substring(0, 200),
+      };
+
+      workflowEventEmitter.emitWorkflowSourcesMerged(targetPodId, sourcePodIds, mergedPayload);
     }
 
     return affectedTargetIds;
@@ -123,27 +124,28 @@ class WorkflowStateService {
 
     const allComplete = pending.completedSources.size >= pending.requiredSourcePodIds.length;
 
-    if (allComplete) {
-      console.log(`[WorkflowState] Connection deleted, but remaining sources complete for ${targetPodId}`);
-
-      const completedSummaries = pendingTargetStore.getCompletedSummaries(targetPodId);
-      if (!completedSummaries) {
-        return;
-      }
-
-      const mergedContent = this.formatMergedSummaries(completedSummaries);
-      const sourcePodIds = Array.from(completedSummaries.keys());
-
-      const mergedPayload: WorkflowSourcesMergedPayload = {
-        targetPodId,
-        sourcePodIds,
-        mergedContentPreview: mergedContent.substring(0, 200),
-      };
-
-      workflowEventEmitter.emitWorkflowSourcesMerged(targetPodId, sourcePodIds, mergedPayload);
-    } else {
+    if (!allComplete) {
       this.emitPendingStatus(targetPodId, pending);
+      return;
     }
+
+    console.log(`[WorkflowState] Connection deleted, but remaining sources complete for ${targetPodId}`);
+
+    const completedSummaries = pendingTargetStore.getCompletedSummaries(targetPodId);
+    if (!completedSummaries) {
+      return;
+    }
+
+    const mergedContent = this.formatMergedSummaries(completedSummaries);
+    const sourcePodIds = Array.from(completedSummaries.keys());
+
+    const mergedPayload: WorkflowSourcesMergedPayload = {
+      targetPodId,
+      sourcePodIds,
+      mergedContentPreview: mergedContent.substring(0, 200),
+    };
+
+    workflowEventEmitter.emitWorkflowSourcesMerged(targetPodId, sourcePodIds, mergedPayload);
   }
 
   private emitPendingStatus(targetPodId: string, pending: { requiredSourcePodIds: string[]; completedSources: Map<string, string> }): void {

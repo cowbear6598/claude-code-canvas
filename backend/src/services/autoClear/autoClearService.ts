@@ -137,24 +137,25 @@ class AutoClearService {
 
       const result = await workflowClearService.clearWorkflow(sourcePodId);
 
-      if (result.success) {
-        const payload = {
-          sourcePodId,
-          clearedPodIds: result.clearedPodIds,
-          clearedPodNames: result.clearedPodNames,
-        };
-
-        // Emit to all affected PODs
-        for (const podId of result.clearedPodIds) {
-          socketService.emitToPod(podId, WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, payload);
-        }
-
-        console.log(
-          `[AutoClear] Successfully cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`
-        );
-      } else {
+      if (!result.success) {
         console.error(`[AutoClear] Failed to execute auto-clear: ${result.error}`);
+        return;
       }
+
+      const payload = {
+        sourcePodId,
+        clearedPodIds: result.clearedPodIds,
+        clearedPodNames: result.clearedPodNames,
+      };
+
+      // Emit to all affected PODs
+      for (const podId of result.clearedPodIds) {
+        socketService.emitToPod(podId, WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, payload);
+      }
+
+      console.log(
+        `[AutoClear] Successfully cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`
+      );
     } catch (error) {
       console.error(`[AutoClear] Error during auto-clear execution:`, error);
     }

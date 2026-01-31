@@ -57,6 +57,37 @@ ${content}
     return assistantMessages[assistantMessages.length - 1].content;
   }
 
+  private async generateSummaryWithFallback(
+    sourcePodId: string,
+    targetPodId: string
+  ): Promise<{ content: string; isSummarized: boolean } | null> {
+    try {
+      podStore.setStatus(sourcePodId, 'summarizing');
+      console.log(
+        `[WorkflowExecution] Generating customized summary for source POD ${sourcePodId} to target POD ${targetPodId}`
+      );
+      const summaryResult = await summaryService.generateSummaryForTarget(
+        sourcePodId,
+        targetPodId
+      );
+
+      if (summaryResult.success) {
+        podStore.setStatus(sourcePodId, 'idle');
+        return { content: summaryResult.summary, isSummarized: true };
+      }
+
+      console.error(`[WorkflowExecution] Failed to generate summary: ${summaryResult.error}`);
+      const fallback = this.getLastAssistantMessage(sourcePodId);
+      podStore.setStatus(sourcePodId, 'idle');
+      return fallback ? { content: fallback, isSummarized: false } : null;
+    } catch (error) {
+      console.error('[WorkflowExecution] Failed to generate summary:', error);
+      const fallback = this.getLastAssistantMessage(sourcePodId);
+      podStore.setStatus(sourcePodId, 'idle');
+      return fallback ? { content: fallback, isSummarized: false } : null;
+    }
+  }
+
   async checkAndTriggerWorkflows(sourcePodId: string): Promise<void> {
     const connections = connectionStore.findBySourcePodId(sourcePodId);
     const autoTriggerConnections = connections.filter((conn) => conn.autoTrigger);
@@ -72,7 +103,7 @@ ${content}
     // Initialize auto-clear tracking if enabled
     autoClearService.initializeWorkflowTracking(sourcePodId);
 
-    let summary: string | null = null;
+    let summaryContent: string | null = null;
 
     for (const connection of autoTriggerConnections) {
       const podStatus = podStore.getById(connection.targetPodId)?.status;
@@ -104,39 +135,14 @@ ${content}
         continue;
       }
 
-      if (!summary) {
-        try {
-          podStore.setStatus(sourcePodId, 'summarizing');
-          console.log(
-            `[WorkflowExecution] Generating customized summary for source POD ${sourcePodId} to target POD ${connection.targetPodId}`
-          );
-          const summaryResult = await summaryService.generateSummaryForTarget(
-            sourcePodId,
-            connection.targetPodId
-          );
+      if (!summaryContent) {
+        const result = await this.generateSummaryWithFallback(sourcePodId, connection.targetPodId);
 
-          if (summaryResult.success) {
-            summary = summaryResult.summary;
-          } else {
-            console.error(`[WorkflowExecution] Failed to generate summary: ${summaryResult.error}`);
-            summary = this.getLastAssistantMessage(sourcePodId);
-
-            if (!summary) {
-              podStore.setStatus(sourcePodId, 'idle');
-              continue;
-            }
-          }
-          podStore.setStatus(sourcePodId, 'idle');
-        } catch (error) {
-          console.error('[WorkflowExecution] Failed to generate summary:', error);
-          summary = this.getLastAssistantMessage(sourcePodId);
-
-          if (!summary) {
-            podStore.setStatus(sourcePodId, 'idle');
-            continue;
-          }
-          podStore.setStatus(sourcePodId, 'idle');
+        if (!result) {
+          continue;
         }
+
+        summaryContent = result.content;
       }
 
       if (!pendingTargetStore.hasPendingTarget(connection.targetPodId)) {
@@ -146,51 +152,10 @@ ${content}
       const allSourcesComplete = workflowStateService.recordSourceCompletion(
         connection.targetPodId,
         sourcePodId,
-        summary
+        summaryContent
       );
 
-      if (allSourcesComplete) {
-        console.log(`[WorkflowExecution] All sources complete for target ${connection.targetPodId}`);
-
-        const completedSummaries = workflowStateService.getCompletedSummaries(connection.targetPodId);
-        if (!completedSummaries) {
-          console.error('[WorkflowExecution] Failed to get completed summaries');
-          continue;
-        }
-
-        const mergedContent = this.formatMergedSummaries(completedSummaries);
-        const mergedPreview = mergedContent.substring(0, 200);
-
-        const sourcePodIds = Array.from(completedSummaries.keys());
-        const mergedPayload: WorkflowSourcesMergedPayload = {
-          targetPodId: connection.targetPodId,
-          sourcePodIds,
-          mergedContentPreview: mergedPreview,
-        };
-
-        socketService.emitToPod(
-          connection.targetPodId,
-          WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED,
-          mergedPayload
-        );
-
-        for (const sourceId of sourcePodIds) {
-          socketService.emitToPod(
-            sourceId,
-            WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED,
-            mergedPayload
-          );
-        }
-
-        this.triggerWorkflowWithSummary(connection.id, mergedContent, true).catch((error) => {
-          console.error(
-            `[WorkflowExecution] Failed to trigger merged workflow ${connection.id}:`,
-            error
-          );
-        });
-
-        workflowStateService.clearPendingTarget(connection.targetPodId);
-      } else {
+      if (!allSourcesComplete) {
         const pending = pendingTargetStore.getPendingTarget(connection.targetPodId);
         if (!pending) {
           continue;
@@ -218,7 +183,49 @@ ${content}
         console.log(
           `[WorkflowExecution] Target ${connection.targetPodId} waiting: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources complete`
         );
+        continue;
       }
+
+      console.log(`[WorkflowExecution] All sources complete for target ${connection.targetPodId}`);
+
+      const completedSummaries = workflowStateService.getCompletedSummaries(connection.targetPodId);
+      if (!completedSummaries) {
+        console.error('[WorkflowExecution] Failed to get completed summaries');
+        continue;
+      }
+
+      const mergedContent = this.formatMergedSummaries(completedSummaries);
+      const mergedPreview = mergedContent.substring(0, 200);
+
+      const sourcePodIds = Array.from(completedSummaries.keys());
+      const mergedPayload: WorkflowSourcesMergedPayload = {
+        targetPodId: connection.targetPodId,
+        sourcePodIds,
+        mergedContentPreview: mergedPreview,
+      };
+
+      socketService.emitToPod(
+        connection.targetPodId,
+        WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED,
+        mergedPayload
+      );
+
+      for (const sourceId of sourcePodIds) {
+        socketService.emitToPod(
+          sourceId,
+          WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED,
+          mergedPayload
+        );
+      }
+
+      this.triggerWorkflowWithSummary(connection.id, mergedContent, true).catch((error) => {
+        console.error(
+          `[WorkflowExecution] Failed to trigger merged workflow ${connection.id}:`,
+          error
+        );
+      });
+
+      workflowStateService.clearPendingTarget(connection.targetPodId);
     }
   }
 
@@ -246,48 +253,13 @@ ${content}
       throw new Error(`Source Pod ${sourcePodId} has no assistant messages to transfer`);
     }
 
-    let transferredContent: string;
-    let isSummarized: boolean;
-
-    try {
-      podStore.setStatus(sourcePodId, 'summarizing');
-      console.log(
-        `[WorkflowExecution] Generating customized summary from source POD ${sourcePodId} to target POD ${targetPodId}`
-      );
-
-      const summaryResult = await summaryService.generateSummaryForTarget(sourcePodId, targetPodId);
-
-      if (summaryResult.success) {
-        transferredContent = summaryResult.summary;
-        isSummarized = true;
-        console.log(
-          `[WorkflowExecution] Summary generated successfully, length: ${transferredContent.length} chars`
-        );
-      } else {
-        console.error(
-          `[WorkflowExecution] Failed to generate summary: ${summaryResult.error}, using last assistant message`
-        );
-        const fallbackContent = this.getLastAssistantMessage(sourcePodId);
-        if (!fallbackContent) {
-          throw new Error('無可用的備用內容');
-        }
-        transferredContent = fallbackContent;
-        isSummarized = false;
-      }
-      podStore.setStatus(sourcePodId, 'idle');
-    } catch (error) {
-      podStore.setStatus(sourcePodId, 'idle');
-      console.error(
-        '[WorkflowExecution] Failed to generate summary, using last assistant message:',
-        error
-      );
-      const fallbackContent = this.getLastAssistantMessage(sourcePodId);
-      if (!fallbackContent) {
-        throw new Error('無可用的備用內容');
-      }
-      transferredContent = fallbackContent;
-      isSummarized = false;
+    const result = await this.generateSummaryWithFallback(sourcePodId, targetPodId);
+    if (!result) {
+      throw new Error('無可用的備用內容');
     }
+
+    const transferredContent = result.content;
+    const isSummarized = result.isSummarized;
 
     console.log(
       `[WorkflowExecution] Auto-triggering workflow from Pod ${sourcePodId} to Pod ${targetPodId} (summarized: ${isSummarized})`

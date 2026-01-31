@@ -90,14 +90,7 @@ class SkillService {
      */
     async deleteSkillsFromPath(basePath: string): Promise<void> {
         const skillsDir = path.join(basePath, '.claude', 'skills');
-
-        try {
-            await fs.rm(skillsDir, {recursive: true, force: true});
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-                // Intentionally not logging - too verbose
-            }
-        }
+        await fs.rm(skillsDir, {recursive: true, force: true});
     }
 
     async delete(skillId: string): Promise<void> {
