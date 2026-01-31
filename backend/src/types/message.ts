@@ -1,5 +1,18 @@
 export type MessageRole = 'user' | 'assistant';
 
+export interface TextContentBlock {
+  type: 'text';
+  text: string;
+}
+
+export interface ImageContentBlock {
+  type: 'image';
+  mediaType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+  base64Data: string;
+}
+
+export type ContentBlock = TextContentBlock | ImageContentBlock;
+
 export interface ToolUseInfo {
   toolUseId: string;
   toolName: string;

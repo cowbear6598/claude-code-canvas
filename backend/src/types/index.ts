@@ -5,7 +5,7 @@ export { ok, err } from './result.js';
 export type { Pod, PodColor, PodTypeName, PodStatus, ModelType } from './pod.js';
 
 // Message types
-export type { Message, MessageRole, ToolUseInfo } from './message.js';
+export type { Message, MessageRole, ToolUseInfo, ContentBlock, TextContentBlock, ImageContentBlock } from './message.js';
 
 // Output Style types
 export type { OutputStyle, OutputStyleListItem } from './outputStyle.js';

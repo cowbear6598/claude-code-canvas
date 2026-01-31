@@ -1,5 +1,7 @@
 import type { PodColor, PodTypeName, ModelType } from '../pod'
 
+export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
+
 export interface PodCreatePayload {
   requestId: string
   name: string
@@ -34,10 +36,23 @@ export interface PodDeletePayload {
   podId: string
 }
 
+export interface TextContentBlock {
+  type: 'text'
+  text: string
+}
+
+export interface ImageContentBlock {
+  type: 'image'
+  mediaType: ImageMediaType
+  base64Data: string
+}
+
+export type ContentBlock = TextContentBlock | ImageContentBlock
+
 export interface PodChatSendPayload {
   requestId: string
   podId: string
-  message: string
+  message: string | ContentBlock[]
 }
 
 export interface PodJoinPayload {

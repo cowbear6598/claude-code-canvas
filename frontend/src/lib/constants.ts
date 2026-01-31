@@ -48,3 +48,7 @@ export const NOTE_HEIGHT = 30
 export const POSITION_SYNC_DELAY_MS = 500
 export const NOTE_ANIMATION_DURATION_MS = 300
 export const PASTE_TIMEOUT_MS = 10000
+
+// Image Upload Constants
+export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
+export const SUPPORTED_IMAGE_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const

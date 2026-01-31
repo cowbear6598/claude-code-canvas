@@ -1,5 +1,5 @@
-import type {Socket} from 'socket.io';
-import {v4 as uuidv4} from 'uuid';
+import type { Socket } from 'socket.io';
+import { v4 as uuidv4 } from 'uuid';
 import {
     WebSocketResponseEvents,
     type PodChatHistoryResultPayload,
@@ -9,24 +9,35 @@ import {
     type PodChatCompletePayload,
     type PersistedSubMessage,
     type PersistedToolUseInfo,
+    type ContentBlock,
 } from '../types/index.js';
-import type {ChatSendPayload, ChatHistoryPayload} from '../schemas/index.js';
-import {podStore} from '../services/podStore.js';
-import {messageStore} from '../services/messageStore.js';
-import {claudeQueryService} from '../services/claude/queryService.js';
-import {socketService} from '../services/socketService.js';
-import {workflowService} from '../services/workflow/index.js';
-import {autoClearService} from '../services/autoClear/index.js';
-import {emitError} from '../utils/websocketResponse.js';
-import {logger} from '../utils/logger.js';
-import {validatePod} from '../utils/handlerHelpers.js';
+import type { ChatSendPayload, ChatHistoryPayload } from '../schemas/index.js';
+import { podStore } from '../services/podStore.js';
+import { messageStore } from '../services/messageStore.js';
+import { claudeQueryService } from '../services/claude/queryService.js';
+import { socketService } from '../services/socketService.js';
+import { workflowService } from '../services/workflow/index.js';
+import { autoClearService } from '../services/autoClear/index.js';
+import { emitError } from '../utils/websocketResponse.js';
+import { logger } from '../utils/logger.js';
+import { validatePod } from '../utils/handlerHelpers.js';
+
+function extractDisplayContent(message: string | ContentBlock[]): string {
+    if (typeof message === 'string') {
+        return message;
+    }
+
+    return message
+        .map((block) => block.type === 'text' ? block.text : '[image]')
+        .join('');
+}
 
 export async function handleChatSend(
     socket: Socket,
     payload: ChatSendPayload,
     requestId: string
 ): Promise<void> {
-    const {podId, message} = payload;
+    const { podId, message } = payload;
 
     const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_ERROR, requestId);
 
@@ -166,6 +177,9 @@ export async function handleChatSend(
         }
     });
 
+    const userMessageText = extractDisplayContent(message);
+    await messageStore.addMessage(podId, 'user', userMessageText);
+
     if (accumulatedContent || subMessages.length > 0) {
         await messageStore.addMessage(podId, 'assistant', accumulatedContent, subMessages.length > 0 ? subMessages : undefined);
     }
@@ -187,7 +201,7 @@ export async function handleChatHistory(
     payload: ChatHistoryPayload,
     requestId: string
 ): Promise<void> {
-    const {podId} = payload;
+    const { podId } = payload;
 
     const pod = podStore.getById(podId);
     if (!pod) {

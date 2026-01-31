@@ -1,4 +1,5 @@
 import type { Pod, PodColor, PodTypeName, ModelType } from './pod.js';
+import type { ContentBlock, MessageRole } from './message.js';
 
 export enum WebSocketRequestEvents {
   POD_CREATE = 'pod:create',
@@ -193,7 +194,7 @@ export interface PodDeletePayload {
 export interface PodChatSendPayload {
   requestId: string;
   podId: string;
-  message: string;
+  message: string | ContentBlock[];
 }
 
 export interface PodChatHistoryPayload {
@@ -257,7 +258,7 @@ export interface PodChatMessagePayload {
   messageId: string;
   content: string;
   isPartial: boolean;
-  role?: 'user' | 'assistant';
+  role?: MessageRole;
 }
 
 export interface PodChatToolUsePayload {
@@ -287,7 +288,7 @@ export interface PodChatHistoryResultPayload {
   success: boolean;
   messages?: Array<{
     id: string;
-    role: 'user' | 'assistant';
+    role: MessageRole;
     content: string;
     timestamp: string;
     subMessages?: Array<{

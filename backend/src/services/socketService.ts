@@ -32,6 +32,7 @@ class SocketService {
             },
             pingInterval: 10000,
             pingTimeout: 5000,
+            maxHttpBufferSize: 10 * 1024 * 1024,
         });
 
         logger.log('Startup', 'Complete', '[Socket.io] Server initialized');

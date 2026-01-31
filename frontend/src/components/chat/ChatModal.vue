@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import type { Pod } from '@/types'
+import type { ContentBlock } from '@/types/websocket/requests'
 import ChatHeader from './ChatHeader.vue'
 import ChatMessages from './ChatMessages.vue'
 import ChatInput from './ChatInput.vue'
@@ -20,10 +21,10 @@ const messages = computed(() => chatStore.getMessages(props.pod.id))
 const isTyping = computed(() => chatStore.isTyping(props.pod.id))
 const isHistoryLoading = computed(() => chatStore.isHistoryLoading(props.pod.id))
 
-const handleSend = async (content: string): Promise<void> => {
-  if (!content.trim()) return
+const handleSend = async (content: string, contentBlocks?: ContentBlock[]): Promise<void> => {
+  if (!content.trim() && !contentBlocks) return
 
-  await chatStore.sendMessage(props.pod.id, content)
+  await chatStore.sendMessage(props.pod.id, content, contentBlocks)
 }
 
 const handleClose = (): void => {

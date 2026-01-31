@@ -23,7 +23,9 @@ import type {
     PodMessagesClearedPayload,
     WorkflowAutoClearedPayload,
     HeartbeatPingPayload,
-    PodJoinBatchPayload
+    PodJoinBatchPayload,
+    ContentBlock,
+    TextContentBlock
 } from '@/types/websocket'
 import {RESPONSE_PREVIEW_LENGTH, CONTENT_PREVIEW_LENGTH} from '@/lib/constants'
 
@@ -37,6 +39,15 @@ const truncateContent = (content: string, maxLength: number): string => {
     return content.length > maxLength
         ? `${content.slice(0, maxLength)}...`
         : content
+}
+
+const buildDisplayMessage = (blocks: ContentBlock[]): string => {
+    return blocks.map(block => {
+        if (block.type === 'text') {
+            return block.text
+        }
+        return '[image]'
+    }).join('')
 }
 
 interface ChatState {
@@ -231,16 +242,17 @@ export const useChatStore = defineStore('chat', {
             })
         },
 
-        async sendMessage(podId: string, content: string): Promise<void> {
+        async sendMessage(podId: string, content: string, contentBlocks?: ContentBlock[]): Promise<void> {
             if (!this.isConnected) {
                 throw new Error('WebSocket not connected')
             }
 
-            if (!content.trim()) {
+            const hasContentBlocks = contentBlocks && contentBlocks.length > 0
+            const hasTextContent = content.trim().length > 0
+
+            if (!hasContentBlocks && !hasTextContent) {
                 return
             }
-
-            let finalMessage = content
 
             const {usePodStore} = await import('./pod/podStore')
             const {useCommandStore} = await import('./note/commandStore')
@@ -248,19 +260,36 @@ export const useChatStore = defineStore('chat', {
             const commandStore = useCommandStore()
 
             const pod = podStore.pods.find(p => p.id === podId)
-            if (pod?.commandId) {
-                const command = commandStore.availableItems.find(c => c.id === pod.commandId)
-                if (command) {
-                    finalMessage = `/${command.name} ${content}`
+            const command = pod?.commandId
+                ? commandStore.availableItems.find(c => c.id === pod.commandId)
+                : null
+
+            let messagePayload: string | ContentBlock[]
+            let displayMessage: string
+
+            if (hasContentBlocks) {
+                const blocks = [...contentBlocks!]
+                const firstTextBlock = blocks.find((block): block is TextContentBlock => block.type === 'text')
+
+                if (command && firstTextBlock) {
+                    firstTextBlock.text = `/${command.name} ${firstTextBlock.text}`
                 }
+
+                messagePayload = blocks
+                const displayContent = buildDisplayMessage(contentBlocks!)
+                displayMessage = command ? `/${command.name} ${displayContent}` : displayContent
+            } else {
+                const finalMessage = command ? `/${command.name} ${content}` : content
+                messagePayload = finalMessage
+                displayMessage = finalMessage
             }
 
-            this.addUserMessage(podId, finalMessage)
+            this.addUserMessage(podId, displayMessage)
 
             websocketClient.emit<PodChatSendPayload>(WebSocketRequestEvents.POD_CHAT_SEND, {
                 requestId: generateRequestId(),
                 podId,
-                message: finalMessage
+                message: messagePayload
             })
 
             this.setTyping(podId, true)
@@ -624,7 +653,7 @@ export const useChatStore = defineStore('chat', {
             this.finalizeStreaming(podId, messageId)
         },
 
-        updatePodOutput(podId: string, content: string): void {
+        updatePodOutput(podId: string, _content: string): void {
             import('./pod/podStore').then(({usePodStore}) => {
                 const podStore = usePodStore()
                 const pod = podStore.pods.find(p => p.id === podId)
