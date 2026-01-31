@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch } from 'vue'
 import { Eraser, Trash2 } from 'lucide-vue-next'
-import { useChatStore } from '@/stores/chatStore'
+import { useChatStore } from '@/stores/chat'
 import {
   Dialog,
   DialogContent,

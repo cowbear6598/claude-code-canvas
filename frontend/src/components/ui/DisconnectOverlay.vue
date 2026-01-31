@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue'
-import { useChatStore } from '@/stores/chatStore'
+import { useChatStore } from '@/stores/chat'
 
 const chatStore = useChatStore()
 const showOverlay = ref(false)

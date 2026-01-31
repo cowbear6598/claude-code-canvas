@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useChatStore } from '@/stores/chatStore'
+import { useChatStore } from '@/stores/chat'
 
 const chatStore = useChatStore()
 

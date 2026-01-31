@@ -5,7 +5,7 @@ import type { ContentBlock } from '@/types/websocket/requests'
 import ChatHeader from './ChatHeader.vue'
 import ChatMessages from './ChatMessages.vue'
 import ChatInput from './ChatInput.vue'
-import { useChatStore } from '@/stores/chatStore'
+import { useChatStore } from '@/stores/chat'
 
 const props = defineProps<{
   pod: Pod

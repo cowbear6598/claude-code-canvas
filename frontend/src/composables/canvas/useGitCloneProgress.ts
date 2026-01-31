@@ -4,7 +4,7 @@ import { WebSocketResponseEvents } from '@/types/websocket'
 import type { RepositoryGitCloneProgressPayload, RepositoryGitCloneResultPayload } from '@/types/websocket'
 import { useToast } from '@/composables/useToast'
 import { useRepositoryStore } from '@/stores/note'
-import { useChatStore } from '@/stores/chatStore'
+import { useChatStore } from '@/stores/chat'
 
 export type CloneStatus = 'cloning' | 'completed' | 'failed'
 

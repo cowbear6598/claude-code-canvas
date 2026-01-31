@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import {usePodStore, useViewportStore} from '@/stores/pod'
-import {useChatStore} from '@/stores/chatStore'
+import {useChatStore} from '@/stores/chat'
 import {useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore} from '@/stores/note'
 import {useConnectionStore} from '@/stores/connectionStore'
 import {websocketClient, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
