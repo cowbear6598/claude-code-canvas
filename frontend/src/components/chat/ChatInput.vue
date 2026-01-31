@@ -438,7 +438,8 @@ const initializeSpeechRecognition = (): void => {
   recognition.value.onresult = (event): void => {
     const lastResult = event.results[event.results.length - 1]
     if (!lastResult) return
-    const transcript = lastResult[0].transcript
+    const transcript = lastResult[0]?.transcript
+    if (!transcript) return
     updateText(input.value + transcript)
   }
 
