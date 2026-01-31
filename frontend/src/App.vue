@@ -100,23 +100,30 @@ const loadAppData = async (): Promise<void> => {
     websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, {podIds})
   }
 
-  await outputStyleStore.loadOutputStyles()
-  await outputStyleStore.loadNotesFromBackend()
-  await outputStyleStore.rebuildNotesFromPods(podStore.pods)
-
-  await skillStore.loadSkills()
-  await skillStore.loadNotesFromBackend()
-
-  await subAgentStore.loadItems()
-  await subAgentStore.loadNotesFromBackend()
-
-  await repositoryStore.loadRepositories()
-  await repositoryStore.loadNotesFromBackend()
-
-  await commandStore.loadCommands()
-  await commandStore.loadNotesFromBackend()
-
-  await connectionStore.loadConnectionsFromBackend()
+  await Promise.all([
+    async (): Promise<void> => {
+      await outputStyleStore.loadOutputStyles()
+      await outputStyleStore.loadNotesFromBackend()
+      await outputStyleStore.rebuildNotesFromPods(podStore.pods)
+    },
+    async (): Promise<void> => {
+      await skillStore.loadSkills()
+      await skillStore.loadNotesFromBackend()
+    },
+    async (): Promise<void> => {
+      await subAgentStore.loadItems()
+      await subAgentStore.loadNotesFromBackend()
+    },
+    async (): Promise<void> => {
+      await repositoryStore.loadRepositories()
+      await repositoryStore.loadNotesFromBackend()
+    },
+    async (): Promise<void> => {
+      await commandStore.loadCommands()
+      await commandStore.loadNotesFromBackend()
+    },
+    connectionStore.loadConnectionsFromBackend(),
+  ].map((fn): Promise<void> => typeof fn === 'function' ? fn() : fn))
 
   connectionStore.setupWorkflowListeners()
 
