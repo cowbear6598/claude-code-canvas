@@ -54,11 +54,7 @@ interface EditModalState {
   itemId: string
 }
 
-const showSubmenu = ref(false)
-const showSkillSubmenu = ref(false)
-const showSubAgentSubmenu = ref(false)
-const showRepositorySubmenu = ref(false)
-const showCommandSubmenu = ref(false)
+const openMenuType = ref<'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | null>(null)
 const showCreateRepositoryModal = ref(false)
 const showCloneRepositoryModal = ref(false)
 const showDeleteModal = ref(false)
@@ -106,31 +102,31 @@ const handleSelect = (config: PodTypeConfig): void => {
 }
 
 const handleOutputStyleSelect = (style: OutputStyleListItem): void => {
-  showSubmenu.value = false
+  openMenuType.value = null
   emit('create-output-style-note', style.id)
   emit('close')
 }
 
 const handleSkillSelect = (skill: Skill): void => {
-  showSkillSubmenu.value = false
+  openMenuType.value = null
   emit('create-skill-note', skill.id)
   emit('close')
 }
 
 const handleSubAgentSelect = (subAgent: SubAgent): void => {
-  showSubAgentSubmenu.value = false
+  openMenuType.value = null
   emit('create-subagent-note', subAgent.id)
   emit('close')
 }
 
 const handleRepositorySelect = (repository: Repository): void => {
-  showRepositorySubmenu.value = false
+  openMenuType.value = null
   emit('create-repository-note', repository.id)
   emit('close')
 }
 
 const handleCommandSelect = (command: { id: string; name: string }): void => {
-  showCommandSubmenu.value = false
+  openMenuType.value = null
   emit('create-command-note', command.id)
   emit('close')
 }
@@ -140,13 +136,13 @@ const handleClose = (): void => {
 }
 
 const handleRepositoryCreated = (repository: { id: string; name: string }): void => {
-  showRepositorySubmenu.value = false
+  openMenuType.value = null
   emit('create-repository-note', repository.id)
   emit('close')
 }
 
 const handleCloneStarted = (payload: { requestId: string; repoName: string }): void => {
-  showRepositorySubmenu.value = false
+  openMenuType.value = null
   emit('clone-started', payload)
   emit('close')
 }
@@ -247,7 +243,7 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
       outputStyle: async () => {
         const result = await outputStyleStore.createOutputStyle(name, content)
         if (result.success && result.outputStyle) {
-          showSubmenu.value = false
+          openMenuType.value = null
           emit('create-output-style-note', result.outputStyle.id)
           emit('close')
         }
@@ -255,7 +251,7 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
       subAgent: async () => {
         const result = await subAgentStore.createSubAgent(name, content)
         if (result.success && result.subAgent) {
-          showSubAgentSubmenu.value = false
+          openMenuType.value = null
           emit('create-subagent-note', result.subAgent.id)
           emit('close')
         }
@@ -263,7 +259,7 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
       command: async () => {
         const result = await commandStore.createCommand(name, content)
         if (result.success && result.command) {
-          showCommandSubmenu.value = false
+          openMenuType.value = null
           emit('create-command-note', result.command.id)
           emit('close')
         }
@@ -325,8 +321,8 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
       <!-- Output Styles 按鈕 -->
       <div
         class="relative"
-        @mouseenter="showSubmenu = true"
-        @mouseleave="showSubmenu = false"
+        @mouseenter="openMenuType = 'outputStyle'"
+        @mouseleave="openMenuType = null"
       >
         <button
           class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
@@ -346,7 +342,7 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
         <PodTypeMenuSubmenu
           v-model:hovered-item-id="hoveredItemId"
           :items="outputStyleStore.availableItems"
-          :visible="showSubmenu"
+          :visible="openMenuType === 'outputStyle'"
           @item-select="handleOutputStyleSelect"
           @item-edit="handleOutputStyleEdit"
           @item-delete="(id, name, event) => handleDeleteClick('outputStyle', id, name, event)"
@@ -367,8 +363,8 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
       <!-- Command 按鈕 -->
       <div
         class="relative"
-        @mouseenter="showCommandSubmenu = true"
-        @mouseleave="showCommandSubmenu = false"
+        @mouseenter="openMenuType = 'command'"
+        @mouseleave="openMenuType = null"
       >
         <button
           class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
@@ -385,7 +381,7 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
         <PodTypeMenuSubmenu
           v-model:hovered-item-id="hoveredItemId"
           :items="commandStore.availableItems"
-          :visible="showCommandSubmenu"
+          :visible="openMenuType === 'command'"
           @item-select="handleCommandSelect"
           @item-edit="handleCommandEdit"
           @item-delete="(id, name, event) => handleDeleteClick('command', id, name, event)"
@@ -406,8 +402,8 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
       <!-- Skills 按鈕 -->
       <div
         class="relative"
-        @mouseenter="showSkillSubmenu = true"
-        @mouseleave="showSkillSubmenu = false"
+        @mouseenter="openMenuType = 'skill'"
+        @mouseleave="openMenuType = null"
       >
         <button
           class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
@@ -427,7 +423,7 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
         <PodTypeMenuSubmenu
           v-model:hovered-item-id="hoveredItemId"
           :items="skillStore.availableItems"
-          :visible="showSkillSubmenu"
+          :visible="openMenuType === 'skill'"
           :editable="false"
           @item-select="handleSkillSelect"
           @item-delete="(id, name, event) => handleDeleteClick('skill', id, name, event)"
@@ -437,8 +433,8 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
       <!-- SubAgents 按鈕 -->
       <div
         class="relative"
-        @mouseenter="showSubAgentSubmenu = true"
-        @mouseleave="showSubAgentSubmenu = false"
+        @mouseenter="openMenuType = 'subAgent'"
+        @mouseleave="openMenuType = null"
       >
         <button
           class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
@@ -458,7 +454,7 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
         <PodTypeMenuSubmenu
           v-model:hovered-item-id="hoveredItemId"
           :items="subAgentStore.availableItems"
-          :visible="showSubAgentSubmenu"
+          :visible="openMenuType === 'subAgent'"
           @item-select="handleSubAgentSelect"
           @item-edit="handleSubAgentEdit"
           @item-delete="(id, name, event) => handleDeleteClick('subAgent', id, name, event)"
@@ -479,8 +475,8 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
       <!-- Repository 按鈕 -->
       <div
         class="relative"
-        @mouseenter="showRepositorySubmenu = true"
-        @mouseleave="showRepositorySubmenu = false"
+        @mouseenter="openMenuType = 'repository'"
+        @mouseleave="openMenuType = null"
       >
         <button
           class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
@@ -500,7 +496,7 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
         <PodTypeMenuSubmenu
           v-model:hovered-item-id="hoveredItemId"
           :items="repositoryStore.availableItems"
-          :visible="showRepositorySubmenu"
+          :visible="openMenuType === 'repository'"
           @item-select="handleRepositorySelect"
           @item-delete="(id, name, event) => handleDeleteClick('repository', id, name, event)"
         >
