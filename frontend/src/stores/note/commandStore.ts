@@ -1,13 +1,56 @@
-import type {Command, CommandNote, Pod} from '@/types'
-import {createNoteStore} from './createNoteStore'
-import {WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest} from '@/services/websocket'
-import type {CommandNoteCreatePayload, CommandNoteCreatedPayload} from '@/types/websocket'
+import type { Command, CommandNote, Pod } from '@/types'
+import { createNoteStore } from './createNoteStore'
+import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
+import { createResourceCRUDActions } from './createResourceCRUDActions'
+import type {
+  CommandNoteCreatePayload,
+  CommandNoteCreatedPayload,
+  CommandCreatedPayload,
+  CommandUpdatedPayload,
+  CommandReadResultPayload
+} from '@/types/websocket'
 
 interface CommandStoreCustomActions {
   rebuildNotesFromPods(pods: Pod[]): Promise<void>
+  createCommand(name: string, content: string): Promise<{ success: boolean; command?: { id: string; name: string }; error?: string }>
+  updateCommand(commandId: string, content: string): Promise<{ success: boolean; command?: { id: string; name: string }; error?: string }>
+  readCommand(commandId: string): Promise<{ id: string; name: string; content: string } | null>
   deleteCommand(commandId: string): Promise<void>
   loadCommands(): Promise<void>
 }
+
+const commandCRUD = createResourceCRUDActions<Command>(
+  'Command',
+  {
+    create: {
+      request: WebSocketRequestEvents.COMMAND_CREATE,
+      response: WebSocketResponseEvents.COMMAND_CREATED
+    },
+    update: {
+      request: WebSocketRequestEvents.COMMAND_UPDATE,
+      response: WebSocketResponseEvents.COMMAND_UPDATED
+    },
+    read: {
+      request: WebSocketRequestEvents.COMMAND_READ,
+      response: WebSocketResponseEvents.COMMAND_READ_RESULT
+    }
+  },
+  {
+    getUpdatePayload: (commandId, content) => ({ commandId, content }),
+    getReadPayload: (commandId) => ({ commandId }),
+    extractItemFromResponse: {
+      create: (response) => (response as CommandCreatedPayload).command,
+      update: (response) => (response as CommandUpdatedPayload).command,
+      read: (response) => (response as CommandReadResultPayload).command
+    },
+    updateItemsList: (items, commandId, newItem) => {
+      const index = items.findIndex(item => item.id === commandId)
+      if (index !== -1) {
+        items[index] = newItem as Command
+      }
+    }
+  }
+)
 
 const store = createNoteStore<Command, CommandNote>({
   storeName: 'command',
@@ -89,6 +132,20 @@ const store = createNoteStore<Command, CommandNote>({
       if (promises.length > 0) {
         await Promise.all(promises)
       }
+    },
+
+    async createCommand(this, name: string, content: string): Promise<{ success: boolean; command?: { id: string; name: string }; error?: string }> {
+      const result = await commandCRUD.create(this.availableItems, name, content)
+      return result.success ? { success: true, command: result.item } : { success: false, error: result.error }
+    },
+
+    async updateCommand(this, commandId: string, content: string): Promise<{ success: boolean; command?: { id: string; name: string }; error?: string }> {
+      const result = await commandCRUD.update(this.availableItems, commandId, content)
+      return result.success ? { success: true, command: result.item } : { success: false, error: result.error }
+    },
+
+    async readCommand(this, commandId: string): Promise<{ id: string; name: string; content: string } | null> {
+      return commandCRUD.read(commandId)
     },
 
     async deleteCommand(this, commandId: string): Promise<void> {

@@ -1,15 +1,19 @@
 <script setup lang="ts" generic="T extends { id: string; name: string }">
-import { X } from 'lucide-vue-next'
+import { X, Pencil } from 'lucide-vue-next'
 
 interface Props<T> {
   items: T[]
   visible: boolean
+  editable?: boolean
 }
 
-defineProps<Props<T>>()
+const props = withDefaults(defineProps<Props<T>>(), {
+  editable: true
+})
 
 const emit = defineEmits<{
   'item-select': [item: T]
+  'item-edit': [id: string, name: string, event: Event]
   'item-delete': [id: string, name: string, event: Event]
 }>()
 
@@ -17,6 +21,10 @@ const hoveredItemId = defineModel<string | null>('hoveredItemId')
 
 const handleItemSelect = (item: T): void => {
   emit('item-select', item)
+}
+
+const handleItemEdit = (item: T, event: Event): void => {
+  emit('item-edit', item.id, item.name, event)
 }
 
 const handleItemDelete = (item: T, event: Event): void => {
@@ -44,6 +52,13 @@ const handleItemDelete = (item: T, event: Event): void => {
           @click="handleItemSelect(item)"
         >
           {{ item.name }}
+        </button>
+        <button
+          v-if="editable"
+          class="pod-menu-submenu-edit-btn"
+          @click="handleItemEdit(item, $event)"
+        >
+          <Pencil :size="14" />
         </button>
         <button
           class="pod-menu-submenu-delete-btn"

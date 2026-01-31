@@ -109,6 +109,27 @@ export interface OutputStyleListResultPayload {
   error?: string
 }
 
+export interface OutputStyleCreatedPayload {
+  requestId: string
+  success: boolean
+  outputStyle?: { id: string; name: string }
+  error?: string
+}
+
+export interface OutputStyleUpdatedPayload {
+  requestId: string
+  success: boolean
+  outputStyle?: { id: string; name: string }
+  error?: string
+}
+
+export interface OutputStyleReadResultPayload {
+  requestId: string
+  success: boolean
+  outputStyle?: { id: string; name: string; content: string }
+  error?: string
+}
+
 export interface OutputStyleDeletedPayload {
   requestId: string
   success: boolean
@@ -408,6 +429,27 @@ export interface SubAgentListResultPayload {
   error?: string
 }
 
+export interface SubAgentCreatedPayload {
+  requestId: string
+  success: boolean
+  subAgent?: { id: string; name: string }
+  error?: string
+}
+
+export interface SubAgentUpdatedPayload {
+  requestId: string
+  success: boolean
+  subAgent?: { id: string; name: string }
+  error?: string
+}
+
+export interface SubAgentReadResultPayload {
+  requestId: string
+  success: boolean
+  subAgent?: { id: string; name: string; content: string }
+  error?: string
+}
+
 export interface SubAgentDeletedPayload {
   requestId: string
   success: boolean
@@ -455,6 +497,27 @@ export interface CommandListResultPayload {
   requestId: string
   success: boolean
   commands?: Command[]
+  error?: string
+}
+
+export interface CommandCreatedPayload {
+  requestId: string
+  success: boolean
+  command?: { id: string; name: string }
+  error?: string
+}
+
+export interface CommandUpdatedPayload {
+  requestId: string
+  success: boolean
+  command?: { id: string; name: string }
+  error?: string
+}
+
+export interface CommandReadResultPayload {
+  requestId: string
+  success: boolean
+  command?: { id: string; name: string; content: string }
   error?: string
 }
 

@@ -17,6 +17,24 @@ import { noteStore } from '../services/noteStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { validatePod, handleResourceDelete } from '../utils/handlerHelpers.js';
+import { createResourceHandlers } from './factories/createResourceHandlers.js';
+
+const resourceHandlers = createResourceHandlers({
+  service: outputStyleService,
+  events: {
+    listResult: WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT,
+    created: WebSocketResponseEvents.OUTPUT_STYLE_CREATED,
+    updated: WebSocketResponseEvents.OUTPUT_STYLE_UPDATED,
+    readResult: WebSocketResponseEvents.OUTPUT_STYLE_READ_RESULT,
+  },
+  resourceName: 'OutputStyle',
+  responseKey: 'outputStyle',
+  idField: 'outputStyleId',
+});
+
+export const handleOutputStyleCreate = resourceHandlers.handleCreate;
+export const handleOutputStyleUpdate = resourceHandlers.handleUpdate;
+export const handleOutputStyleRead = resourceHandlers.handleRead!;
 
 export async function handleOutputStyleList(
   socket: Socket,
@@ -32,7 +50,6 @@ export async function handleOutputStyleList(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT, response);
-
 }
 
 export async function handlePodBindOutputStyle(

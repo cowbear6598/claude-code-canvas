@@ -5,6 +5,23 @@ export const commandListSchema = z.object({
   requestId: requestIdSchema,
 });
 
+export const commandCreateSchema = z.object({
+  requestId: requestIdSchema,
+  name: z.string().min(1).max(100),
+  content: z.string(),
+});
+
+export const commandUpdateSchema = z.object({
+  requestId: requestIdSchema,
+  commandId: z.string(),
+  content: z.string(),
+});
+
+export const commandReadSchema = z.object({
+  requestId: requestIdSchema,
+  commandId: z.string(),
+});
+
 export const commandNoteCreateSchema = z.object({
   requestId: requestIdSchema,
   commandId: z.string(),
@@ -50,6 +67,9 @@ export const commandDeleteSchema = z.object({
 });
 
 export type CommandListPayload = z.infer<typeof commandListSchema>;
+export type CommandCreatePayload = z.infer<typeof commandCreateSchema>;
+export type CommandUpdatePayload = z.infer<typeof commandUpdateSchema>;
+export type CommandReadPayload = z.infer<typeof commandReadSchema>;
 export type CommandNoteCreatePayload = z.infer<typeof commandNoteCreateSchema>;
 export type CommandNoteListPayload = z.infer<typeof commandNoteListSchema>;
 export type CommandNoteUpdatePayload = z.infer<typeof commandNoteUpdateSchema>;

@@ -1,13 +1,56 @@
 import type { OutputStyleListItem, OutputStyleNote, Pod } from '@/types'
 import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
-import type { NoteCreatePayload, NoteCreatedPayload } from '@/types/websocket'
+import { createResourceCRUDActions } from './createResourceCRUDActions'
+import type {
+  NoteCreatePayload,
+  NoteCreatedPayload,
+  OutputStyleCreatedPayload,
+  OutputStyleUpdatedPayload,
+  OutputStyleReadResultPayload
+} from '@/types/websocket'
 
 interface OutputStyleStoreCustomActions {
   rebuildNotesFromPods(pods: Pod[]): Promise<void>
+  createOutputStyle(name: string, content: string): Promise<{ success: boolean; outputStyle?: { id: string; name: string }; error?: string }>
+  updateOutputStyle(outputStyleId: string, content: string): Promise<{ success: boolean; outputStyle?: { id: string; name: string }; error?: string }>
+  readOutputStyle(outputStyleId: string): Promise<{ id: string; name: string; content: string } | null>
   deleteOutputStyle(outputStyleId: string): Promise<void>
   loadOutputStyles(): Promise<void>
 }
+
+const outputStyleCRUD = createResourceCRUDActions<OutputStyleListItem>(
+  'Output Style',
+  {
+    create: {
+      request: WebSocketRequestEvents.OUTPUT_STYLE_CREATE,
+      response: WebSocketResponseEvents.OUTPUT_STYLE_CREATED
+    },
+    update: {
+      request: WebSocketRequestEvents.OUTPUT_STYLE_UPDATE,
+      response: WebSocketResponseEvents.OUTPUT_STYLE_UPDATED
+    },
+    read: {
+      request: WebSocketRequestEvents.OUTPUT_STYLE_READ,
+      response: WebSocketResponseEvents.OUTPUT_STYLE_READ_RESULT
+    }
+  },
+  {
+    getUpdatePayload: (outputStyleId, content) => ({ outputStyleId, content }),
+    getReadPayload: (outputStyleId) => ({ outputStyleId }),
+    extractItemFromResponse: {
+      create: (response) => (response as OutputStyleCreatedPayload).outputStyle,
+      update: (response) => (response as OutputStyleUpdatedPayload).outputStyle,
+      read: (response) => (response as OutputStyleReadResultPayload).outputStyle
+    },
+    updateItemsList: (items, outputStyleId, newItem) => {
+      const index = items.findIndex(item => item.id === outputStyleId)
+      if (index !== -1) {
+        items[index] = newItem as OutputStyleListItem
+      }
+    }
+  }
+)
 
 const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
   storeName: 'outputStyle',
@@ -89,6 +132,20 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
       if (promises.length > 0) {
         await Promise.all(promises)
       }
+    },
+
+    async createOutputStyle(this, name: string, content: string): Promise<{ success: boolean; outputStyle?: { id: string; name: string }; error?: string }> {
+      const result = await outputStyleCRUD.create(this.availableItems, name, content)
+      return result.success ? { success: true, outputStyle: result.item } : { success: false, error: result.error }
+    },
+
+    async updateOutputStyle(this, outputStyleId: string, content: string): Promise<{ success: boolean; outputStyle?: { id: string; name: string }; error?: string }> {
+      const result = await outputStyleCRUD.update(this.availableItems, outputStyleId, content)
+      return result.success ? { success: true, outputStyle: result.item } : { success: false, error: result.error }
+    },
+
+    async readOutputStyle(this, outputStyleId: string): Promise<{ id: string; name: string; content: string } | null> {
+      return outputStyleCRUD.read(outputStyleId)
     },
 
     async deleteOutputStyle(this, outputStyleId: string): Promise<void> {

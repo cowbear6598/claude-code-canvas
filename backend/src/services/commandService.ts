@@ -106,6 +106,27 @@ class CommandService {
         await fs.rm(filePath, {force: true});
     }
 
+    async create(name: string, content: string): Promise<{ id: string; name: string }> {
+        await fs.mkdir(config.commandsPath, { recursive: true });
+
+        const filePath = this.getCommandFilePath(name);
+        await fs.writeFile(filePath, content, 'utf-8');
+
+        return {
+            id: name,
+            name,
+        };
+    }
+
+    async update(commandId: string, content: string): Promise<void> {
+        const filePath = this.getCommandFilePath(commandId);
+        await fs.writeFile(filePath, content, 'utf-8');
+    }
+
+    async getContent(commandId: string): Promise<string | null> {
+        return this.getCommandContent(commandId);
+    }
+
     private getCommandFilePath(commandId: string): string {
         if (!validateCommandId(commandId)) {
             throw new Error('無效的 Command ID 格式');

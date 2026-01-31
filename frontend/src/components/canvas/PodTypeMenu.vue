@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus } from 'lucide-vue-next'
+import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus, FilePlus } from 'lucide-vue-next'
 import type { Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent } from '@/types'
 import { podTypes } from '@/data/podTypes'
 import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
@@ -8,6 +8,7 @@ import CreateRepositoryModal from './CreateRepositoryModal.vue'
 import CloneRepositoryModal from './CloneRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 import PodTypeMenuSubmenu from './PodTypeMenuSubmenu.vue'
+import CreateEditModal from './CreateEditModal.vue'
 
 interface Props {
   position: Position
@@ -31,12 +32,24 @@ const skillStore = useSkillStore()
 const subAgentStore = useSubAgentStore()
 const repositoryStore = useRepositoryStore()
 const commandStore = useCommandStore()
+
 type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
+type ResourceType = 'outputStyle' | 'subAgent' | 'command'
 
 interface DeleteTarget {
   type: ItemType
   id: string
   name: string
+}
+
+interface EditModalState {
+  visible: boolean
+  mode: 'create' | 'edit'
+  title: string
+  initialName: string
+  initialContent: string
+  resourceType: ResourceType
+  itemId: string
 }
 
 const showSubmenu = ref(false)
@@ -49,6 +62,16 @@ const showCloneRepositoryModal = ref(false)
 const showDeleteModal = ref(false)
 const deleteTarget = ref<DeleteTarget | null>(null)
 const hoveredItemId = ref<string | null>(null)
+
+const editModal = ref<EditModalState>({
+  visible: false,
+  mode: 'create',
+  title: '',
+  initialName: '',
+  initialContent: '',
+  resourceType: 'outputStyle',
+  itemId: ''
+})
 
 const isDeleteTargetInUse = computed(() => {
   if (!deleteTarget.value) return false
@@ -150,6 +173,114 @@ const handleDeleteConfirm = async (): Promise<void> => {
   showDeleteModal.value = false
   deleteTarget.value = null
 }
+
+const openCreateModal = (resourceType: ResourceType, title: string): void => {
+  editModal.value = {
+    visible: true,
+    mode: 'create',
+    title,
+    initialName: '',
+    initialContent: '',
+    resourceType,
+    itemId: ''
+  }
+}
+
+const handleNewOutputStyle = (): void => openCreateModal('outputStyle', '新增 Output Style')
+const handleNewSubAgent = (): void => openCreateModal('subAgent', '新增 SubAgent')
+const handleNewCommand = (): void => openCreateModal('command', '新增 Command')
+
+const resourceTitleMap = {
+  outputStyle: 'Output Style',
+  subAgent: 'SubAgent',
+  command: 'Command'
+} as const
+
+const readActions: Record<ResourceType, (id: string) => Promise<{ id: string; name: string; content: string } | null>> = {
+  outputStyle: (id) => outputStyleStore.readOutputStyle(id),
+  subAgent: (id) => subAgentStore.readSubAgent(id),
+  command: (id) => commandStore.readCommand(id)
+}
+
+const openEditModal = async (
+  resourceType: ResourceType,
+  id: string,
+  event: Event
+): Promise<void> => {
+  event.stopPropagation()
+
+  const data = await readActions[resourceType](id)
+
+  if (!data) {
+    console.error(`無法讀取 ${resourceTitleMap[resourceType]} (id: ${id})，請確認後端是否正常運作`)
+    return
+  }
+
+  editModal.value = {
+    visible: true,
+    mode: 'edit',
+    title: `編輯 ${resourceTitleMap[resourceType]}`,
+    initialName: data.name,
+    initialContent: data.content,
+    resourceType,
+    itemId: id
+  }
+}
+
+const handleOutputStyleEdit = (id: string, name: string, event: Event): Promise<void> =>
+  openEditModal('outputStyle', id, event)
+
+const handleSubAgentEdit = (id: string, name: string, event: Event): Promise<void> =>
+  openEditModal('subAgent', id, event)
+
+const handleCommandEdit = (id: string, name: string, event: Event): Promise<void> =>
+  openEditModal('command', id, event)
+
+const handleCreateEditSubmit = async (payload: { name: string; content: string }): Promise<void> => {
+  const { name, content } = payload
+  const { mode, resourceType, itemId } = editModal.value
+
+  if (mode === 'create') {
+    const createActions = {
+      outputStyle: async () => {
+        const result = await outputStyleStore.createOutputStyle(name, content)
+        if (result.success && result.outputStyle) {
+          showSubmenu.value = false
+          emit('create-output-style-note', result.outputStyle.id)
+          emit('close')
+        }
+      },
+      subAgent: async () => {
+        const result = await subAgentStore.createSubAgent(name, content)
+        if (result.success && result.subAgent) {
+          showSubAgentSubmenu.value = false
+          emit('create-subagent-note', result.subAgent.id)
+          emit('close')
+        }
+      },
+      command: async () => {
+        const result = await commandStore.createCommand(name, content)
+        if (result.success && result.command) {
+          showCommandSubmenu.value = false
+          emit('create-command-note', result.command.id)
+          emit('close')
+        }
+      }
+    }
+
+    await createActions[resourceType]()
+  } else {
+    const updateActions = {
+      outputStyle: () => outputStyleStore.updateOutputStyle(itemId, content),
+      subAgent: () => subAgentStore.updateSubAgent(itemId, content),
+      command: () => commandStore.updateCommand(itemId, content)
+    }
+
+    await updateActions[resourceType]()
+  }
+
+  editModal.value.visible = false
+}
 </script>
 
 <template>
@@ -215,8 +346,59 @@ const handleDeleteConfirm = async (): Promise<void> => {
           :items="outputStyleStore.availableItems"
           :visible="showSubmenu"
           @item-select="handleOutputStyleSelect"
+          @item-edit="handleOutputStyleEdit"
           @item-delete="(id, name, event) => handleDeleteClick('outputStyle', id, name, event)"
-        />
+        >
+          <template #footer>
+            <div class="border-t border-doodle-ink/30 my-1" />
+            <div
+              class="pod-menu-submenu-item flex items-center gap-2"
+              @click="handleNewOutputStyle"
+            >
+              <FilePlus :size="16" />
+              New...
+            </div>
+          </template>
+        </PodTypeMenuSubmenu>
+      </div>
+
+      <!-- Command 按鈕 -->
+      <div
+        class="relative"
+        @mouseenter="showCommandSubmenu = true"
+        @mouseleave="showCommandSubmenu = false"
+      >
+        <button
+          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
+        >
+          <span
+            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+            style="background-color: var(--doodle-mint)"
+          >
+            <span class="text-xs text-card font-mono font-bold">/</span>
+          </span>
+          <span class="font-mono text-sm text-foreground">Commands &gt;</span>
+        </button>
+
+        <PodTypeMenuSubmenu
+          v-model:hovered-item-id="hoveredItemId"
+          :items="commandStore.availableItems"
+          :visible="showCommandSubmenu"
+          @item-select="handleCommandSelect"
+          @item-edit="handleCommandEdit"
+          @item-delete="(id, name, event) => handleDeleteClick('command', id, name, event)"
+        >
+          <template #footer>
+            <div class="border-t border-doodle-ink/30 my-1" />
+            <div
+              class="pod-menu-submenu-item flex items-center gap-2"
+              @click="handleNewCommand"
+            >
+              <FilePlus :size="16" />
+              New...
+            </div>
+          </template>
+        </PodTypeMenuSubmenu>
       </div>
 
       <!-- Skills 按鈕 -->
@@ -244,6 +426,7 @@ const handleDeleteConfirm = async (): Promise<void> => {
           v-model:hovered-item-id="hoveredItemId"
           :items="skillStore.availableItems"
           :visible="showSkillSubmenu"
+          :editable="false"
           @item-select="handleSkillSelect"
           @item-delete="(id, name, event) => handleDeleteClick('skill', id, name, event)"
         />
@@ -275,8 +458,20 @@ const handleDeleteConfirm = async (): Promise<void> => {
           :items="subAgentStore.availableItems"
           :visible="showSubAgentSubmenu"
           @item-select="handleSubAgentSelect"
+          @item-edit="handleSubAgentEdit"
           @item-delete="(id, name, event) => handleDeleteClick('subAgent', id, name, event)"
-        />
+        >
+          <template #footer>
+            <div class="border-t border-doodle-ink/30 my-1" />
+            <div
+              class="pod-menu-submenu-item flex items-center gap-2"
+              @click="handleNewSubAgent"
+            >
+              <FilePlus :size="16" />
+              New...
+            </div>
+          </template>
+        </PodTypeMenuSubmenu>
       </div>
 
       <!-- Repository 按鈕 -->
@@ -327,32 +522,6 @@ const handleDeleteConfirm = async (): Promise<void> => {
         </PodTypeMenuSubmenu>
       </div>
 
-      <!-- Command 按鈕 -->
-      <div
-        class="relative"
-        @mouseenter="showCommandSubmenu = true"
-        @mouseleave="showCommandSubmenu = false"
-      >
-        <button
-          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
-        >
-          <span
-            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
-            style="background-color: var(--doodle-mint)"
-          >
-            <span class="text-xs text-card font-mono font-bold">/</span>
-          </span>
-          <span class="font-mono text-sm text-foreground">Commands &gt;</span>
-        </button>
-
-        <PodTypeMenuSubmenu
-          v-model:hovered-item-id="hoveredItemId"
-          :items="commandStore.availableItems"
-          :visible="showCommandSubmenu"
-          @item-select="handleCommandSelect"
-          @item-delete="(id, name, event) => handleDeleteClick('command', id, name, event)"
-        />
-      </div>
     </div>
 
     <CreateRepositoryModal
@@ -371,6 +540,16 @@ const handleDeleteConfirm = async (): Promise<void> => {
       :is-in-use="isDeleteTargetInUse"
       :item-type="deleteTarget?.type ?? 'outputStyle'"
       @confirm="handleDeleteConfirm"
+    />
+
+    <CreateEditModal
+      v-model:open="editModal.visible"
+      :mode="editModal.mode"
+      :title="editModal.title"
+      :initial-name="editModal.initialName"
+      :initial-content="editModal.initialContent"
+      :name-editable="editModal.mode === 'create'"
+      @submit="handleCreateEditSubmit"
     />
   </div>
 </template>

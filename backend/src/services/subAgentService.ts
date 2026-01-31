@@ -131,6 +131,27 @@ class SubAgentService {
         await fs.rm(filePath, {force: true});
     }
 
+    async create(name: string, content: string): Promise<{ id: string; name: string }> {
+        await fs.mkdir(config.agentsPath, { recursive: true });
+
+        const filePath = this.getSubAgentFilePath(name);
+        await fs.writeFile(filePath, content, 'utf-8');
+
+        return {
+            id: name,
+            name,
+        };
+    }
+
+    async update(subAgentId: string, content: string): Promise<void> {
+        const filePath = this.getSubAgentFilePath(subAgentId);
+        await fs.writeFile(filePath, content, 'utf-8');
+    }
+
+    async getContent(subAgentId: string): Promise<string | null> {
+        return this.getSubAgentContent(subAgentId);
+    }
+
     /**
      * Get the file path for a subagent
      * Format: {agentsPath}/{subAgentId}.md

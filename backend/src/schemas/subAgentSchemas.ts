@@ -5,6 +5,23 @@ export const subAgentListSchema = z.object({
   requestId: requestIdSchema,
 });
 
+export const subAgentCreateSchema = z.object({
+  requestId: requestIdSchema,
+  name: z.string().min(1).max(100),
+  content: z.string(),
+});
+
+export const subAgentUpdateSchema = z.object({
+  requestId: requestIdSchema,
+  subAgentId: z.string(),
+  content: z.string(),
+});
+
+export const subAgentReadSchema = z.object({
+  requestId: requestIdSchema,
+  subAgentId: z.string(),
+});
+
 export const subAgentNoteCreateSchema = z.object({
   requestId: requestIdSchema,
   subAgentId: z.string(),
@@ -45,6 +62,9 @@ export const subAgentDeleteSchema = z.object({
 });
 
 export type SubAgentListPayload = z.infer<typeof subAgentListSchema>;
+export type SubAgentCreatePayload = z.infer<typeof subAgentCreateSchema>;
+export type SubAgentUpdatePayload = z.infer<typeof subAgentUpdateSchema>;
+export type SubAgentReadPayload = z.infer<typeof subAgentReadSchema>;
 export type SubAgentNoteCreatePayload = z.infer<typeof subAgentNoteCreateSchema>;
 export type SubAgentNoteListPayload = z.infer<typeof subAgentNoteListSchema>;
 export type SubAgentNoteUpdatePayload = z.infer<typeof subAgentNoteUpdateSchema>;

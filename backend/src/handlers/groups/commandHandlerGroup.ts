@@ -1,6 +1,9 @@
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../types/index.js';
 import {
   commandListSchema,
+  commandCreateSchema,
+  commandUpdateSchema,
+  commandReadSchema,
   commandNoteCreateSchema,
   commandNoteListSchema,
   commandNoteUpdateSchema,
@@ -11,6 +14,9 @@ import {
 } from '../../schemas/index.js';
 import {
   handleCommandList,
+  handleCommandCreate,
+  handleCommandUpdate,
+  handleCommandRead,
   handleCommandNoteCreate,
   handleCommandNoteList,
   handleCommandNoteUpdate,
@@ -30,6 +36,24 @@ export const commandHandlerGroup: HandlerGroup = {
       handleCommandList,
       commandListSchema,
       WebSocketResponseEvents.COMMAND_LIST_RESULT
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.COMMAND_CREATE,
+      handleCommandCreate,
+      commandCreateSchema,
+      WebSocketResponseEvents.COMMAND_CREATED
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.COMMAND_UPDATE,
+      handleCommandUpdate,
+      commandUpdateSchema,
+      WebSocketResponseEvents.COMMAND_UPDATED
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.COMMAND_READ,
+      handleCommandRead,
+      commandReadSchema,
+      WebSocketResponseEvents.COMMAND_READ_RESULT
     ),
     createHandlerDefinition(
       WebSocketRequestEvents.COMMAND_NOTE_CREATE,

@@ -1,12 +1,18 @@
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../types/index.js';
 import {
   outputStyleListSchema,
+  outputStyleCreateSchema,
+  outputStyleUpdateSchema,
+  outputStyleReadSchema,
   podBindOutputStyleSchema,
   podUnbindOutputStyleSchema,
   outputStyleDeleteSchema,
 } from '../../schemas/index.js';
 import {
   handleOutputStyleList,
+  handleOutputStyleCreate,
+  handleOutputStyleUpdate,
+  handleOutputStyleRead,
   handlePodBindOutputStyle,
   handlePodUnbindOutputStyle,
   handleOutputStyleDelete,
@@ -22,6 +28,24 @@ export const outputStyleHandlerGroup: HandlerGroup = {
       handleOutputStyleList,
       outputStyleListSchema,
       WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.OUTPUT_STYLE_CREATE,
+      handleOutputStyleCreate,
+      outputStyleCreateSchema,
+      WebSocketResponseEvents.OUTPUT_STYLE_CREATED
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.OUTPUT_STYLE_UPDATE,
+      handleOutputStyleUpdate,
+      outputStyleUpdateSchema,
+      WebSocketResponseEvents.OUTPUT_STYLE_UPDATED
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.OUTPUT_STYLE_READ,
+      handleOutputStyleRead,
+      outputStyleReadSchema,
+      WebSocketResponseEvents.OUTPUT_STYLE_READ_RESULT
     ),
     createHandlerDefinition(
       WebSocketRequestEvents.POD_BIND_OUTPUT_STYLE,

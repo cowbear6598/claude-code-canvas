@@ -38,6 +38,10 @@ class OutputStyleService {
     }
   }
 
+  async getContent(styleId: string): Promise<string | null> {
+    return this.getStyleContent(styleId);
+  }
+
   async exists(styleId: string): Promise<boolean> {
     const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
 
@@ -52,6 +56,23 @@ class OutputStyleService {
   async delete(styleId: string): Promise<void> {
     const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
     await fs.unlink(filePath);
+  }
+
+  async create(name: string, content: string): Promise<{ id: string; name: string }> {
+    await fs.mkdir(config.outputStylesPath, { recursive: true });
+
+    const filePath = path.join(config.outputStylesPath, `${name}.md`);
+    await fs.writeFile(filePath, content, 'utf-8');
+
+    return {
+      id: name,
+      name,
+    };
+  }
+
+  async update(styleId: string, content: string): Promise<void> {
+    const filePath = path.join(config.outputStylesPath, `${styleId}.md`);
+    await fs.writeFile(filePath, content, 'utf-8');
   }
 }
 

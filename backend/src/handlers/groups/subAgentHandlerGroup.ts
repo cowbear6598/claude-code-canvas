@@ -1,6 +1,9 @@
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../types/index.js';
 import {
   subAgentListSchema,
+  subAgentCreateSchema,
+  subAgentUpdateSchema,
+  subAgentReadSchema,
   subAgentNoteCreateSchema,
   subAgentNoteListSchema,
   subAgentNoteUpdateSchema,
@@ -10,6 +13,9 @@ import {
 } from '../../schemas/index.js';
 import {
   handleSubAgentList,
+  handleSubAgentCreate,
+  handleSubAgentUpdate,
+  handleSubAgentRead,
   handleSubAgentNoteCreate,
   handleSubAgentNoteList,
   handleSubAgentNoteUpdate,
@@ -28,6 +34,24 @@ export const subAgentHandlerGroup: HandlerGroup = {
       handleSubAgentList,
       subAgentListSchema,
       WebSocketResponseEvents.SUBAGENT_LIST_RESULT
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.SUBAGENT_CREATE,
+      handleSubAgentCreate,
+      subAgentCreateSchema,
+      WebSocketResponseEvents.SUBAGENT_CREATED
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.SUBAGENT_UPDATE,
+      handleSubAgentUpdate,
+      subAgentUpdateSchema,
+      WebSocketResponseEvents.SUBAGENT_UPDATED
+    ),
+    createHandlerDefinition(
+      WebSocketRequestEvents.SUBAGENT_READ,
+      handleSubAgentRead,
+      subAgentReadSchema,
+      WebSocketResponseEvents.SUBAGENT_READ_RESULT
     ),
     createHandlerDefinition(
       WebSocketRequestEvents.SUBAGENT_NOTE_CREATE,

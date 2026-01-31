@@ -12,6 +12,9 @@ export enum WebSocketRequestEvents {
   POD_JOIN_BATCH = 'pod:join:batch',
   POD_LEAVE = 'pod:leave',
   OUTPUT_STYLE_LIST = 'output-style:list',
+  OUTPUT_STYLE_CREATE = 'output-style:create',
+  OUTPUT_STYLE_UPDATE = 'output-style:update',
+  OUTPUT_STYLE_READ = 'output-style:read',
   POD_BIND_OUTPUT_STYLE = 'pod:bind-output-style',
   POD_UNBIND_OUTPUT_STYLE = 'pod:unbind-output-style',
   NOTE_CREATE = 'note:create',
@@ -43,6 +46,9 @@ export enum WebSocketRequestEvents {
   SKILL_DELETE = 'skill:delete',
   REPOSITORY_DELETE = 'repository:delete',
   SUBAGENT_LIST = 'subagent:list',
+  SUBAGENT_CREATE = 'subagent:create',
+  SUBAGENT_UPDATE = 'subagent:update',
+  SUBAGENT_READ = 'subagent:read',
   SUBAGENT_NOTE_CREATE = 'subagent-note:create',
   SUBAGENT_NOTE_LIST = 'subagent-note:list',
   SUBAGENT_NOTE_UPDATE = 'subagent-note:update',
@@ -51,6 +57,9 @@ export enum WebSocketRequestEvents {
   SUBAGENT_DELETE = 'subagent:delete',
   POD_SET_AUTO_CLEAR = 'pod:set-auto-clear',
   COMMAND_LIST = 'command:list',
+  COMMAND_CREATE = 'command:create',
+  COMMAND_UPDATE = 'command:update',
+  COMMAND_READ = 'command:read',
   COMMAND_NOTE_CREATE = 'command-note:create',
   COMMAND_NOTE_LIST = 'command-note:list',
   COMMAND_NOTE_UPDATE = 'command-note:update',
@@ -79,6 +88,9 @@ export enum WebSocketResponseEvents {
   POD_ERROR = 'pod:error',
   POD_STATUS_CHANGED = 'pod:status:changed',
   OUTPUT_STYLE_LIST_RESULT = 'output-style:list:result',
+  OUTPUT_STYLE_CREATED = 'output-style:created',
+  OUTPUT_STYLE_UPDATED = 'output-style:updated',
+  OUTPUT_STYLE_READ_RESULT = 'output-style:read:result',
   POD_OUTPUT_STYLE_BOUND = 'pod:output-style:bound',
   POD_OUTPUT_STYLE_UNBOUND = 'pod:output-style:unbound',
   NOTE_CREATED = 'note:created',
@@ -117,6 +129,9 @@ export enum WebSocketResponseEvents {
   SKILL_DELETED = 'skill:deleted',
   REPOSITORY_DELETED = 'repository:deleted',
   SUBAGENT_LIST_RESULT = 'subagent:list:result',
+  SUBAGENT_CREATED = 'subagent:created',
+  SUBAGENT_UPDATED = 'subagent:updated',
+  SUBAGENT_READ_RESULT = 'subagent:read:result',
   SUBAGENT_NOTE_CREATED = 'subagent-note:created',
   SUBAGENT_NOTE_LIST_RESULT = 'subagent-note:list:result',
   SUBAGENT_NOTE_UPDATED = 'subagent-note:updated',
@@ -126,6 +141,9 @@ export enum WebSocketResponseEvents {
   POD_AUTO_CLEAR_SET = 'pod:auto-clear:set',
   WORKFLOW_AUTO_CLEARED = 'workflow:auto-cleared',
   COMMAND_LIST_RESULT = 'command:list:result',
+  COMMAND_CREATED = 'command:created',
+  COMMAND_UPDATED = 'command:updated',
+  COMMAND_READ_RESULT = 'command:read:result',
   COMMAND_NOTE_CREATED = 'command-note:created',
   COMMAND_NOTE_LIST_RESULT = 'command-note:list:result',
   COMMAND_NOTE_UPDATED = 'command-note:updated',
@@ -324,6 +342,50 @@ export interface OutputStyleListResultPayload {
     id: string;
     name: string;
   }>;
+  error?: string;
+}
+
+export interface OutputStyleCreatePayload {
+  requestId: string;
+  name: string;
+  content: string;
+}
+
+export interface OutputStyleCreatedPayload {
+  requestId: string;
+  success: boolean;
+  outputStyle?: {
+    id: string;
+    name: string;
+  };
+  error?: string;
+}
+
+export interface OutputStyleUpdatePayload {
+  requestId: string;
+  outputStyleId: string;
+  content: string;
+}
+
+export interface OutputStyleUpdatedPayload {
+  requestId: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface OutputStyleReadPayload {
+  requestId: string;
+  outputStyleId: string;
+}
+
+export interface OutputStyleReadResultPayload {
+  requestId: string;
+  success: boolean;
+  outputStyle?: {
+    id: string;
+    name: string;
+    content: string;
+  };
   error?: string;
 }
 
@@ -854,6 +916,50 @@ export interface SubAgentListResultPayload {
   error?: string;
 }
 
+export interface SubAgentCreatePayload {
+  requestId: string;
+  name: string;
+  content: string;
+}
+
+export interface SubAgentCreatedPayload {
+  requestId: string;
+  success: boolean;
+  subAgent?: {
+    id: string;
+    name: string;
+  };
+  error?: string;
+}
+
+export interface SubAgentUpdatePayload {
+  requestId: string;
+  subAgentId: string;
+  content: string;
+}
+
+export interface SubAgentUpdatedPayload {
+  requestId: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface SubAgentReadPayload {
+  requestId: string;
+  subAgentId: string;
+}
+
+export interface SubAgentReadResultPayload {
+  requestId: string;
+  success: boolean;
+  subAgent?: {
+    id: string;
+    name: string;
+    content: string;
+  };
+  error?: string;
+}
+
 export interface SubAgentNoteCreatePayload {
   requestId: string;
   subAgentId: string;
@@ -963,6 +1069,50 @@ export interface CommandListResultPayload {
   requestId: string;
   success: boolean;
   commands?: import('./command.js').Command[];
+  error?: string;
+}
+
+export interface CommandCreatePayload {
+  requestId: string;
+  name: string;
+  content: string;
+}
+
+export interface CommandCreatedPayload {
+  requestId: string;
+  success: boolean;
+  command?: {
+    id: string;
+    name: string;
+  };
+  error?: string;
+}
+
+export interface CommandUpdatePayload {
+  requestId: string;
+  commandId: string;
+  content: string;
+}
+
+export interface CommandUpdatedPayload {
+  requestId: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface CommandReadPayload {
+  requestId: string;
+  commandId: string;
+}
+
+export interface CommandReadResultPayload {
+  requestId: string;
+  success: boolean;
+  command?: {
+    id: string;
+    name: string;
+    content: string;
+  };
   error?: string;
 }
 

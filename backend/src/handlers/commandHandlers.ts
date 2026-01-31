@@ -17,6 +17,7 @@ import {podStore} from '../services/podStore.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
+import {createResourceHandlers} from './factories/createResourceHandlers.js';
 import {validatePod, handleResourceDelete} from '../utils/handlerHelpers.js';
 
 const commandNoteHandlers = createNoteHandlers({
@@ -35,6 +36,23 @@ export const handleCommandNoteCreate = commandNoteHandlers.handleNoteCreate;
 export const handleCommandNoteList = commandNoteHandlers.handleNoteList;
 export const handleCommandNoteUpdate = commandNoteHandlers.handleNoteUpdate;
 export const handleCommandNoteDelete = commandNoteHandlers.handleNoteDelete;
+
+const resourceHandlers = createResourceHandlers({
+    service: commandService,
+    events: {
+        listResult: WebSocketResponseEvents.COMMAND_LIST_RESULT,
+        created: WebSocketResponseEvents.COMMAND_CREATED,
+        updated: WebSocketResponseEvents.COMMAND_UPDATED,
+        readResult: WebSocketResponseEvents.COMMAND_READ_RESULT,
+    },
+    resourceName: 'Command',
+    responseKey: 'command',
+    idField: 'commandId',
+});
+
+export const handleCommandCreate = resourceHandlers.handleCreate;
+export const handleCommandUpdate = resourceHandlers.handleUpdate;
+export const handleCommandRead = resourceHandlers.handleRead!;
 
 export async function handleCommandList(
     socket: Socket,

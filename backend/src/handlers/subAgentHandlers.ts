@@ -16,6 +16,7 @@ import {repositoryService} from '../services/repositoryService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
+import {createResourceHandlers} from './factories/createResourceHandlers.js';
 import {validatePod, handleResourceDelete} from '../utils/handlerHelpers.js';
 
 const subAgentNoteHandlers = createNoteHandlers({
@@ -34,6 +35,23 @@ export const handleSubAgentNoteCreate = subAgentNoteHandlers.handleNoteCreate;
 export const handleSubAgentNoteList = subAgentNoteHandlers.handleNoteList;
 export const handleSubAgentNoteUpdate = subAgentNoteHandlers.handleNoteUpdate;
 export const handleSubAgentNoteDelete = subAgentNoteHandlers.handleNoteDelete;
+
+const resourceHandlers = createResourceHandlers({
+    service: subAgentService,
+    events: {
+        listResult: WebSocketResponseEvents.SUBAGENT_LIST_RESULT,
+        created: WebSocketResponseEvents.SUBAGENT_CREATED,
+        updated: WebSocketResponseEvents.SUBAGENT_UPDATED,
+        readResult: WebSocketResponseEvents.SUBAGENT_READ_RESULT,
+    },
+    resourceName: 'SubAgent',
+    responseKey: 'subAgent',
+    idField: 'subAgentId',
+});
+
+export const handleSubAgentCreate = resourceHandlers.handleCreate;
+export const handleSubAgentUpdate = resourceHandlers.handleUpdate;
+export const handleSubAgentRead = resourceHandlers.handleRead!;
 
 export async function handleSubAgentList(
     socket: Socket,

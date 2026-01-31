@@ -61,6 +61,23 @@ export interface OutputStyleListPayload {
   requestId: string
 }
 
+export interface OutputStyleCreatePayload {
+  requestId: string
+  name: string
+  content: string
+}
+
+export interface OutputStyleUpdatePayload {
+  requestId: string
+  outputStyleId: string
+  content: string
+}
+
+export interface OutputStyleReadPayload {
+  requestId: string
+  outputStyleId: string
+}
+
 export interface OutputStyleDeletePayload {
   requestId: string
   outputStyleId: string
@@ -311,6 +328,23 @@ export interface SubAgentListPayload {
   requestId: string
 }
 
+export interface SubAgentCreatePayload {
+  requestId: string
+  name: string
+  content: string
+}
+
+export interface SubAgentUpdatePayload {
+  requestId: string
+  subAgentId: string
+  content: string
+}
+
+export interface SubAgentReadPayload {
+  requestId: string
+  subAgentId: string
+}
+
 export interface SubAgentDeletePayload {
   requestId: string
   subAgentId: string
@@ -361,6 +395,23 @@ export interface PasteSubAgentNoteItem {
 
 export interface CommandListPayload {
   requestId: string
+}
+
+export interface CommandCreatePayload {
+  requestId: string
+  name: string
+  content: string
+}
+
+export interface CommandUpdatePayload {
+  requestId: string
+  commandId: string
+  content: string
+}
+
+export interface CommandReadPayload {
+  requestId: string
+  commandId: string
 }
 
 export interface CommandDeletePayload {

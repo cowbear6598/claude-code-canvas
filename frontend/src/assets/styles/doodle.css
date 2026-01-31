@@ -215,6 +215,37 @@
   box-shadow: 2px 2px 0 oklch(0.7 0.02 50);
 }
 
+/* Doodle textarea scrollbar */
+.doodle-textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+.doodle-textarea::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 2px 4px 3px 5px;
+}
+
+.doodle-textarea::-webkit-scrollbar-thumb {
+  background: oklch(0.88 0.1 90);
+  border: 2px solid oklch(0.4 0.02 50);
+  border-radius: 4px 6px 5px 7px;
+  box-shadow: 1px 1px 0 oklch(0.4 0.02 50);
+}
+
+.doodle-textarea::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.85 0.12 90);
+}
+
+.dark .doodle-textarea::-webkit-scrollbar-thumb {
+  background: oklch(0.75 0.1 90);
+  border-color: oklch(0.7 0.02 50);
+  box-shadow: 1px 1px 0 oklch(0.7 0.02 50);
+}
+
+.dark .doodle-textarea::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.7 0.12 90);
+}
+
 /* Output Style Note */
 .output-style-note {
   position: absolute;
@@ -674,6 +705,33 @@
 
 .pod-menu-submenu-item-wrapper .pod-menu-submenu-item:hover {
   background: transparent;
+}
+
+/* Pod Menu Submenu Edit Button */
+.pod-menu-submenu-edit-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: oklch(0.5 0.02 50);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.pod-menu-submenu-item-wrapper:hover .pod-menu-submenu-edit-btn {
+  display: flex;
+}
+
+.pod-menu-submenu-edit-btn:hover {
+  background: oklch(0.85 0.08 200);
+  color: oklch(0.4 0.12 200);
 }
 
 /* Pod Menu Submenu Delete Button */
