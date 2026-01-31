@@ -607,13 +607,26 @@
   left: 100%;
   top: 0;
   margin-left: 8px;
-  width: 180px;
+  width: 192px;
   background: var(--card);
   border: 2px solid var(--doodle-ink);
   border-radius: 6px;
   padding: 4px;
   box-shadow: 3px 3px 0 var(--doodle-ink);
   z-index: 60;
+}
+
+.pod-menu-submenu-search {
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 1.5px solid var(--doodle-ink);
+  outline: none;
+  background: transparent;
+  font-size: 16px;
+  font-family: inherit;
+  color: var(--foreground);
+  box-sizing: border-box;
 }
 
 .pod-menu-submenu::before {

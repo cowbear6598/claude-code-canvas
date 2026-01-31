@@ -1,4 +1,5 @@
 <script setup lang="ts" generic="T extends { id: string; name: string }">
+import { ref, computed, watch, nextTick } from 'vue'
 import { X, Pencil } from 'lucide-vue-next'
 
 interface Props<T> {
@@ -19,6 +20,26 @@ const emit = defineEmits<{
 
 const hoveredItemId = defineModel<string | null>('hoveredItemId')
 
+const searchInputRef = ref<HTMLInputElement | null>(null)
+const searchQuery = ref('')
+
+const filteredItems = computed(() => {
+  if (searchQuery.value === '') {
+    return props.items
+  }
+  return props.items.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+})
+
+watch(() => props.visible, (newVisible) => {
+  if (newVisible) {
+    nextTick(() => searchInputRef.value?.focus())
+  } else {
+    searchQuery.value = ''
+  }
+})
+
 const handleItemSelect = (item: T): void => {
   emit('item-select', item)
 }
@@ -38,9 +59,15 @@ const handleItemDelete = (item: T, event: Event): void => {
     class="pod-menu-submenu"
     @wheel.stop.passive
   >
+    <input
+      ref="searchInputRef"
+      v-model="searchQuery"
+      class="pod-menu-submenu-search"
+      type="text"
+    />
     <div class="pod-menu-submenu-scrollable">
       <div
-        v-for="item in items"
+        v-for="item in filteredItems"
         :key="item.id"
         class="pod-menu-submenu-item-wrapper"
         @mouseenter="hoveredItemId = item.id"
