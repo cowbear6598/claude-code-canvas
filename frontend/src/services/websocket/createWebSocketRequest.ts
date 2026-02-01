@@ -29,7 +29,7 @@ export async function createWebSocketRequest<TPayload extends { requestId: strin
   } = config
 
   return new Promise<TResult>((resolve, reject) => {
-    if (!websocketClient.isSocketConnected()) {
+    if (!websocketClient.isConnected.value) {
       reject(new Error('WebSocket not connected'))
       return
     }

@@ -1,23 +1,18 @@
 import { io, Socket } from 'socket.io-client'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 
 type EventCallback<T> = (payload: T) => void
 type AckCallback = (response?: unknown) => void
 type EventCallbackWithAck<T> = (payload: T, ack: AckCallback) => void
 
-const WS_CONFIG = {
-  MAX_RECONNECT_ATTEMPTS: 5,
-  RECONNECT_DELAY_MS: 1000,
-} as const
+const RECONNECT_INTERVAL_MS = 3000
 
 class WebSocketClient {
   private socket: Socket | null = null
-  private reconnectAttempts = 0
-  private readonly maxReconnectAttempts = WS_CONFIG.MAX_RECONNECT_ATTEMPTS
-  private readonly reconnectDelay = WS_CONFIG.RECONNECT_DELAY_MS
+  private reconnectTimer: ReturnType<typeof setInterval> | null = null
+  private wsUrl: string = ''
 
-  public readonly socketId = ref<string | null>(null)
-  public readonly isConnected = computed(() => this.socket?.connected ?? false)
+  public readonly isConnected = ref(false)
   public readonly disconnectReason = ref<string | null>(null)
 
   connect(url?: string): void {
@@ -25,12 +20,10 @@ class WebSocketClient {
       return
     }
 
-    const wsUrl = url || import.meta.env.VITE_WS_URL || 'http://localhost:3001'
+    this.wsUrl = url || import.meta.env.VITE_WS_URL || 'http://localhost:3001'
 
-    this.socket = io(wsUrl, {
-      reconnection: true,
-      reconnectionDelay: this.reconnectDelay,
-      reconnectionAttempts: this.maxReconnectAttempts,
+    this.socket = io(this.wsUrl, {
+      reconnection: false,
       timeout: 10000,
       transports: ['websocket', 'polling'],
     })
@@ -39,11 +32,47 @@ class WebSocketClient {
   }
 
   disconnect(): void {
-    if (this.socket) {
-      this.socket.disconnect()
-      this.socket = null
-      this.socketId.value = null
+    this.stopReconnect()
+    this.cleanupSocket()
+  }
+
+  private cleanupSocket(): void {
+    if (!this.socket) {
+      return
     }
+
+    this.socket.removeAllListeners()
+    this.socket.disconnect()
+    this.socket = null
+    this.isConnected.value = false
+  }
+
+  private startReconnect(): void {
+    this.stopReconnect()
+
+    this.reconnectTimer = setInterval(() => {
+      console.log('[WebSocket] Attempting to reconnect...')
+      this.reconnectOnce()
+    }, RECONNECT_INTERVAL_MS)
+  }
+
+  private stopReconnect(): void {
+    if (this.reconnectTimer !== null) {
+      clearInterval(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+  }
+
+  private reconnectOnce(): void {
+    this.cleanupSocket()
+
+    this.socket = io(this.wsUrl, {
+      reconnection: false,
+      timeout: 10000,
+      transports: ['websocket', 'polling'],
+    })
+
+    this.setupConnectionHandlers()
   }
 
   emit<T>(event: string, payload: T): void {
@@ -91,10 +120,6 @@ class WebSocketClient {
     this.socket.off(event, callback)
   }
 
-  isSocketConnected(): boolean {
-    return this.socket?.connected ?? false
-  }
-
   onDisconnect(callback: (reason: string) => void): void {
     if (!this.socket) {
       console.error('[WebSocket] Cannot register disconnect listener, not initialized')
@@ -117,37 +142,19 @@ class WebSocketClient {
     if (!this.socket) return
 
     this.socket.on('connect', () => {
-      this.reconnectAttempts = 0
+      this.stopReconnect()
       this.disconnectReason.value = null
+      this.isConnected.value = true
     })
 
     this.socket.on('disconnect', (reason: string) => {
-      this.socketId.value = null
+      this.isConnected.value = false
       this.disconnectReason.value = reason
+      this.startReconnect()
     })
 
     this.socket.on('connect_error', (error) => {
       console.error('[WebSocket] Connection error:', error)
-      this.reconnectAttempts++
-
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.error('[WebSocket] Max reconnection attempts reached')
-      }
-    })
-
-    this.socket.on('reconnect', (_) => {
-      this.reconnectAttempts = 0
-    })
-
-    this.socket.on('reconnect_attempt', (_) => {
-    })
-
-    this.socket.on('reconnect_error', (error) => {
-      console.error('[WebSocket] Reconnection error:', error)
-    })
-
-    this.socket.on('reconnect_failed', () => {
-      console.error('[WebSocket] Reconnection failed')
     })
   }
 }

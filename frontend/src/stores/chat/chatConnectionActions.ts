@@ -1,38 +1,12 @@
-import {
-    websocketClient,
-    WebSocketRequestEvents
-} from '@/services/websocket'
+import {websocketClient} from '@/services/websocket'
 import {useToast} from '@/composables/useToast'
-import type {
-    ConnectionReadyPayload,
-    HeartbeatPingPayload,
-    PodErrorPayload,
-    PodJoinBatchPayload
-} from '@/types/websocket'
-
-type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
+import type {ConnectionReadyPayload, HeartbeatPingPayload, PodErrorPayload} from '@/types/websocket'
+import type {ChatStoreInstance} from './chatStore'
 
 const HEARTBEAT_CHECK_INTERVAL_MS = 5000
 const HEARTBEAT_TIMEOUT_MS = 20000
 
-interface ConnectionActionsContext {
-    connectionStatus: ConnectionStatus
-    socketId: string | null
-    disconnectReason: string | null
-    lastHeartbeatAt: number | null
-    heartbeatCheckTimer: number | null
-    allHistoryLoaded: boolean
-    setConnectionStatus: (status: ConnectionStatus) => void
-    setSocketId: (id: string | null) => void
-    setDisconnectReason: (reason: string | null) => void
-    setLastHeartbeatAt: (timestamp: number | null) => void
-    setHeartbeatCheckTimer: (timer: number | null) => void
-    setTyping: (podId: string, isTyping: boolean) => void
-    registerListenersCallback: () => void
-    unregisterListenersCallback: () => void
-}
-
-export function createConnectionActions(context: ConnectionActionsContext): {
+export function createConnectionActions(store: ChatStoreInstance): {
     initWebSocket: () => void
     disconnectWebSocket: () => void
     handleConnectionReady: (payload: ConnectionReadyPayload) => Promise<void>
@@ -43,68 +17,54 @@ export function createConnectionActions(context: ConnectionActionsContext): {
     handleError: (payload: PodErrorPayload) => void
 } {
     const initWebSocket = (): void => {
-        context.setConnectionStatus('connecting')
+        store.connectionStatus = 'connecting'
         websocketClient.connect()
-        context.registerListenersCallback()
     }
 
     const disconnectWebSocket = (): void => {
         stopHeartbeatCheck()
-        context.unregisterListenersCallback()
+        store.unregisterListeners()
         websocketClient.disconnect()
 
-        context.setConnectionStatus('disconnected')
-        context.setSocketId(null)
+        store.connectionStatus = 'disconnected'
+        store.socketId = null
     }
 
     const handleConnectionReady = async (payload: ConnectionReadyPayload): Promise<void> => {
-        context.setConnectionStatus('connected')
-        context.setSocketId(payload.socketId)
+        store.connectionStatus = 'connected'
+        store.socketId = payload.socketId
 
         startHeartbeatCheck()
-
-        if (context.allHistoryLoaded) {
-            const {usePodStore} = await import('../pod/podStore')
-            const podStore = usePodStore()
-            const podIds = podStore.pods.map(p => p.id)
-
-            if (podIds.length > 0) {
-                websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, {podIds})
-            }
-
-            const {toast} = useToast()
-            toast({
-                title: '已重新連線',
-                description: 'WebSocket 連線已恢復',
-            })
-        }
     }
 
     const handleHeartbeatPing = (_: HeartbeatPingPayload, ack: (response?: unknown) => void): void => {
-        context.setLastHeartbeatAt(Date.now())
+        store.lastHeartbeatAt = Date.now()
 
         ack({timestamp: Date.now()})
 
-        if (context.connectionStatus !== 'connected') {
-            context.setConnectionStatus('connected')
+        if (store.connectionStatus !== 'connected') {
+            store.connectionStatus = 'connected'
         }
     }
 
     const startHeartbeatCheck = (): void => {
-        if (context.heartbeatCheckTimer !== null) {
-            clearInterval(context.heartbeatCheckTimer)
+        if (store.heartbeatCheckTimer !== null) {
+            clearInterval(store.heartbeatCheckTimer)
         }
 
-        const timer = window.setInterval(() => {
-            if (context.lastHeartbeatAt === null) {
+        store.lastHeartbeatAt = null
+
+        store.heartbeatCheckTimer = window.setInterval(() => {
+            if (store.lastHeartbeatAt === null) {
                 return
             }
 
             const now = Date.now()
-            const elapsed = now - context.lastHeartbeatAt
+            const elapsed = now - store.lastHeartbeatAt
 
             if (elapsed > HEARTBEAT_TIMEOUT_MS) {
-                context.setConnectionStatus('disconnected')
+                stopHeartbeatCheck()
+                store.connectionStatus = 'disconnected'
 
                 const {toast} = useToast()
                 toast({
@@ -113,21 +73,28 @@ export function createConnectionActions(context: ConnectionActionsContext): {
                 })
             }
         }, HEARTBEAT_CHECK_INTERVAL_MS)
-
-        context.setHeartbeatCheckTimer(timer)
     }
 
     const stopHeartbeatCheck = (): void => {
-        if (context.heartbeatCheckTimer !== null) {
-            clearInterval(context.heartbeatCheckTimer)
-            context.setHeartbeatCheckTimer(null)
+        if (store.heartbeatCheckTimer !== null) {
+            clearInterval(store.heartbeatCheckTimer)
+            store.heartbeatCheckTimer = null
         }
     }
 
+    const resetConnectionState = (): void => {
+        store.socketId = null
+        store.lastHeartbeatAt = null
+        store.allHistoryLoaded = false
+        store.historyLoadingStatus.clear()
+        store.historyLoadingError.clear()
+    }
+
     const handleSocketDisconnect = (reason: string): void => {
-        context.setDisconnectReason(reason)
-        context.setConnectionStatus('disconnected')
+        store.disconnectReason = reason
+        store.connectionStatus = 'disconnected'
         stopHeartbeatCheck()
+        resetConnectionState()
 
         const {toast} = useToast()
         toast({
@@ -138,11 +105,11 @@ export function createConnectionActions(context: ConnectionActionsContext): {
 
     const handleError = (payload: PodErrorPayload): void => {
         if (!websocketClient.isConnected.value) {
-            context.setConnectionStatus('error')
+            store.connectionStatus = 'error'
         }
 
         if (payload.podId) {
-            context.setTyping(payload.podId, false)
+            store.setTyping(payload.podId, false)
         }
     }
 

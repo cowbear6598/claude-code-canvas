@@ -4,48 +4,42 @@ import {
     WebSocketResponseEvents
 } from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
-import type {HistoryLoadingStatus} from '@/types/chat'
+import type {HistoryLoadingStatus, Message} from '@/types/chat'
 import type {
     PodChatHistoryPayload,
     PodChatHistoryResultPayload,
     PersistedMessage
 } from '@/types/websocket'
+import type {ChatStoreInstance} from './chatStore'
 
 const HISTORY_LOAD_TIMEOUT_MS = 10000
 
-interface HistoryActionsContext {
-    historyLoadingStatus: Map<string, HistoryLoadingStatus>
-    historyLoadingError: Map<string, string>
-    allHistoryLoaded: boolean
-    isConnected: boolean
-    setHistoryLoadingStatus: (podId: string, status: HistoryLoadingStatus) => void
-    setHistoryLoadingError: (podId: string, error: string) => void
-    setAllHistoryLoaded: (loaded: boolean) => void
-    setPodMessages: (podId: string, messages: import('@/types/chat').Message[]) => void
-    convertPersistedToMessage: (persistedMessage: PersistedMessage) => import('@/types/chat').Message
+interface MessageActions {
+    setPodMessages: (podId: string, messages: Message[]) => void
+    convertPersistedToMessage: (persistedMessage: PersistedMessage) => Message
 }
 
-export function createHistoryActions(context: HistoryActionsContext): {
+export function createHistoryActions(store: ChatStoreInstance, messageActions: MessageActions): {
     setHistoryLoadingStatus: (podId: string, status: HistoryLoadingStatus) => void
     setHistoryLoadingError: (podId: string, error: string) => void
     loadPodChatHistory: (podId: string) => Promise<void>
     loadAllPodsHistory: (podIds: string[]) => Promise<void>
 } {
     const setHistoryLoadingStatus = (podId: string, status: HistoryLoadingStatus): void => {
-        context.historyLoadingStatus.set(podId, status)
+        store.historyLoadingStatus.set(podId, status)
     }
 
     const setHistoryLoadingError = (podId: string, error: string): void => {
-        context.historyLoadingError.set(podId, error)
+        store.historyLoadingError.set(podId, error)
     }
 
     const loadPodChatHistory = async (podId: string): Promise<void> => {
-        const currentStatus = context.historyLoadingStatus.get(podId)
+        const currentStatus = store.historyLoadingStatus.get(podId)
         if (currentStatus === 'loaded' || currentStatus === 'loading') {
             return
         }
 
-        if (!context.isConnected) {
+        if (!store.isConnected) {
             const error = 'WebSocket not connected'
             setHistoryLoadingStatus(podId, 'error')
             setHistoryLoadingError(podId, error)
@@ -74,15 +68,15 @@ export function createHistoryActions(context: HistoryActionsContext): {
         }
 
         const messages = (response.messages || []).map(msg =>
-            context.convertPersistedToMessage(msg)
+            messageActions.convertPersistedToMessage(msg)
         )
-        context.setPodMessages(podId, messages)
+        messageActions.setPodMessages(podId, messages)
         setHistoryLoadingStatus(podId, 'loaded')
     }
 
     const loadAllPodsHistory = async (podIds: string[]): Promise<void> => {
         if (podIds.length === 0) {
-            context.setAllHistoryLoaded(true)
+            store.allHistoryLoaded = true
             return
         }
 
@@ -90,7 +84,7 @@ export function createHistoryActions(context: HistoryActionsContext): {
             podIds.map(podId => loadPodChatHistory(podId))
         )
 
-        context.setAllHistoryLoaded(true)
+        store.allHistoryLoaded = true
     }
 
     return {

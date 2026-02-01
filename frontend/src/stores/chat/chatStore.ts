@@ -25,6 +25,8 @@ import {createConnectionActions} from './chatConnectionActions'
 import {createHistoryActions} from './chatHistoryActions'
 import {buildDisplayMessage} from './chatUtils'
 
+export type ChatStoreInstance = ReturnType<typeof useChatStore>
+
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 interface ChatState {
@@ -111,6 +113,7 @@ export const useChatStore = defineStore('chat', {
         },
 
         registerListeners(): void {
+            this.unregisterListeners()
             websocketClient.on<ConnectionReadyPayload>(WebSocketResponseEvents.CONNECTION_READY, this.handleConnectionReady)
             websocketClient.on<PodChatMessagePayload>(WebSocketResponseEvents.POD_CHAT_MESSAGE, this.handleChatMessage)
             websocketClient.on<PodChatToolUsePayload>(WebSocketResponseEvents.POD_CHAT_TOOL_USE, this.handleChatToolUse)
@@ -277,49 +280,16 @@ export const useChatStore = defineStore('chat', {
 
         // Helper methods to create action contexts
         getConnectionActions() {
-            return createConnectionActions({
-                connectionStatus: this.connectionStatus,
-                socketId: this.socketId,
-                disconnectReason: this.disconnectReason,
-                lastHeartbeatAt: this.lastHeartbeatAt,
-                heartbeatCheckTimer: this.heartbeatCheckTimer,
-                allHistoryLoaded: this.allHistoryLoaded,
-                setConnectionStatus: (status) => { this.connectionStatus = status },
-                setSocketId: (id) => { this.socketId = id },
-                setDisconnectReason: (reason) => { this.disconnectReason = reason },
-                setLastHeartbeatAt: (timestamp) => { this.lastHeartbeatAt = timestamp },
-                setHeartbeatCheckTimer: (timer) => { this.heartbeatCheckTimer = timer },
-                setTyping: this.setTyping.bind(this),
-                registerListenersCallback: this.registerListeners.bind(this),
-                unregisterListenersCallback: this.unregisterListeners.bind(this)
-            })
+            return createConnectionActions(this)
         },
 
         getMessageActions() {
-            return createMessageActions({
-                messagesByPodId: this.messagesByPodId,
-                isTypingByPodId: this.isTypingByPodId,
-                currentStreamingMessageId: this.currentStreamingMessageId,
-                accumulatedLengthByMessageId: this.accumulatedLengthByMessageId,
-                setCurrentStreamingMessageId: (id) => { this.currentStreamingMessageId = id },
-                setAutoClearAnimationPodId: (id) => { this.autoClearAnimationPodId = id }
-            })
+            return createMessageActions(this)
         },
 
         getHistoryActions() {
             const messageActions = this.getMessageActions()
-
-            return createHistoryActions({
-                historyLoadingStatus: this.historyLoadingStatus,
-                historyLoadingError: this.historyLoadingError,
-                allHistoryLoaded: this.allHistoryLoaded,
-                isConnected: this.isConnected,
-                setHistoryLoadingStatus: (podId, status) => { this.historyLoadingStatus.set(podId, status) },
-                setHistoryLoadingError: (podId, error) => { this.historyLoadingError.set(podId, error) },
-                setAllHistoryLoaded: (loaded) => { this.allHistoryLoaded = loaded },
-                setPodMessages: messageActions.setPodMessages,
-                convertPersistedToMessage: messageActions.convertPersistedToMessage
-            })
+            return createHistoryActions(this, messageActions)
         }
     }
 })

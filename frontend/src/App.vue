@@ -14,6 +14,7 @@ import {
   RESPONSE_PREVIEW_LENGTH,
   OUTPUT_LINES_PREVIEW_COUNT,
 } from '@/lib/constants'
+import {truncateContent} from '@/stores/chat/chatUtils'
 
 const {
   podStore,
@@ -31,15 +32,9 @@ const selectedPod = computed(() => podStore.selectedPod)
 
 useCopyPaste()
 
-const CONNECTION_DELAY_MS = 1000
 const isInitialized = ref(false)
 const isLoading = ref(false)
-
-const truncateContent = (content: string, maxLength: number): string => {
-  return content.length > maxLength
-      ? `${content.slice(0, maxLength)}...`
-      : content
-}
+let loadingAbortController: AbortController | null = null
 
 const syncHistoryToPodOutput = (): void => {
   for (const pod of podStore.pods) {
@@ -89,69 +84,111 @@ const loadAppData = async (): Promise<void> => {
     return
   }
 
+  if (loadingAbortController) {
+    loadingAbortController.abort()
+  }
+
+  loadingAbortController = new AbortController()
+  const currentAbortController = loadingAbortController
+
   isLoading.value = true
 
-  await podStore.loadPodsFromBackend()
+  try {
+    if (currentAbortController.signal.aborted) return
 
-  viewportStore.fitToAllPods(podStore.pods)
+    await podStore.loadPodsFromBackend()
 
-  const podIds = podStore.pods.map(p => p.id)
-  if (podIds.length > 0) {
-    websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, {podIds})
+    if (currentAbortController.signal.aborted) return
+
+    viewportStore.fitToAllPods(podStore.pods)
+
+    const podIds = podStore.pods.map(p => p.id)
+    if (podIds.length > 0) {
+      websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, {podIds})
+    }
+
+    if (currentAbortController.signal.aborted) return
+
+    await Promise.all([
+      async (): Promise<void> => {
+        await outputStyleStore.loadOutputStyles()
+        await outputStyleStore.loadNotesFromBackend()
+        await outputStyleStore.rebuildNotesFromPods(podStore.pods)
+      },
+      async (): Promise<void> => {
+        await skillStore.loadSkills()
+        await skillStore.loadNotesFromBackend()
+      },
+      async (): Promise<void> => {
+        await subAgentStore.loadItems()
+        await subAgentStore.loadNotesFromBackend()
+      },
+      async (): Promise<void> => {
+        await repositoryStore.loadRepositories()
+        await repositoryStore.loadNotesFromBackend()
+      },
+      async (): Promise<void> => {
+        await commandStore.loadCommands()
+        await commandStore.loadNotesFromBackend()
+      },
+      connectionStore.loadConnectionsFromBackend(),
+    ].map((fn): Promise<void> => typeof fn === 'function' ? fn() : fn))
+
+    if (currentAbortController.signal.aborted) return
+
+    connectionStore.setupWorkflowListeners()
+
+    if (podIds.length > 0) {
+      await chatStore.loadAllPodsHistory(podIds)
+
+      if (currentAbortController.signal.aborted) return
+
+      syncHistoryToPodOutput()
+    }
+
+    websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
+
+    isInitialized.value = true
+  } finally {
+    if (currentAbortController === loadingAbortController) {
+      isLoading.value = false
+      loadingAbortController = null
+    }
   }
-
-  await Promise.all([
-    async (): Promise<void> => {
-      await outputStyleStore.loadOutputStyles()
-      await outputStyleStore.loadNotesFromBackend()
-      await outputStyleStore.rebuildNotesFromPods(podStore.pods)
-    },
-    async (): Promise<void> => {
-      await skillStore.loadSkills()
-      await skillStore.loadNotesFromBackend()
-    },
-    async (): Promise<void> => {
-      await subAgentStore.loadItems()
-      await subAgentStore.loadNotesFromBackend()
-    },
-    async (): Promise<void> => {
-      await repositoryStore.loadRepositories()
-      await repositoryStore.loadNotesFromBackend()
-    },
-    async (): Promise<void> => {
-      await commandStore.loadCommands()
-      await commandStore.loadNotesFromBackend()
-    },
-    connectionStore.loadConnectionsFromBackend(),
-  ].map((fn): Promise<void> => typeof fn === 'function' ? fn() : fn))
-
-  connectionStore.setupWorkflowListeners()
-
-  if (podIds.length > 0) {
-    await chatStore.loadAllPodsHistory(podIds)
-
-    syncHistoryToPodOutput()
-  }
-
-  websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
-
-  isInitialized.value = true
-  isLoading.value = false
 }
 
 const initializeApp = async (): Promise<void> => {
   chatStore.initWebSocket()
-
-  await new Promise(resolve => setTimeout(resolve, CONNECTION_DELAY_MS))
-
-  await loadAppData()
 }
+
+watch(
+    () => websocketClient.isConnected.value,
+    (connected) => {
+      if (connected) {
+        chatStore.unregisterListeners()
+        chatStore.registerListeners()
+      }
+    },
+    { flush: 'sync' }
+)
 
 watch(
     () => chatStore.connectionStatus,
     (newStatus) => {
       if (newStatus === 'connected' && !chatStore.allHistoryLoaded && !isInitialized.value) {
         loadAppData()
+      }
+
+      if (newStatus === 'disconnected') {
+        websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
+        connectionStore.cleanupWorkflowListeners()
+        isInitialized.value = false
+        isLoading.value = false
+
+        if (loadingAbortController) {
+          loadingAbortController.abort()
+          loadingAbortController = null
+        }
       }
     }
 )
@@ -161,6 +198,11 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (loadingAbortController) {
+    loadingAbortController.abort()
+    loadingAbortController = null
+  }
+
   chatStore.disconnectWebSocket()
   websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
   connectionStore.cleanupWorkflowListeners()

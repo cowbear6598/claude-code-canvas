@@ -38,6 +38,7 @@ export default [
         navigator: 'readonly',
         performance: 'readonly',
         crypto: 'readonly',
+        AbortController: 'readonly',
       },
     },
     plugins: {
@@ -89,6 +90,7 @@ export default [
         navigator: 'readonly',
         performance: 'readonly',
         crypto: 'readonly',
+        AbortController: 'readonly',
       },
     },
     plugins: {

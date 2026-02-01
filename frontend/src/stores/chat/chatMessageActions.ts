@@ -11,17 +11,9 @@ import type {
 } from '@/types/websocket'
 import {RESPONSE_PREVIEW_LENGTH, CONTENT_PREVIEW_LENGTH} from '@/lib/constants'
 import {truncateContent} from './chatUtils'
+import type {ChatStoreInstance} from './chatStore'
 
-interface MessageActionsContext {
-    messagesByPodId: Map<string, Message[]>
-    isTypingByPodId: Map<string, boolean>
-    currentStreamingMessageId: string | null
-    accumulatedLengthByMessageId: Map<string, number>
-    setCurrentStreamingMessageId: (id: string | null) => void
-    setAutoClearAnimationPodId: (id: string | null) => void
-}
-
-export function createMessageActions(context: MessageActionsContext): {
+export function createMessageActions(store: ChatStoreInstance): {
     addUserMessage: (podId: string, content: string) => Promise<void>
     handleChatMessage: (payload: PodChatMessagePayload) => void
     addNewChatMessage: (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string) => void
@@ -34,7 +26,7 @@ export function createMessageActions(context: MessageActionsContext): {
     handleChatComplete: (payload: PodChatCompletePayload) => void
     finalizeStreaming: (podId: string, messageId: string) => void
     completeMessage: (podId: string, messages: Message[], messageIndex: number, fullContent: string, messageId: string) => void
-    updatePodOutput: (podId: string, content: string) => Promise<void>
+    updatePodOutput: (podId: string) => Promise<void>
     convertPersistedToMessage: (persistedMessage: PersistedMessage) => Message
     setPodMessages: (podId: string, messages: Message[]) => void
     setTyping: (podId: string, isTyping: boolean) => void
@@ -50,8 +42,8 @@ export function createMessageActions(context: MessageActionsContext): {
             timestamp: new Date().toISOString()
         }
 
-        const messages = context.messagesByPodId.get(podId) || []
-        context.messagesByPodId.set(podId, [...messages, userMessage])
+        const messages = store.messagesByPodId.get(podId) || []
+        store.messagesByPodId.set(podId, [...messages, userMessage])
 
         const {usePodStore} = await import('../pod/podStore')
         const podStore = usePodStore()
@@ -68,12 +60,12 @@ export function createMessageActions(context: MessageActionsContext): {
 
     const handleChatMessage = (payload: PodChatMessagePayload): void => {
         const {podId, messageId, content, isPartial, role} = payload
-        const messages = context.messagesByPodId.get(podId) || []
+        const messages = store.messagesByPodId.get(podId) || []
         const messageIndex = messages.findIndex(m => m.id === messageId)
 
-        const lastLength = context.accumulatedLengthByMessageId.get(messageId) || 0
+        const lastLength = store.accumulatedLengthByMessageId.get(messageId) || 0
         const delta = content.slice(lastLength)
-        context.accumulatedLengthByMessageId.set(messageId, content.length)
+        store.accumulatedLengthByMessageId.set(messageId, content.length)
 
         if (messageIndex === -1) {
             addNewChatMessage(podId, messageId, content, isPartial, role, delta)
@@ -84,7 +76,7 @@ export function createMessageActions(context: MessageActionsContext): {
     }
 
     const addNewChatMessage = (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string): void => {
-        const messages = context.messagesByPodId.get(podId) || []
+        const messages = store.messagesByPodId.get(podId) || []
 
         const newMessage: Message = {
             id: messageId,
@@ -104,8 +96,8 @@ export function createMessageActions(context: MessageActionsContext): {
             newMessage.expectingNewBlock = true
         }
 
-        context.messagesByPodId.set(podId, [...messages, newMessage])
-        context.setCurrentStreamingMessageId(messageId)
+        store.messagesByPodId.set(podId, [...messages, newMessage])
+        store.currentStreamingMessageId = messageId
 
         if (isPartial) {
             setTyping(podId, true)
@@ -155,7 +147,7 @@ export function createMessageActions(context: MessageActionsContext): {
             updatedMessages[messageIndex].subMessages = subMessages
         }
 
-        context.messagesByPodId.set(podId, updatedMessages)
+        store.messagesByPodId.set(podId, updatedMessages)
 
         if (isPartial) {
             setTyping(podId, true)
@@ -164,7 +156,7 @@ export function createMessageActions(context: MessageActionsContext): {
 
     const handleChatToolUse = (payload: PodChatToolUsePayload): void => {
         const {podId, messageId, toolUseId, toolName, input} = payload
-        const messages = context.messagesByPodId.get(podId) || []
+        const messages = store.messagesByPodId.get(podId) || []
         const messageIndex = messages.findIndex(m => m.id === messageId)
 
         if (messageIndex === -1) {
@@ -176,7 +168,7 @@ export function createMessageActions(context: MessageActionsContext): {
     }
 
     const createMessageWithToolUse = (podId: string, messageId: string, toolUseId: string, toolName: string, input: Record<string, unknown>): void => {
-        const messages = context.messagesByPodId.get(podId) || []
+        const messages = store.messagesByPodId.get(podId) || []
         const toolUseInfo: ToolUseInfo = {
             toolUseId,
             toolName,
@@ -200,8 +192,8 @@ export function createMessageActions(context: MessageActionsContext): {
             expectingNewBlock: true
         }
 
-        context.messagesByPodId.set(podId, [...messages, newMessage])
-        context.setCurrentStreamingMessageId(messageId)
+        store.messagesByPodId.set(podId, [...messages, newMessage])
+        store.currentStreamingMessageId = messageId
     }
 
     const addToolUseToMessage = (podId: string, messages: Message[], messageIndex: number, toolUseId: string, toolName: string, input: Record<string, unknown>): void => {
@@ -250,12 +242,12 @@ export function createMessageActions(context: MessageActionsContext): {
             updatedMessages[messageIndex].subMessages = subMessages
         }
 
-        context.messagesByPodId.set(podId, updatedMessages)
+        store.messagesByPodId.set(podId, updatedMessages)
     }
 
     const handleChatToolResult = (payload: PodChatToolResultPayload): void => {
         const {podId, messageId, toolUseId, output} = payload
-        const messages = context.messagesByPodId.get(podId) || []
+        const messages = store.messagesByPodId.get(podId) || []
         const messageIndex = messages.findIndex(m => m.id === messageId)
 
         if (messageIndex === -1) return
@@ -305,15 +297,15 @@ export function createMessageActions(context: MessageActionsContext): {
             updatedMessages[messageIndex].subMessages = subMessages
         }
 
-        context.messagesByPodId.set(podId, updatedMessages)
+        store.messagesByPodId.set(podId, updatedMessages)
     }
 
     const handleChatComplete = (payload: PodChatCompletePayload): void => {
         const {podId, messageId, fullContent} = payload
-        const messages = context.messagesByPodId.get(podId) || []
+        const messages = store.messagesByPodId.get(podId) || []
         const messageIndex = messages.findIndex(m => m.id === messageId)
 
-        context.accumulatedLengthByMessageId.delete(messageId)
+        store.accumulatedLengthByMessageId.delete(messageId)
 
         if (messageIndex === -1) {
             finalizeStreaming(podId, messageId)
@@ -326,8 +318,8 @@ export function createMessageActions(context: MessageActionsContext): {
     const finalizeStreaming = (podId: string, messageId: string): void => {
         setTyping(podId, false)
 
-        if (context.currentStreamingMessageId === messageId) {
-            context.setCurrentStreamingMessageId(null)
+        if (store.currentStreamingMessageId === messageId) {
+            store.currentStreamingMessageId = null
         }
     }
 
@@ -385,23 +377,23 @@ export function createMessageActions(context: MessageActionsContext): {
 
         updatedMessages[messageIndex].expectingNewBlock = undefined
 
-        context.messagesByPodId.set(podId, updatedMessages)
+        store.messagesByPodId.set(podId, updatedMessages)
 
         if (existingMessage.role === 'assistant') {
-            updatePodOutput(podId, fullContent)
+            updatePodOutput(podId)
         }
 
         finalizeStreaming(podId, messageId)
     }
 
-    const updatePodOutput = async (podId: string, _content: string): Promise<void> => {
+    const updatePodOutput = async (podId: string): Promise<void> => {
         const {usePodStore} = await import('../pod/podStore')
         const podStore = usePodStore()
         const pod = podStore.pods.find(p => p.id === podId)
 
         if (!pod) return
 
-        const messages = context.messagesByPodId.get(podId) || []
+        const messages = store.messagesByPodId.get(podId) || []
         const outputLines: string[] = []
 
         for (const msg of messages) {
@@ -473,17 +465,17 @@ export function createMessageActions(context: MessageActionsContext): {
     }
 
     const setPodMessages = (podId: string, messages: Message[]): void => {
-        context.messagesByPodId.set(podId, messages)
+        store.messagesByPodId.set(podId, messages)
     }
 
     const setTyping = (podId: string, isTyping: boolean): void => {
-        context.isTypingByPodId.set(podId, isTyping)
+        store.isTypingByPodId.set(podId, isTyping)
     }
 
     const clearMessagesByPodIds = (podIds: string[]): void => {
         podIds.forEach(podId => {
-            context.messagesByPodId.delete(podId)
-            context.isTypingByPodId.delete(podId)
+            store.messagesByPodId.delete(podId)
+            store.isTypingByPodId.delete(podId)
         })
     }
 
@@ -502,7 +494,7 @@ export function createMessageActions(context: MessageActionsContext): {
         const podStore = usePodStore()
         podStore.clearPodOutputsByIds(payload.clearedPodIds)
 
-        context.setAutoClearAnimationPodId(payload.sourcePodId)
+        store.autoClearAnimationPodId = payload.sourcePodId
     }
 
     return {
