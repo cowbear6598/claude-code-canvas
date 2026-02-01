@@ -323,7 +323,8 @@ const handleAnchorDragEnd = async (): Promise<void> => {
         sourcePodId,
         sourceAnchor,
         targetAnchor.podId,
-        targetAnchor.anchor
+        targetAnchor.anchor,
+        'pod'
     )
   }
 

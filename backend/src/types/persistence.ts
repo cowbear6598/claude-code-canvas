@@ -66,7 +66,9 @@ export interface PersistedPod {
  */
 export interface PersistedConnection {
   id: string;
+  sourceType: 'pod' | 'trigger';
   sourcePodId: string;
+  sourceTriggerId: string | null;
   sourceAnchor: AnchorPosition;
   targetPodId: string;
   targetAnchor: AnchorPosition;

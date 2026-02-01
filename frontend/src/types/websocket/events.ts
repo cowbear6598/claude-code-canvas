@@ -66,6 +66,10 @@ export const WebSocketRequestEvents = {
   COMMAND_NOTE_DELETE: 'command-note:delete',
   POD_BIND_COMMAND: 'pod:bind-command',
   POD_UNBIND_COMMAND: 'pod:unbind-command',
+  TRIGGER_CREATE: 'trigger:create',
+  TRIGGER_LIST: 'trigger:list',
+  TRIGGER_UPDATE: 'trigger:update',
+  TRIGGER_DELETE: 'trigger:delete',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -153,6 +157,11 @@ export const WebSocketResponseEvents = {
   COMMAND_NOTE_DELETED: 'command-note:deleted',
   POD_COMMAND_BOUND: 'pod:command:bound',
   POD_COMMAND_UNBOUND: 'pod:command:unbound',
+  TRIGGER_CREATED: 'trigger:created',
+  TRIGGER_LIST_RESULT: 'trigger:list:result',
+  TRIGGER_UPDATED: 'trigger:updated',
+  TRIGGER_DELETED: 'trigger:deleted',
+  TRIGGER_FIRED: 'trigger:fired',
   HEARTBEAT_PING: 'heartbeat:ping',
 } as const
 

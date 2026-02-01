@@ -15,11 +15,6 @@ export interface PodListPayload {
   requestId: string
 }
 
-export interface PodGetPayload {
-  requestId: string
-  podId: string
-}
-
 export interface PodUpdatePayload {
   requestId: string
   podId: string
@@ -71,43 +66,6 @@ export interface PodChatHistoryPayload {
   podId: string
 }
 
-export interface OutputStyleListPayload {
-  requestId: string
-}
-
-export interface OutputStyleCreatePayload {
-  requestId: string
-  name: string
-  content: string
-}
-
-export interface OutputStyleUpdatePayload {
-  requestId: string
-  outputStyleId: string
-  content: string
-}
-
-export interface OutputStyleReadPayload {
-  requestId: string
-  outputStyleId: string
-}
-
-export interface OutputStyleDeletePayload {
-  requestId: string
-  outputStyleId: string
-}
-
-export interface PodBindOutputStylePayload {
-  requestId: string
-  podId: string
-  outputStyleId: string
-}
-
-export interface PodUnbindOutputStylePayload {
-  requestId: string
-  podId: string
-}
-
 export interface NoteCreatePayload {
   requestId: string
   outputStyleId: string
@@ -118,73 +76,14 @@ export interface NoteCreatePayload {
   originalPosition: { x: number; y: number } | null
 }
 
-export interface NoteListPayload {
-  requestId: string
-}
-
-export interface NoteUpdatePayload {
-  requestId: string
-  noteId: string
-  x?: number
-  y?: number
-  boundToPodId?: string | null
-  originalPosition?: { x: number; y: number } | null
-}
-
-export interface NoteDeletePayload {
-  requestId: string
-  noteId: string
-}
-
-export interface SkillListPayload {
-  requestId: string
-}
-
-export interface SkillDeletePayload {
-  requestId: string
-  skillId: string
-}
-
-export interface SkillNoteCreatePayload {
-  requestId: string
-  skillId: string
-  name: string
-  x: number
-  y: number
-  boundToPodId: string | null
-  originalPosition: { x: number; y: number } | null
-}
-
-export interface SkillNoteListPayload {
-  requestId: string
-}
-
-export interface SkillNoteUpdatePayload {
-  requestId: string
-  noteId: string
-  x?: number
-  y?: number
-  boundToPodId?: string | null
-  originalPosition?: { x: number; y: number } | null
-}
-
-export interface SkillNoteDeletePayload {
-  requestId: string
-  noteId: string
-}
-
-export interface PodBindSkillPayload {
-  requestId: string
-  podId: string
-  skillId: string
-}
-
 export interface ConnectionCreatePayload {
   requestId: string
-  sourcePodId: string
+  sourcePodId?: string
   sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
   targetPodId: string
   targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+  sourceType?: 'pod' | 'trigger'
+  sourceTriggerId?: string
 }
 
 export interface ConnectionListPayload {
@@ -194,12 +93,6 @@ export interface ConnectionListPayload {
 export interface ConnectionDeletePayload {
   requestId: string
   connectionId: string
-}
-
-export interface ConnectionUpdatePayload {
-  requestId: string
-  connectionId: string
-  autoTrigger?: boolean
 }
 
 export interface WorkflowGetDownstreamPodsPayload {
@@ -273,18 +166,9 @@ export interface CanvasPastePayload {
   connections: PasteConnectionItem[]
 }
 
-export interface RepositoryListPayload {
-  requestId: string
-}
-
 export interface RepositoryCreatePayload {
   requestId: string
   name: string
-}
-
-export interface RepositoryDeletePayload {
-  requestId: string
-  repositoryId: string
 }
 
 export interface RepositoryGitClonePayload {
@@ -293,109 +177,10 @@ export interface RepositoryGitClonePayload {
   branch?: string
 }
 
-export interface RepositoryNoteCreatePayload {
-  requestId: string
-  repositoryId: string
-  name: string
-  x: number
-  y: number
-  boundToPodId: string | null
-  originalPosition: { x: number; y: number } | null
-}
-
-export interface RepositoryNoteListPayload {
-  requestId: string
-}
-
-export interface RepositoryNoteUpdatePayload {
-  requestId: string
-  noteId: string
-  x?: number
-  y?: number
-  boundToPodId?: string | null
-  originalPosition?: { x: number; y: number } | null
-}
-
-export interface RepositoryNoteDeletePayload {
-  requestId: string
-  noteId: string
-}
-
-export interface PodBindRepositoryPayload {
-  requestId: string
-  podId: string
-  repositoryId: string
-}
-
-export interface PodUnbindRepositoryPayload {
-  requestId: string
-  podId: string
-}
-
 export interface PodSetAutoClearPayload {
   requestId: string
   podId: string
   autoClear: boolean
-}
-
-export interface SubAgentListPayload {
-  requestId: string
-}
-
-export interface SubAgentCreatePayload {
-  requestId: string
-  name: string
-  content: string
-}
-
-export interface SubAgentUpdatePayload {
-  requestId: string
-  subAgentId: string
-  content: string
-}
-
-export interface SubAgentReadPayload {
-  requestId: string
-  subAgentId: string
-}
-
-export interface SubAgentDeletePayload {
-  requestId: string
-  subAgentId: string
-}
-
-export interface SubAgentNoteCreatePayload {
-  requestId: string
-  subAgentId: string
-  name: string
-  x: number
-  y: number
-  boundToPodId: string | null
-  originalPosition: { x: number; y: number } | null
-}
-
-export interface SubAgentNoteListPayload {
-  requestId: string
-}
-
-export interface SubAgentNoteUpdatePayload {
-  requestId: string
-  noteId: string
-  x?: number
-  y?: number
-  boundToPodId?: string | null
-  originalPosition?: { x: number; y: number } | null
-}
-
-export interface SubAgentNoteDeletePayload {
-  requestId: string
-  noteId: string
-}
-
-export interface PodBindSubAgentPayload {
-  requestId: string
-  podId: string
-  subAgentId: string
 }
 
 export interface PasteSubAgentNoteItem {
@@ -405,32 +190,6 @@ export interface PasteSubAgentNoteItem {
   y: number
   boundToOriginalPodId: string | null
   originalPosition: { x: number; y: number } | null
-}
-
-export interface CommandListPayload {
-  requestId: string
-}
-
-export interface CommandCreatePayload {
-  requestId: string
-  name: string
-  content: string
-}
-
-export interface CommandUpdatePayload {
-  requestId: string
-  commandId: string
-  content: string
-}
-
-export interface CommandReadPayload {
-  requestId: string
-  commandId: string
-}
-
-export interface CommandDeletePayload {
-  requestId: string
-  commandId: string
 }
 
 export interface CommandNoteCreatePayload {
@@ -443,35 +202,6 @@ export interface CommandNoteCreatePayload {
   originalPosition: { x: number; y: number } | null
 }
 
-export interface CommandNoteListPayload {
-  requestId: string
-}
-
-export interface CommandNoteUpdatePayload {
-  requestId: string
-  noteId: string
-  x?: number
-  y?: number
-  boundToPodId?: string | null
-  originalPosition?: { x: number; y: number } | null
-}
-
-export interface CommandNoteDeletePayload {
-  requestId: string
-  noteId: string
-}
-
-export interface PodBindCommandPayload {
-  requestId: string
-  podId: string
-  commandId: string
-}
-
-export interface PodUnbindCommandPayload {
-  requestId: string
-  podId: string
-}
-
 export interface PasteCommandNoteItem {
   commandId: string
   name: string
@@ -479,4 +209,51 @@ export interface PasteCommandNoteItem {
   y: number
   boundToOriginalPodId: string | null
   originalPosition: { x: number; y: number } | null
+}
+
+export interface TriggerCreatePayload {
+  requestId: string
+  name: string
+  type: 'time'
+  config: {
+    frequency: 'every-second' | 'every-x-minute' | 'every-x-hour' | 'every-day' | 'every-week'
+    second: number
+    intervalMinute: number
+    intervalHour: number
+    hour: number
+    minute: number
+    weekdays: number[]
+  }
+  x: number
+  y: number
+  rotation: number
+  enabled?: boolean
+}
+
+export interface TriggerListPayload {
+  requestId: string
+}
+
+export interface TriggerUpdatePayload {
+  requestId: string
+  triggerId: string
+  name?: string
+  config?: {
+    frequency: 'every-second' | 'every-x-minute' | 'every-x-hour' | 'every-day' | 'every-week'
+    second: number
+    intervalMinute: number
+    intervalHour: number
+    hour: number
+    minute: number
+    weekdays: number[]
+  }
+  x?: number
+  y?: number
+  rotation?: number
+  enabled?: boolean
+}
+
+export interface TriggerDeletePayload {
+  requestId: string
+  triggerId: string
 }

@@ -46,6 +46,10 @@ export const useConnectionStore = defineStore('connection', {
             return state.connections.filter(conn => conn.targetPodId === podId)
         },
 
+        getConnectionsByTriggerId: (state) => (triggerId: string): Connection[] => {
+            return state.connections.filter(conn => conn.sourceTriggerId === triggerId)
+        },
+
         selectedConnection: (state): Connection | null => {
             if (!state.selectedConnectionId) return null
             return state.connections.find(c => c.id === state.selectedConnectionId) || null
@@ -70,43 +74,75 @@ export const useConnectionStore = defineStore('connection', {
                     createdAt: new Date(conn.createdAt),
                     autoTrigger: conn.autoTrigger ?? false,
                     status: 'inactive' as ConnectionStatus,
+                    sourceType: conn.sourceType ?? 'pod',
+                    sourceTriggerId: conn.sourceTriggerId ?? null,
                 }))
             }
         },
 
         async createConnection(
-            sourcePodId: string,
+            sourcePodId: string | undefined | null,
             sourceAnchor: AnchorPosition,
             targetPodId: string,
-            targetAnchor: AnchorPosition
+            targetAnchor: AnchorPosition,
+            sourceType: 'pod' | 'trigger' = 'pod',
+            sourceTriggerId?: string
         ): Promise<Connection | null> {
-            if (sourcePodId === targetPodId) {
+            if (sourceType === 'pod' && sourcePodId === targetPodId) {
                 console.warn('[ConnectionStore] Cannot connect pod to itself')
                 return null
             }
 
-            const existingConnection = this.connections.find(
-                conn => conn.sourcePodId === sourcePodId && conn.targetPodId === targetPodId
-            )
-            if (existingConnection) {
-                const {toast} = useToast()
-                toast({
-                    title: '連線已存在',
-                    description: '這兩個 Pod 之間已經有連線了',
-                    duration: 3000
-                })
-                return null
+            if (sourceType === 'pod' && sourcePodId) {
+                const existingConnection = this.connections.find(
+                    conn => conn.sourcePodId === sourcePodId && conn.targetPodId === targetPodId
+                )
+                if (existingConnection) {
+                    const {toast} = useToast()
+                    toast({
+                        title: '連線已存在',
+                        description: '這兩個 Pod 之間已經有連線了',
+                        duration: 3000
+                    })
+                    return null
+                }
+            }
+
+            if (sourceType === 'trigger' && sourceTriggerId) {
+                const existingConnection = this.connections.find(
+                    conn => conn.sourceTriggerId === sourceTriggerId && conn.targetPodId === targetPodId
+                )
+                if (existingConnection) {
+                    const {toast} = useToast()
+                    toast({
+                        title: '連線已存在',
+                        description: '這個 Trigger 和 Pod 之間已經有連線了',
+                        duration: 3000
+                    })
+                    return null
+                }
+            }
+
+            const payload: ConnectionCreatePayload = {
+                requestId: '',
+                sourceAnchor,
+                targetPodId,
+                targetAnchor,
+            }
+
+            if (sourceType === 'pod' && sourcePodId) {
+                payload.sourcePodId = sourcePodId
+            }
+
+            if (sourceType === 'trigger' && sourceTriggerId) {
+                payload.sourceType = 'trigger'
+                payload.sourceTriggerId = sourceTriggerId
             }
 
             const response = await createWebSocketRequest<ConnectionCreatePayload, ConnectionCreatedPayload>({
                 requestEvent: WebSocketRequestEvents.CONNECTION_CREATE,
                 responseEvent: WebSocketResponseEvents.CONNECTION_CREATED,
-                payload: {
-                    sourcePodId,
-                    sourceAnchor,
-                    targetPodId,
-                    targetAnchor,
-                }
+                payload
             })
 
             if (!response.connection) {
@@ -118,6 +154,8 @@ export const useConnectionStore = defineStore('connection', {
                 createdAt: new Date(response.connection.createdAt),
                 autoTrigger: response.connection.autoTrigger ?? false,
                 status: 'inactive' as ConnectionStatus,
+                sourceType: response.connection.sourceType ?? 'pod',
+                sourceTriggerId: response.connection.sourceTriggerId ?? null,
             }
             this.connections.push(connection)
 
@@ -152,20 +190,47 @@ export const useConnectionStore = defineStore('connection', {
             }
         },
 
+        deleteConnectionsByTriggerId(triggerId: string): void {
+            this.connections = this.connections.filter(
+                conn => conn.sourceTriggerId !== triggerId
+            )
+
+            if (this.selectedConnectionId) {
+                const stillExists = this.connections.some(conn => conn.id === this.selectedConnectionId)
+                if (!stillExists) {
+                    this.selectedConnectionId = null
+                }
+            }
+        },
+
+        deleteConnectionsByIds(connectionIds: string[]): void {
+            this.connections = this.connections.filter(
+                conn => !connectionIds.includes(conn.id)
+            )
+
+            if (this.selectedConnectionId && connectionIds.includes(this.selectedConnectionId)) {
+                this.selectedConnectionId = null
+            }
+        },
+
         selectConnection(connectionId: string | null): void {
             this.selectedConnectionId = connectionId
         },
 
         startDragging(
-            sourcePodId: string,
+            sourcePodId: string | undefined | null,
             sourceAnchor: AnchorPosition,
-            startPoint: { x: number; y: number }
+            startPoint: { x: number; y: number },
+            sourceType: 'pod' | 'trigger' = 'pod',
+            sourceTriggerId?: string
         ): void {
             this.draggingConnection = {
-                sourcePodId,
+                sourcePodId: sourcePodId ?? undefined,
                 sourceAnchor,
                 startPoint,
                 currentPoint: startPoint,
+                sourceType,
+                sourceTriggerId: sourceTriggerId ?? null,
             }
         },
 

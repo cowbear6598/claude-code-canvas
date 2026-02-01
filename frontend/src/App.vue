@@ -2,7 +2,7 @@
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
 import {websocketClient, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
-import type {PodStatusChangedPayload, PodJoinBatchPayload} from '@/types/websocket'
+import type {PodStatusChangedPayload, PodJoinBatchPayload, TriggerFiredPayload} from '@/types/websocket'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
 import ChatModal from '@/components/chat/ChatModal.vue'
@@ -25,7 +25,8 @@ const {
   subAgentStore,
   repositoryStore,
   commandStore,
-  connectionStore
+  connectionStore,
+  triggerStore
 } = useCanvasContext()
 
 const selectedPod = computed(() => podStore.selectedPod)
@@ -77,6 +78,10 @@ const handleCloseChat = (): void => {
 
 const handlePodStatusChanged = (payload: PodStatusChangedPayload): void => {
   podStore.updatePodStatus(payload.podId, payload.status)
+}
+
+const handleTriggerFired = (payload: TriggerFiredPayload): void => {
+  triggerStore.handleTriggerFired(payload)
 }
 
 const loadAppData = async (): Promise<void> => {
@@ -132,6 +137,7 @@ const loadAppData = async (): Promise<void> => {
         await commandStore.loadNotesFromBackend()
       },
       connectionStore.loadConnectionsFromBackend(),
+      triggerStore.loadTriggersFromBackend(),
     ].map((fn): Promise<void> => typeof fn === 'function' ? fn() : fn))
 
     if (currentAbortController.signal.aborted) return
@@ -147,6 +153,7 @@ const loadAppData = async (): Promise<void> => {
     }
 
     websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
+    websocketClient.on<TriggerFiredPayload>(WebSocketResponseEvents.TRIGGER_FIRED, handleTriggerFired)
 
     isInitialized.value = true
   } finally {
@@ -181,6 +188,7 @@ watch(
 
       if (newStatus === 'disconnected') {
         websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
+        websocketClient.off<TriggerFiredPayload>(WebSocketResponseEvents.TRIGGER_FIRED, handleTriggerFired)
         connectionStore.cleanupWorkflowListeners()
         isInitialized.value = false
         isLoading.value = false
@@ -205,6 +213,7 @@ onUnmounted(() => {
 
   chatStore.disconnectWebSocket()
   websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
+  websocketClient.off<TriggerFiredPayload>(WebSocketResponseEvents.TRIGGER_FIRED, handleTriggerFired)
   connectionStore.cleanupWorkflowListeners()
 })
 </script>

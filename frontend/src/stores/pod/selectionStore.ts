@@ -1,6 +1,6 @@
 import {defineStore} from 'pinia'
 import type {SelectableElement, SelectionState} from '@/types'
-import {POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT} from '@/lib/constants'
+import {POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT, TRIGGER_WIDTH, TRIGGER_HEIGHT} from '@/lib/constants'
 
 function isNoteInSelectionBox(
   noteX: number,
@@ -75,6 +75,14 @@ export const useSelectionStore = defineStore('selection', {
     selectedCommandNoteIds: (state): string[] =>
       state.selectedElements
         .filter(el => el.type === 'commandNote')
+        .map(el => el.id),
+
+    /**
+     * 取得選中的 Trigger ID 列表
+     */
+    selectedTriggerIds: (state): string[] =>
+      state.selectedElements
+        .filter(el => el.type === 'trigger')
         .map(el => el.id),
 
     /**
@@ -189,7 +197,8 @@ export const useSelectionStore = defineStore('selection', {
       skillNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}>,
       repositoryNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = [],
       subAgentNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = [],
-      commandNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = []
+      commandNotes: Array<{id: string; x: number; y: number; boundToPodId: string | null}> = [],
+      triggers: Array<{id: string; x: number; y: number}> = []
     ): void {
       if (!this.box) return
 
@@ -227,6 +236,19 @@ export const useSelectionStore = defineStore('selection', {
           if (isNoteInSelectionBox(note.x, note.y, minX, maxX, minY, maxY)) {
             selected.push({ type, id: note.id })
           }
+        }
+      }
+
+      for (const trigger of triggers) {
+        const triggerMinX = trigger.x
+        const triggerMaxX = trigger.x + TRIGGER_WIDTH
+        const triggerMinY = trigger.y
+        const triggerMaxY = trigger.y + TRIGGER_HEIGHT
+
+        const hasIntersection = !(triggerMaxX < minX || triggerMinX > maxX || triggerMaxY < minY || triggerMinY > maxY)
+
+        if (hasIntersection) {
+          selected.push({ type: 'trigger', id: trigger.id })
         }
       }
 

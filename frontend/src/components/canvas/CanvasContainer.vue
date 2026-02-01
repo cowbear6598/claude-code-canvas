@@ -7,11 +7,14 @@ import CanvasViewport from './CanvasViewport.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
+import CanvasTrigger from '@/components/trigger/CanvasTrigger.vue'
 import GenericNote from './GenericNote.vue'
 import CloneProgressNote from './CloneProgressNote.vue'
 import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
 import SelectionBox from './SelectionBox.vue'
+import TriggerModal from './TriggerModal.vue'
+import type { TriggerModalConfig } from './TriggerModal.vue'
 import type {PodTypeConfig} from '@/types'
 import {
   POD_MENU_X_OFFSET,
@@ -28,7 +31,8 @@ const {
   subAgentStore,
   repositoryStore,
   commandStore,
-  connectionStore
+  connectionStore,
+  triggerStore
 } = useCanvasContext()
 
 useDeleteSelection()
@@ -72,7 +76,8 @@ const handleCanvasClick = (e: MouseEvent): void => {
     '.skill-note',
     '.subagent-note',
     '.repository-note',
-    '.command-note'
+    '.command-note',
+    '.trigger-chevron'
   ]
   if (ignoredSelectors.some(s => target.closest(s))) {
     return
@@ -117,6 +122,33 @@ const handleDeletePod = async (id: string): Promise<void> => {
 
 const handleDragEnd = (data: { id: string; x: number; y: number }): void => {
   podStore.movePod(data.id, data.x, data.y)
+}
+
+const handleTriggerDragEnd = (data: { id: string; x: number; y: number }): void => {
+  triggerStore.moveTrigger(data.id, data.x, data.y)
+}
+
+const handleDeleteTrigger = async (id: string): Promise<void> => {
+  await triggerStore.deleteTrigger(id)
+}
+
+const handleTriggerEditConfirm = async (config: TriggerModalConfig, triggerId?: string): Promise<void> => {
+  if (!triggerId) return
+
+  await triggerStore.updateTrigger(triggerId, {
+    name: config.name,
+    config: {
+      frequency: config.frequency,
+      second: config.second,
+      intervalMinute: config.intervalMinute,
+      intervalHour: config.intervalHour,
+      hour: config.hour,
+      minute: config.minute,
+      weekdays: config.weekdays,
+    }
+  })
+
+  triggerStore.setEditingTrigger(null)
 }
 
 const handleCreateOutputStyleNote = (outputStyleId: string): void => {
@@ -201,6 +233,15 @@ onUnmounted(() => {
       @drag-end="handleDragEnd"
     />
 
+    <!-- Trigger 列表 -->
+    <CanvasTrigger
+      v-for="trigger in triggerStore.triggers"
+      :key="trigger.id"
+      :trigger="trigger"
+      @delete="handleDeleteTrigger"
+      @drag-end="handleTriggerDragEnd"
+    />
+
     <!-- Output Style Notes -->
     <GenericNote
       v-for="note in outputStyleStore.getUnboundNotes"
@@ -282,5 +323,14 @@ onUnmounted(() => {
     ref="trashZoneRef"
     :visible="showTrashZone"
     :is-highlighted="isTrashHighlighted"
+  />
+
+  <!-- Trigger Edit Modal -->
+  <TriggerModal
+    :open="!!triggerStore.editingTriggerId"
+    :trigger-type="'time'"
+    :editing-trigger="triggerStore.editingTrigger"
+    @update:open="val => { if (!val) triggerStore.setEditingTrigger(null) }"
+    @confirm="handleTriggerEditConfirm"
   />
 </template>

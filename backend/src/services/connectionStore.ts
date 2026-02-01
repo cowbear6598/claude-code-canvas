@@ -8,7 +8,9 @@ import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
 interface CreateConnectionData {
+  sourceType?: 'pod' | 'trigger';
   sourcePodId: string;
+  sourceTriggerId?: string | null;
   sourceAnchor: AnchorPosition;
   targetPodId: string;
   targetAnchor: AnchorPosition;
@@ -31,7 +33,9 @@ class ConnectionStore {
 
     const connection: Connection = {
       id,
+      sourceType: data.sourceType ?? 'pod',
       sourcePodId: data.sourcePodId,
+      sourceTriggerId: data.sourceTriggerId ?? null,
       sourceAnchor: data.sourceAnchor,
       targetPodId: data.targetPodId,
       targetAnchor: data.targetAnchor,
@@ -134,6 +138,34 @@ class ConnectionStore {
   }
 
   /**
+   * Find connections by Trigger ID (source)
+   */
+  findByTriggerId(triggerId: string): Connection[] {
+    return Array.from(this.connections.values()).filter(
+      (connection) => connection.sourceTriggerId === triggerId
+    );
+  }
+
+  /**
+   * Delete all connections related to a specific Trigger
+   */
+  deleteByTriggerId(triggerId: string): string[] {
+    const connectionsToDelete = this.findByTriggerId(triggerId);
+    const deletedIds: string[] = [];
+
+    for (const connection of connectionsToDelete) {
+      this.connections.delete(connection.id);
+      deletedIds.push(connection.id);
+    }
+
+    if (deletedIds.length > 0) {
+      this.saveToDiskAsync();
+    }
+
+    return deletedIds;
+  }
+
+  /**
    * Load connections from disk
    */
   async loadFromDisk(): Promise<Result<void>> {
@@ -158,6 +190,8 @@ class ConnectionStore {
       for (const persisted of persistedConnections) {
         const connection: Connection = {
           ...persisted,
+          sourceType: persisted.sourceType ?? 'pod',
+          sourceTriggerId: persisted.sourceTriggerId ?? null,
           autoTrigger: persisted.autoTrigger ?? false,
           createdAt: new Date(persisted.createdAt),
         };
@@ -182,7 +216,9 @@ class ConnectionStore {
     const connectionsArray = Array.from(this.connections.values());
     const persistedConnections: PersistedConnection[] = connectionsArray.map((connection) => ({
       id: connection.id,
+      sourceType: connection.sourceType,
       sourcePodId: connection.sourcePodId,
+      sourceTriggerId: connection.sourceTriggerId,
       sourceAnchor: connection.sourceAnchor,
       targetPodId: connection.targetPodId,
       targetAnchor: connection.targetAnchor,

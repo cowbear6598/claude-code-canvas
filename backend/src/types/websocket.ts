@@ -157,4 +157,13 @@ export {
   type CommandDeletedPayload,
   type RepositoryGitCloneProgressPayload,
   type RepositoryGitCloneResultPayload,
+  type TriggerCreatePayload,
+  type TriggerListPayload,
+  type TriggerUpdatePayload,
+  type TriggerDeletePayload,
+  type TriggerCreatedPayload,
+  type TriggerListResultPayload,
+  type TriggerUpdatedPayload,
+  type TriggerDeletedPayload,
+  type TriggerFiredPayload,
 } from './websocket-events.js';

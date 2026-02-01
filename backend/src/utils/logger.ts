@@ -18,7 +18,8 @@ export type LogCategory =
   | 'Note'
   | 'OutputStyle'
   | 'Git'
-  | 'AutoClear';
+  | 'AutoClear'
+  | 'Trigger';
 
 /**
  * 日誌動作

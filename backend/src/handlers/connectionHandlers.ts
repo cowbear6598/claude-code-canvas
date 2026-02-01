@@ -14,6 +14,7 @@ import type {
 } from '../schemas/index.js';
 import { connectionStore } from '../services/connectionStore.js';
 import { podStore } from '../services/podStore.js';
+import { triggerStore } from '../services/triggerStore.js';
 import { workflowStateService } from '../services/workflow/index.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
@@ -23,19 +24,34 @@ export async function handleConnectionCreate(
   payload: ConnectionCreatePayload,
   requestId: string
 ): Promise<void> {
-  const { sourcePodId, sourceAnchor, targetPodId, targetAnchor } = payload;
+  const { sourceType, sourcePodId, sourceTriggerId, sourceAnchor, targetPodId, targetAnchor } = payload;
 
-  const sourcePod = podStore.getById(sourcePodId);
-  if (!sourcePod) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.CONNECTION_CREATED,
-      `Source Pod not found: ${sourcePodId}`,
-      requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
+  if (sourceType === 'pod') {
+    const sourcePod = podStore.getById(sourcePodId!);
+    if (!sourcePod) {
+      emitError(
+        socket,
+        WebSocketResponseEvents.CONNECTION_CREATED,
+        `Source Pod not found: ${sourcePodId}`,
+        requestId,
+        undefined,
+        'NOT_FOUND'
+      );
+      return;
+    }
+  } else if (sourceType === 'trigger') {
+    const sourceTrigger = triggerStore.getById(sourceTriggerId!);
+    if (!sourceTrigger) {
+      emitError(
+        socket,
+        WebSocketResponseEvents.CONNECTION_CREATED,
+        `Source Trigger not found: ${sourceTriggerId}`,
+        requestId,
+        undefined,
+        'NOT_FOUND'
+      );
+      return;
+    }
   }
 
   const targetPod = podStore.getById(targetPodId);
@@ -52,7 +68,9 @@ export async function handleConnectionCreate(
   }
 
   const connection = connectionStore.create({
-    sourcePodId,
+    sourceType,
+    sourcePodId: sourcePodId!,
+    sourceTriggerId,
     sourceAnchor,
     targetPodId,
     targetAnchor,
@@ -66,7 +84,8 @@ export async function handleConnectionCreate(
 
   emitSuccess(socket, WebSocketResponseEvents.CONNECTION_CREATED, response);
 
-  logger.log('Connection', 'Create', `Created connection ${connection.id} (${sourcePodId} -> ${targetPodId})`);
+  const sourceId = sourceType === 'trigger' ? sourceTriggerId : sourcePodId;
+  logger.log('Connection', 'Create', `Created connection ${connection.id} (${sourceType}:${sourceId} -> ${targetPodId})`);
 }
 
 export async function handleConnectionList(

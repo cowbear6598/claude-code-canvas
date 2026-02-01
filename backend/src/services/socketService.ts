@@ -56,6 +56,14 @@ class SocketService {
         this.io.to(roomName).emit(event, payload);
     }
 
+    emitToAll(event: string, payload: unknown): void {
+        if (!this.io) {
+            return;
+        }
+
+        this.io.emit(event, payload);
+    }
+
     private emitToSocket(socketId: string, event: string, payload: unknown): void {
         if (!this.io) {
             return;

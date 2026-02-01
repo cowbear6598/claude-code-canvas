@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import ConnectionLine from './ConnectionLine.vue'
 
-const { connectionStore, podStore } = useCanvasContext()
+const { connectionStore, podStore, triggerStore } = useCanvasContext()
 
 const draggingPathData = computed(() => {
   if (!connectionStore.draggingConnection) {
@@ -53,6 +53,7 @@ onUnmounted(() => {
       :key="connection.id"
       :connection="connection"
       :pods="podStore.pods"
+      :triggers="triggerStore.triggers"
       :is-selected="connection.id === connectionStore.selectedConnectionId"
       :status="connection.status || 'inactive'"
       @select="handleSelectConnection"

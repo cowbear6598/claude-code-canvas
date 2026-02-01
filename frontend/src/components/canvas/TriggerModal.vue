@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import {
   Dialog,
   DialogContent,
@@ -15,10 +15,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { TriggerTypeId } from './TriggerSubmenu.vue'
+import type { FrequencyType, Trigger } from '@/types/trigger'
 
-export type FrequencyType = 'every-second' | 'every-x-minute' | 'every-x-hour' | 'every-day' | 'every-week'
-
-export interface TimeTriggerConfig {
+export interface TriggerModalConfig {
   name: string
   frequency: FrequencyType
   second: number
@@ -32,13 +31,14 @@ export interface TimeTriggerConfig {
 interface Props {
   open: boolean
   triggerType: TriggerTypeId
+  editingTrigger?: Trigger | null
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  confirm: [config: TimeTriggerConfig]
+  confirm: [config: TriggerModalConfig, triggerId?: string]
 }>()
 
 const name = ref('')
@@ -70,8 +70,30 @@ const weekdayOptions = [
   { value: 6, label: '週日' },
 ]
 
-const getTriggerTitle = (type: TriggerTypeId): string =>
-  type === 'time' ? '時間觸發器' : '觸發器'
+const isEditMode = ref(false)
+
+const getTriggerTitle = (type: TriggerTypeId): string => {
+  if (isEditMode.value) {
+    return type === 'time' ? '編輯時間觸發器' : '編輯觸發器'
+  }
+  return type === 'time' ? '時間觸發器' : '觸發器'
+}
+
+watch(() => props.open, (newOpen) => {
+  if (newOpen && props.editingTrigger) {
+    isEditMode.value = true
+    name.value = props.editingTrigger.name
+    frequency.value = props.editingTrigger.config.frequency
+    second.value = props.editingTrigger.config.second
+    intervalMinute.value = props.editingTrigger.config.intervalMinute
+    intervalHour.value = props.editingTrigger.config.intervalHour
+    hour.value = props.editingTrigger.config.hour
+    minute.value = props.editingTrigger.config.minute
+    weekdays.value = [...props.editingTrigger.config.weekdays]
+  } else if (newOpen) {
+    isEditMode.value = false
+  }
+})
 
 const validate = (): boolean => {
   nameError.value = ''
@@ -115,6 +137,7 @@ const resetState = (): void => {
 const handleClose = (): void => {
   emit('update:open', false)
   resetState()
+  isEditMode.value = false
 }
 
 const handleConfirm = (): void => {
@@ -122,7 +145,7 @@ const handleConfirm = (): void => {
     return
   }
 
-  const config: TimeTriggerConfig = {
+  const config: TriggerModalConfig = {
     name: name.value.trim(),
     frequency: frequency.value,
     second: second.value,
@@ -133,9 +156,11 @@ const handleConfirm = (): void => {
     weekdays: weekdays.value,
   }
 
-  emit('confirm', config)
+  const triggerId = props.editingTrigger?.id
+  emit('confirm', config, triggerId)
   emit('update:open', false)
   resetState()
+  isEditMode.value = false
 }
 
 const formatMinute = (min: number): string => {
@@ -519,7 +544,7 @@ const formatMinute = (min: number): string => {
           variant="default"
           @click="handleConfirm"
         >
-          確認
+          {{ isEditMode ? '儲存' : '確認' }}
         </Button>
       </DialogFooter>
     </DialogContent>

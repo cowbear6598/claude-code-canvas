@@ -2,6 +2,8 @@ import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { noteStore, skillNoteStore, commandNoteStore, subAgentNoteStore, repositoryNoteStore } from './noteStores.js';
 import { connectionStore } from './connectionStore.js';
+import { triggerStore } from './triggerStore.js';
+import { triggerScheduler } from './triggerScheduler.js';
 import { Result, ok, err } from '../types/index.js';
 import { config } from '../config/index.js';
 import { persistenceService } from './persistence/index.js';
@@ -60,10 +62,17 @@ class StartupService {
       return err(`伺服器初始化失敗: ${repoNoteResult.error}`);
     }
 
+    const triggerResult = await triggerStore.loadFromDisk();
+    if (!triggerResult.success) {
+      return err(`伺服器初始化失敗: ${triggerResult.error}`);
+    }
+
     const connectionResult = await connectionStore.loadFromDisk();
     if (!connectionResult.success) {
       return err(`伺服器初始化失敗: ${connectionResult.error}`);
     }
+
+    triggerScheduler.start();
 
     logger.log('Startup', 'Complete', 'Server initialization completed successfully');
     return ok(undefined);

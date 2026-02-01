@@ -29,6 +29,13 @@ export const OUTPUT_LINES_PREVIEW_COUNT = 4
 export const DEFAULT_POD_ROTATION_RANGE = 2
 export const MAX_POD_NAME_LENGTH = 50
 
+// Trigger Constants
+export const TRIGGER_WIDTH = 120
+export const TRIGGER_HEIGHT = 70
+export const TRIGGER_ANCHOR_LOCAL_X = 120
+export const TRIGGER_ANCHOR_LOCAL_Y = 35
+export const DEFAULT_TRIGGER_ROTATION_RANGE = 2
+
 // Canvas Constants
 export const GRID_SIZE = 20
 

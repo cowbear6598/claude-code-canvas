@@ -40,6 +40,9 @@ export type { SubAgentNote } from './subAgentNote.js';
 // Connection types
 export type { Connection, AnchorPosition } from './connection.js';
 
+// Trigger types
+export type { Trigger, TriggerType, TimeTriggerConfig, TimeTriggerFrequency, PersistedTrigger } from './trigger.js';
+
 // API types
 export type {
   CreatePodRequest,
@@ -212,4 +215,13 @@ export {
   type CommandDeletedPayload,
   type RepositoryGitCloneProgressPayload,
   type RepositoryGitCloneResultPayload,
+  type TriggerCreatePayload,
+  type TriggerListPayload,
+  type TriggerUpdatePayload,
+  type TriggerDeletePayload,
+  type TriggerCreatedPayload,
+  type TriggerListResultPayload,
+  type TriggerUpdatedPayload,
+  type TriggerDeletedPayload,
+  type TriggerFiredPayload,
 } from './websocket.js';

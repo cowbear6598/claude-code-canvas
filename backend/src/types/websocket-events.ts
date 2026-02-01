@@ -69,6 +69,10 @@ export enum WebSocketRequestEvents {
   POD_UNBIND_COMMAND = 'pod:unbind-command',
   COMMAND_DELETE = 'command:delete',
   REPOSITORY_GIT_CLONE = 'repository:git:clone',
+  TRIGGER_CREATE = 'trigger:create',
+  TRIGGER_LIST = 'trigger:list',
+  TRIGGER_UPDATE = 'trigger:update',
+  TRIGGER_DELETE = 'trigger:delete',
 }
 
 export enum WebSocketResponseEvents {
@@ -155,6 +159,11 @@ export enum WebSocketResponseEvents {
   REPOSITORY_GIT_CLONE_PROGRESS = 'repository:git:clone:progress',
   REPOSITORY_GIT_CLONE_RESULT = 'repository:git:clone:result',
   HEARTBEAT_PING = 'heartbeat:ping',
+  TRIGGER_CREATED = 'trigger:created',
+  TRIGGER_LIST_RESULT = 'trigger:list:result',
+  TRIGGER_UPDATED = 'trigger:updated',
+  TRIGGER_DELETED = 'trigger:deleted',
+  TRIGGER_FIRED = 'trigger:fired',
 }
 
 export interface PodCreatePayload {
@@ -1220,4 +1229,72 @@ export interface RepositoryGitCloneResultPayload {
   success: boolean;
   repository?: { id: string; name: string };
   error?: string;
+}
+
+export interface TriggerCreatePayload {
+  requestId: string;
+  name: string;
+  type: 'time';
+  config: import('./trigger.js').TimeTriggerConfig;
+  x: number;
+  y: number;
+  rotation: number;
+  enabled: boolean;
+}
+
+export interface TriggerListPayload {
+  requestId: string;
+}
+
+export interface TriggerUpdatePayload {
+  requestId: string;
+  triggerId: string;
+  name?: string;
+  type?: 'time';
+  config?: import('./trigger.js').TimeTriggerConfig;
+  x?: number;
+  y?: number;
+  rotation?: number;
+  enabled?: boolean;
+}
+
+export interface TriggerDeletePayload {
+  requestId: string;
+  triggerId: string;
+}
+
+export interface TriggerCreatedPayload {
+  requestId: string;
+  success: boolean;
+  trigger?: import('./trigger.js').Trigger;
+  error?: string;
+}
+
+export interface TriggerListResultPayload {
+  requestId: string;
+  success: boolean;
+  triggers?: import('./trigger.js').Trigger[];
+  error?: string;
+}
+
+export interface TriggerUpdatedPayload {
+  requestId: string;
+  success: boolean;
+  trigger?: import('./trigger.js').Trigger;
+  error?: string;
+}
+
+export interface TriggerDeletedPayload {
+  requestId: string;
+  success: boolean;
+  triggerId?: string;
+  deletedConnectionIds?: string[];
+  error?: string;
+}
+
+export interface TriggerFiredPayload {
+  triggerId: string;
+  timestamp: string;
+  firedPodIds: string[];
+  skippedPodIds: string[];
 }

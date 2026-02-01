@@ -35,7 +35,9 @@ const {
   skillStore,
   subAgentStore,
   repositoryStore,
-  commandStore
+  commandStore,
+  triggerStore,
+  viewportStore
 } = useCanvasContext()
 
 type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
@@ -289,6 +291,50 @@ const handleTriggerSelect = (type: TriggerTypeId): void => {
   triggerType.value = type
   showTriggerModal.value = true
   openMenuType.value = null
+}
+
+const handleTriggerConfirm = async (config: { name: string; frequency: string; second: number; intervalMinute: number; intervalHour: number; hour: number; minute: number; weekdays: number[] }, triggerId?: string): Promise<void> => {
+  if (triggerId) {
+    await triggerStore.updateTrigger(triggerId, {
+      name: config.name,
+      config: {
+        frequency: config.frequency,
+        second: config.second,
+        intervalMinute: config.intervalMinute,
+        intervalHour: config.intervalHour,
+        hour: config.hour,
+        minute: config.minute,
+        weekdays: config.weekdays,
+      }
+    })
+    triggerStore.setEditingTrigger(null)
+  } else {
+    if (!props.position) return
+
+    const canvasX = (props.position.x - viewportStore.offset.x) / viewportStore.zoom
+    const canvasY = (props.position.y - viewportStore.offset.y) / viewportStore.zoom
+
+    const rotation = Math.random() * 2 - 1
+
+    await triggerStore.createTrigger({
+      name: config.name,
+      type: 'time',
+      config: {
+        frequency: config.frequency,
+        second: config.second,
+        intervalMinute: config.intervalMinute,
+        intervalHour: config.intervalHour,
+        hour: config.hour,
+        minute: config.minute,
+        weekdays: config.weekdays,
+      },
+      x: canvasX - 80,
+      y: canvasY - 50,
+      rotation: Math.round(rotation * 10) / 10,
+    })
+
+    emit('close')
+  }
 }
 
 const { menuStyle } = useMenuPosition({ position: computed(() => props.position) })
@@ -588,6 +634,8 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
     <TriggerModal
       v-model:open="showTriggerModal"
       :trigger-type="triggerType"
+      :editing-trigger="triggerStore.editingTrigger"
+      @confirm="handleTriggerConfirm"
     />
   </div>
 </template>

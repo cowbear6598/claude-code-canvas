@@ -4,7 +4,7 @@ import { useToast } from '@/composables/useToast'
 import { isEditingElement } from '@/utils/domHelpers'
 
 async function deleteSelectedElements(): Promise<void> {
-  const { podStore, selectionStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore } = useCanvasContext()
+  const { podStore, selectionStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore, triggerStore } = useCanvasContext()
   const { toast } = useToast()
 
   const selectedElements = selectionStore.selectedElements
@@ -34,6 +34,10 @@ async function deleteSelectedElements(): Promise<void> {
     .filter(el => el.type === 'commandNote')
     .map(el => el.id)
 
+  const triggers = selectedElements
+    .filter(el => el.type === 'trigger')
+    .map(el => el.id)
+
   const deletePromises: Promise<void>[] = []
 
   pods.forEach(id => {
@@ -58,6 +62,10 @@ async function deleteSelectedElements(): Promise<void> {
 
   commandNotes.forEach(id => {
     deletePromises.push(commandStore.deleteNote(id))
+  })
+
+  triggers.forEach(id => {
+    deletePromises.push(triggerStore.deleteTrigger(id))
   })
 
   const results = await Promise.allSettled(deletePromises)

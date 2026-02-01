@@ -4,9 +4,9 @@ import { useCanvasContext } from './useCanvasContext'
 export function useBatchDrag(): {
   isBatchDragging: import('vue').Ref<boolean>
   startBatchDrag: (e: MouseEvent) => boolean
-  isElementSelected: (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote', id: string) => boolean
+  isElementSelected: (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote' | 'trigger', id: string) => boolean
 } {
-  const { podStore, viewportStore, selectionStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore } = useCanvasContext()
+  const { podStore, viewportStore, selectionStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore, triggerStore } = useCanvasContext()
 
   const isBatchDragging = ref(false)
 
@@ -18,6 +18,7 @@ export function useBatchDrag(): {
   const movedRepositoryNotes = new Set<string>()
   const movedSubAgentNotes = new Set<string>()
   const movedCommandNotes = new Set<string>()
+  const movedTriggers = new Set<string>()
 
   let currentMoveHandler: ((e: MouseEvent) => void) | null = null
   let currentUpHandler: (() => void) | null = null
@@ -47,6 +48,7 @@ export function useBatchDrag(): {
     movedRepositoryNotes.clear()
     movedSubAgentNotes.clear()
     movedCommandNotes.clear()
+    movedTriggers.clear()
 
     cleanupEventListeners()
 
@@ -110,6 +112,12 @@ export function useBatchDrag(): {
           commandStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
           movedCommandNotes.add(element.id)
         }
+      } else if (element.type === 'trigger') {
+        const trigger = triggerStore.triggers.find(t => t.id === element.id)
+        if (trigger) {
+          triggerStore.moveTrigger(element.id, trigger.x + dx, trigger.y + dy)
+          movedTriggers.add(element.id)
+        }
       }
     }
   }
@@ -150,14 +158,22 @@ export function useBatchDrag(): {
       }
     }
 
+    for (const triggerId of movedTriggers) {
+      const trigger = triggerStore.triggers.find(t => t.id === triggerId)
+      if (trigger) {
+        await triggerStore.updateTrigger(triggerId, { x: trigger.x, y: trigger.y })
+      }
+    }
+
     movedOutputStyleNotes.clear()
     movedSkillNotes.clear()
     movedRepositoryNotes.clear()
     movedSubAgentNotes.clear()
     movedCommandNotes.clear()
+    movedTriggers.clear()
   }
 
-  const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote', id: string): boolean => {
+  const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote' | 'trigger', id: string): boolean => {
     return selectionStore.selectedElements.some(
       el => el.type === type && el.id === id
     )
