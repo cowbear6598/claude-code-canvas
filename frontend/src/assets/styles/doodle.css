@@ -607,7 +607,7 @@
   left: 100%;
   top: 0;
   margin-left: 8px;
-  width: 192px;
+  min-width: 192px;
   background: var(--card);
   border: 2px solid var(--doodle-ink);
   border-radius: 6px;
@@ -618,13 +618,13 @@
 
 .pod-menu-submenu-search {
   width: 100%;
-  padding: 6px 8px;
+  padding: 4px 8px;
   border: none;
   border-bottom: 1.5px solid var(--doodle-ink);
   outline: none;
   background: transparent;
-  font-size: 16px;
-  font-family: inherit;
+  font-size: 0.825rem;
+  font-family: var(--font-mono), monospace, sans-serif;
   color: var(--foreground);
   box-sizing: border-box;
 }

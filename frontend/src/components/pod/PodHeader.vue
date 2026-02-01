@@ -45,13 +45,13 @@ const handleSave = (): void => {
         v-model="editName"
         type="text"
         :maxlength="MAX_POD_NAME_LENGTH"
-        class="flex-1 bg-transparent border-b-2 border-doodle-ink/50 outline-none font-sans text-lg"
+        class="flex-1 bg-transparent border-b-2 border-doodle-ink/50 outline-none font-sans text-base"
         @blur="handleSave"
         @keydown.enter="handleSave"
       >
       <h3
         v-else
-        class="flex-1 font-sans text-xl text-foreground truncate"
+        class="flex-1 font-sans text-base text-foreground truncate"
       >
         {{ name }}
       </h3>

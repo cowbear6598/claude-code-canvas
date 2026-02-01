@@ -118,7 +118,7 @@ const handleMouseDown = (e: MouseEvent): void => {
   }
 
   if (isCtrlOrCmdPressed(e)) {
-    selectionStore.toggleElement({ type: 'pod', id: props.pod.id })
+    selectionStore.toggleElement({type: 'pod', id: props.pod.id})
     podStore.setActivePod(props.pod.id)
     connectionStore.selectConnection(null)
     return
@@ -131,7 +131,7 @@ const handleMouseDown = (e: MouseEvent): void => {
   }
 
   if (!isElementSelected('pod', props.pod.id)) {
-    selectionStore.setSelectedElements([{ type: 'pod', id: props.pod.id }])
+    selectionStore.setSelectedElements([{type: 'pod', id: props.pod.id}])
   }
 
   podStore.setActivePod(props.pod.id)
@@ -194,6 +194,16 @@ const handleDelete = (): void => {
 const handleSelectPod = (): void => {
   podStore.setActivePod(props.pod.id)
   emit('select', props.pod.id)
+}
+
+const handleDblClick = (e: MouseEvent): void => {
+  if (isEditing.value || isDragging.value) return
+
+  const target = e.target as HTMLElement
+
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+
+  handleSelectPod()
 }
 
 type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command'
@@ -401,107 +411,107 @@ const handleToggleAutoClear = async (): Promise<void> => {
 
 <template>
   <div
-    class="absolute select-none"
-    :style="{
+      class="absolute select-none"
+      :style="{
       left: `${pod.x}px`,
       top: `${pod.y}px`,
       zIndex: isActive ? 100 : 10,
     }"
-    @mousedown="handleMouseDown"
+      @mousedown="handleMouseDown"
   >
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
-      class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch"
-      :style="{ transform: `rotate(${pod.rotation}deg)` }"
+        class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch"
+        :style="{ transform: `rotate(${pod.rotation}deg)` }"
     >
       <!-- Model Selector -->
       <PodModelSelector
-        :pod-id="pod.id"
-        :current-model="currentModel"
-        @update:model="handleModelChange"
+          :pod-id="pod.id"
+          :current-model="currentModel"
+          @update:model="handleModelChange"
       />
 
       <!-- Slots -->
       <PodSlots
-        :pod-id="pod.id"
-        :pod-rotation="pod.rotation"
-        :bound-output-style-note="boundNote"
-        :bound-skill-notes="boundSkillNotes"
-        :bound-sub-agent-notes="boundSubAgentNotes"
-        :bound-repository-note="boundRepositoryNote"
-        :bound-command-note="boundCommandNote"
-        @output-style-dropped="(noteId) => handleNoteDrop('outputStyle', noteId)"
-        @output-style-removed="() => handleNoteRemove('outputStyle')"
-        @skill-dropped="(noteId) => handleNoteDrop('skill', noteId)"
-        @subagent-dropped="(noteId) => handleNoteDrop('subAgent', noteId)"
-        @repository-dropped="(noteId) => handleNoteDrop('repository', noteId)"
-        @repository-removed="() => handleNoteRemove('repository')"
-        @command-dropped="(noteId) => handleNoteDrop('command', noteId)"
-        @command-removed="() => handleNoteRemove('command')"
+          :pod-id="pod.id"
+          :pod-rotation="pod.rotation"
+          :bound-output-style-note="boundNote"
+          :bound-skill-notes="boundSkillNotes"
+          :bound-sub-agent-notes="boundSubAgentNotes"
+          :bound-repository-note="boundRepositoryNote"
+          :bound-command-note="boundCommandNote"
+          @output-style-dropped="(noteId) => handleNoteDrop('outputStyle', noteId)"
+          @output-style-removed="() => handleNoteRemove('outputStyle')"
+          @skill-dropped="(noteId) => handleNoteDrop('skill', noteId)"
+          @subagent-dropped="(noteId) => handleNoteDrop('subAgent', noteId)"
+          @repository-dropped="(noteId) => handleNoteDrop('repository', noteId)"
+          @repository-removed="() => handleNoteRemove('repository')"
+          @command-dropped="(noteId) => handleNoteDrop('command', noteId)"
+          @command-removed="() => handleNoteRemove('command')"
       />
 
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
       <div
-        class="pod-doodle w-56 overflow-visible relative"
-        :class="[podStatusClass, { selected: isSelected }]"
+          class="pod-doodle w-56 overflow-visible relative"
+          :class="[podStatusClass, { selected: isSelected }]"
+          @dblclick="handleDblClick"
       >
         <!-- Model 凹槽 -->
-        <div class="model-notch" />
+        <div class="model-notch"/>
         <!-- SubAgent 凹槽 -->
-        <div class="subagent-notch" />
+        <div class="subagent-notch"/>
         <!-- Repository 凹槽（右側） -->
-        <div class="repository-notch" />
+        <div class="repository-notch"/>
         <!-- Command 凹槽（右側） -->
-        <div class="command-notch" />
+        <div class="command-notch"/>
 
         <!-- Anchors -->
         <PodAnchors
-          :pod-id="pod.id"
-          @drag-start="handleAnchorDragStart"
-          @drag-move="handleAnchorDragMove"
-          @drag-end="handleAnchorDragEnd"
+            :pod-id="pod.id"
+            @drag-start="handleAnchorDragStart"
+            @drag-move="handleAnchorDragMove"
+            @drag-end="handleAnchorDragEnd"
         />
 
         <div class="p-3">
           <!-- 標題 -->
           <PodHeader
-            :name="pod.name"
-            :color="pod.color"
-            :is-editing="isEditing"
-            @update:name="handleUpdateName"
-            @save="handleSaveName"
-            @rename="handleRename"
+              :name="pod.name"
+              :color="pod.color"
+              :is-editing="isEditing"
+              @update:name="handleUpdateName"
+              @save="handleSaveName"
+              @rename="handleRename"
           />
 
           <!-- 迷你螢幕 -->
           <PodMiniScreen
-            :output="pod.output"
-            @dblclick="handleSelectPod"
+              :output="pod.output"
           />
         </div>
       </div>
 
       <!-- Actions -->
       <PodActions
-        :pod-id="pod.id"
-        :pod-name="pod.name"
-        :is-source-pod="isSourcePod"
-        :is-auto-clear-enabled="isAutoClearEnabled"
-        :is-auto-clear-animating="isAutoClearAnimating"
-        :is-loading-downstream="isLoadingDownstream"
-        :is-clearing="isClearing"
-        :downstream-pods="downstreamPods"
-        :show-clear-dialog="showClearDialog"
-        :show-delete-dialog="showDeleteDialog"
-        @update:show-clear-dialog="showClearDialog = $event"
-        @update:show-delete-dialog="showDeleteDialog = $event"
-        @delete="handleDelete"
-        @clear-workflow="handleClearWorkflow"
-        @toggle-auto-clear="handleToggleAutoClear"
-        @confirm-clear="handleConfirmClear"
-        @cancel-clear="handleCancelClear"
-        @confirm-delete="handleDelete"
-        @cancel-delete="showDeleteDialog = false"
+          :pod-id="pod.id"
+          :pod-name="pod.name"
+          :is-source-pod="isSourcePod"
+          :is-auto-clear-enabled="isAutoClearEnabled"
+          :is-auto-clear-animating="isAutoClearAnimating"
+          :is-loading-downstream="isLoadingDownstream"
+          :is-clearing="isClearing"
+          :downstream-pods="downstreamPods"
+          :show-clear-dialog="showClearDialog"
+          :show-delete-dialog="showDeleteDialog"
+          @update:show-clear-dialog="showClearDialog = $event"
+          @update:show-delete-dialog="showDeleteDialog = $event"
+          @delete="handleDelete"
+          @clear-workflow="handleClearWorkflow"
+          @toggle-auto-clear="handleToggleAutoClear"
+          @confirm-clear="handleConfirmClear"
+          @cancel-clear="handleCancelClear"
+          @confirm-delete="handleDelete"
+          @cancel-delete="showDeleteDialog = false"
       />
     </div>
   </div>
