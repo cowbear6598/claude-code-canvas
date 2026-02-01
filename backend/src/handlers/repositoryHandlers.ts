@@ -134,6 +134,27 @@ export async function handlePodBindRepository(
     await repositorySyncService.syncRepositoryResources(oldRepositoryId);
   }
 
+  // 如果 Pod 之前沒有 repo，清理 Pod workspace 的 .claude 資源
+  // 因為資源現在會放在 repo 的 .claude 下，Pod workspace 的資源已經過時
+  if (!oldRepositoryId) {
+    const podWorkspacePath = pod.workspacePath;
+    try {
+      await commandService.deleteCommandFromPath(podWorkspacePath);
+    } catch (error) {
+      logger.error('Repository', 'Bind', `Failed to delete commands from Pod ${podId} workspace`, error);
+    }
+    try {
+      await skillService.deleteSkillsFromPath(podWorkspacePath);
+    } catch (error) {
+      logger.error('Repository', 'Bind', `Failed to delete skills from Pod ${podId} workspace`, error);
+    }
+    try {
+      await subAgentService.deleteSubAgentsFromPath(podWorkspacePath);
+    } catch (error) {
+      logger.error('Repository', 'Bind', `Failed to delete subagents from Pod ${podId} workspace`, error);
+    }
+  }
+
   await clearPodMessages(socket, podId);
 
   const updatedPod = podStore.getById(podId);
