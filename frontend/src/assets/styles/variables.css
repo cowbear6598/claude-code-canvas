@@ -42,6 +42,7 @@
   --doodle-yellow: oklch(0.88 0.1 90);
   --doodle-orange: oklch(0.72 0.14 50);
   --doodle-mint: oklch(0.82 0.1 170);
+  --doodle-purple: oklch(0.65 0.12 300);
   --doodle-ink: oklch(0.4 0.02 50);
   --doodle-sand: oklch(0.85 0.08 70);
 }
@@ -83,6 +84,7 @@
   --doodle-yellow: oklch(0.75 0.1 90);
   --doodle-orange: oklch(0.65 0.14 50);
   --doodle-mint: oklch(0.52 0.08 170);
+  --doodle-purple: oklch(0.58 0.12 300);
   --doodle-ink: oklch(0.7 0.02 50);
   --doodle-sand: oklch(0.55 0.06 70);
 }
@@ -133,5 +135,8 @@
   --color-doodle-pink: var(--doodle-pink);
   --color-doodle-yellow: var(--doodle-yellow);
   --color-doodle-orange: var(--doodle-orange);
+  --color-doodle-mint: var(--doodle-mint);
+  --color-doodle-purple: var(--doodle-purple);
+  --color-doodle-sand: var(--doodle-sand);
   --color-doodle-ink: var(--doodle-ink);
 }
