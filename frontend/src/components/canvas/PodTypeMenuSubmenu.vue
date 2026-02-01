@@ -51,6 +51,7 @@ const handleItemEdit = (item: T, event: Event): void => {
 const handleItemDelete = (item: T, event: Event): void => {
   emit('item-delete', item.id, item.name, event)
 }
+
 </script>
 
 <template>

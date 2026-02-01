@@ -605,8 +605,8 @@
 .pod-menu-submenu {
   position: absolute;
   left: 100%;
-  top: 0;
   margin-left: 8px;
+  top: 0;
   min-width: 192px;
   background: var(--card);
   border: 2px solid var(--doodle-ink);

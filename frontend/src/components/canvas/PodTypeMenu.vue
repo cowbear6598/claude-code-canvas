@@ -4,6 +4,7 @@ import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus, FilePlus, Zap } f
 import type { Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent } from '@/types'
 import { podTypes } from '@/data/podTypes'
 import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
+import { useMenuPosition } from '@/composables/useMenuPosition'
 import CreateRepositoryModal from './CreateRepositoryModal.vue'
 import CloneRepositoryModal from './CloneRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
@@ -16,7 +17,7 @@ interface Props {
   position: Position
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   select: [config: PodTypeConfig]
@@ -289,6 +290,8 @@ const handleTriggerSelect = (type: TriggerTypeId): void => {
   showTriggerModal.value = true
   openMenuType.value = null
 }
+
+const { menuStyle } = useMenuPosition({ position: computed(() => props.position) })
 </script>
 
 <template>
@@ -301,13 +304,8 @@ const handleTriggerSelect = (type: TriggerTypeId): void => {
 
     <!-- 選單內容 -->
     <div
-      class="fixed z-50 bg-card border-2 border-doodle-ink rounded-lg p-2 min-w-48 origin-top-left"
-      :style="{
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-        boxShadow: '3px 3px 0 var(--doodle-ink)',
-        transform: 'scale(0.8)',
-      }"
+      class="fixed z-50 bg-card border-2 border-doodle-ink rounded-lg p-2 min-w-48"
+      :style="menuStyle"
     >
       <!-- Pod 按鈕 -->
       <button

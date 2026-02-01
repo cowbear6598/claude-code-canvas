@@ -26,6 +26,7 @@ const triggerTypes: TriggerType[] = [
 const handleTriggerSelect = (type: TriggerType): void => {
   emit('trigger-select', type.id)
 }
+
 </script>
 
 <template>
