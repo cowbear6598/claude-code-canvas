@@ -1,10 +1,13 @@
 import type { Ref } from 'vue'
 import { ref } from 'vue'
 
-interface NotePosition {
-  id: string
+interface Position {
   x: number
   y: number
+}
+
+interface NotePosition extends Position {
+  id: string
 }
 
 interface UseSlotEjectOptions {
@@ -12,7 +15,7 @@ interface UseSlotEjectOptions {
   podRotation: () => number
   getNoteById: (id: string) => NotePosition | undefined
   setNoteAnimating: (noteId: string, animating: boolean) => void
-  unbindFromPod: (podId: string, notify: boolean) => Promise<void>
+  unbindFromPod: (podId: string, returnToOriginal: boolean, targetPosition?: Position) => Promise<void>
   updateNotePosition: (noteId: string, x: number, y: number) => Promise<void>
   getViewportZoom: () => number
   getViewportOffset: () => { x: number; y: number }
@@ -83,10 +86,9 @@ export function useSlotEject(options: UseSlotEjectOptions): UseSlotEjectReturn {
     isEjecting.value = true
     setNoteAnimating(boundNoteId, true)
 
-    onRemoved()
+    await unbindFromPod(podId, false, { x: ejectX, y: ejectY })
 
-    await unbindFromPod(podId, false)
-    await updateNotePosition(boundNoteId, ejectX, ejectY)
+    onRemoved()
 
     setTimeout(() => {
       isEjecting.value = false

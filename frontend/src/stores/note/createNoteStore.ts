@@ -4,6 +4,11 @@ import {createWebSocketRequest} from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import {useDeleteItem} from '@/composables/useDeleteItem'
 
+interface Position {
+    x: number
+    y: number
+}
+
 interface BasePayload {
     requestId: string
 
@@ -269,6 +274,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
 
                 if (!config.bindEvents) return
 
+                // 並行執行 bind 和 update，僅需要 update 的回應
                 const [, updateResponse] = await Promise.all([
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.bindEvents.request,
@@ -297,7 +303,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 }
             },
 
-            async unbindFromPod(podId: string, returnToOriginal: boolean = false): Promise<void> {
+            async unbindFromPod(podId: string, returnToOriginal: boolean = false, targetPosition?: Position): Promise<void> {
                 if (!config.unbindEvents || config.relationship !== 'one-to-one') return
 
                 const notes = this.getNotesByPodId(podId)
@@ -315,8 +321,12 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 if (returnToOriginal && note.originalPosition) {
                     updatePayload.x = note.originalPosition.x
                     updatePayload.y = note.originalPosition.y
+                } else if (targetPosition) {
+                    updatePayload.x = targetPosition.x
+                    updatePayload.y = targetPosition.y
                 }
 
+                // 並行執行 unbind 和 update，僅需要 update 的回應
                 const [, updateResponse] = await Promise.all([
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.unbindEvents.request,
