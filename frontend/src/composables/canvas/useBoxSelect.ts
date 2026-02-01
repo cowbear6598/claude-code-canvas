@@ -33,6 +33,11 @@ export function useBoxSelect(): {
       return
     }
 
+    if (document.activeElement instanceof HTMLInputElement ||
+        document.activeElement instanceof HTMLTextAreaElement) {
+      document.activeElement.blur()
+    }
+
     e.preventDefault()
 
     if (viewportStore.zoom === 0) return

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import type { PodColor } from '@/types'
 import { COLOR_MAP, MAX_POD_NAME_LENGTH } from '@/lib/constants'
 import { Pencil } from 'lucide-vue-next'
@@ -17,9 +17,18 @@ const emit = defineEmits<{
 }>()
 
 const editName = ref(props.name)
+const inputRef = ref<HTMLInputElement | null>(null)
 
 watch(() => props.name, (newName) => {
   editName.value = newName
+})
+
+watch(() => props.isEditing, (isEditing) => {
+  if (isEditing) {
+    nextTick(() => {
+      inputRef.value?.focus()
+    })
+  }
 })
 
 const handleSave = (): void => {
@@ -42,6 +51,7 @@ const handleSave = (): void => {
       />
       <input
         v-if="isEditing"
+        ref="inputRef"
         v-model="editName"
         type="text"
         :maxlength="MAX_POD_NAME_LENGTH"
