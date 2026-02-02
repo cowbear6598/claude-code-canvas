@@ -98,7 +98,7 @@ export async function createPastedPods(
         ? repositoryService.getRepositoryPath(finalRepositoryId)
         : pod.workspacePath;
 
-      await workspaceService.createWorkspace(pod.id);
+      await workspaceService.createWorkspace(pod.workspacePath);
       await claudeSessionManager.createSession(pod.id, cwd);
 
       // 從原始 Pod 的工作目錄複製 .claude/ 到新 Pod 的工作目錄

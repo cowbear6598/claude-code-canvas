@@ -94,7 +94,7 @@ export async function handlePodBindSkill(
         return;
     }
 
-    await skillService.copySkillToPod(skillId, podId);
+    await skillService.copySkillToPod(skillId, podId, pod.workspacePath);
 
     podStore.addSkillId(canvasId, podId, skillId);
 

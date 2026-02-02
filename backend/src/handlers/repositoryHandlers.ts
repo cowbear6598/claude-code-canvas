@@ -204,7 +204,7 @@ export async function handlePodUnbindRepository(
   // 將當前 POD 的資源複製到 POD 自己的 workspacePath
   for (const skillId of pod.skillIds) {
     try {
-      await skillService.copySkillToPod(skillId, podId);
+      await skillService.copySkillToPod(skillId, podId, pod.workspacePath);
     } catch (error) {
       logger.error('Repository', 'Unbind', `Failed to copy skill ${skillId} to Pod ${podId}`, error);
     }
@@ -212,7 +212,7 @@ export async function handlePodUnbindRepository(
 
   for (const subAgentId of pod.subAgentIds) {
     try {
-      await subAgentService.copySubAgentToPod(subAgentId, podId);
+      await subAgentService.copySubAgentToPod(subAgentId, podId, pod.workspacePath);
     } catch (error) {
       logger.error('Repository', 'Unbind', `Failed to copy subagent ${subAgentId} to Pod ${podId}`, error);
     }
@@ -220,7 +220,7 @@ export async function handlePodUnbindRepository(
 
   if (pod.commandId) {
     try {
-      await commandService.copyCommandToPod(pod.commandId, podId);
+      await commandService.copyCommandToPod(pod.commandId, podId, pod.workspacePath);
     } catch (error) {
       logger.error('Repository', 'Unbind', `Failed to copy command ${pod.commandId} to Pod ${podId}`, error);
     }

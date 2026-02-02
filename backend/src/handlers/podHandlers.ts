@@ -49,7 +49,7 @@ export async function handlePodCreate(
 
     const pod = podStore.create(canvasId, {name, color, x, y, rotation});
 
-    const workspaceResult = await workspaceService.createWorkspace(pod.id);
+    const workspaceResult = await workspaceService.createWorkspace(pod.workspacePath);
     if (!workspaceResult.success) {
         emitError(
             socket,
@@ -157,7 +157,7 @@ export async function handlePodDelete(
 
     await claudeSessionManager.destroySession(podId);
 
-    const deleteResult = await workspaceService.deleteWorkspace(podId);
+    const deleteResult = await workspaceService.deleteWorkspace(pod.workspacePath);
     if (!deleteResult.success) {
         logger.error('Pod', 'Delete', `Failed to delete workspace for Pod ${podId}`, deleteResult.error);
     }

@@ -4,6 +4,7 @@ import {
   WebSocketRequestEvents,
   WebSocketResponseEvents
 } from '@/services/websocket'
+import {useToast} from '@/composables/useToast'
 import type {
   Canvas,
   CanvasCreatePayload,
@@ -110,30 +111,46 @@ export const useCanvasStore = defineStore('canvas', {
 
         return null
       } catch (error) {
-        console.error('[CanvasStore] Failed to create canvas:', error)
-        throw error
+        const {toast} = useToast()
+        const msg = error instanceof Error ? error.message : '建立 Canvas 失敗'
+        toast({title: msg, variant: 'destructive'})
+        return null
       }
     },
 
     async renameCanvas(canvasId: string, newName: string): Promise<void> {
-      const response = await createWebSocketRequest<CanvasRenamePayload, CanvasRenamedPayload>({
-        requestEvent: WebSocketRequestEvents.CANVAS_RENAME,
-        responseEvent: WebSocketResponseEvents.CANVAS_RENAMED,
-        payload: {
-                    canvasId,
-          newName,
-        }
-      })
+      try {
+        const response = await createWebSocketRequest<CanvasRenamePayload, CanvasRenamedPayload>({
+          requestEvent: WebSocketRequestEvents.CANVAS_RENAME,
+          responseEvent: WebSocketResponseEvents.CANVAS_RENAMED,
+          payload: {
+                      canvasId,
+            newName,
+          }
+        })
 
-      if (response.canvas) {
-        const canvas = this.canvases.find(c => c.id === canvasId)
-        if (canvas) {
-          canvas.name = response.canvas.name
+        if (response.canvas) {
+          const canvas = this.canvases.find(c => c.id === canvasId)
+          if (canvas) {
+            canvas.name = response.canvas.name
+          }
         }
+      } catch (error) {
+        const {toast} = useToast()
+        const msg = error instanceof Error ? error.message : '重新命名 Canvas 失敗'
+        toast({title: msg, variant: 'destructive'})
       }
     },
 
     async deleteCanvas(canvasId: string): Promise<void> {
+      // If deleting active canvas, switch to another one first
+      if (this.activeCanvasId === canvasId) {
+        const otherCanvas = this.canvases.find(c => c.id !== canvasId)
+        if (otherCanvas) {
+          await this.switchCanvas(otherCanvas.id)
+        }
+      }
+
       const response = await createWebSocketRequest<CanvasDeletePayload, CanvasDeletedPayload>({
         requestEvent: WebSocketRequestEvents.CANVAS_DELETE,
         responseEvent: WebSocketResponseEvents.CANVAS_DELETED,
@@ -144,10 +161,6 @@ export const useCanvasStore = defineStore('canvas', {
 
       if (response.success && response.canvasId) {
         this.canvases = this.canvases.filter(c => c.id !== canvasId)
-
-        if (this.activeCanvasId === canvasId && this.canvases.length > 0) {
-          this.activeCanvasId = this.canvases[0].id
-        }
       }
     },
 

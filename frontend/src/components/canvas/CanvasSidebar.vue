@@ -24,22 +24,17 @@
 
       <!-- New Canvas Button -->
       <div class="border-b border-border p-4">
-        <div v-if="isCreating" class="flex items-center gap-2">
+        <div v-if="isCreating" class="flex flex-col gap-2">
           <input
             ref="createInputRef"
             v-model="newCanvasName"
             type="text"
-            class="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+            class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             placeholder="Canvas name"
             @keydown.enter="handleCreate"
             @keydown.escape="cancelCreate"
+            @blur="handleCreateOrCancel"
           >
-          <button
-            class="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90"
-            @click="handleCreate"
-          >
-            Create
-          </button>
         </div>
         <button
           v-else
@@ -100,12 +95,51 @@
       </div>
     </div>
   </Transition>
+
+  <!-- Delete Confirmation Dialog -->
+  <Dialog
+    :open="showDeleteDialog"
+    @update:open="showDeleteDialog = false"
+  >
+    <DialogContent class="max-w-md">
+      <DialogHeader>
+        <DialogTitle>確認刪除</DialogTitle>
+        <DialogDescription>
+          確定要刪除 Canvas「{{ deleteTargetName }}」？此操作無法復原。
+        </DialogDescription>
+      </DialogHeader>
+
+      <DialogFooter>
+        <Button
+          variant="outline"
+          @click="showDeleteDialog = false"
+        >
+          取消
+        </Button>
+        <Button
+          variant="destructive"
+          @click="confirmDelete"
+        >
+          刪除
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import {ref, watch, nextTick} from 'vue'
 import {X, Plus, Pencil, Trash2} from 'lucide-vue-next'
 import {useCanvasStore} from '@/stores/canvasStore'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {Button} from '@/components/ui/button'
 
 interface Props {
   open: boolean
@@ -127,6 +161,10 @@ const createInputRef = ref<HTMLInputElement | undefined>(undefined)
 const renamingCanvasId = ref<string | null>(null)
 const renamingName = ref('')
 const renameInputRef = ref<HTMLInputElement | HTMLInputElement[] | undefined>(undefined)
+
+const showDeleteDialog = ref(false)
+const deleteTargetId = ref<string | null>(null)
+const deleteTargetName = ref('')
 
 const handleClose = (): void => {
   emit('update:open', false)
@@ -152,6 +190,14 @@ const handleCreate = async (): Promise<void> => {
   cancelCreate()
 }
 
+const handleCreateOrCancel = (): void => {
+  if (!newCanvasName.value.trim()) {
+    cancelCreate()
+  } else {
+    handleCreate()
+  }
+}
+
 const startRename = (canvasId: string, currentName: string): void => {
   renamingCanvasId.value = canvasId
   renamingName.value = currentName
@@ -173,10 +219,22 @@ const handleRename = async (canvasId: string): Promise<void> => {
   cancelRename()
 }
 
-const handleDelete = async (canvasId: string): Promise<void> => {
-  if (!window.confirm('確定要刪除此 Canvas?')) return
+const handleDelete = (canvasId: string): void => {
+  const canvas = canvasStore.canvases.find(c => c.id === canvasId)
+  if (!canvas) return
 
-  await canvasStore.deleteCanvas(canvasId)
+  deleteTargetId.value = canvasId
+  deleteTargetName.value = canvas.name
+  showDeleteDialog.value = true
+}
+
+const confirmDelete = (): void => {
+  if (deleteTargetId.value) {
+    canvasStore.deleteCanvas(deleteTargetId.value)
+  }
+  showDeleteDialog.value = false
+  deleteTargetId.value = null
+  deleteTargetName.value = ''
 }
 
 const handleSwitchCanvas = (canvasId: string): void => {

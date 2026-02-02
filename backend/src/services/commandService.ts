@@ -38,7 +38,7 @@ class CommandService {
         return fileExists(filePath);
     }
 
-    async copyCommandToPod(commandId: string, podId: string): Promise<void> {
+    async copyCommandToPod(commandId: string, podId: string, podWorkspacePath: string): Promise<void> {
         if (!validateCommandId(commandId)) {
             throw new Error('無效的 Command ID 格式');
         }
@@ -47,7 +47,7 @@ class CommandService {
         }
 
         const srcPath = path.join(config.commandsPath, `${commandId}.md`);
-        const destDir = path.join(config.canvasRoot, `pod-${podId}`, '.claude', 'commands');
+        const destDir = path.join(podWorkspacePath, '.claude', 'commands');
 
         await this.ensureCommandExists(srcPath, commandId);
         await this.copyCommandFile(srcPath, destDir, commandId);

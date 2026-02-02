@@ -39,6 +39,53 @@ const isInitialized = ref(false)
 const isLoading = ref(false)
 let loadingAbortController: AbortController | null = null
 
+const loadCanvasData = async (): Promise<void> => {
+  await podStore.loadPodsFromBackend()
+
+  viewportStore.fitToAllPods(podStore.pods)
+
+  const podIds = podStore.pods.map(p => p.id)
+  if (podIds.length > 0) {
+    websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, {
+      canvasId: canvasStore.activeCanvasId!,
+      podIds
+    })
+  }
+
+  await Promise.all([
+    (async (): Promise<void> => {
+      await outputStyleStore.loadOutputStyles()
+      await outputStyleStore.loadNotesFromBackend()
+      await outputStyleStore.rebuildNotesFromPods(podStore.pods)
+    })(),
+    (async (): Promise<void> => {
+      await skillStore.loadSkills()
+      await skillStore.loadNotesFromBackend()
+    })(),
+    (async (): Promise<void> => {
+      await subAgentStore.loadItems()
+      await subAgentStore.loadNotesFromBackend()
+    })(),
+    (async (): Promise<void> => {
+      await repositoryStore.loadRepositories()
+      await repositoryStore.loadNotesFromBackend()
+    })(),
+    (async (): Promise<void> => {
+      await commandStore.loadCommands()
+      await commandStore.loadNotesFromBackend()
+    })(),
+    connectionStore.loadConnectionsFromBackend(),
+    triggerStore.loadTriggersFromBackend(),
+  ])
+
+  connectionStore.setupWorkflowListeners()
+
+  if (podIds.length > 0) {
+    await chatStore.loadAllPodsHistory(podIds)
+    syncHistoryToPodOutput()
+  }
+}
+
 const syncHistoryToPodOutput = (): void => {
   for (const pod of podStore.pods) {
     const messages = chatStore.getMessages(pod.id)
@@ -126,60 +173,10 @@ const loadAppData = async (): Promise<void> => {
     }
 
     console.log('[App] Active canvas:', canvasStore.activeCanvasId)
-    console.log('[App] Loading pods...')
-    await podStore.loadPodsFromBackend()
+    console.log('[App] Loading canvas data...')
+    await loadCanvasData()
 
     if (currentAbortController.signal.aborted) return
-
-    viewportStore.fitToAllPods(podStore.pods)
-
-    const podIds = podStore.pods.map(p => p.id)
-    if (podIds.length > 0) {
-      websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, {
-        canvasId: canvasStore.activeCanvasId!,
-        podIds
-      })
-    }
-
-    if (currentAbortController.signal.aborted) return
-
-    await Promise.all([
-      async (): Promise<void> => {
-        await outputStyleStore.loadOutputStyles()
-        await outputStyleStore.loadNotesFromBackend()
-        await outputStyleStore.rebuildNotesFromPods(podStore.pods)
-      },
-      async (): Promise<void> => {
-        await skillStore.loadSkills()
-        await skillStore.loadNotesFromBackend()
-      },
-      async (): Promise<void> => {
-        await subAgentStore.loadItems()
-        await subAgentStore.loadNotesFromBackend()
-      },
-      async (): Promise<void> => {
-        await repositoryStore.loadRepositories()
-        await repositoryStore.loadNotesFromBackend()
-      },
-      async (): Promise<void> => {
-        await commandStore.loadCommands()
-        await commandStore.loadNotesFromBackend()
-      },
-      connectionStore.loadConnectionsFromBackend(),
-      triggerStore.loadTriggersFromBackend(),
-    ].map((fn): Promise<void> => typeof fn === 'function' ? fn() : fn))
-
-    if (currentAbortController.signal.aborted) return
-
-    connectionStore.setupWorkflowListeners()
-
-    if (podIds.length > 0) {
-      await chatStore.loadAllPodsHistory(podIds)
-
-      if (currentAbortController.signal.aborted) return
-
-      syncHistoryToPodOutput()
-    }
 
     websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
     websocketClient.on<TriggerFiredPayload>(WebSocketResponseEvents.TRIGGER_FIRED, handleTriggerFired)
@@ -271,50 +268,7 @@ watch(
       chatStore.historyLoadingStatus.clear()
       chatStore.historyLoadingError.clear()
 
-      await podStore.loadPodsFromBackend()
-
-      viewportStore.fitToAllPods(podStore.pods)
-
-      const podIds = podStore.pods.map(p => p.id)
-      if (podIds.length > 0) {
-        websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, {
-          canvasId: canvasStore.activeCanvasId!,
-          podIds
-        })
-      }
-
-      await Promise.all([
-        async (): Promise<void> => {
-          await outputStyleStore.loadOutputStyles()
-          await outputStyleStore.loadNotesFromBackend()
-          await outputStyleStore.rebuildNotesFromPods(podStore.pods)
-        },
-        async (): Promise<void> => {
-          await skillStore.loadSkills()
-          await skillStore.loadNotesFromBackend()
-        },
-        async (): Promise<void> => {
-          await subAgentStore.loadItems()
-          await subAgentStore.loadNotesFromBackend()
-        },
-        async (): Promise<void> => {
-          await repositoryStore.loadRepositories()
-          await repositoryStore.loadNotesFromBackend()
-        },
-        async (): Promise<void> => {
-          await commandStore.loadCommands()
-          await commandStore.loadNotesFromBackend()
-        },
-        connectionStore.loadConnectionsFromBackend(),
-        triggerStore.loadTriggersFromBackend(),
-      ].map((fn): Promise<void> => typeof fn === 'function' ? fn() : fn))
-
-      connectionStore.setupWorkflowListeners()
-
-      if (podIds.length > 0) {
-        await chatStore.loadAllPodsHistory(podIds)
-        syncHistoryToPodOutput()
-      }
+      await loadCanvasData()
     }
 )
 

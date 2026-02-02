@@ -114,7 +114,7 @@ export async function handlePodBindSubAgent(
     }
 
     if (!pod.repositoryId) {
-        await subAgentService.copySubAgentToPod(subAgentId, podId);
+        await subAgentService.copySubAgentToPod(subAgentId, podId, pod.workspacePath);
     } else {
         const repositoryPath = repositoryService.getRepositoryPath(pod.repositoryId);
         await subAgentService.copySubAgentToRepository(subAgentId, repositoryPath);

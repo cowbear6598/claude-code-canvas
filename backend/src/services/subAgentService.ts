@@ -43,7 +43,7 @@ class SubAgentService {
         return fileExists(filePath);
     }
 
-    async copySubAgentToPod(subAgentId: string, podId: string): Promise<void> {
+    async copySubAgentToPod(subAgentId: string, podId: string, podWorkspacePath: string): Promise<void> {
         if (!validateSubAgentId(subAgentId)) {
             throw new Error('無效的子代理 ID 格式');
         }
@@ -52,7 +52,7 @@ class SubAgentService {
         }
 
         const srcPath = this.getSubAgentFilePath(subAgentId);
-        const destPath = path.join(config.canvasRoot, `pod-${podId}`, '.claude', 'agents', `${subAgentId}.md`);
+        const destPath = path.join(podWorkspacePath, '.claude', 'agents', `${subAgentId}.md`);
 
         try {
             await fs.access(srcPath);

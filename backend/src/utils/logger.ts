@@ -20,7 +20,8 @@ export type LogCategory =
   | 'Git'
   | 'AutoClear'
   | 'Trigger'
-  | 'Canvas';
+  | 'Canvas'
+  | 'Workspace';
 
 /**
  * 日誌動作

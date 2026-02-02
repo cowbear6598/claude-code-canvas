@@ -98,12 +98,23 @@ export async function handleCanvasDelete(
   socket: Socket,
   payload: CanvasDeletePayload
 ): Promise<void> {
+  const canvas = canvasStore.getById(payload.canvasId);
+  if (!canvas) {
+    const response: CanvasDeletedPayload = {
+      requestId: payload.requestId,
+      success: false,
+      error: '找不到 Canvas',
+    };
+    socket.emit(WebSocketResponseEvents.CANVAS_DELETED, response);
+    return;
+  }
+
   const activeCanvasId = canvasStore.getActiveCanvas(socket.id);
   if (activeCanvasId === payload.canvasId) {
     const response: CanvasDeletedPayload = {
       requestId: payload.requestId,
       success: false,
-      error: 'Cannot delete active canvas',
+      error: '無法刪除正在使用的 Canvas',
     };
     socket.emit(WebSocketResponseEvents.CANVAS_DELETED, response);
     return;
@@ -140,7 +151,7 @@ export async function handleCanvasSwitch(
     const response: CanvasSwitchedPayload = {
       requestId: payload.requestId,
       success: false,
-      error: 'Canvas not found',
+      error: '找不到 Canvas',
     };
     socket.emit(WebSocketResponseEvents.CANVAS_SWITCHED, response);
     return;

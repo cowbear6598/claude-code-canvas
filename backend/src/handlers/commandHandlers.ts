@@ -113,7 +113,7 @@ export async function handlePodBindCommand(
         return;
     }
 
-    await commandService.copyCommandToPod(commandId, podId);
+    await commandService.copyCommandToPod(commandId, podId, pod.workspacePath);
 
     podStore.setCommandId(canvasId, podId, commandId);
 

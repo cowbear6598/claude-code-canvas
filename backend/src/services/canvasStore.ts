@@ -10,15 +10,30 @@ class CanvasStore {
   private canvases: Map<string, Canvas> = new Map();
   private activeCanvasMap: Map<string, string> = new Map();
 
+  private static readonly WINDOWS_RESERVED_NAMES = [
+    'CON', 'PRN', 'AUX', 'NUL',
+    'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+    'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+  ];
+
   private validateCanvasName(name: string): Result<void> {
     const trimmedName = name.trim();
 
     if (!trimmedName) {
-      return err('Canvas name cannot be empty');
+      return err('Canvas 名稱不能為空');
     }
 
-    if (trimmedName.includes('/') || trimmedName.includes('\\') || trimmedName.includes('..')) {
-      return err('Canvas name contains invalid characters');
+    if (trimmedName.length > 50) {
+      return err('Canvas 名稱不能超過 50 個字元');
+    }
+
+    if (!/^[a-zA-Z0-9_\- ]+$/.test(trimmedName)) {
+      return err('Canvas 名稱只能包含英文字母、數字、底線、連字號和空格');
+    }
+
+    const upperName = trimmedName.toUpperCase();
+    if (CanvasStore.WINDOWS_RESERVED_NAMES.includes(upperName)) {
+      return err('Canvas 名稱為系統保留名稱');
     }
 
     const existingCanvas = Array.from(this.canvases.values()).find(
@@ -26,7 +41,7 @@ class CanvasStore {
     );
 
     if (existingCanvas) {
-      return err('Canvas with this name already exists');
+      return err('已存在相同名稱的 Canvas');
     }
 
     return ok(undefined);
@@ -71,7 +86,7 @@ class CanvasStore {
       return ok(canvas);
     } catch (error) {
       logger.error('Canvas', 'Error', `Failed to create canvas: ${trimmedName}`, error);
-      return err('Failed to create canvas');
+      return err('建立 Canvas 失敗');
     }
   }
 
@@ -90,31 +105,32 @@ class CanvasStore {
   async rename(id: string, newName: string): Promise<Result<Canvas>> {
     const canvas = this.canvases.get(id);
     if (!canvas) {
-      return err('Canvas not found');
+      return err('找不到 Canvas');
     }
 
     const trimmedName = newName.trim();
 
-    if (!trimmedName) {
-      return err('Canvas name cannot be empty');
-    }
-
-    if (trimmedName.includes('/') || trimmedName.includes('\\') || trimmedName.includes('..')) {
-      return err('Canvas name contains invalid characters');
-    }
-
-    const existingCanvas = Array.from(this.canvases.values()).find(
-      (c) => c.name === trimmedName && c.id !== id
-    );
-
-    if (existingCanvas) {
-      return err('Canvas with this name already exists');
+    // Reuse shared validation (checks empty, length, regex, reserved names, duplicates)
+    const validationResult = this.validateCanvasName(trimmedName);
+    if (!validationResult.success) {
+      return err(validationResult.error!);
     }
 
     const oldPath = config.getCanvasPath(canvas.name);
     const newPath = config.getCanvasPath(trimmedName);
 
     try {
+      // Use link + rename pattern to avoid TOCTOU race condition
+      // If newPath already exists, rename will fail on some OS or overwrite on others
+      // So we use mkdir as an atomic "create-or-fail" check
+      try {
+        await fs.mkdir(newPath, { recursive: false });
+        // Created successfully means it didn't exist — but now we have an empty dir, remove it
+        await fs.rmdir(newPath);
+      } catch {
+        return err('目標路徑已存在');
+      }
+
       await fs.rename(oldPath, newPath);
 
       const canvasJsonPath = path.join(newPath, 'canvas.json');
@@ -134,17 +150,25 @@ class CanvasStore {
       return ok(canvas);
     } catch (error) {
       logger.error('Canvas', 'Error', `Failed to rename canvas: ${id}`, error);
-      return err('Failed to rename canvas');
+      return err('重新命名 Canvas 失敗');
     }
   }
 
   async delete(id: string): Promise<Result<boolean>> {
     const canvas = this.canvases.get(id);
     if (!canvas) {
-      return err('Canvas not found');
+      return err('找不到 Canvas');
     }
 
     const canvasPath = config.getCanvasPath(canvas.name);
+
+    const resolvedPath = path.resolve(canvasPath);
+    const resolvedRoot = path.resolve(config.canvasRoot);
+
+    if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
+      logger.error('Canvas', 'Error', `Attempted path traversal: ${canvasPath}`);
+      return err('無效的 Canvas 路徑');
+    }
 
     try {
       await fs.rm(canvasPath, { recursive: true, force: true });
@@ -155,7 +179,7 @@ class CanvasStore {
       return ok(true);
     } catch (error) {
       logger.error('Canvas', 'Error', `Failed to delete canvas: ${id}`, error);
-      return err('Failed to delete canvas');
+      return err('刪除 Canvas 失敗');
     }
   }
 
@@ -173,6 +197,12 @@ class CanvasStore {
 
         try {
           await fs.access(canvasJsonPath);
+        } catch {
+          // Not a canvas directory (no canvas.json), skip silently
+          continue;
+        }
+
+        try {
           const data = await fs.readFile(canvasJsonPath, 'utf-8');
           const persistedCanvas: PersistedCanvas = JSON.parse(data);
 
@@ -184,7 +214,7 @@ class CanvasStore {
 
           this.canvases.set(canvas.id, canvas);
         } catch (error) {
-          logger.error('Canvas', 'Load', `Failed to load canvas from ${dir.name}`, error);
+          logger.error('Canvas', 'Load', `Failed to parse canvas.json in ${dir.name}`, error);
         }
       }
 
@@ -192,7 +222,7 @@ class CanvasStore {
       return ok(undefined);
     } catch (error) {
       logger.error('Canvas', 'Error', 'Failed to load canvases from disk', error);
-      return err('Failed to load canvases');
+      return err('載入 Canvas 列表失敗');
     }
   }
 

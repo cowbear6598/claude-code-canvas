@@ -43,7 +43,7 @@ class SkillService {
         return fileExists(filePath);
     }
 
-    async copySkillToPod(skillId: string, podId: string): Promise<void> {
+    async copySkillToPod(skillId: string, podId: string, podWorkspacePath: string): Promise<void> {
         if (!validateSkillId(skillId)) {
             throw new Error('無效的技能 ID 格式');
         }
@@ -52,7 +52,7 @@ class SkillService {
         }
 
         const srcDir = this.getSkillDirectoryPath(skillId);
-        const destDir = path.join(config.canvasRoot, `pod-${podId}`, '.claude', 'skills', skillId);
+        const destDir = path.join(podWorkspacePath, '.claude', 'skills', skillId);
 
         try {
             await fs.access(srcDir);

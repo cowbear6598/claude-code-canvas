@@ -55,10 +55,26 @@ function loadConfig(): Config {
     agentsPath,
     commandsPath,
     getCanvasPath(canvasName: string): string {
-      return path.join(canvasRoot, canvasName);
+      const canvasPath = path.join(canvasRoot, canvasName);
+      const resolvedPath = path.resolve(canvasPath);
+      const resolvedRoot = path.resolve(canvasRoot);
+
+      if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
+        throw new Error('Invalid canvas name: path traversal detected');
+      }
+
+      return canvasPath;
     },
     getCanvasDataPath(canvasName: string): string {
-      return path.join(canvasRoot, canvasName, 'data');
+      const canvasPath = path.join(canvasRoot, canvasName, 'data');
+      const resolvedPath = path.resolve(canvasPath);
+      const resolvedRoot = path.resolve(canvasRoot);
+
+      if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
+        throw new Error('Invalid canvas name: path traversal detected');
+      }
+
+      return canvasPath;
     },
   };
 }
