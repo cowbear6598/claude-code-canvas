@@ -115,7 +115,7 @@ export const useChatStore = defineStore('chat', {
         registerListeners(): void {
             this.unregisterListeners()
             websocketClient.on<ConnectionReadyPayload>(WebSocketResponseEvents.CONNECTION_READY, this.handleConnectionReady)
-            websocketClient.on<PodChatMessagePayload>(WebSocketResponseEvents.POD_CHAT_MESSAGE, this.handleChatMessage)
+            websocketClient.on<PodChatMessagePayload>(WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE, this.handleChatMessage)
             websocketClient.on<PodChatToolUsePayload>(WebSocketResponseEvents.POD_CHAT_TOOL_USE, this.handleChatToolUse)
             websocketClient.on<PodChatToolResultPayload>(WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, this.handleChatToolResult)
             websocketClient.on<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)
@@ -128,7 +128,7 @@ export const useChatStore = defineStore('chat', {
 
         unregisterListeners(): void {
             websocketClient.off<ConnectionReadyPayload>(WebSocketResponseEvents.CONNECTION_READY, this.handleConnectionReady)
-            websocketClient.off<PodChatMessagePayload>(WebSocketResponseEvents.POD_CHAT_MESSAGE, this.handleChatMessage)
+            websocketClient.off<PodChatMessagePayload>(WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE, this.handleChatMessage)
             websocketClient.off<PodChatToolUsePayload>(WebSocketResponseEvents.POD_CHAT_TOOL_USE, this.handleChatToolUse)
             websocketClient.off<PodChatToolResultPayload>(WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, this.handleChatToolResult)
             websocketClient.off<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)

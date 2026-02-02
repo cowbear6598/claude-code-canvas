@@ -284,7 +284,7 @@ class TriggerScheduler {
             };
             socketService.emitToPod(
               podId,
-              WebSocketResponseEvents.POD_CHAT_MESSAGE,
+              WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE,
               textPayload
             );
             break;

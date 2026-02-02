@@ -86,7 +86,7 @@ export const WebSocketResponseEvents = {
   POD_GET_RESULT: 'pod:get:result',
   POD_UPDATED: 'pod:updated',
   POD_DELETED: 'pod:deleted',
-  POD_CHAT_MESSAGE: 'pod:chat:message',
+  POD_CLAUDE_CHAT_MESSAGE: 'pod:claude:chat:message',
   POD_CHAT_TOOL_USE: 'pod:chat:tool_use',
   POD_CHAT_TOOL_RESULT: 'pod:chat:tool_result',
   POD_CHAT_COMPLETE: 'pod:chat:complete',
@@ -222,6 +222,7 @@ export const WebSocketResponseEvents = {
   BROADCAST_CANVAS_DELETED: 'broadcast:canvas:deleted',
   BROADCAST_CANVAS_PASTED: 'broadcast:canvas:pasted',
   BROADCAST_WORKFLOW_CLEAR_RESULT: 'broadcast:workflow:clear:result',
+  BROADCAST_POD_CHAT_USER_MESSAGE: 'broadcast:pod:chat:user-message',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]

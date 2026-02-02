@@ -84,6 +84,17 @@ export async function handleChatSend(
         }
     };
 
+    // 廣播用戶訊息給 Pod Room 中的其他人（排除發送者）
+    const userDisplayContent = extractDisplayContent(message);
+    socket.to(`pod:${podId}`).emit(
+        WebSocketResponseEvents.BROADCAST_POD_CHAT_USER_MESSAGE,
+        {
+            podId,
+            messageId: uuidv4(),
+            content: userDisplayContent,
+        }
+    );
+
     await claudeQueryService.sendMessage(podId, message, (event) => {
         switch (event.type) {
             case 'text': {
@@ -99,7 +110,7 @@ export async function handleChatSend(
                 };
                 socketService.emitToPod(
                     podId,
-                    WebSocketResponseEvents.POD_CHAT_MESSAGE,
+                    WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE,
                     textPayload
                 );
                 break;
