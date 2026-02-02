@@ -18,7 +18,7 @@ import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
-import {validatePod, handleResourceDelete} from '../utils/handlerHelpers.js';
+import {validatePod, handleResourceDelete, getCanvasId} from '../utils/handlerHelpers.js';
 
 const subAgentNoteHandlers = createNoteHandlers({
     noteStore: subAgentNoteStore,
@@ -83,6 +83,11 @@ export async function handlePodBindSubAgent(
         return;
     }
 
+    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_SUBAGENT_BOUND, requestId);
+    if (!canvasId) {
+        return;
+    }
+
     const subAgentExists = await subAgentService.exists(subAgentId);
     if (!subAgentExists) {
         emitError(
@@ -115,13 +120,13 @@ export async function handlePodBindSubAgent(
         await subAgentService.copySubAgentToRepository(subAgentId, repositoryPath);
     }
 
-    podStore.addSubAgentId(podId, subAgentId);
+    podStore.addSubAgentId(canvasId, podId, subAgentId);
 
     if (pod.repositoryId) {
         await repositorySyncService.syncRepositoryResources(pod.repositoryId);
     }
 
-    const updatedPod = podStore.getById(podId);
+    const updatedPod = podStore.getById(canvasId, podId);
 
     const response: PodSubAgentBoundPayload = {
         requestId,
@@ -148,8 +153,8 @@ export async function handleSubAgentDelete(
         resourceName: 'SubAgent',
         responseEvent: WebSocketResponseEvents.SUBAGENT_DELETED,
         existsCheck: () => subAgentService.exists(subAgentId),
-        findPodsUsing: () => podStore.findBySubAgentId(subAgentId),
-        deleteNotes: () => subAgentNoteStore.deleteByForeignKey(subAgentId),
+        findPodsUsing: (canvasId: string) => podStore.findBySubAgentId(canvasId, subAgentId),
+        deleteNotes: (canvasId: string) => subAgentNoteStore.deleteByForeignKey(canvasId, subAgentId),
         deleteResource: () => subAgentService.delete(subAgentId),
     });
 }

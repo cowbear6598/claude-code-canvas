@@ -4,6 +4,7 @@ export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/w
 
 export interface PodCreatePayload {
   requestId: string
+  canvasId: string
   name: string
   color: PodColor
   x: number
@@ -13,6 +14,7 @@ export interface PodCreatePayload {
 
 export interface PodListPayload {
   requestId: string
+  canvasId: string
 }
 
 export interface PodUpdatePayload {
@@ -68,6 +70,7 @@ export interface PodChatHistoryPayload {
 
 export interface NoteCreatePayload {
   requestId: string
+  canvasId: string
   outputStyleId: string
   name: string
   x: number
@@ -78,6 +81,7 @@ export interface NoteCreatePayload {
 
 export interface ConnectionCreatePayload {
   requestId: string
+  canvasId: string
   sourcePodId?: string
   sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
   targetPodId: string
@@ -88,6 +92,7 @@ export interface ConnectionCreatePayload {
 
 export interface ConnectionListPayload {
   requestId: string
+  canvasId: string
 }
 
 export interface ConnectionDeletePayload {
@@ -97,11 +102,13 @@ export interface ConnectionDeletePayload {
 
 export interface WorkflowGetDownstreamPodsPayload {
   requestId: string
+  canvasId: string
   sourcePodId: string
 }
 
 export interface WorkflowClearPayload {
   requestId: string
+  canvasId: string
   sourcePodId: string
 }
 
@@ -157,6 +164,7 @@ export interface PasteConnectionItem {
 
 export interface CanvasPastePayload {
   requestId: string
+  canvasId: string
   pods: PastePodItem[]
   outputStyleNotes: PasteOutputStyleNoteItem[]
   skillNotes: PasteSkillNoteItem[]
@@ -194,6 +202,7 @@ export interface PasteSubAgentNoteItem {
 
 export interface CommandNoteCreatePayload {
   requestId: string
+  canvasId: string
   commandId: string
   name: string
   x: number
@@ -213,6 +222,7 @@ export interface PasteCommandNoteItem {
 
 export interface TriggerCreatePayload {
   requestId: string
+  canvasId: string
   name: string
   type: 'time'
   config: {
@@ -232,6 +242,7 @@ export interface TriggerCreatePayload {
 
 export interface TriggerListPayload {
   requestId: string
+  canvasId: string
 }
 
 export interface TriggerUpdatePayload {

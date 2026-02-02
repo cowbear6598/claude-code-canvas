@@ -1,5 +1,6 @@
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { createWebSocketRequest } from '@/services/websocket'
+import { useCanvasStore } from '@/stores/canvasStore'
 import type { WebSocketRequestEvents, WebSocketResponseEvents } from '@/types/websocket'
 
 interface CRUDEventsConfig {
@@ -41,11 +42,17 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
       name: string,
       content: string
     ): Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }> {
+      const canvasStore = useCanvasStore()
+
       const response = await wrapWebSocketRequest(
         createWebSocketRequest({
           requestEvent: events.create.request,
           responseEvent: events.create.response,
-          payload: { name, content }
+          payload: {
+            canvasId: canvasStore.activeCanvasId!,
+            name,
+            content
+          }
         }),
         `建立 ${resourceType} 失敗`
       )
@@ -71,11 +78,16 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
       itemId: string,
       content: string
     ): Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }> {
+      const canvasStore = useCanvasStore()
+
       const response = await wrapWebSocketRequest(
         createWebSocketRequest({
           requestEvent: events.update.request,
           responseEvent: events.update.response,
-          payload: config.getUpdatePayload(itemId, content)
+          payload: {
+            canvasId: canvasStore.activeCanvasId!,
+            ...config.getUpdatePayload(itemId, content)
+          }
         }),
         `更新 ${resourceType} 失敗`
       )
@@ -99,11 +111,16 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
     async read(
       itemId: string
     ): Promise<{ id: string; name: string; content: string } | null> {
+      const canvasStore = useCanvasStore()
+
       const response = await wrapWebSocketRequest(
         createWebSocketRequest({
           requestEvent: events.read.request,
           responseEvent: events.read.response,
-          payload: config.getReadPayload(itemId)
+          payload: {
+            canvasId: canvasStore.activeCanvasId!,
+            ...config.getReadPayload(itemId)
+          }
         }),
         `讀取 ${resourceType} 失敗`
       )

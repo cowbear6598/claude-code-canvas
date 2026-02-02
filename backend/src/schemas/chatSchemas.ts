@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema } from './base.js';
+import { requestIdSchema, podIdSchema, canvasIdSchema } from './base.js';
 
 const textContentBlockSchema = z.object({
   type: z.literal('text'),
@@ -26,6 +26,7 @@ const contentBlockSchema = z.discriminatedUnion('type', [
 
 export const chatSendSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   podId: podIdSchema,
   message: z.union([
     z.string().min(1).max(10000),
@@ -35,6 +36,7 @@ export const chatSendSchema = z.object({
 
 export const chatHistorySchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   podId: podIdSchema,
 });
 

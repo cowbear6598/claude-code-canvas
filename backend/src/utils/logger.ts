@@ -19,7 +19,8 @@ export type LogCategory =
   | 'OutputStyle'
   | 'Git'
   | 'AutoClear'
-  | 'Trigger';
+  | 'Trigger'
+  | 'Canvas';
 
 /**
  * 日誌動作
@@ -34,7 +35,9 @@ export type LogAction =
   | 'Load'
   | 'Save'
   | 'Error'
-  | 'Complete';
+  | 'Complete'
+  | 'Rename'
+  | 'Switch';
 
 /**
  * Logger 類別

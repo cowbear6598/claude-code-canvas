@@ -4,6 +4,7 @@ import { noteStore, skillNoteStore, commandNoteStore, subAgentNoteStore, reposit
 import { connectionStore } from './connectionStore.js';
 import { triggerStore } from './triggerStore.js';
 import { triggerScheduler } from './triggerScheduler.js';
+import { canvasStore } from './canvasStore.js';
 import { Result, ok, err } from '../types/index.js';
 import { config } from '../config/index.js';
 import { persistenceService } from './persistence/index.js';
@@ -16,9 +17,9 @@ class StartupService {
       return err(`伺服器初始化失敗: ${appDataResult.error}`);
     }
 
-    const canvasResult = await persistenceService.ensureDirectory(config.canvasRoot);
-    if (!canvasResult.success) {
-      return err(`伺服器初始化失敗: ${canvasResult.error}`);
+    const canvasRootResult = await persistenceService.ensureDirectory(config.canvasRoot);
+    if (!canvasRootResult.success) {
+      return err(`伺服器初始化失敗: ${canvasRootResult.error}`);
     }
 
     const repoResult = await persistenceService.ensureDirectory(config.repositoriesRoot);
@@ -26,50 +27,51 @@ class StartupService {
       return err(`伺服器初始化失敗: ${repoResult.error}`);
     }
 
-    const podStoreResult = await podStore.loadFromDisk();
-    if (!podStoreResult.success) {
-      return err(`伺服器初始化失敗: ${podStoreResult.error}`);
+    const canvasLoadResult = await canvasStore.loadFromDisk();
+    if (!canvasLoadResult.success) {
+      return err(`伺服器初始化失敗: ${canvasLoadResult.error}`);
     }
 
-    const pods = podStore.getAll();
-    const messageLoadPromises = pods.map((pod) =>
-      messageStore.loadMessagesFromDisk(pod.id)
-    );
-    await Promise.all(messageLoadPromises);
-
-    const noteResult = await noteStore.loadFromDisk();
-    if (!noteResult.success) {
-      return err(`伺服器初始化失敗: ${noteResult.error}`);
+    const canvases = canvasStore.list();
+    if (canvases.length === 0) {
+      logger.log('Startup', 'Create', 'No canvases found, creating default canvas');
+      const defaultCanvasResult = await canvasStore.create('default');
+      if (!defaultCanvasResult.success) {
+        return err(`建立預設 Canvas 失敗: ${defaultCanvasResult.error}`);
+      }
+      canvases.push(defaultCanvasResult.data!);
     }
 
-    const skillNoteResult = await skillNoteStore.loadFromDisk();
-    if (!skillNoteResult.success) {
-      return err(`伺服器初始化失敗: ${skillNoteResult.error}`);
-    }
+    for (const canvas of canvases) {
+      const canvasDir = canvasStore.getCanvasDir(canvas.id);
+      const canvasDataDir = canvasStore.getCanvasDataDir(canvas.id);
 
-    const commandNoteResult = await commandNoteStore.loadFromDisk();
-    if (!commandNoteResult.success) {
-      return err(`伺服器初始化失敗: ${commandNoteResult.error}`);
-    }
+      if (!canvasDir || !canvasDataDir) {
+        logger.error('Startup', 'Error', `Failed to get directories for canvas ${canvas.id}`);
+        continue;
+      }
 
-    const subAgentNoteResult = await subAgentNoteStore.loadFromDisk();
-    if (!subAgentNoteResult.success) {
-      return err(`伺服器初始化失敗: ${subAgentNoteResult.error}`);
-    }
+      const podLoadResult = await podStore.loadFromDisk(canvas.id, canvasDir);
+      if (!podLoadResult.success) {
+        logger.error('Startup', 'Error', `Failed to load pods for canvas ${canvas.id}: ${podLoadResult.error}`);
+        continue;
+      }
 
-    const repoNoteResult = await repositoryNoteStore.loadFromDisk();
-    if (!repoNoteResult.success) {
-      return err(`伺服器初始化失敗: ${repoNoteResult.error}`);
-    }
+      const pods = podStore.getAll(canvas.id);
+      const messageLoadPromises = pods.map((pod) =>
+        messageStore.loadMessagesFromDisk(canvasDir, pod.id)
+      );
+      await Promise.all(messageLoadPromises);
 
-    const triggerResult = await triggerStore.loadFromDisk();
-    if (!triggerResult.success) {
-      return err(`伺服器初始化失敗: ${triggerResult.error}`);
-    }
+      await noteStore.loadFromDisk(canvas.id, canvasDataDir);
+      await skillNoteStore.loadFromDisk(canvas.id, canvasDataDir);
+      await commandNoteStore.loadFromDisk(canvas.id, canvasDataDir);
+      await subAgentNoteStore.loadFromDisk(canvas.id, canvasDataDir);
+      await repositoryNoteStore.loadFromDisk(canvas.id, canvasDataDir);
+      await triggerStore.loadFromDisk(canvas.id, canvasDataDir);
+      await connectionStore.loadFromDisk(canvas.id, canvasDataDir);
 
-    const connectionResult = await connectionStore.loadFromDisk();
-    if (!connectionResult.success) {
-      return err(`伺服器初始化失敗: ${connectionResult.error}`);
+      logger.log('Startup', 'Complete', `Loaded canvas: ${canvas.name} (${canvas.id})`);
     }
 
     triggerScheduler.start();

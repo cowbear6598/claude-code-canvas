@@ -7,6 +7,7 @@ import {
 import type { CanvasPastePayload } from '../schemas/index.js';
 import { emitSuccess } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
+import { getCanvasId } from '../utils/handlerHelpers.js';
 import {
   createPastedPods,
   createPastedOutputStyleNotes,
@@ -25,39 +26,44 @@ export async function handleCanvasPaste(
 ): Promise<void> {
   const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, commandNotes, connections } = payload;
 
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.CANVAS_PASTE_RESULT, requestId);
+  if (!canvasId) {
+    return;
+  }
+
   const podIdMapping: Record<string, string> = {};
   const errors: PasteError[] = [];
 
-  const createdPods = await createPastedPods(pods, podIdMapping, errors);
+  const createdPods = await createPastedPods(canvasId, pods, podIdMapping, errors);
 
-  const outputStyleNotesResult = createPastedOutputStyleNotes(outputStyleNotes, podIdMapping);
+  const outputStyleNotesResult = createPastedOutputStyleNotes(canvasId, outputStyleNotes, podIdMapping);
   const createdOutputStyleNotes = outputStyleNotesResult.notes;
   errors.push(...outputStyleNotesResult.errors);
 
-  const skillNotesResult = createPastedSkillNotes(skillNotes, podIdMapping);
+  const skillNotesResult = createPastedSkillNotes(canvasId, skillNotes, podIdMapping);
   const createdSkillNotes = skillNotesResult.notes;
   errors.push(...skillNotesResult.errors);
 
-  const repositoryNotesResult = createPastedRepositoryNotes(repositoryNotes, podIdMapping);
+  const repositoryNotesResult = createPastedRepositoryNotes(canvasId, repositoryNotes, podIdMapping);
   const createdRepositoryNotes = repositoryNotesResult.notes;
   errors.push(...repositoryNotesResult.errors);
 
-  const subAgentNotesResult = createPastedSubAgentNotes(subAgentNotes, podIdMapping);
+  const subAgentNotesResult = createPastedSubAgentNotes(canvasId, subAgentNotes, podIdMapping);
   const createdSubAgentNotes = subAgentNotesResult.notes;
   errors.push(...subAgentNotesResult.errors);
 
-  const commandNotesResult = createPastedCommandNotes(commandNotes ?? [], podIdMapping);
+  const commandNotesResult = createPastedCommandNotes(canvasId, commandNotes ?? [], podIdMapping);
   const createdCommandNotes = commandNotesResult.notes;
   errors.push(...commandNotesResult.errors);
 
-  const createdConnections = createPastedConnections(connections, podIdMapping);
+  const createdConnections = createPastedConnections(canvasId, connections, podIdMapping);
 
   // 後處理：從 command notes 補齊 Pod 的 commandId
   for (const note of createdCommandNotes) {
     if (note.boundToPodId) {
-      const pod = podStore.getById(note.boundToPodId);
+      const pod = podStore.getById(canvasId, note.boundToPodId);
       if (pod && !pod.commandId) {
-        podStore.setCommandId(note.boundToPodId, note.commandId);
+        podStore.setCommandId(canvasId, note.boundToPodId, note.commandId);
       }
     }
   }

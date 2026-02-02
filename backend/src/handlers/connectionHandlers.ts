@@ -18,6 +18,7 @@ import { triggerStore } from '../services/triggerStore.js';
 import { workflowStateService } from '../services/workflow/index.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
+import { getCanvasId } from '../utils/handlerHelpers.js';
 
 export async function handleConnectionCreate(
   socket: Socket,
@@ -26,8 +27,13 @@ export async function handleConnectionCreate(
 ): Promise<void> {
   const { sourceType, sourcePodId, sourceTriggerId, sourceAnchor, targetPodId, targetAnchor } = payload;
 
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.CONNECTION_CREATED, requestId);
+  if (!canvasId) {
+    return;
+  }
+
   if (sourceType === 'pod') {
-    const sourcePod = podStore.getById(sourcePodId!);
+    const sourcePod = podStore.getById(canvasId, sourcePodId!);
     if (!sourcePod) {
       emitError(
         socket,
@@ -40,7 +46,7 @@ export async function handleConnectionCreate(
       return;
     }
   } else if (sourceType === 'trigger') {
-    const sourceTrigger = triggerStore.getById(sourceTriggerId!);
+    const sourceTrigger = triggerStore.getById(canvasId, sourceTriggerId!);
     if (!sourceTrigger) {
       emitError(
         socket,
@@ -54,7 +60,7 @@ export async function handleConnectionCreate(
     }
   }
 
-  const targetPod = podStore.getById(targetPodId);
+  const targetPod = podStore.getById(canvasId, targetPodId);
   if (!targetPod) {
     emitError(
       socket,
@@ -67,7 +73,7 @@ export async function handleConnectionCreate(
     return;
   }
 
-  const connection = connectionStore.create({
+  const connection = connectionStore.create(canvasId, {
     sourceType,
     sourcePodId: sourcePodId!,
     sourceTriggerId,
@@ -93,7 +99,12 @@ export async function handleConnectionList(
   _: ConnectionListPayload,
   requestId: string
 ): Promise<void> {
-  const connections = connectionStore.list();
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.CONNECTION_LIST_RESULT, requestId);
+  if (!canvasId) {
+    return;
+  }
+
+  const connections = connectionStore.list(canvasId);
 
   const response: ConnectionListResultPayload = {
     requestId,
@@ -111,7 +122,12 @@ export async function handleConnectionDelete(
 ): Promise<void> {
   const { connectionId } = payload;
 
-  const connection = connectionStore.getById(connectionId);
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.CONNECTION_DELETED, requestId);
+  if (!canvasId) {
+    return;
+  }
+
+  const connection = connectionStore.getById(canvasId, connectionId);
   if (!connection) {
     emitError(
       socket,
@@ -124,9 +140,9 @@ export async function handleConnectionDelete(
     return;
   }
 
-  workflowStateService.handleConnectionDeletion(connectionId);
+  workflowStateService.handleConnectionDeletion(canvasId, connectionId);
 
-  const deleted = connectionStore.delete(connectionId);
+  const deleted = connectionStore.delete(canvasId, connectionId);
 
   if (!deleted) {
     emitError(
@@ -158,7 +174,12 @@ export async function handleConnectionUpdate(
 ): Promise<void> {
   const { connectionId, autoTrigger } = payload;
 
-  const connection = connectionStore.getById(connectionId);
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.CONNECTION_UPDATED, requestId);
+  if (!canvasId) {
+    return;
+  }
+
+  const connection = connectionStore.getById(canvasId, connectionId);
   if (!connection) {
     emitError(
       socket,
@@ -176,7 +197,7 @@ export async function handleConnectionUpdate(
     updates.autoTrigger = autoTrigger;
   }
 
-  const updatedConnection = connectionStore.update(connectionId, updates);
+  const updatedConnection = connectionStore.update(canvasId, connectionId, updates);
 
   if (!updatedConnection) {
     emitError(

@@ -16,6 +16,7 @@ import { triggerStore } from '../services/triggerStore.js';
 import { connectionStore } from '../services/connectionStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
+import { getCanvasId } from '../utils/handlerHelpers.js';
 
 export async function handleTriggerCreate(
   socket: Socket,
@@ -24,7 +25,12 @@ export async function handleTriggerCreate(
 ): Promise<void> {
   const { name, type, config, x, y, rotation, enabled } = payload;
 
-  const trigger = triggerStore.create({
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.TRIGGER_CREATED, requestId);
+  if (!canvasId) {
+    return;
+  }
+
+  const trigger = triggerStore.create(canvasId, {
     name,
     type,
     config,
@@ -50,7 +56,12 @@ export async function handleTriggerList(
   _: TriggerListPayload,
   requestId: string
 ): Promise<void> {
-  const triggers = triggerStore.list();
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.TRIGGER_LIST_RESULT, requestId);
+  if (!canvasId) {
+    return;
+  }
+
+  const triggers = triggerStore.list(canvasId);
 
   const response: TriggerListResultPayload = {
     requestId,
@@ -68,7 +79,12 @@ export async function handleTriggerUpdate(
 ): Promise<void> {
   const { triggerId, name, type, config, x, y, rotation, enabled } = payload;
 
-  const trigger = triggerStore.getById(triggerId);
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.TRIGGER_UPDATED, requestId);
+  if (!canvasId) {
+    return;
+  }
+
+  const trigger = triggerStore.getById(canvasId, triggerId);
   if (!trigger) {
     emitError(
       socket,
@@ -104,7 +120,7 @@ export async function handleTriggerUpdate(
     updates.enabled = enabled;
   }
 
-  const updatedTrigger = triggerStore.update(triggerId, updates);
+  const updatedTrigger = triggerStore.update(canvasId, triggerId, updates);
 
   if (!updatedTrigger) {
     emitError(
@@ -136,7 +152,12 @@ export async function handleTriggerDelete(
 ): Promise<void> {
   const { triggerId } = payload;
 
-  const trigger = triggerStore.getById(triggerId);
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.TRIGGER_DELETED, requestId);
+  if (!canvasId) {
+    return;
+  }
+
+  const trigger = triggerStore.getById(canvasId, triggerId);
   if (!trigger) {
     emitError(
       socket,
@@ -149,9 +170,9 @@ export async function handleTriggerDelete(
     return;
   }
 
-  const deletedConnectionIds = connectionStore.deleteByTriggerId(triggerId);
+  const deletedConnectionIds = connectionStore.deleteByTriggerId(canvasId, triggerId);
 
-  const deleted = triggerStore.delete(triggerId);
+  const deleted = triggerStore.delete(canvasId, triggerId);
 
   if (!deleted) {
     emitError(

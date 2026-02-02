@@ -12,6 +12,7 @@ import { workflowClearService } from '../services/workflowClearService.js';
 import { podStore } from '../services/podStore.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
+import { getCanvasId } from '../utils/handlerHelpers.js';
 
 export async function handleWorkflowGetDownstreamPods(
   socket: Socket,
@@ -20,7 +21,12 @@ export async function handleWorkflowGetDownstreamPods(
 ): Promise<void> {
   const { sourcePodId } = payload;
 
-  const sourcePod = podStore.getById(sourcePodId);
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT, requestId);
+  if (!canvasId) {
+    return;
+  }
+
+  const sourcePod = podStore.getById(canvasId, sourcePodId);
   if (!sourcePod) {
     emitError(
       socket,
@@ -33,7 +39,7 @@ export async function handleWorkflowGetDownstreamPods(
     return;
   }
 
-  const pods = workflowClearService.getDownstreamPods(sourcePodId);
+  const pods = workflowClearService.getDownstreamPods(canvasId, sourcePodId);
 
   const response: WorkflowGetDownstreamPodsResultPayload = {
     requestId,
@@ -51,7 +57,12 @@ export async function handleWorkflowClear(
 ): Promise<void> {
   const { sourcePodId } = payload;
 
-  const sourcePod = podStore.getById(sourcePodId);
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, requestId);
+  if (!canvasId) {
+    return;
+  }
+
+  const sourcePod = podStore.getById(canvasId, sourcePodId);
   if (!sourcePod) {
     emitError(
       socket,
@@ -64,7 +75,7 @@ export async function handleWorkflowClear(
     return;
   }
 
-  const result = await workflowClearService.clearWorkflow(sourcePodId);
+  const result = await workflowClearService.clearWorkflow(canvasId, sourcePodId);
 
   if (!result.success) {
     emitError(

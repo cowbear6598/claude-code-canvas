@@ -3,6 +3,7 @@ import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { chatPersistenceService } from './persistence/chatPersistence.js';
 import { claudeSessionManager } from './claude/sessionManager.js';
+import { canvasStore } from './canvasStore.js';
 import { logger } from '../utils/logger.js';
 
 export interface ClearResult {
@@ -13,7 +14,7 @@ export interface ClearResult {
 }
 
 class WorkflowClearService {
-  getDownstreamPodIds(sourcePodId: string): string[] {
+  getDownstreamPodIds(canvasId: string, sourcePodId: string): string[] {
     const visited = new Set<string>();
     const queue: string[] = [sourcePodId];
     visited.add(sourcePodId);
@@ -21,7 +22,7 @@ class WorkflowClearService {
     while (queue.length > 0) {
       const currentPodId = queue.shift()!;
 
-      const connections = connectionStore.findBySourcePodId(currentPodId);
+      const connections = connectionStore.findBySourcePodId(canvasId, currentPodId);
 
       for (const connection of connections) {
         const targetPodId = connection.targetPodId;
@@ -36,12 +37,12 @@ class WorkflowClearService {
     return Array.from(visited);
   }
 
-  getDownstreamPods(sourcePodId: string): Array<{ id: string; name: string }> {
-    const podIds = this.getDownstreamPodIds(sourcePodId);
+  getDownstreamPods(canvasId: string, sourcePodId: string): Array<{ id: string; name: string }> {
+    const podIds = this.getDownstreamPodIds(canvasId, sourcePodId);
     const pods: Array<{ id: string; name: string }> = [];
 
     for (const podId of podIds) {
-      const pod = podStore.getById(podId);
+      const pod = podStore.getById(canvasId, podId);
       if (pod) {
         pods.push({
           id: pod.id,
@@ -53,26 +54,36 @@ class WorkflowClearService {
     return pods;
   }
 
-  async clearWorkflow(sourcePodId: string): Promise<ClearResult> {
+  async clearWorkflow(canvasId: string, sourcePodId: string): Promise<ClearResult> {
     try {
-      const podIds = this.getDownstreamPodIds(sourcePodId);
+      const canvasDataDir = canvasStore.getCanvasDataDir(canvasId);
+      if (!canvasDataDir) {
+        return {
+          success: false,
+          clearedPodIds: [],
+          clearedPodNames: [],
+          error: `Canvas not found: ${canvasId}`,
+        };
+      }
+
+      const podIds = this.getDownstreamPodIds(canvasId, sourcePodId);
       const clearedPodNames: string[] = [];
 
       for (const podId of podIds) {
-        const pod = podStore.getById(podId);
+        const pod = podStore.getById(canvasId, podId);
         if (pod) {
           clearedPodNames.push(pod.name);
 
           messageStore.clearMessages(podId);
 
-          const clearResult = await chatPersistenceService.clearChatHistory(podId);
+          const clearResult = await chatPersistenceService.clearChatHistory(canvasDataDir, podId);
           if (!clearResult.success) {
             logger.error('AutoClear', 'Error', `[WorkflowClear] Error clearing chat history for Pod ${podId}: ${clearResult.error}`);
           }
 
           try {
             await claudeSessionManager.destroySession(podId);
-            podStore.setClaudeSessionId(podId, '');
+            podStore.setClaudeSessionId(canvasId, podId, '');
           } catch (error) {
             logger.error('AutoClear', 'Error', `[WorkflowClear] Error destroying session for Pod ${podId}`, error);
           }

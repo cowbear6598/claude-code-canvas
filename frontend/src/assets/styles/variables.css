@@ -92,8 +92,9 @@
 }
 
 @theme inline {
-  --font-sans: 'Caveat', 'Caveat Fallback', cursive, sans-serif;
+  --font-sans: 'JetBrains Mono', monospace, sans-serif;
   --font-mono: 'JetBrains Mono', monospace, sans-serif;
+  --font-handwriting: 'Caveat', 'Caveat Fallback', cursive, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

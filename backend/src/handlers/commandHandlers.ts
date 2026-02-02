@@ -19,7 +19,7 @@ import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
-import {validatePod, handleResourceDelete} from '../utils/handlerHelpers.js';
+import {validatePod, handleResourceDelete, getCanvasId} from '../utils/handlerHelpers.js';
 
 const commandNoteHandlers = createNoteHandlers({
     noteStore: commandNoteStore,
@@ -83,6 +83,11 @@ export async function handlePodBindCommand(
         return;
     }
 
+    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_COMMAND_BOUND, requestId);
+    if (!canvasId) {
+        return;
+    }
+
     const commandExists = await commandService.exists(commandId);
     if (!commandExists) {
         emitError(
@@ -110,13 +115,13 @@ export async function handlePodBindCommand(
 
     await commandService.copyCommandToPod(commandId, podId);
 
-    podStore.setCommandId(podId, commandId);
+    podStore.setCommandId(canvasId, podId, commandId);
 
     if (pod.repositoryId) {
         await repositorySyncService.syncRepositoryResources(pod.repositoryId);
     }
 
-    const updatedPod = podStore.getById(podId);
+    const updatedPod = podStore.getById(canvasId, podId);
 
     const response: PodCommandBoundPayload = {
         requestId,
@@ -140,6 +145,11 @@ export async function handlePodUnbindCommand(
         return;
     }
 
+    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_COMMAND_UNBOUND, requestId);
+    if (!canvasId) {
+        return;
+    }
+
     if (!pod.commandId) {
         const response: PodCommandUnboundPayload = {
             requestId,
@@ -152,13 +162,13 @@ export async function handlePodUnbindCommand(
 
     await commandService.deleteCommandFromPath(pod.workspacePath);
 
-    podStore.setCommandId(podId, null);
+    podStore.setCommandId(canvasId, podId, null);
 
     if (pod.repositoryId) {
         await repositorySyncService.syncRepositoryResources(pod.repositoryId);
     }
 
-    const updatedPod = podStore.getById(podId);
+    const updatedPod = podStore.getById(canvasId, podId);
 
     const response: PodCommandUnboundPayload = {
         requestId,
@@ -184,8 +194,8 @@ export async function handleCommandDelete(
         resourceName: 'Command',
         responseEvent: WebSocketResponseEvents.COMMAND_DELETED,
         existsCheck: () => commandService.exists(commandId),
-        findPodsUsing: () => podStore.findByCommandId(commandId),
-        deleteNotes: () => commandNoteStore.deleteByForeignKey(commandId),
+        findPodsUsing: (canvasId: string) => podStore.findByCommandId(canvasId, commandId),
+        deleteNotes: (canvasId: string) => commandNoteStore.deleteByForeignKey(canvasId, commandId),
         deleteResource: () => commandService.delete(commandId),
     });
 }

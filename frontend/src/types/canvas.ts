@@ -1,19 +1,68 @@
-// Canvas Types
-
-// 座標位置
-export interface Position {
-  x: number
-  y: number
+export interface Canvas {
+  id: string
+  name: string
+  createdAt: string
 }
 
-// 類型選單狀態
-export interface TypeMenuState {
-  visible: boolean
-  position: Position | null
+export interface CanvasCreatePayload {
+  requestId: string
+  name: string
 }
 
-// 視口狀態
-export interface ViewportState {
-  offset: Position
-  zoom: number
+export interface CanvasListPayload {
+  requestId: string
+}
+
+export interface CanvasRenamePayload {
+  requestId: string
+  canvasId: string
+  newName: string
+}
+
+export interface CanvasDeletePayload {
+  requestId: string
+  canvasId: string
+}
+
+export interface CanvasSwitchPayload {
+  requestId: string
+  canvasId: string
+}
+
+export interface CanvasCreatedPayload {
+  requestId: string
+  success: boolean
+  canvas?: Canvas
+  error?: string
+}
+
+export interface CanvasListResultPayload {
+  requestId: string
+  success: boolean
+  canvases?: Canvas[]
+  error?: string
+}
+
+export interface CanvasRenamedPayload {
+  requestId: string
+  success: boolean
+  canvas?: {
+    id: string
+    name: string
+  }
+  error?: string
+}
+
+export interface CanvasDeletedPayload {
+  requestId: string
+  success: boolean
+  canvasId?: string
+  error?: string
+}
+
+export interface CanvasSwitchedPayload {
+  requestId: string
+  success: boolean
+  canvasId?: string
+  error?: string
 }

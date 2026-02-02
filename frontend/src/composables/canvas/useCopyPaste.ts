@@ -36,7 +36,8 @@ export function useCopyPaste(): void {
     subAgentStore,
     commandStore,
     clipboardStore,
-    connectionStore
+    connectionStore,
+    canvasStore
   } = useCanvasContext()
 
   const mousePosition = ref({ x: 0, y: 0 })
@@ -455,6 +456,7 @@ export function useCopyPaste(): void {
         requestEvent: WebSocketRequestEvents.CANVAS_PASTE,
         responseEvent: WebSocketResponseEvents.CANVAS_PASTE_RESULT,
         payload: {
+          canvasId: canvasStore.activeCanvasId!,
           pods,
           outputStyleNotes,
           skillNotes,
@@ -476,7 +478,10 @@ export function useCopyPaste(): void {
 
     const createdPodIds = response.createdPods.map(p => p.id)
     if (createdPodIds.length > 0) {
-      websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, { podIds: createdPodIds })
+      websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, {
+        canvasId: canvasStore.activeCanvasId!,
+        podIds: createdPodIds
+      })
     }
 
     for (const note of response.createdOutputStyleNotes) {

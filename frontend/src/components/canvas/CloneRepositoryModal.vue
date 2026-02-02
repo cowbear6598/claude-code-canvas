@@ -13,7 +13,10 @@ import { Input } from '@/components/ui/input'
 import { websocketClient } from '@/services/websocket'
 import { WebSocketRequestEvents } from '@/types/websocket'
 import { generateRequestId } from '@/services/utils'
+import { useCanvasStore } from '@/stores/canvasStore'
 import type { RepositoryGitClonePayload } from '@/types/websocket'
+
+const canvasStore = useCanvasStore()
 
 interface Props {
   open: boolean
@@ -66,6 +69,7 @@ const handleSubmit = (): void => {
 
   const payload: RepositoryGitClonePayload = {
     requestId,
+    canvasId: canvasStore.activeCanvasId!,
     repoUrl: repoUrl.value.trim(),
   }
 

@@ -3,12 +3,11 @@ import fs from 'fs/promises';
 import { persistenceService } from './index.js';
 import type { Pod, PersistedPod } from '../../types/index.js';
 import { Result, ok, err } from '../../types/index.js';
-import { config } from '../../config/index.js';
 import { logger } from '../../utils/logger.js';
 
 class PodPersistenceService {
-  getPodFilePath(podId: string): string {
-    return path.join(config.canvasRoot, `pod-${podId}`, 'pod.json');
+  getPodFilePath(canvasDir: string, podId: string): string {
+    return path.join(canvasDir, `pod-${podId}`, 'pod.json');
   }
 
   private toPersistedPod(pod: Pod, claudeSessionId?: string): PersistedPod {
@@ -35,8 +34,8 @@ class PodPersistenceService {
     };
   }
 
-  async savePod(pod: Pod, claudeSessionId?: string): Promise<Result<void>> {
-    const filePath = this.getPodFilePath(pod.id);
+  async savePod(canvasDir: string, pod: Pod, claudeSessionId?: string): Promise<Result<void>> {
+    const filePath = this.getPodFilePath(canvasDir, pod.id);
     const persistedPod = this.toPersistedPod(pod, claudeSessionId);
 
     const result = await persistenceService.writeJson(filePath, persistedPod);
@@ -47,8 +46,8 @@ class PodPersistenceService {
     return ok(undefined);
   }
 
-  async loadPod(podId: string): Promise<PersistedPod | null> {
-    const filePath = this.getPodFilePath(podId);
+  async loadPod(canvasDir: string, podId: string): Promise<PersistedPod | null> {
+    const filePath = this.getPodFilePath(canvasDir, podId);
     const result = await persistenceService.readJson<PersistedPod>(filePath);
 
     if (!result.success) {
@@ -58,8 +57,8 @@ class PodPersistenceService {
     return result.data ?? null;
   }
 
-  async deletePodData(podId: string): Promise<Result<void>> {
-    const filePath = this.getPodFilePath(podId);
+  async deletePodData(canvasDir: string, podId: string): Promise<Result<void>> {
+    const filePath = this.getPodFilePath(canvasDir, podId);
 
     const result = await persistenceService.deleteFile(filePath);
     if (!result.success) {
@@ -69,13 +68,13 @@ class PodPersistenceService {
     return ok(undefined);
   }
 
-  async listAllPodIds(): Promise<Result<string[]>> {
-    const dirResult = await persistenceService.ensureDirectory(config.canvasRoot);
+  async listAllPodIds(canvasDir: string): Promise<Result<string[]>> {
+    const dirResult = await persistenceService.ensureDirectory(canvasDir);
     if (!dirResult.success) {
       return err('列出 Pod 失敗');
     }
 
-    const entries = await fs.readdir(config.canvasRoot, { withFileTypes: true });
+    const entries = await fs.readdir(canvasDir, { withFileTypes: true });
     const podIds: string[] = [];
 
     for (const entry of entries) {
@@ -84,7 +83,7 @@ class PodPersistenceService {
       }
 
       const podId = entry.name.substring(4);
-      const podFilePath = this.getPodFilePath(podId);
+      const podFilePath = this.getPodFilePath(canvasDir, podId);
       const exists = await persistenceService.fileExists(podFilePath);
 
       if (!exists) {

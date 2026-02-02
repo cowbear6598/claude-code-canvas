@@ -70,6 +70,11 @@ export const WebSocketRequestEvents = {
   TRIGGER_LIST: 'trigger:list',
   TRIGGER_UPDATE: 'trigger:update',
   TRIGGER_DELETE: 'trigger:delete',
+  CANVAS_CREATE: 'canvas:create',
+  CANVAS_LIST: 'canvas:list',
+  CANVAS_RENAME: 'canvas:rename',
+  CANVAS_DELETE: 'canvas:delete',
+  CANVAS_SWITCH: 'canvas:switch',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -162,6 +167,11 @@ export const WebSocketResponseEvents = {
   TRIGGER_UPDATED: 'trigger:updated',
   TRIGGER_DELETED: 'trigger:deleted',
   TRIGGER_FIRED: 'trigger:fired',
+  CANVAS_CREATED: 'canvas:created',
+  CANVAS_LIST_RESULT: 'canvas:list:result',
+  CANVAS_RENAMED: 'canvas:renamed',
+  CANVAS_DELETED: 'canvas:deleted',
+  CANVAS_SWITCHED: 'canvas:switched',
   HEARTBEAT_PING: 'heartbeat:ping',
 } as const
 

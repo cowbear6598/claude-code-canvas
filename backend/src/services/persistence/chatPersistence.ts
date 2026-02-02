@@ -2,15 +2,14 @@ import path from 'path';
 import { persistenceService } from './index.js';
 import type { PersistedMessage, ChatHistory } from '../../types/index.js';
 import { Result, ok, err } from '../../types/index.js';
-import { config } from '../../config/index.js';
 
 class ChatPersistenceService {
-  getChatFilePath(podId: string): string {
-    return path.join(config.canvasRoot, `pod-${podId}`, 'chat.json');
+  getChatFilePath(canvasDir: string, podId: string): string {
+    return path.join(canvasDir, `pod-${podId}`, 'chat.json');
   }
 
-  async saveMessage(podId: string, message: PersistedMessage): Promise<Result<void>> {
-    const filePath = this.getChatFilePath(podId);
+  async saveMessage(canvasDir: string, podId: string, message: PersistedMessage): Promise<Result<void>> {
+    const filePath = this.getChatFilePath(canvasDir, podId);
 
     const readResult = await persistenceService.readJson<ChatHistory>(filePath);
     if (!readResult.success) {
@@ -36,8 +35,8 @@ class ChatPersistenceService {
     return ok(undefined);
   }
 
-  async loadChatHistory(podId: string): Promise<ChatHistory | null> {
-    const filePath = this.getChatFilePath(podId);
+  async loadChatHistory(canvasDir: string, podId: string): Promise<ChatHistory | null> {
+    const filePath = this.getChatFilePath(canvasDir, podId);
     const result = await persistenceService.readJson<ChatHistory>(filePath);
 
     if (!result.success) {
@@ -47,8 +46,8 @@ class ChatPersistenceService {
     return result.data ?? null;
   }
 
-  async clearChatHistory(podId: string): Promise<Result<void>> {
-    const filePath = this.getChatFilePath(podId);
+  async clearChatHistory(canvasDir: string, podId: string): Promise<Result<void>> {
+    const filePath = this.getChatFilePath(canvasDir, podId);
 
     const result = await persistenceService.deleteFile(filePath);
     if (!result.success) {

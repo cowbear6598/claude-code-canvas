@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, positionSchema } from './base.js';
+import { requestIdSchema, positionSchema, canvasIdSchema } from './base.js';
 
 function isValidGitUrl(url: string): boolean {
   const gitUrlPattern = /^(https?:\/\/|git@|git:\/\/).+/;
@@ -8,15 +8,18 @@ function isValidGitUrl(url: string): boolean {
 
 export const repositoryListSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
 });
 
 export const repositoryCreateSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   name: z.string().regex(/^[a-zA-Z0-9_-]+$/, 'Repository name must contain only alphanumeric characters, underscores, and hyphens'),
 });
 
 export const repositoryNoteCreateSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   repositoryId: z.string(),
   name: z.string().min(1).max(100),
   x: z.number(),
@@ -27,10 +30,12 @@ export const repositoryNoteCreateSchema = z.object({
 
 export const repositoryNoteListSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
 });
 
 export const repositoryNoteUpdateSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   noteId: z.uuid(),
   x: z.number().optional(),
   y: z.number().optional(),
@@ -40,22 +45,26 @@ export const repositoryNoteUpdateSchema = z.object({
 
 export const repositoryNoteDeleteSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   noteId: z.uuid(),
 });
 
 export const podBindRepositorySchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   podId: z.uuid(),
   repositoryId: z.string(),
 });
 
 export const podUnbindRepositorySchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   podId: z.uuid(),
 });
 
 export const repositoryDeleteSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   repositoryId: z.string(),
 });
 
@@ -69,10 +78,6 @@ export const repositoryGitCloneSchema = z.object({
 
 export type RepositoryListPayload = z.infer<typeof repositoryListSchema>;
 export type RepositoryCreatePayload = z.infer<typeof repositoryCreateSchema>;
-export type RepositoryNoteCreatePayload = z.infer<typeof repositoryNoteCreateSchema>;
-export type RepositoryNoteListPayload = z.infer<typeof repositoryNoteListSchema>;
-export type RepositoryNoteUpdatePayload = z.infer<typeof repositoryNoteUpdateSchema>;
-export type RepositoryNoteDeletePayload = z.infer<typeof repositoryNoteDeleteSchema>;
 export type PodBindRepositoryPayload = z.infer<typeof podBindRepositorySchema>;
 export type PodUnbindRepositoryPayload = z.infer<typeof podUnbindRepositorySchema>;
 export type RepositoryDeletePayload = z.infer<typeof repositoryDeleteSchema>;

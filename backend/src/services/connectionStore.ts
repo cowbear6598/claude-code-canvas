@@ -1,248 +1,271 @@
-import { v4 as uuidv4 } from 'uuid';
-import { promises as fs } from 'fs';
+import {v4 as uuidv4} from 'uuid';
+import {promises as fs} from 'fs';
 import path from 'path';
-import type { Connection, AnchorPosition } from '../types/index.js';
-import type { PersistedConnection } from '../types/index.js';
-import { Result, ok, err } from '../types/index.js';
-import { config } from '../config/index.js';
-import { logger } from '../utils/logger.js';
+import type {Connection, AnchorPosition} from '../types/index.js';
+import type {PersistedConnection} from '../types/index.js';
+import {Result, ok, err} from '../types/index.js';
+import {logger} from '../utils/logger.js';
+import {canvasStore} from './canvasStore.js';
 
 interface CreateConnectionData {
-  sourceType?: 'pod' | 'trigger';
-  sourcePodId: string;
-  sourceTriggerId?: string | null;
-  sourceAnchor: AnchorPosition;
-  targetPodId: string;
-  targetAnchor: AnchorPosition;
-  autoTrigger?: boolean;
+    sourceType?: 'pod' | 'trigger';
+    sourcePodId: string;
+    sourceTriggerId?: string | null;
+    sourceAnchor: AnchorPosition;
+    targetPodId: string;
+    targetAnchor: AnchorPosition;
+    autoTrigger?: boolean;
 }
 
 class ConnectionStore {
-  private connections: Map<string, Connection> = new Map();
-  private readonly connectionsFilePath: string;
+    private connectionsByCanvas: Map<string, Map<string, Connection>> = new Map();
 
-  constructor() {
-    this.connectionsFilePath = path.join(config.canvasRoot, 'data', 'connections.json');
-  }
-
-  /**
-   * Create a new connection
-   */
-  create(data: CreateConnectionData): Connection {
-    const id = uuidv4();
-
-    const connection: Connection = {
-      id,
-      sourceType: data.sourceType ?? 'pod',
-      sourcePodId: data.sourcePodId,
-      sourceTriggerId: data.sourceTriggerId ?? null,
-      sourceAnchor: data.sourceAnchor,
-      targetPodId: data.targetPodId,
-      targetAnchor: data.targetAnchor,
-      autoTrigger: data.autoTrigger ?? true,
-      createdAt: new Date(),
-    };
-
-    this.connections.set(id, connection);
-    this.saveToDiskAsync();
-
-    return connection;
-  }
-
-  /**
-   * Get a connection by ID
-   */
-  getById(id: string): Connection | undefined {
-    return this.connections.get(id);
-  }
-
-  /**
-   * Get all connections
-   */
-  list(): Connection[] {
-    return Array.from(this.connections.values());
-  }
-
-  /**
-   * Delete a connection
-   */
-  delete(id: string): boolean {
-    const deleted = this.connections.delete(id);
-    if (deleted) {
-      this.saveToDiskAsync();
-    }
-    return deleted;
-  }
-
-  /**
-   * Find connections by Pod ID (either source or target)
-   */
-  findByPodId(podId: string): Connection[] {
-    return Array.from(this.connections.values()).filter(
-      (connection) => connection.sourcePodId === podId || connection.targetPodId === podId
-    );
-  }
-
-  /**
-   * Find outgoing connections from a source Pod
-   */
-  findBySourcePodId(sourcePodId: string): Connection[] {
-    return Array.from(this.connections.values()).filter(
-      (connection) => connection.sourcePodId === sourcePodId
-    );
-  }
-
-  /**
-   * Find incoming connections to a target Pod
-   */
-  findByTargetPodId(targetPodId: string): Connection[] {
-    return Array.from(this.connections.values()).filter(
-      (connection) => connection.targetPodId === targetPodId
-    );
-  }
-
-  /**
-   * Update a connection
-   */
-  update(id: string, updates: Partial<{ autoTrigger: boolean }>): Connection | undefined {
-    const connection = this.connections.get(id);
-    if (!connection) {
-      return undefined;
+    private getOrCreateCanvasMap(canvasId: string): Map<string, Connection> {
+        let connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) {
+            connectionsMap = new Map();
+            this.connectionsByCanvas.set(canvasId, connectionsMap);
+        }
+        return connectionsMap;
     }
 
-    if (updates.autoTrigger !== undefined) {
-      connection.autoTrigger = updates.autoTrigger;
-    }
+    create(canvasId: string, data: CreateConnectionData): Connection {
+        const id = uuidv4();
 
-    this.connections.set(id, connection);
-    this.saveToDiskAsync();
-
-    return connection;
-  }
-
-  /**
-   * Delete all connections related to a specific Pod
-   */
-  deleteByPodId(podId: string): number {
-    const connectionsToDelete = this.findByPodId(podId);
-
-    for (const connection of connectionsToDelete) {
-      this.connections.delete(connection.id);
-    }
-
-    if (connectionsToDelete.length > 0) {
-      this.saveToDiskAsync();
-    }
-
-    return connectionsToDelete.length;
-  }
-
-  /**
-   * Find connections by Trigger ID (source)
-   */
-  findByTriggerId(triggerId: string): Connection[] {
-    return Array.from(this.connections.values()).filter(
-      (connection) => connection.sourceTriggerId === triggerId
-    );
-  }
-
-  /**
-   * Delete all connections related to a specific Trigger
-   */
-  deleteByTriggerId(triggerId: string): string[] {
-    const connectionsToDelete = this.findByTriggerId(triggerId);
-    const deletedIds: string[] = [];
-
-    for (const connection of connectionsToDelete) {
-      this.connections.delete(connection.id);
-      deletedIds.push(connection.id);
-    }
-
-    if (deletedIds.length > 0) {
-      this.saveToDiskAsync();
-    }
-
-    return deletedIds;
-  }
-
-  /**
-   * Load connections from disk
-   */
-  async loadFromDisk(): Promise<Result<void>> {
-    const dataDir = path.dirname(this.connectionsFilePath);
-    await fs.mkdir(dataDir, { recursive: true });
-
-    // 先檢查檔案是否存在
-    try {
-      await fs.access(this.connectionsFilePath);
-    } catch {
-      this.connections.clear();
-      return ok(undefined);
-    }
-
-    const data = await fs.readFile(this.connectionsFilePath, 'utf-8');
-
-    // JSON.parse 可能拋錯，保留 try-catch
-    try {
-      const persistedConnections: PersistedConnection[] = JSON.parse(data);
-
-      this.connections.clear();
-      for (const persisted of persistedConnections) {
         const connection: Connection = {
-          ...persisted,
-          sourceType: persisted.sourceType ?? 'pod',
-          sourceTriggerId: persisted.sourceTriggerId ?? null,
-          autoTrigger: persisted.autoTrigger ?? false,
-          createdAt: new Date(persisted.createdAt),
+            id,
+            sourceType: data.sourceType ?? 'pod',
+            sourcePodId: data.sourcePodId,
+            sourceTriggerId: data.sourceTriggerId ?? null,
+            sourceAnchor: data.sourceAnchor,
+            targetPodId: data.targetPodId,
+            targetAnchor: data.targetAnchor,
+            autoTrigger: data.autoTrigger ?? true,
+            createdAt: new Date(),
         };
-        this.connections.set(connection.id, connection);
-      }
 
-      logger.log('Connection', 'Load', `[ConnectionStore] Loaded ${this.connections.size} connections`);
-      return ok(undefined);
-    } catch (error) {
-      logger.error('Connection', 'Error', `[ConnectionStore] Failed to load connections`, error);
-      return err('載入連線資料失敗');
+        const connectionsMap = this.getOrCreateCanvasMap(canvasId);
+        connectionsMap.set(id, connection);
+        this.saveToDiskAsync(canvasId);
+
+        return connection;
     }
-  }
 
-  /**
-   * Save connections to disk
-   */
-  async saveToDisk(): Promise<Result<void>> {
-    const dataDir = path.dirname(this.connectionsFilePath);
-    await fs.mkdir(dataDir, { recursive: true });
+    getById(canvasId: string, id: string): Connection | undefined {
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        return connectionsMap?.get(id);
+    }
 
-    const connectionsArray = Array.from(this.connections.values());
-    const persistedConnections: PersistedConnection[] = connectionsArray.map((connection) => ({
-      id: connection.id,
-      sourceType: connection.sourceType,
-      sourcePodId: connection.sourcePodId,
-      sourceTriggerId: connection.sourceTriggerId,
-      sourceAnchor: connection.sourceAnchor,
-      targetPodId: connection.targetPodId,
-      targetAnchor: connection.targetAnchor,
-      autoTrigger: connection.autoTrigger,
-      createdAt: connection.createdAt.toISOString(),
-    }));
+    list(canvasId: string): Connection[] {
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        return connectionsMap ? Array.from(connectionsMap.values()) : [];
+    }
 
-    await fs.writeFile(
-      this.connectionsFilePath,
-      JSON.stringify(persistedConnections, null, 2),
-      'utf-8'
-    );
+    delete(canvasId: string, id: string): boolean {
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) {
+            return false;
+        }
 
-    return ok(undefined);
-  }
+        const deleted = connectionsMap.delete(id);
+        if (deleted) {
+            this.saveToDiskAsync(canvasId);
+        }
+        return deleted;
+    }
 
-  /**
-   * Save connections to disk asynchronously (non-blocking)
-   */
-  private saveToDiskAsync(): void {
-    this.saveToDisk().catch((error) => {
-      logger.error('Connection', 'Error', `[ConnectionStore] Failed to persist connections`, error);
-    });
-  }
+    findByPodId(canvasId: string, podId: string): Connection[] {
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) {
+            return [];
+        }
+
+        return Array.from(connectionsMap.values()).filter(
+            (connection) => connection.sourcePodId === podId || connection.targetPodId === podId
+        );
+    }
+
+    findBySourcePodId(canvasId: string, sourcePodId: string): Connection[] {
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) {
+            return [];
+        }
+
+        return Array.from(connectionsMap.values()).filter(
+            (connection) => connection.sourcePodId === sourcePodId
+        );
+    }
+
+    findByTargetPodId(canvasId: string, targetPodId: string): Connection[] {
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) {
+            return [];
+        }
+
+        return Array.from(connectionsMap.values()).filter(
+            (connection) => connection.targetPodId === targetPodId
+        );
+    }
+
+    update(canvasId: string, id: string, updates: Partial<{ autoTrigger: boolean }>): Connection | undefined {
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) {
+            return undefined;
+        }
+
+        const connection = connectionsMap.get(id);
+        if (!connection) {
+            return undefined;
+        }
+
+        if (updates.autoTrigger !== undefined) {
+            connection.autoTrigger = updates.autoTrigger;
+        }
+
+        connectionsMap.set(id, connection);
+        this.saveToDiskAsync(canvasId);
+
+        return connection;
+    }
+
+    deleteByPodId(canvasId: string, podId: string): number {
+        const connectionsToDelete = this.findByPodId(canvasId, podId);
+
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) {
+            return 0;
+        }
+
+        for (const connection of connectionsToDelete) {
+            connectionsMap.delete(connection.id);
+        }
+
+        if (connectionsToDelete.length > 0) {
+            this.saveToDiskAsync(canvasId);
+        }
+
+        return connectionsToDelete.length;
+    }
+
+    findByTriggerId(canvasId: string, triggerId: string): Connection[] {
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) {
+            return [];
+        }
+
+        return Array.from(connectionsMap.values()).filter(
+            (connection) => connection.sourceTriggerId === triggerId
+        );
+    }
+
+    deleteByTriggerId(canvasId: string, triggerId: string): string[] {
+        const connectionsToDelete = this.findByTriggerId(canvasId, triggerId);
+        const deletedIds: string[] = [];
+
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) {
+            return deletedIds;
+        }
+
+        for (const connection of connectionsToDelete) {
+            connectionsMap.delete(connection.id);
+            deletedIds.push(connection.id);
+        }
+
+        if (deletedIds.length > 0) {
+            this.saveToDiskAsync(canvasId);
+        }
+
+        return deletedIds;
+    }
+
+    async loadFromDisk(canvasId: string, canvasDataDir: string): Promise<Result<void>> {
+        const connectionsFilePath = path.join(canvasDataDir, 'connections.json');
+
+        await fs.mkdir(canvasDataDir, {recursive: true});
+
+        try {
+            await fs.access(connectionsFilePath);
+        } catch {
+            this.connectionsByCanvas.set(canvasId, new Map());
+            return ok(undefined);
+        }
+
+        const data = await fs.readFile(connectionsFilePath, 'utf-8');
+
+        try {
+            const persistedConnections: PersistedConnection[] = JSON.parse(data);
+
+            const connectionsMap = new Map<string, Connection>();
+            for (const persisted of persistedConnections) {
+                const connection: Connection = {
+                    ...persisted,
+                    sourceType: persisted.sourceType ?? 'pod',
+                    sourceTriggerId: persisted.sourceTriggerId ?? null,
+                    autoTrigger: persisted.autoTrigger ?? false,
+                    createdAt: new Date(persisted.createdAt),
+                };
+                connectionsMap.set(connection.id, connection);
+            }
+
+            this.connectionsByCanvas.set(canvasId, connectionsMap);
+
+            logger.log('Connection', 'Load', `[ConnectionStore] Loaded ${connectionsMap.size} connections for canvas ${canvasId}`);
+            return ok(undefined);
+        } catch (error) {
+            logger.error('Connection', 'Error', `[ConnectionStore] Failed to load connections for canvas ${canvasId}`, error);
+            return err('載入連線資料失敗');
+        }
+    }
+
+    async saveToDisk(canvasId: string): Promise<Result<void>> {
+        const canvasDataDir = canvasStore.getCanvasDataDir(canvasId);
+        if (!canvasDataDir) {
+            return err('Canvas not found');
+        }
+
+        const connectionsFilePath = path.join(canvasDataDir, 'connections.json');
+
+        await fs.mkdir(canvasDataDir, {recursive: true});
+
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        const connectionsArray = connectionsMap ? Array.from(connectionsMap.values()) : [];
+        const persistedConnections: PersistedConnection[] = connectionsArray.map((connection) => ({
+            id: connection.id,
+            sourceType: connection.sourceType,
+            sourcePodId: connection.sourcePodId,
+            sourceTriggerId: connection.sourceTriggerId,
+            sourceAnchor: connection.sourceAnchor,
+            targetPodId: connection.targetPodId,
+            targetAnchor: connection.targetAnchor,
+            autoTrigger: connection.autoTrigger,
+            createdAt: connection.createdAt.toISOString(),
+        }));
+
+        await fs.writeFile(
+            connectionsFilePath,
+            JSON.stringify(persistedConnections, null, 2),
+            'utf-8'
+        );
+
+        return ok(undefined);
+    }
+
+    private saveToDiskAsync(canvasId: string): void {
+        this.saveToDisk(canvasId).catch((error) => {
+            logger.error('Connection', 'Error', `[ConnectionStore] Failed to persist connections for canvas ${canvasId}`, error);
+        });
+    }
+
+    async loadAllCanvases(canvasEntries: Array<{ id: string; dataDir: string }>): Promise<void> {
+        for (const entry of canvasEntries) {
+            await this.loadFromDisk(entry.id, entry.dataDir);
+        }
+    }
+
+    clearCanvasData(canvasId: string): void {
+        this.connectionsByCanvas.delete(canvasId);
+    }
 }
 
 export const connectionStore = new ConnectionStore();

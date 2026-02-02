@@ -4,6 +4,7 @@ import { useConnectionStore } from '@/stores/connectionStore'
 import { useClipboardStore } from '@/stores/clipboardStore'
 import { useChatStore } from '@/stores/chat'
 import { useTriggerStore } from '@/stores/triggerStore'
+import { useCanvasStore } from '@/stores/canvasStore'
 
 export function useCanvasContext(): {
   podStore: ReturnType<typeof usePodStore>
@@ -18,6 +19,7 @@ export function useCanvasContext(): {
   clipboardStore: ReturnType<typeof useClipboardStore>
   chatStore: ReturnType<typeof useChatStore>
   triggerStore: ReturnType<typeof useTriggerStore>
+  canvasStore: ReturnType<typeof useCanvasStore>
 } {
   const podStore = usePodStore()
   const viewportStore = useViewportStore()
@@ -31,6 +33,7 @@ export function useCanvasContext(): {
   const clipboardStore = useClipboardStore()
   const chatStore = useChatStore()
   const triggerStore = useTriggerStore()
+  const canvasStore = useCanvasStore()
 
   return {
     podStore,
@@ -44,6 +47,7 @@ export function useCanvasContext(): {
     connectionStore,
     clipboardStore,
     chatStore,
-    triggerStore
+    triggerStore,
+    canvasStore
   }
 }

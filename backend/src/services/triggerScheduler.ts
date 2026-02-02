@@ -36,25 +36,14 @@ class TriggerScheduler {
 
     logger.log('Trigger', 'Create', 'Trigger scheduler started');
   }
-
-  stop(): void {
-    if (!this.tickInterval) {
-      return;
-    }
-
-    clearInterval(this.tickInterval);
-    this.tickInterval = null;
-    logger.log('Trigger', 'Delete', 'Trigger scheduler stopped');
-  }
-
-  private tick(): void {
+    private tick(): void {
     const now = new Date();
-    const triggers = triggerStore.list();
-    const enabledTriggers = triggers.filter((trigger) => trigger.enabled);
+    const allTriggers = triggerStore.listAll();
+    const enabledTriggers = allTriggers.filter(({ trigger }) => trigger.enabled);
 
-    for (const trigger of enabledTriggers) {
+    for (const { canvasId, trigger } of enabledTriggers) {
       if (this.shouldFire(trigger, now)) {
-        this.fireTrigger(trigger, now).catch((error) => {
+        this.fireTrigger(canvasId, trigger, now).catch((error) => {
           logger.error('Trigger', 'Error', `Failed to fire trigger ${trigger.id}`, error);
         });
       }
@@ -143,12 +132,11 @@ class TriggerScheduler {
     return false;
   }
 
-  private async fireTrigger(trigger: TriggerType, now: Date): Promise<void> {
-    const connections = connectionStore.findByTriggerId(trigger.id);
+  private async fireTrigger(canvasId: string, trigger: TriggerType, now: Date): Promise<void> {
+    const connections = connectionStore.findByTriggerId(canvasId, trigger.id);
 
     if (connections.length === 0) {
-      // 即使沒有連線也要觸發（更新 lastTriggeredAt + 通知前端播放動畫）
-      triggerStore.setLastTriggeredAt(trigger.id, now);
+      triggerStore.setLastTriggeredAt(canvasId, trigger.id, now);
       socketService.emitToAll(WebSocketResponseEvents.TRIGGER_FIRED, {
         triggerId: trigger.id,
         timestamp: now.toISOString(),
@@ -165,7 +153,7 @@ class TriggerScheduler {
     const skippedPodIds: string[] = [];
 
     for (const podId of targetPodIds) {
-      if (this.canFirePod(podId)) {
+      if (this.canFirePod(canvasId, podId)) {
         firedPodIds.push(podId);
       } else {
         skippedPodIds.push(podId);
@@ -178,12 +166,12 @@ class TriggerScheduler {
     }
 
     const firePromises = firedPodIds.map((podId) =>
-      this.sendTriggerMessage(podId).catch((error) => {
+      this.sendTriggerMessage(canvasId, podId).catch((error) => {
         logger.error('Trigger', 'Error', `Failed to send trigger message to Pod ${podId}`, error);
       })
     );
 
-    triggerStore.setLastTriggeredAt(trigger.id, now);
+    triggerStore.setLastTriggeredAt(canvasId, trigger.id, now);
 
     const payload: TriggerFiredPayload = {
       triggerId: trigger.id,
@@ -194,14 +182,13 @@ class TriggerScheduler {
 
     socketService.emitToAll(WebSocketResponseEvents.TRIGGER_FIRED, payload);
 
-    // 觸發 Pod 訊息放到通知之後（不需要 await，讓它背景執行即可）
     Promise.allSettled(firePromises).catch(() => {});
 
     logger.log('Trigger', 'Complete', `Trigger ${trigger.id} fired: ${firedPodIds.length} pods triggered, ${skippedPodIds.length} pods skipped`);
   }
 
-  private canFirePod(podId: string): boolean {
-    const pod = podStore.getById(podId);
+  private canFirePod(canvasId: string, podId: string): boolean {
+    const pod = podStore.getById(canvasId, podId);
     if (!pod) {
       return false;
     }
@@ -210,16 +197,16 @@ class TriggerScheduler {
       return false;
     }
 
-    const downstreamConnections = connectionStore.findBySourcePodId(podId);
+    const downstreamConnections = connectionStore.findBySourcePodId(canvasId, podId);
 
     if (downstreamConnections.length === 0) {
       return true;
     }
 
-    const allDownstreamPodIds = this.collectAllDownstreamPodIds(podId);
+    const allDownstreamPodIds = this.collectAllDownstreamPodIds(canvasId, podId);
 
     for (const downstreamPodId of allDownstreamPodIds) {
-      const downstreamPod = podStore.getById(downstreamPodId);
+      const downstreamPod = podStore.getById(canvasId, downstreamPodId);
       if (!downstreamPod || downstreamPod.status !== 'idle') {
         return false;
       }
@@ -228,7 +215,7 @@ class TriggerScheduler {
     return true;
   }
 
-  private collectAllDownstreamPodIds(podId: string): string[] {
+  private collectAllDownstreamPodIds(canvasId: string, podId: string): string[] {
     const visited = new Set<string>();
     const queue: string[] = [podId];
     const downstreamPodIds: string[] = [];
@@ -246,7 +233,7 @@ class TriggerScheduler {
         downstreamPodIds.push(currentPodId);
       }
 
-      const connections = connectionStore.findBySourcePodId(currentPodId);
+      const connections = connectionStore.findBySourcePodId(canvasId, currentPodId);
 
       for (const connection of connections) {
         if (!visited.has(connection.targetPodId)) {
@@ -258,8 +245,8 @@ class TriggerScheduler {
     return downstreamPodIds;
   }
 
-  private async sendTriggerMessage(podId: string): Promise<void> {
-    podStore.setStatus(podId, 'chatting');
+  private async sendTriggerMessage(canvasId: string, podId: string): Promise<void> {
+    podStore.setStatus(canvasId, podId, 'chatting');
 
     const messageId = uuidv4();
 
@@ -380,24 +367,24 @@ class TriggerScheduler {
         }
       });
 
-      await messageStore.addMessage(podId, 'user', '');
+      await messageStore.addMessage(canvasId, podId, 'user', '');
 
       if (accumulatedContent || subMessages.length > 0) {
-        await messageStore.addMessage(podId, 'assistant', accumulatedContent, subMessages.length > 0 ? subMessages : undefined);
+        await messageStore.addMessage(canvasId, podId, 'assistant', accumulatedContent, subMessages.length > 0 ? subMessages : undefined);
       }
 
-      podStore.setStatus(podId, 'idle');
-      podStore.updateLastActive(podId);
+      podStore.setStatus(canvasId, podId, 'idle');
+      podStore.updateLastActive(canvasId, podId);
 
-      autoClearService.onPodComplete(podId).catch((error) => {
+      autoClearService.onPodComplete(canvasId, podId).catch((error) => {
         logger.error('Trigger', 'Error', `Failed to check auto-clear for Pod ${podId}`, error);
       });
 
-      workflowExecutionService.checkAndTriggerWorkflows(podId).catch((error) => {
+      workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch((error) => {
         logger.error('Trigger', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error);
       });
     } catch (error) {
-      podStore.setStatus(podId, 'idle');
+      podStore.setStatus(canvasId, podId, 'idle');
       logger.error('Trigger', 'Error', `Failed to execute trigger message for Pod ${podId}`, error);
       throw error;
     }

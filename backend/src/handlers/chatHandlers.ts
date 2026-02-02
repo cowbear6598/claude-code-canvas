@@ -20,7 +20,7 @@ import {workflowExecutionService} from '../services/workflow/index.js';
 import {autoClearService} from '../services/autoClear/index.js';
 import {emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
-import {validatePod} from '../utils/handlerHelpers.js';
+import {validatePod, getCanvasId} from '../utils/handlerHelpers.js';
 
 function extractDisplayContent(message: string | ContentBlock[]): string {
     if (typeof message === 'string') {
@@ -45,6 +45,11 @@ export async function handleChatSend(
         return;
     }
 
+    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_ERROR, requestId);
+    if (!canvasId) {
+        return;
+    }
+
     if (pod.status === 'chatting' || pod.status === 'summarizing') {
         emitError(
             socket,
@@ -57,7 +62,7 @@ export async function handleChatSend(
         return;
     }
 
-    podStore.setStatus(podId, 'chatting');
+    podStore.setStatus(canvasId, podId, 'chatting');
 
     const messageId = uuidv4();
 
@@ -178,20 +183,20 @@ export async function handleChatSend(
     });
 
     const userMessageText = extractDisplayContent(message);
-    await messageStore.addMessage(podId, 'user', userMessageText);
+    await messageStore.addMessage(canvasId, podId, 'user', userMessageText);
 
     if (accumulatedContent || subMessages.length > 0) {
-        await messageStore.addMessage(podId, 'assistant', accumulatedContent, subMessages.length > 0 ? subMessages : undefined);
+        await messageStore.addMessage(canvasId, podId, 'assistant', accumulatedContent, subMessages.length > 0 ? subMessages : undefined);
     }
 
-    podStore.setStatus(podId, 'idle');
-    podStore.updateLastActive(podId);
+    podStore.setStatus(canvasId, podId, 'idle');
+    podStore.updateLastActive(canvasId, podId);
 
-    autoClearService.onPodComplete(podId).catch((error) => {
+    autoClearService.onPodComplete(canvasId, podId).catch((error) => {
         logger.error('AutoClear', 'Error', `Failed to check auto-clear for Pod ${podId}`, error);
     });
 
-    workflowExecutionService.checkAndTriggerWorkflows(podId).catch((error) => {
+    workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch((error) => {
         logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error);
     });
 }
@@ -203,7 +208,12 @@ export async function handleChatHistory(
 ): Promise<void> {
     const {podId} = payload;
 
-    const pod = podStore.getById(podId);
+    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, requestId);
+    if (!canvasId) {
+        return;
+    }
+
+    const pod = podStore.getById(canvasId, podId);
     if (!pod) {
         const responsePayload: PodChatHistoryResultPayload = {
             requestId,

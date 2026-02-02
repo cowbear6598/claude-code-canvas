@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema } from './base.js';
+import { requestIdSchema, podIdSchema, canvasIdSchema } from './base.js';
 
 export const podColorSchema = z.enum(['blue', 'coral', 'pink', 'yellow', 'green']);
 
@@ -7,6 +7,7 @@ export const modelTypeSchema = z.enum(['opus', 'sonnet', 'haiku']);
 
 export const podCreateSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   name: z.string().min(1).max(100),
   color: podColorSchema,
   x: z.number(),
@@ -16,15 +17,18 @@ export const podCreateSchema = z.object({
 
 export const podListSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
 });
 
 export const podGetSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   podId: podIdSchema,
 });
 
 export const podUpdateSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   podId: podIdSchema,
   x: z.number().optional(),
   y: z.number().optional(),
@@ -35,6 +39,7 @@ export const podUpdateSchema = z.object({
 
 export const podDeleteSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   podId: podIdSchema,
 });
 

@@ -204,8 +204,12 @@ export const useChatStore = defineStore('chat', {
 
             this.addUserMessage(podId, displayMessage)
 
+            const {useCanvasStore} = await import('../canvasStore')
+            const canvasStore = useCanvasStore()
+
             websocketClient.emit<PodChatSendPayload>(WebSocketRequestEvents.POD_CHAT_SEND, {
                 requestId: generateRequestId(),
+                canvasId: canvasStore.activeCanvasId!,
                 podId,
                 message: messagePayload
             })

@@ -2,6 +2,7 @@ import type { Repository, RepositoryNote } from '@/types'
 import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
+import { useCanvasStore } from '@/stores/canvasStore'
 import type { RepositoryCreatePayload, RepositoryCreatedPayload } from '@/types/websocket'
 
 interface RepositoryStoreCustomActions {
@@ -57,12 +58,16 @@ const store = createNoteStore<Repository, RepositoryNote>({
   customActions: {
     async createRepository(this, name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const canvasStore = useCanvasStore()
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<RepositoryCreatePayload, RepositoryCreatedPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_CREATE,
           responseEvent: WebSocketResponseEvents.REPOSITORY_CREATED,
-          payload: { name }
+          payload: {
+            canvasId: canvasStore.activeCanvasId!,
+            name
+          }
         }),
         '建立資料夾失敗'
       )

@@ -2,6 +2,7 @@ import type { OutputStyleListItem, OutputStyleNote, Pod } from '@/types'
 import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
 import { createResourceCRUDActions } from './createResourceCRUDActions'
+import { useCanvasStore } from '@/stores/canvasStore'
 import type {
   NoteCreatePayload,
   NoteCreatedPayload,
@@ -98,6 +99,12 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
   getItemName: (item: OutputStyleListItem) => item.name,
   customActions: {
     async rebuildNotesFromPods(this, pods: Pod[]): Promise<void> {
+      const canvasStore = useCanvasStore()
+      if (!canvasStore.activeCanvasId) {
+        console.warn('[OutputStyleStore] Cannot rebuild notes: no active canvas')
+        return
+      }
+
       const promises: Promise<void>[] = []
 
       for (const pod of pods) {
@@ -113,6 +120,7 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
           requestEvent: WebSocketRequestEvents.NOTE_CREATE,
           responseEvent: WebSocketResponseEvents.NOTE_CREATED,
           payload: {
+            canvasId: canvasStore.activeCanvasId,
             outputStyleId: pod.outputStyleId,
             name: styleName,
             x: pod.x,

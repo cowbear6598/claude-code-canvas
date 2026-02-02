@@ -1,13 +1,15 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema } from './base.js';
+import { requestIdSchema, podIdSchema, canvasIdSchema } from './base.js';
 
 export const workflowGetDownstreamPodsSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   sourcePodId: podIdSchema,
 });
 
 export const workflowClearSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   sourcePodId: podIdSchema,
 });
 

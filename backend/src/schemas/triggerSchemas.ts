@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema } from './base.js';
+import { requestIdSchema, canvasIdSchema } from './base.js';
 
 export const timeTriggerFrequencySchema = z.enum([
   'every-second',
@@ -21,6 +21,7 @@ export const timeTriggerConfigSchema = z.object({
 
 export const triggerCreateSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   name: z.string().min(1).max(50),
   type: z.literal('time'),
   config: timeTriggerConfigSchema,
@@ -32,10 +33,12 @@ export const triggerCreateSchema = z.object({
 
 export const triggerListSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
 });
 
 export const triggerUpdateSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   triggerId: z.uuid(),
   name: z.string().min(1).max(50).optional(),
   type: z.literal('time').optional(),
@@ -48,6 +51,7 @@ export const triggerUpdateSchema = z.object({
 
 export const triggerDeleteSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   triggerId: z.uuid(),
 });
 

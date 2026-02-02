@@ -16,6 +16,8 @@ interface Config {
   skillsPath: string;
   agentsPath: string;
   commandsPath: string;
+  getCanvasPath(canvasName: string): string;
+  getCanvasDataPath(canvasName: string): string;
 }
 
 function loadConfig(): Config {
@@ -52,6 +54,12 @@ function loadConfig(): Config {
     skillsPath,
     agentsPath,
     commandsPath,
+    getCanvasPath(canvasName: string): string {
+      return path.join(canvasRoot, canvasName);
+    },
+    getCanvasDataPath(canvasName: string): string {
+      return path.join(canvasRoot, canvasName, 'data');
+    },
   };
 }
 

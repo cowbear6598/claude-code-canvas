@@ -3,6 +3,7 @@ import type {BaseNote} from '@/types'
 import {createWebSocketRequest} from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import {useDeleteItem} from '@/composables/useDeleteItem'
+import {useCanvasStore} from '@/stores/canvasStore'
 
 interface Position {
     x: number
@@ -118,12 +119,21 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 this.error = null
 
                 const {wrapWebSocketRequest} = useWebSocketErrorHandler()
+                const canvasStore = useCanvasStore()
+
+                if (!canvasStore.activeCanvasId) {
+                    console.warn(`[${config.storeName}] Cannot load items: no active canvas`)
+                    this.isLoading = false
+                    return
+                }
 
                 const response = await wrapWebSocketRequest(
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.events.listItems.request,
                         responseEvent: config.events.listItems.response,
-                        payload: {}
+                        payload: {
+                            canvasId: canvasStore.activeCanvasId
+                        }
                     }),
                     '載入項目失敗'
                 )
@@ -145,12 +155,21 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 this.error = null
 
                 const {wrapWebSocketRequest} = useWebSocketErrorHandler()
+                const canvasStore = useCanvasStore()
+
+                if (!canvasStore.activeCanvasId) {
+                    console.warn(`[${config.storeName}] Cannot load notes: no active canvas`)
+                    this.isLoading = false
+                    return
+                }
 
                 const response = await wrapWebSocketRequest(
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.events.listNotes.request,
                         responseEvent: config.events.listNotes.response,
-                        payload: {}
+                        payload: {
+                            canvasId: canvasStore.activeCanvasId
+                        }
                     }),
                     '載入筆記失敗'
                 )
@@ -172,8 +191,14 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 if (!item) return
 
                 const itemName = config.getItemName(item as TItem)
+                const canvasStore = useCanvasStore()
+
+                if (!canvasStore.activeCanvasId) {
+                    throw new Error('Cannot create note: no active canvas')
+                }
 
                 const payload = {
+                    canvasId: canvasStore.activeCanvasId,
                     ...config.createNotePayload(item as TItem, x, y),
                     name: itemName,
                     x,
@@ -211,12 +236,14 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 note.y = y
 
                 const {wrapWebSocketRequest} = useWebSocketErrorHandler()
+                const canvasStore = useCanvasStore()
 
                 const response = await wrapWebSocketRequest(
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.events.updateNote.request,
                         responseEvent: config.events.updateNote.response,
                         payload: {
+                            canvasId: canvasStore.activeCanvasId!,
                             noteId,
                             x,
                             y,
@@ -274,12 +301,15 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
 
                 if (!config.bindEvents) return
 
+                const canvasStore = useCanvasStore()
+
                 // 並行執行 bind 和 update，僅需要 update 的回應
                 const [, updateResponse] = await Promise.all([
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.bindEvents.request,
                         responseEvent: config.bindEvents.response,
                         payload: {
+                            canvasId: canvasStore.activeCanvasId!,
                             podId,
                             [config.itemIdField]: (note as Record<string, unknown>)[config.itemIdField]
                         }
@@ -288,6 +318,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                         requestEvent: config.events.updateNote.request,
                         responseEvent: config.events.updateNote.response,
                         payload: {
+                            canvasId: canvasStore.activeCanvasId!,
                             noteId,
                             boundToPodId: podId,
                             originalPosition,
@@ -312,7 +343,10 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
 
                 const noteId = note.id
 
+                const canvasStore = useCanvasStore()
+
                 const updatePayload: Record<string, unknown> = {
+                    canvasId: canvasStore.activeCanvasId!,
                     noteId,
                     boundToPodId: null,
                     originalPosition: null,
@@ -331,7 +365,10 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.unbindEvents.request,
                         responseEvent: config.unbindEvents.response,
-                        payload: {podId}
+                        payload: {
+                            canvasId: canvasStore.activeCanvasId!,
+                            podId
+                        }
                     }),
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.events.updateNote.request,
@@ -359,12 +396,14 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 this.notes.splice(index, 1)
 
                 const {wrapWebSocketRequest} = useWebSocketErrorHandler()
+                const canvasStore = useCanvasStore()
 
                 const response = await wrapWebSocketRequest(
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.events.deleteNote.request,
                         responseEvent: config.events.deleteNote.response,
                         payload: {
+                            canvasId: canvasStore.activeCanvasId!,
                             noteId,
                         }
                     }),
@@ -381,11 +420,15 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 if (!config.deleteItemEvents) return
 
                 const {deleteItem} = useDeleteItem()
+                const canvasStore = useCanvasStore()
 
                 await deleteItem<Record<string, unknown>, BaseResponse>({
                     requestEvent: config.deleteItemEvents.request,
                     responseEvent: config.deleteItemEvents.response,
-                    payload: {[config.itemIdField]: itemId},
+                    payload: {
+                        canvasId: canvasStore.activeCanvasId!,
+                        [config.itemIdField]: itemId
+                    },
                     errorMessage: '刪除項目失敗',
                     onSuccess: (res) => {
                         const index = this.availableItems.findIndex(item => config.getItemId(item as TItem) === itemId)

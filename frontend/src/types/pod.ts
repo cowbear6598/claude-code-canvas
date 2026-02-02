@@ -37,3 +37,15 @@ export interface PodTypeConfig {
   icon: Component
   color: PodColor
 }
+
+// Position 類型
+export interface Position {
+  x: number
+  y: number
+}
+
+// TypeMenu 狀態類型
+export interface TypeMenuState {
+  visible: boolean
+  position: Position | null
+}

@@ -2,6 +2,7 @@ import type { Command, CommandNote, Pod } from '@/types'
 import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
 import { createResourceCRUDActions } from './createResourceCRUDActions'
+import { useCanvasStore } from '@/stores/canvasStore'
 import type {
   CommandNoteCreatePayload,
   CommandNoteCreatedPayload,
@@ -98,6 +99,12 @@ const store = createNoteStore<Command, CommandNote>({
   getItemName: (item: Command) => item.name,
   customActions: {
     async rebuildNotesFromPods(this, pods: Pod[]): Promise<void> {
+      const canvasStore = useCanvasStore()
+      if (!canvasStore.activeCanvasId) {
+        console.warn('[CommandStore] Cannot rebuild notes: no active canvas')
+        return
+      }
+
       const promises: Promise<void>[] = []
 
       for (const pod of pods) {
@@ -113,6 +120,7 @@ const store = createNoteStore<Command, CommandNote>({
           requestEvent: WebSocketRequestEvents.COMMAND_NOTE_CREATE,
           responseEvent: WebSocketResponseEvents.COMMAND_NOTE_CREATED,
           payload: {
+            canvasId: canvasStore.activeCanvasId,
             commandId: pod.commandId,
             name: commandName,
             x: pod.x,

@@ -17,6 +17,7 @@ import type {
   TriggerDeletePayload
 } from '@/types/websocket'
 import { useConnectionStore } from './connectionStore'
+import { useCanvasStore } from './canvasStore'
 
 interface TriggerState {
   triggers: Trigger[]
@@ -50,10 +51,19 @@ export const useTriggerStore = defineStore('trigger', {
 
   actions: {
     async loadTriggersFromBackend(): Promise<void> {
+      const canvasStore = useCanvasStore()
+
+      if (!canvasStore.activeCanvasId) {
+        console.warn('[TriggerStore] Cannot load triggers: no active canvas')
+        return
+      }
+
       const response = await createWebSocketRequest<TriggerListPayload, TriggerListResultPayload>({
         requestEvent: WebSocketRequestEvents.TRIGGER_LIST,
         responseEvent: WebSocketResponseEvents.TRIGGER_LIST_RESULT,
-        payload: {}
+        payload: {
+          canvasId: canvasStore.activeCanvasId
+        }
       })
 
       if (response.triggers) {
@@ -71,11 +81,17 @@ export const useTriggerStore = defineStore('trigger', {
       y: number
       rotation: number
     }): Promise<Trigger | null> {
+      const canvasStore = useCanvasStore()
+
+      if (!canvasStore.activeCanvasId) {
+        throw new Error('Cannot create trigger: no active canvas')
+      }
+
       const response = await createWebSocketRequest<TriggerCreatePayload, TriggerCreatedPayload>({
         requestEvent: WebSocketRequestEvents.TRIGGER_CREATE,
         responseEvent: WebSocketResponseEvents.TRIGGER_CREATED,
         payload: {
-          requestId: '',
+          canvasId: canvasStore.activeCanvasId,
           name: payload.name,
           type: payload.type,
           config: payload.config,
@@ -106,13 +122,16 @@ export const useTriggerStore = defineStore('trigger', {
         x?: number
         y?: number
         rotation?: number
+        enabled?: boolean
       }
     ): Promise<void> {
+      const canvasStore = useCanvasStore()
+
       const response = await createWebSocketRequest<TriggerUpdatePayload, TriggerUpdatedPayload>({
         requestEvent: WebSocketRequestEvents.TRIGGER_UPDATE,
         responseEvent: WebSocketResponseEvents.TRIGGER_UPDATED,
         payload: {
-          requestId: '',
+          canvasId: canvasStore.activeCanvasId!,
           triggerId,
           ...payload,
         }
@@ -129,11 +148,13 @@ export const useTriggerStore = defineStore('trigger', {
     },
 
     async deleteTrigger(triggerId: string): Promise<void> {
+      const canvasStore = useCanvasStore()
+
       const response = await createWebSocketRequest<TriggerDeletePayload, TriggerDeletedPayload>({
         requestEvent: WebSocketRequestEvents.TRIGGER_DELETE,
         responseEvent: WebSocketResponseEvents.TRIGGER_DELETED,
         payload: {
-          requestId: '',
+          canvasId: canvasStore.activeCanvasId!,
           triggerId,
         }
       })

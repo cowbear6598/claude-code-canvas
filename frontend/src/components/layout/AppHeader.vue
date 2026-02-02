@@ -6,18 +6,34 @@
       <!-- Logo -->
       <div class="flex items-center gap-3">
         <Sparkles class="h-6 w-6 text-primary" />
-        <h1 class="text-2xl font-bold tracking-tight">
+        <h1 class="text-2xl font-bold tracking-tight" style="font-family: var(--font-handwriting)">
           Agent Canvas
         </h1>
       </div>
 
-      <!-- Connection Status -->
-      <ConnectionStatus />
+      <!-- Right Section -->
+      <div class="flex items-center gap-4">
+        <!-- Connection Status -->
+        <ConnectionStatus />
+
+        <!-- Canvas Selector -->
+        <button
+          v-if="canvasStore.activeCanvas"
+          class="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+          @click="canvasStore.toggleSidebar()"
+        >
+          <LayoutDashboard class="h-4 w-4" />
+          <span>{{ canvasStore.activeCanvas.name }}</span>
+        </button>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { Sparkles } from 'lucide-vue-next'
+import { Sparkles, LayoutDashboard } from 'lucide-vue-next'
 import ConnectionStatus from '@/components/ui/ConnectionStatus.vue'
+import { useCanvasStore } from '@/stores/canvasStore'
+
+const canvasStore = useCanvasStore()
 </script>

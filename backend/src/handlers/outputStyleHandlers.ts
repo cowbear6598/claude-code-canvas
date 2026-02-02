@@ -16,7 +16,7 @@ import { podStore } from '../services/podStore.js';
 import { noteStore } from '../services/noteStores.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
-import { validatePod, handleResourceDelete } from '../utils/handlerHelpers.js';
+import { validatePod, handleResourceDelete, getCanvasId } from '../utils/handlerHelpers.js';
 import { createResourceHandlers } from './factories/createResourceHandlers.js';
 
 const resourceHandlers = createResourceHandlers({
@@ -64,6 +64,11 @@ export async function handlePodBindOutputStyle(
     return;
   }
 
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, requestId);
+  if (!canvasId) {
+    return;
+  }
+
   const styleExists = await outputStyleService.exists(outputStyleId);
   if (!styleExists) {
     emitError(
@@ -78,9 +83,9 @@ export async function handlePodBindOutputStyle(
     return;
   }
 
-  podStore.setOutputStyleId(podId, outputStyleId);
+  podStore.setOutputStyleId(canvasId, podId, outputStyleId);
 
-  const updatedPod = podStore.getById(podId);
+  const updatedPod = podStore.getById(canvasId, podId);
 
   const response: PodOutputStyleBoundPayload = {
     requestId,
@@ -105,9 +110,14 @@ export async function handlePodUnbindOutputStyle(
     return;
   }
 
-  podStore.setOutputStyleId(podId, null);
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, requestId);
+  if (!canvasId) {
+    return;
+  }
 
-  const updatedPod = podStore.getById(podId);
+  podStore.setOutputStyleId(canvasId, podId, null);
+
+  const updatedPod = podStore.getById(canvasId, podId);
 
   const response: PodOutputStyleUnboundPayload = {
     requestId,
@@ -134,8 +144,8 @@ export async function handleOutputStyleDelete(
     resourceName: 'OutputStyle',
     responseEvent: WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
     existsCheck: () => outputStyleService.exists(outputStyleId),
-    findPodsUsing: () => podStore.findByOutputStyleId(outputStyleId),
-    deleteNotes: () => noteStore.deleteByForeignKey(outputStyleId),
+    findPodsUsing: (canvasId: string) => podStore.findByOutputStyleId(canvasId, outputStyleId),
+    deleteNotes: (canvasId: string) => noteStore.deleteByForeignKey(canvasId, outputStyleId),
     deleteResource: () => outputStyleService.delete(outputStyleId),
   });
 }

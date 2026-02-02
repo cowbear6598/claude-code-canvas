@@ -3,8 +3,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import type { Trigger, TriggerType, TimeTriggerConfig, PersistedTrigger } from '../types/index.js';
 import { Result, ok, err } from '../types/index.js';
-import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
+import { canvasStore } from './canvasStore.js';
 
 interface CreateTriggerData {
   name: string;
@@ -17,14 +17,18 @@ interface CreateTriggerData {
 }
 
 class TriggerStore {
-  private triggers: Map<string, Trigger> = new Map();
-  private readonly triggersFilePath: string;
+  private triggersByCanvas: Map<string, Map<string, Trigger>> = new Map();
 
-  constructor() {
-    this.triggersFilePath = path.join(config.canvasRoot, 'data', 'triggers.json');
+  private getOrCreateCanvasMap(canvasId: string): Map<string, Trigger> {
+    let triggersMap = this.triggersByCanvas.get(canvasId);
+    if (!triggersMap) {
+      triggersMap = new Map();
+      this.triggersByCanvas.set(canvasId, triggersMap);
+    }
+    return triggersMap;
   }
 
-  create(data: CreateTriggerData): Trigger {
+  create(canvasId: string, data: CreateTriggerData): Trigger {
     const id = uuidv4();
 
     const trigger: Trigger = {
@@ -40,22 +44,42 @@ class TriggerStore {
       createdAt: new Date(),
     };
 
-    this.triggers.set(id, trigger);
-    this.saveToDiskAsync();
+    const triggersMap = this.getOrCreateCanvasMap(canvasId);
+    triggersMap.set(id, trigger);
+    this.saveToDiskAsync(canvasId);
 
     return trigger;
   }
 
-  getById(id: string): Trigger | undefined {
-    return this.triggers.get(id);
+  getById(canvasId: string, id: string): Trigger | undefined {
+    const triggersMap = this.triggersByCanvas.get(canvasId);
+    return triggersMap?.get(id);
   }
 
-  list(): Trigger[] {
-    return Array.from(this.triggers.values());
+  list(canvasId: string): Trigger[] {
+    const triggersMap = this.triggersByCanvas.get(canvasId);
+    return triggersMap ? Array.from(triggersMap.values()) : [];
   }
 
-  update(id: string, updates: Partial<Pick<Trigger, 'name' | 'type' | 'config' | 'x' | 'y' | 'rotation' | 'enabled'>>): Trigger | undefined {
-    const trigger = this.triggers.get(id);
+  listAll(): Array<{ canvasId: string; trigger: Trigger }> {
+    const result: Array<{ canvasId: string; trigger: Trigger }> = [];
+
+    for (const [canvasId, triggersMap] of this.triggersByCanvas.entries()) {
+      for (const trigger of triggersMap.values()) {
+        result.push({ canvasId, trigger });
+      }
+    }
+
+    return result;
+  }
+
+  update(canvasId: string, id: string, updates: Partial<Pick<Trigger, 'name' | 'type' | 'config' | 'x' | 'y' | 'rotation' | 'enabled'>>): Trigger | undefined {
+    const triggersMap = this.triggersByCanvas.get(canvasId);
+    if (!triggersMap) {
+      return undefined;
+    }
+
+    const trigger = triggersMap.get(id);
     if (!trigger) {
       return undefined;
     }
@@ -82,37 +106,43 @@ class TriggerStore {
       trigger.enabled = updates.enabled;
     }
 
-    this.triggers.set(id, trigger);
-    this.saveToDiskAsync();
+    triggersMap.set(id, trigger);
+    this.saveToDiskAsync(canvasId);
 
     return trigger;
   }
 
-  delete(id: string): boolean {
-    const deleted = this.triggers.delete(id);
+  delete(canvasId: string, id: string): boolean {
+    const triggersMap = this.triggersByCanvas.get(canvasId);
+    if (!triggersMap) {
+      return false;
+    }
+
+    const deleted = triggersMap.delete(id);
     if (deleted) {
-      this.saveToDiskAsync();
+      this.saveToDiskAsync(canvasId);
     }
     return deleted;
   }
 
-  async loadFromDisk(): Promise<Result<void>> {
-    const dataDir = path.dirname(this.triggersFilePath);
-    await fs.mkdir(dataDir, { recursive: true });
+  async loadFromDisk(canvasId: string, canvasDataDir: string): Promise<Result<void>> {
+    const triggersFilePath = path.join(canvasDataDir, 'triggers.json');
+
+    await fs.mkdir(canvasDataDir, { recursive: true });
 
     try {
-      await fs.access(this.triggersFilePath);
+      await fs.access(triggersFilePath);
     } catch {
-      this.triggers.clear();
+      this.triggersByCanvas.set(canvasId, new Map());
       return ok(undefined);
     }
 
-    const data = await fs.readFile(this.triggersFilePath, 'utf-8');
+    const data = await fs.readFile(triggersFilePath, 'utf-8');
 
     try {
       const persistedTriggers: PersistedTrigger[] = JSON.parse(data);
 
-      this.triggers.clear();
+      const triggersMap = new Map<string, Trigger>();
       for (const persisted of persistedTriggers) {
         const trigger: Trigger = {
           ...persisted,
@@ -120,22 +150,31 @@ class TriggerStore {
           lastTriggeredAt: persisted.lastTriggeredAt ? new Date(persisted.lastTriggeredAt) : null,
           createdAt: new Date(persisted.createdAt),
         };
-        this.triggers.set(trigger.id, trigger);
+        triggersMap.set(trigger.id, trigger);
       }
 
-      logger.log('Trigger', 'Load', `[TriggerStore] Loaded ${this.triggers.size} triggers`);
+      this.triggersByCanvas.set(canvasId, triggersMap);
+
+      logger.log('Trigger', 'Load', `[TriggerStore] Loaded ${triggersMap.size} triggers for canvas ${canvasId}`);
       return ok(undefined);
     } catch (error) {
-      logger.error('Trigger', 'Error', `[TriggerStore] Failed to load triggers`, error);
+      logger.error('Trigger', 'Error', `[TriggerStore] Failed to load triggers for canvas ${canvasId}`, error);
       return err('載入觸發器資料失敗');
     }
   }
 
-  async saveToDisk(): Promise<Result<void>> {
-    const dataDir = path.dirname(this.triggersFilePath);
-    await fs.mkdir(dataDir, { recursive: true });
+  async saveToDisk(canvasId: string): Promise<Result<void>> {
+    const canvasDataDir = canvasStore.getCanvasDataDir(canvasId);
+    if (!canvasDataDir) {
+      return err('Canvas not found');
+    }
 
-    const triggersArray = Array.from(this.triggers.values());
+    const triggersFilePath = path.join(canvasDataDir, 'triggers.json');
+
+    await fs.mkdir(canvasDataDir, { recursive: true });
+
+    const triggersMap = this.triggersByCanvas.get(canvasId);
+    const triggersArray = triggersMap ? Array.from(triggersMap.values()) : [];
     const persistedTriggers: PersistedTrigger[] = triggersArray.map((trigger) => ({
       id: trigger.id,
       name: trigger.name,
@@ -150,7 +189,7 @@ class TriggerStore {
     }));
 
     await fs.writeFile(
-      this.triggersFilePath,
+      triggersFilePath,
       JSON.stringify(persistedTriggers, null, 2),
       'utf-8'
     );
@@ -158,21 +197,36 @@ class TriggerStore {
     return ok(undefined);
   }
 
-  setLastTriggeredAt(id: string, date: Date): void {
-    const trigger = this.triggers.get(id);
+  setLastTriggeredAt(canvasId: string, id: string, date: Date): void {
+    const triggersMap = this.triggersByCanvas.get(canvasId);
+    if (!triggersMap) {
+      return;
+    }
+
+    const trigger = triggersMap.get(id);
     if (!trigger) {
       return;
     }
 
     trigger.lastTriggeredAt = date;
-    this.triggers.set(id, trigger);
-    this.saveToDiskAsync();
+    triggersMap.set(id, trigger);
+    this.saveToDiskAsync(canvasId);
   }
 
-  private saveToDiskAsync(): void {
-    this.saveToDisk().catch((error) => {
-      logger.error('Trigger', 'Error', `[TriggerStore] Failed to persist triggers`, error);
+  private saveToDiskAsync(canvasId: string): void {
+    this.saveToDisk(canvasId).catch((error) => {
+      logger.error('Trigger', 'Error', `[TriggerStore] Failed to persist triggers for canvas ${canvasId}`, error);
     });
+  }
+
+  async loadAllCanvases(canvasEntries: Array<{ id: string; dataDir: string }>): Promise<void> {
+    for (const entry of canvasEntries) {
+      await this.loadFromDisk(entry.id, entry.dataDir);
+    }
+  }
+
+  clearCanvasData(canvasId: string): void {
+    this.triggersByCanvas.delete(canvasId);
   }
 }
 

@@ -23,11 +23,11 @@ import {logger} from '../../utils/logger.js';
 import {commandService} from '../commandService.js';
 
 class WorkflowExecutionService {
-  private formatMergedSummaries(summaries: Map<string, string>): string {
+  private formatMergedSummaries(canvasId: string, summaries: Map<string, string>): string {
     const formatted: string[] = [];
 
     for (const [sourcePodId, content] of summaries.entries()) {
-      const sourcePod = podStore.getById(sourcePodId);
+      const sourcePod = podStore.getById(canvasId, sourcePodId);
       const podName = sourcePod?.name || sourcePodId;
 
       formatted.push(`## Source: ${podName}\n${content}\n\n---`);
@@ -47,8 +47,8 @@ ${content}
 ---`;
   }
 
-  private async buildMessageWithCommand(targetPodId: string, baseMessage: string): Promise<string> {
-    const targetPod = podStore.getById(targetPodId);
+  private async buildMessageWithCommand(canvasId: string, targetPodId: string, baseMessage: string): Promise<string> {
+    const targetPod = podStore.getById(canvasId, targetPodId);
     if (!targetPod?.commandId) {
       return baseMessage;
     }
@@ -75,36 +75,38 @@ ${content}
   }
 
   private async generateSummaryWithFallback(
+    canvasId: string,
     sourcePodId: string,
     targetPodId: string
   ): Promise<{ content: string; isSummarized: boolean } | null> {
     try {
-      podStore.setStatus(sourcePodId, 'summarizing');
+      podStore.setStatus(canvasId, sourcePodId, 'summarizing');
       logger.log('Workflow', 'Create', `Generating customized summary for source POD ${sourcePodId} to target POD ${targetPodId}`);
       const summaryResult = await summaryService.generateSummaryForTarget(
+        canvasId,
         sourcePodId,
         targetPodId
       );
 
       if (summaryResult.success) {
-        podStore.setStatus(sourcePodId, 'idle');
+        podStore.setStatus(canvasId, sourcePodId, 'idle');
         return { content: summaryResult.summary, isSummarized: true };
       }
 
       logger.error('Workflow', 'Error', `Failed to generate summary: ${summaryResult.error}`);
       const fallback = this.getLastAssistantMessage(sourcePodId);
-      podStore.setStatus(sourcePodId, 'idle');
+      podStore.setStatus(canvasId, sourcePodId, 'idle');
       return fallback ? { content: fallback, isSummarized: false } : null;
     } catch (error) {
       logger.error('Workflow', 'Error', 'Failed to generate summary', error);
       const fallback = this.getLastAssistantMessage(sourcePodId);
-      podStore.setStatus(sourcePodId, 'idle');
+      podStore.setStatus(canvasId, sourcePodId, 'idle');
       return fallback ? { content: fallback, isSummarized: false } : null;
     }
   }
 
-  async checkAndTriggerWorkflows(sourcePodId: string): Promise<void> {
-    const connections = connectionStore.findBySourcePodId(sourcePodId);
+  async checkAndTriggerWorkflows(canvasId: string, sourcePodId: string): Promise<void> {
+    const connections = connectionStore.findBySourcePodId(canvasId, sourcePodId);
     const autoTriggerConnections = connections.filter((conn) => conn.autoTrigger);
 
     if (autoTriggerConnections.length === 0) {
@@ -113,12 +115,12 @@ ${content}
 
     logger.log('Workflow', 'Create', `Found ${autoTriggerConnections.length} auto-trigger connections for Pod ${sourcePodId}`);
 
-    autoClearService.initializeWorkflowTracking(sourcePodId);
+    autoClearService.initializeWorkflowTracking(canvasId, sourcePodId);
 
     let summaryContent: string | null = null;
 
     for (const connection of autoTriggerConnections) {
-      const podStatus = podStore.getById(connection.targetPodId)?.status;
+      const podStatus = podStore.getById(canvasId, connection.targetPodId)?.status;
       if (!podStatus) {
         logger.log('Workflow', 'Error', `Target Pod ${connection.targetPodId} not found, skipping auto-trigger`);
         continue;
@@ -130,18 +132,19 @@ ${content}
       }
 
       const { isMultiInput, requiredSourcePodIds } = workflowStateService.checkMultiInputScenario(
+        canvasId,
         connection.targetPodId
       );
 
       if (!isMultiInput) {
-        this.triggerWorkflowInternal(connection.id).catch((error) => {
+        this.triggerWorkflowInternal(canvasId, connection.id).catch((error) => {
           logger.error('Workflow', 'Error', `Failed to auto-trigger workflow ${connection.id}`, error);
         });
         continue;
       }
 
       if (!summaryContent) {
-        const result = await this.generateSummaryWithFallback(sourcePodId, connection.targetPodId);
+        const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, connection.targetPodId);
 
         if (!result) {
           continue;
@@ -197,7 +200,7 @@ ${content}
         continue;
       }
 
-      const mergedContent = this.formatMergedSummaries(completedSummaries);
+      const mergedContent = this.formatMergedSummaries(canvasId, completedSummaries);
       const mergedPreview = mergedContent.substring(0, 200);
 
       const sourcePodIds = Array.from(completedSummaries.keys());
@@ -221,7 +224,7 @@ ${content}
         );
       }
 
-      this.triggerWorkflowWithSummary(connection.id, mergedContent, true).catch((error) => {
+      this.triggerWorkflowWithSummary(canvasId, connection.id, mergedContent, true).catch((error) => {
         logger.error('Workflow', 'Error', `Failed to trigger merged workflow ${connection.id}`, error);
       });
 
@@ -229,20 +232,20 @@ ${content}
     }
   }
 
-  async triggerWorkflowInternal(connectionId: string): Promise<void> {
-    const connection = connectionStore.getById(connectionId);
+  async triggerWorkflowInternal(canvasId: string, connectionId: string): Promise<void> {
+    const connection = connectionStore.getById(canvasId, connectionId);
     if (!connection) {
       throw new Error(`Connection not found: ${connectionId}`);
     }
 
     const { sourcePodId, targetPodId } = connection;
 
-    const sourcePod = podStore.getById(sourcePodId);
+    const sourcePod = podStore.getById(canvasId, sourcePodId);
     if (!sourcePod) {
       throw new Error(`Pod not found: ${sourcePodId}`);
     }
 
-    const targetPod = podStore.getById(targetPodId);
+    const targetPod = podStore.getById(canvasId, targetPodId);
     if (!targetPod) {
       throw new Error(`Pod not found: ${targetPodId}`);
     }
@@ -253,7 +256,7 @@ ${content}
       throw new Error(`Source Pod ${sourcePodId} has no assistant messages to transfer`);
     }
 
-    const result = await this.generateSummaryWithFallback(sourcePodId, targetPodId);
+    const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, targetPodId);
     if (!result) {
       throw new Error('無可用的備用內容');
     }
@@ -280,26 +283,27 @@ ${content}
       isSummarized
     );
 
-    await this.executeClaudeQuery(connectionId, sourcePodId, targetPodId, transferredContent);
+    await this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, transferredContent);
 
-    this.checkAndTriggerWorkflows(targetPodId).catch((error) => {
+    this.checkAndTriggerWorkflows(canvasId, targetPodId).catch((error) => {
       logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${targetPodId}`, error);
     });
   }
 
   async triggerWorkflowWithSummary(
+    canvasId: string,
     connectionId: string,
     summary: string,
     isSummarized: boolean
   ): Promise<void> {
-    const connection = connectionStore.getById(connectionId);
+    const connection = connectionStore.getById(canvasId, connectionId);
     if (!connection) {
       throw new Error(`Connection not found: ${connectionId}`);
     }
 
     const { sourcePodId, targetPodId } = connection;
 
-    const targetPod = podStore.getById(targetPodId);
+    const targetPod = podStore.getById(canvasId, targetPodId);
     if (!targetPod) {
       throw new Error(`Pod not found: ${targetPodId}`);
     }
@@ -323,23 +327,24 @@ ${content}
       isSummarized
     );
 
-    await this.executeClaudeQuery(connectionId, sourcePodId, targetPodId, summary);
+    await this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, summary);
 
-    this.checkAndTriggerWorkflows(targetPodId).catch((error) => {
+    this.checkAndTriggerWorkflows(canvasId, targetPodId).catch((error) => {
       logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${targetPodId}`, error);
     });
   }
 
   private async executeClaudeQuery(
+    canvasId: string,
     connectionId: string,
     sourcePodId: string,
     targetPodId: string,
     content: string
   ): Promise<void> {
-    podStore.setStatus(targetPodId, 'chatting');
+    podStore.setStatus(canvasId, targetPodId, 'chatting');
 
     const baseMessage = this.buildTransferMessage(content);
-    const messageToSend = await this.buildMessageWithCommand(targetPodId, baseMessage);
+    const messageToSend = await this.buildMessageWithCommand(canvasId, targetPodId, baseMessage);
 
     const userMessageId = uuidv4();
     const assistantMessageId = uuidv4();
@@ -370,7 +375,7 @@ ${content}
         userCompletePayload
       );
 
-      await messageStore.addMessage(targetPodId, 'user', messageToSend);
+      await messageStore.addMessage(canvasId, targetPodId, 'user', messageToSend);
 
       await claudeQueryService.sendMessage(targetPodId, messageToSend, (event) => {
         switch (event.type) {
@@ -446,19 +451,19 @@ ${content}
       });
 
       if (accumulatedContent) {
-        await messageStore.addMessage(targetPodId, 'assistant', accumulatedContent);
+        await messageStore.addMessage(canvasId, targetPodId, 'assistant', accumulatedContent);
       }
 
-      podStore.setStatus(targetPodId, 'idle');
-      podStore.updateLastActive(targetPodId);
+      podStore.setStatus(canvasId, targetPodId, 'idle');
+      podStore.updateLastActive(canvasId, targetPodId);
 
       workflowEventEmitter.emitWorkflowComplete(connectionId, sourcePodId, targetPodId, true);
 
       logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod ${targetPodId}`);
 
-      await autoClearService.onPodComplete(targetPodId);
+      await autoClearService.onPodComplete(canvasId, targetPodId);
     } catch (error) {
-      podStore.setStatus(targetPodId, 'idle');
+      podStore.setStatus(canvasId, targetPodId, 'idle');
 
       const errorMessage = error instanceof Error ? error.message : String(error);
       workflowEventEmitter.emitWorkflowComplete(

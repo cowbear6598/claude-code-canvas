@@ -28,7 +28,7 @@ import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { clearPodMessages } from './repository/repositoryBindHelpers.js';
 import { logger } from '../utils/logger.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';
-import { validatePod, handleResourceDelete } from '../utils/handlerHelpers.js';
+import { validatePod, handleResourceDelete, getCanvasId } from '../utils/handlerHelpers.js';
 import { throttle } from '../utils/throttle.js';
 
 const repositoryNoteHandlers = createNoteHandlers({
@@ -110,6 +110,11 @@ export async function handlePodBindRepository(
     return;
   }
 
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_REPOSITORY_BOUND, requestId);
+  if (!canvasId) {
+    return;
+  }
+
   const exists = await repositoryService.exists(repositoryId);
   if (!exists) {
     emitError(
@@ -125,8 +130,8 @@ export async function handlePodBindRepository(
 
   const oldRepositoryId = pod.repositoryId;
 
-  podStore.setRepositoryId(podId, repositoryId);
-  podStore.setClaudeSessionId(podId, '');
+  podStore.setRepositoryId(canvasId, podId, repositoryId);
+  podStore.setClaudeSessionId(canvasId, podId, '');
 
   await repositorySyncService.syncRepositoryResources(repositoryId);
 
@@ -157,7 +162,7 @@ export async function handlePodBindRepository(
 
   await clearPodMessages(socket, podId);
 
-  const updatedPod = podStore.getById(podId);
+  const updatedPod = podStore.getById(canvasId, podId);
 
   const response: PodRepositoryBoundPayload = {
     requestId,
@@ -182,10 +187,15 @@ export async function handlePodUnbindRepository(
     return;
   }
 
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, requestId);
+  if (!canvasId) {
+    return;
+  }
+
   const oldRepositoryId = pod.repositoryId;
 
-  podStore.setRepositoryId(podId, null);
-  podStore.setClaudeSessionId(podId, '');
+  podStore.setRepositoryId(canvasId, podId, null);
+  podStore.setClaudeSessionId(canvasId, podId, '');
 
   if (oldRepositoryId) {
     await repositorySyncService.syncRepositoryResources(oldRepositoryId);
@@ -218,7 +228,7 @@ export async function handlePodUnbindRepository(
 
   await clearPodMessages(socket, podId);
 
-  const updatedPod = podStore.getById(podId);
+  const updatedPod = podStore.getById(canvasId, podId);
 
   const response: PodRepositoryUnboundPayload = {
     requestId,
@@ -245,8 +255,8 @@ export async function handleRepositoryDelete(
     resourceName: 'Repository',
     responseEvent: WebSocketResponseEvents.REPOSITORY_DELETED,
     existsCheck: () => repositoryService.exists(repositoryId),
-    findPodsUsing: () => podStore.findByRepositoryId(repositoryId),
-    deleteNotes: () => repositoryNoteStore.deleteByForeignKey(repositoryId),
+    findPodsUsing: (canvasId: string) => podStore.findByRepositoryId(canvasId, repositoryId),
+    deleteNotes: (canvasId: string) => repositoryNoteStore.deleteByForeignKey(canvasId, repositoryId),
     deleteResource: () => repositoryService.delete(repositoryId),
   });
 }

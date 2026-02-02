@@ -1,8 +1,24 @@
 import type {Socket} from 'socket.io';
 import type {Pod, WebSocketResponseEvents} from '../types/index.js';
 import {podStore} from '../services/podStore.js';
+import {canvasStore} from '../services/canvasStore.js';
 import {emitError, emitSuccess} from './websocketResponse.js';
 import {logger, type LogCategory} from './logger.js';
+
+export function getCanvasId(
+    socket: Socket,
+    responseEvent: WebSocketResponseEvents,
+    requestId: string
+): string | undefined {
+    const canvasId = canvasStore.getActiveCanvas(socket.id);
+
+    if (!canvasId) {
+        emitError(socket, responseEvent, 'No active canvas', requestId, undefined, 'INTERNAL_ERROR');
+        return undefined;
+    }
+
+    return canvasId;
+}
 
 export function validatePod(
     socket: Socket,
@@ -10,7 +26,12 @@ export function validatePod(
     responseEvent: WebSocketResponseEvents,
     requestId: string
 ): Pod | undefined {
-    const pod = podStore.getById(podId);
+    const canvasId = getCanvasId(socket, responseEvent, requestId);
+    if (!canvasId) {
+        return undefined;
+    }
+
+    const pod = podStore.getById(canvasId, podId);
 
     if (!pod) {
         emitError(socket, responseEvent, `Pod not found: ${podId}`, requestId, podId, 'NOT_FOUND');
@@ -27,8 +48,8 @@ interface ResourceDeleteConfig {
     resourceName: LogCategory;
     responseEvent: WebSocketResponseEvents;
     existsCheck: () => Promise<boolean>;
-    findPodsUsing: () => Pod[];
-    deleteNotes: () => string[];
+    findPodsUsing: (canvasId: string) => Pod[];
+    deleteNotes: (canvasId: string) => string[];
     deleteResource: () => Promise<void>;
 }
 
@@ -45,6 +66,11 @@ export async function handleResourceDelete(config: ResourceDeleteConfig): Promis
         deleteResource,
     } = config;
 
+    const canvasId = getCanvasId(socket, responseEvent, requestId);
+    if (!canvasId) {
+        return;
+    }
+
     const exists = await existsCheck();
     if (!exists) {
         emitError(
@@ -58,7 +84,7 @@ export async function handleResourceDelete(config: ResourceDeleteConfig): Promis
         return;
     }
 
-    const podsUsing = findPodsUsing();
+    const podsUsing = findPodsUsing(canvasId);
     if (podsUsing.length > 0) {
         const podNames = podsUsing.map((pod) => pod.name).join(', ');
 
@@ -73,7 +99,7 @@ export async function handleResourceDelete(config: ResourceDeleteConfig): Promis
         return;
     }
 
-    const deletedNoteIds = deleteNotes();
+    const deletedNoteIds = deleteNotes(canvasId);
     await deleteResource();
 
     const response = {

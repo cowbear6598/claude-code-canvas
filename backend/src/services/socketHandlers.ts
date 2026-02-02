@@ -1,5 +1,6 @@
 import { Socket } from 'socket.io';
 import { socketService } from './socketService.js';
+import { canvasStore } from './canvasStore.js';
 import { registerAllHandlers } from '../handlers/index.js';
 import {
   WebSocketRequestEvents,
@@ -67,5 +68,6 @@ export function setupSocketHandlers(socket: Socket): void {
 
   socket.on('disconnect', () => {
     socketService.cleanupSocket(socket.id);
+    canvasStore.removeSocket(socket.id);
   });
 }

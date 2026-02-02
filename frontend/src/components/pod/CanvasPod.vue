@@ -38,7 +38,8 @@ const {
   repositoryStore,
   commandStore,
   connectionStore,
-  chatStore
+  chatStore,
+  canvasStore
 } = useCanvasContext()
 const {detectTargetAnchor} = useAnchorDetection()
 const {toast} = useToast()
@@ -340,7 +341,10 @@ const handleClearWorkflow = async (): Promise<void> => {
       createWebSocketRequest<WorkflowGetDownstreamPodsPayload, WorkflowGetDownstreamPodsResultPayload>({
         requestEvent: WebSocketRequestEvents.WORKFLOW_GET_DOWNSTREAM_PODS,
         responseEvent: WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
-        payload: {sourcePodId: props.pod.id}
+        payload: {
+          canvasId: canvasStore.activeCanvasId!,
+          sourcePodId: props.pod.id
+        }
       }),
       '取得下游 Pod 失敗'
   )
@@ -364,7 +368,10 @@ const handleConfirmClear = async (): Promise<void> => {
       createWebSocketRequest<WorkflowClearPayload, WorkflowClearResultPayload>({
         requestEvent: WebSocketRequestEvents.WORKFLOW_CLEAR,
         responseEvent: WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
-        payload: {sourcePodId: props.pod.id}
+        payload: {
+          canvasId: canvasStore.activeCanvasId!,
+          sourcePodId: props.pod.id
+        }
       }),
       '清理 Workflow 失敗'
   )
@@ -393,7 +400,11 @@ const handleModelChange = async (model: ModelType): Promise<void> => {
       createWebSocketRequest<PodUpdatePayload, PodUpdatedPayload>({
         requestEvent: WebSocketRequestEvents.POD_UPDATE,
         responseEvent: WebSocketResponseEvents.POD_UPDATED,
-        payload: {podId: props.pod.id, model}
+        payload: {
+          canvasId: canvasStore.activeCanvasId!,
+          podId: props.pod.id,
+          model
+        }
       }),
       '更新模型失敗'
   )

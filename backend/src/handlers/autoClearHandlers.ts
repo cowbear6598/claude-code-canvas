@@ -2,7 +2,7 @@ import type {Socket} from 'socket.io';
 import {podStore} from '../services/podStore.js';
 import {WebSocketResponseEvents} from '../types/index.js';
 import type {PodSetAutoClearPayload} from '../schemas/index.js';
-import {validatePod} from '../utils/handlerHelpers.js';
+import {validatePod, getCanvasId} from '../utils/handlerHelpers.js';
 
 export const handlePodSetAutoClear = async (
     socket: Socket,
@@ -17,9 +17,15 @@ export const handlePodSetAutoClear = async (
         return;
     }
 
-    podStore.setAutoClear(podId, autoClear);
+    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_AUTO_CLEAR_SET, requestId);
 
-    const updatedPod = podStore.getById(podId);
+    if (!canvasId) {
+        return;
+    }
+
+    podStore.setAutoClear(canvasId, podId, autoClear);
+
+    const updatedPod = podStore.getById(canvasId, podId);
 
     socket.emit(WebSocketResponseEvents.POD_AUTO_CLEAR_SET, {
         requestId,

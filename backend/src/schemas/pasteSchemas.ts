@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, positionSchema } from './base.js';
+import { requestIdSchema, positionSchema, canvasIdSchema } from './base.js';
 import { podColorSchema, modelTypeSchema } from './podSchemas.js';
 import { anchorPositionSchema } from './connectionSchemas.js';
 
@@ -73,6 +73,7 @@ export const pasteConnectionItemSchema = z.object({
 
 export const canvasPasteSchema = z.object({
   requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
   pods: z.array(pastePodItemSchema),
   outputStyleNotes: z.array(pasteOutputStyleNoteItemSchema),
   skillNotes: z.array(pasteSkillNoteItemSchema),
@@ -83,10 +84,4 @@ export const canvasPasteSchema = z.object({
 });
 
 export type PastePodItem = z.infer<typeof pastePodItemSchema>;
-export type PasteOutputStyleNoteItem = z.infer<typeof pasteOutputStyleNoteItemSchema>;
-export type PasteSkillNoteItem = z.infer<typeof pasteSkillNoteItemSchema>;
-export type PasteRepositoryNoteItem = z.infer<typeof pasteRepositoryNoteItemSchema>;
-export type PasteSubAgentNoteItem = z.infer<typeof pasteSubAgentNoteItemSchema>;
-export type PasteCommandNoteItem = z.infer<typeof pasteCommandNoteItemSchema>;
-export type PasteConnectionItem = z.infer<typeof pasteConnectionItemSchema>;
 export type CanvasPastePayload = z.infer<typeof canvasPasteSchema>;

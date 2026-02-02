@@ -43,6 +43,9 @@ export type { Connection, AnchorPosition } from './connection.js';
 // Trigger types
 export type { Trigger, TriggerType, TimeTriggerConfig, TimeTriggerFrequency, PersistedTrigger } from './trigger.js';
 
+// Canvas types
+export type { Canvas, PersistedCanvas } from './canvas.js';
+
 // API types
 export type {
   CreatePodRequest,
@@ -224,4 +227,14 @@ export {
   type TriggerUpdatedPayload,
   type TriggerDeletedPayload,
   type TriggerFiredPayload,
+  type CanvasCreatePayload,
+  type CanvasListPayload,
+  type CanvasRenamePayload,
+  type CanvasDeletePayload,
+  type CanvasSwitchPayload,
+  type CanvasCreatedPayload,
+  type CanvasListResultPayload,
+  type CanvasRenamedPayload,
+  type CanvasDeletedPayload,
+  type CanvasSwitchedPayload,
 } from './websocket.js';

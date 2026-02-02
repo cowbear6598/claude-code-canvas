@@ -9,11 +9,11 @@ import {
 import { logger } from '../../utils/logger.js';
 
 class WorkflowStateService {
-  private formatMergedSummaries(summaries: Map<string, string>): string {
+  private formatMergedSummaries(canvasId: string, summaries: Map<string, string>): string {
     const formatted: string[] = [];
 
     for (const [sourcePodId, content] of summaries.entries()) {
-      const sourcePod = podStore.getById(sourcePodId);
+      const sourcePod = podStore.getById(canvasId, sourcePodId);
       const podName = sourcePod?.name || sourcePodId;
 
       formatted.push(`## Source: ${podName}\n${content}\n\n---`);
@@ -25,8 +25,8 @@ class WorkflowStateService {
     return result;
   }
 
-  checkMultiInputScenario(targetPodId: string): { isMultiInput: boolean; requiredSourcePodIds: string[] } {
-    const incomingConnections = connectionStore.findByTargetPodId(targetPodId);
+  checkMultiInputScenario(canvasId: string, targetPodId: string): { isMultiInput: boolean; requiredSourcePodIds: string[] } {
+    const incomingConnections = connectionStore.findByTargetPodId(canvasId, targetPodId);
     const autoTriggerConnections = incomingConnections.filter((conn) => conn.autoTrigger);
     const requiredSourcePodIds = autoTriggerConnections.map((conn) => conn.sourcePodId);
 
@@ -53,7 +53,7 @@ class WorkflowStateService {
     pendingTargetStore.clearPendingTarget(targetPodId);
   }
 
-  handleSourceDeletion(sourcePodId: string): string[] {
+  handleSourceDeletion(canvasId: string, sourcePodId: string): string[] {
     const affectedTargetIds = pendingTargetStore.removeSourceFromAllPending(sourcePodId);
 
     for (const targetPodId of affectedTargetIds) {
@@ -82,7 +82,7 @@ class WorkflowStateService {
         continue;
       }
 
-      const mergedContent = this.formatMergedSummaries(completedSummaries);
+      const mergedContent = this.formatMergedSummaries(canvasId, completedSummaries);
       const sourcePodIds = Array.from(completedSummaries.keys());
 
       const mergedPayload: WorkflowSourcesMergedPayload = {
@@ -97,8 +97,8 @@ class WorkflowStateService {
     return affectedTargetIds;
   }
 
-  handleConnectionDeletion(connectionId: string): void {
-    const connection = connectionStore.getById(connectionId);
+  handleConnectionDeletion(canvasId: string, connectionId: string): void {
+    const connection = connectionStore.getById(canvasId, connectionId);
     if (!connection || !connection.autoTrigger) {
       return;
     }
@@ -136,7 +136,7 @@ class WorkflowStateService {
       return;
     }
 
-    const mergedContent = this.formatMergedSummaries(completedSummaries);
+    const mergedContent = this.formatMergedSummaries(canvasId, completedSummaries);
     const sourcePodIds = Array.from(completedSummaries.keys());
 
     const mergedPayload: WorkflowSourcesMergedPayload = {

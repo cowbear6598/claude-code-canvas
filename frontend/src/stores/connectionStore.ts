@@ -7,6 +7,7 @@ import {
     WebSocketResponseEvents
 } from '@/services/websocket'
 import {useToast} from '@/composables/useToast'
+import {useCanvasStore} from '@/stores/canvasStore'
 import type {
     ConnectionCreatedPayload,
     ConnectionListResultPayload,
@@ -62,10 +63,19 @@ export const useConnectionStore = defineStore('connection', {
 
     actions: {
         async loadConnectionsFromBackend(): Promise<void> {
+            const canvasStore = useCanvasStore()
+
+            if (!canvasStore.activeCanvasId) {
+                console.warn('[ConnectionStore] Cannot load connections: no active canvas')
+                return
+            }
+
             const response = await createWebSocketRequest<ConnectionListPayload, ConnectionListResultPayload>({
                 requestEvent: WebSocketRequestEvents.CONNECTION_LIST,
                 responseEvent: WebSocketResponseEvents.CONNECTION_LIST_RESULT,
-                payload: {}
+                payload: {
+                    canvasId: canvasStore.activeCanvasId
+                }
             })
 
             if (response.connections) {
@@ -123,8 +133,15 @@ export const useConnectionStore = defineStore('connection', {
                 }
             }
 
+            const canvasStore = useCanvasStore()
+
+            if (!canvasStore.activeCanvasId) {
+                throw new Error('Cannot create connection: no active canvas')
+            }
+
             const payload: ConnectionCreatePayload = {
                 requestId: '',
+                canvasId: canvasStore.activeCanvasId,
                 sourceAnchor,
                 targetPodId,
                 targetAnchor,
@@ -163,10 +180,13 @@ export const useConnectionStore = defineStore('connection', {
         },
 
         async deleteConnection(connectionId: string): Promise<void> {
+            const canvasStore = useCanvasStore()
+
             await createWebSocketRequest<ConnectionDeletePayload, ConnectionDeletedPayload>({
                 requestEvent: WebSocketRequestEvents.CONNECTION_DELETE,
                 responseEvent: WebSocketResponseEvents.CONNECTION_DELETED,
                 payload: {
+                    canvasId: canvasStore.activeCanvasId!,
                     connectionId
                 }
             })

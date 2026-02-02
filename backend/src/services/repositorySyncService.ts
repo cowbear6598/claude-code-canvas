@@ -1,5 +1,6 @@
 import { repositoryService } from './repositoryService.js';
 import { podStore } from './podStore.js';
+import { canvasStore } from './canvasStore.js';
 import { commandService } from './commandService.js';
 import { skillService } from './skillService.js';
 import { subAgentService } from './subAgentService.js';
@@ -37,26 +38,26 @@ class RepositorySyncService {
 
   private async performSync(repositoryId: string): Promise<void> {
     try {
-      // 取得 Repository 實際路徑
       const repositoryPath = repositoryService.getRepositoryPath(repositoryId);
 
-      // 取得所有綁定此 Repository 的 POD
-      const pods = podStore.findByRepositoryId(repositoryId);
-
-      // 聚合所有 POD 的資源 ID
       const commandIds = new Set<string>();
       const skillIds = new Set<string>();
       const subAgentIds = new Set<string>();
 
-      for (const pod of pods) {
-        if (pod.commandId) {
-          commandIds.add(pod.commandId);
-        }
-        for (const skillId of pod.skillIds) {
-          skillIds.add(skillId);
-        }
-        for (const subAgentId of pod.subAgentIds) {
-          subAgentIds.add(subAgentId);
+      const allCanvases = canvasStore.list();
+      for (const canvas of allCanvases) {
+        const pods = podStore.findByRepositoryId(canvas.id, repositoryId);
+
+        for (const pod of pods) {
+          if (pod.commandId) {
+            commandIds.add(pod.commandId);
+          }
+          for (const skillId of pod.skillIds) {
+            skillIds.add(skillId);
+          }
+          for (const subAgentId of pod.subAgentIds) {
+            subAgentIds.add(subAgentId);
+          }
         }
       }
 

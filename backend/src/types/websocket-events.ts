@@ -73,6 +73,11 @@ export enum WebSocketRequestEvents {
   TRIGGER_LIST = 'trigger:list',
   TRIGGER_UPDATE = 'trigger:update',
   TRIGGER_DELETE = 'trigger:delete',
+  CANVAS_CREATE = 'canvas:create',
+  CANVAS_LIST = 'canvas:list',
+  CANVAS_RENAME = 'canvas:rename',
+  CANVAS_DELETE = 'canvas:delete',
+  CANVAS_SWITCH = 'canvas:switch',
 }
 
 export enum WebSocketResponseEvents {
@@ -164,10 +169,16 @@ export enum WebSocketResponseEvents {
   TRIGGER_UPDATED = 'trigger:updated',
   TRIGGER_DELETED = 'trigger:deleted',
   TRIGGER_FIRED = 'trigger:fired',
+  CANVAS_CREATED = 'canvas:created',
+  CANVAS_LIST_RESULT = 'canvas:list:result',
+  CANVAS_RENAMED = 'canvas:renamed',
+  CANVAS_DELETED = 'canvas:deleted',
+  CANVAS_SWITCHED = 'canvas:switched',
 }
 
 export interface PodCreatePayload {
   requestId: string;
+  canvasId: string;
   name: string;
   color: PodColor;
   x: number;
@@ -177,15 +188,18 @@ export interface PodCreatePayload {
 
 export interface PodListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface PodGetPayload {
   requestId: string;
+  canvasId: string;
   podId: string;
 }
 
 export interface PodUpdatePayload {
   requestId: string;
+  canvasId: string;
   podId: string;
   x?: number;
   y?: number;
@@ -196,29 +210,35 @@ export interface PodUpdatePayload {
 
 export interface PodDeletePayload {
   requestId: string;
+  canvasId: string;
   podId: string;
 }
 
 export interface PodChatSendPayload {
   requestId: string;
+  canvasId: string;
   podId: string;
   message: string | ContentBlock[];
 }
 
 export interface PodChatHistoryPayload {
   requestId: string;
+  canvasId: string;
   podId: string;
 }
 
 export interface PodJoinPayload {
+  canvasId: string;
   podId: string;
 }
 
 export interface PodJoinBatchPayload {
+  canvasId: string;
   podIds: string[];
 }
 
 export interface PodLeavePayload {
+  canvasId: string;
   podId: string;
 }
 
@@ -342,6 +362,7 @@ export interface PodStatusChangedPayload {
 
 export interface OutputStyleListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface OutputStyleListResultPayload {
@@ -356,6 +377,7 @@ export interface OutputStyleListResultPayload {
 
 export interface OutputStyleCreatePayload {
   requestId: string;
+  canvasId: string;
   name: string;
   content: string;
 }
@@ -372,6 +394,7 @@ export interface OutputStyleCreatedPayload {
 
 export interface OutputStyleUpdatePayload {
   requestId: string;
+  canvasId: string;
   outputStyleId: string;
   content: string;
 }
@@ -384,6 +407,7 @@ export interface OutputStyleUpdatedPayload {
 
 export interface OutputStyleReadPayload {
   requestId: string;
+  canvasId: string;
   outputStyleId: string;
 }
 
@@ -400,6 +424,7 @@ export interface OutputStyleReadResultPayload {
 
 export interface PodBindOutputStylePayload {
   requestId: string;
+  canvasId: string;
   podId: string;
   outputStyleId: string;
 }
@@ -413,6 +438,7 @@ export interface PodOutputStyleBoundPayload {
 
 export interface PodUnbindOutputStylePayload {
   requestId: string;
+  canvasId: string;
   podId: string;
 }
 
@@ -425,6 +451,7 @@ export interface PodOutputStyleUnboundPayload {
 
 export interface NoteCreatePayload {
   requestId: string;
+  canvasId: string;
   outputStyleId: string;
   name: string;
   x: number;
@@ -435,10 +462,12 @@ export interface NoteCreatePayload {
 
 export interface NoteListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface NoteUpdatePayload {
   requestId: string;
+  canvasId: string;
   noteId: string;
   x?: number;
   y?: number;
@@ -448,6 +477,7 @@ export interface NoteUpdatePayload {
 
 export interface NoteDeletePayload {
   requestId: string;
+  canvasId: string;
   noteId: string;
 }
 
@@ -481,10 +511,12 @@ export interface NoteDeletedPayload {
 
 export interface SkillListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface SkillNoteCreatePayload {
   requestId: string;
+  canvasId: string;
   skillId: string;
   name: string;
   x: number;
@@ -495,10 +527,12 @@ export interface SkillNoteCreatePayload {
 
 export interface SkillNoteListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface SkillNoteUpdatePayload {
   requestId: string;
+  canvasId: string;
   noteId: string;
   x?: number;
   y?: number;
@@ -508,11 +542,13 @@ export interface SkillNoteUpdatePayload {
 
 export interface SkillNoteDeletePayload {
   requestId: string;
+  canvasId: string;
   noteId: string;
 }
 
 export interface PodBindSkillPayload {
   requestId: string;
+  canvasId: string;
   podId: string;
   skillId: string;
 }
@@ -561,6 +597,7 @@ export interface PodSkillBoundPayload {
 
 export interface ConnectionCreatePayload {
   requestId: string;
+  canvasId: string;
   sourcePodId: string;
   sourceAnchor: import('./connection.js').AnchorPosition;
   targetPodId: string;
@@ -576,6 +613,7 @@ export interface ConnectionCreatedPayload {
 
 export interface ConnectionListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface ConnectionListResultPayload {
@@ -587,6 +625,7 @@ export interface ConnectionListResultPayload {
 
 export interface ConnectionDeletePayload {
   requestId: string;
+  canvasId: string;
   connectionId: string;
 }
 
@@ -599,6 +638,7 @@ export interface ConnectionDeletedPayload {
 
 export interface ConnectionUpdatePayload {
   requestId: string;
+  canvasId: string;
   connectionId: string;
   autoTrigger?: boolean;
 }
@@ -660,6 +700,7 @@ export interface WorkflowSourcesMergedPayload {
 
 export interface WorkflowGetDownstreamPodsPayload {
   requestId: string;
+  canvasId: string;
   sourcePodId: string;
 }
 
@@ -672,6 +713,7 @@ export interface WorkflowGetDownstreamPodsResultPayload {
 
 export interface WorkflowClearPayload {
   requestId: string;
+  canvasId: string;
   sourcePodId: string;
 }
 
@@ -736,6 +778,7 @@ export interface PasteConnectionItem {
 
 export interface CanvasPastePayload {
   requestId: string;
+  canvasId: string;
   pods: PastePodItem[];
   outputStyleNotes: PasteOutputStyleNoteItem[];
   skillNotes: PasteSkillNoteItem[];
@@ -768,6 +811,7 @@ export interface CanvasPasteResultPayload {
 
 export interface RepositoryListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface RepositoryListResultPayload {
@@ -779,6 +823,7 @@ export interface RepositoryListResultPayload {
 
 export interface RepositoryCreatePayload {
   requestId: string;
+  canvasId: string;
   name: string;
 }
 
@@ -791,6 +836,7 @@ export interface RepositoryCreatedPayload {
 
 export interface RepositoryNoteCreatePayload {
   requestId: string;
+  canvasId: string;
   repositoryId: string;
   name: string;
   x: number;
@@ -808,6 +854,7 @@ export interface RepositoryNoteCreatedPayload {
 
 export interface RepositoryNoteListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface RepositoryNoteListResultPayload {
@@ -819,6 +866,7 @@ export interface RepositoryNoteListResultPayload {
 
 export interface RepositoryNoteUpdatePayload {
   requestId: string;
+  canvasId: string;
   noteId: string;
   x?: number;
   y?: number;
@@ -835,6 +883,7 @@ export interface RepositoryNoteUpdatedPayload {
 
 export interface RepositoryNoteDeletePayload {
   requestId: string;
+  canvasId: string;
   noteId: string;
 }
 
@@ -847,6 +896,7 @@ export interface RepositoryNoteDeletedPayload {
 
 export interface PodBindRepositoryPayload {
   requestId: string;
+  canvasId: string;
   podId: string;
   repositoryId: string;
 }
@@ -860,6 +910,7 @@ export interface PodRepositoryBoundPayload {
 
 export interface PodUnbindRepositoryPayload {
   requestId: string;
+  canvasId: string;
   podId: string;
 }
 
@@ -876,6 +927,7 @@ export interface PodMessagesClearedPayload {
 
 export interface OutputStyleDeletePayload {
   requestId: string;
+  canvasId: string;
   outputStyleId: string;
 }
 
@@ -889,6 +941,7 @@ export interface OutputStyleDeletedPayload {
 
 export interface SkillDeletePayload {
   requestId: string;
+  canvasId: string;
   skillId: string;
 }
 
@@ -902,6 +955,7 @@ export interface SkillDeletedPayload {
 
 export interface RepositoryDeletePayload {
   requestId: string;
+  canvasId: string;
   repositoryId: string;
 }
 
@@ -915,6 +969,7 @@ export interface RepositoryDeletedPayload {
 
 export interface SubAgentListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface SubAgentListResultPayload {
@@ -926,6 +981,7 @@ export interface SubAgentListResultPayload {
 
 export interface SubAgentCreatePayload {
   requestId: string;
+  canvasId: string;
   name: string;
   content: string;
 }
@@ -942,6 +998,7 @@ export interface SubAgentCreatedPayload {
 
 export interface SubAgentUpdatePayload {
   requestId: string;
+  canvasId: string;
   subAgentId: string;
   content: string;
 }
@@ -954,6 +1011,7 @@ export interface SubAgentUpdatedPayload {
 
 export interface SubAgentReadPayload {
   requestId: string;
+  canvasId: string;
   subAgentId: string;
 }
 
@@ -970,6 +1028,7 @@ export interface SubAgentReadResultPayload {
 
 export interface SubAgentNoteCreatePayload {
   requestId: string;
+  canvasId: string;
   subAgentId: string;
   name: string;
   x: number;
@@ -987,6 +1046,7 @@ export interface SubAgentNoteCreatedPayload {
 
 export interface SubAgentNoteListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface SubAgentNoteListResultPayload {
@@ -998,6 +1058,7 @@ export interface SubAgentNoteListResultPayload {
 
 export interface SubAgentNoteUpdatePayload {
   requestId: string;
+  canvasId: string;
   noteId: string;
   x?: number;
   y?: number;
@@ -1014,6 +1075,7 @@ export interface SubAgentNoteUpdatedPayload {
 
 export interface SubAgentNoteDeletePayload {
   requestId: string;
+  canvasId: string;
   noteId: string;
 }
 
@@ -1026,6 +1088,7 @@ export interface SubAgentNoteDeletedPayload {
 
 export interface PodBindSubAgentPayload {
   requestId: string;
+  canvasId: string;
   podId: string;
   subAgentId: string;
 }
@@ -1039,6 +1102,7 @@ export interface PodSubAgentBoundPayload {
 
 export interface SubAgentDeletePayload {
   requestId: string;
+  canvasId: string;
   subAgentId: string;
 }
 
@@ -1052,6 +1116,7 @@ export interface SubAgentDeletedPayload {
 
 export interface PodSetAutoClearPayload {
   requestId: string;
+  canvasId: string;
   podId: string;
   autoClear: boolean;
 }
@@ -1071,6 +1136,7 @@ export interface WorkflowAutoClearedPayload {
 
 export interface CommandListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface CommandListResultPayload {
@@ -1082,6 +1148,7 @@ export interface CommandListResultPayload {
 
 export interface CommandCreatePayload {
   requestId: string;
+  canvasId: string;
   name: string;
   content: string;
 }
@@ -1098,6 +1165,7 @@ export interface CommandCreatedPayload {
 
 export interface CommandUpdatePayload {
   requestId: string;
+  canvasId: string;
   commandId: string;
   content: string;
 }
@@ -1110,6 +1178,7 @@ export interface CommandUpdatedPayload {
 
 export interface CommandReadPayload {
   requestId: string;
+  canvasId: string;
   commandId: string;
 }
 
@@ -1126,6 +1195,7 @@ export interface CommandReadResultPayload {
 
 export interface CommandNoteCreatePayload {
   requestId: string;
+  canvasId: string;
   commandId: string;
   name: string;
   x: number;
@@ -1143,6 +1213,7 @@ export interface CommandNoteCreatedPayload {
 
 export interface CommandNoteListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface CommandNoteListResultPayload {
@@ -1154,6 +1225,7 @@ export interface CommandNoteListResultPayload {
 
 export interface CommandNoteUpdatePayload {
   requestId: string;
+  canvasId: string;
   noteId: string;
   x?: number;
   y?: number;
@@ -1170,6 +1242,7 @@ export interface CommandNoteUpdatedPayload {
 
 export interface CommandNoteDeletePayload {
   requestId: string;
+  canvasId: string;
   noteId: string;
 }
 
@@ -1182,6 +1255,7 @@ export interface CommandNoteDeletedPayload {
 
 export interface PodBindCommandPayload {
   requestId: string;
+  canvasId: string;
   podId: string;
   commandId: string;
 }
@@ -1195,6 +1269,7 @@ export interface PodCommandBoundPayload {
 
 export interface PodUnbindCommandPayload {
   requestId: string;
+  canvasId: string;
   podId: string;
 }
 
@@ -1207,6 +1282,7 @@ export interface PodCommandUnboundPayload {
 
 export interface CommandDeletePayload {
   requestId: string;
+  canvasId: string;
   commandId: string;
 }
 
@@ -1233,6 +1309,7 @@ export interface RepositoryGitCloneResultPayload {
 
 export interface TriggerCreatePayload {
   requestId: string;
+  canvasId: string;
   name: string;
   type: 'time';
   config: import('./trigger.js').TimeTriggerConfig;
@@ -1244,10 +1321,12 @@ export interface TriggerCreatePayload {
 
 export interface TriggerListPayload {
   requestId: string;
+  canvasId: string;
 }
 
 export interface TriggerUpdatePayload {
   requestId: string;
+  canvasId: string;
   triggerId: string;
   name?: string;
   type?: 'time';
@@ -1260,6 +1339,7 @@ export interface TriggerUpdatePayload {
 
 export interface TriggerDeletePayload {
   requestId: string;
+  canvasId: string;
   triggerId: string;
 }
 
@@ -1297,4 +1377,75 @@ export interface TriggerFiredPayload {
   timestamp: string;
   firedPodIds: string[];
   skippedPodIds: string[];
+}
+
+export interface CanvasCreatePayload {
+  requestId: string;
+  name: string;
+}
+
+export interface CanvasListPayload {
+  requestId: string;
+}
+
+export interface CanvasRenamePayload {
+  requestId: string;
+  canvasId: string;
+  newName: string;
+}
+
+export interface CanvasDeletePayload {
+  requestId: string;
+  canvasId: string;
+}
+
+export interface CanvasSwitchPayload {
+  requestId: string;
+  canvasId: string;
+}
+
+export interface CanvasCreatedPayload {
+  requestId: string;
+  success: boolean;
+  canvas?: {
+    id: string;
+    name: string;
+    createdAt: string;
+  };
+  error?: string;
+}
+
+export interface CanvasListResultPayload {
+  requestId: string;
+  success: boolean;
+  canvases?: Array<{
+    id: string;
+    name: string;
+    createdAt: string;
+  }>;
+  error?: string;
+}
+
+export interface CanvasRenamedPayload {
+  requestId: string;
+  success: boolean;
+  canvas?: {
+    id: string;
+    name: string;
+  };
+  error?: string;
+}
+
+export interface CanvasDeletedPayload {
+  requestId: string;
+  success: boolean;
+  canvasId?: string;
+  error?: string;
+}
+
+export interface CanvasSwitchedPayload {
+  requestId: string;
+  success: boolean;
+  canvasId?: string;
+  error?: string;
 }

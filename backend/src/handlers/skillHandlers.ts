@@ -16,7 +16,7 @@ import {repositorySyncService} from '../services/repositorySyncService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
-import {validatePod, handleResourceDelete} from '../utils/handlerHelpers.js';
+import {validatePod, handleResourceDelete, getCanvasId} from '../utils/handlerHelpers.js';
 
 const skillNoteHandlers = createNoteHandlers({
     noteStore: skillNoteStore,
@@ -64,6 +64,11 @@ export async function handlePodBindSkill(
         return;
     }
 
+    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_SKILL_BOUND, requestId);
+    if (!canvasId) {
+        return;
+    }
+
     const skillExists = await skillService.exists(skillId);
     if (!skillExists) {
         emitError(
@@ -91,13 +96,13 @@ export async function handlePodBindSkill(
 
     await skillService.copySkillToPod(skillId, podId);
 
-    podStore.addSkillId(podId, skillId);
+    podStore.addSkillId(canvasId, podId, skillId);
 
     if (pod.repositoryId) {
         await repositorySyncService.syncRepositoryResources(pod.repositoryId);
     }
 
-    const updatedPod = podStore.getById(podId);
+    const updatedPod = podStore.getById(canvasId, podId);
 
     const response: PodSkillBoundPayload = {
         requestId,
@@ -123,8 +128,8 @@ export async function handleSkillDelete(
         resourceName: 'Skill',
         responseEvent: WebSocketResponseEvents.SKILL_DELETED,
         existsCheck: () => skillService.exists(skillId),
-        findPodsUsing: () => podStore.findBySkillId(skillId),
-        deleteNotes: () => skillNoteStore.deleteByForeignKey(skillId),
+        findPodsUsing: (canvasId: string) => podStore.findBySkillId(canvasId, skillId),
+        deleteNotes: (canvasId: string) => skillNoteStore.deleteByForeignKey(canvasId, skillId),
         deleteResource: () => skillService.delete(skillId),
     });
 }

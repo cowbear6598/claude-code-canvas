@@ -266,10 +266,12 @@ class ClaudeQueryService {
     message: string | ContentBlock[],
     onStream: StreamCallback
   ): Promise<Message> {
-    const pod = podStore.getById(podId);
-    if (!pod) {
+    const result = podStore.getByIdGlobal(podId);
+    if (!result) {
       throw new Error(`找不到 Pod ${podId}`);
     }
+
+    const { canvasId, pod } = result;
 
     const messageId = uuidv4();
     const capturedSessionIdRef = { value: null as string | null };
@@ -323,7 +325,7 @@ class ClaudeQueryService {
       }
 
       if (capturedSessionIdRef.value && capturedSessionIdRef.value !== pod.claudeSessionId) {
-        podStore.setClaudeSessionId(podId, capturedSessionIdRef.value);
+        podStore.setClaudeSessionId(canvasId, podId, capturedSessionIdRef.value);
       }
 
       return {
@@ -354,7 +356,7 @@ class ClaudeQueryService {
         `[QueryService] Session resume failed for Pod ${podId}, clearing session ID and retrying`
       );
 
-      podStore.setClaudeSessionId(podId, '');
+      podStore.setClaudeSessionId(canvasId, podId, '');
 
       return this.sendMessage(podId, message, onStream);
     }

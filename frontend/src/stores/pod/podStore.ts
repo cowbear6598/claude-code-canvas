@@ -23,6 +23,7 @@ import type {
     PodAutoClearSetPayload
 } from '@/types/websocket'
 import {useConnectionStore} from '@/stores/connectionStore'
+import {useCanvasStore} from '@/stores/canvasStore'
 import {POSITION_SYNC_DELAY_MS} from '@/lib/constants'
 
 const MAX_COORD = 100000
@@ -83,12 +84,16 @@ export const usePodStore = defineStore('pod', {
             const index = this.pods.findIndex((p) => p.id === pod.id)
             if (index !== -1) {
                 const oldPod = this.pods[index]
+                if (!oldPod) return
+
                 this.pods.splice(index, 1, pod)
 
                 // Sync name change to backend
                 if (oldPod.name !== pod.name) {
+                    const canvasStore = useCanvasStore()
                     websocketClient.emit<PodUpdatePayload>(WebSocketRequestEvents.POD_UPDATE, {
                         requestId: generateRequestId(),
+                        canvasId: canvasStore.activeCanvasId!,
                         podId: pod.id,
                         name: pod.name
                     })
@@ -110,10 +115,17 @@ export const usePodStore = defineStore('pod', {
         },
 
         async createPodWithBackend(pod: Omit<Pod, 'id'>): Promise<Pod | null> {
+            const canvasStore = useCanvasStore()
+
+            if (!canvasStore.activeCanvasId) {
+                throw new Error('Cannot create pod: no active canvas')
+            }
+
             const response = await createWebSocketRequest<PodCreatePayload, PodCreatedPayload>({
                 requestEvent: WebSocketRequestEvents.POD_CREATE,
                 responseEvent: WebSocketResponseEvents.POD_CREATED,
                 payload: {
+                    canvasId: canvasStore.activeCanvasId,
                     name: pod.name,
                     color: pod.color,
                     x: pod.x,
@@ -135,21 +147,30 @@ export const usePodStore = defineStore('pod', {
             }
 
             this.addPod(frontendPod)
-            websocketClient.emit<PodJoinPayload>(WebSocketRequestEvents.POD_JOIN, {podId: frontendPod.id})
+            websocketClient.emit<PodJoinPayload>(WebSocketRequestEvents.POD_JOIN, {
+                canvasId: canvasStore.activeCanvasId!,
+                podId: frontendPod.id
+            })
 
             return frontendPod
         },
 
         async deletePodWithBackend(id: string): Promise<void> {
+            const canvasStore = useCanvasStore()
+
             await createWebSocketRequest<PodDeletePayload, PodDeletedPayload>({
                 requestEvent: WebSocketRequestEvents.POD_DELETE,
                 responseEvent: WebSocketResponseEvents.POD_DELETED,
                 payload: {
+                    canvasId: canvasStore.activeCanvasId!,
                     podId: id
                 }
             })
 
-            websocketClient.emit<PodLeavePayload>(WebSocketRequestEvents.POD_LEAVE, {podId: id})
+            websocketClient.emit<PodLeavePayload>(WebSocketRequestEvents.POD_LEAVE, {
+                canvasId: canvasStore.activeCanvasId!,
+                podId: id
+            })
             this.deletePod(id)
         },
 
@@ -169,10 +190,19 @@ export const usePodStore = defineStore('pod', {
         },
 
         async loadPodsFromBackend(): Promise<void> {
+            const canvasStore = useCanvasStore()
+
+            if (!canvasStore.activeCanvasId) {
+                console.warn('[PodStore] Cannot load pods: no active canvas')
+                return
+            }
+
             const response = await createWebSocketRequest<PodListPayload, PodListResultPayload>({
                 requestEvent: WebSocketRequestEvents.POD_LIST,
                 responseEvent: WebSocketResponseEvents.POD_LIST_RESULT,
-                payload: {}
+                payload: {
+                    canvasId: canvasStore.activeCanvasId
+                }
             })
 
             if (response.pods) {
@@ -207,8 +237,10 @@ export const usePodStore = defineStore('pod', {
             }
 
             this.syncTimers[id] = setTimeout(() => {
+                const canvasStore = useCanvasStore()
                 websocketClient.emit<PodUpdatePayload>(WebSocketRequestEvents.POD_UPDATE, {
                     requestId: generateRequestId(),
+                    canvasId: canvasStore.activeCanvasId!,
                     podId: id,
                     x,
                     y
@@ -284,10 +316,13 @@ export const usePodStore = defineStore('pod', {
         },
 
         async setAutoClearWithBackend(podId: string, autoClear: boolean): Promise<Pod | null> {
+            const canvasStore = useCanvasStore()
+
             const response = await createWebSocketRequest<PodSetAutoClearPayload, PodAutoClearSetPayload>({
                 requestEvent: WebSocketRequestEvents.POD_SET_AUTO_CLEAR,
                 responseEvent: WebSocketResponseEvents.POD_AUTO_CLEAR_SET,
                 payload: {
+                    canvasId: canvasStore.activeCanvasId!,
                     podId,
                     autoClear
                 }

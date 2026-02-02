@@ -3,6 +3,7 @@ import type { GenericNoteStore, BaseNote } from '../../services/GenericNoteStore
 import type { WebSocketResponseEvents } from '../../types/index.js';
 import { emitSuccess, emitError } from '../../utils/websocketResponse.js';
 import { logger } from '../../utils/logger.js';
+import { getCanvasId } from '../../utils/handlerHelpers.js';
 
 interface NoteHandlerConfig<TNote extends BaseNote> {
   noteStore: GenericNoteStore<TNote, keyof TNote>;
@@ -66,6 +67,11 @@ export function createNoteHandlers<TNote extends BaseNote>(
     const { name, x, y, boundToPodId, originalPosition, ...rest } = payload;
     const foreignKeyValue = rest[foreignKeyField] as string;
 
+    const canvasId = getCanvasId(socket, events.created, requestId);
+    if (!canvasId) {
+      return;
+    }
+
     if (config.validateBeforeCreate) {
       const isValid = await config.validateBeforeCreate(foreignKeyValue);
       if (!isValid) {
@@ -90,7 +96,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
       originalPosition: originalPosition ?? null,
     } as Omit<TNote, 'id'>;
 
-    const note = noteStore.create(createData);
+    const note = noteStore.create(canvasId, createData);
 
     const response: BaseNoteResponse & { note: TNote } = {
       requestId,
@@ -110,7 +116,12 @@ export function createNoteHandlers<TNote extends BaseNote>(
     _: ListNotePayload,
     requestId: string
   ): Promise<void> {
-    const notes = noteStore.list();
+    const canvasId = getCanvasId(socket, events.listResult, requestId);
+    if (!canvasId) {
+      return;
+    }
+
+    const notes = noteStore.list(canvasId);
 
     const response: BaseNoteResponse & { notes: TNote[] } = {
       requestId,
@@ -128,7 +139,12 @@ export function createNoteHandlers<TNote extends BaseNote>(
   ): Promise<void> {
     const { noteId, x, y, boundToPodId, originalPosition } = payload;
 
-    const existingNote = noteStore.getById(noteId);
+    const canvasId = getCanvasId(socket, events.updated, requestId);
+    if (!canvasId) {
+      return;
+    }
+
+    const existingNote = noteStore.getById(canvasId, noteId);
     if (!existingNote) {
       emitError(
         socket,
@@ -147,7 +163,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
     if (boundToPodId !== undefined) updates.boundToPodId = boundToPodId;
     if (originalPosition !== undefined) updates.originalPosition = originalPosition;
 
-    const updatedNote = noteStore.update(noteId, updates as Partial<Omit<TNote, 'id'>>);
+    const updatedNote = noteStore.update(canvasId, noteId, updates as Partial<Omit<TNote, 'id'>>);
 
     if (!updatedNote) {
       emitError(
@@ -177,7 +193,12 @@ export function createNoteHandlers<TNote extends BaseNote>(
   ): Promise<void> {
     const { noteId } = payload;
 
-    const note = noteStore.getById(noteId);
+    const canvasId = getCanvasId(socket, events.deleted, requestId);
+    if (!canvasId) {
+      return;
+    }
+
+    const note = noteStore.getById(canvasId, noteId);
     if (!note) {
       emitError(
         socket,
@@ -190,7 +211,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
       return;
     }
 
-    const deleted = noteStore.delete(noteId);
+    const deleted = noteStore.delete(canvasId, noteId);
 
     if (!deleted) {
       emitError(

@@ -22,6 +22,7 @@ import {connectionStore} from '../services/connectionStore.js';
 import {socketService} from '../services/socketService.js';
 import { workflowStateService } from '../services/workflow/index.js';
 import {repositorySyncService} from '../services/repositorySyncService.js';
+import {canvasStore} from '../services/canvasStore.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {validatePod} from '../utils/handlerHelpers.js';
@@ -32,8 +33,21 @@ export async function handlePodCreate(
     requestId: string
 ): Promise<void> {
     const {name, color, x, y, rotation} = payload;
+    const canvasId = canvasStore.getActiveCanvas(socket.id);
 
-    const pod = podStore.create({name, color, x, y, rotation});
+    if (!canvasId) {
+        emitError(
+            socket,
+            WebSocketResponseEvents.POD_CREATED,
+            'No active canvas',
+            requestId,
+            undefined,
+            'INTERNAL_ERROR'
+        );
+        return;
+    }
+
+    const pod = podStore.create(canvasId, {name, color, x, y, rotation});
 
     const workspaceResult = await workspaceService.createWorkspace(pod.id);
     if (!workspaceResult.success) {
@@ -66,7 +80,21 @@ export async function handlePodList(
     _: PodListPayload,
     requestId: string
 ): Promise<void> {
-    const pods = podStore.getAll();
+    const canvasId = canvasStore.getActiveCanvas(socket.id);
+
+    if (!canvasId) {
+        emitError(
+            socket,
+            WebSocketResponseEvents.POD_LIST_RESULT,
+            'No active canvas',
+            requestId,
+            undefined,
+            'INTERNAL_ERROR'
+        );
+        return;
+    }
+
+    const pods = podStore.getAll(canvasId);
 
     const response: PodListResultPayload = {
         requestId,
@@ -112,7 +140,20 @@ export async function handlePodDelete(
         return;
     }
 
-    workflowStateService.handleSourceDeletion(podId);
+    const canvasId = canvasStore.getActiveCanvas(socket.id);
+    if (!canvasId) {
+        emitError(
+            socket,
+            WebSocketResponseEvents.POD_DELETED,
+            'No active canvas',
+            requestId,
+            podId,
+            'INTERNAL_ERROR'
+        );
+        return;
+    }
+
+    workflowStateService.handleSourceDeletion(canvasId, podId);
 
     await claudeSessionManager.destroySession(podId);
 
@@ -121,16 +162,16 @@ export async function handlePodDelete(
         logger.error('Pod', 'Delete', `Failed to delete workspace for Pod ${podId}`, deleteResult.error);
     }
 
-    noteStore.deleteByBoundPodId(podId);
-    skillNoteStore.deleteByBoundPodId(podId);
-    repositoryNoteStore.deleteByBoundPodId(podId);
-    commandNoteStore.deleteByBoundPodId(podId);
-    subAgentNoteStore.deleteByBoundPodId(podId);
-    connectionStore.deleteByPodId(podId);
+    noteStore.deleteByBoundPodId(canvasId, podId);
+    skillNoteStore.deleteByBoundPodId(canvasId, podId);
+    repositoryNoteStore.deleteByBoundPodId(canvasId, podId);
+    commandNoteStore.deleteByBoundPodId(canvasId, podId);
+    subAgentNoteStore.deleteByBoundPodId(canvasId, podId);
+    connectionStore.deleteByPodId(canvasId, podId);
 
     const repositoryId = pod.repositoryId;
 
-    const deleted = podStore.delete(podId);
+    const deleted = podStore.delete(canvasId, podId);
 
     if (repositoryId) {
         try {
@@ -181,6 +222,19 @@ export async function handlePodUpdate(
         return;
     }
 
+    const canvasId = canvasStore.getActiveCanvas(socket.id);
+    if (!canvasId) {
+        emitError(
+            socket,
+            WebSocketResponseEvents.POD_UPDATED,
+            'No active canvas',
+            requestId,
+            podId,
+            'INTERNAL_ERROR'
+        );
+        return;
+    }
+
     const updates: Record<string, unknown> = {};
 
     if (x !== undefined) updates.x = x;
@@ -192,7 +246,7 @@ export async function handlePodUpdate(
         // 保留 session，讓 SDK 嘗試用新 model 繼續對話
     }
 
-    const updatedPod = podStore.update(podId, updates);
+    const updatedPod = podStore.update(canvasId, podId, updates);
 
     if (!updatedPod) {
         emitError(

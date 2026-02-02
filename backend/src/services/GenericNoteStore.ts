@@ -2,8 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Result, ok, err } from '../types/index.js';
-import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
+import { canvasStore } from './canvasStore.js';
 
 export interface BaseNote {
   id: string;
@@ -21,16 +21,23 @@ export interface GenericNoteStoreConfig<T, K extends keyof T> {
 }
 
 export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
-  protected notes: Map<string, T> = new Map();
-  protected readonly notesFilePath: string;
+  protected notesByCanvas: Map<string, Map<string, T>> = new Map();
   protected readonly config: GenericNoteStoreConfig<T, K>;
 
   constructor(storeConfig: GenericNoteStoreConfig<T, K>) {
     this.config = storeConfig;
-    this.notesFilePath = path.join(config.canvasRoot, 'data', storeConfig.fileName);
   }
 
-  create(data: Omit<T, 'id'>): T {
+  private getOrCreateCanvasMap(canvasId: string): Map<string, T> {
+    let notesMap = this.notesByCanvas.get(canvasId);
+    if (!notesMap) {
+      notesMap = new Map();
+      this.notesByCanvas.set(canvasId, notesMap);
+    }
+    return notesMap;
+  }
+
+  create(canvasId: string, data: Omit<T, 'id'>): T {
     const id = uuidv4();
 
     const note = {
@@ -38,126 +45,179 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
       ...data,
     } as T;
 
-    this.notes.set(id, note);
-    this.saveToDiskAsync();
+    const notesMap = this.getOrCreateCanvasMap(canvasId);
+    notesMap.set(id, note);
+    this.saveToDiskAsync(canvasId);
 
     return note;
   }
 
-  getById(id: string): T | undefined {
-    return this.notes.get(id);
+  getById(canvasId: string, id: string): T | undefined {
+    const notesMap = this.notesByCanvas.get(canvasId);
+    return notesMap?.get(id);
   }
 
-  list(): T[] {
-    return Array.from(this.notes.values());
+  list(canvasId: string): T[] {
+    const notesMap = this.notesByCanvas.get(canvasId);
+    return notesMap ? Array.from(notesMap.values()) : [];
   }
 
-  update(id: string, updates: Partial<Omit<T, 'id'>>): T | undefined {
-    const note = this.notes.get(id);
+  update(canvasId: string, id: string, updates: Partial<Omit<T, 'id'>>): T | undefined {
+    const notesMap = this.notesByCanvas.get(canvasId);
+    if (!notesMap) {
+      return undefined;
+    }
+
+    const note = notesMap.get(id);
     if (!note) {
       return undefined;
     }
 
     const updatedNote = { ...note, ...updates };
-    this.notes.set(id, updatedNote);
-    this.saveToDiskAsync();
+    notesMap.set(id, updatedNote);
+    this.saveToDiskAsync(canvasId);
 
     return updatedNote;
   }
 
-  delete(id: string): boolean {
-    const deleted = this.notes.delete(id);
+  delete(canvasId: string, id: string): boolean {
+    const notesMap = this.notesByCanvas.get(canvasId);
+    if (!notesMap) {
+      return false;
+    }
+
+    const deleted = notesMap.delete(id);
     if (deleted) {
-      this.saveToDiskAsync();
+      this.saveToDiskAsync(canvasId);
     }
     return deleted;
   }
 
-  findByBoundPodId(podId: string): T[] {
-    return Array.from(this.notes.values()).filter(
+  findByBoundPodId(canvasId: string, podId: string): T[] {
+    const notesMap = this.notesByCanvas.get(canvasId);
+    if (!notesMap) {
+      return [];
+    }
+
+    return Array.from(notesMap.values()).filter(
       (note) => note.boundToPodId === podId
     );
   }
 
-  deleteByBoundPodId(podId: string): number {
-    const notesToDelete = this.findByBoundPodId(podId);
+  deleteByBoundPodId(canvasId: string, podId: string): number {
+    const notesToDelete = this.findByBoundPodId(canvasId, podId);
+
+    const notesMap = this.notesByCanvas.get(canvasId);
+    if (!notesMap) {
+      return 0;
+    }
 
     for (const note of notesToDelete) {
-      this.notes.delete(note.id);
+      notesMap.delete(note.id);
     }
 
     if (notesToDelete.length > 0) {
-      this.saveToDiskAsync();
+      this.saveToDiskAsync(canvasId);
     }
 
     return notesToDelete.length;
   }
 
-  findByForeignKey(foreignKeyValue: string): T[] {
-    return Array.from(this.notes.values()).filter(
+  findByForeignKey(canvasId: string, foreignKeyValue: string): T[] {
+    const notesMap = this.notesByCanvas.get(canvasId);
+    if (!notesMap) {
+      return [];
+    }
+
+    return Array.from(notesMap.values()).filter(
       (note) => note[this.config.foreignKeyField] === foreignKeyValue
     );
   }
 
-  deleteByForeignKey(foreignKeyValue: string): string[] {
-    const notesToDelete = this.findByForeignKey(foreignKeyValue);
+  deleteByForeignKey(canvasId: string, foreignKeyValue: string): string[] {
+    const notesToDelete = this.findByForeignKey(canvasId, foreignKeyValue);
     const deletedIds: string[] = [];
 
+    const notesMap = this.notesByCanvas.get(canvasId);
+    if (!notesMap) {
+      return deletedIds;
+    }
+
     for (const note of notesToDelete) {
-      this.notes.delete(note.id);
+      notesMap.delete(note.id);
       deletedIds.push(note.id);
     }
 
     if (deletedIds.length > 0) {
-      this.saveToDiskAsync();
+      this.saveToDiskAsync(canvasId);
     }
 
     return deletedIds;
   }
 
-  async loadFromDisk(): Promise<Result<void>> {
-    const dataDir = path.dirname(this.notesFilePath);
-    await fs.mkdir(dataDir, { recursive: true });
+  async loadFromDisk(canvasId: string, canvasDataDir: string): Promise<Result<void>> {
+    const notesFilePath = path.join(canvasDataDir, this.config.fileName);
+
+    await fs.mkdir(canvasDataDir, { recursive: true });
 
     try {
-      await fs.access(this.notesFilePath);
+      await fs.access(notesFilePath);
     } catch {
-      this.notes.clear();
+      this.notesByCanvas.set(canvasId, new Map());
       return ok(undefined);
     }
 
-    const data = await fs.readFile(this.notesFilePath, 'utf-8');
+    const data = await fs.readFile(notesFilePath, 'utf-8');
 
     try {
       const notesArray: T[] = JSON.parse(data);
 
-      this.notes.clear();
+      const notesMap = new Map<string, T>();
       for (const note of notesArray) {
-        this.notes.set(note.id, note);
+        notesMap.set(note.id, note);
       }
 
-      logger.log('Note', 'Load', `[${this.config.storeName}] Loaded ${this.notes.size} notes`);
+      this.notesByCanvas.set(canvasId, notesMap);
+
+      logger.log('Note', 'Load', `[${this.config.storeName}] Loaded ${notesMap.size} notes for canvas ${canvasId}`);
       return ok(undefined);
     } catch (error) {
-      logger.error('Note', 'Error', `[${this.config.storeName}] Failed to load notes`, error);
+      logger.error('Note', 'Error', `[${this.config.storeName}] Failed to load notes for canvas ${canvasId}`, error);
       return err('載入筆記失敗');
     }
   }
 
-  async saveToDisk(): Promise<Result<void>> {
-    const dataDir = path.dirname(this.notesFilePath);
-    await fs.mkdir(dataDir, { recursive: true });
+  async saveToDisk(canvasId: string): Promise<Result<void>> {
+    const canvasDataDir = canvasStore.getCanvasDataDir(canvasId);
+    if (!canvasDataDir) {
+      return err('Canvas not found');
+    }
 
-    const notesArray = Array.from(this.notes.values());
-    await fs.writeFile(this.notesFilePath, JSON.stringify(notesArray, null, 2), 'utf-8');
+    const notesFilePath = path.join(canvasDataDir, this.config.fileName);
+
+    await fs.mkdir(canvasDataDir, { recursive: true });
+
+    const notesMap = this.notesByCanvas.get(canvasId);
+    const notesArray = notesMap ? Array.from(notesMap.values()) : [];
+    await fs.writeFile(notesFilePath, JSON.stringify(notesArray, null, 2), 'utf-8');
 
     return ok(undefined);
   }
 
-  saveToDiskAsync(): void {
-    this.saveToDisk().catch((error) => {
-      logger.error('Note', 'Error', `[${this.config.storeName}] Failed to persist notes`, error);
+  saveToDiskAsync(canvasId: string): void {
+    this.saveToDisk(canvasId).catch((error) => {
+      logger.error('Note', 'Error', `[${this.config.storeName}] Failed to persist notes for canvas ${canvasId}`, error);
     });
+  }
+
+  async loadAllCanvases(canvasEntries: Array<{ id: string; dataDir: string }>): Promise<void> {
+    for (const entry of canvasEntries) {
+      await this.loadFromDisk(entry.id, entry.dataDir);
+    }
+  }
+
+  clearCanvasData(canvasId: string): void {
+    this.notesByCanvas.delete(canvasId);
   }
 }
 

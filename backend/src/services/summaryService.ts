@@ -13,8 +13,8 @@ export interface TargetSummaryResult {
 }
 
 class SummaryService {
-    async generateSummaryForTarget(sourcePodId: string, targetPodId: string): Promise<TargetSummaryResult> {
-    const sourcePod = podStore.getById(sourcePodId);
+    async generateSummaryForTarget(canvasId: string, sourcePodId: string, targetPodId: string): Promise<TargetSummaryResult> {
+    const sourcePod = podStore.getById(canvasId, sourcePodId);
     if (!sourcePod) {
       return {
         targetPodId,
@@ -24,7 +24,7 @@ class SummaryService {
       };
     }
 
-    const targetPod = podStore.getById(targetPodId);
+    const targetPod = podStore.getById(canvasId, targetPodId);
     if (!targetPod) {
       return {
         targetPodId,
