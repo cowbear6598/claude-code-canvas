@@ -56,8 +56,8 @@ class WorkflowClearService {
 
   async clearWorkflow(canvasId: string, sourcePodId: string): Promise<ClearResult> {
     try {
-      const canvasDataDir = canvasStore.getCanvasDataDir(canvasId);
-      if (!canvasDataDir) {
+      const canvasDir = canvasStore.getCanvasDir(canvasId);
+      if (!canvasDir) {
         return {
           success: false,
           clearedPodIds: [],
@@ -76,7 +76,7 @@ class WorkflowClearService {
 
           messageStore.clearMessages(podId);
 
-          const clearResult = await chatPersistenceService.clearChatHistory(canvasDataDir, podId);
+          const clearResult = await chatPersistenceService.clearChatHistory(canvasDir, podId);
           if (!clearResult.success) {
             logger.error('AutoClear', 'Error', `[WorkflowClear] Error clearing chat history for Pod ${podId}: ${clearResult.error}`);
           }
