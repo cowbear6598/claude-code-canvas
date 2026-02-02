@@ -6,6 +6,7 @@
   >
     <div
       v-if="open"
+      ref="sidebarRef"
       class="fixed right-0 z-40 flex h-[calc(100vh-64px)] w-72 flex-col border-l border-border bg-background"
       style="top: 64px"
     >
@@ -33,7 +34,7 @@
             placeholder="Canvas name"
             @keydown.enter="handleCreate"
             @keydown.escape="cancelCreate"
-            @blur="handleCreateOrCancel"
+            @blur="cancelCreate"
           >
         </div>
         <button
@@ -71,7 +72,7 @@
                 class="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
                 @keydown.enter="handleRename(canvas.id)"
                 @keydown.escape="cancelRename"
-                @blur="handleRename(canvas.id)"
+                @blur="cancelRename"
               >
             </div>
             <span v-else class="flex-1 text-sm">{{ canvas.name }}</span>
@@ -128,7 +129,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, watch, nextTick} from 'vue'
+import {ref, watch, nextTick, onUnmounted} from 'vue'
 import {X, Plus, Pencil, Trash2} from 'lucide-vue-next'
 import {useCanvasStore} from '@/stores/canvasStore'
 import {
@@ -154,6 +155,7 @@ const emit = defineEmits<Emits>()
 
 const canvasStore = useCanvasStore()
 
+const sidebarRef = ref<HTMLElement | undefined>(undefined)
 const isCreating = ref(false)
 const newCanvasName = ref('')
 const createInputRef = ref<HTMLInputElement | undefined>(undefined)
@@ -188,14 +190,6 @@ const handleCreate = async (): Promise<void> => {
 
   await canvasStore.createCanvas(newCanvasName.value.trim())
   cancelCreate()
-}
-
-const handleCreateOrCancel = (): void => {
-  if (!newCanvasName.value.trim()) {
-    cancelCreate()
-  } else {
-    handleCreate()
-  }
 }
 
 const startRename = (canvasId: string, currentName: string): void => {
@@ -238,32 +232,68 @@ const confirmDelete = (): void => {
 }
 
 const handleSwitchCanvas = (canvasId: string): void => {
-  if (renamingCanvasId.value) return
+  if (renamingCanvasId.value || isCreating.value) return
 
   canvasStore.switchCanvas(canvasId)
   emit('update:open', false)
 }
 
 const onEnter = (el: unknown): void => {
-  const element = el as HTMLElement
-  element.style.transform = 'translateX(100%)'
-  element.style.transition = 'transform 0.2s ease-out'
+  if (!(el instanceof HTMLElement)) return
+
+  el.style.transform = 'translateX(100%)'
+  el.style.transition = 'transform 0.2s ease-out'
   requestAnimationFrame(() => {
-    element.style.transform = 'translateX(0)'
+    el.style.transform = 'translateX(0)'
   })
 }
 
 const onLeave = (el: unknown): void => {
-  const element = el as HTMLElement
-  element.style.transition = 'transform 0.2s ease-out'
-  element.style.transform = 'translateX(100%)'
+  if (!(el instanceof HTMLElement)) return
+
+  el.style.transition = 'transform 0.2s ease-out'
+  el.style.transform = 'translateX(100%)'
+}
+
+const handleClickOutside = (event: MouseEvent): void => {
+  const target = event.target as Node
+
+  if (sidebarRef.value?.contains(target)) {
+    return
+  }
+
+  const headerCanvasButton = document.querySelector('[data-canvas-toggle]')
+  if (headerCanvasButton?.contains(target)) {
+    return
+  }
+
+  handleClose()
+}
+
+const handleKeyDown = (event: KeyboardEvent): void => {
+  if (event.key === 'Escape' && !isCreating.value && !renamingCanvasId.value) {
+    event.preventDefault()
+    handleClose()
+  }
 }
 
 watch(() => props.open, (isOpen) => {
-  if (!isOpen) {
+  if (isOpen) {
+    nextTick(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleKeyDown)
+    })
+  } else {
+    document.removeEventListener('mousedown', handleClickOutside)
+    document.removeEventListener('keydown', handleKeyDown)
     cancelCreate()
     cancelRename()
   }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousedown', handleClickOutside)
+  document.removeEventListener('keydown', handleKeyDown)
 })
 </script>
 

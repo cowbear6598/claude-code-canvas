@@ -19,6 +19,7 @@
         <!-- Canvas Selector -->
         <button
           v-if="canvasStore.activeCanvas"
+          data-canvas-toggle
           class="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
           @click="canvasStore.toggleSidebar()"
         >
