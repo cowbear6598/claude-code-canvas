@@ -1,6 +1,11 @@
 import type {Pod} from '@/types'
 import type {Connection} from '@/types/connection'
 import type {Trigger} from '@/types/trigger'
+import type {OutputStyleNote} from '@/types/outputStyle'
+import type {SkillNote} from '@/types/skill'
+import type {RepositoryNote, Repository} from '@/types/repository'
+import type {SubAgentNote} from '@/types/subAgent'
+import type {CommandNote} from '@/types/command'
 
 export interface BroadcastPodCreatedPayload {
   canvasId: string
@@ -69,12 +74,12 @@ export interface BroadcastOutputStyleDeletedPayload {
 
 export interface BroadcastNoteCreatedPayload {
   canvasId: string
-  note: Record<string, unknown>
+  note: OutputStyleNote
 }
 
 export interface BroadcastNoteUpdatedPayload {
   canvasId: string
-  note: Record<string, unknown>
+  note: OutputStyleNote
 }
 
 export interface BroadcastNoteDeletedPayload {
@@ -84,12 +89,12 @@ export interface BroadcastNoteDeletedPayload {
 
 export interface BroadcastSkillNoteCreatedPayload {
   canvasId: string
-  note: Record<string, unknown>
+  note: SkillNote
 }
 
 export interface BroadcastSkillNoteUpdatedPayload {
   canvasId: string
-  note: Record<string, unknown>
+  note: SkillNote
 }
 
 export interface BroadcastSkillNoteDeletedPayload {
@@ -105,12 +110,12 @@ export interface BroadcastSkillDeletedPayload {
 
 export interface BroadcastRepositoryNoteCreatedPayload {
   canvasId: string
-  note: Record<string, unknown>
+  note: RepositoryNote
 }
 
 export interface BroadcastRepositoryNoteUpdatedPayload {
   canvasId: string
-  note: Record<string, unknown>
+  note: RepositoryNote
 }
 
 export interface BroadcastRepositoryNoteDeletedPayload {
@@ -120,7 +125,7 @@ export interface BroadcastRepositoryNoteDeletedPayload {
 
 export interface BroadcastRepositoryCreatedPayload {
   canvasId: string
-  repository: Record<string, unknown>
+  repository: Repository
 }
 
 export interface BroadcastRepositoryDeletedPayload {
@@ -131,12 +136,12 @@ export interface BroadcastRepositoryDeletedPayload {
 
 export interface BroadcastSubAgentNoteCreatedPayload {
   canvasId: string
-  note: Record<string, unknown>
+  note: SubAgentNote
 }
 
 export interface BroadcastSubAgentNoteUpdatedPayload {
   canvasId: string
-  note: Record<string, unknown>
+  note: SubAgentNote
 }
 
 export interface BroadcastSubAgentNoteDeletedPayload {
@@ -146,7 +151,10 @@ export interface BroadcastSubAgentNoteDeletedPayload {
 
 export interface BroadcastSubAgentCreatedPayload {
   canvasId: string
-  subAgent: Record<string, unknown>
+  subAgent: {
+    id: string
+    name: string
+  }
 }
 
 export interface BroadcastSubAgentUpdatedPayload {
@@ -162,12 +170,12 @@ export interface BroadcastSubAgentDeletedPayload {
 
 export interface BroadcastCommandNoteCreatedPayload {
   canvasId: string
-  note: Record<string, unknown>
+  note: CommandNote
 }
 
 export interface BroadcastCommandNoteUpdatedPayload {
   canvasId: string
-  note: Record<string, unknown>
+  note: CommandNote
 }
 
 export interface BroadcastCommandNoteDeletedPayload {
@@ -177,7 +185,10 @@ export interface BroadcastCommandNoteDeletedPayload {
 
 export interface BroadcastCommandCreatedPayload {
   canvasId: string
-  command: Record<string, unknown>
+  command: {
+    id: string
+    name: string
+  }
 }
 
 export interface BroadcastCommandUpdatedPayload {
@@ -248,15 +259,22 @@ export interface BroadcastCanvasDeletedPayload {
 export interface BroadcastCanvasPastedPayload {
   canvasId: string
   createdPods?: Pod[]
-  createdOutputStyleNotes?: Record<string, unknown>[]
-  createdSkillNotes?: Record<string, unknown>[]
-  createdRepositoryNotes?: Record<string, unknown>[]
-  createdSubAgentNotes?: Record<string, unknown>[]
-  createdCommandNotes?: Record<string, unknown>[]
+  createdOutputStyleNotes?: OutputStyleNote[]
+  createdSkillNotes?: SkillNote[]
+  createdRepositoryNotes?: RepositoryNote[]
+  createdSubAgentNotes?: SubAgentNote[]
+  createdCommandNotes?: CommandNote[]
   createdConnections?: Connection[]
 }
 
 export interface BroadcastWorkflowClearResultPayload {
   canvasId: string
   clearedPodIds?: string[]
+}
+
+export interface BroadcastPodChatUserMessagePayload {
+  podId: string
+  messageId: string
+  content: string
+  timestamp: string
 }

@@ -443,14 +443,14 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 })
             },
 
-            addNoteFromBroadcast(note: any): void {
+            addNoteFromBroadcast(note: TNote): void {
                 const exists = this.notes.some(n => n.id === note.id)
                 if (!exists) {
                     this.notes.push(note)
                 }
             },
 
-            updateNoteFromBroadcast(note: any): void {
+            updateNoteFromBroadcast(note: TNote): void {
                 const index = this.notes.findIndex(n => n.id === note.id)
                 if (index !== -1) {
                     this.notes.splice(index, 1, note)
@@ -461,8 +461,8 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 this.notes = this.notes.filter(n => n.id !== noteId)
             },
 
-            addItemFromBroadcast(item: any): void {
-                const exists = this.availableItems.some(i => config.getItemId(i as TItem) === config.getItemId(item as TItem))
+            addItemFromBroadcast(item: TItem): void {
+                const exists = this.availableItems.some(i => config.getItemId(i as TItem) === config.getItemId(item))
                 if (!exists) {
                     this.availableItems.push(item)
                 }

@@ -60,6 +60,20 @@ export const usePodStore = defineStore('pod', {
     },
 
     actions: {
+        enrichPod(pod: Pod, existingOutput?: string[]): Pod {
+            return {
+                ...pod,
+                x: pod.x ?? 100,
+                y: pod.y ?? 150,
+                rotation: pod.rotation ?? (Math.random() * 2 - 1),
+                output: existingOutput ?? pod.output ?? [],
+                outputStyleId: pod.outputStyleId ?? null,
+                model: pod.model ?? 'opus',
+                autoClear: pod.autoClear ?? false,
+                commandId: pod.commandId ?? null,
+            }
+        },
+
         isValidPod(pod: Pod): boolean {
             const validColors: PodColor[] = ['blue', 'coral', 'pink', 'yellow', 'green']
             return (
@@ -175,17 +189,14 @@ export const usePodStore = defineStore('pod', {
         },
 
         syncPodsFromBackend(pods: Pod[]): void {
-            const enrichedPods = pods.map((pod, index) => ({
-                ...pod,
-                x: pod.x ?? 100 + (index * 300),
-                y: pod.y ?? 150 + (index % 2) * 100,
-                rotation: pod.rotation ?? (Math.random() * 2 - 1),
-                output: pod.output ?? [],
-                outputStyleId: pod.outputStyleId ?? null,
-                model: pod.model ?? 'opus',
-                autoClear: pod.autoClear ?? false,
-                commandId: pod.commandId ?? null,
-            }))
+            const enrichedPods = pods.map((pod, index) => {
+                const enriched = this.enrichPod(pod)
+                return {
+                    ...enriched,
+                    x: pod.x ?? 100 + (index * 300),
+                    y: pod.y ?? 150 + (index % 2) * 100,
+                }
+            })
             this.pods = enrichedPods.filter(pod => this.isValidPod(pod))
         },
 
@@ -337,17 +348,7 @@ export const usePodStore = defineStore('pod', {
         },
 
         addPodFromBroadcast(pod: Pod): void {
-            const enrichedPod: Pod = {
-                ...pod,
-                x: pod.x ?? 100,
-                y: pod.y ?? 150,
-                rotation: pod.rotation ?? (Math.random() * 2 - 1),
-                output: pod.output ?? [],
-                outputStyleId: pod.outputStyleId ?? null,
-                model: pod.model ?? 'opus',
-                autoClear: pod.autoClear ?? false,
-                commandId: pod.commandId ?? null,
-            }
+            const enrichedPod = this.enrichPod(pod)
 
             if (!this.isValidPod(enrichedPod)) return
 
@@ -361,17 +362,8 @@ export const usePodStore = defineStore('pod', {
         },
 
         updatePodFromBroadcast(pod: Pod): void {
-            const enrichedPod: Pod = {
-                ...pod,
-                x: pod.x ?? 100,
-                y: pod.y ?? 150,
-                rotation: pod.rotation ?? (Math.random() * 2 - 1),
-                output: pod.output ?? [],
-                outputStyleId: pod.outputStyleId ?? null,
-                model: pod.model ?? 'opus',
-                autoClear: pod.autoClear ?? false,
-                commandId: pod.commandId ?? null,
-            }
+            const existingPod = this.pods.find((p) => p.id === pod.id)
+            const enrichedPod = this.enrichPod(pod, existingPod?.output)
 
             if (!this.isValidPod(enrichedPod)) return
 

@@ -92,6 +92,7 @@ export async function handleChatSend(
             podId,
             messageId: uuidv4(),
             content: userDisplayContent,
+            timestamp: new Date().toISOString(),
         }
     );
 

@@ -53,6 +53,7 @@ interface ResourceDeleteConfig {
     findPodsUsing: (canvasId: string) => Pod[];
     deleteNotes: (canvasId: string) => string[];
     deleteResource: () => Promise<void>;
+    idFieldName?: string;
 }
 
 export async function handleResourceDelete(config: ResourceDeleteConfig): Promise<void> {
@@ -67,6 +68,7 @@ export async function handleResourceDelete(config: ResourceDeleteConfig): Promis
         findPodsUsing,
         deleteNotes,
         deleteResource,
+        idFieldName,
     } = config;
 
     const canvasId = getCanvasId(socket, responseEvent, requestId);
@@ -89,12 +91,10 @@ export async function handleResourceDelete(config: ResourceDeleteConfig): Promis
 
     const podsUsing = findPodsUsing(canvasId);
     if (podsUsing.length > 0) {
-        const podNames = podsUsing.map((pod) => pod.name).join(', ');
-
         emitError(
             socket,
             responseEvent,
-            `${resourceName} is in use by pods: ${podNames}`,
+            `${resourceName} 正在被 ${podsUsing.length} 個 Pod 使用中，無法刪除`,
             requestId,
             undefined,
             'IN_USE'
@@ -105,10 +105,11 @@ export async function handleResourceDelete(config: ResourceDeleteConfig): Promis
     const deletedNoteIds = deleteNotes(canvasId);
     await deleteResource();
 
+    const fieldName = idFieldName ?? `${resourceName.toLowerCase()}Id`;
     const response = {
         requestId,
         success: true,
-        [resourceId.includes('Style') ? 'outputStyleId' : `${resourceName.toLowerCase()}Id`]: resourceId,
+        [fieldName]: resourceId,
         deletedNoteIds,
     };
 
@@ -117,7 +118,7 @@ export async function handleResourceDelete(config: ResourceDeleteConfig): Promis
     if (broadcastEvent) {
         const broadcastPayload = {
             canvasId,
-            [resourceId.includes('Style') ? 'outputStyleId' : `${resourceName.toLowerCase()}Id`]: resourceId,
+            [fieldName]: resourceId,
             deletedNoteIds,
         };
         socketService.broadcastToCanvas(socket.id, canvasId, broadcastEvent, broadcastPayload);

@@ -93,6 +93,10 @@ export async function handlePodBindOutputStyle(
   podStore.setOutputStyleId(canvasId, podId, outputStyleId);
 
   const updatedPod = podStore.getById(canvasId, podId);
+  if (!updatedPod) {
+    logger.error('OutputStyle', 'Bind', `無法取得更新後的 Pod: ${podId}`);
+    return;
+  }
 
   const response: PodOutputStyleBoundPayload = {
     requestId,
@@ -104,7 +108,7 @@ export async function handlePodBindOutputStyle(
 
   const broadcastPayload: BroadcastPodOutputStyleBoundPayload = {
     canvasId,
-    pod: updatedPod!,
+    pod: updatedPod,
   };
   socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_OUTPUT_STYLE_BOUND, broadcastPayload);
 
@@ -131,6 +135,10 @@ export async function handlePodUnbindOutputStyle(
   podStore.setOutputStyleId(canvasId, podId, null);
 
   const updatedPod = podStore.getById(canvasId, podId);
+  if (!updatedPod) {
+    logger.error('OutputStyle', 'Unbind', `無法取得更新後的 Pod: ${podId}`);
+    return;
+  }
 
   const response: PodOutputStyleUnboundPayload = {
     requestId,
@@ -142,7 +150,7 @@ export async function handlePodUnbindOutputStyle(
 
   const broadcastPayload: BroadcastPodOutputStyleUnboundPayload = {
     canvasId,
-    pod: updatedPod!,
+    pod: updatedPod,
   };
   socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_OUTPUT_STYLE_UNBOUND, broadcastPayload);
 
@@ -167,5 +175,6 @@ export async function handleOutputStyleDelete(
     findPodsUsing: (canvasId: string) => podStore.findByOutputStyleId(canvasId, outputStyleId),
     deleteNotes: (canvasId: string) => noteStore.deleteByForeignKey(canvasId, outputStyleId),
     deleteResource: () => outputStyleService.delete(outputStyleId),
+    idFieldName: 'outputStyleId',
   });
 }

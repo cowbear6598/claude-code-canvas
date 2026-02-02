@@ -120,7 +120,6 @@ export enum WebSocketResponseEvents {
   WORKFLOW_TRIGGERED = 'workflow:triggered',
   WORKFLOW_AUTO_TRIGGERED = 'workflow:auto-triggered',
   WORKFLOW_COMPLETE = 'workflow:complete',
-  WORKFLOW_ERROR = 'workflow:error',
   WORKFLOW_PENDING = 'workflow:pending',
   WORKFLOW_SOURCES_MERGED = 'workflow:sources-merged',
   WORKFLOW_GET_DOWNSTREAM_PODS_RESULT = 'workflow:get-downstream-pods:result',
@@ -1767,10 +1766,4 @@ export interface BroadcastCanvasPastedPayload {
 export interface BroadcastWorkflowClearResultPayload {
   canvasId: string;
   clearedPodIds: string[];
-}
-
-export interface BroadcastPodChatUserMessagePayload {
-  podId: string;
-  messageId: string;
-  content: string;
 }
