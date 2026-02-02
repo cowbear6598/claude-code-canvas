@@ -124,6 +124,10 @@ const handleDragEnd = (data: { id: string; x: number; y: number }): void => {
   podStore.movePod(data.id, data.x, data.y)
 }
 
+const handlePodDragComplete = (data: { id: string }): void => {
+  podStore.syncPodPosition(data.id)
+}
+
 const handleTriggerDragEnd = (data: { id: string; x: number; y: number }): void => {
   triggerStore.moveTrigger(data.id, data.x, data.y)
 }
@@ -231,6 +235,7 @@ onUnmounted(() => {
       @update="podStore.updatePod"
       @delete="handleDeletePod"
       @drag-end="handleDragEnd"
+      @drag-complete="handlePodDragComplete"
     />
 
     <!-- Trigger 列表 -->

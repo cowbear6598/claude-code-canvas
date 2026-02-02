@@ -67,6 +67,7 @@ const emit = defineEmits<{
   update: [pod: Pod]
   delete: [id: string]
   'drag-end': [data: { id: string; x: number; y: number }]
+  'drag-complete': [data: { id: string }]
 }>()
 
 const isDragging = ref(false)
@@ -163,6 +164,8 @@ const handleMouseDown = (e: MouseEvent): void => {
   }
 
   const handleMouseUp = (): void => {
+    emit('drag-complete', { id: props.pod.id })
+
     isDragging.value = false
     dragRef.value = null
     cleanupEventListeners()

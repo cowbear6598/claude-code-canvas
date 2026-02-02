@@ -24,7 +24,6 @@ import type {
 } from '@/types/websocket'
 import {useConnectionStore} from '@/stores/connectionStore'
 import {useCanvasStore} from '@/stores/canvasStore'
-import {POSITION_SYNC_DELAY_MS} from '@/lib/constants'
 
 const MAX_COORD = 100000
 
@@ -33,7 +32,6 @@ interface PodStoreState {
     selectedPodId: string | null
     activePodId: string | null
     typeMenu: TypeMenuState
-    syncTimers: Record<string, ReturnType<typeof setTimeout>>
 }
 
 export const usePodStore = defineStore('pod', {
@@ -45,7 +43,6 @@ export const usePodStore = defineStore('pod', {
             visible: false,
             position: null,
         },
-        syncTimers: {},
     }),
 
     getters: {
@@ -238,26 +235,22 @@ export const usePodStore = defineStore('pod', {
 
             pod.x = Math.max(-MAX_COORD, Math.min(MAX_COORD, x))
             pod.y = Math.max(-MAX_COORD, Math.min(MAX_COORD, y))
-
-            this.debouncedSyncPodPosition(id, pod.x, pod.y)
         },
 
-        debouncedSyncPodPosition(id: string, x: number, y: number): void {
-            if (this.syncTimers[id]) {
-                clearTimeout(this.syncTimers[id])
-            }
+        syncPodPosition(id: string): void {
+            const pod = this.pods.find((p) => p.id === id)
+            if (!pod) return
 
-            this.syncTimers[id] = setTimeout(() => {
-                const canvasStore = useCanvasStore()
-                websocketClient.emit<PodUpdatePayload>(WebSocketRequestEvents.POD_UPDATE, {
-                    requestId: generateRequestId(),
-                    canvasId: canvasStore.activeCanvasId!,
-                    podId: id,
-                    x,
-                    y
-                })
-                delete this.syncTimers[id]
-            }, POSITION_SYNC_DELAY_MS)
+            const canvasStore = useCanvasStore()
+            if (!canvasStore.activeCanvasId) return
+
+            websocketClient.emit<PodUpdatePayload>(WebSocketRequestEvents.POD_UPDATE, {
+                requestId: generateRequestId(),
+                canvasId: canvasStore.activeCanvasId,
+                podId: id,
+                x: pod.x,
+                y: pod.y
+            })
         },
 
         selectPod(podId: string | null): void {

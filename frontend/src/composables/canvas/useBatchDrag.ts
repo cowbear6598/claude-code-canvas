@@ -13,6 +13,7 @@ export function useBatchDrag(): {
   let startX = 0
   let startY = 0
 
+  const movedPods = new Set<string>()
   const movedOutputStyleNotes = new Set<string>()
   const movedSkillNotes = new Set<string>()
   const movedRepositoryNotes = new Set<string>()
@@ -43,6 +44,7 @@ export function useBatchDrag(): {
     startX = e.clientX
     startY = e.clientY
 
+    movedPods.clear()
     movedOutputStyleNotes.clear()
     movedSkillNotes.clear()
     movedRepositoryNotes.clear()
@@ -66,7 +68,7 @@ export function useBatchDrag(): {
       isBatchDragging.value = false
       cleanupEventListeners()
 
-      await syncNotesToBackend()
+      await syncElementsToBackend()
     }
 
     document.addEventListener('mousemove', currentMoveHandler)
@@ -81,6 +83,7 @@ export function useBatchDrag(): {
         const pod = podStore.pods.find(p => p.id === element.id)
         if (pod) {
           podStore.movePod(element.id, pod.x + dx, pod.y + dy)
+          movedPods.add(element.id)
         }
       } else if (element.type === 'outputStyleNote') {
         const note = outputStyleStore.notes.find(n => n.id === element.id)
@@ -122,7 +125,11 @@ export function useBatchDrag(): {
     }
   }
 
-  const syncNotesToBackend = async (): Promise<void> => {
+  const syncElementsToBackend = async (): Promise<void> => {
+    for (const podId of movedPods) {
+      podStore.syncPodPosition(podId)
+    }
+
     for (const noteId of movedOutputStyleNotes) {
       const note = outputStyleStore.notes.find(n => n.id === noteId)
       if (note) {
@@ -165,6 +172,7 @@ export function useBatchDrag(): {
       }
     }
 
+    movedPods.clear()
     movedOutputStyleNotes.clear()
     movedSkillNotes.clear()
     movedRepositoryNotes.clear()
