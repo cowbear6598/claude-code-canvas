@@ -186,5 +186,27 @@ export const useCanvasStore = defineStore('canvas', {
       this.isSidebarOpen = false
       this.isLoading = false
     },
+
+    renameCanvasFromBroadcast(canvasId: string, newName: string): void {
+      const canvas = this.canvases.find(c => c.id === canvasId)
+      if (canvas) {
+        canvas.name = newName
+      }
+    },
+
+    async removeCanvasFromBroadcast(canvasId: string): Promise<void> {
+      this.canvases = this.canvases.filter(c => c.id !== canvasId)
+
+      if (this.activeCanvasId === canvasId) {
+        if (this.canvases.length > 0) {
+          await this.switchCanvas(this.canvases[0].id)
+        } else {
+          const defaultCanvas = await this.createCanvas('Default')
+          if (defaultCanvas) {
+            await this.switchCanvas(defaultCanvas.id)
+          }
+        }
+      }
+    },
   },
 })

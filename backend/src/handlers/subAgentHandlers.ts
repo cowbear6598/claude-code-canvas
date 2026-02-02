@@ -3,6 +3,7 @@ import {
     WebSocketResponseEvents,
     type SubAgentListResultPayload,
     type PodSubAgentBoundPayload,
+    type BroadcastPodSubAgentBoundPayload,
 } from '../types/index.js';
 import type {
     SubAgentListPayload,
@@ -12,6 +13,7 @@ import type {
 import {subAgentService} from '../services/subAgentService.js';
 import {subAgentNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
+import {socketService} from '../services/socketService.js';
 import {repositoryService} from '../services/repositoryService.js';
 import {repositorySyncService} from '../services/repositorySyncService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
@@ -27,6 +29,11 @@ const subAgentNoteHandlers = createNoteHandlers({
         listResult: WebSocketResponseEvents.SUBAGENT_NOTE_LIST_RESULT,
         updated: WebSocketResponseEvents.SUBAGENT_NOTE_UPDATED,
         deleted: WebSocketResponseEvents.SUBAGENT_NOTE_DELETED,
+    },
+    broadcastEvents: {
+        created: WebSocketResponseEvents.BROADCAST_SUBAGENT_NOTE_CREATED,
+        updated: WebSocketResponseEvents.BROADCAST_SUBAGENT_NOTE_UPDATED,
+        deleted: WebSocketResponseEvents.BROADCAST_SUBAGENT_NOTE_DELETED,
     },
     foreignKeyField: 'subAgentId',
     entityName: 'SubAgent',
@@ -44,6 +51,10 @@ const resourceHandlers = createResourceHandlers({
         created: WebSocketResponseEvents.SUBAGENT_CREATED,
         updated: WebSocketResponseEvents.SUBAGENT_UPDATED,
         readResult: WebSocketResponseEvents.SUBAGENT_READ_RESULT,
+    },
+    broadcastEvents: {
+        created: WebSocketResponseEvents.BROADCAST_SUBAGENT_CREATED,
+        updated: WebSocketResponseEvents.BROADCAST_SUBAGENT_UPDATED,
     },
     resourceName: 'SubAgent',
     responseKey: 'subAgent',
@@ -136,6 +147,12 @@ export async function handlePodBindSubAgent(
 
     emitSuccess(socket, WebSocketResponseEvents.POD_SUBAGENT_BOUND, response);
 
+    const broadcastPayload: BroadcastPodSubAgentBoundPayload = {
+        canvasId,
+        pod: updatedPod!,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_SUBAGENT_BOUND, broadcastPayload);
+
     logger.log('SubAgent', 'Bind', `Bound subagent ${subAgentId} to Pod ${podId}`);
 }
 
@@ -152,6 +169,7 @@ export async function handleSubAgentDelete(
         resourceId: subAgentId,
         resourceName: 'SubAgent',
         responseEvent: WebSocketResponseEvents.SUBAGENT_DELETED,
+        broadcastEvent: WebSocketResponseEvents.BROADCAST_SUBAGENT_DELETED,
         existsCheck: () => subAgentService.exists(subAgentId),
         findPodsUsing: (canvasId: string) => podStore.findBySubAgentId(canvasId, subAgentId),
         deleteNotes: (canvasId: string) => subAgentNoteStore.deleteByForeignKey(canvasId, subAgentId),

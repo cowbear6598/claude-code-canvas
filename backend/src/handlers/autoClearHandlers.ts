@@ -1,6 +1,7 @@
 import type {Socket} from 'socket.io';
 import {podStore} from '../services/podStore.js';
-import {WebSocketResponseEvents} from '../types/index.js';
+import {socketService} from '../services/socketService.js';
+import {WebSocketResponseEvents, type BroadcastPodAutoClearSetPayload} from '../types/index.js';
 import type {PodSetAutoClearPayload} from '../schemas/index.js';
 import {validatePod, getCanvasId} from '../utils/handlerHelpers.js';
 
@@ -32,4 +33,10 @@ export const handlePodSetAutoClear = async (
         success: true,
         pod: updatedPod,
     });
+
+    const broadcastPayload: BroadcastPodAutoClearSetPayload = {
+        canvasId,
+        pod: updatedPod!,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_AUTO_CLEAR_SET, broadcastPayload);
 };

@@ -10,6 +10,7 @@ import ChatModal from '@/components/chat/ChatModal.vue'
 import {Toast} from '@/components/ui/toast'
 import DisconnectOverlay from '@/components/ui/DisconnectOverlay.vue'
 import {useCopyPaste} from '@/composables/canvas'
+import {useBroadcastListeners} from '@/composables/useBroadcastListeners'
 import {
   CONTENT_PREVIEW_LENGTH,
   RESPONSE_PREVIEW_LENGTH,
@@ -34,6 +35,8 @@ const {
 const selectedPod = computed(() => podStore.selectedPod)
 
 useCopyPaste()
+
+const {registerBroadcastListeners, unregisterBroadcastListeners} = useBroadcastListeners()
 
 const isInitialized = ref(false)
 const isLoading = ref(false)
@@ -180,6 +183,7 @@ const loadAppData = async (): Promise<void> => {
 
     websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
     websocketClient.on<TriggerFiredPayload>(WebSocketResponseEvents.TRIGGER_FIRED, handleTriggerFired)
+    registerBroadcastListeners()
 
     isInitialized.value = true
     console.log('[App] Initialization complete')
@@ -219,6 +223,7 @@ watch(
         websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
         websocketClient.off<TriggerFiredPayload>(WebSocketResponseEvents.TRIGGER_FIRED, handleTriggerFired)
         connectionStore.cleanupWorkflowListeners()
+        unregisterBroadcastListeners()
         isInitialized.value = false
         isLoading.value = false
         canvasStore.reset()
@@ -286,6 +291,7 @@ onUnmounted(() => {
   websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
   websocketClient.off<TriggerFiredPayload>(WebSocketResponseEvents.TRIGGER_FIRED, handleTriggerFired)
   connectionStore.cleanupWorkflowListeners()
+  unregisterBroadcastListeners()
 })
 </script>
 

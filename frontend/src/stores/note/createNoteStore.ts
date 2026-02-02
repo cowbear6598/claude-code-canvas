@@ -443,6 +443,39 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 })
             },
 
+            addNoteFromBroadcast(note: any): void {
+                const exists = this.notes.some(n => n.id === note.id)
+                if (!exists) {
+                    this.notes.push(note)
+                }
+            },
+
+            updateNoteFromBroadcast(note: any): void {
+                const index = this.notes.findIndex(n => n.id === note.id)
+                if (index !== -1) {
+                    this.notes.splice(index, 1, note)
+                }
+            },
+
+            removeNoteFromBroadcast(noteId: string): void {
+                this.notes = this.notes.filter(n => n.id !== noteId)
+            },
+
+            addItemFromBroadcast(item: any): void {
+                const exists = this.availableItems.some(i => config.getItemId(i as TItem) === config.getItemId(item as TItem))
+                if (!exists) {
+                    this.availableItems.push(item)
+                }
+            },
+
+            removeItemFromBroadcast(itemId: string, deletedNoteIds?: string[]): void {
+                this.availableItems = this.availableItems.filter(item => config.getItemId(item as TItem) !== itemId)
+
+                if (deletedNoteIds) {
+                    this.notes = this.notes.filter(note => !deletedNoteIds.includes(note.id))
+                }
+            },
+
             ...((config.customActions ?? {}) as Record<string, (...args: any[]) => any>)
         },
     })

@@ -7,6 +7,9 @@ import {
   type PodRepositoryUnboundPayload,
   type RepositoryGitCloneProgressPayload,
   type RepositoryGitCloneResultPayload,
+  type BroadcastRepositoryCreatedPayload,
+  type BroadcastPodRepositoryBoundPayload,
+  type BroadcastPodRepositoryUnboundPayload,
 } from '../types/index.js';
 import type {
   RepositoryListPayload,
@@ -19,6 +22,7 @@ import type {
 import { repositoryService } from '../services/repositoryService.js';
 import { repositoryNoteStore } from '../services/noteStores.js';
 import { podStore } from '../services/podStore.js';
+import { socketService } from '../services/socketService.js';
 import { gitService } from '../services/workspace/gitService.js';
 import { repositorySyncService } from '../services/repositorySyncService.js';
 import { skillService } from '../services/skillService.js';
@@ -38,6 +42,11 @@ const repositoryNoteHandlers = createNoteHandlers({
     listResult: WebSocketResponseEvents.REPOSITORY_NOTE_LIST_RESULT,
     updated: WebSocketResponseEvents.REPOSITORY_NOTE_UPDATED,
     deleted: WebSocketResponseEvents.REPOSITORY_NOTE_DELETED,
+  },
+  broadcastEvents: {
+    created: WebSocketResponseEvents.BROADCAST_REPOSITORY_NOTE_CREATED,
+    updated: WebSocketResponseEvents.BROADCAST_REPOSITORY_NOTE_UPDATED,
+    deleted: WebSocketResponseEvents.BROADCAST_REPOSITORY_NOTE_DELETED,
   },
   foreignKeyField: 'repositoryId',
   entityName: 'Repository',
@@ -94,6 +103,15 @@ export async function handleRepositoryCreate(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_CREATED, response);
+
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.REPOSITORY_CREATED, requestId);
+  if (canvasId) {
+    const broadcastPayload: BroadcastRepositoryCreatedPayload = {
+      canvasId,
+      repository,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_REPOSITORY_CREATED, broadcastPayload);
+  }
 
   logger.log('Repository', 'Create', `Created repository ${repository.id}`);
 }
@@ -172,6 +190,12 @@ export async function handlePodBindRepository(
 
   emitSuccess(socket, WebSocketResponseEvents.POD_REPOSITORY_BOUND, response);
 
+  const broadcastPayload: BroadcastPodRepositoryBoundPayload = {
+    canvasId,
+    pod: updatedPod!,
+  };
+  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_REPOSITORY_BOUND, broadcastPayload);
+
   logger.log('Repository', 'Bind', `Bound repository ${repositoryId} to Pod ${podId}`);
 }
 
@@ -238,6 +262,12 @@ export async function handlePodUnbindRepository(
 
   emitSuccess(socket, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, response);
 
+  const broadcastPayload: BroadcastPodRepositoryUnboundPayload = {
+    canvasId,
+    pod: updatedPod!,
+  };
+  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_REPOSITORY_UNBOUND, broadcastPayload);
+
   logger.log('Repository', 'Unbind', `Unbound repository from Pod ${podId}`);
 }
 
@@ -254,6 +284,7 @@ export async function handleRepositoryDelete(
     resourceId: repositoryId,
     resourceName: 'Repository',
     responseEvent: WebSocketResponseEvents.REPOSITORY_DELETED,
+    broadcastEvent: WebSocketResponseEvents.BROADCAST_REPOSITORY_DELETED,
     existsCheck: () => repositoryService.exists(repositoryId),
     findPodsUsing: (canvasId: string) => podStore.findByRepositoryId(canvasId, repositoryId),
     deleteNotes: (canvasId: string) => repositoryNoteStore.deleteByForeignKey(canvasId, repositoryId),

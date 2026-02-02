@@ -6,6 +6,9 @@ import {
     type PodGetResultPayload,
     type PodUpdatedPayload,
     type PodDeletedPayload,
+    type BroadcastPodCreatedPayload,
+    type BroadcastPodUpdatedPayload,
+    type BroadcastPodDeletedPayload,
 } from '../types/index.js';
 import type {
     PodCreatePayload,
@@ -71,6 +74,12 @@ export async function handlePodCreate(
     };
 
     emitSuccess(socket, WebSocketResponseEvents.POD_CREATED, response);
+
+    const broadcastPayload: BroadcastPodCreatedPayload = {
+        canvasId,
+        pod,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_CREATED, broadcastPayload);
 
     logger.log('Pod', 'Create', `Created Pod ${pod.id} (${pod.name})`);
 }
@@ -203,6 +212,12 @@ export async function handlePodDelete(
 
     emitSuccess(socket, WebSocketResponseEvents.POD_DELETED, response);
 
+    const broadcastPayload: BroadcastPodDeletedPayload = {
+        canvasId,
+        podId,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_DELETED, broadcastPayload);
+
     logger.log('Pod', 'Delete', `Deleted Pod ${podId}`);
 }
 
@@ -267,4 +282,10 @@ export async function handlePodUpdate(
     };
 
     emitSuccess(socket, WebSocketResponseEvents.POD_UPDATED, response);
+
+    const broadcastPayload: BroadcastPodUpdatedPayload = {
+        canvasId,
+        pod: updatedPod,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_UPDATED, broadcastPayload);
 }

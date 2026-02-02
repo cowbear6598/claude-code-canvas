@@ -335,5 +335,65 @@ export const usePodStore = defineStore('pod', {
 
             return null
         },
+
+        addPodFromBroadcast(pod: Pod): void {
+            const enrichedPod: Pod = {
+                ...pod,
+                x: pod.x ?? 100,
+                y: pod.y ?? 150,
+                rotation: pod.rotation ?? (Math.random() * 2 - 1),
+                output: pod.output ?? [],
+                outputStyleId: pod.outputStyleId ?? null,
+                model: pod.model ?? 'opus',
+                autoClear: pod.autoClear ?? false,
+                commandId: pod.commandId ?? null,
+            }
+
+            if (!this.isValidPod(enrichedPod)) return
+
+            this.pods.push(enrichedPod)
+
+            const canvasStore = useCanvasStore()
+            websocketClient.emit<PodJoinPayload>(WebSocketRequestEvents.POD_JOIN, {
+                canvasId: canvasStore.activeCanvasId!,
+                podId: enrichedPod.id
+            })
+        },
+
+        updatePodFromBroadcast(pod: Pod): void {
+            const enrichedPod: Pod = {
+                ...pod,
+                x: pod.x ?? 100,
+                y: pod.y ?? 150,
+                rotation: pod.rotation ?? (Math.random() * 2 - 1),
+                output: pod.output ?? [],
+                outputStyleId: pod.outputStyleId ?? null,
+                model: pod.model ?? 'opus',
+                autoClear: pod.autoClear ?? false,
+                commandId: pod.commandId ?? null,
+            }
+
+            if (!this.isValidPod(enrichedPod)) return
+
+            const index = this.pods.findIndex((p) => p.id === pod.id)
+            if (index !== -1) {
+                this.pods.splice(index, 1, enrichedPod)
+            }
+        },
+
+        removePodFromBroadcast(podId: string): void {
+            this.pods = this.pods.filter((p) => p.id !== podId)
+
+            if (this.selectedPodId === podId) {
+                this.selectedPodId = null
+            }
+
+            if (this.activePodId === podId) {
+                this.activePodId = null
+            }
+
+            const connectionStore = useConnectionStore()
+            connectionStore.deleteConnectionsByPodId(podId)
+        },
     },
 })

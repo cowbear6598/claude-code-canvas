@@ -5,6 +5,9 @@ import {
   type TriggerListResultPayload,
   type TriggerUpdatedPayload,
   type TriggerDeletedPayload,
+  type BroadcastTriggerCreatedPayload,
+  type BroadcastTriggerUpdatedPayload,
+  type BroadcastTriggerDeletedPayload,
 } from '../types/index.js';
 import type {
   TriggerCreatePayload,
@@ -14,6 +17,7 @@ import type {
 } from '../schemas/index.js';
 import { triggerStore } from '../services/triggerStore.js';
 import { connectionStore } from '../services/connectionStore.js';
+import { socketService } from '../services/socketService.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { getCanvasId } from '../utils/handlerHelpers.js';
@@ -47,6 +51,12 @@ export async function handleTriggerCreate(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.TRIGGER_CREATED, response);
+
+  const broadcastPayload: BroadcastTriggerCreatedPayload = {
+    canvasId,
+    trigger,
+  };
+  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_TRIGGER_CREATED, broadcastPayload);
 
   logger.log('Trigger', 'Create', `Created trigger ${trigger.id} (${name})`);
 }
@@ -142,6 +152,12 @@ export async function handleTriggerUpdate(
 
   emitSuccess(socket, WebSocketResponseEvents.TRIGGER_UPDATED, response);
 
+  const broadcastPayload: BroadcastTriggerUpdatedPayload = {
+    canvasId,
+    trigger: updatedTrigger,
+  };
+  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_TRIGGER_UPDATED, broadcastPayload);
+
   logger.log('Trigger', 'Update', `Updated trigger ${triggerId}`);
 }
 
@@ -194,6 +210,13 @@ export async function handleTriggerDelete(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.TRIGGER_DELETED, response);
+
+  const broadcastPayload: BroadcastTriggerDeletedPayload = {
+    canvasId,
+    triggerId,
+    deletedConnectionIds,
+  };
+  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_TRIGGER_DELETED, broadcastPayload);
 
   logger.log('Trigger', 'Delete', `Deleted trigger ${triggerId} and ${deletedConnectionIds.length} connections`);
 }

@@ -174,6 +174,55 @@ export enum WebSocketResponseEvents {
   CANVAS_RENAMED = 'canvas:renamed',
   CANVAS_DELETED = 'canvas:deleted',
   CANVAS_SWITCHED = 'canvas:switched',
+  BROADCAST_POD_CREATED = 'broadcast:pod:created',
+  BROADCAST_POD_UPDATED = 'broadcast:pod:updated',
+  BROADCAST_POD_DELETED = 'broadcast:pod:deleted',
+  BROADCAST_CONNECTION_CREATED = 'broadcast:connection:created',
+  BROADCAST_CONNECTION_UPDATED = 'broadcast:connection:updated',
+  BROADCAST_CONNECTION_DELETED = 'broadcast:connection:deleted',
+  BROADCAST_TRIGGER_CREATED = 'broadcast:trigger:created',
+  BROADCAST_TRIGGER_UPDATED = 'broadcast:trigger:updated',
+  BROADCAST_TRIGGER_DELETED = 'broadcast:trigger:deleted',
+  BROADCAST_OUTPUT_STYLE_CREATED = 'broadcast:output-style:created',
+  BROADCAST_OUTPUT_STYLE_UPDATED = 'broadcast:output-style:updated',
+  BROADCAST_OUTPUT_STYLE_DELETED = 'broadcast:output-style:deleted',
+  BROADCAST_NOTE_CREATED = 'broadcast:note:created',
+  BROADCAST_NOTE_UPDATED = 'broadcast:note:updated',
+  BROADCAST_NOTE_DELETED = 'broadcast:note:deleted',
+  BROADCAST_SKILL_NOTE_CREATED = 'broadcast:skill-note:created',
+  BROADCAST_SKILL_NOTE_UPDATED = 'broadcast:skill-note:updated',
+  BROADCAST_SKILL_NOTE_DELETED = 'broadcast:skill-note:deleted',
+  BROADCAST_REPOSITORY_NOTE_CREATED = 'broadcast:repository-note:created',
+  BROADCAST_REPOSITORY_NOTE_UPDATED = 'broadcast:repository-note:updated',
+  BROADCAST_REPOSITORY_NOTE_DELETED = 'broadcast:repository-note:deleted',
+  BROADCAST_SUBAGENT_NOTE_CREATED = 'broadcast:subagent-note:created',
+  BROADCAST_SUBAGENT_NOTE_UPDATED = 'broadcast:subagent-note:updated',
+  BROADCAST_SUBAGENT_NOTE_DELETED = 'broadcast:subagent-note:deleted',
+  BROADCAST_COMMAND_NOTE_CREATED = 'broadcast:command-note:created',
+  BROADCAST_COMMAND_NOTE_UPDATED = 'broadcast:command-note:updated',
+  BROADCAST_COMMAND_NOTE_DELETED = 'broadcast:command-note:deleted',
+  BROADCAST_SKILL_DELETED = 'broadcast:skill:deleted',
+  BROADCAST_REPOSITORY_CREATED = 'broadcast:repository:created',
+  BROADCAST_REPOSITORY_DELETED = 'broadcast:repository:deleted',
+  BROADCAST_SUBAGENT_CREATED = 'broadcast:subagent:created',
+  BROADCAST_SUBAGENT_UPDATED = 'broadcast:subagent:updated',
+  BROADCAST_SUBAGENT_DELETED = 'broadcast:subagent:deleted',
+  BROADCAST_COMMAND_CREATED = 'broadcast:command:created',
+  BROADCAST_COMMAND_UPDATED = 'broadcast:command:updated',
+  BROADCAST_COMMAND_DELETED = 'broadcast:command:deleted',
+  BROADCAST_POD_OUTPUT_STYLE_BOUND = 'broadcast:pod:output-style:bound',
+  BROADCAST_POD_OUTPUT_STYLE_UNBOUND = 'broadcast:pod:output-style:unbound',
+  BROADCAST_POD_SKILL_BOUND = 'broadcast:pod:skill:bound',
+  BROADCAST_POD_REPOSITORY_BOUND = 'broadcast:pod:repository:bound',
+  BROADCAST_POD_REPOSITORY_UNBOUND = 'broadcast:pod:repository:unbound',
+  BROADCAST_POD_SUBAGENT_BOUND = 'broadcast:pod:subagent:bound',
+  BROADCAST_POD_COMMAND_BOUND = 'broadcast:pod:command:bound',
+  BROADCAST_POD_COMMAND_UNBOUND = 'broadcast:pod:command:unbound',
+  BROADCAST_POD_AUTO_CLEAR_SET = 'broadcast:pod:auto-clear:set',
+  BROADCAST_CANVAS_RENAMED = 'broadcast:canvas:renamed',
+  BROADCAST_CANVAS_DELETED = 'broadcast:canvas:deleted',
+  BROADCAST_CANVAS_PASTED = 'broadcast:canvas:pasted',
+  BROADCAST_WORKFLOW_CLEAR_RESULT = 'broadcast:workflow:clear:result',
 }
 
 export interface PodCreatePayload {
@@ -1448,4 +1497,273 @@ export interface CanvasSwitchedPayload {
   success: boolean;
   canvasId?: string;
   error?: string;
+}
+
+// Broadcast Payload Interfaces
+export interface BroadcastPodCreatedPayload {
+  canvasId: string;
+  pod: Pod;
+}
+
+export interface BroadcastPodUpdatedPayload {
+  canvasId: string;
+  pod: Pod;
+}
+
+export interface BroadcastPodDeletedPayload {
+  canvasId: string;
+  podId: string;
+}
+
+export interface BroadcastConnectionCreatedPayload {
+  canvasId: string;
+  connection: import('./connection.js').Connection;
+}
+
+export interface BroadcastConnectionUpdatedPayload {
+  canvasId: string;
+  connection: import('./connection.js').Connection;
+}
+
+export interface BroadcastConnectionDeletedPayload {
+  canvasId: string;
+  connectionId: string;
+}
+
+export interface BroadcastTriggerCreatedPayload {
+  canvasId: string;
+  trigger: import('./trigger.js').Trigger;
+}
+
+export interface BroadcastTriggerUpdatedPayload {
+  canvasId: string;
+  trigger: import('./trigger.js').Trigger;
+}
+
+export interface BroadcastTriggerDeletedPayload {
+  canvasId: string;
+  triggerId: string;
+  deletedConnectionIds: string[];
+}
+
+export interface BroadcastOutputStyleCreatedPayload {
+  canvasId: string;
+  outputStyle: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface BroadcastOutputStyleUpdatedPayload {
+  canvasId: string;
+  outputStyleId: string;
+}
+
+export interface BroadcastOutputStyleDeletedPayload {
+  canvasId: string;
+  outputStyleId: string;
+  deletedNoteIds: string[];
+}
+
+export interface BroadcastNoteCreatedPayload {
+  canvasId: string;
+  note: import('./outputStyleNote.js').OutputStyleNote;
+}
+
+export interface BroadcastNoteUpdatedPayload {
+  canvasId: string;
+  note: import('./outputStyleNote.js').OutputStyleNote;
+}
+
+export interface BroadcastNoteDeletedPayload {
+  canvasId: string;
+  noteId: string;
+}
+
+export interface BroadcastSkillNoteCreatedPayload {
+  canvasId: string;
+  note: import('./skillNote.js').SkillNote;
+}
+
+export interface BroadcastSkillNoteUpdatedPayload {
+  canvasId: string;
+  note: import('./skillNote.js').SkillNote;
+}
+
+export interface BroadcastSkillNoteDeletedPayload {
+  canvasId: string;
+  noteId: string;
+}
+
+export interface BroadcastRepositoryNoteCreatedPayload {
+  canvasId: string;
+  note: import('./repositoryNote.js').RepositoryNote;
+}
+
+export interface BroadcastRepositoryNoteUpdatedPayload {
+  canvasId: string;
+  note: import('./repositoryNote.js').RepositoryNote;
+}
+
+export interface BroadcastRepositoryNoteDeletedPayload {
+  canvasId: string;
+  noteId: string;
+}
+
+export interface BroadcastSubAgentNoteCreatedPayload {
+  canvasId: string;
+  note: import('./subAgentNote.js').SubAgentNote;
+}
+
+export interface BroadcastSubAgentNoteUpdatedPayload {
+  canvasId: string;
+  note: import('./subAgentNote.js').SubAgentNote;
+}
+
+export interface BroadcastSubAgentNoteDeletedPayload {
+  canvasId: string;
+  noteId: string;
+}
+
+export interface BroadcastCommandNoteCreatedPayload {
+  canvasId: string;
+  note: import('./commandNote.js').CommandNote;
+}
+
+export interface BroadcastCommandNoteUpdatedPayload {
+  canvasId: string;
+  note: import('./commandNote.js').CommandNote;
+}
+
+export interface BroadcastCommandNoteDeletedPayload {
+  canvasId: string;
+  noteId: string;
+}
+
+export interface BroadcastSkillDeletedPayload {
+  canvasId: string;
+  skillId: string;
+  deletedNoteIds: string[];
+}
+
+export interface BroadcastRepositoryCreatedPayload {
+  canvasId: string;
+  repository: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface BroadcastRepositoryDeletedPayload {
+  canvasId: string;
+  repositoryId: string;
+  deletedNoteIds: string[];
+}
+
+export interface BroadcastSubAgentCreatedPayload {
+  canvasId: string;
+  subAgent: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface BroadcastSubAgentUpdatedPayload {
+  canvasId: string;
+  subAgentId: string;
+}
+
+export interface BroadcastSubAgentDeletedPayload {
+  canvasId: string;
+  subAgentId: string;
+  deletedNoteIds: string[];
+}
+
+export interface BroadcastCommandCreatedPayload {
+  canvasId: string;
+  command: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface BroadcastCommandUpdatedPayload {
+  canvasId: string;
+  commandId: string;
+}
+
+export interface BroadcastCommandDeletedPayload {
+  canvasId: string;
+  commandId: string;
+  deletedNoteIds: string[];
+}
+
+export interface BroadcastPodOutputStyleBoundPayload {
+  canvasId: string;
+  pod: Pod;
+}
+
+export interface BroadcastPodOutputStyleUnboundPayload {
+  canvasId: string;
+  pod: Pod;
+}
+
+export interface BroadcastPodSkillBoundPayload {
+  canvasId: string;
+  pod: Pod;
+}
+
+export interface BroadcastPodRepositoryBoundPayload {
+  canvasId: string;
+  pod: Pod;
+}
+
+export interface BroadcastPodRepositoryUnboundPayload {
+  canvasId: string;
+  pod: Pod;
+}
+
+export interface BroadcastPodSubAgentBoundPayload {
+  canvasId: string;
+  pod: Pod;
+}
+
+export interface BroadcastPodCommandBoundPayload {
+  canvasId: string;
+  pod: Pod;
+}
+
+export interface BroadcastPodCommandUnboundPayload {
+  canvasId: string;
+  pod: Pod;
+}
+
+export interface BroadcastPodAutoClearSetPayload {
+  canvasId: string;
+  pod: Pod;
+}
+
+export interface BroadcastCanvasRenamedPayload {
+  canvasId: string;
+  newName: string;
+}
+
+export interface BroadcastCanvasDeletedPayload {
+  canvasId: string;
+}
+
+export interface BroadcastCanvasPastedPayload {
+  canvasId: string;
+  createdPods: Pod[];
+  createdOutputStyleNotes: import('./outputStyleNote.js').OutputStyleNote[];
+  createdSkillNotes: import('./skillNote.js').SkillNote[];
+  createdRepositoryNotes: import('./repositoryNote.js').RepositoryNote[];
+  createdSubAgentNotes: import('./subAgentNote.js').SubAgentNote[];
+  createdCommandNotes: import('./commandNote.js').CommandNote[];
+  createdConnections: import('./connection.js').Connection[];
+}
+
+export interface BroadcastWorkflowClearResultPayload {
+  canvasId: string;
+  clearedPodIds: string[];
 }

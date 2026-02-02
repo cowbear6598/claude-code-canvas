@@ -3,6 +3,7 @@ import {
     WebSocketResponseEvents,
     type SkillListResultPayload,
     type PodSkillBoundPayload,
+    type BroadcastPodSkillBoundPayload,
 } from '../types/index.js';
 import type {
     SkillListPayload,
@@ -12,6 +13,7 @@ import type {
 import {skillService} from '../services/skillService.js';
 import {skillNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
+import {socketService} from '../services/socketService.js';
 import {repositorySyncService} from '../services/repositorySyncService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
@@ -25,6 +27,11 @@ const skillNoteHandlers = createNoteHandlers({
         listResult: WebSocketResponseEvents.SKILL_NOTE_LIST_RESULT,
         updated: WebSocketResponseEvents.SKILL_NOTE_UPDATED,
         deleted: WebSocketResponseEvents.SKILL_NOTE_DELETED,
+    },
+    broadcastEvents: {
+        created: WebSocketResponseEvents.BROADCAST_SKILL_NOTE_CREATED,
+        updated: WebSocketResponseEvents.BROADCAST_SKILL_NOTE_UPDATED,
+        deleted: WebSocketResponseEvents.BROADCAST_SKILL_NOTE_DELETED,
     },
     foreignKeyField: 'skillId',
     entityName: 'Skill',
@@ -111,6 +118,13 @@ export async function handlePodBindSkill(
     };
 
     emitSuccess(socket, WebSocketResponseEvents.POD_SKILL_BOUND, response);
+
+    const broadcastPayload: BroadcastPodSkillBoundPayload = {
+        canvasId,
+        pod: updatedPod!,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_SKILL_BOUND, broadcastPayload);
+
     logger.log('Skill', 'Bind', `Bound skill ${skillId} to Pod ${podId}`);
 }
 
@@ -127,6 +141,7 @@ export async function handleSkillDelete(
         resourceId: skillId,
         resourceName: 'Skill',
         responseEvent: WebSocketResponseEvents.SKILL_DELETED,
+        broadcastEvent: WebSocketResponseEvents.BROADCAST_SKILL_DELETED,
         existsCheck: () => skillService.exists(skillId),
         findPodsUsing: (canvasId: string) => podStore.findBySkillId(canvasId, skillId),
         deleteNotes: (canvasId: string) => skillNoteStore.deleteByForeignKey(canvasId, skillId),

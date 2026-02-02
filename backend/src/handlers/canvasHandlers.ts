@@ -10,9 +10,12 @@ import type {
   CanvasRenamedPayload,
   CanvasDeletedPayload,
   CanvasSwitchedPayload,
+  BroadcastCanvasRenamedPayload,
+  BroadcastCanvasDeletedPayload,
 } from '../types/index.js';
 import { WebSocketResponseEvents } from '../types/index.js';
 import { canvasStore } from '../services/canvasStore.js';
+import { socketService } from '../services/socketService.js';
 import { logger } from '../utils/logger.js';
 
 export async function handleCanvasCreate(
@@ -91,6 +94,13 @@ export async function handleCanvasRename(
   };
 
   socket.emit(WebSocketResponseEvents.CANVAS_RENAMED, response);
+
+  const broadcastPayload: BroadcastCanvasRenamedPayload = {
+    canvasId: payload.canvasId,
+    newName: payload.newName,
+  };
+  socketService.broadcastToCanvas(socket.id, payload.canvasId, WebSocketResponseEvents.BROADCAST_CANVAS_RENAMED, broadcastPayload);
+
   logger.log('Canvas', 'Rename', `Canvas renamed: ${canvas.id} to ${canvas.name}`);
 }
 
@@ -139,6 +149,12 @@ export async function handleCanvasDelete(
   };
 
   socket.emit(WebSocketResponseEvents.CANVAS_DELETED, response);
+
+  const broadcastPayload: BroadcastCanvasDeletedPayload = {
+    canvasId: payload.canvasId,
+  };
+  socketService.broadcastToCanvas(socket.id, payload.canvasId, WebSocketResponseEvents.BROADCAST_CANVAS_DELETED, broadcastPayload);
+
   logger.log('Canvas', 'Delete', `Canvas deleted: ${payload.canvasId}`);
 }
 
@@ -158,6 +174,7 @@ export async function handleCanvasSwitch(
   }
 
   canvasStore.setActiveCanvas(socket.id, payload.canvasId);
+  socketService.joinCanvasRoom(socket.id, payload.canvasId);
 
   const response: CanvasSwitchedPayload = {
     requestId: payload.requestId,

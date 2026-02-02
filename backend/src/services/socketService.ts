@@ -11,6 +11,7 @@ import {
 class SocketService {
     private io: SocketIOServer | null = null;
     private socketToPodRooms: Map<string, Set<string>> = new Map();
+    private socketToCanvasRoom: Map<string, string> = new Map();
     private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
     private socketMissedHeartbeats: Map<string, number> = new Map();
     private socketTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
@@ -128,11 +129,63 @@ class SocketService {
         }
     }
 
+    joinCanvasRoom(socketId: string, canvasId: string): void {
+        if (!this.io) {
+            return;
+        }
+
+        const socket = this.io.sockets.sockets.get(socketId);
+        if (!socket) {
+            return;
+        }
+
+        this.leaveCanvasRoom(socketId);
+
+        const roomName = `canvas:${canvasId}`;
+        socket.join(roomName);
+        this.socketToCanvasRoom.set(socketId, canvasId);
+    }
+
+    leaveCanvasRoom(socketId: string): void {
+        if (!this.io) {
+            return;
+        }
+
+        const socket = this.io.sockets.sockets.get(socketId);
+        if (!socket) {
+            return;
+        }
+
+        const currentCanvasId = this.socketToCanvasRoom.get(socketId);
+        if (!currentCanvasId) {
+            return;
+        }
+
+        const roomName = `canvas:${currentCanvasId}`;
+        socket.leave(roomName);
+        this.socketToCanvasRoom.delete(socketId);
+    }
+
+    broadcastToCanvas(socketId: string, canvasId: string, event: string, payload: unknown): void {
+        if (!this.io) {
+            return;
+        }
+
+        const roomName = `canvas:${canvasId}`;
+        const socket = this.io.sockets.sockets.get(socketId);
+        if (!socket) {
+            return;
+        }
+
+        socket.to(roomName).emit(event, payload);
+    }
+
     cleanupSocket(socketId: string): void {
         this.socketToPodRooms.get(socketId)?.forEach((podId) => {
             this.leavePodRoom(socketId, podId);
         });
         this.socketToPodRooms.delete(socketId);
+        this.leaveCanvasRoom(socketId);
         this.socketMissedHeartbeats.delete(socketId);
         this.clearSocketTimeout(socketId);
     }

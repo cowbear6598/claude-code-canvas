@@ -4,6 +4,8 @@ import {
     type CommandListResultPayload,
     type PodCommandBoundPayload,
     type PodCommandUnboundPayload,
+    type BroadcastPodCommandBoundPayload,
+    type BroadcastPodCommandUnboundPayload,
 } from '../types/index.js';
 import type {
     CommandListPayload,
@@ -14,6 +16,7 @@ import type {
 import {commandService} from '../services/commandService.js';
 import {commandNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
+import {socketService} from '../services/socketService.js';
 import {repositorySyncService} from '../services/repositorySyncService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
@@ -28,6 +31,11 @@ const commandNoteHandlers = createNoteHandlers({
         listResult: WebSocketResponseEvents.COMMAND_NOTE_LIST_RESULT,
         updated: WebSocketResponseEvents.COMMAND_NOTE_UPDATED,
         deleted: WebSocketResponseEvents.COMMAND_NOTE_DELETED,
+    },
+    broadcastEvents: {
+        created: WebSocketResponseEvents.BROADCAST_COMMAND_NOTE_CREATED,
+        updated: WebSocketResponseEvents.BROADCAST_COMMAND_NOTE_UPDATED,
+        deleted: WebSocketResponseEvents.BROADCAST_COMMAND_NOTE_DELETED,
     },
     foreignKeyField: 'commandId',
     entityName: 'Command',
@@ -45,6 +53,10 @@ const resourceHandlers = createResourceHandlers({
         created: WebSocketResponseEvents.COMMAND_CREATED,
         updated: WebSocketResponseEvents.COMMAND_UPDATED,
         readResult: WebSocketResponseEvents.COMMAND_READ_RESULT,
+    },
+    broadcastEvents: {
+        created: WebSocketResponseEvents.BROADCAST_COMMAND_CREATED,
+        updated: WebSocketResponseEvents.BROADCAST_COMMAND_UPDATED,
     },
     resourceName: 'Command',
     responseKey: 'command',
@@ -130,6 +142,13 @@ export async function handlePodBindCommand(
     };
 
     emitSuccess(socket, WebSocketResponseEvents.POD_COMMAND_BOUND, response);
+
+    const broadcastPayload: BroadcastPodCommandBoundPayload = {
+        canvasId,
+        pod: updatedPod!,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_COMMAND_BOUND, broadcastPayload);
+
     logger.log('Command', 'Bind', `Bound command ${commandId} to Pod ${podId}`);
 }
 
@@ -177,6 +196,12 @@ export async function handlePodUnbindCommand(
     };
 
     emitSuccess(socket, WebSocketResponseEvents.POD_COMMAND_UNBOUND, response);
+
+    const broadcastPayload: BroadcastPodCommandUnboundPayload = {
+        canvasId,
+        pod: updatedPod!,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_COMMAND_UNBOUND, broadcastPayload);
     logger.log('Command', 'Unbind', `Unbound command from Pod ${podId}`);
 }
 
@@ -193,6 +218,7 @@ export async function handleCommandDelete(
         resourceId: commandId,
         resourceName: 'Command',
         responseEvent: WebSocketResponseEvents.COMMAND_DELETED,
+        broadcastEvent: WebSocketResponseEvents.BROADCAST_COMMAND_DELETED,
         existsCheck: () => commandService.exists(commandId),
         findPodsUsing: (canvasId: string) => podStore.findByCommandId(canvasId, commandId),
         deleteNotes: (canvasId: string) => commandNoteStore.deleteByForeignKey(canvasId, commandId),

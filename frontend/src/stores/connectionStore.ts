@@ -289,5 +289,41 @@ export const useConnectionStore = defineStore('connection', {
         handleWorkflowComplete(payload: WorkflowCompletePayload): void {
             this.updateConnectionStatusByTargetPod(payload.targetPodId, 'inactive')
         },
+
+        addConnectionFromBroadcast(connection: any): void {
+            const enrichedConnection: Connection = {
+                ...connection,
+                createdAt: new Date(connection.createdAt),
+                autoTrigger: connection.autoTrigger ?? false,
+                status: 'inactive' as ConnectionStatus,
+                sourceType: connection.sourceType ?? 'pod',
+                sourceTriggerId: connection.sourceTriggerId ?? null,
+            }
+
+            const exists = this.connections.some(c => c.id === enrichedConnection.id)
+            if (!exists) {
+                this.connections.push(enrichedConnection)
+            }
+        },
+
+        updateConnectionFromBroadcast(connection: any): void {
+            const enrichedConnection: Connection = {
+                ...connection,
+                createdAt: new Date(connection.createdAt),
+                autoTrigger: connection.autoTrigger ?? false,
+                status: 'inactive' as ConnectionStatus,
+                sourceType: connection.sourceType ?? 'pod',
+                sourceTriggerId: connection.sourceTriggerId ?? null,
+            }
+
+            const index = this.connections.findIndex(c => c.id === enrichedConnection.id)
+            if (index !== -1) {
+                this.connections.splice(index, 1, enrichedConnection)
+            }
+        },
+
+        removeConnectionFromBroadcast(connectionId: string): void {
+            this.connections = this.connections.filter(c => c.id !== connectionId)
+        },
     },
 })

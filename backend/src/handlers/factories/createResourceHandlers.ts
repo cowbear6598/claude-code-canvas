@@ -1,5 +1,7 @@
 import type { Socket } from 'socket.io';
 import type { WebSocketResponseEvents } from '../../types/index.js';
+import { socketService } from '../../services/socketService.js';
+import { canvasStore } from '../../services/canvasStore.js';
 import { emitSuccess, emitError } from '../../utils/websocketResponse.js';
 import { logger, type LogCategory } from '../../utils/logger.js';
 
@@ -17,6 +19,10 @@ interface ResourceHandlerConfig {
     created: WebSocketResponseEvents;
     updated: WebSocketResponseEvents;
     readResult?: WebSocketResponseEvents;
+  };
+  broadcastEvents?: {
+    created?: WebSocketResponseEvents;
+    updated?: WebSocketResponseEvents;
   };
   resourceName: LogCategory;
   responseKey: string;
@@ -47,7 +53,7 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
   handleUpdate: (socket: Socket, payload: UpdateResourcePayload, requestId: string) => Promise<void>;
   handleRead?: (socket: Socket, payload: ReadResourcePayload, requestId: string) => Promise<void>;
 } {
-  const { service, events, resourceName, responseKey, idField } = config;
+  const { service, events, broadcastEvents, resourceName, responseKey, idField } = config;
 
   async function handleCreate(
     socket: Socket,
@@ -78,6 +84,17 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
     };
 
     emitSuccess(socket, events.created, response);
+
+    if (broadcastEvents?.created) {
+      const canvasId = canvasStore.getActiveCanvas(socket.id);
+      if (canvasId) {
+        const broadcastPayload = {
+          canvasId,
+          [responseKey]: resource,
+        };
+        socketService.broadcastToCanvas(socket.id, canvasId, broadcastEvents.created, broadcastPayload);
+      }
+    }
 
     logger.log(resourceName, 'Create', `Created ${resourceName.toLowerCase()} ${resource.id}`);
   }
@@ -111,6 +128,17 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
     };
 
     emitSuccess(socket, events.updated, response);
+
+    if (broadcastEvents?.updated) {
+      const canvasId = canvasStore.getActiveCanvas(socket.id);
+      if (canvasId) {
+        const broadcastPayload = {
+          canvasId,
+          [idField]: resourceId,
+        };
+        socketService.broadcastToCanvas(socket.id, canvasId, broadcastEvents.updated, broadcastPayload);
+      }
+    }
 
     logger.log(resourceName, 'Update', `Updated ${resourceName.toLowerCase()} ${resourceId}`);
   }

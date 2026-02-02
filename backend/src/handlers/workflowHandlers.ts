@@ -3,6 +3,7 @@ import {
   WebSocketResponseEvents,
   type WorkflowGetDownstreamPodsResultPayload,
   type WorkflowClearResultPayload,
+  type BroadcastWorkflowClearResultPayload,
 } from '../types/index.js';
 import type {
   WorkflowGetDownstreamPodsPayload,
@@ -10,6 +11,7 @@ import type {
 } from '../schemas/index.js';
 import { workflowClearService } from '../services/workflowClearService.js';
 import { podStore } from '../services/podStore.js';
+import { socketService } from '../services/socketService.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { getCanvasId } from '../utils/handlerHelpers.js';
@@ -97,6 +99,12 @@ export async function handleWorkflowClear(
   };
 
   emitSuccess(socket, WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, response);
+
+  const broadcastPayload: BroadcastWorkflowClearResultPayload = {
+    canvasId,
+    clearedPodIds: result.clearedPodIds,
+  };
+  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_WORKFLOW_CLEAR_RESULT, broadcastPayload);
 
   logger.log(
     'Workflow',

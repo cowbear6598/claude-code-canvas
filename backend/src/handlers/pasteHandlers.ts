@@ -3,8 +3,10 @@ import {
   WebSocketResponseEvents,
   type CanvasPasteResultPayload,
   type PasteError,
+  type BroadcastCanvasPastedPayload,
 } from '../types/index.js';
 import type { CanvasPastePayload } from '../schemas/index.js';
+import { socketService } from '../services/socketService.js';
 import { emitSuccess } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { getCanvasId } from '../utils/handlerHelpers.js';
@@ -87,6 +89,18 @@ export async function handleCanvasPaste(
   }
 
   emitSuccess(socket, WebSocketResponseEvents.CANVAS_PASTE_RESULT, response);
+
+  const broadcastPayload: BroadcastCanvasPastedPayload = {
+    canvasId,
+    createdPods,
+    createdOutputStyleNotes,
+    createdSkillNotes,
+    createdRepositoryNotes,
+    createdSubAgentNotes,
+    createdCommandNotes,
+    createdConnections,
+  };
+  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CANVAS_PASTED, broadcastPayload);
 
   logger.log(
     'Paste',

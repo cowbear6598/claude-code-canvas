@@ -205,5 +205,28 @@ export const useTriggerStore = defineStore('trigger', {
         trigger.lastTriggeredAt = payload.timestamp
       }
     },
+
+    addTriggerFromBroadcast(trigger: Trigger): void {
+      const exists = this.triggers.some(t => t.id === trigger.id)
+      if (!exists) {
+        this.triggers.push(trigger)
+      }
+    },
+
+    updateTriggerFromBroadcast(trigger: Trigger): void {
+      const index = this.triggers.findIndex(t => t.id === trigger.id)
+      if (index !== -1) {
+        this.triggers.splice(index, 1, trigger)
+      }
+    },
+
+    removeTriggerFromBroadcast(triggerId: string, deletedConnectionIds?: string[]): void {
+      this.triggers = this.triggers.filter(t => t.id !== triggerId)
+
+      if (deletedConnectionIds && deletedConnectionIds.length > 0) {
+        const connectionStore = useConnectionStore()
+        connectionStore.deleteConnectionsByIds(deletedConnectionIds)
+      }
+    },
   },
 })
