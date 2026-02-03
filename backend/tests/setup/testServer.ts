@@ -3,7 +3,6 @@
 
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import { createServer, Server as HttpServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { AddressInfo } from 'net';
@@ -33,20 +32,11 @@ export async function createTestServer(): Promise<TestServerInstance> {
   const { socketService } = await import('../../src/services/socketService.js');
   const { setupSocketHandlers } = await import('../../src/services/socketHandlers.js');
   const { startupService } = await import('../../src/services/startupService.js');
-  const { default: apiRoutes } = await import('../../src/routes/index.js');
-  const { requestLogger } = await import('../../src/middleware/requestLogger.js');
-  const { errorHandler } = await import('../../src/middleware/errorHandler.js');
 
   const app = express();
 
-  app.use(helmet());
   app.use(cors({ origin: testConfig.corsOrigin }));
   app.use(express.json());
-  app.use(requestLogger);
-
-  app.use('/api', apiRoutes);
-
-  app.use(errorHandler);
 
   const httpServer = createServer(app);
 

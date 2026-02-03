@@ -1,5 +1,3 @@
-// Result Type - Unified Response Format
-
 export interface Result<T> {
   success: boolean;
   data?: T;

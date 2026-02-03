@@ -2,8 +2,6 @@ import type {Socket} from 'socket.io';
 import {
     WebSocketResponseEvents,
     type SkillListResultPayload,
-    type PodSkillBoundPayload,
-    type BroadcastPodSkillBoundPayload,
 } from '../types/index.js';
 import type {
     SkillListPayload,
@@ -13,12 +11,10 @@ import type {
 import {skillService} from '../services/skillService.js';
 import {skillNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
-import {socketService} from '../services/socketService.js';
-import {repositorySyncService} from '../services/repositorySyncService.js';
-import {emitSuccess, emitError} from '../utils/websocketResponse.js';
-import {logger} from '../utils/logger.js';
+import {emitSuccess} from '../utils/websocketResponse.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
-import {validatePod, handleResourceDelete, getCanvasId} from '../utils/handlerHelpers.js';
+import {createBindHandler} from './factories/createBindHandlers.js';
+import {handleResourceDelete} from '../utils/handlerHelpers.js';
 
 const skillNoteHandlers = createNoteHandlers({
     noteStore: skillNoteStore,
@@ -58,74 +54,29 @@ export async function handleSkillList(
     emitSuccess(socket, WebSocketResponseEvents.SKILL_LIST_RESULT, response);
 }
 
+// 使用工廠函數建立 Skill 綁定處理器
+const skillBindHandler = createBindHandler({
+    resourceName: 'Skill',
+    idField: 'skillId',
+    isMultiBind: true,
+    service: skillService,
+    podStoreMethod: {
+        bind: (canvasId, podId, skillId) => podStore.addSkillId(canvasId, podId, skillId),
+    },
+    getPodResourceIds: (pod) => pod.skillIds,
+    copyResourceToPod: (skillId, podId, workspacePath) => skillService.copySkillToPod(skillId, podId, workspacePath),
+    events: {
+        bound: WebSocketResponseEvents.POD_SKILL_BOUND,
+        broadcastBound: WebSocketResponseEvents.BROADCAST_POD_SKILL_BOUND,
+    },
+});
+
 export async function handlePodBindSkill(
     socket: Socket,
     payload: PodBindSkillPayload,
     requestId: string
 ): Promise<void> {
-    const {podId, skillId} = payload;
-
-    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_SKILL_BOUND, requestId);
-
-    if (!pod) {
-        return;
-    }
-
-    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_SKILL_BOUND, requestId);
-    if (!canvasId) {
-        return;
-    }
-
-    const skillExists = await skillService.exists(skillId);
-    if (!skillExists) {
-        emitError(
-            socket,
-            WebSocketResponseEvents.POD_SKILL_BOUND,
-            `Skill not found: ${skillId}`,
-            requestId,
-            podId,
-            'NOT_FOUND'
-        );
-        return;
-    }
-
-    if (pod.skillIds.includes(skillId)) {
-        emitError(
-            socket,
-            WebSocketResponseEvents.POD_SKILL_BOUND,
-            `Skill ${skillId} is already bound to Pod ${podId}`,
-            requestId,
-            podId,
-            'CONFLICT'
-        );
-        return;
-    }
-
-    await skillService.copySkillToPod(skillId, podId, pod.workspacePath);
-
-    podStore.addSkillId(canvasId, podId, skillId);
-
-    if (pod.repositoryId) {
-        await repositorySyncService.syncRepositoryResources(pod.repositoryId);
-    }
-
-    const updatedPod = podStore.getById(canvasId, podId);
-
-    const response: PodSkillBoundPayload = {
-        requestId,
-        success: true,
-        pod: updatedPod,
-    };
-
-    emitSuccess(socket, WebSocketResponseEvents.POD_SKILL_BOUND, response);
-
-    const broadcastPayload: BroadcastPodSkillBoundPayload = {
-        canvasId,
-        pod: updatedPod!,
-    };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_SKILL_BOUND, broadcastPayload);
-
-    logger.log('Skill', 'Bind', `Bound skill ${skillId} to Pod ${podId}`);
+    return skillBindHandler(socket, payload, requestId);
 }
 
 export async function handleSkillDelete(

@@ -2,10 +2,6 @@ import type {Socket} from 'socket.io';
 import {
     WebSocketResponseEvents,
     type CommandListResultPayload,
-    type PodCommandBoundPayload,
-    type PodCommandUnboundPayload,
-    type BroadcastPodCommandBoundPayload,
-    type BroadcastPodCommandUnboundPayload,
 } from '../types/index.js';
 import type {
     CommandListPayload,
@@ -16,13 +12,11 @@ import type {
 import {commandService} from '../services/commandService.js';
 import {commandNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
-import {socketService} from '../services/socketService.js';
-import {repositorySyncService} from '../services/repositorySyncService.js';
-import {emitSuccess, emitError} from '../utils/websocketResponse.js';
-import {logger} from '../utils/logger.js';
+import {emitSuccess} from '../utils/websocketResponse.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
-import {validatePod, handleResourceDelete, getCanvasId} from '../utils/handlerHelpers.js';
+import {createBindHandler, createUnbindHandler} from './factories/createBindHandlers.js';
+import {handleResourceDelete} from '../utils/handlerHelpers.js';
 
 const commandNoteHandlers = createNoteHandlers({
     noteStore: commandNoteStore,
@@ -83,73 +77,53 @@ export async function handleCommandList(
     emitSuccess(socket, WebSocketResponseEvents.COMMAND_LIST_RESULT, response);
 }
 
+// 使用工廠函數建立 Command 綁定/解綁處理器
+const commandBindHandler = createBindHandler({
+    resourceName: 'Command',
+    idField: 'commandId',
+    isMultiBind: false,
+    service: commandService,
+    podStoreMethod: {
+        bind: (canvasId, podId, commandId) => podStore.setCommandId(canvasId, podId, commandId),
+        unbind: (canvasId, podId) => podStore.setCommandId(canvasId, podId, null),
+    },
+    getPodResourceIds: (pod) => pod.commandId,
+    copyResourceToPod: (commandId, podId, workspacePath) => commandService.copyCommandToPod(commandId, podId, workspacePath),
+    deleteResourceFromPath: (workspacePath) => commandService.deleteCommandFromPath(workspacePath),
+    events: {
+        bound: WebSocketResponseEvents.POD_COMMAND_BOUND,
+        unbound: WebSocketResponseEvents.POD_COMMAND_UNBOUND,
+        broadcastBound: WebSocketResponseEvents.BROADCAST_POD_COMMAND_BOUND,
+        broadcastUnbound: WebSocketResponseEvents.BROADCAST_POD_COMMAND_UNBOUND,
+    },
+});
+
+const commandUnbindHandler = createUnbindHandler({
+    resourceName: 'Command',
+    idField: 'commandId',
+    isMultiBind: false,
+    service: commandService,
+    podStoreMethod: {
+        bind: (canvasId, podId, commandId) => podStore.setCommandId(canvasId, podId, commandId),
+        unbind: (canvasId, podId) => podStore.setCommandId(canvasId, podId, null),
+    },
+    getPodResourceIds: (pod) => pod.commandId,
+    copyResourceToPod: (commandId, podId, workspacePath) => commandService.copyCommandToPod(commandId, podId, workspacePath),
+    deleteResourceFromPath: (workspacePath) => commandService.deleteCommandFromPath(workspacePath),
+    events: {
+        bound: WebSocketResponseEvents.POD_COMMAND_BOUND,
+        unbound: WebSocketResponseEvents.POD_COMMAND_UNBOUND,
+        broadcastBound: WebSocketResponseEvents.BROADCAST_POD_COMMAND_BOUND,
+        broadcastUnbound: WebSocketResponseEvents.BROADCAST_POD_COMMAND_UNBOUND,
+    },
+});
+
 export async function handlePodBindCommand(
     socket: Socket,
     payload: PodBindCommandPayload,
     requestId: string
 ): Promise<void> {
-    const {podId, commandId} = payload;
-
-    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_COMMAND_BOUND, requestId);
-    if (!pod) {
-        return;
-    }
-
-    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_COMMAND_BOUND, requestId);
-    if (!canvasId) {
-        return;
-    }
-
-    const commandExists = await commandService.exists(commandId);
-    if (!commandExists) {
-        emitError(
-            socket,
-            WebSocketResponseEvents.POD_COMMAND_BOUND,
-            `Command not found: ${commandId}`,
-            requestId,
-            podId,
-            'NOT_FOUND'
-        );
-        return;
-    }
-
-    if (pod.commandId) {
-        emitError(
-            socket,
-            WebSocketResponseEvents.POD_COMMAND_BOUND,
-            `Pod ${podId} already has command ${pod.commandId} bound. Please unbind first.`,
-            requestId,
-            podId,
-            'CONFLICT'
-        );
-        return;
-    }
-
-    await commandService.copyCommandToPod(commandId, podId, pod.workspacePath);
-
-    podStore.setCommandId(canvasId, podId, commandId);
-
-    if (pod.repositoryId) {
-        await repositorySyncService.syncRepositoryResources(pod.repositoryId);
-    }
-
-    const updatedPod = podStore.getById(canvasId, podId);
-
-    const response: PodCommandBoundPayload = {
-        requestId,
-        success: true,
-        pod: updatedPod,
-    };
-
-    emitSuccess(socket, WebSocketResponseEvents.POD_COMMAND_BOUND, response);
-
-    const broadcastPayload: BroadcastPodCommandBoundPayload = {
-        canvasId,
-        pod: updatedPod!,
-    };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_COMMAND_BOUND, broadcastPayload);
-
-    logger.log('Command', 'Bind', `Bound command ${commandId} to Pod ${podId}`);
+    return commandBindHandler(socket, payload, requestId);
 }
 
 export async function handlePodUnbindCommand(
@@ -157,52 +131,7 @@ export async function handlePodUnbindCommand(
     payload: PodUnbindCommandPayload,
     requestId: string
 ): Promise<void> {
-    const {podId} = payload;
-
-    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_COMMAND_UNBOUND, requestId);
-    if (!pod) {
-        return;
-    }
-
-    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_COMMAND_UNBOUND, requestId);
-    if (!canvasId) {
-        return;
-    }
-
-    if (!pod.commandId) {
-        const response: PodCommandUnboundPayload = {
-            requestId,
-            success: true,
-            pod,
-        };
-        emitSuccess(socket, WebSocketResponseEvents.POD_COMMAND_UNBOUND, response);
-        return;
-    }
-
-    await commandService.deleteCommandFromPath(pod.workspacePath);
-
-    podStore.setCommandId(canvasId, podId, null);
-
-    if (pod.repositoryId) {
-        await repositorySyncService.syncRepositoryResources(pod.repositoryId);
-    }
-
-    const updatedPod = podStore.getById(canvasId, podId);
-
-    const response: PodCommandUnboundPayload = {
-        requestId,
-        success: true,
-        pod: updatedPod,
-    };
-
-    emitSuccess(socket, WebSocketResponseEvents.POD_COMMAND_UNBOUND, response);
-
-    const broadcastPayload: BroadcastPodCommandUnboundPayload = {
-        canvasId,
-        pod: updatedPod!,
-    };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_COMMAND_UNBOUND, broadcastPayload);
-    logger.log('Command', 'Unbind', `Unbound command from Pod ${podId}`);
+    return commandUnbindHandler(socket, payload, requestId);
 }
 
 export async function handleCommandDelete(

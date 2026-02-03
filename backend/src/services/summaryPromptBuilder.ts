@@ -1,6 +1,6 @@
 import type { PersistedMessage } from '../types/index.js';
 
-export interface SummaryPromptContext {
+interface SummaryPromptContext {
   sourcePodName: string;
   sourcePodOutputStyle: string | null;
   targetPodName: string;

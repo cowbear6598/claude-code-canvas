@@ -1,12 +1,6 @@
-// WebSocket Response Utility Functions
-// Provides helper functions for sending standardized WebSocket responses
-
 import type { Socket } from 'socket.io';
 import { WebSocketResponseEvents } from '../types/index.js';
 
-/**
- * Emit a success response to a specific socket
- */
 export function emitSuccess<T>(
   socket: Socket,
   event: WebSocketResponseEvents,
@@ -15,9 +9,6 @@ export function emitSuccess<T>(
   socket.emit(event, data);
 }
 
-/**
- * Emit an error response to a specific socket
- */
 export function emitError(
   socket: Socket,
   event: WebSocketResponseEvents,
@@ -37,9 +28,6 @@ export function emitError(
   });
 }
 
-/**
- * Safely extract error message from unknown error
- */
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -47,5 +35,5 @@ export function getErrorMessage(error: unknown): string {
   if (typeof error === 'string') {
     return error;
   }
-  return 'Unknown error occurred';
+  return '發生未知錯誤';
 }

@@ -17,53 +17,52 @@ import {
   handlePodBindSkill,
   handleSkillDelete,
 } from '../skillHandlers.js';
-import { createHandlerDefinition } from '../registry.js';
-import type { HandlerGroup } from '../registry.js';
+import { createHandlerGroup } from './createHandlerGroup.js';
 
-export const skillHandlerGroup: HandlerGroup = {
+export const skillHandlerGroup = createHandlerGroup({
   name: 'skill',
   handlers: [
-    createHandlerDefinition(
-      WebSocketRequestEvents.SKILL_LIST,
-      handleSkillList,
-      skillListSchema,
-      WebSocketResponseEvents.SKILL_LIST_RESULT
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SKILL_NOTE_CREATE,
-      handleSkillNoteCreate,
-      skillNoteCreateSchema,
-      WebSocketResponseEvents.SKILL_NOTE_CREATED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SKILL_NOTE_LIST,
-      handleSkillNoteList,
-      skillNoteListSchema,
-      WebSocketResponseEvents.SKILL_NOTE_LIST_RESULT
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SKILL_NOTE_UPDATE,
-      handleSkillNoteUpdate,
-      skillNoteUpdateSchema,
-      WebSocketResponseEvents.SKILL_NOTE_UPDATED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SKILL_NOTE_DELETE,
-      handleSkillNoteDelete,
-      skillNoteDeleteSchema,
-      WebSocketResponseEvents.SKILL_NOTE_DELETED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.POD_BIND_SKILL,
-      handlePodBindSkill,
-      podBindSkillSchema,
-      WebSocketResponseEvents.POD_SKILL_BOUND
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SKILL_DELETE,
-      handleSkillDelete,
-      skillDeleteSchema,
-      WebSocketResponseEvents.SKILL_DELETED
-    ),
+    {
+      event: WebSocketRequestEvents.SKILL_LIST,
+      handler: handleSkillList,
+      schema: skillListSchema,
+      responseEvent: WebSocketResponseEvents.SKILL_LIST_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.SKILL_NOTE_CREATE,
+      handler: handleSkillNoteCreate,
+      schema: skillNoteCreateSchema,
+      responseEvent: WebSocketResponseEvents.SKILL_NOTE_CREATED,
+    },
+    {
+      event: WebSocketRequestEvents.SKILL_NOTE_LIST,
+      handler: handleSkillNoteList,
+      schema: skillNoteListSchema,
+      responseEvent: WebSocketResponseEvents.SKILL_NOTE_LIST_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.SKILL_NOTE_UPDATE,
+      handler: handleSkillNoteUpdate,
+      schema: skillNoteUpdateSchema,
+      responseEvent: WebSocketResponseEvents.SKILL_NOTE_UPDATED,
+    },
+    {
+      event: WebSocketRequestEvents.SKILL_NOTE_DELETE,
+      handler: handleSkillNoteDelete,
+      schema: skillNoteDeleteSchema,
+      responseEvent: WebSocketResponseEvents.SKILL_NOTE_DELETED,
+    },
+    {
+      event: WebSocketRequestEvents.POD_BIND_SKILL,
+      handler: handlePodBindSkill,
+      schema: podBindSkillSchema,
+      responseEvent: WebSocketResponseEvents.POD_SKILL_BOUND,
+    },
+    {
+      event: WebSocketRequestEvents.SKILL_DELETE,
+      handler: handleSkillDelete,
+      schema: skillDeleteSchema,
+      responseEvent: WebSocketResponseEvents.SKILL_DELETED,
+    },
   ],
-};
+});

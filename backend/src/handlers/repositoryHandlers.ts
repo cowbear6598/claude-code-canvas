@@ -32,7 +32,7 @@ import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { clearPodMessages } from './repository/repositoryBindHelpers.js';
 import { logger } from '../utils/logger.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';
-import { validatePod, handleResourceDelete, getCanvasId } from '../utils/handlerHelpers.js';
+import { validatePod, handleResourceDelete, getCanvasId, withCanvasId } from '../utils/handlerHelpers.js';
 import { throttle } from '../utils/throttle.js';
 
 const repositoryNoteHandlers = createNoteHandlers({
@@ -86,7 +86,7 @@ export async function handleRepositoryCreate(
     emitError(
       socket,
       WebSocketResponseEvents.REPOSITORY_CREATED,
-      `Repository already exists: ${name}`,
+      `Repository 已存在: ${name}`,
       requestId,
       undefined,
       'ALREADY_EXISTS'
@@ -116,29 +116,22 @@ export async function handleRepositoryCreate(
   logger.log('Repository', 'Create', `Created repository ${repository.id}`);
 }
 
-export async function handlePodBindRepository(
-  socket: Socket,
-  payload: PodBindRepositoryPayload,
-  requestId: string
-): Promise<void> {
-  const { podId, repositoryId } = payload;
+export const handlePodBindRepository = withCanvasId<PodBindRepositoryPayload>(
+  WebSocketResponseEvents.POD_REPOSITORY_BOUND,
+  async (socket: Socket, canvasId: string, payload: PodBindRepositoryPayload, requestId: string): Promise<void> => {
+    const { podId, repositoryId } = payload;
 
-  const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_REPOSITORY_BOUND, requestId);
-  if (!pod) {
-    return;
-  }
-
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_REPOSITORY_BOUND, requestId);
-  if (!canvasId) {
-    return;
-  }
+    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_REPOSITORY_BOUND, requestId);
+    if (!pod) {
+      return;
+    }
 
   const exists = await repositoryService.exists(repositoryId);
   if (!exists) {
     emitError(
       socket,
       WebSocketResponseEvents.POD_REPOSITORY_BOUND,
-      `Repository not found: ${repositoryId}`,
+      `找不到 Repository: ${repositoryId}`,
       requestId,
       undefined,
       'NOT_FOUND'
@@ -157,8 +150,6 @@ export async function handlePodBindRepository(
     await repositorySyncService.syncRepositoryResources(oldRepositoryId);
   }
 
-  // 如果 Pod 之前沒有 repo，清理 Pod workspace 的 .claude 資源
-  // 因為資源現在會放在 repo 的 .claude 下，Pod workspace 的資源已經過時
   if (!oldRepositoryId) {
     const podWorkspacePath = pod.workspacePath;
     try {
@@ -194,27 +185,21 @@ export async function handlePodBindRepository(
     canvasId,
     pod: updatedPod!,
   };
-  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_REPOSITORY_BOUND, broadcastPayload);
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_REPOSITORY_BOUND, broadcastPayload);
 
-  logger.log('Repository', 'Bind', `Bound repository ${repositoryId} to Pod ${podId}`);
-}
-
-export async function handlePodUnbindRepository(
-  socket: Socket,
-  payload: PodUnbindRepositoryPayload,
-  requestId: string
-): Promise<void> {
-  const { podId } = payload;
-
-  const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, requestId);
-  if (!pod) {
-    return;
+    logger.log('Repository', 'Bind', `Bound repository ${repositoryId} to Pod ${podId}`);
   }
+);
 
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, requestId);
-  if (!canvasId) {
-    return;
-  }
+export const handlePodUnbindRepository = withCanvasId<PodUnbindRepositoryPayload>(
+  WebSocketResponseEvents.POD_REPOSITORY_UNBOUND,
+  async (socket: Socket, canvasId: string, payload: PodUnbindRepositoryPayload, requestId: string): Promise<void> => {
+    const { podId } = payload;
+
+    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, requestId);
+    if (!pod) {
+      return;
+    }
 
   const oldRepositoryId = pod.repositoryId;
 
@@ -225,7 +210,6 @@ export async function handlePodUnbindRepository(
     await repositorySyncService.syncRepositoryResources(oldRepositoryId);
   }
 
-  // 將當前 POD 的資源複製到 POD 自己的 workspacePath
   for (const skillId of pod.skillIds) {
     try {
       await skillService.copySkillToPod(skillId, podId, pod.workspacePath);
@@ -266,10 +250,11 @@ export async function handlePodUnbindRepository(
     canvasId,
     pod: updatedPod!,
   };
-  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_REPOSITORY_UNBOUND, broadcastPayload);
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_REPOSITORY_UNBOUND, broadcastPayload);
 
-  logger.log('Repository', 'Unbind', `Unbound repository from Pod ${podId}`);
-}
+    logger.log('Repository', 'Unbind', `Unbound repository from Pod ${podId}`);
+  }
+);
 
 export async function handleRepositoryDelete(
   socket: Socket,
@@ -301,14 +286,14 @@ export async function handleRepositoryGitClone(
 
   const repoName = parseRepoName(repoUrl);
 
-  emitCloneProgress(socket, requestId, 0, 'Starting Git clone...');
+  emitCloneProgress(socket, requestId, 0, '開始 Git clone...');
 
   const exists = await repositoryService.exists(repoName);
   if (exists) {
     emitError(
       socket,
       WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT,
-      `Repository already exists: ${repoName}`,
+      `Repository 已存在: ${repoName}`,
       requestId,
       undefined,
       'ALREADY_EXISTS'
@@ -318,7 +303,7 @@ export async function handleRepositoryGitClone(
 
   await repositoryService.create(repoName);
 
-  emitCloneProgress(socket, requestId, 5, 'Repository created, starting clone...');
+  emitCloneProgress(socket, requestId, 5, 'Repository 已建立，開始 clone...');
 
   const targetPath = repositoryService.getRepositoryPath(repoName);
 
@@ -350,8 +335,8 @@ export async function handleRepositoryGitClone(
   }
 
   throttledEmit.flush();
-  emitCloneProgress(socket, requestId, 95, 'Finalizing...');
-  emitCloneProgress(socket, requestId, 100, 'Clone complete!');
+  emitCloneProgress(socket, requestId, 95, '完成中...');
+  emitCloneProgress(socket, requestId, 100, 'Clone 完成!');
 
   const response: RepositoryGitCloneResultPayload = {
     requestId,
@@ -375,14 +360,14 @@ function emitCloneProgress(socket: Socket, requestId: string, progress: number, 
 
 function getStageMessage(stage: string): string {
   const stageMessages: Record<string, string> = {
-    counting: 'Counting objects...',
-    compressing: 'Compressing objects...',
-    receiving: 'Receiving objects...',
-    resolving: 'Resolving deltas...',
-    writing: 'Writing objects...',
+    counting: '計算物件數量...',
+    compressing: '壓縮物件...',
+    receiving: '接收物件...',
+    resolving: '解析差異...',
+    writing: '寫入物件...',
   };
 
-  return stageMessages[stage] || `Processing: ${stage}...`;
+  return stageMessages[stage] || `處理中: ${stage}...`;
 }
 
 function parseRepoName(repoUrl: string): string {

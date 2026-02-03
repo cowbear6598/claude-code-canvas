@@ -22,19 +22,12 @@ import { workflowStateService } from '../services/workflow/index.js';
 import { socketService } from '../services/socketService.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
-import { getCanvasId } from '../utils/handlerHelpers.js';
+import { withCanvasId } from '../utils/handlerHelpers.js';
 
-export async function handleConnectionCreate(
-  socket: Socket,
-  payload: ConnectionCreatePayload,
-  requestId: string
-): Promise<void> {
-  const { sourceType, sourcePodId, sourceTriggerId, sourceAnchor, targetPodId, targetAnchor } = payload;
-
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.CONNECTION_CREATED, requestId);
-  if (!canvasId) {
-    return;
-  }
+export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
+  WebSocketResponseEvents.CONNECTION_CREATED,
+  async (socket: Socket, canvasId: string, payload: ConnectionCreatePayload, requestId: string): Promise<void> => {
+    const { sourceType, sourcePodId, sourceTriggerId, sourceAnchor, targetPodId, targetAnchor } = payload;
 
   if (sourceType === 'pod') {
     const sourcePod = podStore.getById(canvasId, sourcePodId!);
@@ -100,42 +93,31 @@ export async function handleConnectionCreate(
   };
   socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CONNECTION_CREATED, broadcastPayload);
 
-  const sourceId = sourceType === 'trigger' ? sourceTriggerId : sourcePodId;
-  logger.log('Connection', 'Create', `Created connection ${connection.id} (${sourceType}:${sourceId} -> ${targetPodId})`);
-}
-
-export async function handleConnectionList(
-  socket: Socket,
-  _: ConnectionListPayload,
-  requestId: string
-): Promise<void> {
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.CONNECTION_LIST_RESULT, requestId);
-  if (!canvasId) {
-    return;
+    const sourceId = sourceType === 'trigger' ? sourceTriggerId : sourcePodId;
+    logger.log('Connection', 'Create', `Created connection ${connection.id} (${sourceType}:${sourceId} -> ${targetPodId})`);
   }
+);
+
+export const handleConnectionList = withCanvasId<ConnectionListPayload>(
+  WebSocketResponseEvents.CONNECTION_LIST_RESULT,
+  async (socket: Socket, canvasId: string, _: ConnectionListPayload, requestId: string): Promise<void> => {
 
   const connections = connectionStore.list(canvasId);
 
-  const response: ConnectionListResultPayload = {
-    requestId,
-    success: true,
-    connections,
-  };
+    const response: ConnectionListResultPayload = {
+      requestId,
+      success: true,
+      connections,
+    };
 
-  emitSuccess(socket, WebSocketResponseEvents.CONNECTION_LIST_RESULT, response);
-}
-
-export async function handleConnectionDelete(
-  socket: Socket,
-  payload: ConnectionDeletePayload,
-  requestId: string
-): Promise<void> {
-  const { connectionId } = payload;
-
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.CONNECTION_DELETED, requestId);
-  if (!canvasId) {
-    return;
+    emitSuccess(socket, WebSocketResponseEvents.CONNECTION_LIST_RESULT, response);
   }
+);
+
+export const handleConnectionDelete = withCanvasId<ConnectionDeletePayload>(
+  WebSocketResponseEvents.CONNECTION_DELETED,
+  async (socket: Socket, canvasId: string, payload: ConnectionDeletePayload, requestId: string): Promise<void> => {
+    const { connectionId } = payload;
 
   const connection = connectionStore.getById(canvasId, connectionId);
   if (!connection) {
@@ -178,22 +160,16 @@ export async function handleConnectionDelete(
     canvasId,
     connectionId,
   };
-  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CONNECTION_DELETED, broadcastPayload);
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CONNECTION_DELETED, broadcastPayload);
 
-  logger.log('Connection', 'Delete', `Deleted connection ${connectionId}`);
-}
-
-export async function handleConnectionUpdate(
-  socket: Socket,
-  payload: ConnectionUpdatePayload,
-  requestId: string
-): Promise<void> {
-  const { connectionId, autoTrigger } = payload;
-
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.CONNECTION_UPDATED, requestId);
-  if (!canvasId) {
-    return;
+    logger.log('Connection', 'Delete', `Deleted connection ${connectionId}`);
   }
+);
+
+export const handleConnectionUpdate = withCanvasId<ConnectionUpdatePayload>(
+  WebSocketResponseEvents.CONNECTION_UPDATED,
+  async (socket: Socket, canvasId: string, payload: ConnectionUpdatePayload, requestId: string): Promise<void> => {
+    const { connectionId, autoTrigger } = payload;
 
   const connection = connectionStore.getById(canvasId, connectionId);
   if (!connection) {
@@ -235,9 +211,10 @@ export async function handleConnectionUpdate(
 
   emitSuccess(socket, WebSocketResponseEvents.CONNECTION_UPDATED, response);
 
-  const broadcastPayload: BroadcastConnectionUpdatedPayload = {
-    canvasId,
-    connection: updatedConnection,
-  };
-  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CONNECTION_UPDATED, broadcastPayload);
-}
+    const broadcastPayload: BroadcastConnectionUpdatedPayload = {
+      canvasId,
+      connection: updatedConnection,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CONNECTION_UPDATED, broadcastPayload);
+  }
+);

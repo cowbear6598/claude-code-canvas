@@ -20,7 +20,7 @@ import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
-import {validatePod, handleResourceDelete, getCanvasId} from '../utils/handlerHelpers.js';
+import {validatePod, handleResourceDelete, withCanvasId} from '../utils/handlerHelpers.js';
 
 const subAgentNoteHandlers = createNoteHandlers({
     noteStore: subAgentNoteStore,
@@ -81,23 +81,16 @@ export async function handleSubAgentList(
     emitSuccess(socket, WebSocketResponseEvents.SUBAGENT_LIST_RESULT, response);
 }
 
-export async function handlePodBindSubAgent(
-    socket: Socket,
-    payload: PodBindSubAgentPayload,
-    requestId: string
-): Promise<void> {
-    const {podId, subAgentId} = payload;
+export const handlePodBindSubAgent = withCanvasId<PodBindSubAgentPayload>(
+    WebSocketResponseEvents.POD_SUBAGENT_BOUND,
+    async (socket: Socket, canvasId: string, payload: PodBindSubAgentPayload, requestId: string): Promise<void> => {
+        const {podId, subAgentId} = payload;
 
-    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_SUBAGENT_BOUND, requestId);
+        const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_SUBAGENT_BOUND, requestId);
 
-    if (!pod) {
-        return;
-    }
-
-    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_SUBAGENT_BOUND, requestId);
-    if (!canvasId) {
-        return;
-    }
+        if (!pod) {
+            return;
+        }
 
     const subAgentExists = await subAgentService.exists(subAgentId);
     if (!subAgentExists) {
@@ -151,10 +144,11 @@ export async function handlePodBindSubAgent(
         canvasId,
         pod: updatedPod!,
     };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_SUBAGENT_BOUND, broadcastPayload);
+        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_SUBAGENT_BOUND, broadcastPayload);
 
-    logger.log('SubAgent', 'Bind', `Bound subagent ${subAgentId} to Pod ${podId}`);
-}
+        logger.log('SubAgent', 'Bind', `Bound subagent ${subAgentId} to Pod ${podId}`);
+    }
+);
 
 export async function handleSubAgentDelete(
     socket: Socket,

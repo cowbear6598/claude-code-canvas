@@ -11,35 +11,34 @@ import {
   handleNoteUpdate,
   handleNoteDelete,
 } from '../noteHandlers.js';
-import { createHandlerDefinition } from '../registry.js';
-import type { HandlerGroup } from '../registry.js';
+import { createHandlerGroup } from './createHandlerGroup.js';
 
-export const noteHandlerGroup: HandlerGroup = {
+export const noteHandlerGroup = createHandlerGroup({
   name: 'note',
   handlers: [
-    createHandlerDefinition(
-      WebSocketRequestEvents.NOTE_CREATE,
-      handleNoteCreate,
-      noteCreateSchema,
-      WebSocketResponseEvents.NOTE_CREATED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.NOTE_LIST,
-      handleNoteList,
-      noteListSchema,
-      WebSocketResponseEvents.NOTE_LIST_RESULT
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.NOTE_UPDATE,
-      handleNoteUpdate,
-      noteUpdateSchema,
-      WebSocketResponseEvents.NOTE_UPDATED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.NOTE_DELETE,
-      handleNoteDelete,
-      noteDeleteSchema,
-      WebSocketResponseEvents.NOTE_DELETED
-    ),
+    {
+      event: WebSocketRequestEvents.NOTE_CREATE,
+      handler: handleNoteCreate,
+      schema: noteCreateSchema,
+      responseEvent: WebSocketResponseEvents.NOTE_CREATED,
+    },
+    {
+      event: WebSocketRequestEvents.NOTE_LIST,
+      handler: handleNoteList,
+      schema: noteListSchema,
+      responseEvent: WebSocketResponseEvents.NOTE_LIST_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.NOTE_UPDATE,
+      handler: handleNoteUpdate,
+      schema: noteUpdateSchema,
+      responseEvent: WebSocketResponseEvents.NOTE_UPDATED,
+    },
+    {
+      event: WebSocketRequestEvents.NOTE_DELETE,
+      handler: handleNoteDelete,
+      schema: noteDeleteSchema,
+      responseEvent: WebSocketResponseEvents.NOTE_DELETED,
+    },
   ],
-};
+});

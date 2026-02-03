@@ -10,11 +10,9 @@ class RepositorySyncService {
   private locks: Map<string, Promise<void>> = new Map();
 
   async syncRepositoryResources(repositoryId: string): Promise<void> {
-    // 檢查是否有進行中的 sync
     const existingLock = this.locks.get(repositoryId);
     if (existingLock) {
       await existingLock;
-      // 重新檢查是否還有新的 sync 正在執行
       const newLock = this.locks.get(repositoryId);
       if (newLock && newLock !== existingLock) {
         await newLock;
@@ -22,14 +20,12 @@ class RepositorySyncService {
       return;
     }
 
-    // 建立新的 sync promise
     const syncPromise = this.performSync(repositoryId);
     this.locks.set(repositoryId, syncPromise);
 
     try {
       await syncPromise;
     } finally {
-      // 清理 lock
       if (this.locks.get(repositoryId) === syncPromise) {
         this.locks.delete(repositoryId);
       }
@@ -61,7 +57,6 @@ class RepositorySyncService {
         }
       }
 
-      // 清理 Repository 的三個資源目錄
       try {
         await commandService.deleteCommandFromPath(repositoryPath);
       } catch (error) {
@@ -80,7 +75,6 @@ class RepositorySyncService {
         logger.error('Repository', 'Update', `Failed to delete subagents from ${repositoryPath}`, error);
       }
 
-      // 將聚合後的資源全部複製到 Repository
       for (const commandId of commandIds) {
         try {
           await commandService.copyCommandToRepository(commandId, repositoryPath);

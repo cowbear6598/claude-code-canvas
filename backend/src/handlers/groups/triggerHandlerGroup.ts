@@ -11,35 +11,34 @@ import {
   handleTriggerUpdate,
   handleTriggerDelete,
 } from '../triggerHandlers.js';
-import { createHandlerDefinition } from '../registry.js';
-import type { HandlerGroup } from '../registry.js';
+import { createHandlerGroup } from './createHandlerGroup.js';
 
-export const triggerHandlerGroup: HandlerGroup = {
+export const triggerHandlerGroup = createHandlerGroup({
   name: 'trigger',
   handlers: [
-    createHandlerDefinition(
-      WebSocketRequestEvents.TRIGGER_CREATE,
-      handleTriggerCreate,
-      triggerCreateSchema,
-      WebSocketResponseEvents.TRIGGER_CREATED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.TRIGGER_LIST,
-      handleTriggerList,
-      triggerListSchema,
-      WebSocketResponseEvents.TRIGGER_LIST_RESULT
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.TRIGGER_UPDATE,
-      handleTriggerUpdate,
-      triggerUpdateSchema,
-      WebSocketResponseEvents.TRIGGER_UPDATED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.TRIGGER_DELETE,
-      handleTriggerDelete,
-      triggerDeleteSchema,
-      WebSocketResponseEvents.TRIGGER_DELETED
-    ),
+    {
+      event: WebSocketRequestEvents.TRIGGER_CREATE,
+      handler: handleTriggerCreate,
+      schema: triggerCreateSchema,
+      responseEvent: WebSocketResponseEvents.TRIGGER_CREATED,
+    },
+    {
+      event: WebSocketRequestEvents.TRIGGER_LIST,
+      handler: handleTriggerList,
+      schema: triggerListSchema,
+      responseEvent: WebSocketResponseEvents.TRIGGER_LIST_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.TRIGGER_UPDATE,
+      handler: handleTriggerUpdate,
+      schema: triggerUpdateSchema,
+      responseEvent: WebSocketResponseEvents.TRIGGER_UPDATED,
+    },
+    {
+      event: WebSocketRequestEvents.TRIGGER_DELETE,
+      handler: handleTriggerDelete,
+      schema: triggerDeleteSchema,
+      responseEvent: WebSocketResponseEvents.TRIGGER_DELETED,
+    },
   ],
-};
+});

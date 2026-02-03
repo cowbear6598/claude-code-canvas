@@ -1,26 +1,12 @@
 import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
 import { createServer } from 'http';
 import { config } from './config/index.js';
-import { requestLogger } from './middleware/requestLogger.js';
-import { errorHandler } from './middleware/errorHandler.js';
-import apiRoutes from './routes/index.js';
 import { socketService } from './services/socketService.js';
 import { setupSocketHandlers } from './services/socketHandlers.js';
 import { startupService } from './services/startupService.js';
 import { logger } from './utils/logger.js';
 
 const app = express();
-
-app.use(helmet());
-app.use(cors({ origin: config.corsOrigin }));
-app.use(express.json());
-app.use(requestLogger);
-
-app.use('/api', apiRoutes);
-
-app.use(errorHandler);
 
 const httpServer = createServer(app);
 

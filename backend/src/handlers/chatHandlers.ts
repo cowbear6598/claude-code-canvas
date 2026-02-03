@@ -20,7 +20,7 @@ import {workflowExecutionService} from '../services/workflow/index.js';
 import {autoClearService} from '../services/autoClear/index.js';
 import {emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
-import {validatePod, getCanvasId} from '../utils/handlerHelpers.js';
+import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';
 
 function extractDisplayContent(message: string | ContentBlock[]): string {
     if (typeof message === 'string') {
@@ -32,23 +32,16 @@ function extractDisplayContent(message: string | ContentBlock[]): string {
         .join('');
 }
 
-export async function handleChatSend(
-    socket: Socket,
-    payload: ChatSendPayload,
-    requestId: string
-): Promise<void> {
-    const {podId, message} = payload;
+export const handleChatSend = withCanvasId<ChatSendPayload>(
+    WebSocketResponseEvents.POD_ERROR,
+    async (socket: Socket, canvasId: string, payload: ChatSendPayload, requestId: string): Promise<void> => {
+        const {podId, message} = payload;
 
-    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_ERROR, requestId);
+        const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_ERROR, requestId);
 
-    if (!pod) {
-        return;
-    }
-
-    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_ERROR, requestId);
-    if (!canvasId) {
-        return;
-    }
+        if (!pod) {
+            return;
+        }
 
     if (pod.status === 'chatting' || pod.status === 'summarizing') {
         emitError(
@@ -84,7 +77,6 @@ export async function handleChatSend(
         }
     };
 
-    // 廣播用戶訊息給 Pod Room 中的其他人（排除發送者）
     const userDisplayContent = extractDisplayContent(message);
     socket.to(`pod:${podId}`).emit(
         WebSocketResponseEvents.BROADCAST_POD_CHAT_USER_MESSAGE,
@@ -208,22 +200,16 @@ export async function handleChatSend(
         logger.error('AutoClear', 'Error', `Failed to check auto-clear for Pod ${podId}`, error);
     });
 
-    workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch((error) => {
-        logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error);
-    });
-}
-
-export async function handleChatHistory(
-    socket: Socket,
-    payload: ChatHistoryPayload,
-    requestId: string
-): Promise<void> {
-    const {podId} = payload;
-
-    const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, requestId);
-    if (!canvasId) {
-        return;
+        workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch((error) => {
+            logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error);
+        });
     }
+);
+
+export const handleChatHistory = withCanvasId<ChatHistoryPayload>(
+    WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT,
+    async (socket: Socket, canvasId: string, payload: ChatHistoryPayload, requestId: string): Promise<void> => {
+        const {podId} = payload;
 
     const pod = podStore.getById(canvasId, podId);
     if (!pod) {
@@ -251,5 +237,6 @@ export async function handleChatHistory(
         })),
     };
 
-    socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, responsePayload);
-}
+        socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, responsePayload);
+    }
+);

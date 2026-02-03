@@ -33,42 +33,42 @@ type SDKUserMessage = {
   session_id: string;
 };
 
-export type StreamEvent =
+type StreamEvent =
   | TextStreamEvent
   | ToolUseStreamEvent
   | ToolResultStreamEvent
   | CompleteStreamEvent
   | ErrorStreamEvent;
 
-export interface TextStreamEvent {
+interface TextStreamEvent {
   type: 'text';
   content: string;
 }
 
-export interface ToolUseStreamEvent {
+interface ToolUseStreamEvent {
   type: 'tool_use';
   toolUseId: string;
   toolName: string;
   input: Record<string, unknown>;
 }
 
-export interface ToolResultStreamEvent {
+interface ToolResultStreamEvent {
   type: 'tool_result';
   toolUseId: string;
   toolName: string;
   output: string;
 }
 
-export interface CompleteStreamEvent {
+interface CompleteStreamEvent {
   type: 'complete';
 }
 
-export interface ErrorStreamEvent {
+interface ErrorStreamEvent {
   type: 'error';
   error: string;
 }
 
-export type StreamCallback = (event: StreamEvent) => void;
+type StreamCallback = (event: StreamEvent) => void;
 
 function buildClaudeContentBlocks(
   message: ContentBlock[],

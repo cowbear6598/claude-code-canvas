@@ -19,7 +19,7 @@ import { noteStore } from '../services/noteStores.js';
 import { socketService } from '../services/socketService.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
-import { validatePod, handleResourceDelete, getCanvasId } from '../utils/handlerHelpers.js';
+import { validatePod, handleResourceDelete, withCanvasId } from '../utils/handlerHelpers.js';
 import { createResourceHandlers } from './factories/createResourceHandlers.js';
 
 const resourceHandlers = createResourceHandlers({
@@ -59,22 +59,15 @@ export async function handleOutputStyleList(
   emitSuccess(socket, WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT, response);
 }
 
-export async function handlePodBindOutputStyle(
-  socket: Socket,
-  payload: PodBindOutputStylePayload,
-  requestId: string
-): Promise<void> {
-  const { podId, outputStyleId } = payload;
+export const handlePodBindOutputStyle = withCanvasId<PodBindOutputStylePayload>(
+  WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND,
+  async (socket: Socket, canvasId: string, payload: PodBindOutputStylePayload, requestId: string): Promise<void> => {
+    const { podId, outputStyleId } = payload;
 
-  const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, requestId);
-  if (!pod) {
-    return;
-  }
-
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, requestId);
-  if (!canvasId) {
-    return;
-  }
+    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, requestId);
+    if (!pod) {
+      return;
+    }
 
   const styleExists = await outputStyleService.exists(outputStyleId);
   if (!styleExists) {
@@ -110,27 +103,21 @@ export async function handlePodBindOutputStyle(
     canvasId,
     pod: updatedPod,
   };
-  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_OUTPUT_STYLE_BOUND, broadcastPayload);
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_OUTPUT_STYLE_BOUND, broadcastPayload);
 
-  logger.log('OutputStyle', 'Bind', `Bound style ${outputStyleId} to Pod ${podId}`);
-}
-
-export async function handlePodUnbindOutputStyle(
-  socket: Socket,
-  payload: PodUnbindOutputStylePayload,
-  requestId: string
-): Promise<void> {
-  const { podId } = payload;
-
-  const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, requestId);
-  if (!pod) {
-    return;
+    logger.log('OutputStyle', 'Bind', `Bound style ${outputStyleId} to Pod ${podId}`);
   }
+);
 
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, requestId);
-  if (!canvasId) {
-    return;
-  }
+export const handlePodUnbindOutputStyle = withCanvasId<PodUnbindOutputStylePayload>(
+  WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND,
+  async (socket: Socket, canvasId: string, payload: PodUnbindOutputStylePayload, requestId: string): Promise<void> => {
+    const { podId } = payload;
+
+    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, requestId);
+    if (!pod) {
+      return;
+    }
 
   podStore.setOutputStyleId(canvasId, podId, null);
 
@@ -152,10 +139,11 @@ export async function handlePodUnbindOutputStyle(
     canvasId,
     pod: updatedPod,
   };
-  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_OUTPUT_STYLE_UNBOUND, broadcastPayload);
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_OUTPUT_STYLE_UNBOUND, broadcastPayload);
 
-  logger.log('OutputStyle', 'Unbind', `Unbound style from Pod ${podId}`);
-}
+    logger.log('OutputStyle', 'Unbind', `Unbound style from Pod ${podId}`);
+  }
+);
 
 export async function handleOutputStyleDelete(
   socket: Socket,

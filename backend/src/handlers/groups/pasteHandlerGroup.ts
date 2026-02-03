@@ -1,17 +1,16 @@
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../types/index.js';
 import { canvasPasteSchema } from '../../schemas/index.js';
 import { handleCanvasPaste } from '../pasteHandlers.js';
-import { createHandlerDefinition } from '../registry.js';
-import type { HandlerGroup } from '../registry.js';
+import { createHandlerGroup } from './createHandlerGroup.js';
 
-export const pasteHandlerGroup: HandlerGroup = {
+export const pasteHandlerGroup = createHandlerGroup({
   name: 'paste',
   handlers: [
-    createHandlerDefinition(
-      WebSocketRequestEvents.CANVAS_PASTE,
-      handleCanvasPaste,
-      canvasPasteSchema,
-      WebSocketResponseEvents.CANVAS_PASTE_RESULT
-    ),
+    {
+      event: WebSocketRequestEvents.CANVAS_PASTE,
+      handler: handleCanvasPaste,
+      schema: canvasPasteSchema,
+      responseEvent: WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+    },
   ],
-};
+});

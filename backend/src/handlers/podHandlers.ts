@@ -28,27 +28,12 @@ import {repositorySyncService} from '../services/repositorySyncService.js';
 import {canvasStore} from '../services/canvasStore.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
-import {validatePod} from '../utils/handlerHelpers.js';
+import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';
 
-export async function handlePodCreate(
-    socket: Socket,
-    payload: PodCreatePayload,
-    requestId: string
-): Promise<void> {
-    const {name, color, x, y, rotation} = payload;
-    const canvasId = canvasStore.getActiveCanvas(socket.id);
-
-    if (!canvasId) {
-        emitError(
-            socket,
-            WebSocketResponseEvents.POD_CREATED,
-            'No active canvas',
-            requestId,
-            undefined,
-            'INTERNAL_ERROR'
-        );
-        return;
-    }
+export const handlePodCreate = withCanvasId<PodCreatePayload>(
+    WebSocketResponseEvents.POD_CREATED,
+    async (socket: Socket, canvasId: string, payload: PodCreatePayload, requestId: string): Promise<void> => {
+        const {name, color, x, y, rotation} = payload;
 
     const pod = podStore.create(canvasId, {name, color, x, y, rotation});
 
@@ -79,40 +64,27 @@ export async function handlePodCreate(
         canvasId,
         pod,
     };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_CREATED, broadcastPayload);
+        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_CREATED, broadcastPayload);
 
-    logger.log('Pod', 'Create', `Created Pod ${pod.id} (${pod.name})`);
-}
-
-export async function handlePodList(
-    socket: Socket,
-    _: PodListPayload,
-    requestId: string
-): Promise<void> {
-    const canvasId = canvasStore.getActiveCanvas(socket.id);
-
-    if (!canvasId) {
-        emitError(
-            socket,
-            WebSocketResponseEvents.POD_LIST_RESULT,
-            'No active canvas',
-            requestId,
-            undefined,
-            'INTERNAL_ERROR'
-        );
-        return;
+        logger.log('Pod', 'Create', `Created Pod ${pod.id} (${pod.name})`);
     }
+);
+
+export const handlePodList = withCanvasId<PodListPayload>(
+    WebSocketResponseEvents.POD_LIST_RESULT,
+    async (socket: Socket, canvasId: string, _: PodListPayload, requestId: string): Promise<void> => {
 
     const pods = podStore.getAll(canvasId);
 
-    const response: PodListResultPayload = {
-        requestId,
-        success: true,
-        pods,
-    };
+        const response: PodListResultPayload = {
+            requestId,
+            success: true,
+            pods,
+        };
 
-    emitSuccess(socket, WebSocketResponseEvents.POD_LIST_RESULT, response);
-}
+        emitSuccess(socket, WebSocketResponseEvents.POD_LIST_RESULT, response);
+    }
+);
 
 export async function handlePodGet(
     socket: Socket,
@@ -136,31 +108,16 @@ export async function handlePodGet(
     emitSuccess(socket, WebSocketResponseEvents.POD_GET_RESULT, response);
 }
 
-export async function handlePodDelete(
-    socket: Socket,
-    payload: PodDeletePayload,
-    requestId: string
-): Promise<void> {
-    const {podId} = payload;
+export const handlePodDelete = withCanvasId<PodDeletePayload>(
+    WebSocketResponseEvents.POD_DELETED,
+    async (socket: Socket, canvasId: string, payload: PodDeletePayload, requestId: string): Promise<void> => {
+        const {podId} = payload;
 
-    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_DELETED, requestId);
+        const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_DELETED, requestId);
 
-    if (!pod) {
-        return;
-    }
-
-    const canvasId = canvasStore.getActiveCanvas(socket.id);
-    if (!canvasId) {
-        emitError(
-            socket,
-            WebSocketResponseEvents.POD_DELETED,
-            'No active canvas',
-            requestId,
-            podId,
-            'INTERNAL_ERROR'
-        );
-        return;
-    }
+        if (!pod) {
+            return;
+        }
 
     workflowStateService.handleSourceDeletion(canvasId, podId);
 
@@ -216,39 +173,22 @@ export async function handlePodDelete(
         canvasId,
         podId,
     };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_DELETED, broadcastPayload);
+        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_DELETED, broadcastPayload);
 
-    logger.log('Pod', 'Delete', `Deleted Pod ${podId}`);
-}
-
-/**
- * Handle Pod update request (position, name, etc.)
- */
-export async function handlePodUpdate(
-    socket: Socket,
-    payload: PodUpdatePayload,
-    requestId: string
-): Promise<void> {
-    const {podId, x, y, rotation, name, model} = payload;
-
-    const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_UPDATED, requestId);
-
-    if (!existingPod) {
-        return;
+        logger.log('Pod', 'Delete', `Deleted Pod ${podId}`);
     }
+);
 
-    const canvasId = canvasStore.getActiveCanvas(socket.id);
-    if (!canvasId) {
-        emitError(
-            socket,
-            WebSocketResponseEvents.POD_UPDATED,
-            'No active canvas',
-            requestId,
-            podId,
-            'INTERNAL_ERROR'
-        );
-        return;
-    }
+export const handlePodUpdate = withCanvasId<PodUpdatePayload>(
+    WebSocketResponseEvents.POD_UPDATED,
+    async (socket: Socket, canvasId: string, payload: PodUpdatePayload, requestId: string): Promise<void> => {
+        const {podId, x, y, rotation, name, model} = payload;
+
+        const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_UPDATED, requestId);
+
+        if (!existingPod) {
+            return;
+        }
 
     const updates: Record<string, unknown> = {};
 
@@ -258,7 +198,6 @@ export async function handlePodUpdate(
     if (name !== undefined) updates.name = name;
     if (model !== undefined) {
         updates.model = model;
-        // 保留 session，讓 SDK 嘗試用新 model 繼續對話
     }
 
     const updatedPod = podStore.update(canvasId, podId, updates);
@@ -283,9 +222,10 @@ export async function handlePodUpdate(
 
     emitSuccess(socket, WebSocketResponseEvents.POD_UPDATED, response);
 
-    const broadcastPayload: BroadcastPodUpdatedPayload = {
-        canvasId,
-        pod: updatedPod,
-    };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_UPDATED, broadcastPayload);
-}
+        const broadcastPayload: BroadcastPodUpdatedPayload = {
+            canvasId,
+            pod: updatedPod,
+        };
+        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_UPDATED, broadcastPayload);
+    }
+);

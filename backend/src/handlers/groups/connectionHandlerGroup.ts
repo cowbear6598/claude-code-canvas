@@ -11,35 +11,34 @@ import {
   handleConnectionDelete,
   handleConnectionUpdate,
 } from '../connectionHandlers.js';
-import { createHandlerDefinition } from '../registry.js';
-import type { HandlerGroup } from '../registry.js';
+import { createHandlerGroup } from './createHandlerGroup.js';
 
-export const connectionHandlerGroup: HandlerGroup = {
+export const connectionHandlerGroup = createHandlerGroup({
   name: 'connection',
   handlers: [
-    createHandlerDefinition(
-      WebSocketRequestEvents.CONNECTION_CREATE,
-      handleConnectionCreate,
-      connectionCreateSchema,
-      WebSocketResponseEvents.CONNECTION_CREATED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.CONNECTION_LIST,
-      handleConnectionList,
-      connectionListSchema,
-      WebSocketResponseEvents.CONNECTION_LIST_RESULT
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.CONNECTION_DELETE,
-      handleConnectionDelete,
-      connectionDeleteSchema,
-      WebSocketResponseEvents.CONNECTION_DELETED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.CONNECTION_UPDATE,
-      handleConnectionUpdate,
-      connectionUpdateSchema,
-      WebSocketResponseEvents.CONNECTION_UPDATED
-    ),
+    {
+      event: WebSocketRequestEvents.CONNECTION_CREATE,
+      handler: handleConnectionCreate,
+      schema: connectionCreateSchema,
+      responseEvent: WebSocketResponseEvents.CONNECTION_CREATED,
+    },
+    {
+      event: WebSocketRequestEvents.CONNECTION_LIST,
+      handler: handleConnectionList,
+      schema: connectionListSchema,
+      responseEvent: WebSocketResponseEvents.CONNECTION_LIST_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.CONNECTION_DELETE,
+      handler: handleConnectionDelete,
+      schema: connectionDeleteSchema,
+      responseEvent: WebSocketResponseEvents.CONNECTION_DELETED,
+    },
+    {
+      event: WebSocketRequestEvents.CONNECTION_UPDATE,
+      handler: handleConnectionUpdate,
+      schema: connectionUpdateSchema,
+      responseEvent: WebSocketResponseEvents.CONNECTION_UPDATED,
+    },
   ],
-};
+});

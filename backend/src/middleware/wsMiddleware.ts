@@ -14,7 +14,6 @@ export function createValidatedHandler<T>(
   responseEvent: string
 ): (socket: Socket, payload: unknown) => Promise<void> {
   return async (socket: Socket, payload: unknown) => {
-    // Parse and validate
     const result = schema.safeParse(payload);
 
     if (!result.success) {

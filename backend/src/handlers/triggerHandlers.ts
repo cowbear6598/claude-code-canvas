@@ -20,203 +20,179 @@ import { connectionStore } from '../services/connectionStore.js';
 import { socketService } from '../services/socketService.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
-import { getCanvasId } from '../utils/handlerHelpers.js';
+import { withCanvasId } from '../utils/handlerHelpers.js';
 
-export async function handleTriggerCreate(
-  socket: Socket,
-  payload: TriggerCreatePayload,
-  requestId: string
-): Promise<void> {
-  const { name, type, config, x, y, rotation, enabled } = payload;
+export const handleTriggerCreate = withCanvasId<TriggerCreatePayload>(
+  WebSocketResponseEvents.TRIGGER_CREATED,
+  async (socket: Socket, canvasId: string, payload: TriggerCreatePayload, requestId: string): Promise<void> => {
+    const { name, type, config, x, y, rotation, enabled } = payload;
 
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.TRIGGER_CREATED, requestId);
-  if (!canvasId) {
-    return;
-  }
+    const trigger = triggerStore.create(canvasId, {
+      name,
+      type,
+      config,
+      x,
+      y,
+      rotation,
+      enabled,
+    });
 
-  const trigger = triggerStore.create(canvasId, {
-    name,
-    type,
-    config,
-    x,
-    y,
-    rotation,
-    enabled,
-  });
-
-  const response: TriggerCreatedPayload = {
-    requestId,
-    success: true,
-    trigger,
-  };
-
-  emitSuccess(socket, WebSocketResponseEvents.TRIGGER_CREATED, response);
-
-  const broadcastPayload: BroadcastTriggerCreatedPayload = {
-    canvasId,
-    trigger,
-  };
-  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_TRIGGER_CREATED, broadcastPayload);
-
-  logger.log('Trigger', 'Create', `Created trigger ${trigger.id} (${name})`);
-}
-
-export async function handleTriggerList(
-  socket: Socket,
-  _: TriggerListPayload,
-  requestId: string
-): Promise<void> {
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.TRIGGER_LIST_RESULT, requestId);
-  if (!canvasId) {
-    return;
-  }
-
-  const triggers = triggerStore.list(canvasId);
-
-  const response: TriggerListResultPayload = {
-    requestId,
-    success: true,
-    triggers,
-  };
-
-  emitSuccess(socket, WebSocketResponseEvents.TRIGGER_LIST_RESULT, response);
-}
-
-export async function handleTriggerUpdate(
-  socket: Socket,
-  payload: TriggerUpdatePayload,
-  requestId: string
-): Promise<void> {
-  const { triggerId, name, type, config, x, y, rotation, enabled } = payload;
-
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.TRIGGER_UPDATED, requestId);
-  if (!canvasId) {
-    return;
-  }
-
-  const trigger = triggerStore.getById(canvasId, triggerId);
-  if (!trigger) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.TRIGGER_UPDATED,
-      `Trigger not found: ${triggerId}`,
+    const response: TriggerCreatedPayload = {
       requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
-  }
+      success: true,
+      trigger,
+    };
 
-  const updates: Partial<{ name: string; type: 'time'; config: typeof config; x: number; y: number; rotation: number; enabled: boolean }> = {};
-  if (name !== undefined) {
-    updates.name = name;
-  }
-  if (type !== undefined) {
-    updates.type = type;
-  }
-  if (config !== undefined) {
-    updates.config = config;
-  }
-  if (x !== undefined) {
-    updates.x = x;
-  }
-  if (y !== undefined) {
-    updates.y = y;
-  }
-  if (rotation !== undefined) {
-    updates.rotation = rotation;
-  }
-  if (enabled !== undefined) {
-    updates.enabled = enabled;
-  }
+    emitSuccess(socket, WebSocketResponseEvents.TRIGGER_CREATED, response);
 
-  const updatedTrigger = triggerStore.update(canvasId, triggerId, updates);
+    const broadcastPayload: BroadcastTriggerCreatedPayload = {
+      canvasId,
+      trigger,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_TRIGGER_CREATED, broadcastPayload);
 
-  if (!updatedTrigger) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.TRIGGER_UPDATED,
-      `Failed to update trigger: ${triggerId}`,
+    logger.log('Trigger', 'Create', `Created trigger ${trigger.id} (${name})`);
+  }
+);
+
+export const handleTriggerList = withCanvasId<TriggerListPayload>(
+  WebSocketResponseEvents.TRIGGER_LIST_RESULT,
+  async (socket: Socket, canvasId: string, _: TriggerListPayload, requestId: string): Promise<void> => {
+    const triggers = triggerStore.list(canvasId);
+
+    const response: TriggerListResultPayload = {
       requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
-    return;
+      success: true,
+      triggers,
+    };
+
+    emitSuccess(socket, WebSocketResponseEvents.TRIGGER_LIST_RESULT, response);
   }
+);
 
-  const response: TriggerUpdatedPayload = {
-    requestId,
-    success: true,
-    trigger: updatedTrigger,
-  };
+export const handleTriggerUpdate = withCanvasId<TriggerUpdatePayload>(
+  WebSocketResponseEvents.TRIGGER_UPDATED,
+  async (socket: Socket, canvasId: string, payload: TriggerUpdatePayload, requestId: string): Promise<void> => {
+    const { triggerId, name, type, config, x, y, rotation, enabled } = payload;
 
-  emitSuccess(socket, WebSocketResponseEvents.TRIGGER_UPDATED, response);
+    const trigger = triggerStore.getById(canvasId, triggerId);
+    if (!trigger) {
+      emitError(
+        socket,
+        WebSocketResponseEvents.TRIGGER_UPDATED,
+        `Trigger not found: ${triggerId}`,
+        requestId,
+        undefined,
+        'NOT_FOUND'
+      );
+      return;
+    }
 
-  const broadcastPayload: BroadcastTriggerUpdatedPayload = {
-    canvasId,
-    trigger: updatedTrigger,
-  };
-  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_TRIGGER_UPDATED, broadcastPayload);
+    const updates: Partial<{ name: string; type: 'time'; config: typeof config; x: number; y: number; rotation: number; enabled: boolean }> = {};
+    if (name !== undefined) {
+      updates.name = name;
+    }
+    if (type !== undefined) {
+      updates.type = type;
+    }
+    if (config !== undefined) {
+      updates.config = config;
+    }
+    if (x !== undefined) {
+      updates.x = x;
+    }
+    if (y !== undefined) {
+      updates.y = y;
+    }
+    if (rotation !== undefined) {
+      updates.rotation = rotation;
+    }
+    if (enabled !== undefined) {
+      updates.enabled = enabled;
+    }
 
-  logger.log('Trigger', 'Update', `Updated trigger ${triggerId}`);
-}
+    const updatedTrigger = triggerStore.update(canvasId, triggerId, updates);
 
-export async function handleTriggerDelete(
-  socket: Socket,
-  payload: TriggerDeletePayload,
-  requestId: string
-): Promise<void> {
-  const { triggerId } = payload;
+    if (!updatedTrigger) {
+      emitError(
+        socket,
+        WebSocketResponseEvents.TRIGGER_UPDATED,
+        `Failed to update trigger: ${triggerId}`,
+        requestId,
+        undefined,
+        'INTERNAL_ERROR'
+      );
+      return;
+    }
 
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.TRIGGER_DELETED, requestId);
-  if (!canvasId) {
-    return;
-  }
-
-  const trigger = triggerStore.getById(canvasId, triggerId);
-  if (!trigger) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.TRIGGER_DELETED,
-      `Trigger not found: ${triggerId}`,
+    const response: TriggerUpdatedPayload = {
       requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
+      success: true,
+      trigger: updatedTrigger,
+    };
+
+    emitSuccess(socket, WebSocketResponseEvents.TRIGGER_UPDATED, response);
+
+    const broadcastPayload: BroadcastTriggerUpdatedPayload = {
+      canvasId,
+      trigger: updatedTrigger,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_TRIGGER_UPDATED, broadcastPayload);
+
+    logger.log('Trigger', 'Update', `Updated trigger ${triggerId}`);
   }
+);
 
-  const deletedConnectionIds = connectionStore.deleteByTriggerId(canvasId, triggerId);
+export const handleTriggerDelete = withCanvasId<TriggerDeletePayload>(
+  WebSocketResponseEvents.TRIGGER_DELETED,
+  async (socket: Socket, canvasId: string, payload: TriggerDeletePayload, requestId: string): Promise<void> => {
+    const { triggerId } = payload;
 
-  const deleted = triggerStore.delete(canvasId, triggerId);
+    const trigger = triggerStore.getById(canvasId, triggerId);
+    if (!trigger) {
+      emitError(
+        socket,
+        WebSocketResponseEvents.TRIGGER_DELETED,
+        `Trigger not found: ${triggerId}`,
+        requestId,
+        undefined,
+        'NOT_FOUND'
+      );
+      return;
+    }
 
-  if (!deleted) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.TRIGGER_DELETED,
-      `Failed to delete trigger: ${triggerId}`,
+    const deletedConnectionIds = connectionStore.deleteByTriggerId(canvasId, triggerId);
+
+    const deleted = triggerStore.delete(canvasId, triggerId);
+
+    if (!deleted) {
+      emitError(
+        socket,
+        WebSocketResponseEvents.TRIGGER_DELETED,
+        `Failed to delete trigger: ${triggerId}`,
+        requestId,
+        undefined,
+        'INTERNAL_ERROR'
+      );
+      return;
+    }
+
+    const response: TriggerDeletedPayload = {
       requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
-    return;
+      success: true,
+      triggerId,
+      deletedConnectionIds,
+    };
+
+    emitSuccess(socket, WebSocketResponseEvents.TRIGGER_DELETED, response);
+
+    const broadcastPayload: BroadcastTriggerDeletedPayload = {
+      canvasId,
+      triggerId,
+      deletedConnectionIds,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_TRIGGER_DELETED, broadcastPayload);
+
+    logger.log('Trigger', 'Delete', `Deleted trigger ${triggerId} and ${deletedConnectionIds.length} connections`);
   }
-
-  const response: TriggerDeletedPayload = {
-    requestId,
-    success: true,
-    triggerId,
-    deletedConnectionIds,
-  };
-
-  emitSuccess(socket, WebSocketResponseEvents.TRIGGER_DELETED, response);
-
-  const broadcastPayload: BroadcastTriggerDeletedPayload = {
-    canvasId,
-    triggerId,
-    deletedConnectionIds,
-  };
-  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_TRIGGER_DELETED, broadcastPayload);
-
-  logger.log('Trigger', 'Delete', `Deleted trigger ${triggerId} and ${deletedConnectionIds.length} connections`);
-}
+);

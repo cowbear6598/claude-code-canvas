@@ -10,9 +10,6 @@ interface PendingTarget {
 class PendingTargetStore {
   private pendingTargets: Map<string, PendingTarget> = new Map();
 
-  /**
-   * Initialize a pending target waiting for multiple sources
-   */
   initializePendingTarget(targetPodId: string, requiredSourcePodIds: string[]): void {
     this.pendingTargets.set(targetPodId, {
       targetPodId,
@@ -23,9 +20,6 @@ class PendingTargetStore {
     });
   }
 
-  /**
-   * Record a source completion and check if all sources are complete
-   */
   recordSourceCompletion(targetPodId: string, sourcePodId: string, summaryContent: string): boolean {
     const pending = this.pendingTargets.get(targetPodId);
     if (!pending) {
@@ -37,38 +31,23 @@ class PendingTargetStore {
     return pending.completedSources.size >= pending.requiredSourcePodIds.length;
   }
 
-  /**
-   * Get all completed summaries for a target
-   */
   getCompletedSummaries(targetPodId: string): Map<string, string> | undefined {
     const pending = this.pendingTargets.get(targetPodId);
     return pending?.completedSources;
   }
 
-  /**
-   * Clear a pending target after triggering
-   */
   clearPendingTarget(targetPodId: string): void {
     this.pendingTargets.delete(targetPodId);
   }
 
-  /**
-   * Check if a target is waiting for sources
-   */
   hasPendingTarget(targetPodId: string): boolean {
     return this.pendingTargets.has(targetPodId);
   }
 
-  /**
-   * Get a pending target
-   */
   getPendingTarget(targetPodId: string): PendingTarget | undefined {
     return this.pendingTargets.get(targetPodId);
   }
 
-  /**
-   * Remove a source from all pending targets and return affected target IDs
-   */
   removeSourceFromAllPending(sourcePodId: string): string[] {
     const affectedTargetIds: string[] = [];
 
@@ -85,9 +64,6 @@ class PendingTargetStore {
     return affectedTargetIds;
   }
 
-  /**
-   * Remove a source from a specific pending target
-   */
   removeSourceFromPending(targetPodId: string, sourcePodId: string): void {
     const pending = this.pendingTargets.get(targetPodId);
     if (!pending) {
@@ -98,9 +74,6 @@ class PendingTargetStore {
     pending.completedSources.delete(sourcePodId);
   }
 
-  /**
-   * Set merged content for a pending target when ready but target is processing
-   */
   setMergedContent(targetPodId: string, content: string): void {
     const pending = this.pendingTargets.get(targetPodId);
     if (!pending) {
@@ -111,17 +84,11 @@ class PendingTargetStore {
     pending.isReadyToTrigger = true;
   }
 
-  /**
-   * Get pending merged content for a target
-   */
   getPendingMergedContent(targetPodId: string): string | undefined {
     const pending = this.pendingTargets.get(targetPodId);
     return pending?.mergedContent;
   }
 
-  /**
-   * Get all target IDs that are ready to trigger
-   */
   getReadyTargets(): string[] {
     const readyTargets: string[] = [];
 

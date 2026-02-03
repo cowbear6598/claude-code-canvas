@@ -26,7 +26,6 @@ function loadConfig(): Config {
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
   const githubToken = process.env.GITHUB_TOKEN;
 
-  // 根目錄：~/Documents/ClaudeCanvas
   const dataRoot = path.join(os.homedir(), 'Documents', 'ClaudeCanvas');
 
   const appDataRoot = dataRoot;
@@ -37,9 +36,8 @@ function loadConfig(): Config {
   const agentsPath = path.join(dataRoot, 'agents');
   const commandsPath = path.join(dataRoot, 'commands');
 
-  // Validate port number
   if (isNaN(port) || port < 1 || port > 65535) {
-    throw new Error('PORT must be a valid number between 1 and 65535');
+    throw new Error('PORT 必須是 1 到 65535 之間的有效數字');
   }
 
   return {
@@ -60,7 +58,7 @@ function loadConfig(): Config {
       const resolvedRoot = path.resolve(canvasRoot);
 
       if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
-        throw new Error('Invalid canvas name: path traversal detected');
+        throw new Error('無效的 canvas 名稱：偵測到路徑穿越');
       }
 
       return canvasPath;
@@ -71,7 +69,7 @@ function loadConfig(): Config {
       const resolvedRoot = path.resolve(canvasRoot);
 
       if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
-        throw new Error('Invalid canvas name: path traversal detected');
+        throw new Error('無效的 canvas 名稱：偵測到路徑穿越');
       }
 
       return canvasPath;

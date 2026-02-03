@@ -14,7 +14,7 @@ export interface BaseNote {
   originalPosition: { x: number; y: number } | null;
 }
 
-export interface GenericNoteStoreConfig<T, K extends keyof T> {
+interface GenericNoteStoreConfig<T, K extends keyof T> {
   fileName: string;
   foreignKeyField: K;
   storeName: string;

@@ -6,7 +6,7 @@ import { claudeSessionManager } from './claude/sessionManager.js';
 import { canvasStore } from './canvasStore.js';
 import { logger } from '../utils/logger.js';
 
-export interface ClearResult {
+interface ClearResult {
   success: boolean;
   clearedPodIds: string[];
   clearedPodNames: string[];

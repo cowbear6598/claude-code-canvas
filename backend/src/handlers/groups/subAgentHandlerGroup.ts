@@ -23,71 +23,70 @@ import {
   handlePodBindSubAgent,
   handleSubAgentDelete,
 } from '../subAgentHandlers.js';
-import { createHandlerDefinition } from '../registry.js';
-import type { HandlerGroup } from '../registry.js';
+import { createHandlerGroup } from './createHandlerGroup.js';
 
-export const subAgentHandlerGroup: HandlerGroup = {
+export const subAgentHandlerGroup = createHandlerGroup({
   name: 'subagent',
   handlers: [
-    createHandlerDefinition(
-      WebSocketRequestEvents.SUBAGENT_LIST,
-      handleSubAgentList,
-      subAgentListSchema,
-      WebSocketResponseEvents.SUBAGENT_LIST_RESULT
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SUBAGENT_CREATE,
-      handleSubAgentCreate,
-      subAgentCreateSchema,
-      WebSocketResponseEvents.SUBAGENT_CREATED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SUBAGENT_UPDATE,
-      handleSubAgentUpdate,
-      subAgentUpdateSchema,
-      WebSocketResponseEvents.SUBAGENT_UPDATED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SUBAGENT_READ,
-      handleSubAgentRead,
-      subAgentReadSchema,
-      WebSocketResponseEvents.SUBAGENT_READ_RESULT
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SUBAGENT_NOTE_CREATE,
-      handleSubAgentNoteCreate,
-      subAgentNoteCreateSchema,
-      WebSocketResponseEvents.SUBAGENT_NOTE_CREATED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SUBAGENT_NOTE_LIST,
-      handleSubAgentNoteList,
-      subAgentNoteListSchema,
-      WebSocketResponseEvents.SUBAGENT_NOTE_LIST_RESULT
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SUBAGENT_NOTE_UPDATE,
-      handleSubAgentNoteUpdate,
-      subAgentNoteUpdateSchema,
-      WebSocketResponseEvents.SUBAGENT_NOTE_UPDATED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SUBAGENT_NOTE_DELETE,
-      handleSubAgentNoteDelete,
-      subAgentNoteDeleteSchema,
-      WebSocketResponseEvents.SUBAGENT_NOTE_DELETED
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.POD_BIND_SUBAGENT,
-      handlePodBindSubAgent,
-      podBindSubAgentSchema,
-      WebSocketResponseEvents.POD_SUBAGENT_BOUND
-    ),
-    createHandlerDefinition(
-      WebSocketRequestEvents.SUBAGENT_DELETE,
-      handleSubAgentDelete,
-      subAgentDeleteSchema,
-      WebSocketResponseEvents.SUBAGENT_DELETED
-    ),
+    {
+      event: WebSocketRequestEvents.SUBAGENT_LIST,
+      handler: handleSubAgentList,
+      schema: subAgentListSchema,
+      responseEvent: WebSocketResponseEvents.SUBAGENT_LIST_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.SUBAGENT_CREATE,
+      handler: handleSubAgentCreate,
+      schema: subAgentCreateSchema,
+      responseEvent: WebSocketResponseEvents.SUBAGENT_CREATED,
+    },
+    {
+      event: WebSocketRequestEvents.SUBAGENT_UPDATE,
+      handler: handleSubAgentUpdate,
+      schema: subAgentUpdateSchema,
+      responseEvent: WebSocketResponseEvents.SUBAGENT_UPDATED,
+    },
+    {
+      event: WebSocketRequestEvents.SUBAGENT_READ,
+      handler: handleSubAgentRead,
+      schema: subAgentReadSchema,
+      responseEvent: WebSocketResponseEvents.SUBAGENT_READ_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.SUBAGENT_NOTE_CREATE,
+      handler: handleSubAgentNoteCreate,
+      schema: subAgentNoteCreateSchema,
+      responseEvent: WebSocketResponseEvents.SUBAGENT_NOTE_CREATED,
+    },
+    {
+      event: WebSocketRequestEvents.SUBAGENT_NOTE_LIST,
+      handler: handleSubAgentNoteList,
+      schema: subAgentNoteListSchema,
+      responseEvent: WebSocketResponseEvents.SUBAGENT_NOTE_LIST_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.SUBAGENT_NOTE_UPDATE,
+      handler: handleSubAgentNoteUpdate,
+      schema: subAgentNoteUpdateSchema,
+      responseEvent: WebSocketResponseEvents.SUBAGENT_NOTE_UPDATED,
+    },
+    {
+      event: WebSocketRequestEvents.SUBAGENT_NOTE_DELETE,
+      handler: handleSubAgentNoteDelete,
+      schema: subAgentNoteDeleteSchema,
+      responseEvent: WebSocketResponseEvents.SUBAGENT_NOTE_DELETED,
+    },
+    {
+      event: WebSocketRequestEvents.POD_BIND_SUBAGENT,
+      handler: handlePodBindSubAgent,
+      schema: podBindSubAgentSchema,
+      responseEvent: WebSocketResponseEvents.POD_SUBAGENT_BOUND,
+    },
+    {
+      event: WebSocketRequestEvents.SUBAGENT_DELETE,
+      handler: handleSubAgentDelete,
+      schema: subAgentDeleteSchema,
+      responseEvent: WebSocketResponseEvents.SUBAGENT_DELETED,
+    },
   ],
-};
+});

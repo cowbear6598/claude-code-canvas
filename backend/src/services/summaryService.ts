@@ -5,7 +5,7 @@ import { messageStore } from './messageStore.js';
 import { outputStyleService } from './outputStyleService.js';
 import { logger } from '../utils/logger.js';
 
-export interface TargetSummaryResult {
+interface TargetSummaryResult {
   targetPodId: string;
   summary: string;
   success: boolean;

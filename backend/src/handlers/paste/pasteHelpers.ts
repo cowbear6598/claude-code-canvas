@@ -50,7 +50,7 @@ async function copyClaudeDir(srcCwd: string, destCwd: string): Promise<void> {
   try {
     await fs.access(srcClaudeDir);
   } catch {
-    return; // 原始 .claude 不存在，不需要複製
+    return;
   }
 
   try {

@@ -9,7 +9,7 @@ import type { CanvasPastePayload } from '../schemas/index.js';
 import { socketService } from '../services/socketService.js';
 import { emitSuccess } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
-import { getCanvasId } from '../utils/handlerHelpers.js';
+import { withCanvasId } from '../utils/handlerHelpers.js';
 import {
   createPastedPods,
   createPastedOutputStyleNotes,
@@ -21,17 +21,10 @@ import {
 } from './paste/pasteHelpers.js';
 import { podStore } from '../services/podStore.js';
 
-export async function handleCanvasPaste(
-  socket: Socket,
-  payload: CanvasPastePayload,
-  requestId: string
-): Promise<void> {
-  const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, commandNotes, connections } = payload;
-
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.CANVAS_PASTE_RESULT, requestId);
-  if (!canvasId) {
-    return;
-  }
+export const handleCanvasPaste = withCanvasId<CanvasPastePayload>(
+  WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+  async (socket: Socket, canvasId: string, payload: CanvasPastePayload, requestId: string): Promise<void> => {
+    const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, commandNotes, connections } = payload;
 
   const podIdMapping: Record<string, string> = {};
   const errors: PasteError[] = [];
@@ -60,7 +53,6 @@ export async function handleCanvasPaste(
 
   const createdConnections = createPastedConnections(canvasId, connections, podIdMapping);
 
-  // 後處理：從 command notes 補齊 Pod 的 commandId
   for (const note of createdCommandNotes) {
     if (note.boundToPodId) {
       const pod = podStore.getById(canvasId, note.boundToPodId);
@@ -102,9 +94,10 @@ export async function handleCanvasPaste(
   };
   socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CANVAS_PASTED, broadcastPayload);
 
-  logger.log(
-    'Paste',
-    'Complete',
-    `Paste completed: ${createdPods.length} pods, ${createdOutputStyleNotes.length} output style notes, ${createdSkillNotes.length} skill notes, ${createdRepositoryNotes.length} repository notes, ${createdSubAgentNotes.length} subagent notes, ${createdCommandNotes.length} command notes, ${createdConnections.length} connections, ${errors.length} errors`
-  );
-}
+    logger.log(
+      'Paste',
+      'Complete',
+      `Paste completed: ${createdPods.length} pods, ${createdOutputStyleNotes.length} output style notes, ${createdSkillNotes.length} skill notes, ${createdRepositoryNotes.length} repository notes, ${createdSubAgentNotes.length} subagent notes, ${createdCommandNotes.length} command notes, ${createdConnections.length} connections, ${errors.length} errors`
+    );
+  }
+);

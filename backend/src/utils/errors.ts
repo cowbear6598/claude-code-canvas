@@ -1,7 +1,3 @@
-// Custom Error Classes
-// Application-specific error classes for consistent error handling
-
-// Base error class for all application errors
 export class AppError extends Error {
   constructor(
     public statusCode: number,
@@ -16,37 +12,20 @@ export class AppError extends Error {
   }
 }
 
-// 404 - Resource not found
 export class NotFoundError extends AppError {
-  constructor(message: string = 'Resource not found', details?: unknown) {
+  constructor(message: string = '找不到資源', details?: unknown) {
     super(404, 'NOT_FOUND', message, details);
   }
 }
 
-// 400 - Validation error
 export class ValidationError extends AppError {
-  constructor(message: string = 'Validation failed', details?: unknown) {
+  constructor(message: string = '驗證失敗', details?: unknown) {
     super(400, 'VALIDATION_ERROR', message, details);
   }
 }
 
-// 409 - Resource conflict
-export class ConflictError extends AppError {
-  constructor(message: string = 'Resource conflict', details?: unknown) {
-    super(409, 'CONFLICT', message, details);
-  }
-}
-
-// 401 - Unauthorized
 export class UnauthorizedError extends AppError {
-  constructor(message: string = 'Unauthorized', details?: unknown) {
+  constructor(message: string = '未授權', details?: unknown) {
     super(401, 'UNAUTHORIZED', message, details);
-  }
-}
-
-// 500 - Internal server error
-export class InternalError extends AppError {
-  constructor(message: string = 'Internal server error', details?: unknown) {
-    super(500, 'INTERNAL_ERROR', message, details);
   }
 }

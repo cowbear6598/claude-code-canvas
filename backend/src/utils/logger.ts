@@ -1,6 +1,3 @@
-// Logger utility for consistent logging across the application
-// Provides categorized and action-based logging with a standardized format
-
 /**
  * 日誌分類
  */

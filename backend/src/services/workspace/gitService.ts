@@ -3,23 +3,17 @@ import { Result, ok, err } from '../../types/index.js';
 import {config} from '../../config/index.js';
 import { logger } from '../../utils/logger.js';
 
-export interface GitCloneProgress {
+interface GitCloneProgress {
     stage: string;
     progress: number;
 }
 
-export interface GitCloneOptions {
+interface GitCloneOptions {
     branch?: string;
     onProgress?: (progress: GitCloneProgress) => void;
 }
 
 class GitService {
-    /**
-     * Clone a Git repository
-     * @param repoUrl Repository URL (supports HTTPS and SSH)
-     * @param targetPath Absolute path to clone into
-     * @param options Clone options including branch and progress callback
-     */
     async clone(
         repoUrl: string,
         targetPath: string,
@@ -58,9 +52,6 @@ class GitService {
         }
     }
 
-    /**
-     * Get Git status for a workspace
-     */
     async getStatus(workspacePath: string): Promise<Result<StatusResult>> {
         try {
             const git = simpleGit(workspacePath);
@@ -72,9 +63,6 @@ class GitService {
         }
     }
 
-    /**
-     * Get current branch name
-     */
     async getCurrentBranch(workspacePath: string): Promise<Result<string>> {
         try {
             const git = simpleGit(workspacePath);
@@ -86,9 +74,6 @@ class GitService {
         }
     }
 
-    /**
-     * List all branches
-     */
     async listBranches(workspacePath: string): Promise<Result<string[]>> {
         try {
             const git = simpleGit(workspacePath);
