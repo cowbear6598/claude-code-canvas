@@ -1,0 +1,172 @@
+/* Pod Menu Submenu */
+.pod-menu-submenu {
+  position: absolute;
+  left: 100%;
+  margin-left: 8px;
+  top: 0;
+  min-width: 192px;
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 3px 3px 0 var(--doodle-ink);
+  z-index: 60;
+}
+
+.pod-menu-submenu-search {
+  width: 100%;
+  padding: 4px 8px;
+  border: none;
+  border-bottom: 1.5px solid var(--doodle-ink);
+  outline: none;
+  background: transparent;
+  font-size: 0.825rem;
+  font-family: var(--font-mono), monospace, sans-serif;
+  color: var(--foreground);
+  box-sizing: border-box;
+}
+
+.pod-menu-submenu::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 0;
+  width: 12px;
+  height: 100%;
+}
+
+.pod-menu-submenu-item {
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  font-family: var(--font-mono), monospace, sans-serif;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pod-menu-submenu-item:hover {
+  background: var(--secondary);
+}
+
+/* Pod Menu Submenu Scrollable */
+.pod-menu-submenu-scrollable,
+.pod-skill-menu-scrollable,
+.pod-subagent-menu-scrollable {
+  max-height: calc(36px * 5 + 8px);
+  overflow-y: auto;
+}
+
+.pod-menu-submenu-scrollable::-webkit-scrollbar,
+.pod-skill-menu::-webkit-scrollbar,
+.pod-skill-menu-scrollable::-webkit-scrollbar,
+.pod-subagent-menu-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.pod-menu-submenu-scrollable::-webkit-scrollbar-track,
+.pod-skill-menu::-webkit-scrollbar-track,
+.pod-skill-menu-scrollable::-webkit-scrollbar-track,
+.pod-subagent-menu-scrollable::-webkit-scrollbar-track {
+  background: oklch(0.9 0.01 50);
+  border-radius: 4px;
+}
+
+.pod-menu-submenu-scrollable::-webkit-scrollbar-thumb,
+.pod-skill-menu::-webkit-scrollbar-thumb,
+.pod-skill-menu-scrollable::-webkit-scrollbar-thumb,
+.pod-subagent-menu-scrollable::-webkit-scrollbar-thumb {
+  background: oklch(0.6 0.02 50);
+  border-radius: 4px;
+  border: 1px solid var(--doodle-ink);
+}
+
+.pod-menu-submenu-scrollable::-webkit-scrollbar-thumb:hover,
+.pod-skill-menu::-webkit-scrollbar-thumb:hover,
+.pod-skill-menu-scrollable::-webkit-scrollbar-thumb:hover,
+.pod-subagent-menu-scrollable::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.5 0.02 50);
+}
+
+/* Pod Menu Submenu Item Wrapper */
+.pod-menu-submenu-item-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.pod-menu-submenu-item-wrapper:hover {
+  background: var(--secondary);
+}
+
+.pod-menu-submenu-item-wrapper .pod-menu-submenu-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.pod-menu-submenu-item-wrapper .pod-menu-submenu-item:hover {
+  background: transparent;
+}
+
+/* Pod Menu Submenu Edit Button */
+.pod-menu-submenu-edit-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: oklch(0.5 0.02 50);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.pod-menu-submenu-item-wrapper:hover .pod-menu-submenu-edit-btn {
+  display: flex;
+}
+
+.pod-menu-submenu-edit-btn:hover {
+  background: oklch(0.85 0.08 200);
+  color: oklch(0.4 0.12 200);
+}
+
+/* Pod Menu Submenu Delete Button */
+.pod-menu-submenu-delete-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: oklch(0.5 0.02 50);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.pod-menu-submenu-item-wrapper:hover .pod-menu-submenu-delete-btn {
+  display: flex;
+}
+
+.pod-menu-submenu-delete-btn:hover {
+  background: oklch(0.9 0.15 25);
+  color: oklch(0.5 0.2 25);
+}

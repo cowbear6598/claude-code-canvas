@@ -1,0 +1,148 @@
+/* Trash Zone */
+.trash-zone {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.trash-zone.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.trash-zone-inner {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: oklch(0.95 0.01 50);
+  border: 2px dashed oklch(0.6 0.02 50);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.trash-zone-inner.highlighted {
+  transform: scale(1.2);
+  background: oklch(0.9 0.15 25);
+  border-color: oklch(0.6 0.2 25);
+  border-style: solid;
+  box-shadow: 0 0 20px oklch(0.6 0.2 25 / 0.4);
+}
+
+.trash-zone-icon {
+  width: 32px;
+  height: 32px;
+  fill: none;
+  color: oklch(0.5 0.02 50);
+  transition: color 0.2s ease;
+}
+
+.trash-zone-inner.highlighted .trash-zone-icon {
+  color: oklch(0.5 0.2 25);
+}
+
+/* Disconnect Overlay - TV Static Effect */
+.disconnect-overlay {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9998;
+  background: oklch(0.08 0 0 / 0.85);
+  overflow: hidden;
+}
+
+.disconnect-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(45deg, oklch(0.12 0 0 / 0.3) 25%, transparent 25%, transparent 75%, oklch(0.12 0 0 / 0.3) 75%, oklch(0.12 0 0 / 0.3)),
+    linear-gradient(-45deg, oklch(0.15 0 0 / 0.3) 25%, transparent 25%, transparent 75%, oklch(0.15 0 0 / 0.3) 75%, oklch(0.15 0 0 / 0.3));
+  background-size: 3px 3px;
+  background-position: 0 0, 1.5px 1.5px;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+.disconnect-overlay-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 60px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.disconnect-overlay-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.disconnect-line-layer-1 {
+  stroke: oklch(0.6 0 0 / 0.5);
+  stroke-width: 1.5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 8 3 15 4 6 8 12 3;
+}
+
+.disconnect-line-layer-2 {
+  stroke: oklch(0.6 0 0 / 0.7);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 10 4 12 5 8 6 14 4;
+}
+
+.disconnect-line-layer-3 {
+  stroke: oklch(0.6 0 0 / 0.4);
+  stroke-width: 1;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 6 4 18 3 10 7 9 5;
+}
+
+
+.disconnect-overlay.tv-turn-off {
+  animation: tv-turn-off 0.5s ease-out forwards;
+  transform-origin: center center;
+}
+
+.disconnect-overlay.tv-turn-on {
+  animation: tv-turn-on 0.6s ease-in forwards;
+  transform-origin: center center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes tv-turn-off {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes tv-turn-on {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+}

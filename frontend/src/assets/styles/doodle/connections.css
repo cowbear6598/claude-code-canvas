@@ -1,0 +1,72 @@
+/* Connection Layer */
+.connection-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  overflow: visible;
+}
+
+.connection-line {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.connection-line .click-area {
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+.connection-line .line {
+  stroke-width: 3px;
+  transition: stroke-width 0.2s ease;
+}
+
+.connection-line:hover .line {
+  stroke-width: 4px;
+}
+
+.connection-line.selected .line {
+  stroke-width: 5px;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.connection-line .arrow {
+  transition: opacity 0.2s ease, fill 0.3s ease;
+}
+
+.connection-line:hover .arrow {
+  opacity: 0.8;
+}
+
+.dragging-line {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Connection Status Styles */
+.connection-line.active .line {
+  stroke-dasharray: 8, 4;
+  animation: connection-flow 2s linear infinite;
+  stroke-width: 4px;
+}
+
+.connection-line.inactive .line {
+  stroke-dasharray: none;
+}
+
+/* Message Summary Badge */
+.message-summary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: oklch(0.9 0.05 220 / 0.3);
+  color: oklch(0.4 0.1 220);
+  margin-bottom: 4px;
+}

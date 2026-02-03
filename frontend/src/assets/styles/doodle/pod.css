@@ -1,0 +1,388 @@
+/* Pod card doodle style */
+.pod-doodle {
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 6px;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4);
+  transition: all 0.2s ease;
+  cursor: grab;
+  position: relative;
+}
+
+.pod-doodle:hover {
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.5);
+}
+
+.pod-doodle:active {
+  cursor: grabbing;
+}
+
+/* ===========================================
+   Pod Notch System (凹槽系統)
+
+   結構說明：
+   - .pod-notch-area: Slot 容器的位置（Output Style）
+   - .pod-skill-notch-area: Slot 容器的位置（Skill）
+   - .model-notch: POD 上方的 Model 凹槽視覺效果
+   - ::before: POD 左側的凹槽視覺效果（Output Style）
+   - ::after: POD 左側的凹槽視覺效果（Skill）
+
+   位置對齊注意事項：
+   - .pod-notch-area 的 top 要和 Slot 內容對齊
+   - ::before 的 top 是凹槽視覺效果的位置（相對於 .pod-doodle）
+   - 兩者的 top 值可能不同，因為參考點不同
+   =========================================== */
+
+.pod-with-notch {
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.pod-with-notch:hover {
+  transform: translate(-0.5px, -0.5px);
+}
+
+/* Model 凹槽（POD 上方） */
+.model-notch {
+  position: absolute;
+  top: -6px;
+  left: 8px;
+  width: 28px;
+  height: 8px;
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  z-index: -1;
+}
+
+/* Output Style Slot 容器位置（移至右側） */
+.pod-notch-area {
+  position: absolute;
+  right: 0;
+  top: 18px;  /* 調整此值來移動 Slot 的垂直位置 */
+  transform: translateX(100%);
+  z-index: -1;
+}
+
+/* Output Style 凹槽視覺效果（POD 右側的小突出） */
+.pod-with-notch .pod-doodle::before {
+  content: '';
+  position: absolute;
+  right: -6px;  /* 凹槽往右延伸的距離 */
+  top: 16px;    /* 凹槽的垂直位置（相對於 .pod-doodle） */
+  width: 8px;   /* 凹槽寬度 */
+  height: 32px; /* 凹槽高度 */
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  z-index: -1;
+}
+
+/* Skill 凹槽視覺效果（POD 左側） */
+.pod-with-skill-notch .pod-doodle::after {
+  content: '';
+  position: absolute;
+  left: -6px;   /* 凹槽往左延伸的距離 */
+  top: 16px;    /* 凹槽的垂直位置（與 Output Style 同高） */
+  width: 8px;   /* 凹槽寬度 */
+  height: 32px; /* 凹槽高度 */
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  z-index: -1;
+}
+
+/* Pod Anchors */
+.pod-anchor {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 50%;
+  cursor: default;
+  transition: all 0.2s ease;
+  z-index: 50;
+  transform-origin: center;
+}
+
+.pod-anchor::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  /* 透明，只增加點擊區域 */
+}
+
+.pod-anchor:hover {
+  scale: 1.3;
+  box-shadow: 0 0 6px var(--doodle-ink);
+}
+
+.pod-anchor.dragging {
+  scale: 1.5;
+  background: var(--doodle-blue);
+  box-shadow: 0 0 12px oklch(0.6 0.1 200 / 0.7);
+}
+
+.anchor-top {
+  top: -6px;
+  left: 50%;
+  margin-left: -6px;
+}
+
+.anchor-bottom {
+  bottom: -6px;
+  left: 50%;
+  margin-left: -6px;
+}
+
+.anchor-left {
+  left: -6px;
+  top: 50%;
+  margin-top: -6px;
+}
+
+.anchor-right {
+  right: -6px;
+  top: 50%;
+  margin-top: -6px;
+}
+
+/* Workflow Clear Button (位於 POD 右下角外側) */
+.workflow-clear-button {
+  position: absolute;
+  bottom: -14px;
+  right: -14px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: oklch(0.92 0.04 180);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 60;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4);
+}
+
+.workflow-clear-button:hover {
+  background: oklch(0.85 0.06 180);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.5);
+}
+
+.workflow-clear-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.workflow-clear-button svg {
+  width: 16px;
+  height: 16px;
+  color: oklch(0.35 0.02 50);
+  transition: color 0.2s ease;
+}
+
+.workflow-clear-button:hover svg {
+  color: oklch(0.25 0.02 50);
+}
+
+/* 右下角按鈕群組容器 */
+.pod-action-buttons-group {
+  position: absolute;
+  bottom: -14px;
+  right: -14px;
+  display: flex;
+  gap: 6px;
+  z-index: 60;
+}
+
+/* Schedule 按鈕 */
+.schedule-button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: oklch(0.92 0 0);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 2px 2px 0 oklch(0.4 0 0 / 0.4);
+  color: var(--muted-foreground);
+}
+
+.schedule-button:hover {
+  background: oklch(0.85 0 0);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 oklch(0.4 0 0 / 0.5);
+}
+
+.schedule-button.schedule-enabled {
+  background: oklch(0.92 0.15 85);
+  color: oklch(0.45 0.12 85);
+}
+
+.schedule-button.schedule-enabled:hover {
+  background: oklch(0.88 0.18 85);
+}
+
+.schedule-button svg {
+  width: 16px;
+  height: 16px;
+  transition: color 0.2s ease;
+}
+
+.pod-delete-button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: oklch(0.95 0.08 25);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4);
+}
+
+.pod-delete-button:hover {
+  background: oklch(0.88 0.12 25);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.5);
+}
+
+.pod-delete-button svg {
+  width: 16px;
+  height: 16px;
+  color: oklch(0.4 0.1 25);
+  transition: color 0.2s ease;
+}
+
+.pod-delete-button:hover svg {
+  color: oklch(0.3 0.15 25);
+}
+
+/* 單獨顯示時的刪除按鈕位置 */
+.pod-delete-button-standalone {
+  position: absolute;
+  bottom: -14px;
+  right: -14px;
+}
+
+/* 群組內的橡皮擦按鈕樣式（繼承原樣式但移除定位） */
+.workflow-clear-button-in-group {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: oklch(0.92 0.04 180);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4);
+  position: relative;
+}
+
+.workflow-clear-button-in-group:hover {
+  background: oklch(0.85 0.06 180);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.5);
+}
+
+.workflow-clear-button-in-group:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.workflow-clear-button-in-group svg {
+  width: 16px;
+  height: 16px;
+  color: oklch(0.35 0.02 50);
+  transition: color 0.2s ease;
+}
+
+.workflow-clear-button-in-group:hover svg {
+  color: oklch(0.25 0.02 50);
+}
+
+/* 自動清除 Badge 樣式 */
+.auto-clear-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: bold;
+  font-family: var(--font-mono);
+  color: oklch(0.98 0 0);
+  background: oklch(0.55 0.15 150);
+  border: 1.5px solid var(--doodle-ink);
+  border-radius: 50%;
+  z-index: 1;
+}
+
+/* 自動清除啟用狀態 */
+.workflow-clear-button-in-group.auto-clear-enabled {
+  background: oklch(0.85 0.08 150);
+}
+
+.workflow-clear-button-in-group.auto-clear-enabled:hover {
+  background: oklch(0.78 0.1 150);
+}
+
+/* POD Status Animation Styles */
+
+/* Idle 狀態無特殊樣式 */
+.pod-status-idle {
+  /* 預設樣式，無額外動畫 */
+}
+
+/* Chatting 狀態的脈衝動畫（增強版 - 更明顯可見） */
+.pod-status-chatting {
+  animation: pod-chatting-pulse 2s ease-in-out infinite;
+}
+
+/* Summarizing 狀態的向內收縮光暈（金黃色，像資料被彙整） */
+.pod-status-summarizing {
+  animation: pod-summarizing-collect 2s ease-in-out infinite;
+}
+
+/* Error 狀態樣式 */
+.pod-status-error {
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+              0 0 8px oklch(0.65 0.2 25 / 0.5);
+}
+
+/* 無障礙支援：減少動態效果 */
+@media (prefers-reduced-motion: reduce) {
+  .pod-status-chatting {
+    animation: none;
+    box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+                0 0 12px oklch(0.7 0.18 220 / 0.6);
+  }
+
+  .pod-status-summarizing {
+    animation: none;
+    box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+                0 0 8px 2px oklch(0.8 0.18 85 / 0.7);
+  }
+}

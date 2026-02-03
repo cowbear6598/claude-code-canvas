@@ -1,0 +1,231 @@
+/* Output Style Note */
+.output-style-note {
+  position: absolute;
+  padding: 6px 12px;
+  background: var(--doodle-yellow);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
+  cursor: grab;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  z-index: 20;
+  white-space: nowrap;
+}
+
+.output-style-note.animating {
+  transition: left 0.3s ease, top 0.3s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.output-style-note:hover {
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
+  transform: translate(-0.5px, -0.5px) rotate(-1deg);
+}
+
+.output-style-note.dragging {
+  cursor: grabbing;
+  box-shadow: 4px 4px 0 oklch(0.4 0.02 50 / 0.5);
+  transform: rotate(2deg);
+  z-index: 100;
+}
+
+.output-style-note-text {
+  font-family: var(--font-mono), monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: oklch(0.3 0.02 50);
+  text-align: center;
+}
+
+/* Repository Note */
+.repository-note {
+  position: absolute;
+  padding: 6px 12px;
+  background: var(--doodle-orange);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
+  cursor: grab;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  z-index: 20;
+  white-space: nowrap;
+}
+
+.repository-note.animating {
+  transition: left 0.3s ease, top 0.3s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.repository-note:hover {
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
+  transform: translate(-0.5px, -0.5px) rotate(-1deg);
+}
+
+.repository-note.dragging {
+  cursor: grabbing;
+  box-shadow: 4px 4px 0 oklch(0.4 0.02 50 / 0.5);
+  transform: rotate(2deg);
+  z-index: 100;
+}
+
+.repository-note-text {
+  font-family: var(--font-mono), monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: oklch(0.3 0.02 50);
+  text-align: center;
+}
+
+.repository-note.selected {
+  box-shadow: 0 0 0 2px oklch(0.65 0.15 170 / 0.6);
+  border-color: oklch(0.55 0.15 170);
+}
+
+/* Command Note - 水平卡片（薄荷綠） */
+.command-note {
+  position: absolute;
+  padding: 6px 12px;
+  background: var(--doodle-mint);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
+  cursor: grab;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  z-index: 20;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.command-note.animating {
+  transition: left 0.3s ease, top 0.3s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.command-note:hover {
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
+  transform: translate(-0.5px, -0.5px) rotate(-1deg);
+}
+
+.command-note.dragging {
+  cursor: grabbing;
+  box-shadow: 4px 4px 0 oklch(0.4 0.02 50 / 0.5);
+  transform: rotate(2deg);
+  z-index: 100;
+}
+
+.command-note-text {
+  font-family: var(--font-mono), monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: oklch(0.3 0.02 50);
+  text-align: center;
+}
+
+.command-note.selected {
+  box-shadow: 0 0 0 2px oklch(0.65 0.15 170 / 0.6);
+  border-color: oklch(0.55 0.15 170);
+}
+
+/* Skill Note */
+.skill-note {
+  position: absolute;
+  padding: 6px 12px;
+  background: var(--doodle-light-blue);
+  border: 2px dashed var(--doodle-ink);
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
+  cursor: grab;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  z-index: 20;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.skill-note.animating {
+  transition: left 0.3s ease, top 0.3s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.skill-note:hover {
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
+  transform: translate(-0.5px, -0.5px) rotate(-1deg);
+}
+
+.skill-note.dragging {
+  cursor: grabbing;
+  box-shadow: 4px 4px 0 oklch(0.4 0.02 50 / 0.5);
+  transform: rotate(2deg);
+  z-index: 100;
+}
+
+.skill-note-text {
+  font-family: var(--font-mono), monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: oklch(0.3 0.02 50);
+  text-align: center;
+}
+
+/* SubAgent Note - 沙漠色/奶油色筆記 */
+.subagent-note {
+  position: absolute;
+  padding: 6px 12px;
+  background: var(--doodle-sand);
+  border: 2px dashed var(--doodle-ink);
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
+  cursor: grab;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  z-index: 20;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subagent-note.animating {
+  transition: left 0.3s ease, top 0.3s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.subagent-note:hover {
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
+  transform: translate(-0.5px, -0.5px) rotate(-1deg);
+}
+
+.subagent-note.dragging {
+  cursor: grabbing;
+  box-shadow: 4px 4px 0 oklch(0.4 0.02 50 / 0.5);
+  transform: rotate(2deg);
+  z-index: 100;
+}
+
+.subagent-note-text {
+  font-family: var(--font-mono), monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: oklch(0.3 0.02 50);
+  text-align: center;
+}
+
+.subagent-note.selected {
+  box-shadow: 0 0 0 2px oklch(0.65 0.15 170 / 0.6);
+  border-color: oklch(0.55 0.15 170);
+}

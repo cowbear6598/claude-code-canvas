@@ -1,0 +1,156 @@
+@keyframes slide-into-slot {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(50%);
+    opacity: 1;
+  }
+}
+
+@keyframes eject-from-slot {
+  from {
+    transform: translateX(50%);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-into-slot-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%);
+    opacity: 1;
+  }
+}
+
+@keyframes eject-from-slot-right {
+  from {
+    transform: translateX(-50%);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes arrow-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes connection-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+@keyframes pod-chatting-pulse {
+  0%, 100% {
+    box-shadow:
+      2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+      0 0 8px oklch(0.7 0.18 220 / 0.5),
+      0 0 16px oklch(0.65 0.2 220 / 0.3);
+  }
+  50% {
+    box-shadow:
+      2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+      0 0 20px oklch(0.75 0.22 220 / 0.8),
+      0 0 32px oklch(0.65 0.2 220 / 0.5);
+  }
+}
+
+@keyframes pod-summarizing-collect {
+  0% {
+    box-shadow:
+      2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+      0 0 20px 8px oklch(0.8 0.18 85 / 0.5),
+      0 0 30px 12px oklch(0.75 0.15 85 / 0.3);
+  }
+  /* 慢慢收縮到很小 */
+  85% {
+    box-shadow:
+      2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+      0 0 1px 0 oklch(0.85 0.2 85 / 1),
+      0 0 2px 0 oklch(0.75 0.15 85 / 0.6);
+  }
+  /* 快速彈開 */
+  100% {
+    box-shadow:
+      2px 2px 0 oklch(0.4 0.02 50 / 0.4),
+      0 0 20px 8px oklch(0.8 0.18 85 / 0.5),
+      0 0 30px 12px oklch(0.75 0.15 85 / 0.3);
+  }
+}
+
+@keyframes tv-turn-off {
+  0% {
+    filter: brightness(0);
+    transform: scale(0, 0.005);
+    background: oklch(0.95 0 0);
+    opacity: 0;
+  }
+  10% {
+    filter: brightness(2);
+    transform: scale(0, 0.005);
+    background: oklch(0.95 0 0);
+    opacity: 1;
+  }
+  30% {
+    filter: brightness(2);
+    transform: scaleY(0.005);
+    background: oklch(0.95 0 0);
+  }
+  60% {
+    filter: brightness(1.5);
+    transform: scale(1, 1);
+    background: oklch(0.08 0 0 / 0.85);
+  }
+  100% {
+    filter: brightness(1);
+    transform: scale(1, 1);
+    background: oklch(0.08 0 0 / 0.85);
+  }
+}
+
+@keyframes tv-turn-on {
+  0% {
+    filter: brightness(1);
+    transform: scale(1, 1);
+    background: oklch(0.08 0 0 / 0.85);
+  }
+  30% {
+    filter: brightness(1.5);
+    transform: scale(1, 1);
+  }
+  50% {
+    filter: brightness(2);
+    transform: scaleY(0.005);
+    background: oklch(0.95 0 0);
+  }
+  80% {
+    filter: brightness(2);
+    transform: scaleY(0.005);
+    background: oklch(0.95 0 0);
+  }
+  100% {
+    filter: brightness(0);
+    transform: scale(0, 0);
+    opacity: 0;
+  }
+}
