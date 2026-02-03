@@ -39,8 +39,6 @@ export const useCanvasStore = defineStore('canvas', {
       if (!state.activeCanvasId) return null
       return state.canvases.find(c => c.id === state.activeCanvasId) || null
     },
-
-    canvasCount: (state): number => state.canvases.length,
   },
 
   actions: {

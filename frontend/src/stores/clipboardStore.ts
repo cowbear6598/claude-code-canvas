@@ -33,15 +33,6 @@ export const useClipboardStore = defineStore('clipboard', {
       state.copiedSubAgentNotes.length === 0 &&
       state.copiedCommandNotes.length === 0 &&
       state.copiedConnections.length === 0,
-
-    hasCopiedData: (state): boolean =>
-      state.copiedPods.length > 0 ||
-      state.copiedOutputStyleNotes.length > 0 ||
-      state.copiedSkillNotes.length > 0 ||
-      state.copiedRepositoryNotes.length > 0 ||
-      state.copiedSubAgentNotes.length > 0 ||
-      state.copiedCommandNotes.length > 0 ||
-      state.copiedConnections.length > 0,
   },
 
   actions: {
