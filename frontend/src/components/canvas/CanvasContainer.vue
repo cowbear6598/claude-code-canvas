@@ -47,7 +47,8 @@ const validateCoordinate = (value: number): number => {
   return value
 }
 
-const handleDoubleClick = (e: MouseEvent): void => {
+const handleContextMenu = (e: MouseEvent): void => {
+  e.preventDefault() // 防止瀏覽器預設右鍵選單
   const target = e.target as HTMLElement
 
   if (
@@ -196,7 +197,7 @@ onUnmounted(() => {
 
 <template>
   <CanvasViewport
-    @dblclick="handleDoubleClick"
+    @contextmenu="handleContextMenu"
     @click="handleCanvasClick"
   >
     <!-- Connection Layer -->

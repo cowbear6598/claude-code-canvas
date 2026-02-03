@@ -33,7 +33,8 @@ const {
   skillStore,
   subAgentStore,
   repositoryStore,
-  commandStore
+  commandStore,
+  podStore
 } = useCanvasContext()
 
 type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
@@ -281,11 +282,18 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
   editModal.value.visible = false
 }
 
+// 在選單打開時處理右鍵點擊，更新選單位置
+const handleContextMenu = (e: MouseEvent): void => {
+  e.preventDefault()
+  podStore.showTypeMenu({ x: e.clientX, y: e.clientY })
+}
+
 const { menuStyle } = useMenuPosition({ position: computed(() => props.position) })
 </script>
 
 <template>
-  <div>
+  <!-- 阻止顯示瀏覽器預設右鍵選單，並允許在選單上右鍵點擊時更新位置 -->
+  <div @contextmenu="handleContextMenu">
     <!-- 背景遮罩 -->
     <div
       class="fixed inset-0 z-40"

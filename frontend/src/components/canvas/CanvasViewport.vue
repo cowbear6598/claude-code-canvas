@@ -10,7 +10,7 @@ const { handleWheel } = useCanvasZoom()
 const { startBoxSelect } = useBoxSelect()
 
 const emit = defineEmits<{
-  dblclick: [e: MouseEvent]
+  contextmenu: [e: MouseEvent]
 }>()
 
 const gridStyle = computed(() => {
@@ -23,9 +23,9 @@ const gridStyle = computed(() => {
   }
 })
 
-const handleDoubleClick = (e: MouseEvent): void => {
-  e.preventDefault()
-  emit('dblclick', e)
+const handleContextMenu = (e: MouseEvent): void => {
+  e.preventDefault() // 防止瀏覽器預設右鍵選單
+  emit('contextmenu', e)
 }
 
 const handleMouseDown = (e: MouseEvent): void => {
@@ -46,8 +46,7 @@ const handleMouseDown = (e: MouseEvent): void => {
     :style="gridStyle"
     @wheel="handleWheel"
     @mousedown="handleMouseDown"
-    @dblclick="handleDoubleClick"
-    @contextmenu.prevent
+    @contextmenu="handleContextMenu"
   >
     <div
       class="canvas-content h-full"
