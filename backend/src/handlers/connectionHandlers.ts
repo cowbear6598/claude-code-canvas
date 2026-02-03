@@ -8,7 +8,7 @@ import type {
   BroadcastConnectionCreatedPayload,
   BroadcastConnectionUpdatedPayload,
   BroadcastConnectionDeletedPayload,
-  BroadcastPodUpdatedPayload,
+  BroadcastPodScheduleSetPayload,
 } from '../types/index.js';
 import type {
   ConnectionCreatePayload,
@@ -81,12 +81,13 @@ export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
       const updatedPod = podStore.update(canvasId, targetPodId, { schedule: null });
 
       if (updatedPod) {
-        const podBroadcastPayload: BroadcastPodUpdatedPayload = {
+        const podBroadcastPayload: BroadcastPodScheduleSetPayload = {
           canvasId,
-          pod: updatedPod,
+          podId: targetPodId,
+          schedule: null,
         };
         // 使用 emitToCanvas 發送給整個 Canvas room（包含發送者），確保前端狀態同步
-        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.BROADCAST_POD_UPDATED, podBroadcastPayload);
+        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.BROADCAST_POD_SCHEDULE_SET, podBroadcastPayload);
 
         logger.log('Connection', 'Create', `Cleared schedule for target Pod ${targetPodId} (now downstream)`);
       }

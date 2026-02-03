@@ -1,4 +1,4 @@
-import type {Pod} from '@/types'
+import type {Pod, ModelType, Schedule} from '@/types'
 import type {Connection} from '@/types/connection'
 import type {OutputStyleNote} from '@/types/outputStyle'
 import type {SkillNote} from '@/types/skill'
@@ -11,9 +11,29 @@ export interface BroadcastPodCreatedPayload {
   pod: Pod
 }
 
-export interface BroadcastPodUpdatedPayload {
+export interface BroadcastPodMovedPayload {
   canvasId: string
-  pod: Pod
+  podId: string
+  x: number
+  y: number
+}
+
+export interface BroadcastPodRenamedPayload {
+  canvasId: string
+  podId: string
+  name: string
+}
+
+export interface BroadcastPodModelSetPayload {
+  canvasId: string
+  podId: string
+  model: ModelType
+}
+
+export interface BroadcastPodScheduleSetPayload {
+  canvasId: string
+  podId: string
+  schedule: Schedule | null
 }
 
 export interface BroadcastPodDeletedPayload {

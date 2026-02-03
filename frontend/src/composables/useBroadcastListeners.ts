@@ -12,7 +12,10 @@ import {truncateContent} from '@/stores/chat/chatUtils'
 import {CONTENT_PREVIEW_LENGTH} from '@/lib/constants'
 import type {
   BroadcastPodCreatedPayload,
-  BroadcastPodUpdatedPayload,
+  BroadcastPodMovedPayload,
+  BroadcastPodRenamedPayload,
+  BroadcastPodModelSetPayload,
+  BroadcastPodScheduleSetPayload,
   BroadcastPodDeletedPayload,
   BroadcastConnectionCreatedPayload,
   BroadcastConnectionUpdatedPayload,
@@ -84,8 +87,20 @@ const handleBroadcastPodCreated = createCanvasHandler<BroadcastPodCreatedPayload
   usePodStore().addPodFromBroadcast(payload.pod)
 })
 
-const handleBroadcastPodUpdated = createCanvasHandler<BroadcastPodUpdatedPayload>((payload) => {
-  usePodStore().updatePodFromBroadcast(payload.pod)
+const handleBroadcastPodMoved = createCanvasHandler<BroadcastPodMovedPayload>((payload) => {
+  usePodStore().updatePodPositionFromBroadcast(payload.podId, payload.x, payload.y)
+})
+
+const handleBroadcastPodRenamed = createCanvasHandler<BroadcastPodRenamedPayload>((payload) => {
+  usePodStore().updatePodNameFromBroadcast(payload.podId, payload.name)
+})
+
+const handleBroadcastPodModelSet = createCanvasHandler<BroadcastPodModelSetPayload>((payload) => {
+  usePodStore().updatePodModelFromBroadcast(payload.podId, payload.model)
+})
+
+const handleBroadcastPodScheduleSet = createCanvasHandler<BroadcastPodScheduleSetPayload>((payload) => {
+  usePodStore().updatePodScheduleFromBroadcast(payload.podId, payload.schedule)
 })
 
 const handleBroadcastPodDeleted = createCanvasHandler<BroadcastPodDeletedPayload>((payload) => {
@@ -349,7 +364,10 @@ const handleBroadcastPodChatUserMessage = (payload: BroadcastPodChatUserMessageP
 
 const listeners = [
   {event: WebSocketResponseEvents.BROADCAST_POD_CREATED, handler: handleBroadcastPodCreated},
-  {event: WebSocketResponseEvents.BROADCAST_POD_UPDATED, handler: handleBroadcastPodUpdated},
+  {event: WebSocketResponseEvents.BROADCAST_POD_MOVED, handler: handleBroadcastPodMoved},
+  {event: WebSocketResponseEvents.BROADCAST_POD_RENAMED, handler: handleBroadcastPodRenamed},
+  {event: WebSocketResponseEvents.BROADCAST_POD_MODEL_SET, handler: handleBroadcastPodModelSet},
+  {event: WebSocketResponseEvents.BROADCAST_POD_SCHEDULE_SET, handler: handleBroadcastPodScheduleSet},
   {event: WebSocketResponseEvents.BROADCAST_POD_DELETED, handler: handleBroadcastPodDeleted},
   {event: WebSocketResponseEvents.BROADCAST_CONNECTION_CREATED, handler: handleBroadcastConnectionCreated},
   {event: WebSocketResponseEvents.BROADCAST_CONNECTION_UPDATED, handler: handleBroadcastConnectionUpdated},

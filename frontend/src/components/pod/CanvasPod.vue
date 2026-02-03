@@ -12,10 +12,10 @@ import {createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents}
 import type {
   WorkflowGetDownstreamPodsResultPayload,
   WorkflowClearResultPayload,
-  PodUpdatedPayload,
+  PodSetModelPayload,
+  PodModelSetPayload,
   WorkflowGetDownstreamPodsPayload,
-  WorkflowClearPayload,
-  PodUpdatePayload
+  WorkflowClearPayload
 } from '@/types/websocket'
 import {formatScheduleTooltip} from '@/utils/scheduleUtils'
 import PodHeader from '@/components/pod/PodHeader.vue'
@@ -212,12 +212,12 @@ const handleOpenScheduleModal = (): void => {
 }
 
 const handleScheduleConfirm = async (schedule: Schedule): Promise<void> => {
-  await podStore.updatePodWithBackend(props.pod.id, { schedule })
+  await podStore.setScheduleWithBackend(props.pod.id, schedule)
   showScheduleModal.value = false
 }
 
 const handleScheduleDelete = async (): Promise<void> => {
-  await podStore.updatePodWithBackend(props.pod.id, { schedule: null })
+  await podStore.setScheduleWithBackend(props.pod.id, null)
   showScheduleModal.value = false
 }
 
@@ -229,7 +229,7 @@ const handleScheduleToggle = async (): Promise<void> => {
     enabled: !props.pod.schedule.enabled
   }
 
-  await podStore.updatePodWithBackend(props.pod.id, { schedule: newSchedule })
+  await podStore.setScheduleWithBackend(props.pod.id, newSchedule)
 }
 
 const handleSelectPod = (): void => {
@@ -437,9 +437,9 @@ const handleModelChange = async (model: ModelType): Promise<void> => {
   const {wrapWebSocketRequest} = useWebSocketErrorHandler()
 
   const response = await wrapWebSocketRequest(
-      createWebSocketRequest<PodUpdatePayload, PodUpdatedPayload>({
-        requestEvent: WebSocketRequestEvents.POD_UPDATE,
-        responseEvent: WebSocketResponseEvents.POD_UPDATED,
+      createWebSocketRequest<PodSetModelPayload, PodModelSetPayload>({
+        requestEvent: WebSocketRequestEvents.POD_SET_MODEL,
+        responseEvent: WebSocketResponseEvents.POD_MODEL_SET,
         payload: {
           canvasId: canvasStore.activeCanvasId!,
           podId: props.pod.id,

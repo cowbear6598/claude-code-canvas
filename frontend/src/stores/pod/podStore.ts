@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import type {Pod, PodColor, PodStatus, Position, TypeMenuState, ModelType} from '@/types'
+import type {Pod, PodColor, PodStatus, Position, TypeMenuState, ModelType, Schedule} from '@/types'
 import {initialPods} from '@/data/initialPods'
 import {validatePodName} from '@/lib/sanitize'
 import {generateRequestId} from '@/services/utils'
@@ -16,8 +16,13 @@ import type {
     PodCreatePayload,
     PodDeletePayload,
     PodListPayload,
-    PodUpdatePayload,
-    PodUpdatedPayload,
+    PodMovePayload,
+    PodRenamePayload,
+    PodRenamedPayload,
+    PodSetModelPayload,
+    PodModelSetPayload,
+    PodSetSchedulePayload,
+    PodScheduleSetPayload,
     PodJoinPayload,
     PodLeavePayload,
     PodSetAutoClearPayload,
@@ -96,21 +101,7 @@ export const usePodStore = defineStore('pod', {
             if (!this.isValidPod(pod)) return
             const index = this.pods.findIndex((p) => p.id === pod.id)
             if (index !== -1) {
-                const oldPod = this.pods[index]
-                if (!oldPod) return
-
                 this.pods.splice(index, 1, pod)
-
-                // Sync name change to backend
-                if (oldPod.name !== pod.name) {
-                    const canvasStore = useCanvasStore()
-                    websocketClient.emit<PodUpdatePayload>(WebSocketRequestEvents.POD_UPDATE, {
-                        requestId: generateRequestId(),
-                        canvasId: canvasStore.activeCanvasId!,
-                        podId: pod.id,
-                        name: pod.name
-                    })
-                }
             }
         },
 
@@ -246,7 +237,7 @@ export const usePodStore = defineStore('pod', {
             const canvasStore = useCanvasStore()
             if (!canvasStore.activeCanvasId) return
 
-            websocketClient.emit<PodUpdatePayload>(WebSocketRequestEvents.POD_UPDATE, {
+            websocketClient.emit<PodMovePayload>(WebSocketRequestEvents.POD_MOVE, {
                 requestId: generateRequestId(),
                 canvasId: canvasStore.activeCanvasId,
                 podId: id,
@@ -255,27 +246,82 @@ export const usePodStore = defineStore('pod', {
             })
         },
 
-        async updatePodWithBackend(podId: string, updates: Partial<Pick<Pod, 'schedule'>>): Promise<void> {
+        async renamePodWithBackend(podId: string, name: string): Promise<void> {
             const canvasStore = useCanvasStore()
 
             if (!canvasStore.activeCanvasId) {
-                throw new Error('無法更新 Pod：沒有啟用的畫布')
+                throw new Error('無法重命名 Pod：沒有啟用的畫布')
             }
 
-            const response = await createWebSocketRequest<PodUpdatePayload, PodUpdatedPayload>({
-                requestEvent: WebSocketRequestEvents.POD_UPDATE,
-                responseEvent: WebSocketResponseEvents.POD_UPDATED,
+            const response = await createWebSocketRequest<PodRenamePayload, PodRenamedPayload>({
+                requestEvent: WebSocketRequestEvents.POD_RENAME,
+                responseEvent: WebSocketResponseEvents.POD_RENAMED,
                 payload: {
                     canvasId: canvasStore.activeCanvasId,
                     podId,
-                    ...updates
+                    name
                 }
             })
 
-            // 收到回應後更新本地狀態
             if (response.success && response.pod) {
-                this.updatePodFromBroadcast(response.pod)
+                const pod = this.pods.find((p) => p.id === podId)
+                if (pod) {
+                    pod.name = name
+                }
             }
+        },
+
+        async setModelWithBackend(podId: string, model: ModelType): Promise<Pod | null> {
+            const canvasStore = useCanvasStore()
+
+            if (!canvasStore.activeCanvasId) {
+                throw new Error('無法設定模型：沒有啟用的畫布')
+            }
+
+            const response = await createWebSocketRequest<PodSetModelPayload, PodModelSetPayload>({
+                requestEvent: WebSocketRequestEvents.POD_SET_MODEL,
+                responseEvent: WebSocketResponseEvents.POD_MODEL_SET,
+                payload: {
+                    canvasId: canvasStore.activeCanvasId,
+                    podId,
+                    model
+                }
+            })
+
+            if (response.success && response.pod) {
+                this.updatePodModel(podId, model)
+                return response.pod
+            }
+
+            return null
+        },
+
+        async setScheduleWithBackend(podId: string, schedule: Schedule | null): Promise<Pod | null> {
+            const canvasStore = useCanvasStore()
+
+            if (!canvasStore.activeCanvasId) {
+                throw new Error('無法設定排程：沒有啟用的畫布')
+            }
+
+            const response = await createWebSocketRequest<PodSetSchedulePayload, PodScheduleSetPayload>({
+                requestEvent: WebSocketRequestEvents.POD_SET_SCHEDULE,
+                responseEvent: WebSocketResponseEvents.POD_SCHEDULE_SET,
+                payload: {
+                    canvasId: canvasStore.activeCanvasId,
+                    podId,
+                    schedule
+                }
+            })
+
+            if (response.success && response.pod) {
+                const pod = this.pods.find((p) => p.id === podId)
+                if (pod) {
+                    pod.schedule = schedule
+                }
+                return response.pod
+            }
+
+            return null
         },
 
         selectPod(podId: string | null): void {
@@ -404,6 +450,35 @@ export const usePodStore = defineStore('pod', {
 
             const connectionStore = useConnectionStore()
             connectionStore.deleteConnectionsByPodId(podId)
+        },
+
+        updatePodPositionFromBroadcast(podId: string, x: number, y: number): void {
+            const pod = this.pods.find((p) => p.id === podId)
+            if (pod) {
+                pod.x = x
+                pod.y = y
+            }
+        },
+
+        updatePodNameFromBroadcast(podId: string, name: string): void {
+            const pod = this.pods.find((p) => p.id === podId)
+            if (pod) {
+                pod.name = name
+            }
+        },
+
+        updatePodModelFromBroadcast(podId: string, model: ModelType): void {
+            const pod = this.pods.find((p) => p.id === podId)
+            if (pod) {
+                pod.model = model
+            }
+        },
+
+        updatePodScheduleFromBroadcast(podId: string, schedule: Schedule | null): void {
+            const pod = this.pods.find((p) => p.id === podId)
+            if (pod) {
+                pod.schedule = schedule
+            }
         },
     },
 })

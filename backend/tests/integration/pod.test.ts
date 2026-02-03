@@ -9,7 +9,7 @@ import {
   disconnectSocket,
   type TestServerInstance,
 } from '../setup/index.js';
-import { createPod, createPodPair, FAKE_UUID, getCanvasId} from '../helpers/index.js';
+import { createPod, createPodPair, movePod, renamePod, setPodModel, setPodSchedule, FAKE_UUID, getCanvasId} from '../helpers/index.js';
 import { createConnection } from '../helpers/index.js';
 import { createOutputStyle } from '../helpers/index.js';
 import {
@@ -17,7 +17,10 @@ import {
   WebSocketResponseEvents,
   type PodListPayload,
   type PodGetPayload,
-  type PodUpdatePayload,
+  type PodMovePayload,
+  type PodRenamePayload,
+  type PodSetModelPayload,
+  type PodSetSchedulePayload,
   type PodDeletePayload,
   type ConnectionListPayload,
   type NoteCreatePayload,
@@ -26,7 +29,10 @@ import {
 import {
   type PodListResultPayload,
   type PodGetResultPayload,
-  type PodUpdatedPayload,
+  type PodMovedPayload,
+  type PodRenamedPayload,
+  type PodModelSetPayload,
+  type PodScheduleSetPayload,
   type PodDeletedPayload,
   type ConnectionListResultPayload,
   type NoteCreatedPayload,
@@ -141,92 +147,80 @@ describe('Pod 管理', () => {
     });
   });
 
-  describe('Pod 更新', () => {
-    it('success_when_pod_updated_with_position', async () => {
+  describe('Pod 移動', () => {
+    it('success_when_pod_moved_with_position', async () => {
       const pod = await createPod(client);
+      const updatedPod = await movePod(client, pod.id, 500, 600);
 
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        { requestId: uuidv4(), canvasId, podId: pod.id, x: 500, y: 600 }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.pod!.x).toBe(500);
-      expect(response.pod!.y).toBe(600);
+      expect(updatedPod.x).toBe(500);
+      expect(updatedPod.y).toBe(600);
     });
 
-    it('success_when_pod_updated_with_name', async () => {
+    it('failed_when_pod_move_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<PodMovePayload, PodMovedPayload>(
+        client,
+        WebSocketRequestEvents.POD_MOVE,
+        WebSocketResponseEvents.POD_MOVED,
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, x: 100, y: 200 }
+      );
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('找不到');
+    });
+  });
+
+  describe('Pod 重命名', () => {
+    it('success_when_pod_renamed', async () => {
       const pod = await createPod(client);
+      const updatedPod = await renamePod(client, pod.id, 'New Name');
 
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        { requestId: uuidv4(), canvasId, podId: pod.id, name: 'New Name' }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.pod!.name).toBe('New Name');
+      expect(updatedPod.name).toBe('New Name');
     });
 
-    it('success_when_pod_updated_with_rotation', async () => {
-      const pod = await createPod(client);
-
+    it('failed_when_pod_rename_with_nonexistent_id', async () => {
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
+      const response = await emitAndWaitResponse<PodRenamePayload, PodRenamedPayload>(
         client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        { requestId: uuidv4(), canvasId, podId: pod.id, rotation: 45 }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.pod!.rotation).toBe(45);
-    });
-
-    it('success_when_pod_updated_with_model', async () => {
-      const pod = await createPod(client);
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        { requestId: uuidv4(), canvasId, podId: pod.id, model: 'sonnet' }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.pod!.model).toBe('sonnet');
-    });
-
-    it('success_when_pod_updated_with_partial_fields', async () => {
-      const pod = await createPod(client, { name: 'Original', x: 10, y: 20 });
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        { requestId: uuidv4(), canvasId, podId: pod.id, x: 99 }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.pod!.x).toBe(99);
-      expect(response.pod!.y).toBe(20);
-      expect(response.pod!.name).toBe('Original');
-    });
-
-    it('failed_when_pod_update_with_nonexistent_id', async () => {
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
+        WebSocketRequestEvents.POD_RENAME,
+        WebSocketResponseEvents.POD_RENAMED,
         { requestId: uuidv4(), canvasId, podId: FAKE_UUID, name: 'Fail' }
+      );
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('找不到');
+    });
+  });
+
+  describe('Pod 設定模型', () => {
+    it('success_when_pod_model_set_to_sonnet', async () => {
+      const pod = await createPod(client);
+      const updatedPod = await setPodModel(client, pod.id, 'sonnet');
+
+      expect(updatedPod.model).toBe('sonnet');
+    });
+
+    it('success_when_pod_model_set_to_haiku', async () => {
+      const pod = await createPod(client);
+      const updatedPod = await setPodModel(client, pod.id, 'haiku');
+
+      expect(updatedPod.model).toBe('haiku');
+    });
+
+    it('success_when_pod_model_set_to_opus', async () => {
+      const pod = await createPod(client);
+      const updatedPod = await setPodModel(client, pod.id, 'opus');
+
+      expect(updatedPod.model).toBe('opus');
+    });
+
+    it('failed_when_pod_set_model_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<PodSetModelPayload, PodModelSetPayload>(
+        client,
+        WebSocketRequestEvents.POD_SET_MODEL,
+        WebSocketResponseEvents.POD_MODEL_SET,
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, model: 'sonnet' }
       );
 
       expect(response.success).toBe(false);
@@ -329,18 +323,194 @@ describe('Pod 管理', () => {
   });
 
   describe('Pod Schedule 管理', () => {
-    it('success_when_pod_created_with_schedule', async () => {
+    it('success_when_pod_schedule_set', async () => {
       const pod = await createPod(client, { name: 'Schedule Pod' });
+      const updatedPod = await setPodSchedule(client, pod.id, {
+        frequency: 'every-day',
+        second: 0,
+        intervalMinute: 1,
+        intervalHour: 1,
+        hour: 9,
+        minute: 0,
+        weekdays: [],
+        enabled: true,
+      });
 
+      expect(updatedPod.schedule).toBeDefined();
+      expect(updatedPod.schedule!.frequency).toBe('every-day');
+      expect(updatedPod.schedule!.enabled).toBe(true);
+    });
+
+    it('success_when_pod_schedule_updated', async () => {
+      const pod = await createPod(client, { name: 'Update Schedule Pod' });
+      const updatedPod = await setPodSchedule(client, pod.id, {
+        frequency: 'every-x-minute',
+        second: 0,
+        intervalMinute: 30,
+        intervalHour: 1,
+        hour: 0,
+        minute: 0,
+        weekdays: [],
+        enabled: true,
+      });
+
+      expect(updatedPod.schedule).toBeDefined();
+      expect(updatedPod.schedule!.frequency).toBe('every-x-minute');
+      expect(updatedPod.schedule!.intervalMinute).toBe(30);
+    });
+
+    it('success_when_pod_schedule_disabled', async () => {
+      const pod = await createPod(client, { name: 'Toggle Schedule Pod' });
+
+      await setPodSchedule(client, pod.id, {
+        frequency: 'every-day',
+        second: 0,
+        intervalMinute: 1,
+        intervalHour: 1,
+        hour: 10,
+        minute: 0,
+        weekdays: [],
+        enabled: true,
+      });
+
+      const updatedPod = await setPodSchedule(client, pod.id, {
+        frequency: 'every-day',
+        second: 0,
+        intervalMinute: 1,
+        intervalHour: 1,
+        hour: 10,
+        minute: 0,
+        weekdays: [],
+        enabled: false,
+      });
+
+      expect(updatedPod.schedule!.enabled).toBe(false);
+    });
+
+    it('success_when_pod_schedule_removed', async () => {
+      const pod = await createPod(client, { name: 'Remove Schedule Pod' });
+
+      await setPodSchedule(client, pod.id, {
+        frequency: 'every-day',
+        second: 0,
+        intervalMinute: 1,
+        intervalHour: 1,
+        hour: 11,
+        minute: 0,
+        weekdays: [],
+        enabled: true,
+      });
+
+      const updatedPod = await setPodSchedule(client, pod.id, null);
+
+      expect(updatedPod.schedule).toBeUndefined();
+    });
+
+    it('success_when_pod_schedule_enabled_has_lastTriggeredAt', async () => {
+      const pod = await createPod(client, { name: 'Schedule with lastTriggeredAt' });
+      const updatedPod = await setPodSchedule(client, pod.id, {
+        frequency: 'every-x-minute',
+        second: 0,
+        intervalMinute: 5,
+        intervalHour: 1,
+        hour: 0,
+        minute: 0,
+        weekdays: [],
+        enabled: true,
+      });
+
+      expect(updatedPod.schedule).toBeDefined();
+      expect(updatedPod.schedule!.enabled).toBe(true);
+      expect(updatedPod.schedule!.lastTriggeredAt).toBeDefined();
+    });
+
+    it('success_when_pod_schedule_re_enabled_updates_lastTriggeredAt', async () => {
+      const pod = await createPod(client, { name: 'Re-enable Schedule Pod' });
+
+      const firstPod = await setPodSchedule(client, pod.id, {
+        frequency: 'every-second',
+        second: 10,
+        intervalMinute: 1,
+        intervalHour: 1,
+        hour: 0,
+        minute: 0,
+        weekdays: [],
+        enabled: true,
+      });
+
+      const firstLastTriggeredAt = firstPod.schedule!.lastTriggeredAt;
+      expect(firstLastTriggeredAt).toBeDefined();
+
+      const disabledPod = await setPodSchedule(client, pod.id, {
+        frequency: 'every-second',
+        second: 10,
+        intervalMinute: 1,
+        intervalHour: 1,
+        hour: 0,
+        minute: 0,
+        weekdays: [],
+        enabled: false,
+      });
+
+      expect(disabledPod.schedule!.lastTriggeredAt).toEqual(firstLastTriggeredAt);
+
+      const reEnabledPod = await setPodSchedule(client, pod.id, {
+        frequency: 'every-second',
+        second: 10,
+        intervalMinute: 1,
+        intervalHour: 1,
+        hour: 0,
+        minute: 0,
+        weekdays: [],
+        enabled: true,
+      });
+
+      const secondLastTriggeredAt = reEnabledPod.schedule!.lastTriggeredAt;
+      expect(secondLastTriggeredAt).toBeDefined();
+      expect(secondLastTriggeredAt).not.toEqual(firstLastTriggeredAt);
+    });
+
+    it('success_when_pod_schedule_updated_preserves_lastTriggeredAt', async () => {
+      const pod = await createPod(client, { name: 'Update Schedule Preserve lastTriggeredAt' });
+
+      const firstPod = await setPodSchedule(client, pod.id, {
+        frequency: 'every-x-minute',
+        second: 0,
+        intervalMinute: 10,
+        intervalHour: 1,
+        hour: 0,
+        minute: 0,
+        weekdays: [],
+        enabled: true,
+      });
+
+      const firstLastTriggeredAt = firstPod.schedule!.lastTriggeredAt;
+
+      const updatedPod = await setPodSchedule(client, pod.id, {
+        frequency: 'every-x-minute',
+        second: 0,
+        intervalMinute: 20,
+        intervalHour: 1,
+        hour: 0,
+        minute: 0,
+        weekdays: [],
+        enabled: true,
+      });
+
+      expect(updatedPod.schedule!.intervalMinute).toBe(20);
+      expect(updatedPod.schedule!.lastTriggeredAt).toEqual(firstLastTriggeredAt);
+    });
+
+    it('failed_when_pod_set_schedule_with_nonexistent_id', async () => {
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
+      const response = await emitAndWaitResponse<PodSetSchedulePayload, PodScheduleSetPayload>(
         client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
+        WebSocketRequestEvents.POD_SET_SCHEDULE,
+        WebSocketResponseEvents.POD_SCHEDULE_SET,
         {
           requestId: uuidv4(),
           canvasId,
-          podId: pod.id,
+          podId: FAKE_UUID,
           schedule: {
             frequency: 'every-day',
             second: 0,
@@ -354,307 +524,8 @@ describe('Pod 管理', () => {
         }
       );
 
-      expect(response.success).toBe(true);
-      expect(response.pod!.schedule).toBeDefined();
-      expect(response.pod!.schedule!.frequency).toBe('every-day');
-      expect(response.pod!.schedule!.enabled).toBe(true);
-    });
-
-    it('success_when_pod_updated_with_schedule', async () => {
-      const pod = await createPod(client, { name: 'Update Schedule Pod' });
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        {
-          requestId: uuidv4(),
-          canvasId,
-          podId: pod.id,
-          schedule: {
-            frequency: 'every-x-minute',
-            second: 0,
-            intervalMinute: 30,
-            intervalHour: 1,
-            hour: 0,
-            minute: 0,
-            weekdays: [],
-            enabled: true,
-          },
-        }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.pod!.schedule).toBeDefined();
-      expect(response.pod!.schedule!.frequency).toBe('every-x-minute');
-      expect(response.pod!.schedule!.intervalMinute).toBe(30);
-    });
-
-    it('success_when_pod_schedule_enabled_toggled', async () => {
-      const pod = await createPod(client, { name: 'Toggle Schedule Pod' });
-
-      const canvasId = await getCanvasId(client);
-
-      // 先設定 schedule
-      await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        {
-          requestId: uuidv4(),
-          canvasId,
-          podId: pod.id,
-          schedule: {
-            frequency: 'every-day',
-            second: 0,
-            intervalMinute: 1,
-            intervalHour: 1,
-            hour: 10,
-            minute: 0,
-            weekdays: [],
-            enabled: true,
-          },
-        }
-      );
-
-      // 停用 schedule
-      const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        {
-          requestId: uuidv4(),
-          canvasId,
-          podId: pod.id,
-          schedule: {
-            frequency: 'every-day',
-            second: 0,
-            intervalMinute: 1,
-            intervalHour: 1,
-            hour: 10,
-            minute: 0,
-            weekdays: [],
-            enabled: false,
-          },
-        }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.pod!.schedule!.enabled).toBe(false);
-    });
-
-    it('success_when_pod_schedule_removed', async () => {
-      const pod = await createPod(client, { name: 'Remove Schedule Pod' });
-
-      const canvasId = await getCanvasId(client);
-
-      // 先設定 schedule
-      await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        {
-          requestId: uuidv4(),
-          canvasId,
-          podId: pod.id,
-          schedule: {
-            frequency: 'every-day',
-            second: 0,
-            intervalMinute: 1,
-            intervalHour: 1,
-            hour: 11,
-            minute: 0,
-            weekdays: [],
-            enabled: true,
-          },
-        }
-      );
-
-      // 清除 schedule (設為 null)
-      const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        {
-          requestId: uuidv4(),
-          canvasId,
-          podId: pod.id,
-          schedule: null,
-        }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.pod!.schedule).toBeUndefined();
-    });
-
-    it('success_when_pod_schedule_enabled_has_lastTriggeredAt', async () => {
-      const pod = await createPod(client, { name: 'Schedule with lastTriggeredAt' });
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        {
-          requestId: uuidv4(),
-          canvasId,
-          podId: pod.id,
-          schedule: {
-            frequency: 'every-x-minute',
-            second: 0,
-            intervalMinute: 5,
-            intervalHour: 1,
-            hour: 0,
-            minute: 0,
-            weekdays: [],
-            enabled: true,
-          },
-        }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.pod!.schedule).toBeDefined();
-      expect(response.pod!.schedule!.enabled).toBe(true);
-      expect(response.pod!.schedule!.lastTriggeredAt).toBeDefined();
-    });
-
-    it('success_when_pod_schedule_re_enabled_updates_lastTriggeredAt', async () => {
-      const pod = await createPod(client, { name: 'Re-enable Schedule Pod' });
-
-      const canvasId = await getCanvasId(client);
-
-      // 先設定並啟用 schedule
-      const firstResponse = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        {
-          requestId: uuidv4(),
-          canvasId,
-          podId: pod.id,
-          schedule: {
-            frequency: 'every-second',
-            second: 10,
-            intervalMinute: 1,
-            intervalHour: 1,
-            hour: 0,
-            minute: 0,
-            weekdays: [],
-            enabled: true,
-          },
-        }
-      );
-
-      const firstLastTriggeredAt = firstResponse.pod!.schedule!.lastTriggeredAt;
-      expect(firstLastTriggeredAt).toBeDefined();
-
-      // 停用 schedule
-      const disableResponse = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        {
-          requestId: uuidv4(),
-          canvasId,
-          podId: pod.id,
-          schedule: {
-            frequency: 'every-second',
-            second: 10,
-            intervalMinute: 1,
-            intervalHour: 1,
-            hour: 0,
-            minute: 0,
-            weekdays: [],
-            enabled: false,
-          },
-        }
-      );
-
-      // 停用時 lastTriggeredAt 應該保留
-      expect(disableResponse.pod!.schedule!.lastTriggeredAt).toEqual(firstLastTriggeredAt);
-
-      // 重新啟用 schedule
-      const reEnableResponse = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        {
-          requestId: uuidv4(),
-          canvasId,
-          podId: pod.id,
-          schedule: {
-            frequency: 'every-second',
-            second: 10,
-            intervalMinute: 1,
-            intervalHour: 1,
-            hour: 0,
-            minute: 0,
-            weekdays: [],
-            enabled: true,
-          },
-        }
-      );
-
-      const secondLastTriggeredAt = reEnableResponse.pod!.schedule!.lastTriggeredAt;
-      expect(secondLastTriggeredAt).toBeDefined();
-      // 重新啟用時，lastTriggeredAt 應該被更新（不應該等於停用時保留的舊值）
-      expect(secondLastTriggeredAt).not.toEqual(firstLastTriggeredAt);
-    });
-
-    it('success_when_pod_schedule_updated_preserves_lastTriggeredAt', async () => {
-      const pod = await createPod(client, { name: 'Update Schedule Preserve lastTriggeredAt' });
-
-      const canvasId = await getCanvasId(client);
-
-      // 先設定並啟用 schedule
-      const firstResponse = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        {
-          requestId: uuidv4(),
-          canvasId,
-          podId: pod.id,
-          schedule: {
-            frequency: 'every-x-minute',
-            second: 0,
-            intervalMinute: 10,
-            intervalHour: 1,
-            hour: 0,
-            minute: 0,
-            weekdays: [],
-            enabled: true,
-          },
-        }
-      );
-
-      const firstLastTriggeredAt = firstResponse.pod!.schedule!.lastTriggeredAt;
-
-      // 更新 schedule 的 intervalMinute，但保持 enabled 為 true
-      const updateResponse = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.POD_UPDATE,
-        WebSocketResponseEvents.POD_UPDATED,
-        {
-          requestId: uuidv4(),
-          canvasId,
-          podId: pod.id,
-          schedule: {
-            frequency: 'every-x-minute',
-            second: 0,
-            intervalMinute: 20,
-            intervalHour: 1,
-            hour: 0,
-            minute: 0,
-            weekdays: [],
-            enabled: true,
-          },
-        }
-      );
-
-      expect(updateResponse.pod!.schedule!.intervalMinute).toBe(20);
-      expect(updateResponse.pod!.schedule!.lastTriggeredAt).toEqual(firstLastTriggeredAt);
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('找不到');
     });
   });
 });

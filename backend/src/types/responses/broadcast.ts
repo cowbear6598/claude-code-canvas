@@ -1,19 +1,40 @@
-import type { Pod } from '../pod.js';
+import type { Pod, ModelType } from '../pod.js';
 import type { Connection } from '../connection.js';
 import type { OutputStyleNote } from '../outputStyleNote.js';
 import type { SkillNote } from '../skillNote.js';
 import type { RepositoryNote } from '../repositoryNote.js';
 import type { SubAgentNote } from '../subAgentNote.js';
 import type { CommandNote } from '../commandNote.js';
+import type { ScheduleConfig } from '../schedule.js';
 
 export interface BroadcastPodCreatedPayload {
   canvasId: string;
   pod: Pod;
 }
 
-export interface BroadcastPodUpdatedPayload {
+export interface BroadcastPodMovedPayload {
   canvasId: string;
-  pod: Pod;
+  podId: string;
+  x: number;
+  y: number;
+}
+
+export interface BroadcastPodRenamedPayload {
+  canvasId: string;
+  podId: string;
+  name: string;
+}
+
+export interface BroadcastPodModelSetPayload {
+  canvasId: string;
+  podId: string;
+  model: ModelType;
+}
+
+export interface BroadcastPodScheduleSetPayload {
+  canvasId: string;
+  podId: string;
+  schedule: ScheduleConfig | null;
 }
 
 export interface BroadcastPodDeletedPayload {

@@ -4,17 +4,26 @@ import type {
     PodCreatedPayload,
     PodListResultPayload,
     PodGetResultPayload,
-    PodUpdatedPayload,
+    PodMovedPayload,
+    PodRenamedPayload,
+    PodModelSetPayload,
+    PodScheduleSetPayload,
     PodDeletedPayload,
     BroadcastPodCreatedPayload,
-    BroadcastPodUpdatedPayload,
+    BroadcastPodMovedPayload,
+    BroadcastPodRenamedPayload,
+    BroadcastPodModelSetPayload,
+    BroadcastPodScheduleSetPayload,
     BroadcastPodDeletedPayload,
 } from '../types/index.js';
 import type {
     PodCreatePayload,
     PodListPayload,
     PodGetPayload,
-    PodUpdatePayload,
+    PodMovePayload,
+    PodRenamePayload,
+    PodSetModelPayload,
+    PodSetSchedulePayload,
     PodDeletePayload,
 } from '../schemas/index.js';
 import {podStore} from '../services/podStore.js';
@@ -178,36 +187,152 @@ export const handlePodDelete = withCanvasId<PodDeletePayload>(
     }
 );
 
-export const handlePodUpdate = withCanvasId<PodUpdatePayload>(
-    WebSocketResponseEvents.POD_UPDATED,
-    async (socket: Socket, canvasId: string, payload: PodUpdatePayload, requestId: string): Promise<void> => {
-        const {podId, x, y, rotation, name, model, schedule} = payload;
+export const handlePodMove = withCanvasId<PodMovePayload>(
+    WebSocketResponseEvents.POD_MOVED,
+    async (socket: Socket, canvasId: string, payload: PodMovePayload, requestId: string): Promise<void> => {
+        const {podId, x, y} = payload;
 
-        const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_UPDATED, requestId);
+        const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_MOVED, requestId);
 
         if (!existingPod) {
             return;
         }
 
-    const updates: Record<string, unknown> = {};
+        const updatedPod = podStore.update(canvasId, podId, {x, y});
 
-    if (x !== undefined) updates.x = x;
-    if (y !== undefined) updates.y = y;
-    if (rotation !== undefined) updates.rotation = rotation;
-    if (name !== undefined) updates.name = name;
-    if (model !== undefined) {
-        updates.model = model;
+        if (!updatedPod) {
+            emitError(
+                socket,
+                WebSocketResponseEvents.POD_MOVED,
+                `無法更新 Pod: ${podId}`,
+                requestId,
+                podId,
+                'INTERNAL_ERROR'
+            );
+            return;
+        }
+
+        const response: PodMovedPayload = {
+            requestId,
+            success: true,
+            pod: updatedPod,
+        };
+
+        emitSuccess(socket, WebSocketResponseEvents.POD_MOVED, response);
+
+        const broadcastPayload: BroadcastPodMovedPayload = {
+            canvasId,
+            podId,
+            x: updatedPod.x,
+            y: updatedPod.y,
+        };
+        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_MOVED, broadcastPayload);
     }
-    // 處理 schedule 更新（支援清除 schedule，設為 null）
-    if ('schedule' in payload) {
+);
+
+export const handlePodRename = withCanvasId<PodRenamePayload>(
+    WebSocketResponseEvents.POD_RENAMED,
+    async (socket: Socket, canvasId: string, payload: PodRenamePayload, requestId: string): Promise<void> => {
+        const {podId, name} = payload;
+
+        const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_RENAMED, requestId);
+
+        if (!existingPod) {
+            return;
+        }
+
+        const updatedPod = podStore.update(canvasId, podId, {name});
+
+        if (!updatedPod) {
+            emitError(
+                socket,
+                WebSocketResponseEvents.POD_RENAMED,
+                `無法更新 Pod: ${podId}`,
+                requestId,
+                podId,
+                'INTERNAL_ERROR'
+            );
+            return;
+        }
+
+        const response: PodRenamedPayload = {
+            requestId,
+            success: true,
+            pod: updatedPod,
+        };
+
+        emitSuccess(socket, WebSocketResponseEvents.POD_RENAMED, response);
+
+        const broadcastPayload: BroadcastPodRenamedPayload = {
+            canvasId,
+            podId,
+            name: updatedPod.name,
+        };
+        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_RENAMED, broadcastPayload);
+    }
+);
+
+export const handlePodSetModel = withCanvasId<PodSetModelPayload>(
+    WebSocketResponseEvents.POD_MODEL_SET,
+    async (socket: Socket, canvasId: string, payload: PodSetModelPayload, requestId: string): Promise<void> => {
+        const {podId, model} = payload;
+
+        const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_MODEL_SET, requestId);
+
+        if (!existingPod) {
+            return;
+        }
+
+        const updatedPod = podStore.update(canvasId, podId, {model});
+
+        if (!updatedPod) {
+            emitError(
+                socket,
+                WebSocketResponseEvents.POD_MODEL_SET,
+                `無法更新 Pod: ${podId}`,
+                requestId,
+                podId,
+                'INTERNAL_ERROR'
+            );
+            return;
+        }
+
+        const response: PodModelSetPayload = {
+            requestId,
+            success: true,
+            pod: updatedPod,
+        };
+
+        emitSuccess(socket, WebSocketResponseEvents.POD_MODEL_SET, response);
+
+        const broadcastPayload: BroadcastPodModelSetPayload = {
+            canvasId,
+            podId,
+            model: updatedPod.model,
+        };
+        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_MODEL_SET, broadcastPayload);
+    }
+);
+
+export const handlePodSetSchedule = withCanvasId<PodSetSchedulePayload>(
+    WebSocketResponseEvents.POD_SCHEDULE_SET,
+    async (socket: Socket, canvasId: string, payload: PodSetSchedulePayload, requestId: string): Promise<void> => {
+        const {podId, schedule} = payload;
+
+        const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_SCHEDULE_SET, requestId);
+
+        if (!existingPod) {
+            return;
+        }
+
+        const updates: Record<string, unknown> = {};
+
         if (schedule === null) {
             updates.schedule = null;
-        } else if (schedule !== undefined) {
+        } else {
             const existingSchedule = existingPod.schedule;
             const isEnabling = schedule.enabled && (!existingSchedule || !existingSchedule.enabled);
 
-            // 如果是啟用 schedule（新建或從停用變啟用），設定 lastTriggeredAt 為當前時間
-            // 避免 interval 類型的 schedule 立即執行
             let lastTriggeredAt: Date | null;
             if (isEnabling) {
                 lastTriggeredAt = new Date();
@@ -220,34 +345,34 @@ export const handlePodUpdate = withCanvasId<PodUpdatePayload>(
                 lastTriggeredAt,
             };
         }
-    }
 
-    const updatedPod = podStore.update(canvasId, podId, updates);
+        const updatedPod = podStore.update(canvasId, podId, updates);
 
-    if (!updatedPod) {
-        emitError(
-            socket,
-            WebSocketResponseEvents.POD_UPDATED,
-            `Failed to update Pod: ${podId}`,
+        if (!updatedPod) {
+            emitError(
+                socket,
+                WebSocketResponseEvents.POD_SCHEDULE_SET,
+                `無法更新 Pod: ${podId}`,
+                requestId,
+                podId,
+                'INTERNAL_ERROR'
+            );
+            return;
+        }
+
+        const response: PodScheduleSetPayload = {
             requestId,
-            podId,
-            'INTERNAL_ERROR'
-        );
-        return;
-    }
-
-    const response: PodUpdatedPayload = {
-        requestId,
-        success: true,
-        pod: updatedPod,
-    };
-
-    emitSuccess(socket, WebSocketResponseEvents.POD_UPDATED, response);
-
-        const broadcastPayload: BroadcastPodUpdatedPayload = {
-            canvasId,
+            success: true,
             pod: updatedPod,
         };
-        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_UPDATED, broadcastPayload);
+
+        emitSuccess(socket, WebSocketResponseEvents.POD_SCHEDULE_SET, response);
+
+        const broadcastPayload: BroadcastPodScheduleSetPayload = {
+            canvasId,
+            podId,
+            schedule: updatedPod.schedule ?? null,
+        };
+        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_SCHEDULE_SET, broadcastPayload);
     }
 );

@@ -41,7 +41,7 @@ export type { SubAgentNote } from './subAgentNote.js';
 export type { Connection, AnchorPosition } from './connection.js';
 
 // Schedule types
-export type { ScheduleConfig, ScheduleFrequency, PersistedScheduleConfig } from './schedule.js';
+export type { ScheduleConfig, ScheduleConfigInput, ScheduleFrequency, PersistedScheduleConfig } from './schedule.js';
 
 // Canvas types
 export type { Canvas, PersistedCanvas } from './canvas.js';

@@ -9,7 +9,7 @@ import {
   disconnectSocket,
   type TestServerInstance,
 } from '../setup/index.js';
-import { createPod, createPodPair, updatePod, FAKE_UUID, getCanvasId} from '../helpers/index.js';
+import { createPod, createPodPair, setPodSchedule, FAKE_UUID, getCanvasId} from '../helpers/index.js';
 import { createConnection } from '../helpers/index.js';
 import {
   WebSocketRequestEvents,
@@ -73,10 +73,9 @@ describe('Connection 管理', () => {
         minute: 0,
         weekdays: [1, 2, 3, 4, 5],
         enabled: true,
-        lastTriggeredAt: null,
       };
 
-      const updatedPodB = await updatePod(client, podB.id, { schedule: scheduleConfig });
+      const updatedPodB = await setPodSchedule(client, podB.id, scheduleConfig);
       expect(updatedPodB.schedule).toBeDefined();
       expect(updatedPodB.schedule?.enabled).toBe(true);
 

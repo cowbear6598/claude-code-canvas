@@ -17,16 +17,33 @@ export interface PodListPayload {
   canvasId: string
 }
 
-export interface PodUpdatePayload {
+export interface PodMovePayload {
   requestId: string
   canvasId: string
   podId: string
-  x?: number
-  y?: number
-  rotation?: number
-  name?: string
-  model?: ModelType
-  schedule?: Schedule | null
+  x: number
+  y: number
+}
+
+export interface PodRenamePayload {
+  requestId: string
+  canvasId: string
+  podId: string
+  name: string
+}
+
+export interface PodSetModelPayload {
+  requestId: string
+  canvasId: string
+  podId: string
+  model: ModelType
+}
+
+export interface PodSetSchedulePayload {
+  requestId: string
+  canvasId: string
+  podId: string
+  schedule: Schedule | null
 }
 
 export interface PodDeletePayload {

@@ -3,14 +3,20 @@ import {
   podCreateSchema,
   podListSchema,
   podGetSchema,
-  podUpdateSchema,
+  podMoveSchema,
+  podRenameSchema,
+  podSetModelSchema,
+  podSetScheduleSchema,
   podDeleteSchema,
 } from '../../schemas/index.js';
 import {
   handlePodCreate,
   handlePodList,
   handlePodGet,
-  handlePodUpdate,
+  handlePodMove,
+  handlePodRename,
+  handlePodSetModel,
+  handlePodSetSchedule,
   handlePodDelete,
 } from '../podHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
@@ -37,10 +43,28 @@ export const podHandlerGroup = createHandlerGroup({
       responseEvent: WebSocketResponseEvents.POD_GET_RESULT,
     },
     {
-      event: WebSocketRequestEvents.POD_UPDATE,
-      handler: handlePodUpdate,
-      schema: podUpdateSchema,
-      responseEvent: WebSocketResponseEvents.POD_UPDATED,
+      event: WebSocketRequestEvents.POD_MOVE,
+      handler: handlePodMove,
+      schema: podMoveSchema,
+      responseEvent: WebSocketResponseEvents.POD_MOVED,
+    },
+    {
+      event: WebSocketRequestEvents.POD_RENAME,
+      handler: handlePodRename,
+      schema: podRenameSchema,
+      responseEvent: WebSocketResponseEvents.POD_RENAMED,
+    },
+    {
+      event: WebSocketRequestEvents.POD_SET_MODEL,
+      handler: handlePodSetModel,
+      schema: podSetModelSchema,
+      responseEvent: WebSocketResponseEvents.POD_MODEL_SET,
+    },
+    {
+      event: WebSocketRequestEvents.POD_SET_SCHEDULE,
+      handler: handlePodSetSchedule,
+      schema: podSetScheduleSchema,
+      responseEvent: WebSocketResponseEvents.POD_SCHEDULE_SET,
     },
     {
       event: WebSocketRequestEvents.POD_DELETE,

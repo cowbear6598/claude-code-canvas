@@ -12,7 +12,7 @@ import CloneProgressNote from './CloneProgressNote.vue'
 import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
 import SelectionBox from './SelectionBox.vue'
-import type {PodTypeConfig} from '@/types'
+import type {Pod, PodTypeConfig} from '@/types'
 import {
   POD_MENU_X_OFFSET,
   POD_MENU_Y_OFFSET,
@@ -111,6 +111,17 @@ const handleSelectPod = (podId: string): void => {
   podStore.selectPod(podId)
 }
 
+const handleUpdatePod = async (pod: Pod): Promise<void> => {
+  const oldPod = podStore.getPodById(pod.id)
+  if (!oldPod) return
+
+  podStore.updatePod(pod)
+
+  if (oldPod.name !== pod.name) {
+    await podStore.renamePodWithBackend(pod.id, pod.name)
+  }
+}
+
 const handleDeletePod = async (id: string): Promise<void> => {
   await podStore.deletePodWithBackend(id)
 }
@@ -200,7 +211,7 @@ onUnmounted(() => {
       :key="pod.id"
       :pod="pod"
       @select="handleSelectPod"
-      @update="podStore.updatePod"
+      @update="handleUpdatePod"
       @delete="handleDeletePod"
       @drag-end="handleDragEnd"
       @drag-complete="handlePodDragComplete"

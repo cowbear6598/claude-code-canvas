@@ -6,13 +6,21 @@ import {
   WebSocketResponseEvents,
   type PodCreatePayload,
   type PodDeletePayload,
-  type PodUpdatePayload,
+  type PodMovePayload,
+  type PodRenamePayload,
+  type PodSetModelPayload,
+  type PodSetSchedulePayload,
 } from '../../src/schemas/index.js';
 import {
   type PodCreatedPayload,
   type PodDeletedPayload,
-  type PodUpdatedPayload,
+  type PodMovedPayload,
+  type PodRenamedPayload,
+  type PodModelSetPayload,
+  type PodScheduleSetPayload,
   type Pod,
+  type ModelType,
+  type ScheduleConfigInput,
 } from '../../src/types/index.js';
 
 export async function createPod(
@@ -59,10 +67,11 @@ export async function createPodPair(
   return { podA, podB };
 }
 
-export async function updatePod(
+export async function movePod(
   client: Socket,
   podId: string,
-  updates: Partial<Omit<PodUpdatePayload, 'requestId' | 'canvasId' | 'podId'>>
+  x: number,
+  y: number
 ): Promise<Pod> {
   if (!client.id) {
     throw new Error('Socket not connected');
@@ -75,17 +84,117 @@ export async function updatePod(
     throw new Error('No active canvas for socket');
   }
 
-  const payload: PodUpdatePayload = {
+  const payload: PodMovePayload = {
     requestId: uuidv4(),
     canvasId,
     podId,
-    ...updates,
+    x,
+    y,
   };
 
-  const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
+  const response = await emitAndWaitResponse<PodMovePayload, PodMovedPayload>(
     client,
-    WebSocketRequestEvents.POD_UPDATE,
-    WebSocketResponseEvents.POD_UPDATED,
+    WebSocketRequestEvents.POD_MOVE,
+    WebSocketResponseEvents.POD_MOVED,
+    payload
+  );
+
+  return response.pod!;
+}
+
+export async function renamePod(
+  client: Socket,
+  podId: string,
+  name: string
+): Promise<Pod> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
+  const payload: PodRenamePayload = {
+    requestId: uuidv4(),
+    canvasId,
+    podId,
+    name,
+  };
+
+  const response = await emitAndWaitResponse<PodRenamePayload, PodRenamedPayload>(
+    client,
+    WebSocketRequestEvents.POD_RENAME,
+    WebSocketResponseEvents.POD_RENAMED,
+    payload
+  );
+
+  return response.pod!;
+}
+
+export async function setPodModel(
+  client: Socket,
+  podId: string,
+  model: ModelType
+): Promise<Pod> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
+  const payload: PodSetModelPayload = {
+    requestId: uuidv4(),
+    canvasId,
+    podId,
+    model,
+  };
+
+  const response = await emitAndWaitResponse<PodSetModelPayload, PodModelSetPayload>(
+    client,
+    WebSocketRequestEvents.POD_SET_MODEL,
+    WebSocketResponseEvents.POD_MODEL_SET,
+    payload
+  );
+
+  return response.pod!;
+}
+
+export async function setPodSchedule(
+  client: Socket,
+  podId: string,
+  schedule: ScheduleConfigInput | null
+): Promise<Pod> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
+  const payload: PodSetSchedulePayload = {
+    requestId: uuidv4(),
+    canvasId,
+    podId,
+    schedule,
+  };
+
+  const response = await emitAndWaitResponse<PodSetSchedulePayload, PodScheduleSetPayload>(
+    client,
+    WebSocketRequestEvents.POD_SET_SCHEDULE,
+    WebSocketResponseEvents.POD_SCHEDULE_SET,
     payload
   );
 

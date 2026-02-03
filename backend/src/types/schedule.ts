@@ -5,7 +5,8 @@ export type ScheduleFrequency =
   | 'every-day'
   | 'every-week';
 
-export interface ScheduleConfig {
+// 用於請求 payload，不含 lastTriggeredAt
+export interface ScheduleConfigInput {
   frequency: ScheduleFrequency;
   second: number; // 0-59
   intervalMinute: number; // 1-1440
@@ -14,6 +15,10 @@ export interface ScheduleConfig {
   minute: number; // 0-59
   weekdays: number[]; // 0-6, 0=週日
   enabled: boolean;
+}
+
+// 完整結構，含 lastTriggeredAt
+export interface ScheduleConfig extends ScheduleConfigInput {
   lastTriggeredAt: Date | null;
 }
 

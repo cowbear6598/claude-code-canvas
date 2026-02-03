@@ -23,7 +23,28 @@ export interface PodListResultPayload {
     error?: string
 }
 
-export interface PodUpdatedPayload {
+export interface PodMovedPayload {
+    requestId: string
+    success: boolean
+    pod?: Pod
+    error?: string
+}
+
+export interface PodRenamedPayload {
+    requestId: string
+    success: boolean
+    pod?: Pod
+    error?: string
+}
+
+export interface PodModelSetPayload {
+    requestId: string
+    success: boolean
+    pod?: Pod
+    error?: string
+}
+
+export interface PodScheduleSetPayload {
     requestId: string
     success: boolean
     pod?: Pod
