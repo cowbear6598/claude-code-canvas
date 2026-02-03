@@ -1,15 +1,15 @@
 import type { Socket } from 'socket.io';
-import {
-  WebSocketResponseEvents,
-  type RepositoryListResultPayload,
-  type RepositoryCreatedPayload,
-  type PodRepositoryBoundPayload,
-  type PodRepositoryUnboundPayload,
-  type RepositoryGitCloneProgressPayload,
-  type RepositoryGitCloneResultPayload,
-  type BroadcastRepositoryCreatedPayload,
-  type BroadcastPodRepositoryBoundPayload,
-  type BroadcastPodRepositoryUnboundPayload,
+import { WebSocketResponseEvents } from '../schemas/index.js';
+import type {
+  RepositoryListResultPayload,
+  RepositoryCreatedPayload,
+  PodRepositoryBoundPayload,
+  PodRepositoryUnboundPayload,
+  RepositoryGitCloneProgressPayload,
+  RepositoryGitCloneResultPayload,
+  BroadcastRepositoryCreatedPayload,
+  BroadcastPodRepositoryBoundPayload,
+  BroadcastPodRepositoryUnboundPayload,
 } from '../types/index.js';
 import type {
   RepositoryListPayload,

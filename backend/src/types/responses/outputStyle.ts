@@ -1,8 +1,3 @@
-export interface OutputStyleListPayload {
-  requestId: string;
-  canvasId: string;
-}
-
 export interface OutputStyleListResultPayload {
   requestId: string;
   success: boolean;
@@ -11,13 +6,6 @@ export interface OutputStyleListResultPayload {
     name: string;
   }>;
   error?: string;
-}
-
-export interface OutputStyleCreatePayload {
-  requestId: string;
-  canvasId: string;
-  name: string;
-  content: string;
 }
 
 export interface OutputStyleCreatedPayload {
@@ -30,23 +18,10 @@ export interface OutputStyleCreatedPayload {
   error?: string;
 }
 
-export interface OutputStyleUpdatePayload {
-  requestId: string;
-  canvasId: string;
-  outputStyleId: string;
-  content: string;
-}
-
 export interface OutputStyleUpdatedPayload {
   requestId: string;
   success: boolean;
   error?: string;
-}
-
-export interface OutputStyleReadPayload {
-  requestId: string;
-  canvasId: string;
-  outputStyleId: string;
 }
 
 export interface OutputStyleReadResultPayload {
@@ -58,12 +33,6 @@ export interface OutputStyleReadResultPayload {
     content: string;
   };
   error?: string;
-}
-
-export interface OutputStyleDeletePayload {
-  requestId: string;
-  canvasId: string;
-  outputStyleId: string;
 }
 
 export interface OutputStyleDeletedPayload {

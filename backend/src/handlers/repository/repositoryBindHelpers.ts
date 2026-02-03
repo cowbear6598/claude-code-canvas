@@ -1,5 +1,5 @@
 import type { Socket } from 'socket.io';
-import { WebSocketResponseEvents } from '../../types/index.js';
+import { WebSocketResponseEvents } from '../../schemas/index.js';
 import { messageStore } from '../../services/messageStore.js';
 import { canvasStore } from '../../services/canvasStore.js';
 import { logger } from '../../utils/logger.js';

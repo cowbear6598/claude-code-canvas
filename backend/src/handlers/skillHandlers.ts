@@ -1,8 +1,6 @@
 import type {Socket} from 'socket.io';
-import {
-    WebSocketResponseEvents,
-    type SkillListResultPayload,
-} from '../types/index.js';
+import {WebSocketResponseEvents} from '../schemas/index.js';
+import type {SkillListResultPayload} from '../types/index.js';
 import type {
     SkillListPayload,
     PodBindSkillPayload,

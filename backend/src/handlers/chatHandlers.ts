@@ -1,15 +1,15 @@
 import type {Socket} from 'socket.io';
 import {v4 as uuidv4} from 'uuid';
-import {
-    WebSocketResponseEvents,
-    type PodChatHistoryResultPayload,
-    type PodChatMessagePayload,
-    type PodChatToolUsePayload,
-    type PodChatToolResultPayload,
-    type PodChatCompletePayload,
-    type PersistedSubMessage,
-    type PersistedToolUseInfo,
-    type ContentBlock,
+import {WebSocketResponseEvents} from '../schemas/index.js';
+import type {
+    PodChatHistoryResultPayload,
+    PodChatMessagePayload,
+    PodChatToolUsePayload,
+    PodChatToolResultPayload,
+    PodChatCompletePayload,
+    PersistedSubMessage,
+    PersistedToolUseInfo,
+    ContentBlock,
 } from '../types/index.js';
 import type {ChatSendPayload, ChatHistoryPayload} from '../schemas/index.js';
 import {podStore} from '../services/podStore.js';

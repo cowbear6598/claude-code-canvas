@@ -1,28 +1,3 @@
-export interface CanvasCreatePayload {
-  requestId: string;
-  name: string;
-}
-
-export interface CanvasListPayload {
-  requestId: string;
-}
-
-export interface CanvasRenamePayload {
-  requestId: string;
-  canvasId: string;
-  newName: string;
-}
-
-export interface CanvasDeletePayload {
-  requestId: string;
-  canvasId: string;
-}
-
-export interface CanvasSwitchPayload {
-  requestId: string;
-  canvasId: string;
-}
-
 export interface CanvasCreatedPayload {
   requestId: string;
   success: boolean;

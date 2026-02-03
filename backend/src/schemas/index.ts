@@ -1,4 +1,5 @@
 export * from './base.js';
+export * from './events.js';
 export * from './podSchemas.js';
 export * from './chatSchemas.js';
 export * from './connectionSchemas.js';

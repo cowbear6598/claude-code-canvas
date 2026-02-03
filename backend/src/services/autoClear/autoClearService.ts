@@ -3,7 +3,7 @@ import {podStore} from '../podStore.js';
 import {workflowClearService} from '../workflowClearService.js';
 import {socketService} from '../socketService.js';
 import {terminalPodTracker} from './terminalPodTracker.js';
-import {WebSocketResponseEvents} from '../../types/index.js';
+import {WebSocketResponseEvents} from '../../schemas/index.js';
 import {logger} from '../../utils/logger.js';
 
 class AutoClearService {

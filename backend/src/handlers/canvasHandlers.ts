@@ -1,10 +1,6 @@
 import type { Socket } from 'socket.io';
+import { WebSocketResponseEvents } from '../schemas/index.js';
 import type {
-  CanvasCreatePayload,
-  CanvasListPayload,
-  CanvasRenamePayload,
-  CanvasDeletePayload,
-  CanvasSwitchPayload,
   CanvasCreatedPayload,
   CanvasListResultPayload,
   CanvasRenamedPayload,
@@ -13,7 +9,13 @@ import type {
   BroadcastCanvasRenamedPayload,
   BroadcastCanvasDeletedPayload,
 } from '../types/index.js';
-import { WebSocketResponseEvents } from '../types/index.js';
+import type {
+  CanvasCreatePayload,
+  CanvasListPayload,
+  CanvasRenamePayload,
+  CanvasDeletePayload,
+  CanvasSwitchPayload,
+} from '../schemas/index.js';
 import { canvasStore } from '../services/canvasStore.js';
 import { socketService } from '../services/socketService.js';
 import { logger } from '../utils/logger.js';

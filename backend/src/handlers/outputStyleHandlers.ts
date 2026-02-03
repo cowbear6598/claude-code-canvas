@@ -1,11 +1,11 @@
 import type { Socket } from 'socket.io';
-import {
-  WebSocketResponseEvents,
-  type OutputStyleListResultPayload,
-  type PodOutputStyleBoundPayload,
-  type PodOutputStyleUnboundPayload,
-  type BroadcastPodOutputStyleBoundPayload,
-  type BroadcastPodOutputStyleUnboundPayload,
+import { WebSocketResponseEvents } from '../schemas/index.js';
+import type {
+  OutputStyleListResultPayload,
+  PodOutputStyleBoundPayload,
+  PodOutputStyleUnboundPayload,
+  BroadcastPodOutputStyleBoundPayload,
+  BroadcastPodOutputStyleUnboundPayload,
 } from '../types/index.js';
 import type {
   OutputStyleListPayload,

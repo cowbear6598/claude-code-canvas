@@ -85,3 +85,9 @@ export const canvasPasteSchema = z.object({
 
 export type PastePodItem = z.infer<typeof pastePodItemSchema>;
 export type CanvasPastePayload = z.infer<typeof canvasPasteSchema>;
+export type PasteOutputStyleNoteItem = z.infer<typeof pasteOutputStyleNoteItemSchema>;
+export type PasteSkillNoteItem = z.infer<typeof pasteSkillNoteItemSchema>;
+export type PasteRepositoryNoteItem = z.infer<typeof pasteRepositoryNoteItemSchema>;
+export type PasteSubAgentNoteItem = z.infer<typeof pasteSubAgentNoteItemSchema>;
+export type PasteCommandNoteItem = z.infer<typeof pasteCommandNoteItemSchema>;
+export type PasteConnectionItem = z.infer<typeof pasteConnectionItemSchema>;

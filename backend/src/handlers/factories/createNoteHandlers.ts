@@ -1,6 +1,6 @@
 import type { Socket } from 'socket.io';
 import type { GenericNoteStore, BaseNote } from '../../services/GenericNoteStore.js';
-import type { WebSocketResponseEvents } from '../../types/index.js';
+import type { WebSocketResponseEvents } from '../../schemas/index.js';
 import { socketService } from '../../services/socketService.js';
 import { emitSuccess, emitError } from '../../utils/websocketResponse.js';
 import { logger } from '../../utils/logger.js';

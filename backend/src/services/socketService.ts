@@ -2,8 +2,8 @@ import {Server as HttpServer} from 'http';
 import {Server as SocketIOServer, Socket} from 'socket.io';
 import {config} from '../config/index.js';
 import {logger} from '../utils/logger.js';
-import {
-    WebSocketResponseEvents,
+import {WebSocketResponseEvents} from '../schemas/index.js';
+import type {
     ConnectionReadyPayload,
     PodDeletedPayload,
 } from '../types/index.js';

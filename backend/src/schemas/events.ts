@@ -221,7 +221,3 @@ export enum WebSocketResponseEvents {
   BROADCAST_WORKFLOW_CLEAR_RESULT = 'broadcast:workflow:clear:result',
   BROADCAST_POD_CHAT_USER_MESSAGE = 'broadcast:pod:chat:user-message',
 }
-
-export interface ConnectionReadyPayload {
-  socketId: string;
-}

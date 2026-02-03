@@ -1,5 +1,6 @@
 import type {Socket} from 'socket.io';
-import type {Pod, WebSocketResponseEvents} from '../types/index.js';
+import type {WebSocketResponseEvents} from '../schemas/index.js';
+import type {Pod} from '../types/index.js';
 import {podStore} from '../services/podStore.js';
 import {canvasStore} from '../services/canvasStore.js';
 import {socketService} from '../services/socketService.js';

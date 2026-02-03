@@ -1,4 +1,4 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../types/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
 import { canvasPasteSchema } from '../../schemas/index.js';
 import { handleCanvasPaste } from '../pasteHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';

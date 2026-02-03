@@ -1,13 +1,13 @@
 import type { Socket } from 'socket.io';
-import {
-  WebSocketResponseEvents,
-  type ConnectionCreatedPayload,
-  type ConnectionListResultPayload,
-  type ConnectionDeletedPayload,
-  type ConnectionUpdatedPayload,
-  type BroadcastConnectionCreatedPayload,
-  type BroadcastConnectionUpdatedPayload,
-  type BroadcastConnectionDeletedPayload,
+import { WebSocketResponseEvents } from '../schemas/index.js';
+import type {
+  ConnectionCreatedPayload,
+  ConnectionListResultPayload,
+  ConnectionDeletedPayload,
+  ConnectionUpdatedPayload,
+  BroadcastConnectionCreatedPayload,
+  BroadcastConnectionUpdatedPayload,
+  BroadcastConnectionDeletedPayload,
 } from '../types/index.js';
 import type {
   ConnectionCreatePayload,

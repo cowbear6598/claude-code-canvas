@@ -1,5 +1,5 @@
 import type {Socket} from 'socket.io';
-import type {WebSocketResponseEvents} from '../../types/index.js';
+import type {WebSocketResponseEvents} from '../../schemas/index.js';
 import {podStore} from '../../services/podStore.js';
 import {socketService} from '../../services/socketService.js';
 import {repositorySyncService} from '../../services/repositorySyncService.js';
@@ -59,7 +59,7 @@ function isResourceAlreadyBound(
  */
 export function createBindHandler<TService extends {exists: (id: string) => Promise<boolean>}>(
     config: BindResourceConfig<TService>
-) {
+): ReturnType<typeof withCanvasId<{podId: string; [key: string]: string}>> {
     return withCanvasId<{podId: string; [key: string]: string}>(
         config.events.bound,
         async (socket: Socket, canvasId: string, payload: {podId: string; [key: string]: string}, requestId: string): Promise<void> => {
@@ -142,7 +142,7 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
  */
 export function createUnbindHandler<TService>(
     config: BindResourceConfig<TService>
-) {
+): ReturnType<typeof withCanvasId<{podId: string}>> {
     if (config.isMultiBind) {
         throw new Error('Unbind handler is only for single bind mode');
     }

@@ -1,9 +1,9 @@
 import type { Socket } from 'socket.io';
-import {
-  WebSocketResponseEvents,
-  type WorkflowGetDownstreamPodsResultPayload,
-  type WorkflowClearResultPayload,
-  type BroadcastWorkflowClearResultPayload,
+import { WebSocketResponseEvents } from '../schemas/index.js';
+import type {
+  WorkflowGetDownstreamPodsResultPayload,
+  WorkflowClearResultPayload,
+  BroadcastWorkflowClearResultPayload,
 } from '../types/index.js';
 import type {
   WorkflowGetDownstreamPodsPayload,

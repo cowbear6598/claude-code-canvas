@@ -1,14 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
-import {
-  WebSocketResponseEvents,
-  type PodChatMessagePayload,
-  type PodChatToolUsePayload,
-  type PodChatToolResultPayload,
-  type PodChatCompletePayload,
-  type TriggerFiredPayload,
-  type PersistedSubMessage,
-  type PersistedToolUseInfo,
-  type Trigger as TriggerType,
+import { WebSocketResponseEvents } from '../schemas/index.js';
+import type {
+  PodChatMessagePayload,
+  PodChatToolUsePayload,
+  PodChatToolResultPayload,
+  PodChatCompletePayload,
+  TriggerFiredPayload,
+  PersistedSubMessage,
+  PersistedToolUseInfo,
+  Trigger as TriggerType,
 } from '../types/index.js';
 import { triggerStore } from './triggerStore.js';
 import { connectionStore } from './connectionStore.js';

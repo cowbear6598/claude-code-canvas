@@ -1,4 +1,4 @@
-import { WebSocketResponseEvents } from '../types/index.js';
+import { WebSocketResponseEvents } from '../schemas/index.js';
 import { noteStore } from '../services/noteStores.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';
 

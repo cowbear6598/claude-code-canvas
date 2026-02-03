@@ -1,7 +1,8 @@
 import type {Socket} from 'socket.io';
 import {podStore} from '../services/podStore.js';
 import {socketService} from '../services/socketService.js';
-import {WebSocketResponseEvents, type BroadcastPodAutoClearSetPayload} from '../types/index.js';
+import {WebSocketResponseEvents} from '../schemas/index.js';
+import type {BroadcastPodAutoClearSetPayload} from '../types/index.js';
 import type {PodSetAutoClearPayload} from '../schemas/index.js';
 import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';
 

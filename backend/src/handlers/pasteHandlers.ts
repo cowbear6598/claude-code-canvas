@@ -1,9 +1,9 @@
 import type { Socket } from 'socket.io';
-import {
-  WebSocketResponseEvents,
-  type CanvasPasteResultPayload,
-  type PasteError,
-  type BroadcastCanvasPastedPayload,
+import { WebSocketResponseEvents } from '../schemas/index.js';
+import type {
+  CanvasPasteResultPayload,
+  PasteError,
+  BroadcastCanvasPastedPayload,
 } from '../types/index.js';
 import type { CanvasPastePayload } from '../schemas/index.js';
 import { socketService } from '../services/socketService.js';

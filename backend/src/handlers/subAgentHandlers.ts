@@ -1,9 +1,9 @@
 import type {Socket} from 'socket.io';
-import {
-    WebSocketResponseEvents,
-    type SubAgentListResultPayload,
-    type PodSubAgentBoundPayload,
-    type BroadcastPodSubAgentBoundPayload,
+import {WebSocketResponseEvents} from '../schemas/index.js';
+import type {
+    SubAgentListResultPayload,
+    PodSubAgentBoundPayload,
+    BroadcastPodSubAgentBoundPayload,
 } from '../types/index.js';
 import type {
     SubAgentListPayload,

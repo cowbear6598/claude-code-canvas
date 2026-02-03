@@ -2,13 +2,12 @@ import { Socket } from 'socket.io';
 import { socketService } from './socketService.js';
 import { canvasStore } from './canvasStore.js';
 import { registerAllHandlers } from '../handlers/index.js';
-import {
-  WebSocketRequestEvents,
-  WebSocketResponseEvents,
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../schemas/index.js';
+import type {
   PodJoinPayload,
   PodJoinBatchPayload,
   PodLeavePayload,
-} from '../types/index.js';
+} from '../schemas/index.js';
 import { isValidPodId } from '../utils/payloadUtils.js';
 
 export function setupSocketHandlers(socket: Socket): void {

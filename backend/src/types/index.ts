@@ -59,4 +59,7 @@ export type {
 export type { PersistedMessage, PersistedSubMessage, PersistedToolUseInfo, ChatHistory, PersistedPod, PersistedConnection } from './persistence.js';
 
 // WebSocket types
-export * from './ws/index.js';
+export * from './responses/index.js';
+
+// 向後相容：重新 export Event Enums
+export { WebSocketRequestEvents, WebSocketResponseEvents } from '../schemas/index.js';

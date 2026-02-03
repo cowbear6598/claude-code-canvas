@@ -1,5 +1,5 @@
 import type { Socket } from 'socket.io';
-import { WebSocketResponseEvents } from '../types/index.js';
+import type { WebSocketResponseEvents } from '../schemas/index.js';
 
 export function emitSuccess<T>(
   socket: Socket,

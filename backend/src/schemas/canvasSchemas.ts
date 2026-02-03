@@ -40,3 +40,9 @@ export const canvasSwitchSchema = z.object({
   requestId: z.string(),
   canvasId: z.uuid('Invalid canvas ID format'),
 });
+
+export type CanvasCreatePayload = z.infer<typeof canvasCreateSchema>;
+export type CanvasListPayload = z.infer<typeof canvasListSchema>;
+export type CanvasRenamePayload = z.infer<typeof canvasRenameSchema>;
+export type CanvasDeletePayload = z.infer<typeof canvasDeleteSchema>;
+export type CanvasSwitchPayload = z.infer<typeof canvasSwitchSchema>;

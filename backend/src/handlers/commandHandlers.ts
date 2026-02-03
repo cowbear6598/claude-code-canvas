@@ -1,8 +1,6 @@
 import type {Socket} from 'socket.io';
-import {
-    WebSocketResponseEvents,
-    type CommandListResultPayload,
-} from '../types/index.js';
+import {WebSocketResponseEvents} from '../schemas/index.js';
+import type {CommandListResultPayload} from '../types/index.js';
 import type {
     CommandListPayload,
     PodBindCommandPayload,

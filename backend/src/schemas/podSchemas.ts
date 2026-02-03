@@ -43,8 +43,26 @@ export const podDeleteSchema = z.object({
   podId: podIdSchema,
 });
 
+export const podJoinSchema = z.object({
+  canvasId: canvasIdSchema,
+  podId: podIdSchema,
+});
+
+export const podJoinBatchSchema = z.object({
+  canvasId: canvasIdSchema,
+  podIds: z.array(podIdSchema),
+});
+
+export const podLeaveSchema = z.object({
+  canvasId: canvasIdSchema,
+  podId: podIdSchema,
+});
+
 export type PodCreatePayload = z.infer<typeof podCreateSchema>;
 export type PodListPayload = z.infer<typeof podListSchema>;
 export type PodGetPayload = z.infer<typeof podGetSchema>;
 export type PodUpdatePayload = z.infer<typeof podUpdateSchema>;
 export type PodDeletePayload = z.infer<typeof podDeleteSchema>;
+export type PodJoinPayload = z.infer<typeof podJoinSchema>;
+export type PodJoinBatchPayload = z.infer<typeof podJoinBatchSchema>;
+export type PodLeavePayload = z.infer<typeof podLeaveSchema>;

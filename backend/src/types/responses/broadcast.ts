@@ -1,4 +1,11 @@
 import type { Pod } from '../pod.js';
+import type { Connection } from '../connection.js';
+import type { Trigger } from '../trigger.js';
+import type { OutputStyleNote } from '../outputStyleNote.js';
+import type { SkillNote } from '../skillNote.js';
+import type { RepositoryNote } from '../repositoryNote.js';
+import type { SubAgentNote } from '../subAgentNote.js';
+import type { CommandNote } from '../commandNote.js';
 
 export interface BroadcastPodCreatedPayload {
   canvasId: string;
@@ -17,12 +24,12 @@ export interface BroadcastPodDeletedPayload {
 
 export interface BroadcastConnectionCreatedPayload {
   canvasId: string;
-  connection: import('../connection.js').Connection;
+  connection: Connection;
 }
 
 export interface BroadcastConnectionUpdatedPayload {
   canvasId: string;
-  connection: import('../connection.js').Connection;
+  connection: Connection;
 }
 
 export interface BroadcastConnectionDeletedPayload {
@@ -32,12 +39,12 @@ export interface BroadcastConnectionDeletedPayload {
 
 export interface BroadcastTriggerCreatedPayload {
   canvasId: string;
-  trigger: import('../trigger.js').Trigger;
+  trigger: Trigger;
 }
 
 export interface BroadcastTriggerUpdatedPayload {
   canvasId: string;
-  trigger: import('../trigger.js').Trigger;
+  trigger: Trigger;
 }
 
 export interface BroadcastTriggerDeletedPayload {
@@ -96,12 +103,12 @@ export interface BroadcastCanvasDeletedPayload {
 export interface BroadcastCanvasPastedPayload {
   canvasId: string;
   createdPods: Pod[];
-  createdOutputStyleNotes: import('../outputStyleNote.js').OutputStyleNote[];
-  createdSkillNotes: import('../skillNote.js').SkillNote[];
-  createdRepositoryNotes: import('../repositoryNote.js').RepositoryNote[];
-  createdSubAgentNotes: import('../subAgentNote.js').SubAgentNote[];
-  createdCommandNotes: import('../commandNote.js').CommandNote[];
-  createdConnections: import('../connection.js').Connection[];
+  createdOutputStyleNotes: OutputStyleNote[];
+  createdSkillNotes: SkillNote[];
+  createdRepositoryNotes: RepositoryNote[];
+  createdSubAgentNotes: SubAgentNote[];
+  createdCommandNotes: CommandNote[];
+  createdConnections: Connection[];
 }
 
 export interface BroadcastWorkflowClearResultPayload {

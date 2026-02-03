@@ -1,14 +1,14 @@
 import type {Socket} from 'socket.io';
-import {
-    WebSocketResponseEvents,
-    type PodCreatedPayload,
-    type PodListResultPayload,
-    type PodGetResultPayload,
-    type PodUpdatedPayload,
-    type PodDeletedPayload,
-    type BroadcastPodCreatedPayload,
-    type BroadcastPodUpdatedPayload,
-    type BroadcastPodDeletedPayload,
+import {WebSocketResponseEvents} from '../schemas/index.js';
+import type {
+    PodCreatedPayload,
+    PodListResultPayload,
+    PodGetResultPayload,
+    PodUpdatedPayload,
+    PodDeletedPayload,
+    BroadcastPodCreatedPayload,
+    BroadcastPodUpdatedPayload,
+    BroadcastPodDeletedPayload,
 } from '../types/index.js';
 import type {
     PodCreatePayload,
@@ -25,7 +25,6 @@ import {connectionStore} from '../services/connectionStore.js';
 import {socketService} from '../services/socketService.js';
 import { workflowStateService } from '../services/workflow/index.js';
 import {repositorySyncService} from '../services/repositorySyncService.js';
-import {canvasStore} from '../services/canvasStore.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';

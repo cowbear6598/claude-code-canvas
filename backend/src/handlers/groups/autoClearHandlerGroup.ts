@@ -1,4 +1,4 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../types/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
 import { podSetAutoClearSchema } from '../../schemas/index.js';
 import { handlePodSetAutoClear } from '../autoClearHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';

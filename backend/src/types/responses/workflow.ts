@@ -20,23 +20,11 @@ export interface WorkflowSourcesMergedPayload {
   mergedContentPreview: string;
 }
 
-export interface WorkflowGetDownstreamPodsPayload {
-  requestId: string;
-  canvasId: string;
-  sourcePodId: string;
-}
-
 export interface WorkflowGetDownstreamPodsResultPayload {
   requestId: string;
   success: boolean;
   pods?: Array<{ id: string; name: string }>;
   error?: string;
-}
-
-export interface WorkflowClearPayload {
-  requestId: string;
-  canvasId: string;
-  sourcePodId: string;
 }
 
 export interface WorkflowClearResultPayload {

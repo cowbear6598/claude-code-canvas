@@ -54,3 +54,7 @@ export const skillDeleteSchema = z.object({
 export type SkillListPayload = z.infer<typeof skillListSchema>;
 export type PodBindSkillPayload = z.infer<typeof podBindSkillSchema>;
 export type SkillDeletePayload = z.infer<typeof skillDeleteSchema>;
+export type SkillNoteCreatePayload = z.infer<typeof skillNoteCreateSchema>;
+export type SkillNoteListPayload = z.infer<typeof skillNoteListSchema>;
+export type SkillNoteUpdatePayload = z.infer<typeof skillNoteUpdateSchema>;
+export type SkillNoteDeletePayload = z.infer<typeof skillNoteDeleteSchema>;

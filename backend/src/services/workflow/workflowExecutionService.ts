@@ -1,13 +1,13 @@
 import {v4 as uuidv4} from 'uuid';
-import {
-    type PodChatCompletePayload,
-    type PodChatMessagePayload,
-    type PodChatToolResultPayload,
-    type PodChatToolUsePayload,
-    WebSocketResponseEvents,
-    type WorkflowAutoTriggeredPayload,
-    type WorkflowPendingPayload,
-    type WorkflowSourcesMergedPayload,
+import {WebSocketResponseEvents} from '../../schemas/index.js';
+import type {
+    PodChatCompletePayload,
+    PodChatMessagePayload,
+    PodChatToolResultPayload,
+    PodChatToolUsePayload,
+    WorkflowAutoTriggeredPayload,
+    WorkflowPendingPayload,
+    WorkflowSourcesMergedPayload,
 } from '../../types/index.js';
 import {connectionStore} from '../connectionStore.js';
 import {podStore} from '../podStore.js';

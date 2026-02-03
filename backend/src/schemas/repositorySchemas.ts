@@ -82,3 +82,7 @@ export type PodBindRepositoryPayload = z.infer<typeof podBindRepositorySchema>;
 export type PodUnbindRepositoryPayload = z.infer<typeof podUnbindRepositorySchema>;
 export type RepositoryDeletePayload = z.infer<typeof repositoryDeleteSchema>;
 export type RepositoryGitClonePayload = z.infer<typeof repositoryGitCloneSchema>;
+export type RepositoryNoteCreatePayload = z.infer<typeof repositoryNoteCreateSchema>;
+export type RepositoryNoteListPayload = z.infer<typeof repositoryNoteListSchema>;
+export type RepositoryNoteUpdatePayload = z.infer<typeof repositoryNoteUpdateSchema>;
+export type RepositoryNoteDeletePayload = z.infer<typeof repositoryNoteDeleteSchema>;
