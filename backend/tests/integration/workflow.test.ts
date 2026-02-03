@@ -22,7 +22,7 @@ import {
   type WorkflowClearResultPayload,
 } from '../../src/types/index.js';
 
-describe('workflow', () => {
+describe('Workflow 管理', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -36,7 +36,7 @@ describe('workflow', () => {
     if (server) await closeTestServer(server);
   });
 
-  describe('handleWorkflowGetDownstreamPods', () => {
+  describe('取得下游 Pod', () => {
     it('success_when_get_downstream_pods_returns_chain', async () => {
       const podA = await createPod(client, { name: 'Chain A' });
       const podB = await createPod(client, { name: 'Chain B' });
@@ -99,7 +99,7 @@ describe('workflow', () => {
     });
   });
 
-  describe('handleWorkflowClear', () => {
+  describe('清除下游 Pod', () => {
     it('success_when_workflow_clear_clears_downstream_pods', async () => {
       const podA = await createPod(client, { name: 'Clear A' });
       const podB = await createPod(client, { name: 'Clear B' });

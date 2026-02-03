@@ -40,7 +40,7 @@ import {
   type CommandDeletedPayload,
 } from '../../src/types/index.js';
 
-describe('command', () => {
+describe('Command 管理', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -69,7 +69,7 @@ describe('command', () => {
     return response.note!;
   }
 
-  describe('handleCommandCreate', () => {
+  describe('Command 建立', () => {
     it('success_when_command_created', async () => {
       const name = `cmd-${uuidv4()}`;
       const cmd = await makeCommand(name);
@@ -95,7 +95,7 @@ describe('command', () => {
     });
   });
 
-  describe('handleCommandList', () => {
+  describe('Command 列表', () => {
     it('success_when_command_list_returns_all', async () => {
       const cmd = await makeCommand();
 
@@ -113,7 +113,7 @@ describe('command', () => {
     });
   });
 
-  describe('handleCommandRead', () => {
+  describe('Command 讀取', () => {
     it('success_when_command_read_returns_content', async () => {
       const cmd = await makeCommand();
 
@@ -143,7 +143,7 @@ describe('command', () => {
     });
   });
 
-  describe('handleCommandUpdate', () => {
+  describe('Command 更新', () => {
     it('success_when_command_updated', async () => {
       const cmd = await makeCommand();
 
@@ -172,7 +172,7 @@ describe('command', () => {
     });
   });
 
-  describe('command note CRUD', () => {
+  describe('Command Note CRUD', () => {
     it('success_when_command_note_created', async () => {
       const cmd = await makeCommand();
       const note = await createCommandNote(cmd.id);
@@ -256,7 +256,7 @@ describe('command', () => {
     });
   });
 
-  describe('handlePodBindCommand', () => {
+  describe('Pod 綁定 Command', () => {
     it('success_when_command_bound_to_pod', async () => {
       const pod = await createPod(client);
       const cmd = await makeCommand();
@@ -353,7 +353,7 @@ describe('command', () => {
     });
   });
 
-  describe('handlePodUnbindCommand', () => {
+  describe('Pod 解除綁定 Command', () => {
     it('success_when_command_unbound_from_pod', async () => {
       const pod = await createPod(client);
       const cmd = await makeCommand();
@@ -405,7 +405,7 @@ describe('command', () => {
     });
   });
 
-  describe('handleCommandDelete', () => {
+  describe('Command 刪除', () => {
     it('success_when_command_deleted', async () => {
       const cmd = await makeCommand();
 

@@ -25,7 +25,7 @@ import {
   type NoteDeletedPayload,
 } from '../../src/types/index.js';
 
-describe('note', () => {
+describe('OutputStyle Note 管理', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -62,7 +62,7 @@ describe('note', () => {
     return response.note!;
   }
 
-  describe('handleNoteCreate', () => {
+  describe('Note 建立', () => {
     it('success_when_note_created', async () => {
       const note = await createTestNote();
 
@@ -81,7 +81,7 @@ describe('note', () => {
     });
   });
 
-  describe('handleNoteList', () => {
+  describe('Note 列表', () => {
     it('success_when_note_list_returns_all_notes', async () => {
       await createTestNote();
       await createTestNote();
@@ -99,7 +99,7 @@ describe('note', () => {
     });
   });
 
-  describe('handleNoteUpdate', () => {
+  describe('Note 更新', () => {
     it('success_when_note_updated_with_position', async () => {
       const note = await createTestNote();
 
@@ -146,7 +146,7 @@ describe('note', () => {
     });
   });
 
-  describe('handleNoteDelete', () => {
+  describe('Note 刪除', () => {
     it('success_when_note_deleted', async () => {
       const note = await createTestNote();
 

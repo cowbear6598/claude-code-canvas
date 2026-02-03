@@ -33,7 +33,7 @@ import {
   type NoteListResultPayload,
 } from '../../src/types/index.js';
 
-describe('pod', () => {
+describe('Pod 管理', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -47,7 +47,7 @@ describe('pod', () => {
     if (server) await closeTestServer(server);
   });
 
-  describe('handlePodCreate', () => {
+  describe('Pod 建立', () => {
     it('success_when_pod_created_with_valid_payload', async () => {
       const pod = await createPod(client, {
         name: 'Created Pod',
@@ -77,7 +77,7 @@ describe('pod', () => {
     });
   });
 
-  describe('handlePodList', () => {
+  describe('Pod 列表', () => {
     it('success_when_pod_list_returns_all_pods', async () => {
       await createPod(client, { name: 'List Pod 1' });
       await createPod(client, { name: 'List Pod 2' });
@@ -110,7 +110,7 @@ describe('pod', () => {
     });
   });
 
-  describe('handlePodGet', () => {
+  describe('Pod 取得', () => {
     it('success_when_pod_get_returns_existing_pod', async () => {
       const pod = await createPod(client, { name: 'Get Pod' });
 
@@ -141,7 +141,7 @@ describe('pod', () => {
     });
   });
 
-  describe('handlePodUpdate', () => {
+  describe('Pod 更新', () => {
     it('success_when_pod_updated_with_position', async () => {
       const pod = await createPod(client);
 
@@ -234,7 +234,7 @@ describe('pod', () => {
     });
   });
 
-  describe('handlePodDelete', () => {
+  describe('Pod 刪除', () => {
     it('success_when_pod_deleted', async () => {
       const pod = await createPod(client, { name: 'To Delete' });
 

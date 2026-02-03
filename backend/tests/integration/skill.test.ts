@@ -31,7 +31,7 @@ import {
   type SkillDeletedPayload,
 } from '../../src/types/index.js';
 
-describe('skill', () => {
+describe('Skill 管理', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -62,7 +62,7 @@ describe('skill', () => {
     return response.note!;
   }
 
-  describe('handleSkillList', () => {
+  describe('Skill 列表', () => {
     it('success_when_skill_list_returns_all_skills', async () => {
       const skillId = await ensureSkill();
 
@@ -80,7 +80,7 @@ describe('skill', () => {
     });
   });
 
-  describe('skill note CRUD', () => {
+  describe('Skill Note CRUD', () => {
     it('success_when_skill_note_created', async () => {
       const skillId = await ensureSkill();
       const note = await createSkillNote(skillId);
@@ -164,7 +164,7 @@ describe('skill', () => {
     });
   });
 
-  describe('handlePodBindSkill', () => {
+  describe('Pod 綁定 Skill', () => {
     it('success_when_skill_bound_to_pod', async () => {
       const pod = await createPod(client);
       const skillId = await ensureSkill();
@@ -235,7 +235,7 @@ describe('skill', () => {
     });
   });
 
-  describe('handleSkillDelete', () => {
+  describe('Skill 刪除', () => {
     it('success_when_skill_deleted', async () => {
       const skillId = await ensureSkill();
 

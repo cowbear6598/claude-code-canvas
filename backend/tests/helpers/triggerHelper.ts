@@ -5,10 +5,16 @@ import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type TriggerCreatePayload,
+  type TriggerListPayload,
+  type TriggerUpdatePayload,
+  type TriggerDeletePayload,
   type ConnectionCreatePayload,
 } from '../../src/schemas/index.js';
 import {
   type TriggerCreatedPayload,
+  type TriggerListResultPayload,
+  type TriggerUpdatedPayload,
+  type TriggerDeletedPayload,
   type ConnectionCreatedPayload,
   type Trigger,
   type Connection,
@@ -97,4 +103,98 @@ export async function createTriggerConnection(
   );
 
   return response.connection!;
+}
+
+export async function listTriggers(client: Socket): Promise<Trigger[]> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
+  const payload: TriggerListPayload = {
+    requestId: uuidv4(),
+    canvasId,
+  };
+
+  const response = await emitAndWaitResponse<TriggerListPayload, TriggerListResultPayload>(
+    client,
+    WebSocketRequestEvents.TRIGGER_LIST,
+    WebSocketResponseEvents.TRIGGER_LIST_RESULT,
+    payload
+  );
+
+  return response.triggers!;
+}
+
+export async function updateTrigger(
+  client: Socket,
+  triggerId: string,
+  updates: Partial<Omit<TriggerUpdatePayload, 'requestId' | 'canvasId' | 'triggerId'>>
+): Promise<Trigger> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
+  const payload: TriggerUpdatePayload = {
+    requestId: uuidv4(),
+    canvasId,
+    triggerId,
+    ...updates,
+  };
+
+  const response = await emitAndWaitResponse<TriggerUpdatePayload, TriggerUpdatedPayload>(
+    client,
+    WebSocketRequestEvents.TRIGGER_UPDATE,
+    WebSocketResponseEvents.TRIGGER_UPDATED,
+    payload
+  );
+
+  return response.trigger!;
+}
+
+export async function deleteTrigger(
+  client: Socket,
+  triggerId: string
+): Promise<{ triggerId: string; deletedConnectionIds: string[] }> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
+  const payload: TriggerDeletePayload = {
+    requestId: uuidv4(),
+    canvasId,
+    triggerId,
+  };
+
+  const response = await emitAndWaitResponse<TriggerDeletePayload, TriggerDeletedPayload>(
+    client,
+    WebSocketRequestEvents.TRIGGER_DELETE,
+    WebSocketResponseEvents.TRIGGER_DELETED,
+    payload
+  );
+
+  return {
+    triggerId: response.triggerId!,
+    deletedConnectionIds: response.deletedConnectionIds || [],
+  };
 }

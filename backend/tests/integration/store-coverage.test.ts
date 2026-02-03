@@ -29,7 +29,7 @@ import { podStore } from '../../src/services/podStore.js';
 import { connectionStore } from '../../src/services/connectionStore.js';
 import { triggerStore } from '../../src/services/triggerStore.js';
 
-describe('store coverage', () => {
+describe('Store 覆蓋率測試', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -43,7 +43,7 @@ describe('store coverage', () => {
     if (server) await closeTestServer(server);
   });
 
-  describe('podStore', () => {
+  describe('PodStore', () => {
     it('success_when_canvas_pods_lazy_initialized', async () => {
       const canvasId = 'new-canvas-' + uuidv4();
       const pods = podStore.getAll(canvasId);
@@ -77,7 +77,7 @@ describe('store coverage', () => {
       const canvasId = server.canvasId;
 
       const socketServiceModule = await import('../../src/services/socketService.js');
-      socketServiceModule.socketService.joinPodRoom(client.id, pod.id);
+      socketServiceModule.socketService.joinPodRoom(client.id!, pod.id);
 
       const statusChanges: PodStatusChangedPayload[] = [];
       const listener = (payload: PodStatusChangedPayload): void => {
@@ -86,13 +86,13 @@ describe('store coverage', () => {
 
       client.on(WebSocketResponseEvents.POD_STATUS_CHANGED, listener);
 
-      podStore.setStatus(canvasId, pod.id, 'busy');
+      podStore.setStatus(canvasId, pod.id, 'chatting');
 
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(statusChanges).toHaveLength(1);
       expect(statusChanges[0].podId).toBe(pod.id);
-      expect(statusChanges[0].status).toBe('busy');
+      expect(statusChanges[0].status).toBe('chatting');
       expect(statusChanges[0].previousStatus).toBe('idle');
 
       client.off(WebSocketResponseEvents.POD_STATUS_CHANGED, listener);
@@ -178,7 +178,6 @@ describe('store coverage', () => {
       expect(() => {
         podStore.create(fakeCanvasId, {
           name: 'Test',
-          type: 'General AI',
           color: 'blue',
           x: 0,
           y: 0,
@@ -188,7 +187,7 @@ describe('store coverage', () => {
     });
   });
 
-  describe('connectionStore', () => {
+  describe('ConnectionStore', () => {
     it('success_when_canvas_map_lazy_initialized', () => {
       const canvasId = 'new-canvas-' + uuidv4();
       const connections = connectionStore.list(canvasId);
@@ -209,6 +208,7 @@ describe('store coverage', () => {
         {
           requestId: uuidv4(),
           canvasId,
+          sourceType: 'pod',
           sourcePodId: podA.id,
           sourceAnchor: 'right',
           targetPodId: podB.id,
@@ -246,7 +246,7 @@ describe('store coverage', () => {
     });
   });
 
-  describe('triggerStore', () => {
+  describe('TriggerStore', () => {
     it('success_when_triggers_file_not_exists_creates_empty', async () => {
       const canvasId = 'new-canvas-' + uuidv4();
       const canvasDataDir = '/tmp/test-canvas-' + uuidv4();
@@ -262,7 +262,15 @@ describe('store coverage', () => {
       const trigger = triggerStore.create(canvasId, {
         name: 'Test Trigger',
         type: 'time',
-        config: { interval: 60, unit: 'seconds' },
+        config: {
+          frequency: 'every-x-minute',
+          second: 0,
+          intervalMinute: 1,
+          intervalHour: 0,
+          hour: 0,
+          minute: 0,
+          weekdays: [],
+        },
         x: 100,
         y: 200,
         rotation: 0,
@@ -315,7 +323,15 @@ describe('store coverage', () => {
           id: uuidv4(),
           name: 'Test',
           type: 'time',
-          config: { interval: 60, unit: 'seconds' },
+          config: {
+            frequency: 'every-x-minute',
+            second: 0,
+            intervalMinute: 1,
+            intervalHour: 0,
+            hour: 0,
+            minute: 0,
+            weekdays: [],
+          },
           x: 0,
           y: 0,
           rotation: 0,

@@ -53,7 +53,7 @@ import {
   type PodErrorPayload,
 } from '../../src/types/index.js';
 
-describe('chat', () => {
+describe('Chat 管理', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -73,7 +73,7 @@ describe('chat', () => {
     if (client?.connected) await disconnectSocket(client);
   });
 
-  describe('handleChatSend', () => {
+  describe('發送聊天訊息', () => {
     it('failed_when_chat_send_with_nonexistent_pod', async () => {
       const canvasId = await getCanvasId(client);
       const errorPromise = waitForEvent<PodErrorPayload>(
@@ -136,9 +136,35 @@ describe('chat', () => {
 
       await firstMessagePromise;
     });
+
+    it('failed_when_chat_send_while_pod_is_summarizing', async () => {
+      const canvasId = await getCanvasId(client);
+      const pod = await createPod(client, { name: 'Summarizing Pod' });
+
+      const { podStore } = await import('../../src/services/podStore.js');
+      podStore.setStatus(canvasId, pod.id, 'summarizing');
+
+      const errorPromise = waitForEvent<PodErrorPayload>(
+        client,
+        WebSocketResponseEvents.POD_ERROR
+      );
+
+      client.emit(WebSocketRequestEvents.POD_CHAT_SEND, {
+        requestId: uuidv4(),
+        canvasId,
+        podId: pod.id,
+        message: 'Hello',
+      } satisfies PodChatSendPayload);
+
+      const errorEvent = await errorPromise;
+      expect(errorEvent.code).toBe('POD_BUSY');
+      expect(errorEvent.error).toContain('summarizing');
+
+      podStore.setStatus(canvasId, pod.id, 'idle');
+    });
   });
 
-  describe('handleChatHistory', () => {
+  describe('取得聊天歷史', () => {
     it('success_when_chat_history_returns_empty_for_new_pod', async () => {
       const pod = await createPod(client);
 

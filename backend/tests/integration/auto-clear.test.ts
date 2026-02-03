@@ -17,7 +17,7 @@ import {
 } from '../../src/schemas/index.js';
 import { type PodAutoClearSetPayload } from '../../src/types/index.js';
 
-describe('auto-clear', () => {
+describe('自動清除', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -31,7 +31,7 @@ describe('auto-clear', () => {
     if (server) await closeTestServer(server);
   });
 
-  describe('handlePodSetAutoClear', () => {
+  describe('設定 Pod 自動清除', () => {
     it('success_when_auto_clear_set_to_true', async () => {
       const pod = await createPod(client);
 

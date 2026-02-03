@@ -31,7 +31,7 @@ import {
   type PodOutputStyleUnboundPayload,
 } from '../../src/types/index.js';
 
-describe('output-style', () => {
+describe('OutputStyle 管理', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -45,7 +45,7 @@ describe('output-style', () => {
     if (server) await closeTestServer(server);
   });
 
-  describe('handleOutputStyleCreate', () => {
+  describe('OutputStyle 建立', () => {
     it('success_when_output_style_created', async () => {
       const name = `style-${uuidv4()}`;
       const style = await createOutputStyle(client, name, '# Style Content');
@@ -71,7 +71,7 @@ describe('output-style', () => {
     });
   });
 
-  describe('handleOutputStyleList', () => {
+  describe('OutputStyle 列表', () => {
     it('success_when_output_style_list_returns_all', async () => {
       const name1 = `list-style-1-${uuidv4()}`;
       const name2 = `list-style-2-${uuidv4()}`;
@@ -93,7 +93,7 @@ describe('output-style', () => {
     });
   });
 
-  describe('handleOutputStyleRead', () => {
+  describe('OutputStyle 讀取', () => {
     it('success_when_output_style_read_returns_content', async () => {
       const name = `read-style-${uuidv4()}`;
       const style = await createOutputStyle(client, name, '# Read Content');
@@ -124,7 +124,7 @@ describe('output-style', () => {
     });
   });
 
-  describe('handleOutputStyleUpdate', () => {
+  describe('OutputStyle 更新', () => {
     it('success_when_output_style_updated', async () => {
       const style = await createOutputStyle(client, `upd-style-${uuidv4()}`, '# Old');
 
@@ -153,7 +153,7 @@ describe('output-style', () => {
     });
   });
 
-  describe('handleOutputStyleDelete', () => {
+  describe('OutputStyle 刪除', () => {
     it('success_when_output_style_deleted', async () => {
       const style = await createOutputStyle(client, `del-style-${uuidv4()}`, '# Del');
 
@@ -206,7 +206,7 @@ describe('output-style', () => {
     });
   });
 
-  describe('handlePodBindOutputStyle', () => {
+  describe('Pod 綁定 OutputStyle', () => {
     it('success_when_output_style_bound_to_pod', async () => {
       const pod = await createPod(client);
       const style = await createOutputStyle(client, `bind-style-${uuidv4()}`, '# Bind');
@@ -254,7 +254,7 @@ describe('output-style', () => {
     });
   });
 
-  describe('handlePodUnbindOutputStyle', () => {
+  describe('Pod 解除綁定 OutputStyle', () => {
     it('success_when_output_style_unbound_from_pod', async () => {
       const pod = await createPod(client);
       const style = await createOutputStyle(client, `unbind-style-${uuidv4()}`, '# UB');

@@ -29,7 +29,7 @@ import {
   type SkillNoteDeletedPayload,
 } from '../../src/types/index.js';
 
-describe('note handlers coverage', () => {
+describe('Note Handler 覆蓋率測試', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -43,7 +43,7 @@ describe('note handlers coverage', () => {
     if (server) await closeTestServer(server);
   });
 
-  describe('createNoteHandlers - outputStyle', () => {
+  describe('OutputStyle Note Handler', () => {
     it('failed_when_validate_before_create_fails', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<NoteCreatePayload, NoteCreatedPayload>(
@@ -268,7 +268,7 @@ describe('note handlers coverage', () => {
     });
   });
 
-  describe('createNoteHandlers - skill', () => {
+  describe('Skill Note Handler', () => {
     it('failed_when_skill_note_update_with_nonexistent_id', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<SkillNoteUpdatePayload, SkillNoteUpdatedPayload>(

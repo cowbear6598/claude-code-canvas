@@ -39,7 +39,7 @@ import {
   type SubAgentDeletedPayload,
 } from '../../src/types/index.js';
 
-describe('subagent', () => {
+describe('SubAgent 管理', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -68,7 +68,7 @@ describe('subagent', () => {
     return response.note!;
   }
 
-  describe('handleSubAgentCreate', () => {
+  describe('SubAgent 建立', () => {
     it('success_when_subagent_created', async () => {
       const name = `sa-${uuidv4()}`;
       const agent = await makeAgent(name);
@@ -94,7 +94,7 @@ describe('subagent', () => {
     });
   });
 
-  describe('handleSubAgentList', () => {
+  describe('SubAgent 列表', () => {
     it('success_when_subagent_list_returns_all', async () => {
       const agent = await makeAgent();
 
@@ -112,7 +112,7 @@ describe('subagent', () => {
     });
   });
 
-  describe('handleSubAgentRead', () => {
+  describe('SubAgent 讀取', () => {
     it('success_when_subagent_read_returns_content', async () => {
       const agent = await makeAgent();
 
@@ -142,7 +142,7 @@ describe('subagent', () => {
     });
   });
 
-  describe('handleSubAgentUpdate', () => {
+  describe('SubAgent 更新', () => {
     it('success_when_subagent_updated', async () => {
       const agent = await makeAgent();
 
@@ -171,7 +171,7 @@ describe('subagent', () => {
     });
   });
 
-  describe('subagent note CRUD', () => {
+  describe('SubAgent Note CRUD', () => {
     it('success_when_subagent_note_created', async () => {
       const agent = await makeAgent();
       const note = await createAgentNote(agent.id);
@@ -255,7 +255,7 @@ describe('subagent', () => {
     });
   });
 
-  describe('handlePodBindSubAgent', () => {
+  describe('Pod 綁定 SubAgent', () => {
     it('success_when_subagent_bound_to_pod', async () => {
       const pod = await createPod(client);
       const agent = await makeAgent();
@@ -351,7 +351,7 @@ describe('subagent', () => {
     });
   });
 
-  describe('handleSubAgentDelete', () => {
+  describe('SubAgent 刪除', () => {
     it('success_when_subagent_deleted', async () => {
       const agent = await makeAgent();
 

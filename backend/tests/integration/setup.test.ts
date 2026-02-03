@@ -11,7 +11,7 @@ import {
 } from '../setup/index.js';
 import { type ConnectionReadyPayload } from '../../src/types/index.js';
 
-describe('setup', () => {
+describe('測試環境設定', () => {
   let server: TestServerInstance;
 
   beforeAll(async () => {

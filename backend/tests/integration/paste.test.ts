@@ -9,7 +9,14 @@ import {
     disconnectSocket,
     type TestServerInstance,
 } from '../setup/index.js';
-import {createOutputStyle, getCanvasId} from '../helpers/index.js';
+import {
+    createOutputStyle,
+    createSkillFile,
+    createRepository,
+    createSubAgent,
+    createCommand,
+    getCanvasId,
+} from '../helpers/index.js';
 import {
     WebSocketRequestEvents,
     WebSocketResponseEvents,
@@ -17,10 +24,14 @@ import {
     type PastePodItem,
     type PasteConnectionItem,
     type PasteOutputStyleNoteItem,
+    type PasteSkillNoteItem,
+    type PasteRepositoryNoteItem,
+    type PasteSubAgentNoteItem,
+    type PasteCommandNoteItem,
 } from '../../src/schemas/index.js';
 import { type CanvasPasteResultPayload } from '../../src/types/index.js';
 
-describe('paste', () => {
+describe('貼上功能', () => {
     let server: TestServerInstance;
     let client: Socket;
 
@@ -49,7 +60,7 @@ describe('paste', () => {
         };
     }
 
-    describe('handleCanvasPaste', () => {
+    describe('Canvas 貼上', () => {
         it('success_when_paste_creates_pods_and_connections', async () => {
             const podId1 = uuidv4();
             const podId2 = uuidv4();
@@ -159,6 +170,127 @@ describe('paste', () => {
             expect(response.createdPods).toHaveLength(1);
             // Connection should not be created because source pod is not in the mapping
             expect(response.createdConnections).toHaveLength(0);
+        });
+
+        it('success_when_paste_creates_skill_notes', async () => {
+            const skillId = await createSkillFile(`skill-${uuidv4()}`, '# Test Skill');
+
+            const skillNotes: PasteSkillNoteItem[] = [
+                {
+                    skillId,
+                    name: 'Skill Note',
+                    x: 10,
+                    y: 10,
+                    boundToOriginalPodId: null,
+                    originalPosition: {x: 10, y: 10},
+                },
+            ];
+
+            const payload: CanvasPastePayload = {...await emptyPastePayload(), skillNotes};
+
+            const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
+                client,
+                WebSocketRequestEvents.CANVAS_PASTE,
+                WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+                payload
+            );
+
+            expect(response.createdSkillNotes).toHaveLength(1);
+            expect(response.createdSkillNotes[0].skillId).toBe(skillId);
+        });
+
+        it('success_when_paste_creates_repository_notes', async () => {
+            const repository = await createRepository(client, `repo-${uuidv4()}`);
+
+            const repositoryNotes: PasteRepositoryNoteItem[] = [
+                {
+                    repositoryId: repository.id,
+                    name: 'Repository Note',
+                    x: 10,
+                    y: 10,
+                    boundToOriginalPodId: null,
+                    originalPosition: {x: 10, y: 10},
+                },
+            ];
+
+            const payload: CanvasPastePayload = {...await emptyPastePayload(), repositoryNotes};
+
+            const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
+                client,
+                WebSocketRequestEvents.CANVAS_PASTE,
+                WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+                payload
+            );
+
+            expect(response.createdRepositoryNotes).toHaveLength(1);
+            expect(response.createdRepositoryNotes[0].repositoryId).toBe(repository.id);
+        });
+
+        it('success_when_paste_creates_subagent_notes', async () => {
+            const subAgent = await createSubAgent(client, `subagent-${uuidv4()}`, '# Test SubAgent');
+
+            const subAgentNotes: PasteSubAgentNoteItem[] = [
+                {
+                    subAgentId: subAgent.id,
+                    name: 'SubAgent Note',
+                    x: 10,
+                    y: 10,
+                    boundToOriginalPodId: null,
+                    originalPosition: {x: 10, y: 10},
+                },
+            ];
+
+            const payload: CanvasPastePayload = {...await emptyPastePayload(), subAgentNotes};
+
+            const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
+                client,
+                WebSocketRequestEvents.CANVAS_PASTE,
+                WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+                payload
+            );
+
+            expect(response.createdSubAgentNotes).toHaveLength(1);
+            expect(response.createdSubAgentNotes[0].subAgentId).toBe(subAgent.id);
+        });
+
+        it('success_when_paste_creates_command_notes_and_binds_to_pods', async () => {
+            const command = await createCommand(client, `command-${uuidv4()}`, '# Test Command');
+            const originalPodId = uuidv4();
+
+            const pods: PastePodItem[] = [
+                {originalId: originalPodId, name: 'Command Pod', color: 'blue', x: 0, y: 0, rotation: 0},
+            ];
+
+            const commandNotes: PasteCommandNoteItem[] = [
+                {
+                    commandId: command.id,
+                    name: 'Command Note',
+                    x: 10,
+                    y: 10,
+                    boundToOriginalPodId: originalPodId,
+                    originalPosition: {x: 10, y: 10},
+                },
+            ];
+
+            const payload: CanvasPastePayload = {...await emptyPastePayload(), pods, commandNotes};
+
+            const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
+                client,
+                WebSocketRequestEvents.CANVAS_PASTE,
+                WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+                payload
+            );
+
+            expect(response.createdCommandNotes).toHaveLength(1);
+            expect(response.createdPods).toHaveLength(1);
+
+            const newPodId = response.podIdMapping[originalPodId];
+            expect(response.createdCommandNotes[0].boundToPodId).toBe(newPodId);
+
+            const canvasId = await getCanvasId(client);
+            const {podStore} = await import('../../src/services/podStore.js');
+            const pod = podStore.getById(canvasId, newPodId);
+            expect(pod?.commandId).toBe(command.id);
         });
     });
 });

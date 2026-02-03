@@ -26,7 +26,7 @@ import {
   type ConnectionUpdatedPayload,
 } from '../../src/types/index.js';
 
-describe('connection', () => {
+describe('Connection 管理', () => {
   let server: TestServerInstance;
   let client: Socket;
 
@@ -40,7 +40,7 @@ describe('connection', () => {
     if (server) await closeTestServer(server);
   });
 
-  describe('handleConnectionCreate', () => {
+  describe('Connection 建立', () => {
     it('success_when_connection_created_between_two_pods', async () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
@@ -60,7 +60,7 @@ describe('connection', () => {
         client,
         WebSocketRequestEvents.CONNECTION_CREATE,
         WebSocketResponseEvents.CONNECTION_CREATED,
-        { requestId: uuidv4(), canvasId, sourcePodId: FAKE_UUID, sourceAnchor: 'right', targetPodId: pod.id, targetAnchor: 'left' }
+        { requestId: uuidv4(), canvasId, sourceType: 'pod', sourcePodId: FAKE_UUID, sourceAnchor: 'right', targetPodId: pod.id, targetAnchor: 'left' }
       );
 
       expect(response.success).toBe(false);
@@ -75,7 +75,7 @@ describe('connection', () => {
         client,
         WebSocketRequestEvents.CONNECTION_CREATE,
         WebSocketResponseEvents.CONNECTION_CREATED,
-        { requestId: uuidv4(), canvasId, sourcePodId: pod.id, sourceAnchor: 'right', targetPodId: FAKE_UUID, targetAnchor: 'left' }
+        { requestId: uuidv4(), canvasId, sourceType: 'pod', sourcePodId: pod.id, sourceAnchor: 'right', targetPodId: FAKE_UUID, targetAnchor: 'left' }
       );
 
       expect(response.success).toBe(false);
@@ -83,7 +83,7 @@ describe('connection', () => {
     });
   });
 
-  describe('handleConnectionList', () => {
+  describe('Connection 列表', () => {
     it('success_when_connection_list_returns_all_connections', async () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
@@ -115,7 +115,7 @@ describe('connection', () => {
     });
   });
 
-  describe('handleConnectionDelete', () => {
+  describe('Connection 刪除', () => {
     it('success_when_connection_deleted', async () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
@@ -146,7 +146,7 @@ describe('connection', () => {
     });
   });
 
-  describe('handleConnectionUpdate', () => {
+  describe('Connection 更新', () => {
     it('success_when_connection_updated_with_auto_trigger', async () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);

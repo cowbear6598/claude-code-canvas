@@ -35,7 +35,7 @@ import {
     type RepositoryNoteUpdatedPayload,
 } from '../../src/types/index.js';
 
-describe('repository', () => {
+describe('Repository 管理', () => {
     let server: TestServerInstance;
     let client: Socket;
 
@@ -68,7 +68,7 @@ describe('repository', () => {
         );
     }
 
-    describe('handleRepositoryCreate', () => {
+    describe('Repository 建立', () => {
         it('success_when_repository_created', async () => {
             const name = `repo-${uuidv4()}`;
             const repo = await createRepository(client, name);
@@ -94,7 +94,7 @@ describe('repository', () => {
         });
     });
 
-    describe('handleRepositoryList', () => {
+    describe('Repository 列表', () => {
         it('success_when_repository_list_returns_all', async () => {
             const name = `list-repo-${uuidv4()}`;
             await createRepository(client, name);
@@ -113,7 +113,7 @@ describe('repository', () => {
         });
     });
 
-    describe('repository note CRUD', () => {
+    describe('Repository Note CRUD', () => {
         it('success_when_repository_note_created', async () => {
             const repo = await createRepository(client, `rn-${uuidv4()}`);
             const response = await createRepoNote(repo.id);
@@ -219,7 +219,7 @@ describe('repository', () => {
         });
     });
 
-    describe('handlePodBindRepository', () => {
+    describe('Pod 綁定 Repository', () => {
         it('success_when_repository_bound_to_pod', async () => {
             const pod = await createPod(client);
             const repo = await createRepository(client, `bind-repo-${uuidv4()}`);
@@ -267,7 +267,7 @@ describe('repository', () => {
         });
     });
 
-    describe('handlePodUnbindRepository', () => {
+    describe('Pod 解除綁定 Repository', () => {
         it('success_when_repository_unbound_from_pod', async () => {
             const pod = await createPod(client);
             const repo = await createRepository(client, `unbind-repo-${uuidv4()}`);
@@ -305,7 +305,7 @@ describe('repository', () => {
         });
     });
 
-    describe('handleRepositoryDelete', () => {
+    describe('Repository 刪除', () => {
         it('success_when_repository_deleted', async () => {
             const repo = await createRepository(client, `del-repo-${uuidv4()}`);
 
