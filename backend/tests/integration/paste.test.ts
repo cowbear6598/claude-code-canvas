@@ -9,16 +9,16 @@ import {
     disconnectSocket,
     type TestServerInstance,
 } from '../setup/index.js';
-import {createOutputStyle} from '../helpers/index.js';
+import {createOutputStyle, getCanvasId} from '../helpers/index.js';
 import {
     WebSocketRequestEvents,
     WebSocketResponseEvents,
     type CanvasPastePayload,
-    type CanvasPasteResultPayload,
     type PastePodItem,
     type PasteConnectionItem,
     type PasteOutputStyleNoteItem,
-} from '../../src/types/index.js';
+} from '../../src/schemas/index.js';
+import { type CanvasPasteResultPayload } from '../../src/types/index.js';
 
 describe('paste', () => {
     let server: TestServerInstance;
@@ -26,7 +26,7 @@ describe('paste', () => {
 
     beforeAll(async () => {
         server = await createTestServer();
-        client = await createSocketClient(server.baseUrl);
+        client = await createSocketClient(server.baseUrl, server.canvasId);
     });
 
     afterAll(async () => {
@@ -34,9 +34,11 @@ describe('paste', () => {
         if (server) await closeTestServer(server);
     });
 
-    function emptyPastePayload(): CanvasPastePayload {
+    async function emptyPastePayload(): Promise<CanvasPastePayload> {
+        const canvasId = await getCanvasId(client);
         return {
             requestId: uuidv4(),
+            canvasId,
             pods: [],
             outputStyleNotes: [],
             skillNotes: [],
@@ -53,11 +55,10 @@ describe('paste', () => {
             const podId2 = uuidv4();
 
             const pods: PastePodItem[] = [
-                {originalId: podId1, name: 'Paste Pod 1', type: 'General AI', color: 'blue', x: 0, y: 0, rotation: 0},
+                {originalId: podId1, name: 'Paste Pod 1', color: 'blue', x: 0, y: 0, rotation: 0},
                 {
                     originalId: podId2,
                     name: 'Paste Pod 2',
-                    type: 'General AI',
                     color: 'blue',
                     x: 100,
                     y: 100,
@@ -69,7 +70,7 @@ describe('paste', () => {
                 {originalSourcePodId: podId1, sourceAnchor: 'right', originalTargetPodId: podId2, targetAnchor: 'left'},
             ];
 
-            const payload: CanvasPastePayload = {...emptyPastePayload(), pods, connections};
+            const payload: CanvasPastePayload = {...await emptyPastePayload(), pods, connections};
 
             const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
                 client,
@@ -88,7 +89,7 @@ describe('paste', () => {
             const podId = uuidv4();
 
             const pods: PastePodItem[] = [
-                {originalId: podId, name: 'Note Pod', type: 'General AI', color: 'blue', x: 0, y: 0, rotation: 0},
+                {originalId: podId, name: 'Note Pod', color: 'blue', x: 0, y: 0, rotation: 0},
             ];
 
             const outputStyleNotes: PasteOutputStyleNoteItem[] = [
@@ -102,7 +103,7 @@ describe('paste', () => {
                 },
             ];
 
-            const payload: CanvasPastePayload = {...emptyPastePayload(), pods, outputStyleNotes};
+            const payload: CanvasPastePayload = {...await emptyPastePayload(), pods, outputStyleNotes};
 
             const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
                 client,
@@ -123,7 +124,7 @@ describe('paste', () => {
                 client,
                 WebSocketRequestEvents.CANVAS_PASTE,
                 WebSocketResponseEvents.CANVAS_PASTE_RESULT,
-                emptyPastePayload()
+                await emptyPastePayload()
             );
 
             expect(response.createdPods).toHaveLength(0);
@@ -133,7 +134,7 @@ describe('paste', () => {
         it('success_when_paste_reports_errors_for_invalid_items', async () => {
             const validPodId = uuidv4();
             const pods: PastePodItem[] = [
-                {originalId: validPodId, name: 'Valid', type: 'General AI', color: 'blue', x: 0, y: 0, rotation: 0},
+                {originalId: validPodId, name: 'Valid', color: 'blue', x: 0, y: 0, rotation: 0},
             ];
 
             // Connection with nonexistent source should fail silently (no mapping)
@@ -146,7 +147,7 @@ describe('paste', () => {
                 },
             ];
 
-            const payload: CanvasPastePayload = {...emptyPastePayload(), pods, connections};
+            const payload: CanvasPastePayload = {...await emptyPastePayload(), pods, connections};
 
             const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
                 client,

@@ -80,7 +80,7 @@ export const handleTriggerUpdate = withCanvasId<TriggerUpdatePayload>(
       emitError(
         socket,
         WebSocketResponseEvents.TRIGGER_UPDATED,
-        `Trigger not found: ${triggerId}`,
+        `Trigger 找不到: ${triggerId}`,
         requestId,
         undefined,
         'NOT_FOUND'
@@ -153,7 +153,7 @@ export const handleTriggerDelete = withCanvasId<TriggerDeletePayload>(
       emitError(
         socket,
         WebSocketResponseEvents.TRIGGER_DELETED,
-        `Trigger not found: ${triggerId}`,
+        `Trigger 找不到: ${triggerId}`,
         requestId,
         undefined,
         'NOT_FOUND'

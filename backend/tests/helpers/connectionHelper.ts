@@ -5,6 +5,8 @@ import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type ConnectionCreatePayload,
+} from '../../src/schemas/index.js';
+import {
   type ConnectionCreatedPayload,
   type Connection,
 } from '../../src/types/index.js';
@@ -15,8 +17,21 @@ export async function createConnection(
   targetPodId: string,
   overrides?: Partial<ConnectionCreatePayload>
 ): Promise<Connection> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
   const payload: ConnectionCreatePayload = {
     requestId: uuidv4(),
+    canvasId,
+    sourceType: 'pod',
     sourcePodId,
     sourceAnchor: 'right',
     targetPodId,

@@ -9,13 +9,13 @@ import {
   disconnectSocket,
   type TestServerInstance,
 } from '../setup/index.js';
-import { createPod, FAKE_UUID } from '../helpers/index.js';
+import { createPod, FAKE_UUID, getCanvasId} from '../helpers/index.js';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type PodSetAutoClearPayload,
-  type PodAutoClearSetPayload,
-} from '../../src/types/index.js';
+} from '../../src/schemas/index.js';
+import { type PodAutoClearSetPayload } from '../../src/types/index.js';
 
 describe('auto-clear', () => {
   let server: TestServerInstance;
@@ -23,7 +23,7 @@ describe('auto-clear', () => {
 
   beforeAll(async () => {
     server = await createTestServer();
-    client = await createSocketClient(server.baseUrl);
+    client = await createSocketClient(server.baseUrl, server.canvasId);
   });
 
   afterAll(async () => {
@@ -35,11 +35,12 @@ describe('auto-clear', () => {
     it('success_when_auto_clear_set_to_true', async () => {
       const pod = await createPod(client);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodSetAutoClearPayload, PodAutoClearSetPayload>(
         client,
         WebSocketRequestEvents.POD_SET_AUTO_CLEAR,
         WebSocketResponseEvents.POD_AUTO_CLEAR_SET,
-        { requestId: uuidv4(), podId: pod.id, autoClear: true }
+        { requestId: uuidv4(), canvasId, podId: pod.id, autoClear: true }
       );
 
       expect(response.success).toBe(true);
@@ -49,18 +50,19 @@ describe('auto-clear', () => {
     it('success_when_auto_clear_set_to_false', async () => {
       const pod = await createPod(client);
 
+      const canvasId = await getCanvasId(client);
       await emitAndWaitResponse<PodSetAutoClearPayload, PodAutoClearSetPayload>(
         client,
         WebSocketRequestEvents.POD_SET_AUTO_CLEAR,
         WebSocketResponseEvents.POD_AUTO_CLEAR_SET,
-        { requestId: uuidv4(), podId: pod.id, autoClear: true }
+        { requestId: uuidv4(), canvasId, podId: pod.id, autoClear: true }
       );
 
       const response = await emitAndWaitResponse<PodSetAutoClearPayload, PodAutoClearSetPayload>(
         client,
         WebSocketRequestEvents.POD_SET_AUTO_CLEAR,
         WebSocketResponseEvents.POD_AUTO_CLEAR_SET,
-        { requestId: uuidv4(), podId: pod.id, autoClear: false }
+        { requestId: uuidv4(), canvasId, podId: pod.id, autoClear: false }
       );
 
       expect(response.success).toBe(true);
@@ -68,15 +70,16 @@ describe('auto-clear', () => {
     });
 
     it('failed_when_set_auto_clear_with_nonexistent_pod', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodSetAutoClearPayload, PodAutoClearSetPayload>(
         client,
         WebSocketRequestEvents.POD_SET_AUTO_CLEAR,
         WebSocketResponseEvents.POD_AUTO_CLEAR_SET,
-        { requestId: uuidv4(), podId: FAKE_UUID, autoClear: true }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, autoClear: true }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 });

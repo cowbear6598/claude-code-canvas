@@ -9,25 +9,27 @@ import {
   disconnectSocket,
   type TestServerInstance,
 } from '../setup/index.js';
-import { createPod, createPodPair, FAKE_UUID } from '../helpers/index.js';
+import { createPod, createPodPair, FAKE_UUID, getCanvasId} from '../helpers/index.js';
 import { createConnection } from '../helpers/index.js';
 import { createOutputStyle } from '../helpers/index.js';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type PodListPayload,
-  type PodListResultPayload,
   type PodGetPayload,
-  type PodGetResultPayload,
   type PodUpdatePayload,
-  type PodUpdatedPayload,
   type PodDeletePayload,
-  type PodDeletedPayload,
   type ConnectionListPayload,
-  type ConnectionListResultPayload,
   type NoteCreatePayload,
-  type NoteCreatedPayload,
   type NoteListPayload,
+} from '../../src/schemas/index.js';
+import {
+  type PodListResultPayload,
+  type PodGetResultPayload,
+  type PodUpdatedPayload,
+  type PodDeletedPayload,
+  type ConnectionListResultPayload,
+  type NoteCreatedPayload,
   type NoteListResultPayload,
 } from '../../src/types/index.js';
 
@@ -37,7 +39,7 @@ describe('pod', () => {
 
   beforeAll(async () => {
     server = await createTestServer();
-    client = await createSocketClient(server.baseUrl);
+    client = await createSocketClient(server.baseUrl, server.canvasId);
   });
 
   afterAll(async () => {
@@ -49,7 +51,6 @@ describe('pod', () => {
     it('success_when_pod_created_with_valid_payload', async () => {
       const pod = await createPod(client, {
         name: 'Created Pod',
-        type: 'General AI',
         color: 'blue',
         x: 100,
         y: 200,
@@ -58,7 +59,6 @@ describe('pod', () => {
 
       expect(pod.id).toBeDefined();
       expect(pod.name).toBe('Created Pod');
-      expect(pod.type).toBe('General AI');
       expect(pod.color).toBe('blue');
       expect(pod.x).toBe(100);
       expect(pod.y).toBe(200);
@@ -82,11 +82,12 @@ describe('pod', () => {
       await createPod(client, { name: 'List Pod 1' });
       await createPod(client, { name: 'List Pod 2' });
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodListPayload, PodListResultPayload>(
         client,
         WebSocketRequestEvents.POD_LIST,
         WebSocketResponseEvents.POD_LIST_RESULT,
-        { requestId: uuidv4() }
+        { requestId: uuidv4(), canvasId }
       );
 
       expect(response.success).toBe(true);
@@ -96,11 +97,12 @@ describe('pod', () => {
     });
 
     it('success_when_pod_list_returns_array', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodListPayload, PodListResultPayload>(
         client,
         WebSocketRequestEvents.POD_LIST,
         WebSocketResponseEvents.POD_LIST_RESULT,
-        { requestId: uuidv4() }
+        { requestId: uuidv4(), canvasId }
       );
 
       expect(response.success).toBe(true);
@@ -112,11 +114,12 @@ describe('pod', () => {
     it('success_when_pod_get_returns_existing_pod', async () => {
       const pod = await createPod(client, { name: 'Get Pod' });
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodGetPayload, PodGetResultPayload>(
         client,
         WebSocketRequestEvents.POD_GET,
         WebSocketResponseEvents.POD_GET_RESULT,
-        { requestId: uuidv4(), podId: pod.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id }
       );
 
       expect(response.success).toBe(true);
@@ -125,15 +128,16 @@ describe('pod', () => {
     });
 
     it('failed_when_pod_get_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodGetPayload, PodGetResultPayload>(
         client,
         WebSocketRequestEvents.POD_GET,
         WebSocketResponseEvents.POD_GET_RESULT,
-        { requestId: uuidv4(), podId: FAKE_UUID }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 
@@ -141,11 +145,12 @@ describe('pod', () => {
     it('success_when_pod_updated_with_position', async () => {
       const pod = await createPod(client);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
         client,
         WebSocketRequestEvents.POD_UPDATE,
         WebSocketResponseEvents.POD_UPDATED,
-        { requestId: uuidv4(), podId: pod.id, x: 500, y: 600 }
+        { requestId: uuidv4(), canvasId, podId: pod.id, x: 500, y: 600 }
       );
 
       expect(response.success).toBe(true);
@@ -156,11 +161,12 @@ describe('pod', () => {
     it('success_when_pod_updated_with_name', async () => {
       const pod = await createPod(client);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
         client,
         WebSocketRequestEvents.POD_UPDATE,
         WebSocketResponseEvents.POD_UPDATED,
-        { requestId: uuidv4(), podId: pod.id, name: 'New Name' }
+        { requestId: uuidv4(), canvasId, podId: pod.id, name: 'New Name' }
       );
 
       expect(response.success).toBe(true);
@@ -170,11 +176,12 @@ describe('pod', () => {
     it('success_when_pod_updated_with_rotation', async () => {
       const pod = await createPod(client);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
         client,
         WebSocketRequestEvents.POD_UPDATE,
         WebSocketResponseEvents.POD_UPDATED,
-        { requestId: uuidv4(), podId: pod.id, rotation: 45 }
+        { requestId: uuidv4(), canvasId, podId: pod.id, rotation: 45 }
       );
 
       expect(response.success).toBe(true);
@@ -184,11 +191,12 @@ describe('pod', () => {
     it('success_when_pod_updated_with_model', async () => {
       const pod = await createPod(client);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
         client,
         WebSocketRequestEvents.POD_UPDATE,
         WebSocketResponseEvents.POD_UPDATED,
-        { requestId: uuidv4(), podId: pod.id, model: 'sonnet' }
+        { requestId: uuidv4(), canvasId, podId: pod.id, model: 'sonnet' }
       );
 
       expect(response.success).toBe(true);
@@ -198,11 +206,12 @@ describe('pod', () => {
     it('success_when_pod_updated_with_partial_fields', async () => {
       const pod = await createPod(client, { name: 'Original', x: 10, y: 20 });
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
         client,
         WebSocketRequestEvents.POD_UPDATE,
         WebSocketResponseEvents.POD_UPDATED,
-        { requestId: uuidv4(), podId: pod.id, x: 99 }
+        { requestId: uuidv4(), canvasId, podId: pod.id, x: 99 }
       );
 
       expect(response.success).toBe(true);
@@ -212,15 +221,16 @@ describe('pod', () => {
     });
 
     it('failed_when_pod_update_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
         client,
         WebSocketRequestEvents.POD_UPDATE,
         WebSocketResponseEvents.POD_UPDATED,
-        { requestId: uuidv4(), podId: FAKE_UUID, name: 'Fail' }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, name: 'Fail' }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 
@@ -228,11 +238,12 @@ describe('pod', () => {
     it('success_when_pod_deleted', async () => {
       const pod = await createPod(client, { name: 'To Delete' });
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodDeletePayload, PodDeletedPayload>(
         client,
         WebSocketRequestEvents.POD_DELETE,
         WebSocketResponseEvents.POD_DELETED,
-        { requestId: uuidv4(), podId: pod.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id }
       );
 
       expect(response.success).toBe(true);
@@ -243,18 +254,19 @@ describe('pod', () => {
       const { podA, podB } = await createPodPair(client);
       await createConnection(client, podA.id, podB.id);
 
+      const canvasId = await getCanvasId(client);
       await emitAndWaitResponse<PodDeletePayload, PodDeletedPayload>(
         client,
         WebSocketRequestEvents.POD_DELETE,
         WebSocketResponseEvents.POD_DELETED,
-        { requestId: uuidv4(), podId: podA.id }
+        { requestId: uuidv4(), canvasId, podId: podA.id }
       );
 
       const listResponse = await emitAndWaitResponse<ConnectionListPayload, ConnectionListResultPayload>(
         client,
         WebSocketRequestEvents.CONNECTION_LIST,
         WebSocketResponseEvents.CONNECTION_LIST_RESULT,
-        { requestId: uuidv4() }
+        { requestId: uuidv4(), canvasId }
       );
 
       const related = listResponse.connections!.filter(
@@ -267,12 +279,14 @@ describe('pod', () => {
       const pod = await createPod(client);
       const style = await createOutputStyle(client, `style-${uuidv4()}`, '# Test');
 
+      const canvasId = await getCanvasId(client);
       await emitAndWaitResponse<NoteCreatePayload, NoteCreatedPayload>(
         client,
         WebSocketRequestEvents.NOTE_CREATE,
         WebSocketResponseEvents.NOTE_CREATED,
         {
           requestId: uuidv4(),
+          canvasId,
           outputStyleId: style.id,
           name: 'Bound Note',
           x: 0,
@@ -286,14 +300,14 @@ describe('pod', () => {
         client,
         WebSocketRequestEvents.POD_DELETE,
         WebSocketResponseEvents.POD_DELETED,
-        { requestId: uuidv4(), podId: pod.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id }
       );
 
       const listResponse = await emitAndWaitResponse<NoteListPayload, NoteListResultPayload>(
         client,
         WebSocketRequestEvents.NOTE_LIST,
         WebSocketResponseEvents.NOTE_LIST_RESULT,
-        { requestId: uuidv4() }
+        { requestId: uuidv4(), canvasId }
       );
 
       const bound = listResponse.notes!.filter((n) => n.boundToPodId === pod.id);
@@ -301,15 +315,16 @@ describe('pod', () => {
     });
 
     it('failed_when_pod_delete_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodDeletePayload, PodDeletedPayload>(
         client,
         WebSocketRequestEvents.POD_DELETE,
         WebSocketResponseEvents.POD_DELETED,
-        { requestId: uuidv4(), podId: FAKE_UUID }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 });

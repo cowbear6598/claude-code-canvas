@@ -9,17 +9,19 @@ import {
   disconnectSocket,
   type TestServerInstance,
 } from '../setup/index.js';
-import { createPod, createOutputStyle, FAKE_UUID } from '../helpers/index.js';
+import { createPod, createOutputStyle, FAKE_UUID, getCanvasId} from '../helpers/index.js';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type NoteCreatePayload,
-  type NoteCreatedPayload,
   type NoteListPayload,
-  type NoteListResultPayload,
   type NoteUpdatePayload,
-  type NoteUpdatedPayload,
   type NoteDeletePayload,
+} from '../../src/schemas/index.js';
+import {
+  type NoteCreatedPayload,
+  type NoteListResultPayload,
+  type NoteUpdatedPayload,
   type NoteDeletedPayload,
 } from '../../src/types/index.js';
 
@@ -29,7 +31,7 @@ describe('note', () => {
 
   beforeAll(async () => {
     server = await createTestServer();
-    client = await createSocketClient(server.baseUrl);
+    client = await createSocketClient(server.baseUrl, server.canvasId);
   });
 
   afterAll(async () => {
@@ -39,6 +41,7 @@ describe('note', () => {
 
   async function createTestNote(boundToPodId: string | null = null) {
     const style = await createOutputStyle(client, `note-style-${uuidv4()}`, '# S');
+    const canvasId = await getCanvasId(client);
 
     const response = await emitAndWaitResponse<NoteCreatePayload, NoteCreatedPayload>(
       client,
@@ -46,6 +49,7 @@ describe('note', () => {
       WebSocketResponseEvents.NOTE_CREATED,
       {
         requestId: uuidv4(),
+        canvasId,
         outputStyleId: style.id,
         name: 'Test Note',
         x: 100,
@@ -82,11 +86,12 @@ describe('note', () => {
       await createTestNote();
       await createTestNote();
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<NoteListPayload, NoteListResultPayload>(
         client,
         WebSocketRequestEvents.NOTE_LIST,
         WebSocketResponseEvents.NOTE_LIST_RESULT,
-        { requestId: uuidv4() }
+        { requestId: uuidv4(), canvasId }
       );
 
       expect(response.success).toBe(true);
@@ -98,11 +103,12 @@ describe('note', () => {
     it('success_when_note_updated_with_position', async () => {
       const note = await createTestNote();
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<NoteUpdatePayload, NoteUpdatedPayload>(
         client,
         WebSocketRequestEvents.NOTE_UPDATE,
         WebSocketResponseEvents.NOTE_UPDATED,
-        { requestId: uuidv4(), noteId: note.id, x: 999, y: 888 }
+        { requestId: uuidv4(), canvasId, noteId: note.id, x: 999, y: 888 }
       );
 
       expect(response.success).toBe(true);
@@ -114,11 +120,12 @@ describe('note', () => {
       const note = await createTestNote();
       const pod = await createPod(client);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<NoteUpdatePayload, NoteUpdatedPayload>(
         client,
         WebSocketRequestEvents.NOTE_UPDATE,
         WebSocketResponseEvents.NOTE_UPDATED,
-        { requestId: uuidv4(), noteId: note.id, boundToPodId: pod.id }
+        { requestId: uuidv4(), canvasId, noteId: note.id, boundToPodId: pod.id }
       );
 
       expect(response.success).toBe(true);
@@ -126,15 +133,16 @@ describe('note', () => {
     });
 
     it('failed_when_note_update_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<NoteUpdatePayload, NoteUpdatedPayload>(
         client,
         WebSocketRequestEvents.NOTE_UPDATE,
         WebSocketResponseEvents.NOTE_UPDATED,
-        { requestId: uuidv4(), noteId: FAKE_UUID, x: 0 }
+        { requestId: uuidv4(), canvasId, noteId: FAKE_UUID, x: 0 }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 
@@ -142,11 +150,12 @@ describe('note', () => {
     it('success_when_note_deleted', async () => {
       const note = await createTestNote();
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<NoteDeletePayload, NoteDeletedPayload>(
         client,
         WebSocketRequestEvents.NOTE_DELETE,
         WebSocketResponseEvents.NOTE_DELETED,
-        { requestId: uuidv4(), noteId: note.id }
+        { requestId: uuidv4(), canvasId, noteId: note.id }
       );
 
       expect(response.success).toBe(true);
@@ -154,15 +163,16 @@ describe('note', () => {
     });
 
     it('failed_when_note_delete_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<NoteDeletePayload, NoteDeletedPayload>(
         client,
         WebSocketRequestEvents.NOTE_DELETE,
         WebSocketResponseEvents.NOTE_DELETED,
-        { requestId: uuidv4(), noteId: FAKE_UUID }
+        { requestId: uuidv4(), canvasId, noteId: FAKE_UUID }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 });

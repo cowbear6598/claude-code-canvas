@@ -17,6 +17,8 @@ export interface TestServerInstance {
   app: express.Application;
   baseUrl: string;
   port: number;
+  canvasId: string;
+  canvasDataDir: string;
 }
 
 /**
@@ -32,6 +34,7 @@ export async function createTestServer(): Promise<TestServerInstance> {
   const { socketService } = await import('../../src/services/socketService.js');
   const { setupSocketHandlers } = await import('../../src/services/socketHandlers.js');
   const { startupService } = await import('../../src/services/startupService.js');
+  const { canvasStore } = await import('../../src/services/canvasStore.js');
 
   const app = express();
 
@@ -44,6 +47,14 @@ export async function createTestServer(): Promise<TestServerInstance> {
   const result = await startupService.initialize();
   if (!result.success) {
     throw new Error(`Failed to initialize test server: ${result.error}`);
+  }
+
+  const canvases = canvasStore.list();
+  const defaultCanvas = canvases[0];
+  const canvasDataDir = canvasStore.getCanvasDataDir(defaultCanvas.id);
+
+  if (!canvasDataDir) {
+    throw new Error('Failed to get canvas data directory');
   }
 
   // 初始化 Socket.io
@@ -71,6 +82,8 @@ export async function createTestServer(): Promise<TestServerInstance> {
     app,
     baseUrl,
     port,
+    canvasId: defaultCanvas.id,
+    canvasDataDir,
   };
 }
 

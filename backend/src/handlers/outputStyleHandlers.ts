@@ -74,7 +74,7 @@ export const handlePodBindOutputStyle = withCanvasId<PodBindOutputStylePayload>(
     emitError(
       socket,
       WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND,
-      `Output style not found: ${outputStyleId}`,
+      `Output style 找不到: ${outputStyleId}`,
       requestId,
       podId,
       'NOT_FOUND'

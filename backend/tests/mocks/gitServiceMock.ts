@@ -1,71 +1,70 @@
-// Git Service Mock
-// Mock simple-git 模組
-// 支援成功/失敗場景
-//
-// 注意：由於 Vitest 的 vi.mock() 必須在測試檔案的頂層執行，
-// 這個檔案目前僅作為參考。實際 mock 實作請參考 git.test.ts。
-//
-// 在測試檔案中使用 vi.mock() 的範例：
-//
-// let mockCloneResult = { success: true };
-// const mockCloneFn = vi.fn(async () => {
-//   await new Promise(resolve => setTimeout(resolve, 100));
-//   if (!mockCloneResult.success) throw new Error(mockCloneResult.error || 'Clone failed');
-// });
-// vi.mock('simple-git', () => ({
-//   simpleGit: vi.fn(() => ({ clone: mockCloneFn })),
-//   default: vi.fn(() => ({ clone: mockCloneFn })),
-// }));
-
 import { vi } from 'vitest';
+import type { Result } from '../../src/types/index.js';
+import { ok, err } from '../../src/types/index.js';
 
-export interface MockCloneResult {
+interface MockCloneResult {
   success: boolean;
   error?: string;
 }
 
-// Mock 設定
-let mockCloneResult: MockCloneResult = { success: true };
+interface MockCloneProgress {
+  stage: string;
+  progress: number;
+}
 
-/**
- * 設定 Clone 結果
- */
+interface LastCloneCall {
+  url: string;
+  destPath: string;
+  options?: any;
+}
+
+let mockResult: MockCloneResult = { success: true };
+let mockProgressStages: MockCloneProgress[] = [];
+let lastCloneCall: LastCloneCall | null = null;
+
 export function setMockCloneResult(result: MockCloneResult): void {
-  mockCloneResult = result;
+  mockResult = result;
 }
 
-/**
- * 重置 Mock 狀態
- */
+export function setMockCloneProgress(stages: MockCloneProgress[]): void {
+  mockProgressStages = stages;
+}
+
 export function resetGitMock(): void {
-  mockCloneResult = { success: true };
+  mockResult = { success: true };
+  mockProgressStages = [];
+  lastCloneCall = null;
 }
 
-/**
- * Mock 的 clone 函數
- */
-async function mockClone(): Promise<void> {
-  // 模擬一些延遲
-  await new Promise((resolve) => setTimeout(resolve, 100));
+export function getLastCloneCall(): LastCloneCall | null {
+  return lastCloneCall;
+}
 
-  if (!mockCloneResult.success) {
-    throw new Error(mockCloneResult.error || 'Clone failed');
+const mockClone = vi.fn(
+  async (
+    repoUrl: string,
+    destPath: string,
+    options?: { branch?: string; onProgress?: (progress: MockCloneProgress) => void }
+  ): Promise<Result<void>> => {
+    lastCloneCall = { url: repoUrl, destPath, options };
+
+    if (mockProgressStages.length > 0 && options?.onProgress) {
+      for (const stage of mockProgressStages) {
+        options.onProgress(stage);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+
+    if (mockResult.success) {
+      return ok(undefined);
+    }
+
+    return err(mockResult.error || '複製儲存庫失敗');
   }
-}
+);
 
-/**
- * Mock 的 simpleGit 實例
- */
-const mockGitInstance = {
-  clone: vi.fn(mockClone),
-};
-
-// Mock simple-git 模組
-// 注意：這個 mock 可能無法正常工作，因為 vi.mock() 需要在測試檔案頂層執行
-// 請參考 git.test.ts 中的實際實作
-vi.mock('simple-git', () => ({
-  default: vi.fn(() => mockGitInstance),
-  simpleGit: vi.fn(() => mockGitInstance),
+vi.mock('../../src/services/workspace/gitService.js', () => ({
+  gitService: {
+    clone: mockClone,
+  },
 }));
-
-export { mockGitInstance };

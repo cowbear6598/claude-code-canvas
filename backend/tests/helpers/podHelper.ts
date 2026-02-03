@@ -5,8 +5,10 @@ import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type PodCreatePayload,
-  type PodCreatedPayload,
   type PodDeletePayload,
+} from '../../src/schemas/index.js';
+import {
+  type PodCreatedPayload,
   type PodDeletedPayload,
   type Pod,
 } from '../../src/types/index.js';
@@ -15,10 +17,21 @@ export async function createPod(
   client: Socket,
   overrides?: Partial<PodCreatePayload>
 ): Promise<Pod> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
   const payload: PodCreatePayload = {
     requestId: uuidv4(),
+    canvasId,
     name: 'Test Pod',
-    type: 'General AI',
     color: 'blue',
     x: 0,
     y: 0,
@@ -45,10 +58,21 @@ export async function createPodPair(
 }
 
 export async function deletePod(client: Socket, podId: string): Promise<void> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
   await emitAndWaitResponse<PodDeletePayload, PodDeletedPayload>(
     client,
     WebSocketRequestEvents.POD_DELETE,
     WebSocketResponseEvents.POD_DELETED,
-    { requestId: uuidv4(), podId }
+    { requestId: uuidv4(), canvasId, podId }
   );
 }

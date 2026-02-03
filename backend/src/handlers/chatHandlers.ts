@@ -216,7 +216,7 @@ export const handleChatHistory = withCanvasId<ChatHistoryPayload>(
         const responsePayload: PodChatHistoryResultPayload = {
             requestId,
             success: false,
-            error: `Pod not found: ${podId}`,
+            error: `Pod 找不到: ${podId}`,
         };
 
         socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, responsePayload);

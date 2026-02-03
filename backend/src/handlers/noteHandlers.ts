@@ -1,5 +1,6 @@
 import { WebSocketResponseEvents } from '../schemas/index.js';
 import { noteStore } from '../services/noteStores.js';
+import { outputStyleService } from '../services/outputStyleService.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';
 
 const noteHandlersImpl = createNoteHandlers({
@@ -17,6 +18,7 @@ const noteHandlersImpl = createNoteHandlers({
   },
   foreignKeyField: 'outputStyleId',
   entityName: 'OutputStyle',
+  validateBeforeCreate: (outputStyleId) => outputStyleService.exists(outputStyleId),
 });
 
 export const handleNoteCreate = noteHandlersImpl.handleNoteCreate;

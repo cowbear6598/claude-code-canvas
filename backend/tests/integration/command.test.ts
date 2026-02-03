@@ -9,32 +9,34 @@ import {
   disconnectSocket,
   type TestServerInstance,
 } from '../setup/index.js';
-import { createPod, createCommand, FAKE_UUID, FAKE_COMMAND_ID } from '../helpers/index.js';
+import { createPod, createCommand, getCanvasId, FAKE_UUID, FAKE_COMMAND_ID } from '../helpers/index.js';
 import { podStore } from '../../src/services/podStore.js';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type CommandCreatePayload,
-  type CommandCreatedPayload,
   type CommandListPayload,
-  type CommandListResultPayload,
   type CommandReadPayload,
-  type CommandReadResultPayload,
   type CommandUpdatePayload,
-  type CommandUpdatedPayload,
   type CommandNoteCreatePayload,
-  type CommandNoteCreatedPayload,
   type CommandNoteListPayload,
-  type CommandNoteListResultPayload,
   type CommandNoteUpdatePayload,
-  type CommandNoteUpdatedPayload,
   type CommandNoteDeletePayload,
-  type CommandNoteDeletedPayload,
   type PodBindCommandPayload,
-  type PodCommandBoundPayload,
   type PodUnbindCommandPayload,
-  type PodCommandUnboundPayload,
   type CommandDeletePayload,
+} from '../../src/schemas/index.js';
+import {
+  type CommandCreatedPayload,
+  type CommandListResultPayload,
+  type CommandReadResultPayload,
+  type CommandUpdatedPayload,
+  type CommandNoteCreatedPayload,
+  type CommandNoteListResultPayload,
+  type CommandNoteUpdatedPayload,
+  type CommandNoteDeletedPayload,
+  type PodCommandBoundPayload,
+  type PodCommandUnboundPayload,
   type CommandDeletedPayload,
 } from '../../src/types/index.js';
 
@@ -44,7 +46,7 @@ describe('command', () => {
 
   beforeAll(async () => {
     server = await createTestServer();
-    client = await createSocketClient(server.baseUrl);
+    client = await createSocketClient(server.baseUrl, server.canvasId);
   });
 
   afterAll(async () => {
@@ -57,11 +59,12 @@ describe('command', () => {
   }
 
   async function createCommandNote(commandId: string) {
+    const canvasId = await getCanvasId(client);
     const response = await emitAndWaitResponse<CommandNoteCreatePayload, CommandNoteCreatedPayload>(
       client,
       WebSocketRequestEvents.COMMAND_NOTE_CREATE,
       WebSocketResponseEvents.COMMAND_NOTE_CREATED,
-      { requestId: uuidv4(), commandId, name: 'Cmd Note', x: 100, y: 100, boundToPodId: null, originalPosition: null }
+      { requestId: uuidv4(), canvasId, commandId, name: 'Cmd Note', x: 100, y: 100, boundToPodId: null, originalPosition: null }
     );
     return response.note!;
   }
@@ -79,15 +82,16 @@ describe('command', () => {
       const name = `dup-cmd-${uuidv4()}`;
       await makeCommand(name);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandCreatePayload, CommandCreatedPayload>(
         client,
         WebSocketRequestEvents.COMMAND_CREATE,
         WebSocketResponseEvents.COMMAND_CREATED,
-        { requestId: uuidv4(), name, content: '# Dup' }
+        { requestId: uuidv4(), canvasId, name, content: '# Dup' }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('already exists');
+      expect(response.error).toContain('已存在');
     });
   });
 
@@ -95,11 +99,12 @@ describe('command', () => {
     it('success_when_command_list_returns_all', async () => {
       const cmd = await makeCommand();
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandListPayload, CommandListResultPayload>(
         client,
         WebSocketRequestEvents.COMMAND_LIST,
         WebSocketResponseEvents.COMMAND_LIST_RESULT,
-        { requestId: uuidv4() }
+        { requestId: uuidv4(), canvasId }
       );
 
       expect(response.success).toBe(true);
@@ -112,11 +117,12 @@ describe('command', () => {
     it('success_when_command_read_returns_content', async () => {
       const cmd = await makeCommand();
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandReadPayload, CommandReadResultPayload>(
         client,
         WebSocketRequestEvents.COMMAND_READ,
         WebSocketResponseEvents.COMMAND_READ_RESULT,
-        { requestId: uuidv4(), commandId: cmd.id }
+        { requestId: uuidv4(), canvasId, commandId: cmd.id }
       );
 
       expect(response.success).toBe(true);
@@ -124,15 +130,16 @@ describe('command', () => {
     });
 
     it('failed_when_command_read_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandReadPayload, CommandReadResultPayload>(
         client,
         WebSocketRequestEvents.COMMAND_READ,
         WebSocketResponseEvents.COMMAND_READ_RESULT,
-        { requestId: uuidv4(), commandId: FAKE_COMMAND_ID }
+        { requestId: uuidv4(), canvasId, commandId: FAKE_COMMAND_ID }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 
@@ -140,26 +147,28 @@ describe('command', () => {
     it('success_when_command_updated', async () => {
       const cmd = await makeCommand();
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandUpdatePayload, CommandUpdatedPayload>(
         client,
         WebSocketRequestEvents.COMMAND_UPDATE,
         WebSocketResponseEvents.COMMAND_UPDATED,
-        { requestId: uuidv4(), commandId: cmd.id, content: '# Updated' }
+        { requestId: uuidv4(), canvasId, commandId: cmd.id, content: '# Updated' }
       );
 
       expect(response.success).toBe(true);
     });
 
     it('failed_when_command_update_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandUpdatePayload, CommandUpdatedPayload>(
         client,
         WebSocketRequestEvents.COMMAND_UPDATE,
         WebSocketResponseEvents.COMMAND_UPDATED,
-        { requestId: uuidv4(), commandId: FAKE_COMMAND_ID, content: '# Fail' }
+        { requestId: uuidv4(), canvasId, commandId: FAKE_COMMAND_ID, content: '# Fail' }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 
@@ -176,11 +185,12 @@ describe('command', () => {
       const cmd = await makeCommand();
       await createCommandNote(cmd.id);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandNoteListPayload, CommandNoteListResultPayload>(
         client,
         WebSocketRequestEvents.COMMAND_NOTE_LIST,
         WebSocketResponseEvents.COMMAND_NOTE_LIST_RESULT,
-        { requestId: uuidv4() }
+        { requestId: uuidv4(), canvasId }
       );
 
       expect(response.success).toBe(true);
@@ -191,11 +201,12 @@ describe('command', () => {
       const cmd = await makeCommand();
       const note = await createCommandNote(cmd.id);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandNoteUpdatePayload, CommandNoteUpdatedPayload>(
         client,
         WebSocketRequestEvents.COMMAND_NOTE_UPDATE,
         WebSocketResponseEvents.COMMAND_NOTE_UPDATED,
-        { requestId: uuidv4(), noteId: note.id, x: 555 }
+        { requestId: uuidv4(), canvasId, noteId: note.id, x: 555 }
       );
 
       expect(response.success).toBe(true);
@@ -203,26 +214,28 @@ describe('command', () => {
     });
 
     it('failed_when_command_note_update_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandNoteUpdatePayload, CommandNoteUpdatedPayload>(
         client,
         WebSocketRequestEvents.COMMAND_NOTE_UPDATE,
         WebSocketResponseEvents.COMMAND_NOTE_UPDATED,
-        { requestId: uuidv4(), noteId: FAKE_UUID, x: 0 }
+        { requestId: uuidv4(), canvasId, noteId: FAKE_UUID, x: 0 }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
 
     it('success_when_command_note_deleted', async () => {
       const cmd = await makeCommand();
       const note = await createCommandNote(cmd.id);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandNoteDeletePayload, CommandNoteDeletedPayload>(
         client,
         WebSocketRequestEvents.COMMAND_NOTE_DELETE,
         WebSocketResponseEvents.COMMAND_NOTE_DELETED,
-        { requestId: uuidv4(), noteId: note.id }
+        { requestId: uuidv4(), canvasId, noteId: note.id }
       );
 
       expect(response.success).toBe(true);
@@ -230,15 +243,16 @@ describe('command', () => {
     });
 
     it('failed_when_command_note_delete_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandNoteDeletePayload, CommandNoteDeletedPayload>(
         client,
         WebSocketRequestEvents.COMMAND_NOTE_DELETE,
         WebSocketResponseEvents.COMMAND_NOTE_DELETED,
-        { requestId: uuidv4(), noteId: FAKE_UUID }
+        { requestId: uuidv4(), canvasId, noteId: FAKE_UUID }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 
@@ -247,11 +261,12 @@ describe('command', () => {
       const pod = await createPod(client);
       const cmd = await makeCommand();
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodBindCommandPayload, PodCommandBoundPayload>(
         client,
         WebSocketRequestEvents.POD_BIND_COMMAND,
         WebSocketResponseEvents.POD_COMMAND_BOUND,
-        { requestId: uuidv4(), podId: pod.id, commandId: cmd.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id, commandId: cmd.id }
       );
 
       expect(response.success).toBe(true);
@@ -261,29 +276,31 @@ describe('command', () => {
     it('failed_when_bind_command_with_nonexistent_pod', async () => {
       const cmd = await makeCommand();
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodBindCommandPayload, PodCommandBoundPayload>(
         client,
         WebSocketRequestEvents.POD_BIND_COMMAND,
         WebSocketResponseEvents.POD_COMMAND_BOUND,
-        { requestId: uuidv4(), podId: FAKE_UUID, commandId: cmd.id }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, commandId: cmd.id }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
 
     it('failed_when_bind_command_with_nonexistent_command', async () => {
       const pod = await createPod(client);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodBindCommandPayload, PodCommandBoundPayload>(
         client,
         WebSocketRequestEvents.POD_BIND_COMMAND,
         WebSocketResponseEvents.POD_COMMAND_BOUND,
-        { requestId: uuidv4(), podId: pod.id, commandId: FAKE_COMMAND_ID }
+        { requestId: uuidv4(), canvasId, podId: pod.id, commandId: FAKE_COMMAND_ID }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
 
     it('failed_when_bind_command_while_pod_already_has_command', async () => {
@@ -291,18 +308,19 @@ describe('command', () => {
       const cmd1 = await makeCommand();
       const cmd2 = await makeCommand();
 
+      const canvasId = await getCanvasId(client);
       await emitAndWaitResponse<PodBindCommandPayload, PodCommandBoundPayload>(
         client,
         WebSocketRequestEvents.POD_BIND_COMMAND,
         WebSocketResponseEvents.POD_COMMAND_BOUND,
-        { requestId: uuidv4(), podId: pod.id, commandId: cmd1.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id, commandId: cmd1.id }
       );
 
       const response = await emitAndWaitResponse<PodBindCommandPayload, PodCommandBoundPayload>(
         client,
         WebSocketRequestEvents.POD_BIND_COMMAND,
         WebSocketResponseEvents.POD_COMMAND_BOUND,
-        { requestId: uuidv4(), podId: pod.id, commandId: cmd2.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id, commandId: cmd2.id }
       );
 
       expect(response.success).toBe(false);
@@ -312,16 +330,24 @@ describe('command', () => {
       const pod = await createPod(client);
       const cmd = await makeCommand();
 
+      const canvasId = await getCanvasId(client);
       await emitAndWaitResponse<PodBindCommandPayload, PodCommandBoundPayload>(
         client,
         WebSocketRequestEvents.POD_BIND_COMMAND,
         WebSocketResponseEvents.POD_COMMAND_BOUND,
-        { requestId: uuidv4(), podId: pod.id, commandId: cmd.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id, commandId: cmd.id }
       );
 
-      await podStore.loadFromDisk();
+      const canvasModule = await import('../../src/services/canvasStore.js');
+      const canvasDir = canvasModule.canvasStore.getCanvasDir(canvasId);
 
-      const reloadedPod = podStore.getById(pod.id);
+      if (!canvasDir) {
+        throw new Error('Canvas directory not found');
+      }
+
+      await podStore.loadFromDisk(canvasId, canvasDir);
+
+      const reloadedPod = podStore.getById(canvasId, pod.id);
       expect(reloadedPod).toBeDefined();
       expect(reloadedPod!.commandId).toBe(cmd.id);
     });
@@ -332,18 +358,19 @@ describe('command', () => {
       const pod = await createPod(client);
       const cmd = await makeCommand();
 
+      const canvasId = await getCanvasId(client);
       await emitAndWaitResponse<PodBindCommandPayload, PodCommandBoundPayload>(
         client,
         WebSocketRequestEvents.POD_BIND_COMMAND,
         WebSocketResponseEvents.POD_COMMAND_BOUND,
-        { requestId: uuidv4(), podId: pod.id, commandId: cmd.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id, commandId: cmd.id }
       );
 
       const response = await emitAndWaitResponse<PodUnbindCommandPayload, PodCommandUnboundPayload>(
         client,
         WebSocketRequestEvents.POD_UNBIND_COMMAND,
         WebSocketResponseEvents.POD_COMMAND_UNBOUND,
-        { requestId: uuidv4(), podId: pod.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id }
       );
 
       expect(response.success).toBe(true);
@@ -353,26 +380,28 @@ describe('command', () => {
     it('success_when_unbind_command_from_pod_without_command', async () => {
       const pod = await createPod(client);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodUnbindCommandPayload, PodCommandUnboundPayload>(
         client,
         WebSocketRequestEvents.POD_UNBIND_COMMAND,
         WebSocketResponseEvents.POD_COMMAND_UNBOUND,
-        { requestId: uuidv4(), podId: pod.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id }
       );
 
       expect(response.success).toBe(true);
     });
 
     it('failed_when_unbind_command_with_nonexistent_pod', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodUnbindCommandPayload, PodCommandUnboundPayload>(
         client,
         WebSocketRequestEvents.POD_UNBIND_COMMAND,
         WebSocketResponseEvents.POD_COMMAND_UNBOUND,
-        { requestId: uuidv4(), podId: FAKE_UUID }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 
@@ -380,48 +409,51 @@ describe('command', () => {
     it('success_when_command_deleted', async () => {
       const cmd = await makeCommand();
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandDeletePayload, CommandDeletedPayload>(
         client,
         WebSocketRequestEvents.COMMAND_DELETE,
         WebSocketResponseEvents.COMMAND_DELETED,
-        { requestId: uuidv4(), commandId: cmd.id }
+        { requestId: uuidv4(), canvasId, commandId: cmd.id }
       );
 
       expect(response.success).toBe(true);
     });
 
     it('failed_when_command_delete_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<CommandDeletePayload, CommandDeletedPayload>(
         client,
         WebSocketRequestEvents.COMMAND_DELETE,
         WebSocketResponseEvents.COMMAND_DELETED,
-        { requestId: uuidv4(), commandId: FAKE_COMMAND_ID }
+        { requestId: uuidv4(), canvasId, commandId: FAKE_COMMAND_ID }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
 
     it('failed_when_command_delete_while_in_use', async () => {
       const pod = await createPod(client);
       const cmd = await makeCommand();
 
+      const canvasId = await getCanvasId(client);
       await emitAndWaitResponse<PodBindCommandPayload, PodCommandBoundPayload>(
         client,
         WebSocketRequestEvents.POD_BIND_COMMAND,
         WebSocketResponseEvents.POD_COMMAND_BOUND,
-        { requestId: uuidv4(), podId: pod.id, commandId: cmd.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id, commandId: cmd.id }
       );
 
       const response = await emitAndWaitResponse<CommandDeletePayload, CommandDeletedPayload>(
         client,
         WebSocketRequestEvents.COMMAND_DELETE,
         WebSocketResponseEvents.COMMAND_DELETED,
-        { requestId: uuidv4(), commandId: cmd.id }
+        { requestId: uuidv4(), canvasId, commandId: cmd.id }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('in use');
+      expect(response.error).toContain('使用中');
     });
   });
 });

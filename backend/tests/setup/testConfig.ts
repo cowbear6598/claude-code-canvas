@@ -45,10 +45,61 @@ export const testConfig: TestConfig = {
 export async function overrideConfig(): Promise<void> {
   const configModule = await import('../../src/config/index.js');
   Object.assign(configModule.config, testConfig);
+
+  // 重新綁定方法使其使用新的 canvasRoot
+  configModule.config.getCanvasPath = function (canvasName: string): string {
+    const canvasPath = path.join(testConfig.canvasRoot, canvasName);
+    const resolvedPath = path.resolve(canvasPath);
+    const resolvedRoot = path.resolve(testConfig.canvasRoot);
+
+    if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
+      throw new Error('無效的 canvas 名稱：偵測到路徑穿越');
+    }
+
+    return canvasPath;
+  };
+
+  configModule.config.getCanvasDataPath = function (canvasName: string): string {
+    const canvasPath = path.join(testConfig.canvasRoot, canvasName, 'data');
+    const resolvedPath = path.resolve(canvasPath);
+    const resolvedRoot = path.resolve(testConfig.canvasRoot);
+
+    if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
+      throw new Error('無效的 canvas 名稱：偵測到路徑穿越');
+    }
+
+    return canvasPath;
+  };
 }
 
 // 立即執行覆寫（在 setupFiles 階段）
 // 這確保在任何測試模組載入之前就覆寫 config
 const configModule = await import('../../src/config/index.js');
 Object.assign(configModule.config, testConfig);
+
+// 重新綁定方法
+configModule.config.getCanvasPath = function (canvasName: string): string {
+  const canvasPath = path.join(testConfig.canvasRoot, canvasName);
+  const resolvedPath = path.resolve(canvasPath);
+  const resolvedRoot = path.resolve(testConfig.canvasRoot);
+
+  if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
+    throw new Error('無效的 canvas 名稱：偵測到路徑穿越');
+  }
+
+  return canvasPath;
+};
+
+configModule.config.getCanvasDataPath = function (canvasName: string): string {
+  const canvasPath = path.join(testConfig.canvasRoot, canvasName, 'data');
+  const resolvedPath = path.resolve(canvasPath);
+  const resolvedRoot = path.resolve(testConfig.canvasRoot);
+
+  if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
+    throw new Error('無效的 canvas 名稱：偵測到路徑穿越');
+  }
+
+  return canvasPath;
+};
+
 console.log('[Test Config] Overridden config to use temp directory:', testConfig.appDataRoot);

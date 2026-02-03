@@ -9,18 +9,20 @@ import {
   disconnectSocket,
   type TestServerInstance,
 } from '../setup/index.js';
-import { createPod, createPodPair, FAKE_UUID } from '../helpers/index.js';
+import { createPod, createPodPair, FAKE_UUID, getCanvasId} from '../helpers/index.js';
 import { createConnection } from '../helpers/index.js';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type ConnectionCreatePayload,
-  type ConnectionCreatedPayload,
   type ConnectionListPayload,
-  type ConnectionListResultPayload,
   type ConnectionDeletePayload,
-  type ConnectionDeletedPayload,
   type ConnectionUpdatePayload,
+} from '../../src/schemas/index.js';
+import {
+  type ConnectionCreatedPayload,
+  type ConnectionListResultPayload,
+  type ConnectionDeletedPayload,
   type ConnectionUpdatedPayload,
 } from '../../src/types/index.js';
 
@@ -30,7 +32,7 @@ describe('connection', () => {
 
   beforeAll(async () => {
     server = await createTestServer();
-    client = await createSocketClient(server.baseUrl);
+    client = await createSocketClient(server.baseUrl, server.canvasId);
   });
 
   afterAll(async () => {
@@ -53,29 +55,31 @@ describe('connection', () => {
     it('failed_when_connection_create_with_nonexistent_source_pod', async () => {
       const pod = await createPod(client);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionCreatePayload, ConnectionCreatedPayload>(
         client,
         WebSocketRequestEvents.CONNECTION_CREATE,
         WebSocketResponseEvents.CONNECTION_CREATED,
-        { requestId: uuidv4(), sourcePodId: FAKE_UUID, sourceAnchor: 'right', targetPodId: pod.id, targetAnchor: 'left' }
+        { requestId: uuidv4(), canvasId, sourcePodId: FAKE_UUID, sourceAnchor: 'right', targetPodId: pod.id, targetAnchor: 'left' }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
 
     it('failed_when_connection_create_with_nonexistent_target_pod', async () => {
       const pod = await createPod(client);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionCreatePayload, ConnectionCreatedPayload>(
         client,
         WebSocketRequestEvents.CONNECTION_CREATE,
         WebSocketResponseEvents.CONNECTION_CREATED,
-        { requestId: uuidv4(), sourcePodId: pod.id, sourceAnchor: 'right', targetPodId: FAKE_UUID, targetAnchor: 'left' }
+        { requestId: uuidv4(), canvasId, sourcePodId: pod.id, sourceAnchor: 'right', targetPodId: FAKE_UUID, targetAnchor: 'left' }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 
@@ -84,11 +88,12 @@ describe('connection', () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionListPayload, ConnectionListResultPayload>(
         client,
         WebSocketRequestEvents.CONNECTION_LIST,
         WebSocketResponseEvents.CONNECTION_LIST_RESULT,
-        { requestId: uuidv4() }
+        { requestId: uuidv4(), canvasId }
       );
 
       expect(response.success).toBe(true);
@@ -97,11 +102,12 @@ describe('connection', () => {
     });
 
     it('success_when_connection_list_returns_array', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionListPayload, ConnectionListResultPayload>(
         client,
         WebSocketRequestEvents.CONNECTION_LIST,
         WebSocketResponseEvents.CONNECTION_LIST_RESULT,
-        { requestId: uuidv4() }
+        { requestId: uuidv4(), canvasId }
       );
 
       expect(response.success).toBe(true);
@@ -114,11 +120,12 @@ describe('connection', () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionDeletePayload, ConnectionDeletedPayload>(
         client,
         WebSocketRequestEvents.CONNECTION_DELETE,
         WebSocketResponseEvents.CONNECTION_DELETED,
-        { requestId: uuidv4(), connectionId: conn.id }
+        { requestId: uuidv4(), canvasId, connectionId: conn.id }
       );
 
       expect(response.success).toBe(true);
@@ -126,15 +133,16 @@ describe('connection', () => {
     });
 
     it('failed_when_connection_delete_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionDeletePayload, ConnectionDeletedPayload>(
         client,
         WebSocketRequestEvents.CONNECTION_DELETE,
         WebSocketResponseEvents.CONNECTION_DELETED,
-        { requestId: uuidv4(), connectionId: FAKE_UUID }
+        { requestId: uuidv4(), canvasId, connectionId: FAKE_UUID }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 
@@ -143,11 +151,12 @@ describe('connection', () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
 
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionUpdatePayload, ConnectionUpdatedPayload>(
         client,
         WebSocketRequestEvents.CONNECTION_UPDATE,
         WebSocketResponseEvents.CONNECTION_UPDATED,
-        { requestId: uuidv4(), connectionId: conn.id, autoTrigger: false }
+        { requestId: uuidv4(), canvasId, connectionId: conn.id, autoTrigger: false }
       );
 
       expect(response.success).toBe(true);
@@ -155,15 +164,16 @@ describe('connection', () => {
     });
 
     it('failed_when_connection_update_with_nonexistent_id', async () => {
+      const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionUpdatePayload, ConnectionUpdatedPayload>(
         client,
         WebSocketRequestEvents.CONNECTION_UPDATE,
         WebSocketResponseEvents.CONNECTION_UPDATED,
-        { requestId: uuidv4(), connectionId: FAKE_UUID, autoTrigger: true }
+        { requestId: uuidv4(), canvasId, connectionId: FAKE_UUID, autoTrigger: true }
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('not found');
+      expect(response.error).toContain('找不到');
     });
   });
 });

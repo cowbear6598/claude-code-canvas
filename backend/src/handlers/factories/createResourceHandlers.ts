@@ -67,7 +67,7 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
       emitError(
         socket,
         events.created,
-        `${resourceName} already exists: ${name}`,
+        `${resourceName} 已存在: ${name}`,
         requestId,
         undefined,
         'ALREADY_EXISTS'
@@ -112,7 +112,7 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
       emitError(
         socket,
         events.updated,
-        `${resourceName} not found: ${resourceId}`,
+        `${resourceName} 找不到: ${resourceId}`,
         requestId,
         undefined,
         'NOT_FOUND'
@@ -158,7 +158,7 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
         emitError(
           socket,
           events.readResult!,
-          `${resourceName} not found: ${resourceId}`,
+          `${resourceName} 找不到: ${resourceId}`,
           requestId,
           undefined,
           'NOT_FOUND'

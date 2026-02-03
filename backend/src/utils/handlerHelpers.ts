@@ -68,7 +68,7 @@ export function validatePod(
     const pod = podStore.getById(canvasId, podId);
 
     if (!pod) {
-        emitError(socket, responseEvent, `Pod not found: ${podId}`, requestId, podId, 'NOT_FOUND');
+        emitError(socket, responseEvent, `Pod 找不到: ${podId}`, requestId, podId, 'NOT_FOUND');
         return undefined;
     }
 
@@ -114,7 +114,7 @@ export async function handleResourceDelete(config: ResourceDeleteConfig): Promis
         emitError(
             socket,
             responseEvent,
-            `${resourceName} not found: ${resourceId}`,
+            `${resourceName} 找不到: ${resourceId}`,
             requestId,
             undefined,
             'NOT_FOUND'

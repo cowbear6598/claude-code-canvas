@@ -5,8 +5,9 @@ import { io, Socket } from 'socket.io-client';
 
 /**
  * 建立並連線 Socket.io Client
+ * 並自動切換到預設 Canvas
  */
-export async function createSocketClient(baseUrl: string): Promise<Socket> {
+export async function createSocketClient(baseUrl: string, canvasId?: string): Promise<Socket> {
   const socket = io(baseUrl, {
     transports: ['websocket'],
     reconnection: false,
@@ -28,6 +29,13 @@ export async function createSocketClient(baseUrl: string): Promise<Socket> {
       reject(error);
     });
   });
+
+  if (canvasId) {
+    const { v4: uuidv4 } = await import('uuid');
+    const responsePromise = waitForEvent<unknown>(socket, 'canvas:switched');
+    socket.emit('canvas:switch', { requestId: uuidv4(), canvasId });
+    await responsePromise;
+  }
 
   return socket;
 }

@@ -97,7 +97,7 @@ export const handlePodBindSubAgent = withCanvasId<PodBindSubAgentPayload>(
         emitError(
             socket,
             WebSocketResponseEvents.POD_SUBAGENT_BOUND,
-            `SubAgent not found: ${subAgentId}`,
+            `SubAgent 找不到: ${subAgentId}`,
             requestId,
             podId,
             'NOT_FOUND'
@@ -109,7 +109,7 @@ export const handlePodBindSubAgent = withCanvasId<PodBindSubAgentPayload>(
         emitError(
             socket,
             WebSocketResponseEvents.POD_SUBAGENT_BOUND,
-            `SubAgent ${subAgentId} is already bound to Pod ${podId}`,
+            `SubAgent ${subAgentId} 已綁定到 Pod ${podId}`,
             requestId,
             podId,
             'CONFLICT'

@@ -77,7 +77,7 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
                 emitError(
                     socket,
                     config.events.bound,
-                    `${config.resourceName} not found: ${resourceId}`,
+                    `${config.resourceName} 找不到: ${resourceId}`,
                     requestId,
                     podId,
                     'NOT_FOUND'
@@ -89,8 +89,8 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
             const boundIds = config.getPodResourceIds(pod);
             if (isResourceAlreadyBound(boundIds, resourceId, config.isMultiBind)) {
                 const conflictMessage = config.isMultiBind
-                    ? `${config.resourceName} ${resourceId} is already bound to Pod ${podId}`
-                    : `Pod ${podId} already has ${config.resourceName.toLowerCase()} ${boundIds} bound. Please unbind first.`;
+                    ? `${config.resourceName} ${resourceId} 已綁定到 Pod ${podId}`
+                    : `Pod ${podId} 已有 ${config.resourceName.toLowerCase()} ${boundIds} 綁定，請先解綁`;
 
                 emitError(
                     socket,

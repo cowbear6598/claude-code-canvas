@@ -75,7 +75,7 @@ export async function createPastedPods(
       if (finalRepositoryId) {
         const exists = await repositoryService.exists(finalRepositoryId);
         if (!exists) {
-          recordError(errors, 'pod', podItem.originalId, `Repository not found: ${finalRepositoryId}`, '建立 Pod 失敗');
+          recordError(errors, 'pod', podItem.originalId, `Repository 找不到: ${finalRepositoryId}`, '建立 Pod 失敗');
           finalRepositoryId = null;
         }
       }

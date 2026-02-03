@@ -35,7 +35,7 @@ export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
       emitError(
         socket,
         WebSocketResponseEvents.CONNECTION_CREATED,
-        `Source Pod not found: ${sourcePodId}`,
+        `來源 Pod 找不到: ${sourcePodId}`,
         requestId,
         undefined,
         'NOT_FOUND'
@@ -48,7 +48,7 @@ export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
       emitError(
         socket,
         WebSocketResponseEvents.CONNECTION_CREATED,
-        `Source Trigger not found: ${sourceTriggerId}`,
+        `來源 Trigger 找不到: ${sourceTriggerId}`,
         requestId,
         undefined,
         'NOT_FOUND'
@@ -62,7 +62,7 @@ export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
     emitError(
       socket,
       WebSocketResponseEvents.CONNECTION_CREATED,
-      `Target Pod not found: ${targetPodId}`,
+      `目標 Pod 找不到: ${targetPodId}`,
       requestId,
       undefined,
       'NOT_FOUND'
@@ -124,7 +124,7 @@ export const handleConnectionDelete = withCanvasId<ConnectionDeletePayload>(
     emitError(
       socket,
       WebSocketResponseEvents.CONNECTION_DELETED,
-      `Connection not found: ${connectionId}`,
+      `Connection 找不到: ${connectionId}`,
       requestId,
       undefined,
       'NOT_FOUND'
@@ -176,7 +176,7 @@ export const handleConnectionUpdate = withCanvasId<ConnectionUpdatePayload>(
     emitError(
       socket,
       WebSocketResponseEvents.CONNECTION_UPDATED,
-      `Connection not found: ${connectionId}`,
+      `Connection 找不到: ${connectionId}`,
       requestId,
       undefined,
       'NOT_FOUND'

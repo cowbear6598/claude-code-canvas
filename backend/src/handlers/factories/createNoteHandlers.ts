@@ -77,7 +77,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
           emitError(
             socket,
             events.created,
-            `${entityName} not found: ${foreignKeyValue}`,
+            `${entityName} 找不到: ${foreignKeyValue}`,
             requestId,
             undefined,
             'NOT_FOUND'
@@ -142,7 +142,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
         emitError(
           socket,
           events.updated,
-          `Note not found: ${noteId}`,
+          `Note 找不到: ${noteId}`,
           requestId,
           undefined,
           'NOT_FOUND'
@@ -196,7 +196,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
         emitError(
           socket,
           events.deleted,
-          `Note not found: ${noteId}`,
+          `Note 找不到: ${noteId}`,
           requestId,
           undefined,
           'NOT_FOUND'

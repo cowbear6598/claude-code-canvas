@@ -34,7 +34,7 @@ describe('setup', () => {
   });
 
   it('success_when_socket_client_connects', async () => {
-    const client = await createSocketClient(server.baseUrl);
+    const client = await createSocketClient(server.baseUrl, server.canvasId);
     expect(client.connected).toBe(true);
     await disconnectSocket(client);
   });
@@ -51,7 +51,7 @@ describe('setup', () => {
   });
 
   it('success_when_socket_disconnects', async () => {
-    const client = await createSocketClient(server.baseUrl);
+    const client = await createSocketClient(server.baseUrl, server.canvasId);
     expect(client.connected).toBe(true);
     await disconnectSocket(client);
     expect(client.connected).toBe(false);

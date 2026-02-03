@@ -3,3 +3,7 @@ export * from './connectionHelper.js';
 export * from './resourceHelper.js';
 export * from './noteHelper.js';
 export * from './testConstants.js';
+export * from './triggerHelper.js';
+export * from './messageHelper.js';
+export * from './workflowHelper.js';
+export * from './canvasHelper.js';
