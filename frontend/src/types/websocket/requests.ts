@@ -1,4 +1,5 @@
 import type { PodColor, ModelType, Schedule } from '../pod'
+import type { AnchorPosition } from '@/types'
 
 export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
 
@@ -102,9 +103,9 @@ export interface ConnectionCreatePayload {
   requestId: string
   canvasId: string
   sourcePodId?: string
-  sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+  sourceAnchor: AnchorPosition
   targetPodId: string
-  targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+  targetAnchor: AnchorPosition
 }
 
 export interface ConnectionListPayload {
@@ -173,9 +174,9 @@ export interface PasteRepositoryNoteItem {
 
 export interface PasteConnectionItem {
   originalSourcePodId: string
-  sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+  sourceAnchor: AnchorPosition
   originalTargetPodId: string
-  targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+  targetAnchor: AnchorPosition
   autoTrigger?: boolean
 }
 

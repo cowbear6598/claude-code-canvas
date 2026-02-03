@@ -4,6 +4,7 @@ import type {SkillNote} from '@/types'
 import type {Repository, RepositoryNote} from '@/types'
 import type {SubAgentNote} from '@/types'
 import type {CommandNote} from '@/types'
+import type {AnchorPosition} from '@/types'
 
 export interface ConnectionReadyPayload {
     socketId: string
@@ -160,9 +161,9 @@ export interface ConnectionCreatedPayload {
     connection?: {
         id: string
         sourcePodId?: string
-        sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+        sourceAnchor: AnchorPosition
         targetPodId: string
-        targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+        targetAnchor: AnchorPosition
         createdAt: string
         autoTrigger?: boolean
     }
@@ -175,9 +176,9 @@ export interface ConnectionListResultPayload {
     connections?: Array<{
         id: string
         sourcePodId?: string
-        sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+        sourceAnchor: AnchorPosition
         targetPodId: string
-        targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+        targetAnchor: AnchorPosition
         createdAt: string
         autoTrigger?: boolean
     }>
@@ -240,9 +241,9 @@ export interface CanvasPasteResultPayload {
     createdConnections: Array<{
         id: string
         sourcePodId: string
-        sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
+        sourceAnchor: AnchorPosition
         targetPodId: string
-        targetAnchor: 'top' | 'bottom' | 'left' | 'right'
+        targetAnchor: AnchorPosition
         createdAt: string
         autoTrigger?: boolean
     }>
