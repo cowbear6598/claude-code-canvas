@@ -67,6 +67,7 @@ export type ContentBlock = TextContentBlock | ImageContentBlock
 
 export interface PodChatSendPayload {
   requestId: string
+  canvasId: string
   podId: string
   message: string | ContentBlock[]
 }
@@ -85,6 +86,7 @@ export interface PodJoinBatchPayload {
 
 export interface PodChatHistoryPayload {
   requestId: string
+  canvasId: string
   podId: string
 }
 

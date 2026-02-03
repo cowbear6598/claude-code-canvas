@@ -271,7 +271,6 @@ export const useChatStore = defineStore('chat', {
             this.autoClearAnimationPodId = null
         },
 
-        // History actions
         loadPodChatHistory(podId: string): Promise<void> {
             const historyActions = this.getHistoryActions()
             return historyActions.loadPodChatHistory(podId)
@@ -282,7 +281,6 @@ export const useChatStore = defineStore('chat', {
             return historyActions.loadAllPodsHistory(podIds)
         },
 
-        // Helper methods to create action contexts
         getConnectionActions() {
             return createConnectionActions(this)
         },
