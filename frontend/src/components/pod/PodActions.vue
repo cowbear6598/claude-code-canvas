@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch } from 'vue'
-import { Eraser, Trash2 } from 'lucide-vue-next'
+import { Eraser, Trash2, Timer } from 'lucide-vue-next'
 import { useChatStore } from '@/stores/chat'
 import {
   Dialog,
@@ -16,6 +16,7 @@ const props = defineProps<{
   podId: string
   podName: string
   isSourcePod: boolean
+  showScheduleButton: boolean
   isAutoClearEnabled: boolean
   isAutoClearAnimating: boolean
   isLoadingDownstream: boolean
@@ -23,6 +24,9 @@ const props = defineProps<{
   downstreamPods: Array<{ id: string; name: string }>
   showClearDialog: boolean
   showDeleteDialog: boolean
+  hasSchedule: boolean
+  scheduleEnabled: boolean
+  scheduleTooltip: string
 }>()
 
 const emit = defineEmits<{
@@ -35,6 +39,7 @@ const emit = defineEmits<{
   'cancel-clear': []
   'confirm-delete': []
   'cancel-delete': []
+  'open-schedule-modal': []
 }>()
 
 const chatStore = useChatStore()
@@ -149,12 +154,22 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
 
 <template>
   <!-- 右下角按鈕區域 -->
-  <!-- Source Pod: 顯示按鈕群組 (刪除 + 橡皮擦) -->
+  <!-- Source Pod: 顯示按鈕群組 (碼表 + 刪除 + 橡皮擦) -->
   <div
     v-if="isSourcePod"
     class="pod-action-buttons-group"
   >
-    <!-- 刪除按鈕（左） -->
+    <!-- 碼表按鈕（最左） -->
+    <button
+      v-if="showScheduleButton"
+      class="schedule-button"
+      :class="{ 'schedule-enabled': scheduleEnabled }"
+      :title="hasSchedule ? scheduleTooltip : undefined"
+      @click.stop="$emit('open-schedule-modal')"
+    >
+      <Timer :size="16" />
+    </button>
+    <!-- 刪除按鈕（中） -->
     <button
       class="pod-delete-button"
       @click.stop="handleDelete"
@@ -181,14 +196,29 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
     </button>
   </div>
 
-  <!-- 非 Source Pod: 只顯示刪除按鈕 -->
-  <button
+  <!-- 非 Source Pod: 顯示碼表 + 刪除按鈕 -->
+  <div
     v-else
-    class="pod-delete-button pod-delete-button-standalone"
-    @click.stop="handleDelete"
+    class="pod-action-buttons-group"
   >
-    <Trash2 :size="16" />
-  </button>
+    <!-- 碼表按鈕（左） -->
+    <button
+      v-if="showScheduleButton"
+      class="schedule-button"
+      :class="{ 'schedule-enabled': scheduleEnabled }"
+      :title="hasSchedule ? scheduleTooltip : undefined"
+      @click.stop="$emit('open-schedule-modal')"
+    >
+      <Timer :size="16" />
+    </button>
+    <!-- 刪除按鈕（右） -->
+    <button
+      class="pod-delete-button"
+      @click.stop="handleDelete"
+    >
+      <Trash2 :size="16" />
+    </button>
+  </div>
 
   <!-- Clear Workflow Dialog -->
   <Dialog

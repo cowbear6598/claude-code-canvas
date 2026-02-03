@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { WebSocketResponseEvents } from '../schemas/index.js';
-import { Pod, PodStatus, CreatePodRequest, ModelType, Result, ok, err } from '../types/index.js';
+import { Pod, PodStatus, CreatePodRequest, ModelType, Result, ok, err, ScheduleConfig } from '../types/index.js';
 import { podPersistenceService } from './persistence/podPersistence.js';
 import { socketService } from './socketService.js';
 import { logger } from '../utils/logger.js';
@@ -90,14 +90,31 @@ class PodStore {
     return Array.from(pods.values());
   }
 
-  update(canvasId: string, id: string, updates: Partial<Pod>): Pod | undefined {
+  update(canvasId: string, id: string, updates: Partial<Omit<Pod, 'schedule'>> & { schedule?: ScheduleConfig | null }): Pod | undefined {
     const pods = this.getCanvasPods(canvasId);
     const pod = pods.get(id);
     if (!pod) {
       return undefined;
     }
 
-    const updatedPod = { ...pod, ...updates };
+    let updatedPod: Pod;
+
+    // 如果 updates 包含 schedule 且為 null，則刪除 schedule 屬性
+    if ('schedule' in updates && updates.schedule === null) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { schedule, ...restUpdates } = updates;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { schedule: _, ...restPod } = pod;
+      updatedPod = { ...restPod, ...restUpdates } as Pod;
+    } else {
+      updatedPod = { ...pod, ...updates } as Pod;
+
+      // 如果 updates 包含 schedule 且有值，初始化 lastTriggeredAt
+      if (updates.schedule && !updates.schedule.lastTriggeredAt) {
+        updatedPod.schedule = { ...updates.schedule, lastTriggeredAt: null };
+      }
+    }
+
     pods.set(id, updatedPod);
     this.persistPodAsync(canvasId, updatedPod);
 
@@ -307,6 +324,32 @@ class PodStore {
     );
   }
 
+  setScheduleLastTriggeredAt(canvasId: string, podId: string, date: Date): void {
+    const pods = this.getCanvasPods(canvasId);
+    const pod = pods.get(podId);
+    if (!pod || !pod.schedule) {
+      return;
+    }
+
+    pod.schedule.lastTriggeredAt = date;
+    pods.set(podId, pod);
+    this.persistPodAsync(canvasId, pod);
+  }
+
+  getAllWithSchedule(): Array<{ canvasId: string; pod: Pod }> {
+    const result: Array<{ canvasId: string; pod: Pod }> = [];
+
+    for (const [canvasId, pods] of this.podsByCanvas.entries()) {
+      for (const pod of pods.values()) {
+        if (pod.schedule && pod.schedule.enabled) {
+          result.push({ canvasId, pod });
+        }
+      }
+    }
+
+    return result;
+  }
+
   async loadFromDisk(canvasId: string, canvasDir: string): Promise<Result<void>> {
     const result = await podPersistenceService.listAllPodIds(canvasDir);
     if (!result.success) {
@@ -344,6 +387,16 @@ class PodStore {
           needsForkSession: persistedPod.needsForkSession ?? false,
           autoClear: persistedPod.autoClear ?? false,
         };
+
+        // 處理 schedule 反序列化
+        if (persistedPod.schedule) {
+          pod.schedule = {
+            ...persistedPod.schedule,
+            lastTriggeredAt: persistedPod.schedule.lastTriggeredAt
+              ? new Date(persistedPod.schedule.lastTriggeredAt)
+              : null,
+          };
+        }
 
         pods.set(pod.id, pod);
       }

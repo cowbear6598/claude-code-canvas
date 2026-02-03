@@ -1,5 +1,6 @@
 import type { PodColor, PodStatus, ModelType } from './pod.js';
 import type { AnchorPosition } from './connection.js';
+import type { PersistedScheduleConfig } from './schedule.js';
 
 export interface PersistedToolUseInfo {
   toolUseId: string;
@@ -59,6 +60,7 @@ export interface PersistedPod {
   commandId?: string | null; // Bound Command ID
   needsForkSession?: boolean; // Flag to fork session on next query
   autoClear?: boolean; // Auto-clear messages after workflow completion
+  schedule?: PersistedScheduleConfig; // Schedule configuration for automatic execution
 }
 
 /**
@@ -66,9 +68,7 @@ export interface PersistedPod {
  */
 export interface PersistedConnection {
   id: string;
-  sourceType: 'pod' | 'trigger';
   sourcePodId: string;
-  sourceTriggerId: string | null;
   sourceAnchor: AnchorPosition;
   targetPodId: string;
   targetAnchor: AnchorPosition;

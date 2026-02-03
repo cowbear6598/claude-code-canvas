@@ -181,7 +181,7 @@ export const handlePodDelete = withCanvasId<PodDeletePayload>(
 export const handlePodUpdate = withCanvasId<PodUpdatePayload>(
     WebSocketResponseEvents.POD_UPDATED,
     async (socket: Socket, canvasId: string, payload: PodUpdatePayload, requestId: string): Promise<void> => {
-        const {podId, x, y, rotation, name, model} = payload;
+        const {podId, x, y, rotation, name, model, schedule} = payload;
 
         const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_UPDATED, requestId);
 
@@ -197,6 +197,29 @@ export const handlePodUpdate = withCanvasId<PodUpdatePayload>(
     if (name !== undefined) updates.name = name;
     if (model !== undefined) {
         updates.model = model;
+    }
+    // 處理 schedule 更新（支援清除 schedule，設為 null）
+    if ('schedule' in payload) {
+        if (schedule === null) {
+            updates.schedule = null;
+        } else if (schedule !== undefined) {
+            const existingSchedule = existingPod.schedule;
+            const isEnabling = schedule.enabled && (!existingSchedule || !existingSchedule.enabled);
+
+            // 如果是啟用 schedule（新建或從停用變啟用），設定 lastTriggeredAt 為當前時間
+            // 避免 interval 類型的 schedule 立即執行
+            let lastTriggeredAt: Date | null;
+            if (isEnabling) {
+                lastTriggeredAt = new Date();
+            } else {
+                lastTriggeredAt = existingSchedule?.lastTriggeredAt ?? null;
+            }
+
+            updates.schedule = {
+                ...schedule,
+                lastTriggeredAt,
+            };
+        }
     }
 
     const updatedPod = podStore.update(canvasId, podId, updates);

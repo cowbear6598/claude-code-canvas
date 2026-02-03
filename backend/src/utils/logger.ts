@@ -16,7 +16,7 @@ export type LogCategory =
   | 'OutputStyle'
   | 'Git'
   | 'AutoClear'
-  | 'Trigger'
+  | 'Schedule'
   | 'Canvas'
   | 'Workspace';
 

@@ -12,7 +12,6 @@ import { pasteHandlerGroup } from './groups/pasteHandlerGroup.js';
 import { repositoryHandlerGroup } from './groups/repositoryHandlerGroup.js';
 import { subAgentHandlerGroup } from './groups/subAgentHandlerGroup.js';
 import { autoClearHandlerGroup } from './groups/autoClearHandlerGroup.js';
-import { triggerHandlerGroup } from './groups/triggerHandlerGroup.js';
 import { canvasHandlerGroup } from './groups/canvasHandlerGroup.js';
 
 const registry = new HandlerRegistry();
@@ -29,7 +28,6 @@ registry.registerGroup(pasteHandlerGroup);
 registry.registerGroup(repositoryHandlerGroup);
 registry.registerGroup(subAgentHandlerGroup);
 registry.registerGroup(autoClearHandlerGroup);
-registry.registerGroup(triggerHandlerGroup);
 registry.registerGroup(canvasHandlerGroup);
 
 export function registerAllHandlers(socket: Socket): void {

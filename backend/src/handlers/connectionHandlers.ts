@@ -8,6 +8,7 @@ import type {
   BroadcastConnectionCreatedPayload,
   BroadcastConnectionUpdatedPayload,
   BroadcastConnectionDeletedPayload,
+  BroadcastPodUpdatedPayload,
 } from '../types/index.js';
 import type {
   ConnectionCreatePayload,
@@ -17,7 +18,6 @@ import type {
 } from '../schemas/index.js';
 import { connectionStore } from '../services/connectionStore.js';
 import { podStore } from '../services/podStore.js';
-import { triggerStore } from '../services/triggerStore.js';
 import { workflowStateService } from '../services/workflow/index.js';
 import { socketService } from '../services/socketService.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
@@ -27,34 +27,19 @@ import { withCanvasId } from '../utils/handlerHelpers.js';
 export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
   WebSocketResponseEvents.CONNECTION_CREATED,
   async (socket: Socket, canvasId: string, payload: ConnectionCreatePayload, requestId: string): Promise<void> => {
-    const { sourceType, sourcePodId, sourceTriggerId, sourceAnchor, targetPodId, targetAnchor } = payload;
+    const { sourcePodId, sourceAnchor, targetPodId, targetAnchor } = payload;
 
-  if (sourceType === 'pod') {
-    const sourcePod = podStore.getById(canvasId, sourcePodId!);
-    if (!sourcePod) {
-      emitError(
-        socket,
-        WebSocketResponseEvents.CONNECTION_CREATED,
-        `來源 Pod 找不到: ${sourcePodId}`,
-        requestId,
-        undefined,
-        'NOT_FOUND'
-      );
-      return;
-    }
-  } else if (sourceType === 'trigger') {
-    const sourceTrigger = triggerStore.getById(canvasId, sourceTriggerId!);
-    if (!sourceTrigger) {
-      emitError(
-        socket,
-        WebSocketResponseEvents.CONNECTION_CREATED,
-        `來源 Trigger 找不到: ${sourceTriggerId}`,
-        requestId,
-        undefined,
-        'NOT_FOUND'
-      );
-      return;
-    }
+  const sourcePod = podStore.getById(canvasId, sourcePodId);
+  if (!sourcePod) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.CONNECTION_CREATED,
+      `來源 Pod 找不到: ${sourcePodId}`,
+      requestId,
+      undefined,
+      'NOT_FOUND'
+    );
+    return;
   }
 
   const targetPod = podStore.getById(canvasId, targetPodId);
@@ -71,9 +56,7 @@ export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
   }
 
   const connection = connectionStore.create(canvasId, {
-    sourceType,
-    sourcePodId: sourcePodId!,
-    sourceTriggerId,
+    sourcePodId,
     sourceAnchor,
     targetPodId,
     targetAnchor,
@@ -93,8 +76,23 @@ export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
   };
   socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CONNECTION_CREATED, broadcastPayload);
 
-    const sourceId = sourceType === 'trigger' ? sourceTriggerId : sourcePodId;
-    logger.log('Connection', 'Create', `Created connection ${connection.id} (${sourceType}:${sourceId} -> ${targetPodId})`);
+    // 當 POD 成為下游時，清除其 Schedule（只有 Source POD 才能設定 Schedule）
+    if (targetPod.schedule) {
+      const updatedPod = podStore.update(canvasId, targetPodId, { schedule: null });
+
+      if (updatedPod) {
+        const podBroadcastPayload: BroadcastPodUpdatedPayload = {
+          canvasId,
+          pod: updatedPod,
+        };
+        // 使用 emitToCanvas 發送給整個 Canvas room（包含發送者），確保前端狀態同步
+        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.BROADCAST_POD_UPDATED, podBroadcastPayload);
+
+        logger.log('Connection', 'Create', `Cleared schedule for target Pod ${targetPodId} (now downstream)`);
+      }
+    }
+
+    logger.log('Connection', 'Create', `Created connection ${connection.id} (${sourcePodId} -> ${targetPodId})`);
   }
 );
 

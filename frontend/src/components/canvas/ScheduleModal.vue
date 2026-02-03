@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import {
   Dialog,
   DialogContent,
@@ -9,39 +9,26 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import type { TriggerTypeId } from './TriggerSubmenu.vue'
-import type { FrequencyType, Trigger } from '@/types/trigger'
-
-export interface TriggerModalConfig {
-  name: string
-  frequency: FrequencyType
-  second: number
-  intervalMinute: number
-  intervalHour: number
-  hour: number
-  minute: number
-  weekdays: number[]
-}
+import type { FrequencyType, Schedule } from '@/types/pod'
 
 interface Props {
   open: boolean
-  triggerType: TriggerTypeId
-  editingTrigger?: Trigger | null
+  podId: string
+  existingSchedule?: Schedule | null
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  confirm: [config: TriggerModalConfig, triggerId?: string]
+  confirm: [schedule: Schedule]
+  delete: []
 }>()
 
-const name = ref('')
 const frequency = ref<FrequencyType>('every-second')
 const second = ref(10)
 const intervalMinute = ref(5)
@@ -49,7 +36,6 @@ const intervalHour = ref(1)
 const hour = ref(0)
 const minute = ref(0)
 const weekdays = ref<number[]>([])
-const nameError = ref('')
 const weekdaysError = ref('')
 
 const createRange = (start: number, end: number): number[] =>
@@ -70,39 +56,24 @@ const weekdayOptions = [
   { value: 6, label: '週日' },
 ]
 
-const isEditMode = ref(false)
-
-const getTriggerTitle = (type: TriggerTypeId): string => {
-  if (isEditMode.value) {
-    return type === 'time' ? '編輯時間觸發器' : '編輯觸發器'
-  }
-  return type === 'time' ? '時間觸發器' : '觸發器'
-}
+const isEditMode = computed(() => !!props.existingSchedule)
 
 watch(() => props.open, (newOpen) => {
-  if (newOpen && props.editingTrigger) {
-    isEditMode.value = true
-    name.value = props.editingTrigger.name
-    frequency.value = props.editingTrigger.config.frequency
-    second.value = props.editingTrigger.config.second
-    intervalMinute.value = props.editingTrigger.config.intervalMinute
-    intervalHour.value = props.editingTrigger.config.intervalHour
-    hour.value = props.editingTrigger.config.hour
-    minute.value = props.editingTrigger.config.minute
-    weekdays.value = [...props.editingTrigger.config.weekdays]
+  if (newOpen && props.existingSchedule) {
+    frequency.value = props.existingSchedule.frequency
+    second.value = props.existingSchedule.second
+    intervalMinute.value = props.existingSchedule.intervalMinute
+    intervalHour.value = props.existingSchedule.intervalHour
+    hour.value = props.existingSchedule.hour
+    minute.value = props.existingSchedule.minute
+    weekdays.value = [...props.existingSchedule.weekdays]
   } else if (newOpen) {
-    isEditMode.value = false
+    resetState()
   }
 })
 
 const validate = (): boolean => {
-  nameError.value = ''
   weekdaysError.value = ''
-
-  if (!name.value.trim()) {
-    nameError.value = '請輸入觸發器名稱'
-    return false
-  }
 
   if (frequency.value === 'every-week' && weekdays.value.length === 0) {
     weekdaysError.value = '請至少選擇一天'
@@ -122,7 +93,6 @@ const toggleWeekday = (day: number): void => {
 }
 
 const resetState = (): void => {
-  name.value = ''
   frequency.value = 'every-second'
   second.value = 10
   intervalMinute.value = 5
@@ -130,14 +100,12 @@ const resetState = (): void => {
   hour.value = 0
   minute.value = 0
   weekdays.value = []
-  nameError.value = ''
   weekdaysError.value = ''
 }
 
 const handleClose = (): void => {
   emit('update:open', false)
   resetState()
-  isEditMode.value = false
 }
 
 const handleConfirm = (): void => {
@@ -145,8 +113,7 @@ const handleConfirm = (): void => {
     return
   }
 
-  const config: TriggerModalConfig = {
-    name: name.value.trim(),
+  const schedule: Schedule = {
     frequency: frequency.value,
     second: second.value,
     intervalMinute: intervalMinute.value,
@@ -154,13 +121,26 @@ const handleConfirm = (): void => {
     hour: hour.value,
     minute: minute.value,
     weekdays: weekdays.value,
+    enabled: true,
+    lastTriggeredAt: props.existingSchedule?.lastTriggeredAt ?? null
   }
 
-  const triggerId = props.editingTrigger?.id
-  emit('confirm', config, triggerId)
+  emit('confirm', schedule)
   emit('update:open', false)
   resetState()
-  isEditMode.value = false
+}
+
+// 啟用/停用按鈕的處理邏輯
+const handleToggle = (): void => {
+  // 如果當前是已啟用狀態，則清除 schedule（設為 null）
+  if (isEditMode.value && props.existingSchedule?.enabled) {
+    emit('delete')
+    emit('update:open', false)
+    resetState()
+  } else {
+    // 否則啟用（儲存 schedule）
+    handleConfirm()
+  }
 }
 
 const formatMinute = (min: number): string => {
@@ -175,30 +155,13 @@ const formatMinute = (min: number): string => {
   >
     <DialogContent class="max-w-md font-mono">
       <DialogHeader>
-        <DialogTitle>{{ getTriggerTitle(triggerType) }}</DialogTitle>
+        <DialogTitle>{{ isEditMode ? '編輯排程' : '設定排程' }}</DialogTitle>
         <DialogDescription>
-          設定時間觸發器的執行頻率
+          設定 Pod 的自動執行排程
         </DialogDescription>
       </DialogHeader>
 
       <div class="space-y-4">
-        <div class="space-y-2">
-          <Label for="trigger-name">名稱</Label>
-          <Input
-            id="trigger-name"
-            v-model="name"
-            placeholder="請輸入觸發器名稱"
-            class="border-gray-400 dark:border-gray-600 font-[inherit]"
-          />
-          <p
-            v-if="nameError"
-            class="text-sm text-red-500"
-          >
-            {{ nameError }}
-          </p>
-        </div>
-
-        <hr class="border-border">
 
         <div class="space-y-2">
           <Label>執行頻率</Label>
@@ -533,7 +496,7 @@ const formatMinute = (min: number): string => {
         </div>
       </div>
 
-      <DialogFooter>
+      <DialogFooter class="flex justify-end gap-2">
         <Button
           variant="outline"
           @click="handleClose"
@@ -542,9 +505,9 @@ const formatMinute = (min: number): string => {
         </Button>
         <Button
           variant="default"
-          @click="handleConfirm"
+          @click="handleToggle"
         >
-          {{ isEditMode ? '儲存' : '確認' }}
+          {{ isEditMode && existingSchedule?.enabled ? '停用' : '啟用' }}
         </Button>
       </DialogFooter>
     </DialogContent>

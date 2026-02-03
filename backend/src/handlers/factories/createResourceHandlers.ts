@@ -7,7 +7,7 @@ import { logger, type LogCategory } from '../../utils/logger.js';
 
 interface ResourceService {
   exists(id: string): Promise<boolean>;
-  create(name: string, content: string): Promise<{ id: string; name: string }>;
+  create(name: string, content: string): Promise<any>;
   update(id: string, content: string): Promise<void>;
   getContent?(id: string): Promise<string | null>;
 }

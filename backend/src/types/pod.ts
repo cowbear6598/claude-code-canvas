@@ -1,3 +1,5 @@
+import type { ScheduleConfig } from './schedule.js';
+
 export type PodColor = 'blue' | 'coral' | 'pink' | 'yellow' | 'green';
 
 export type PodStatus = 'idle' | 'chatting' | 'summarizing' | 'error';
@@ -28,4 +30,5 @@ export interface Pod {
   commandId: string | null; // Bound Command ID
   needsForkSession: boolean; // Flag to fork session on next query (when cwd changes)
   autoClear: boolean; // Auto-clear messages after workflow completion
+  schedule?: ScheduleConfig; // Schedule configuration for automatic execution
 }

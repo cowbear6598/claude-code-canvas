@@ -144,8 +144,6 @@ export interface ConnectionCreatedPayload {
         targetAnchor: 'top' | 'bottom' | 'left' | 'right'
         createdAt: string
         autoTrigger?: boolean
-        sourceType?: 'pod' | 'trigger'
-        sourceTriggerId?: string
     }
     error?: string
 }
@@ -161,8 +159,6 @@ export interface ConnectionListResultPayload {
         targetAnchor: 'top' | 'bottom' | 'left' | 'right'
         createdAt: string
         autoTrigger?: boolean
-        sourceType?: 'pod' | 'trigger'
-        sourceTriggerId?: string
     }>
     error?: string
 }
@@ -320,97 +316,9 @@ export interface CommandNoteCreatedPayload {
     error?: string
 }
 
-export interface TriggerCreatedPayload {
-    requestId: string
-    success: boolean
-    trigger?: {
-        id: string
-        name: string
-        type: 'time'
-        config: {
-            frequency: 'every-second' | 'every-x-minute' | 'every-x-hour' | 'every-day' | 'every-week'
-            second: number
-            intervalMinute: number
-            intervalHour: number
-            hour: number
-            minute: number
-            weekdays: number[]
-        }
-        x: number
-        y: number
-        rotation: number
-        createdAt: string
-        enabled: boolean
-        lastTriggeredAt: string | null
-    }
-    error?: string
-}
-
-export interface TriggerListResultPayload {
-    requestId: string
-    success: boolean
-    triggers?: Array<{
-        id: string
-        name: string
-        type: 'time'
-        config: {
-            frequency: 'every-second' | 'every-x-minute' | 'every-x-hour' | 'every-day' | 'every-week'
-            second: number
-            intervalMinute: number
-            intervalHour: number
-            hour: number
-            minute: number
-            weekdays: number[]
-        }
-        x: number
-        y: number
-        rotation: number
-        createdAt: string
-        enabled: boolean
-        lastTriggeredAt: string | null
-    }>
-    error?: string
-}
-
-export interface TriggerUpdatedPayload {
-    requestId: string
-    success: boolean
-    trigger?: {
-        id: string
-        name: string
-        type: 'time'
-        config: {
-            frequency: 'every-second' | 'every-x-minute' | 'every-x-hour' | 'every-day' | 'every-week'
-            second: number
-            intervalMinute: number
-            intervalHour: number
-            hour: number
-            minute: number
-            weekdays: number[]
-        }
-        x: number
-        y: number
-        rotation: number
-        createdAt: string
-        enabled: boolean
-        lastTriggeredAt: string | null
-    }
-    error?: string
-}
-
-export interface TriggerDeletedPayload {
-    requestId: string
-    success: boolean
-    triggerId?: string
-    deletedConnectionIds?: string[]
-    error?: string
-}
-
-export interface TriggerFiredPayload {
-    triggerId: string
+export interface ScheduleFiredPayload {
+    podId: string
     timestamp: string
-    firedPodIds: string[]
-    skippedPodIds: string[]
 }
 
 export interface HeartbeatPingPayload {

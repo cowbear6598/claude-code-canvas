@@ -6,7 +6,7 @@ export * from './skill.js';
 export * from './command.js';
 export * from './repository.js';
 export * from './subAgent.js';
-export * from './trigger.js';
+export * from './schedule.js';
 export * from './workflow.js';
 export * from './canvas.js';
 export * from './paste.js';

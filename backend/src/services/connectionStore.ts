@@ -8,9 +8,7 @@ import {logger} from '../utils/logger.js';
 import {canvasStore} from './canvasStore.js';
 
 interface CreateConnectionData {
-    sourceType?: 'pod' | 'trigger';
     sourcePodId: string;
-    sourceTriggerId?: string | null;
     sourceAnchor: AnchorPosition;
     targetPodId: string;
     targetAnchor: AnchorPosition;
@@ -34,9 +32,7 @@ class ConnectionStore {
 
         const connection: Connection = {
             id,
-            sourceType: data.sourceType ?? 'pod',
             sourcePodId: data.sourcePodId,
-            sourceTriggerId: data.sourceTriggerId ?? null,
             sourceAnchor: data.sourceAnchor,
             targetPodId: data.targetPodId,
             targetAnchor: data.targetAnchor,
@@ -147,37 +143,6 @@ class ConnectionStore {
         return connectionsToDelete.length;
     }
 
-    findByTriggerId(canvasId: string, triggerId: string): Connection[] {
-        const connectionsMap = this.connectionsByCanvas.get(canvasId);
-        if (!connectionsMap) {
-            return [];
-        }
-
-        return Array.from(connectionsMap.values()).filter(
-            (connection) => connection.sourceTriggerId === triggerId
-        );
-    }
-
-    deleteByTriggerId(canvasId: string, triggerId: string): string[] {
-        const connectionsToDelete = this.findByTriggerId(canvasId, triggerId);
-        const deletedIds: string[] = [];
-
-        const connectionsMap = this.connectionsByCanvas.get(canvasId);
-        if (!connectionsMap) {
-            return deletedIds;
-        }
-
-        for (const connection of connectionsToDelete) {
-            connectionsMap.delete(connection.id);
-            deletedIds.push(connection.id);
-        }
-
-        if (deletedIds.length > 0) {
-            this.saveToDiskAsync(canvasId);
-        }
-
-        return deletedIds;
-    }
 
     async loadFromDisk(canvasId: string, canvasDataDir: string): Promise<Result<void>> {
         const connectionsFilePath = path.join(canvasDataDir, 'connections.json');
@@ -199,9 +164,11 @@ class ConnectionStore {
             const connectionsMap = new Map<string, Connection>();
             for (const persisted of persistedConnections) {
                 const connection: Connection = {
-                    ...persisted,
-                    sourceType: persisted.sourceType ?? 'pod',
-                    sourceTriggerId: persisted.sourceTriggerId ?? null,
+                    id: persisted.id,
+                    sourcePodId: persisted.sourcePodId,
+                    sourceAnchor: persisted.sourceAnchor,
+                    targetPodId: persisted.targetPodId,
+                    targetAnchor: persisted.targetAnchor,
                     autoTrigger: persisted.autoTrigger ?? false,
                     createdAt: new Date(persisted.createdAt),
                 };
@@ -232,9 +199,7 @@ class ConnectionStore {
         const connectionsArray = connectionsMap ? Array.from(connectionsMap.values()) : [];
         const persistedConnections: PersistedConnection[] = connectionsArray.map((connection) => ({
             id: connection.id,
-            sourceType: connection.sourceType,
             sourcePodId: connection.sourcePodId,
-            sourceTriggerId: connection.sourceTriggerId,
             sourceAnchor: connection.sourceAnchor,
             targetPodId: connection.targetPodId,
             targetAnchor: connection.targetAnchor,

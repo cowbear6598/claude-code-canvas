@@ -17,6 +17,7 @@ import type {
     PodDeletePayload,
     PodListPayload,
     PodUpdatePayload,
+    PodUpdatedPayload,
     PodJoinPayload,
     PodLeavePayload,
     PodSetAutoClearPayload,
@@ -68,6 +69,7 @@ export const usePodStore = defineStore('pod', {
                 model: pod.model ?? 'opus',
                 autoClear: pod.autoClear ?? false,
                 commandId: pod.commandId ?? null,
+                schedule: pod.schedule ?? null,
             }
         },
 
@@ -251,6 +253,29 @@ export const usePodStore = defineStore('pod', {
                 x: pod.x,
                 y: pod.y
             })
+        },
+
+        async updatePodWithBackend(podId: string, updates: Partial<Pick<Pod, 'schedule'>>): Promise<void> {
+            const canvasStore = useCanvasStore()
+
+            if (!canvasStore.activeCanvasId) {
+                throw new Error('無法更新 Pod：沒有啟用的畫布')
+            }
+
+            const response = await createWebSocketRequest<PodUpdatePayload, PodUpdatedPayload>({
+                requestEvent: WebSocketRequestEvents.POD_UPDATE,
+                responseEvent: WebSocketResponseEvents.POD_UPDATED,
+                payload: {
+                    canvasId: canvasStore.activeCanvasId,
+                    podId,
+                    ...updates
+                }
+            })
+
+            // 收到回應後更新本地狀態
+            if (response.success && response.pod) {
+                this.updatePodFromBroadcast(response.pod)
+            }
         },
 
         selectPod(podId: string | null): void {

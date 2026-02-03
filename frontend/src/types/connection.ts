@@ -11,8 +11,6 @@ export interface Connection {
   createdAt: Date
   status?: ConnectionStatus
   autoTrigger?: boolean
-  sourceType?: 'pod' | 'trigger'
-  sourceTriggerId?: string | null
 }
 
 export interface DraggingConnection {
@@ -20,8 +18,6 @@ export interface DraggingConnection {
   sourceAnchor: AnchorPosition
   startPoint: { x: number; y: number }
   currentPoint: { x: number; y: number }
-  sourceType?: 'pod' | 'trigger'
-  sourceTriggerId?: string | null
 }
 
 export interface AnchorPoint {

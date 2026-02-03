@@ -2,17 +2,14 @@
 import { computed } from 'vue'
 import type { Connection } from '@/types/connection'
 import type { Pod } from '@/types/pod'
-import type { Trigger } from '@/types/trigger'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useConnectionPath } from '@/composables/useConnectionPath'
 import { useAnchorDetection } from '@/composables/useAnchorDetection'
-import { useTriggerAnchorDetection } from '@/composables/useTriggerAnchorDetection'
 
 const props = withDefaults(
   defineProps<{
     connection: Connection
     pods: Pod[]
-    triggers: Trigger[]
     isSelected: boolean
     status?: 'inactive' | 'active'
   }>(),
@@ -28,39 +25,24 @@ const emit = defineEmits<{
 const connectionStore = useConnectionStore()
 const { calculatePathData, calculateMultipleArrowPositions } = useConnectionPath()
 const { getAnchorPositions } = useAnchorDetection()
-const { getTriggerAnchorPosition } = useTriggerAnchorDetection()
 
 const pathData = computed(() => {
+  const sourcePod = props.pods.find(p => p.id === props.connection.sourcePodId)
   const targetPod = props.pods.find(p => p.id === props.connection.targetPodId)
 
-  if (!targetPod) {
+  if (!sourcePod || !targetPod) {
     return { path: '', midPoint: { x: 0, y: 0 }, angle: 0 }
   }
 
-  let sourceX = 0
-  let sourceY = 0
+  const sourceAnchors = getAnchorPositions(sourcePod)
+  const sourceAnchor = sourceAnchors.find(a => a.anchor === props.connection.sourceAnchor)
 
-  if (props.connection.sourceType === 'trigger' && props.connection.sourceTriggerId) {
-    const sourceTrigger = props.triggers.find(t => t.id === props.connection.sourceTriggerId)
-    if (!sourceTrigger) {
-      return { path: '', midPoint: { x: 0, y: 0 }, angle: 0 }
-    }
-    const triggerAnchor = getTriggerAnchorPosition(sourceTrigger)
-    sourceX = triggerAnchor.x
-    sourceY = triggerAnchor.y
-  } else {
-    const sourcePod = props.pods.find(p => p.id === props.connection.sourcePodId)
-    if (!sourcePod) {
-      return { path: '', midPoint: { x: 0, y: 0 }, angle: 0 }
-    }
-    const sourceAnchors = getAnchorPositions(sourcePod)
-    const sourceAnchor = sourceAnchors.find(a => a.anchor === props.connection.sourceAnchor)
-    if (!sourceAnchor) {
-      return { path: '', midPoint: { x: 0, y: 0 }, angle: 0 }
-    }
-    sourceX = sourceAnchor.x
-    sourceY = sourceAnchor.y
+  if (!sourceAnchor) {
+    return { path: '', midPoint: { x: 0, y: 0 }, angle: 0 }
   }
+
+  const sourceX = sourceAnchor.x
+  const sourceY = sourceAnchor.y
 
   const targetAnchors = getAnchorPositions(targetPod)
   const targetAnchor = targetAnchors.find(a => a.anchor === props.connection.targetAnchor)
@@ -94,36 +76,22 @@ const arrowColor = computed(() => {
 })
 
 const arrowPositions = computed(() => {
+  const sourcePod = props.pods.find(p => p.id === props.connection.sourcePodId)
   const targetPod = props.pods.find(p => p.id === props.connection.targetPodId)
 
-  if (!targetPod) {
+  if (!sourcePod || !targetPod) {
     return []
   }
 
-  let sourceX = 0
-  let sourceY = 0
+  const sourceAnchors = getAnchorPositions(sourcePod)
+  const sourceAnchor = sourceAnchors.find(a => a.anchor === props.connection.sourceAnchor)
 
-  if (props.connection.sourceType === 'trigger' && props.connection.sourceTriggerId) {
-    const sourceTrigger = props.triggers.find(t => t.id === props.connection.sourceTriggerId)
-    if (!sourceTrigger) {
-      return []
-    }
-    const triggerAnchor = getTriggerAnchorPosition(sourceTrigger)
-    sourceX = triggerAnchor.x
-    sourceY = triggerAnchor.y
-  } else {
-    const sourcePod = props.pods.find(p => p.id === props.connection.sourcePodId)
-    if (!sourcePod) {
-      return []
-    }
-    const sourceAnchors = getAnchorPositions(sourcePod)
-    const sourceAnchor = sourceAnchors.find(a => a.anchor === props.connection.sourceAnchor)
-    if (!sourceAnchor) {
-      return []
-    }
-    sourceX = sourceAnchor.x
-    sourceY = sourceAnchor.y
+  if (!sourceAnchor) {
+    return []
   }
+
+  const sourceX = sourceAnchor.x
+  const sourceY = sourceAnchor.y
 
   const targetAnchors = getAnchorPositions(targetPod)
   const targetAnchor = targetAnchors.find(a => a.anchor === props.connection.targetAnchor)

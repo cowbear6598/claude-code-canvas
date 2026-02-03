@@ -1,4 +1,4 @@
-import type { PodColor, ModelType } from '../pod'
+import type { PodColor, ModelType, Schedule } from '../pod'
 
 export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
 
@@ -19,12 +19,14 @@ export interface PodListPayload {
 
 export interface PodUpdatePayload {
   requestId: string
+  canvasId: string
   podId: string
   x?: number
   y?: number
   rotation?: number
   name?: string
   model?: ModelType
+  schedule?: Schedule | null
 }
 
 export interface PodDeletePayload {
@@ -86,8 +88,6 @@ export interface ConnectionCreatePayload {
   sourceAnchor: 'top' | 'bottom' | 'left' | 'right'
   targetPodId: string
   targetAnchor: 'top' | 'bottom' | 'left' | 'right'
-  sourceType?: 'pod' | 'trigger'
-  sourceTriggerId?: string
 }
 
 export interface ConnectionListPayload {
@@ -218,53 +218,4 @@ export interface PasteCommandNoteItem {
   y: number
   boundToOriginalPodId: string | null
   originalPosition: { x: number; y: number } | null
-}
-
-export interface TriggerCreatePayload {
-  requestId: string
-  canvasId: string
-  name: string
-  type: 'time'
-  config: {
-    frequency: 'every-second' | 'every-x-minute' | 'every-x-hour' | 'every-day' | 'every-week'
-    second: number
-    intervalMinute: number
-    intervalHour: number
-    hour: number
-    minute: number
-    weekdays: number[]
-  }
-  x: number
-  y: number
-  rotation: number
-  enabled?: boolean
-}
-
-export interface TriggerListPayload {
-  requestId: string
-  canvasId: string
-}
-
-export interface TriggerUpdatePayload {
-  requestId: string
-  triggerId: string
-  name?: string
-  config?: {
-    frequency: 'every-second' | 'every-x-minute' | 'every-x-hour' | 'every-day' | 'every-week'
-    second: number
-    intervalMinute: number
-    intervalHour: number
-    hour: number
-    minute: number
-    weekdays: number[]
-  }
-  x?: number
-  y?: number
-  rotation?: number
-  enabled?: boolean
-}
-
-export interface TriggerDeletePayload {
-  requestId: string
-  triggerId: string
 }

@@ -180,6 +180,15 @@ class SocketService {
         socket.to(roomName).emit(event, payload);
     }
 
+    emitToCanvas(canvasId: string, event: string, payload: unknown): void {
+        if (!this.io) {
+            return;
+        }
+
+        const roomName = `canvas:${canvasId}`;
+        this.io.to(roomName).emit(event, payload);
+    }
+
     cleanupSocket(socketId: string): void {
         this.socketToPodRooms.get(socketId)?.forEach((podId) => {
             this.leavePodRoom(socketId, podId);

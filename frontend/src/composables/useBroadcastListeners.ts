@@ -1,7 +1,6 @@
 import {websocketClient, WebSocketResponseEvents} from '@/services/websocket'
 import {usePodStore} from '@/stores/pod/podStore'
 import {useConnectionStore} from '@/stores/connectionStore'
-import {useTriggerStore} from '@/stores/triggerStore'
 import {useOutputStyleStore} from '@/stores/note/outputStyleStore'
 import {useSkillStore} from '@/stores/note/skillStore'
 import {useRepositoryStore} from '@/stores/note/repositoryStore'
@@ -18,9 +17,6 @@ import type {
   BroadcastConnectionCreatedPayload,
   BroadcastConnectionUpdatedPayload,
   BroadcastConnectionDeletedPayload,
-  BroadcastTriggerCreatedPayload,
-  BroadcastTriggerUpdatedPayload,
-  BroadcastTriggerDeletedPayload,
   BroadcastOutputStyleCreatedPayload,
   BroadcastOutputStyleUpdatedPayload,
   BroadcastOutputStyleDeletedPayload,
@@ -108,17 +104,6 @@ const handleBroadcastConnectionDeleted = createCanvasHandler<BroadcastConnection
   useConnectionStore().removeConnectionFromBroadcast(payload.connectionId)
 })
 
-const handleBroadcastTriggerCreated = createCanvasHandler<BroadcastTriggerCreatedPayload>((payload) => {
-  useTriggerStore().addTriggerFromBroadcast(payload.trigger)
-})
-
-const handleBroadcastTriggerUpdated = createCanvasHandler<BroadcastTriggerUpdatedPayload>((payload) => {
-  useTriggerStore().updateTriggerFromBroadcast(payload.trigger)
-})
-
-const handleBroadcastTriggerDeleted = createCanvasHandler<BroadcastTriggerDeletedPayload>((payload) => {
-  useTriggerStore().removeTriggerFromBroadcast(payload.triggerId, payload.deletedConnectionIds)
-})
 
 const handleBroadcastOutputStyleCreated = createCanvasHandler<BroadcastOutputStyleCreatedPayload>((payload) => {
   useOutputStyleStore().addItemFromBroadcast(payload.outputStyle)
@@ -369,9 +354,6 @@ const listeners = [
   {event: WebSocketResponseEvents.BROADCAST_CONNECTION_CREATED, handler: handleBroadcastConnectionCreated},
   {event: WebSocketResponseEvents.BROADCAST_CONNECTION_UPDATED, handler: handleBroadcastConnectionUpdated},
   {event: WebSocketResponseEvents.BROADCAST_CONNECTION_DELETED, handler: handleBroadcastConnectionDeleted},
-  {event: WebSocketResponseEvents.BROADCAST_TRIGGER_CREATED, handler: handleBroadcastTriggerCreated},
-  {event: WebSocketResponseEvents.BROADCAST_TRIGGER_UPDATED, handler: handleBroadcastTriggerUpdated},
-  {event: WebSocketResponseEvents.BROADCAST_TRIGGER_DELETED, handler: handleBroadcastTriggerDeleted},
   {event: WebSocketResponseEvents.BROADCAST_OUTPUT_STYLE_CREATED, handler: handleBroadcastOutputStyleCreated},
   {event: WebSocketResponseEvents.BROADCAST_OUTPUT_STYLE_UPDATED, handler: handleBroadcastOutputStyleUpdated},
   {event: WebSocketResponseEvents.BROADCAST_OUTPUT_STYLE_DELETED, handler: handleBroadcastOutputStyleDeleted},
@@ -413,14 +395,14 @@ const listeners = [
   {event: WebSocketResponseEvents.BROADCAST_CANVAS_PASTED, handler: handleBroadcastCanvasPasted},
   {event: WebSocketResponseEvents.BROADCAST_WORKFLOW_CLEAR_RESULT, handler: handleBroadcastWorkflowClearResult},
   {event: WebSocketResponseEvents.BROADCAST_POD_CHAT_USER_MESSAGE, handler: handleBroadcastPodChatUserMessage},
-]
+] as const
 
 export const registerBroadcastListeners = (): void => {
   if (registered) return
   registered = true
 
   for (const {event, handler} of listeners) {
-    websocketClient.on(event, handler)
+    websocketClient.on(event, handler as (payload: unknown) => void)
   }
 }
 
@@ -429,7 +411,7 @@ export const unregisterBroadcastListeners = (): void => {
   registered = false
 
   for (const {event, handler} of listeners) {
-    websocketClient.off(event, handler)
+    websocketClient.off(event, handler as (payload: unknown) => void)
   }
 }
 

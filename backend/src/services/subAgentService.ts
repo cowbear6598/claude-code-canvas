@@ -92,13 +92,16 @@ class SubAgentService {
         await fs.rm(filePath, {force: true});
     }
 
-    async create(name: string, content: string): Promise<{ id: string; name: string }> {
+    async create(name: string, content: string): Promise<SubAgent> {
         const filePath = this.getSubAgentFilePath(name);
         await ensureDirectoryAndWriteFile(filePath, content);
+
+        const description = parseFrontmatterDescription(content);
 
         return {
             id: name,
             name,
+            description,
         };
     }
 

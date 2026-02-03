@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { requestIdSchema, podIdSchema, canvasIdSchema } from './base.js';
+import { scheduleConfigSchema } from './scheduleSchemas.js';
 
 export const podColorSchema = z.enum(['blue', 'coral', 'pink', 'yellow', 'green']);
 
@@ -35,6 +36,7 @@ export const podUpdateSchema = z.object({
   rotation: z.number().optional(),
   name: z.string().min(1).max(100).optional(),
   model: modelTypeSchema.optional(),
+  schedule: scheduleConfigSchema.optional().nullable(),
 });
 
 export const podDeleteSchema = z.object({

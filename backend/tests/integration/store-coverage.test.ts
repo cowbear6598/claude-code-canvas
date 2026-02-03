@@ -25,17 +25,22 @@ import {
   type ConnectionCreatedPayload,
   type ConnectionDeletedPayload,
 } from '../../src/types/index.js';
-import { podStore } from '../../src/services/podStore.js';
-import { connectionStore } from '../../src/services/connectionStore.js';
-import { triggerStore } from '../../src/services/triggerStore.js';
+// 注意：podStore 和 connectionStore 使用動態 import，避免在測試配置覆蓋前載入
 
 describe('Store 覆蓋率測試', () => {
   let server: TestServerInstance;
   let client: Socket;
+  let podStore: Awaited<typeof import('../../src/services/podStore.js')>['podStore'];
+  let connectionStore: Awaited<typeof import('../../src/services/connectionStore.js')>['connectionStore'];
 
   beforeAll(async () => {
     server = await createTestServer();
     client = await createSocketClient(server.baseUrl, server.canvasId);
+    // 動態 import stores（確保使用測試配置）
+    const podStoreModule = await import('../../src/services/podStore.js');
+    const connectionStoreModule = await import('../../src/services/connectionStore.js');
+    podStore = podStoreModule.podStore;
+    connectionStore = connectionStoreModule.connectionStore;
   });
 
   afterAll(async () => {
@@ -208,7 +213,6 @@ describe('Store 覆蓋率測試', () => {
         {
           requestId: uuidv4(),
           canvasId,
-          sourceType: 'pod',
           sourcePodId: podA.id,
           sourceAnchor: 'right',
           targetPodId: podB.id,
@@ -243,111 +247,6 @@ describe('Store 覆蓋率測試', () => {
 
       expect(Array.isArray(connections)).toBe(true);
       expect(connections).toHaveLength(0);
-    });
-  });
-
-  describe('TriggerStore', () => {
-    it('success_when_triggers_file_not_exists_creates_empty', async () => {
-      const canvasId = 'new-canvas-' + uuidv4();
-      const canvasDataDir = '/tmp/test-canvas-' + uuidv4();
-
-      const result = await triggerStore.loadFromDisk(canvasId, canvasDataDir);
-
-      expect(result.success).toBe(true);
-      expect(triggerStore.list(canvasId)).toHaveLength(0);
-    });
-
-    it('success_when_triggers_file_exists_loads', async () => {
-      const canvasId = server.canvasId;
-      const trigger = triggerStore.create(canvasId, {
-        name: 'Test Trigger',
-        type: 'time',
-        config: {
-          frequency: 'every-x-minute',
-          second: 0,
-          intervalMinute: 1,
-          intervalHour: 0,
-          hour: 0,
-          minute: 0,
-          weekdays: [],
-        },
-        x: 100,
-        y: 200,
-        rotation: 0,
-        enabled: true,
-      });
-
-      await triggerStore.saveToDisk(canvasId);
-
-      triggerStore.clearCanvasData(canvasId);
-
-      const canvasDataDir = server.canvasDataDir;
-      const result = await triggerStore.loadFromDisk(canvasId, canvasDataDir);
-
-      expect(result.success).toBe(true);
-      const triggers = triggerStore.list(canvasId);
-      expect(triggers).toHaveLength(1);
-      expect(triggers[0].id).toBe(trigger.id);
-    });
-
-    it('failed_when_parse_fails_returns_error', async () => {
-      const fs = await import('fs/promises');
-      const path = await import('path');
-
-      const canvasId = 'error-canvas-' + uuidv4();
-      const canvasDataDir = '/tmp/test-canvas-error-' + uuidv4();
-      const triggersFile = path.default.join(canvasDataDir, 'triggers.json');
-
-      await fs.mkdir(canvasDataDir, { recursive: true });
-      await fs.writeFile(triggersFile, 'invalid json {{{', 'utf-8');
-
-      const result = await triggerStore.loadFromDisk(canvasId, canvasDataDir);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('載入觸發器資料失敗');
-
-      await fs.rm(canvasDataDir, { recursive: true, force: true });
-    });
-
-    it('success_when_enabled_defaults_to_true', async () => {
-      const fs = await import('fs/promises');
-      const path = await import('path');
-
-      const canvasId = 'default-canvas-' + uuidv4();
-      const canvasDataDir = '/tmp/test-canvas-default-' + uuidv4();
-      const triggersFile = path.default.join(canvasDataDir, 'triggers.json');
-
-      await fs.mkdir(canvasDataDir, { recursive: true });
-      const triggersData = [
-        {
-          id: uuidv4(),
-          name: 'Test',
-          type: 'time',
-          config: {
-            frequency: 'every-x-minute',
-            second: 0,
-            intervalMinute: 1,
-            intervalHour: 0,
-            hour: 0,
-            minute: 0,
-            weekdays: [],
-          },
-          x: 0,
-          y: 0,
-          rotation: 0,
-          lastTriggeredAt: null,
-          createdAt: new Date().toISOString(),
-        },
-      ];
-      await fs.writeFile(triggersFile, JSON.stringify(triggersData), 'utf-8');
-
-      const result = await triggerStore.loadFromDisk(canvasId, canvasDataDir);
-
-      expect(result.success).toBe(true);
-      const triggers = triggerStore.list(canvasId);
-      expect(triggers[0].enabled).toBe(true);
-
-      await fs.rm(canvasDataDir, { recursive: true, force: true });
     });
   });
 });

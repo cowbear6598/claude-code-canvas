@@ -9,7 +9,7 @@ import {
   disconnectSocket,
   type TestServerInstance,
 } from '../setup/index.js';
-import { createPod, createPodPair, FAKE_UUID, getCanvasId} from '../helpers/index.js';
+import { createPod, createPodPair, updatePod, FAKE_UUID, getCanvasId} from '../helpers/index.js';
 import { createConnection } from '../helpers/index.js';
 import {
   WebSocketRequestEvents,
@@ -52,6 +52,42 @@ describe('Connection 管理', () => {
       expect(conn.targetAnchor).toBe('left');
     });
 
+    it('success_when_connection_created_and_target_pod_has_no_schedule', async () => {
+      const { podA, podB } = await createPodPair(client);
+      const conn = await createConnection(client, podA.id, podB.id);
+
+      expect(conn.id).toBeDefined();
+      expect(conn.sourcePodId).toBe(podA.id);
+      expect(conn.targetPodId).toBe(podB.id);
+    });
+
+    it('success_when_connection_created_clears_target_pod_schedule', async () => {
+      const { podA, podB } = await createPodPair(client);
+
+      const scheduleConfig = {
+        frequency: 'every-day' as const,
+        second: 0,
+        intervalMinute: 1,
+        intervalHour: 1,
+        hour: 9,
+        minute: 0,
+        weekdays: [1, 2, 3, 4, 5],
+        enabled: true,
+        lastTriggeredAt: null,
+      };
+
+      const updatedPodB = await updatePod(client, podB.id, { schedule: scheduleConfig });
+      expect(updatedPodB.schedule).toBeDefined();
+      expect(updatedPodB.schedule?.enabled).toBe(true);
+
+      const conn = await createConnection(client, podA.id, podB.id);
+      expect(conn.id).toBeDefined();
+
+      const canvasModule = await import('../../src/services/podStore.js');
+      const podAfterConnection = canvasModule.podStore.getById(await getCanvasId(client), podB.id);
+      expect(podAfterConnection?.schedule).toBeUndefined();
+    });
+
     it('failed_when_connection_create_with_nonexistent_source_pod', async () => {
       const pod = await createPod(client);
 
@@ -60,7 +96,7 @@ describe('Connection 管理', () => {
         client,
         WebSocketRequestEvents.CONNECTION_CREATE,
         WebSocketResponseEvents.CONNECTION_CREATED,
-        { requestId: uuidv4(), canvasId, sourceType: 'pod', sourcePodId: FAKE_UUID, sourceAnchor: 'right', targetPodId: pod.id, targetAnchor: 'left' }
+        { requestId: uuidv4(), canvasId, sourcePodId: FAKE_UUID, sourceAnchor: 'right', targetPodId: pod.id, targetAnchor: 'left' }
       );
 
       expect(response.success).toBe(false);
@@ -75,7 +111,7 @@ describe('Connection 管理', () => {
         client,
         WebSocketRequestEvents.CONNECTION_CREATE,
         WebSocketResponseEvents.CONNECTION_CREATED,
-        { requestId: uuidv4(), canvasId, sourceType: 'pod', sourcePodId: pod.id, sourceAnchor: 'right', targetPodId: FAKE_UUID, targetAnchor: 'left' }
+        { requestId: uuidv4(), canvasId, sourcePodId: pod.id, sourceAnchor: 'right', targetPodId: FAKE_UUID, targetAnchor: 'left' }
       );
 
       expect(response.success).toBe(false);

@@ -3,31 +3,14 @@ import { requestIdSchema, podIdSchema, canvasIdSchema } from './base.js';
 
 export const anchorPositionSchema = z.enum(['top', 'bottom', 'left', 'right']);
 
-export const connectionCreateSchema = z
-  .object({
-    requestId: requestIdSchema,
-    canvasId: canvasIdSchema,
-    sourceType: z.enum(['pod', 'trigger']).default('pod'),
-    sourcePodId: podIdSchema.optional(),
-    sourceTriggerId: z.uuid().nullable().optional(),
-    sourceAnchor: anchorPositionSchema,
-    targetPodId: podIdSchema,
-    targetAnchor: anchorPositionSchema,
-  })
-  .refine(
-    (data) => {
-      if (data.sourceType === 'pod') {
-        return data.sourcePodId !== undefined;
-      }
-      if (data.sourceType === 'trigger') {
-        return data.sourceTriggerId !== undefined && data.sourceTriggerId !== null;
-      }
-      return false;
-    },
-    {
-      message: 'sourcePodId is required when sourceType is "pod", sourceTriggerId is required when sourceType is "trigger"',
-    }
-  );
+export const connectionCreateSchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+  sourcePodId: podIdSchema,
+  sourceAnchor: anchorPositionSchema,
+  targetPodId: podIdSchema,
+  targetAnchor: anchorPositionSchema,
+});
 
 export const connectionListSchema = z.object({
   requestId: requestIdSchema,

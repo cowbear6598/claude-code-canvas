@@ -2,7 +2,7 @@
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
 import {websocketClient, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
-import type {PodStatusChangedPayload, PodJoinBatchPayload, TriggerFiredPayload} from '@/types/websocket'
+import type {PodStatusChangedPayload, PodJoinBatchPayload, ScheduleFiredPayload} from '@/types/websocket'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
 import CanvasSidebar from '@/components/canvas/CanvasSidebar.vue'
@@ -28,7 +28,6 @@ const {
   repositoryStore,
   commandStore,
   connectionStore,
-  triggerStore,
   canvasStore
 } = useCanvasContext()
 
@@ -78,7 +77,6 @@ const loadCanvasData = async (): Promise<void> => {
       await commandStore.loadNotesFromBackend()
     })(),
     connectionStore.loadConnectionsFromBackend(),
-    triggerStore.loadTriggersFromBackend(),
   ])
 
   connectionStore.setupWorkflowListeners()
@@ -132,8 +130,11 @@ const handlePodStatusChanged = (payload: PodStatusChangedPayload): void => {
   podStore.updatePodStatus(payload.podId, payload.status)
 }
 
-const handleTriggerFired = (payload: TriggerFiredPayload): void => {
-  triggerStore.handleTriggerFired(payload)
+const handleScheduleFired = (payload: ScheduleFiredPayload): void => {
+  const pod = podStore.getPodById(payload.podId)
+  if (pod) {
+    chatStore.sendMessage(payload.podId, '')
+  }
 }
 
 const loadAppData = async (): Promise<void> => {
@@ -182,7 +183,7 @@ const loadAppData = async (): Promise<void> => {
     if (currentAbortController.signal.aborted) return
 
     websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
-    websocketClient.on<TriggerFiredPayload>(WebSocketResponseEvents.TRIGGER_FIRED, handleTriggerFired)
+    websocketClient.on<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
     registerBroadcastListeners()
 
     isInitialized.value = true
@@ -221,7 +222,7 @@ watch(
 
       if (newStatus === 'disconnected') {
         websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
-        websocketClient.off<TriggerFiredPayload>(WebSocketResponseEvents.TRIGGER_FIRED, handleTriggerFired)
+        websocketClient.off<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
         connectionStore.cleanupWorkflowListeners()
         unregisterBroadcastListeners()
         isInitialized.value = false
@@ -250,8 +251,6 @@ watch(
       connectionStore.connections = []
       connectionStore.selectedConnectionId = null
 
-      triggerStore.triggers = []
-      triggerStore.editingTriggerId = null
 
       outputStyleStore.notes = []
       outputStyleStore.availableItems = []
@@ -289,7 +288,7 @@ onUnmounted(() => {
 
   chatStore.disconnectWebSocket()
   websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
-  websocketClient.off<TriggerFiredPayload>(WebSocketResponseEvents.TRIGGER_FIRED, handleTriggerFired)
+  websocketClient.off<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
   connectionStore.cleanupWorkflowListeners()
   unregisterBroadcastListeners()
 })

@@ -1,6 +1,5 @@
 import type { Pod } from '../pod.js';
 import type { Connection } from '../connection.js';
-import type { Trigger } from '../trigger.js';
 import type { OutputStyleNote } from '../outputStyleNote.js';
 import type { SkillNote } from '../skillNote.js';
 import type { RepositoryNote } from '../repositoryNote.js';
@@ -35,22 +34,6 @@ export interface BroadcastConnectionUpdatedPayload {
 export interface BroadcastConnectionDeletedPayload {
   canvasId: string;
   connectionId: string;
-}
-
-export interface BroadcastTriggerCreatedPayload {
-  canvasId: string;
-  trigger: Trigger;
-}
-
-export interface BroadcastTriggerUpdatedPayload {
-  canvasId: string;
-  trigger: Trigger;
-}
-
-export interface BroadcastTriggerDeletedPayload {
-  canvasId: string;
-  triggerId: string;
-  deletedConnectionIds: string[];
 }
 
 export interface BroadcastRepositoryCreatedPayload {

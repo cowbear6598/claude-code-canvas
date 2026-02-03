@@ -40,8 +40,8 @@ export type { SubAgentNote } from './subAgentNote.js';
 // Connection types
 export type { Connection, AnchorPosition } from './connection.js';
 
-// Trigger types
-export type { Trigger, TriggerType, TimeTriggerConfig, TimeTriggerFrequency, PersistedTrigger } from './trigger.js';
+// Schedule types
+export type { ScheduleConfig, ScheduleFrequency, PersistedScheduleConfig } from './schedule.js';
 
 // Canvas types
 export type { Canvas, PersistedCanvas } from './canvas.js';

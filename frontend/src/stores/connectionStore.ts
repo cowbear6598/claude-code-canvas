@@ -47,10 +47,6 @@ export const useConnectionStore = defineStore('connection', {
             return state.connections.filter(conn => conn.targetPodId === podId)
         },
 
-        getConnectionsByTriggerId: (state) => (triggerId: string): Connection[] => {
-            return state.connections.filter(conn => conn.sourceTriggerId === triggerId)
-        },
-
         selectedConnection: (state): Connection | null => {
             if (!state.selectedConnectionId) return null
             return state.connections.find(c => c.id === state.selectedConnectionId) || null
@@ -58,6 +54,10 @@ export const useConnectionStore = defineStore('connection', {
 
         isSourcePod: (state) => (podId: string): boolean => {
             return !state.connections.some(conn => conn.targetPodId === podId)
+        },
+
+        hasUpstreamConnections: (state) => (podId: string): boolean => {
+            return state.connections.some(conn => conn.targetPodId === podId)
         },
     },
 
@@ -83,9 +83,7 @@ export const useConnectionStore = defineStore('connection', {
                     ...conn,
                     createdAt: new Date(conn.createdAt),
                     autoTrigger: conn.autoTrigger ?? false,
-                    status: 'inactive' as ConnectionStatus,
-                    sourceType: conn.sourceType ?? 'pod',
-                    sourceTriggerId: conn.sourceTriggerId ?? null,
+                    status: 'inactive' as ConnectionStatus
                 }))
             }
         },
@@ -94,16 +92,14 @@ export const useConnectionStore = defineStore('connection', {
             sourcePodId: string | undefined | null,
             sourceAnchor: AnchorPosition,
             targetPodId: string,
-            targetAnchor: AnchorPosition,
-            sourceType: 'pod' | 'trigger' = 'pod',
-            sourceTriggerId?: string
+            targetAnchor: AnchorPosition
         ): Promise<Connection | null> {
-            if (sourceType === 'pod' && sourcePodId === targetPodId) {
+            if (sourcePodId === targetPodId) {
                 console.warn('[ConnectionStore] Cannot connect pod to itself')
                 return null
             }
 
-            if (sourceType === 'pod' && sourcePodId) {
+            if (sourcePodId) {
                 const existingConnection = this.connections.find(
                     conn => conn.sourcePodId === sourcePodId && conn.targetPodId === targetPodId
                 )
@@ -118,25 +114,10 @@ export const useConnectionStore = defineStore('connection', {
                 }
             }
 
-            if (sourceType === 'trigger' && sourceTriggerId) {
-                const existingConnection = this.connections.find(
-                    conn => conn.sourceTriggerId === sourceTriggerId && conn.targetPodId === targetPodId
-                )
-                if (existingConnection) {
-                    const {toast} = useToast()
-                    toast({
-                        title: '連線已存在',
-                        description: '這個 Trigger 和 Pod 之間已經有連線了',
-                        duration: 3000
-                    })
-                    return null
-                }
-            }
-
             const canvasStore = useCanvasStore()
 
             if (!canvasStore.activeCanvasId) {
-                throw new Error('Cannot create connection: no active canvas')
+                throw new Error('無法建立連線：沒有啟用的畫布')
             }
 
             const payload: ConnectionCreatePayload = {
@@ -147,13 +128,8 @@ export const useConnectionStore = defineStore('connection', {
                 targetAnchor,
             }
 
-            if (sourceType === 'pod' && sourcePodId) {
+            if (sourcePodId) {
                 payload.sourcePodId = sourcePodId
-            }
-
-            if (sourceType === 'trigger' && sourceTriggerId) {
-                payload.sourceType = 'trigger'
-                payload.sourceTriggerId = sourceTriggerId
             }
 
             const response = await createWebSocketRequest<ConnectionCreatePayload, ConnectionCreatedPayload>({
@@ -170,9 +146,7 @@ export const useConnectionStore = defineStore('connection', {
                 ...response.connection,
                 createdAt: new Date(response.connection.createdAt),
                 autoTrigger: response.connection.autoTrigger ?? false,
-                status: 'inactive' as ConnectionStatus,
-                sourceType: response.connection.sourceType ?? 'pod',
-                sourceTriggerId: response.connection.sourceTriggerId ?? null,
+                status: 'inactive' as ConnectionStatus
             }
             this.connections.push(connection)
 
@@ -210,19 +184,6 @@ export const useConnectionStore = defineStore('connection', {
             }
         },
 
-        deleteConnectionsByTriggerId(triggerId: string): void {
-            this.connections = this.connections.filter(
-                conn => conn.sourceTriggerId !== triggerId
-            )
-
-            if (this.selectedConnectionId) {
-                const stillExists = this.connections.some(conn => conn.id === this.selectedConnectionId)
-                if (!stillExists) {
-                    this.selectedConnectionId = null
-                }
-            }
-        },
-
         deleteConnectionsByIds(connectionIds: string[]): void {
             this.connections = this.connections.filter(
                 conn => !connectionIds.includes(conn.id)
@@ -240,17 +201,13 @@ export const useConnectionStore = defineStore('connection', {
         startDragging(
             sourcePodId: string | undefined | null,
             sourceAnchor: AnchorPosition,
-            startPoint: { x: number; y: number },
-            sourceType: 'pod' | 'trigger' = 'pod',
-            sourceTriggerId?: string
+            startPoint: { x: number; y: number }
         ): void {
             this.draggingConnection = {
                 sourcePodId: sourcePodId ?? undefined,
                 sourceAnchor,
                 startPoint,
-                currentPoint: startPoint,
-                sourceType,
-                sourceTriggerId: sourceTriggerId ?? null,
+                currentPoint: startPoint
             }
         },
 
@@ -295,9 +252,7 @@ export const useConnectionStore = defineStore('connection', {
                 ...connection,
                 createdAt: new Date(connection.createdAt),
                 autoTrigger: connection.autoTrigger ?? false,
-                status: 'inactive' as ConnectionStatus,
-                sourceType: connection.sourceType ?? 'pod',
-                sourceTriggerId: connection.sourceTriggerId ?? null,
+                status: 'inactive' as ConnectionStatus
             }
 
             const exists = this.connections.some(c => c.id === enrichedConnection.id)
@@ -311,9 +266,7 @@ export const useConnectionStore = defineStore('connection', {
                 ...connection,
                 createdAt: new Date(connection.createdAt),
                 autoTrigger: connection.autoTrigger ?? false,
-                status: 'inactive' as ConnectionStatus,
-                sourceType: connection.sourceType ?? 'pod',
-                sourceTriggerId: connection.sourceTriggerId ?? null,
+                status: 'inactive' as ConnectionStatus
             }
 
             const index = this.connections.findIndex(c => c.id === enrichedConnection.id)

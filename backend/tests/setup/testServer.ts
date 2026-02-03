@@ -94,6 +94,10 @@ export async function createTestServer(): Promise<TestServerInstance> {
 export async function closeTestServer(server: TestServerInstance): Promise<void> {
   const { httpServer, io } = server;
 
+  // 停止 Schedule Service
+  const { scheduleService } = await import('../../src/services/scheduleService.js');
+  scheduleService.stop();
+
   // 關閉 Socket.io
   io.close();
 

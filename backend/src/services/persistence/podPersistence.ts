@@ -11,7 +11,7 @@ class PodPersistenceService {
   }
 
   private toPersistedPod(pod: Pod, claudeSessionId?: string): PersistedPod {
-    return {
+    const persisted: PersistedPod = {
       id: pod.id,
       name: pod.name,
       color: pod.color,
@@ -32,6 +32,18 @@ class PodPersistenceService {
       subAgentIds: pod.subAgentIds,
       needsForkSession: pod.needsForkSession,
     };
+
+    // 處理 schedule 序列化
+    if (pod.schedule) {
+      persisted.schedule = {
+        ...pod.schedule,
+        lastTriggeredAt: pod.schedule.lastTriggeredAt
+          ? pod.schedule.lastTriggeredAt.toISOString()
+          : null,
+      };
+    }
+
+    return persisted;
   }
 
   async savePod(canvasDir: string, pod: Pod, claudeSessionId?: string): Promise<Result<void>> {

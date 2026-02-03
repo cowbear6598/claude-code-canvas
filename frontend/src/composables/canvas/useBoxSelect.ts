@@ -6,7 +6,7 @@ export function useBoxSelect(): {
   isBoxSelecting: import('vue').Ref<boolean>
   startBoxSelect: (e: MouseEvent) => void
 } {
-  const { viewportStore, selectionStore, podStore, outputStyleStore, skillStore, subAgentStore, repositoryStore, commandStore, triggerStore } = useCanvasContext()
+  const { viewportStore, selectionStore, podStore, outputStyleStore, skillStore, subAgentStore, repositoryStore, commandStore } = useCanvasContext()
 
   const isBoxSelecting = ref(false)
 
@@ -61,8 +61,7 @@ export function useBoxSelect(): {
         skillStore.notes,
         repositoryStore.notes,
         subAgentStore.notes,
-        commandStore.notes,
-        triggerStore.triggers
+        commandStore.notes
       )
     }
 

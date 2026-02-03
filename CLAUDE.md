@@ -4,6 +4,14 @@
 - Agent 畫布的前端
 - 與後端使用 websocket 溝通
 
+## 技術棧
+
+- Vue3
+- TypeScript
+- Tailwind CSS
+- Shadcn UI
+- Pinia
+
 # backend
 
 - Node + Typescript

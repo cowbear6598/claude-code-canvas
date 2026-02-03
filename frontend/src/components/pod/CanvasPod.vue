@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {ref, computed, onUnmounted} from 'vue'
-import type {Pod, ModelType} from '@/types'
+import type {Pod, ModelType, Schedule} from '@/types'
 import type {AnchorPosition} from '@/types/connection'
 import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
 import {useAnchorDetection} from '@/composables/useAnchorDetection'
@@ -17,12 +17,14 @@ import type {
   WorkflowClearPayload,
   PodUpdatePayload
 } from '@/types/websocket'
+import {formatScheduleTooltip} from '@/utils/scheduleUtils'
 import PodHeader from '@/components/pod/PodHeader.vue'
 import PodMiniScreen from '@/components/pod/PodMiniScreen.vue'
 import PodSlots from '@/components/pod/PodSlots.vue'
 import PodAnchors from '@/components/pod/PodAnchors.vue'
 import PodActions from '@/components/pod/PodActions.vue'
 import PodModelSelector from '@/components/pod/PodModelSelector.vue'
+import ScheduleModal from '@/components/canvas/ScheduleModal.vue'
 
 const props = defineProps<{
   pod: Pod
@@ -52,6 +54,8 @@ const boundSubAgentNotes = computed(() => subAgentStore.getNotesByPodId(props.po
 const boundRepositoryNote = computed(() => repositoryStore.getNotesByPodId(props.pod.id)[0])
 const boundCommandNote = computed(() => commandStore.getNotesByPodId(props.pod.id)[0])
 const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
+const hasUpstreamConnection = computed(() => connectionStore.hasUpstreamConnections(props.pod.id))
+const showScheduleButton = computed(() => isSourcePod.value || !hasUpstreamConnection.value)
 const currentModel = computed(() => props.pod.model ?? 'opus')
 
 const isSelected = computed(() =>
@@ -84,9 +88,17 @@ const downstreamPods = ref<Array<{ id: string; name: string }>>([])
 const isLoadingDownstream = ref(false)
 const isClearing = ref(false)
 const showDeleteDialog = ref(false)
+const showScheduleModal = ref(false)
 
 const isAutoClearEnabled = computed(() => props.pod.autoClear ?? false)
 const isAutoClearAnimating = computed(() => chatStore.autoClearAnimationPodId === props.pod.id)
+
+const hasSchedule = computed(() => props.pod.schedule !== null && props.pod.schedule !== undefined)
+const scheduleEnabled = computed(() => props.pod.schedule?.enabled ?? false)
+const scheduleTooltip = computed(() => {
+  if (!props.pod.schedule) return ''
+  return formatScheduleTooltip(props.pod.schedule)
+})
 
 let currentMouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let currentMouseUpHandler: (() => void) | null = null
@@ -193,6 +205,31 @@ const handleSaveName = (): void => {
 const handleDelete = (): void => {
   emit('delete', props.pod.id)
   showDeleteDialog.value = false
+}
+
+const handleOpenScheduleModal = (): void => {
+  showScheduleModal.value = true
+}
+
+const handleScheduleConfirm = async (schedule: Schedule): Promise<void> => {
+  await podStore.updatePodWithBackend(props.pod.id, { schedule })
+  showScheduleModal.value = false
+}
+
+const handleScheduleDelete = async (): Promise<void> => {
+  await podStore.updatePodWithBackend(props.pod.id, { schedule: null })
+  showScheduleModal.value = false
+}
+
+const handleScheduleToggle = async (): Promise<void> => {
+  if (!props.pod.schedule) return
+
+  const newSchedule = {
+    ...props.pod.schedule,
+    enabled: !props.pod.schedule.enabled
+  }
+
+  await podStore.updatePodWithBackend(props.pod.id, { schedule: newSchedule })
 }
 
 const handleSelectPod = (): void => {
@@ -511,6 +548,7 @@ const handleToggleAutoClear = async (): Promise<void> => {
           :pod-id="pod.id"
           :pod-name="pod.name"
           :is-source-pod="isSourcePod"
+          :show-schedule-button="showScheduleButton"
           :is-auto-clear-enabled="isAutoClearEnabled"
           :is-auto-clear-animating="isAutoClearAnimating"
           :is-loading-downstream="isLoadingDownstream"
@@ -518,6 +556,10 @@ const handleToggleAutoClear = async (): Promise<void> => {
           :downstream-pods="downstreamPods"
           :show-clear-dialog="showClearDialog"
           :show-delete-dialog="showDeleteDialog"
+          :has-schedule="hasSchedule"
+          :schedule-enabled="scheduleEnabled"
+          :schedule-tooltip="scheduleTooltip"
+          @open-schedule-modal="handleOpenScheduleModal"
           @update:show-clear-dialog="showClearDialog = $event"
           @update:show-delete-dialog="showDeleteDialog = $event"
           @delete="handleDelete"
@@ -528,6 +570,16 @@ const handleToggleAutoClear = async (): Promise<void> => {
           @confirm-delete="handleDelete"
           @cancel-delete="showDeleteDialog = false"
       />
+
+    <!-- Schedule Modal -->
+    <ScheduleModal
+        v-model:open="showScheduleModal"
+        :pod-id="pod.id"
+        :existing-schedule="pod.schedule"
+        @confirm="handleScheduleConfirm"
+        @delete="handleScheduleDelete"
+        @toggle="handleScheduleToggle"
+    />
     </div>
   </div>
 </template>

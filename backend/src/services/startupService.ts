@@ -2,8 +2,7 @@ import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { noteStore, skillNoteStore, commandNoteStore, subAgentNoteStore, repositoryNoteStore } from './noteStores.js';
 import { connectionStore } from './connectionStore.js';
-import { triggerStore } from './triggerStore.js';
-import { triggerScheduler } from './triggerScheduler.js';
+import { scheduleService } from './scheduleService.js';
 import { canvasStore } from './canvasStore.js';
 import { Result, ok, err } from '../types/index.js';
 import { config } from '../config/index.js';
@@ -68,13 +67,12 @@ class StartupService {
       await commandNoteStore.loadFromDisk(canvas.id, canvasDataDir);
       await subAgentNoteStore.loadFromDisk(canvas.id, canvasDataDir);
       await repositoryNoteStore.loadFromDisk(canvas.id, canvasDataDir);
-      await triggerStore.loadFromDisk(canvas.id, canvasDataDir);
       await connectionStore.loadFromDisk(canvas.id, canvasDataDir);
 
       logger.log('Startup', 'Complete', `Loaded canvas: ${canvas.name} (${canvas.id})`);
     }
 
-    triggerScheduler.start();
+    scheduleService.start();
 
     logger.log('Startup', 'Complete', 'Server initialization completed successfully');
     return ok(undefined);

@@ -1,10 +1,9 @@
 import type {Pod} from '@/types'
 import type {Connection} from '@/types/connection'
-import type {Trigger} from '@/types/trigger'
 import type {OutputStyleNote} from '@/types/outputStyle'
 import type {SkillNote} from '@/types/skill'
 import type {RepositoryNote, Repository} from '@/types/repository'
-import type {SubAgentNote} from '@/types/subAgent'
+import type {SubAgentNote, SubAgent} from '@/types/subAgent'
 import type {CommandNote} from '@/types/command'
 
 export interface BroadcastPodCreatedPayload {
@@ -35,22 +34,6 @@ export interface BroadcastConnectionUpdatedPayload {
 export interface BroadcastConnectionDeletedPayload {
   canvasId: string
   connectionId: string
-}
-
-export interface BroadcastTriggerCreatedPayload {
-  canvasId: string
-  trigger: Trigger
-}
-
-export interface BroadcastTriggerUpdatedPayload {
-  canvasId: string
-  trigger: Trigger
-}
-
-export interface BroadcastTriggerDeletedPayload {
-  canvasId: string
-  triggerId: string
-  deletedConnectionIds?: string[]
 }
 
 export interface BroadcastOutputStyleCreatedPayload {
@@ -151,10 +134,7 @@ export interface BroadcastSubAgentNoteDeletedPayload {
 
 export interface BroadcastSubAgentCreatedPayload {
   canvasId: string
-  subAgent: {
-    id: string
-    name: string
-  }
+  subAgent: SubAgent
 }
 
 export interface BroadcastSubAgentUpdatedPayload {

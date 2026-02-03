@@ -31,7 +31,6 @@ export async function createConnection(
   const payload: ConnectionCreatePayload = {
     requestId: uuidv4(),
     canvasId,
-    sourceType: 'pod',
     sourcePodId,
     sourceAnchor: 'right',
     targetPodId,

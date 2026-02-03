@@ -6,10 +6,12 @@ import {
   WebSocketResponseEvents,
   type PodCreatePayload,
   type PodDeletePayload,
+  type PodUpdatePayload,
 } from '../../src/schemas/index.js';
 import {
   type PodCreatedPayload,
   type PodDeletedPayload,
+  type PodUpdatedPayload,
   type Pod,
 } from '../../src/types/index.js';
 
@@ -55,6 +57,39 @@ export async function createPodPair(
   const podA = await createPod(client, { name: 'Pod A' });
   const podB = await createPod(client, { name: 'Pod B' });
   return { podA, podB };
+}
+
+export async function updatePod(
+  client: Socket,
+  podId: string,
+  updates: Partial<Omit<PodUpdatePayload, 'requestId' | 'canvasId' | 'podId'>>
+): Promise<Pod> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
+  const payload: PodUpdatePayload = {
+    requestId: uuidv4(),
+    canvasId,
+    podId,
+    ...updates,
+  };
+
+  const response = await emitAndWaitResponse<PodUpdatePayload, PodUpdatedPayload>(
+    client,
+    WebSocketRequestEvents.POD_UPDATE,
+    WebSocketResponseEvents.POD_UPDATED,
+    payload
+  );
+
+  return response.pod!;
 }
 
 export async function deletePod(client: Socket, podId: string): Promise<void> {

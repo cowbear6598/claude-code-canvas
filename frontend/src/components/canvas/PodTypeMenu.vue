@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus, FilePlus, Zap } from 'lucide-vue-next'
+import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus, FilePlus } from 'lucide-vue-next'
 import type { Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent } from '@/types'
 import { podTypes } from '@/data/podTypes'
 import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
@@ -10,8 +10,6 @@ import CloneRepositoryModal from './CloneRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 import PodTypeMenuSubmenu from './PodTypeMenuSubmenu.vue'
 import CreateEditModal from './CreateEditModal.vue'
-import TriggerSubmenu, { type TriggerTypeId } from './TriggerSubmenu.vue'
-import TriggerModal from './TriggerModal.vue'
 
 interface Props {
   position: Position
@@ -35,9 +33,7 @@ const {
   skillStore,
   subAgentStore,
   repositoryStore,
-  commandStore,
-  triggerStore,
-  viewportStore
+  commandStore
 } = useCanvasContext()
 
 type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
@@ -59,14 +55,12 @@ interface EditModalState {
   itemId: string
 }
 
-const openMenuType = ref<'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | 'trigger' | null>(null)
+const openMenuType = ref<'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | null>(null)
 const showCreateRepositoryModal = ref(false)
 const showCloneRepositoryModal = ref(false)
 const showDeleteModal = ref(false)
 const deleteTarget = ref<DeleteTarget | null>(null)
 const hoveredItemId = ref<string | null>(null)
-const showTriggerModal = ref(false)
-const triggerType = ref<TriggerTypeId>('time')
 
 const editModal = ref<EditModalState>({
   visible: false,
@@ -285,56 +279,6 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
   }
 
   editModal.value.visible = false
-}
-
-const handleTriggerSelect = (type: TriggerTypeId): void => {
-  triggerType.value = type
-  showTriggerModal.value = true
-  openMenuType.value = null
-}
-
-const handleTriggerConfirm = async (config: { name: string; frequency: string; second: number; intervalMinute: number; intervalHour: number; hour: number; minute: number; weekdays: number[] }, triggerId?: string): Promise<void> => {
-  if (triggerId) {
-    await triggerStore.updateTrigger(triggerId, {
-      name: config.name,
-      config: {
-        frequency: config.frequency,
-        second: config.second,
-        intervalMinute: config.intervalMinute,
-        intervalHour: config.intervalHour,
-        hour: config.hour,
-        minute: config.minute,
-        weekdays: config.weekdays,
-      }
-    })
-    triggerStore.setEditingTrigger(null)
-  } else {
-    if (!props.position) return
-
-    const canvasX = (props.position.x - viewportStore.offset.x) / viewportStore.zoom
-    const canvasY = (props.position.y - viewportStore.offset.y) / viewportStore.zoom
-
-    const rotation = Math.random() * 2 - 1
-
-    await triggerStore.createTrigger({
-      name: config.name,
-      type: 'time',
-      config: {
-        frequency: config.frequency,
-        second: config.second,
-        intervalMinute: config.intervalMinute,
-        intervalHour: config.intervalHour,
-        hour: config.hour,
-        minute: config.minute,
-        weekdays: config.weekdays,
-      },
-      x: canvasX - 80,
-      y: canvasY - 50,
-      rotation: Math.round(rotation * 10) / 10,
-    })
-
-    emit('close')
-  }
 }
 
 const { menuStyle } = useMenuPosition({ position: computed(() => props.position) })
@@ -574,33 +518,6 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
         </PodTypeMenuSubmenu>
       </div>
 
-      <!-- Triggers 按鈕 -->
-      <div
-        class="relative"
-        @mouseenter="openMenuType = 'trigger'"
-        @mouseleave="openMenuType = null"
-      >
-        <button
-          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
-        >
-          <span
-            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
-            style="background-color: var(--doodle-purple)"
-          >
-            <Zap
-              :size="16"
-              class="text-card"
-            />
-          </span>
-          <span class="font-mono text-sm text-foreground">Triggers &gt;</span>
-        </button>
-
-        <TriggerSubmenu
-          :visible="openMenuType === 'trigger'"
-          @trigger-select="handleTriggerSelect"
-        />
-      </div>
-
     </div>
 
     <CreateRepositoryModal
@@ -629,13 +546,6 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
       :initial-content="editModal.initialContent"
       :name-editable="editModal.mode === 'create'"
       @submit="handleCreateEditSubmit"
-    />
-
-    <TriggerModal
-      v-model:open="showTriggerModal"
-      :trigger-type="triggerType"
-      :editing-trigger="triggerStore.editingTrigger"
-      @confirm="handleTriggerConfirm"
     />
   </div>
 </template>
