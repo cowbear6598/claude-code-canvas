@@ -50,7 +50,7 @@ const handleSave = (): void => {
         v-model="editName"
         type="text"
         :maxlength="MAX_POD_NAME_LENGTH"
-        class="flex-1 bg-transparent border-b-2 border-doodle-ink/50 outline-none font-sans text-base"
+        class="flex-1 min-w-0 w-full bg-transparent border-b-2 border-doodle-ink/50 outline-none font-sans text-base"
         @blur="handleSave"
         @keydown.enter="handleSave"
       >
