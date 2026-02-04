@@ -55,6 +55,15 @@ const repositoryContextMenu = ref<{
 const showTrashZone = computed(() => outputStyleStore.isDraggingNote || skillStore.isDraggingNote || subAgentStore.isDraggingNote || repositoryStore.isDraggingNote || commandStore.isDraggingNote)
 const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash || skillStore.isOverTrash || subAgentStore.isOverTrash || repositoryStore.isOverTrash || commandStore.isOverTrash)
 
+const isCanvasEmpty = computed(() =>
+  podStore.podCount === 0 &&
+  outputStyleStore.notes.length === 0 &&
+  skillStore.notes.length === 0 &&
+  subAgentStore.notes.length === 0 &&
+  repositoryStore.notes.length === 0 &&
+  commandStore.notes.length === 0
+)
+
 const validateCoordinate = (value: number): number => {
   if (!Number.isFinite(value)) {
     return 0
@@ -310,7 +319,7 @@ onUnmounted(() => {
     />
 
     <!-- 空狀態 - 在畫布座標中央 -->
-    <EmptyState v-if="podStore.podCount === 0" />
+    <EmptyState v-if="isCanvasEmpty" />
   </CanvasViewport>
 
   <!-- Clone Progress Panel - Fixed at bottom-right corner -->

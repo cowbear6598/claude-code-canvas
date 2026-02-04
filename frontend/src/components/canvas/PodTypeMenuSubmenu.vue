@@ -79,7 +79,7 @@ const handleItemDelete = (item: T, event: Event): void => {
           :title="item.name"
           @click="handleItemSelect(item)"
         >
-          {{ item.name }}
+          <span class="truncate block">{{ item.name }}</span>
         </button>
         <button
           v-if="editable"
