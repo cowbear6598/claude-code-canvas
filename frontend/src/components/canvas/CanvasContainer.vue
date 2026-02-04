@@ -13,12 +13,35 @@ import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
 import SelectionBox from './SelectionBox.vue'
 import RepositoryContextMenu from './RepositoryContextMenu.vue'
-import type {Pod, PodTypeConfig} from '@/types'
+import CreateRepositoryModal from './CreateRepositoryModal.vue'
+import CloneRepositoryModal from './CloneRepositoryModal.vue'
+import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
+import CreateEditModal from './CreateEditModal.vue'
+import type {Pod, PodTypeConfig, Position} from '@/types'
 import {
   POD_MENU_X_OFFSET,
   POD_MENU_Y_OFFSET,
   DEFAULT_POD_ROTATION_RANGE,
 } from '@/lib/constants'
+
+type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
+type ResourceType = 'outputStyle' | 'subAgent' | 'command'
+
+interface DeleteTarget {
+  type: ItemType
+  id: string
+  name: string
+}
+
+interface EditModalState {
+  visible: boolean
+  mode: 'create' | 'edit'
+  title: string
+  initialName: string
+  initialContent: string
+  resourceType: ResourceType
+  itemId: string
+}
 
 const {
   podStore,
@@ -52,6 +75,38 @@ const repositoryContextMenu = ref<{
   notePosition: { x: 0, y: 0 }
 })
 
+const showCreateRepositoryModal = ref(false)
+const showCloneRepositoryModal = ref(false)
+const showDeleteModal = ref(false)
+const deleteTarget = ref<DeleteTarget | null>(null)
+const lastMenuPosition = ref<Position | null>(null)
+
+const editModal = ref<EditModalState>({
+  visible: false,
+  mode: 'create',
+  title: '',
+  initialName: '',
+  initialContent: '',
+  resourceType: 'outputStyle',
+  itemId: ''
+})
+
+const isDeleteTargetInUse = computed(() => {
+  if (!deleteTarget.value) return false
+
+  const { type, id } = deleteTarget.value
+
+  const inUseChecks = {
+    outputStyle: (): boolean => outputStyleStore.isItemInUse(id),
+    skill: (): boolean => skillStore.isItemInUse(id),
+    subAgent: (): boolean => subAgentStore.isItemInUse(id),
+    repository: (): boolean => repositoryStore.isItemInUse(id),
+    command: (): boolean => commandStore.isItemInUse(id),
+  }
+
+  return inUseChecks[type]()
+})
+
 const showTrashZone = computed(() => outputStyleStore.isDraggingNote || skillStore.isDraggingNote || subAgentStore.isDraggingNote || repositoryStore.isDraggingNote || commandStore.isDraggingNote)
 const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash || skillStore.isOverTrash || subAgentStore.isOverTrash || repositoryStore.isOverTrash || commandStore.isOverTrash)
 
@@ -64,11 +119,43 @@ const isCanvasEmpty = computed(() =>
   commandStore.notes.length === 0
 )
 
+const resourceTitleMap = {
+  outputStyle: 'Output Style',
+  subAgent: 'SubAgent',
+  command: 'Command'
+} as const
+
+const readActions: Record<ResourceType, (id: string) => Promise<{ id: string; name: string; content: string } | null>> = {
+  outputStyle: (id) => outputStyleStore.readOutputStyle(id),
+  subAgent: (id) => subAgentStore.readSubAgent(id),
+  command: (id) => commandStore.readCommand(id)
+}
+
+const CANVAS_COORDINATE_MIN = -100000
+const CANVAS_COORDINATE_MAX = 100000
+
+/**
+ * 驗證並限制座標值在有效範圍內
+ * @param value - 原始座標值
+ * @returns 有效的座標值（限制在 -100000 ~ 100000 之間）
+ */
 const validateCoordinate = (value: number): number => {
   if (!Number.isFinite(value)) {
     return 0
   }
-  return value
+  return Math.max(CANVAS_COORDINATE_MIN, Math.min(CANVAS_COORDINATE_MAX, value))
+}
+
+/**
+ * 將螢幕座標轉換為畫布座標
+ * @param screenPos - 螢幕座標（例如滑鼠點擊位置）
+ * @returns 畫布座標（考慮 offset 和 zoom）
+ */
+const screenToCanvasPosition = (screenPos: Position): Position => {
+  return {
+    x: validateCoordinate((screenPos.x - viewportStore.offset.x) / viewportStore.zoom),
+    y: validateCoordinate((screenPos.y - viewportStore.offset.y) / viewportStore.zoom)
+  }
 }
 
 const handleContextMenu = (e: MouseEvent): void => {
@@ -234,6 +321,124 @@ const handleCloneStarted = (payload: { requestId: string; repoName: string }): v
   gitCloneProgress.addTask(payload.requestId, payload.repoName)
 }
 
+const handleOpenCreateModal = (resourceType: ResourceType, title: string): void => {
+  lastMenuPosition.value = podStore.typeMenu.position
+  editModal.value = {
+    visible: true,
+    mode: 'create',
+    title,
+    initialName: '',
+    initialContent: '',
+    resourceType,
+    itemId: ''
+  }
+}
+
+const handleOpenEditModal = async (resourceType: ResourceType, id: string): Promise<void> => {
+  lastMenuPosition.value = podStore.typeMenu.position
+
+  const data = await readActions[resourceType](id)
+
+  if (!data) {
+    console.error(`無法讀取 ${resourceTitleMap[resourceType]} (id: ${id})，請確認後端是否正常運作`)
+    return
+  }
+
+  editModal.value = {
+    visible: true,
+    mode: 'edit',
+    title: `編輯 ${resourceTitleMap[resourceType]}`,
+    initialName: data.name,
+    initialContent: data.content,
+    resourceType,
+    itemId: id
+  }
+}
+
+const handleOpenDeleteModal = (type: ItemType, id: string, name: string): void => {
+  deleteTarget.value = { type, id, name }
+  showDeleteModal.value = true
+}
+
+const handleOpenCreateRepositoryModal = (): void => {
+  lastMenuPosition.value = podStore.typeMenu.position
+  showCreateRepositoryModal.value = true
+}
+
+const handleOpenCloneRepositoryModal = (): void => {
+  showCloneRepositoryModal.value = true
+}
+
+const handleDeleteConfirm = async (): Promise<void> => {
+  if (!deleteTarget.value) return
+
+  const { type, id } = deleteTarget.value
+
+  const deleteActions = {
+    outputStyle: (): Promise<void> => outputStyleStore.deleteOutputStyle(id),
+    skill: (): Promise<void> => skillStore.deleteSkill(id),
+    subAgent: (): Promise<void> => subAgentStore.deleteSubAgent(id),
+    repository: (): Promise<void> => repositoryStore.deleteRepository(id),
+    command: (): Promise<void> => commandStore.deleteCommand(id),
+  }
+
+  await deleteActions[type]()
+
+  showDeleteModal.value = false
+  deleteTarget.value = null
+}
+
+const handleCreateEditSubmit = async (payload: { name: string; content: string }): Promise<void> => {
+  const { name, content } = payload
+  const { mode, resourceType, itemId } = editModal.value
+
+  if (mode === 'create') {
+    const createActions = {
+      outputStyle: async (): Promise<void> => {
+        const result = await outputStyleStore.createOutputStyle(name, content)
+        if (result.success && result.outputStyle && lastMenuPosition.value) {
+          const { x, y } = screenToCanvasPosition(lastMenuPosition.value)
+          outputStyleStore.createNote(result.outputStyle.id, x, y)
+        }
+      },
+      subAgent: async (): Promise<void> => {
+        const result = await subAgentStore.createSubAgent(name, content)
+        if (result.success && result.subAgent && lastMenuPosition.value) {
+          const { x, y } = screenToCanvasPosition(lastMenuPosition.value)
+          subAgentStore.createNote(result.subAgent.id, x, y)
+        }
+      },
+      command: async (): Promise<void> => {
+        const result = await commandStore.createCommand(name, content)
+        if (result.success && result.command && lastMenuPosition.value) {
+          const { x, y } = screenToCanvasPosition(lastMenuPosition.value)
+          commandStore.createNote(result.command.id, x, y)
+        }
+      }
+    }
+
+    await createActions[resourceType]()
+  } else {
+    const updateActions = {
+      outputStyle: (): Promise<void> => outputStyleStore.updateOutputStyle(itemId, content),
+      subAgent: (): Promise<void> => subAgentStore.updateSubAgent(itemId, content),
+      command: (): Promise<void> => commandStore.updateCommand(itemId, content)
+    }
+
+    await updateActions[resourceType]()
+  }
+
+  editModal.value.visible = false
+}
+
+const handleRepositoryCreated = (repository: { id: string; name: string }): void => {
+  if (!lastMenuPosition.value) return
+
+  const { x, y } = screenToCanvasPosition(lastMenuPosition.value)
+
+  repositoryStore.createNote(repository.id, x, y)
+}
+
 onUnmounted(() => {
   gitCloneProgress.cleanupListeners()
 })
@@ -336,6 +541,11 @@ onUnmounted(() => {
     @create-repository-note="handleCreateRepositoryNote"
     @create-command-note="handleCreateCommandNote"
     @clone-started="handleCloneStarted"
+    @open-create-modal="handleOpenCreateModal"
+    @open-edit-modal="handleOpenEditModal"
+    @open-delete-modal="handleOpenDeleteModal"
+    @open-create-repository-modal="handleOpenCreateRepositoryModal"
+    @open-clone-repository-modal="handleOpenCloneRepositoryModal"
     @close="podStore.hideTypeMenu"
   />
 
@@ -355,5 +565,34 @@ onUnmounted(() => {
     :note-position="repositoryContextMenu.notePosition"
     @close="handleRepositoryContextMenuClose"
     @worktree-created="handleRepositoryContextMenuClose"
+  />
+
+  <!-- Modals -->
+  <CreateRepositoryModal
+    v-model:open="showCreateRepositoryModal"
+    @created="handleRepositoryCreated"
+  />
+
+  <CloneRepositoryModal
+    v-model:open="showCloneRepositoryModal"
+    @clone-started="handleCloneStarted"
+  />
+
+  <ConfirmDeleteModal
+    v-model:open="showDeleteModal"
+    :item-name="deleteTarget?.name ?? ''"
+    :is-in-use="isDeleteTargetInUse"
+    :item-type="deleteTarget?.type ?? 'outputStyle'"
+    @confirm="handleDeleteConfirm"
+  />
+
+  <CreateEditModal
+    v-model:open="editModal.visible"
+    :mode="editModal.mode"
+    :title="editModal.title"
+    :initial-name="editModal.initialName"
+    :initial-content="editModal.initialContent"
+    :name-editable="editModal.mode === 'create'"
+    @submit="handleCreateEditSubmit"
   />
 </template>

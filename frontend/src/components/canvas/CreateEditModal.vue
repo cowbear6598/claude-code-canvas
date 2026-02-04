@@ -30,6 +30,9 @@ const emit = defineEmits<{
   submit: [payload: { name: string; content: string }]
 }>()
 
+const MAX_NAME_LENGTH = 100
+const MAX_CONTENT_LENGTH = 10000
+
 const name = ref('')
 const content = ref('')
 
@@ -47,11 +50,27 @@ watch(
 )
 
 const handleSubmit = (): void => {
+  // 驗證 name 長度（僅在 create 模式下檢查）
+  if (props.nameEditable && (!name.value.trim() || name.value.length > MAX_NAME_LENGTH)) {
+    return
+  }
+  // 驗證 content 長度
+  if (content.value.length > MAX_CONTENT_LENGTH) {
+    return
+  }
   emit('submit', { name: name.value, content: content.value })
 }
 
 const handleClose = (): void => {
   emit('update:open', false)
+}
+
+const handleKeyDown = (e: KeyboardEvent): void => {
+  // 偵測 Ctrl+Enter 時提交表單
+  if (e.key === 'Enter' && e.ctrlKey) {
+    e.preventDefault()
+    handleSubmit()
+  }
 }
 </script>
 
@@ -73,13 +92,16 @@ const handleClose = (): void => {
           v-model="name"
           placeholder="名稱"
           :disabled="!nameEditable"
+          maxlength="100"
           class="w-full p-3 bg-card border-2 border-doodle-ink rounded text-base font-mono focus:outline-none focus:ring-2 focus:ring-doodle-ink/50 disabled:cursor-not-allowed disabled:opacity-50"
         />
 
         <textarea
           v-model="content"
           placeholder="內容"
+          maxlength="10000"
           class="w-full h-[400px] p-3 bg-card border-2 border-doodle-ink rounded text-base font-mono resize-none focus:outline-none focus:ring-2 focus:ring-doodle-ink/50 doodle-textarea"
+          @keydown="handleKeyDown"
         />
       </div>
 

@@ -92,6 +92,15 @@ const updateText = (text: string): void => {
   moveCursorToEnd()
 }
 
+/**
+ * 計算 contenteditable 元素中的文字長度
+ *
+ * 遞迴遍歷 DOM 樹計算實際文字長度：
+ * - TEXT_NODE: 直接計算文字內容長度
+ * - BR 元素: 算作 1 個字元（換行符）
+ * - 圖片元素: 不計入長度（圖片有獨立的大小限制）
+ * - 其他元素: 遞迴處理其子節點
+ */
 const countTextLength = (node: Node): number => {
   let length = 0
 
@@ -239,7 +248,18 @@ const handlePaste = async (e: ClipboardEvent): Promise<void> => {
   e.preventDefault()
   const text = e.clipboardData?.getData('text/plain')
   if (text) {
-    document.execCommand('insertText', false, text)
+    const selection = window.getSelection()
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0)
+      range.deleteContents()
+      const textNode = document.createTextNode(text)
+      range.insertNode(textNode)
+      // 將游標移到插入的文字後面
+      range.setStartAfter(textNode)
+      range.setEndAfter(textNode)
+      selection.removeAllRanges()
+      selection.addRange(range)
+    }
   }
 }
 
@@ -266,6 +286,15 @@ const flushTextToBlocks = (blocks: ContentBlock[], currentText: string[]): void 
   currentText.length = 0
 }
 
+/**
+ * 解析 contenteditable 的 DOM 結構，轉換成結構化的 ContentBlock 陣列
+ *
+ * 遞迴遍歷 DOM 樹，將內容分類為文字和圖片：
+ * - TEXT_NODE: 收集文字內容到 currentText 陣列
+ * - BR 元素: 加入換行符到 currentText
+ * - 圖片元素: 先 flush 已收集的文字，再加入圖片 block
+ * - 其他元素: 遞迴處理其子節點
+ */
 const parseContentBlocks = (
     node: Node,
     blocks: ContentBlock[],
@@ -370,7 +399,8 @@ const deleteImageAtom = (element: HTMLElement): void => {
 const handleKeyDown = (e: KeyboardEvent): void => {
   if (e.isComposing || e.keyCode === 229) return
 
-  if (e.key === 'Enter' && !e.shiftKey) {
+  // Ctrl+Enter 發送訊息
+  if (e.key === 'Enter' && e.ctrlKey) {
     e.preventDefault()
     handleSend()
     return

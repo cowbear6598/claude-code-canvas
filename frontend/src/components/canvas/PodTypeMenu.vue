@@ -5,17 +5,16 @@ import type { Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, S
 import { podTypes } from '@/data/podTypes'
 import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import { useMenuPosition } from '@/composables/useMenuPosition'
-import CreateRepositoryModal from './CreateRepositoryModal.vue'
-import CloneRepositoryModal from './CloneRepositoryModal.vue'
-import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 import PodTypeMenuSubmenu from './PodTypeMenuSubmenu.vue'
-import CreateEditModal from './CreateEditModal.vue'
 
 interface Props {
   position: Position
 }
 
 const props = defineProps<Props>()
+
+type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
+type ResourceType = 'outputStyle' | 'subAgent' | 'command'
 
 const emit = defineEmits<{
   select: [config: PodTypeConfig]
@@ -25,6 +24,11 @@ const emit = defineEmits<{
   'create-repository-note': [repositoryId: string]
   'create-command-note': [commandId: string]
   'clone-started': [payload: { requestId: string; repoName: string }]
+  'open-create-modal': [resourceType: ResourceType, title: string]
+  'open-edit-modal': [resourceType: ResourceType, id: string]
+  'open-delete-modal': [type: ItemType, id: string, name: string]
+  'open-create-repository-modal': []
+  'open-clone-repository-modal': []
   close: []
 }>()
 
@@ -37,57 +41,8 @@ const {
   podStore
 } = useCanvasContext()
 
-type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
-type ResourceType = 'outputStyle' | 'subAgent' | 'command'
-
-interface DeleteTarget {
-  type: ItemType
-  id: string
-  name: string
-}
-
-interface EditModalState {
-  visible: boolean
-  mode: 'create' | 'edit'
-  title: string
-  initialName: string
-  initialContent: string
-  resourceType: ResourceType
-  itemId: string
-}
-
 const openMenuType = ref<'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | null>(null)
-const showCreateRepositoryModal = ref(false)
-const showCloneRepositoryModal = ref(false)
-const showDeleteModal = ref(false)
-const deleteTarget = ref<DeleteTarget | null>(null)
 const hoveredItemId = ref<string | null>(null)
-
-const editModal = ref<EditModalState>({
-  visible: false,
-  mode: 'create',
-  title: '',
-  initialName: '',
-  initialContent: '',
-  resourceType: 'outputStyle',
-  itemId: ''
-})
-
-const isDeleteTargetInUse = computed(() => {
-  if (!deleteTarget.value) return false
-
-  const { type, id } = deleteTarget.value
-
-  const inUseChecks = {
-    outputStyle: (): boolean => outputStyleStore.isItemInUse(id),
-    skill: (): boolean => skillStore.isItemInUse(id),
-    subAgent: (): boolean => subAgentStore.isItemInUse(id),
-    repository: (): boolean => repositoryStore.isItemInUse(id),
-    command: (): boolean => commandStore.isItemInUse(id),
-  }
-
-  return inUseChecks[type]()
-})
 
 onMounted(async () => {
   await Promise.all([
@@ -137,150 +92,55 @@ const handleClose = (): void => {
   emit('close')
 }
 
-const handleRepositoryCreated = (repository: { id: string; name: string }): void => {
-  openMenuType.value = null
-  emit('create-repository-note', repository.id)
-  emit('close')
-}
-
-const handleCloneStarted = (payload: { requestId: string; repoName: string }): void => {
-  openMenuType.value = null
-  emit('clone-started', payload)
-  emit('close')
-}
 
 const handleDeleteClick = (type: ItemType, id: string, name: string, event: Event): void => {
   event.stopPropagation()
-  deleteTarget.value = { type, id, name }
-  showDeleteModal.value = true
-}
-
-const handleDeleteConfirm = async (): Promise<void> => {
-  if (!deleteTarget.value) return
-
-  const { type, id } = deleteTarget.value
-
-  const deleteActions = {
-    outputStyle: (): Promise<void> => outputStyleStore.deleteOutputStyle(id),
-    skill: (): Promise<void> => skillStore.deleteSkill(id),
-    subAgent: (): Promise<void> => subAgentStore.deleteSubAgent(id),
-    repository: (): Promise<void> => repositoryStore.deleteRepository(id),
-    command: (): Promise<void> => commandStore.deleteCommand(id),
-  }
-
-  await deleteActions[type]()
-
-  showDeleteModal.value = false
-  deleteTarget.value = null
+  openMenuType.value = null
+  emit('open-delete-modal', type, id, name)
+  emit('close')
 }
 
 const openCreateModal = (resourceType: ResourceType, title: string): void => {
-  editModal.value = {
-    visible: true,
-    mode: 'create',
-    title,
-    initialName: '',
-    initialContent: '',
-    resourceType,
-    itemId: ''
-  }
+  openMenuType.value = null
+  emit('open-create-modal', resourceType, title)
+  emit('close')
 }
 
 const handleNewOutputStyle = (): void => openCreateModal('outputStyle', '新增 Output Style')
 const handleNewSubAgent = (): void => openCreateModal('subAgent', '新增 SubAgent')
 const handleNewCommand = (): void => openCreateModal('command', '新增 Command')
 
-const resourceTitleMap = {
-  outputStyle: 'Output Style',
-  subAgent: 'SubAgent',
-  command: 'Command'
-} as const
-
-const readActions: Record<ResourceType, (id: string) => Promise<{ id: string; name: string; content: string } | null>> = {
-  outputStyle: (id) => outputStyleStore.readOutputStyle(id),
-  subAgent: (id) => subAgentStore.readSubAgent(id),
-  command: (id) => commandStore.readCommand(id)
+const handleNewRepository = (): void => {
+  openMenuType.value = null
+  emit('open-create-repository-modal')
+  emit('close')
 }
 
-const openEditModal = async (
+const handleCloneRepository = (): void => {
+  openMenuType.value = null
+  emit('open-clone-repository-modal')
+  emit('close')
+}
+
+const openEditModal = (
   resourceType: ResourceType,
   id: string,
   event: Event
-): Promise<void> => {
+): void => {
   event.stopPropagation()
-
-  const data = await readActions[resourceType](id)
-
-  if (!data) {
-    console.error(`無法讀取 ${resourceTitleMap[resourceType]} (id: ${id})，請確認後端是否正常運作`)
-    return
-  }
-
-  editModal.value = {
-    visible: true,
-    mode: 'edit',
-    title: `編輯 ${resourceTitleMap[resourceType]}`,
-    initialName: data.name,
-    initialContent: data.content,
-    resourceType,
-    itemId: id
-  }
+  openMenuType.value = null
+  emit('open-edit-modal', resourceType, id)
+  emit('close')
 }
 
-const handleOutputStyleEdit = (id: string, _name: string, event: Event): Promise<void> =>
+const handleOutputStyleEdit = (id: string, _name: string, event: Event): void =>
   openEditModal('outputStyle', id, event)
 
-const handleSubAgentEdit = (id: string, _name: string, event: Event): Promise<void> =>
+const handleSubAgentEdit = (id: string, _name: string, event: Event): void =>
   openEditModal('subAgent', id, event)
 
-const handleCommandEdit = (id: string, _name: string, event: Event): Promise<void> =>
+const handleCommandEdit = (id: string, _name: string, event: Event): void =>
   openEditModal('command', id, event)
-
-const handleCreateEditSubmit = async (payload: { name: string; content: string }): Promise<void> => {
-  const { name, content } = payload
-  const { mode, resourceType, itemId } = editModal.value
-
-  if (mode === 'create') {
-    const createActions = {
-      outputStyle: async () => {
-        const result = await outputStyleStore.createOutputStyle(name, content)
-        if (result.success && result.outputStyle) {
-          openMenuType.value = null
-          emit('create-output-style-note', result.outputStyle.id)
-          emit('close')
-        }
-      },
-      subAgent: async () => {
-        const result = await subAgentStore.createSubAgent(name, content)
-        if (result.success && result.subAgent) {
-          openMenuType.value = null
-          emit('create-subagent-note', result.subAgent.id)
-          emit('close')
-        }
-      },
-      command: async () => {
-        const result = await commandStore.createCommand(name, content)
-        if (result.success && result.command) {
-          openMenuType.value = null
-          emit('create-command-note', result.command.id)
-          emit('close')
-        }
-      }
-    }
-
-    await createActions[resourceType]()
-  } else {
-    const updateActions = {
-      outputStyle: () => outputStyleStore.updateOutputStyle(itemId, content),
-      subAgent: () => subAgentStore.updateSubAgent(itemId, content),
-      command: () => commandStore.updateCommand(itemId, content)
-    }
-
-    await updateActions[resourceType]()
-  }
-
-  editModal.value.visible = false
-}
 
 // 在選單打開時處理右鍵點擊，更新選單位置
 const handleContextMenu = (e: MouseEvent): void => {
@@ -510,14 +370,14 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
             <div class="border-t border-doodle-ink/30 my-1" />
             <div
               class="pod-menu-submenu-item flex items-center gap-2"
-              @click="showCreateRepositoryModal = true"
+              @click="handleNewRepository"
             >
               <FolderPlus :size="16" />
               New...
             </div>
             <div
               class="pod-menu-submenu-item flex items-center gap-2"
-              @click="showCloneRepositoryModal = true"
+              @click="handleCloneRepository"
             >
               <Github :size="16" />
               Clone
@@ -525,35 +385,6 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
           </template>
         </PodTypeMenuSubmenu>
       </div>
-
     </div>
-
-    <CreateRepositoryModal
-      v-model:open="showCreateRepositoryModal"
-      @created="handleRepositoryCreated"
-    />
-
-    <CloneRepositoryModal
-      v-model:open="showCloneRepositoryModal"
-      @clone-started="handleCloneStarted"
-    />
-
-    <ConfirmDeleteModal
-      v-model:open="showDeleteModal"
-      :item-name="deleteTarget?.name ?? ''"
-      :is-in-use="isDeleteTargetInUse"
-      :item-type="deleteTarget?.type ?? 'outputStyle'"
-      @confirm="handleDeleteConfirm"
-    />
-
-    <CreateEditModal
-      v-model:open="editModal.visible"
-      :mode="editModal.mode"
-      :title="editModal.title"
-      :initial-name="editModal.initialName"
-      :initial-content="editModal.initialContent"
-      :name-editable="editModal.mode === 'create'"
-      @submit="handleCreateEditSubmit"
-    />
   </div>
 </template>
