@@ -5,7 +5,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import os from 'os';
 
-describe('gitService.hasCommits', () => {
+describe('Git 服務 - 檢查是否有 Commit', () => {
     let testRoot: string;
 
     beforeAll(async () => {

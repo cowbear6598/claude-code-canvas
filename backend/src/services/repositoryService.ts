@@ -7,6 +7,7 @@ import {fileExists} from './shared/fileResourceHelpers.js';
 interface RepositoryMetadata {
   parentRepoId?: string;
   branchName?: string;
+  currentBranch?: string;
 }
 
 class RepositoryService {
@@ -32,11 +33,11 @@ class RepositoryService {
     }
   }
 
-  async list(): Promise<Array<{ id: string; name: string; parentRepoId?: string; branchName?: string }>> {
+  async list(): Promise<Array<{ id: string; name: string; parentRepoId?: string; branchName?: string; currentBranch?: string }>> {
     await fs.mkdir(config.repositoriesRoot, { recursive: true });
 
     const entries = await fs.readdir(config.repositoriesRoot, { withFileTypes: true });
-    const repositories: Array<{ id: string; name: string; parentRepoId?: string; branchName?: string }> = [];
+    const repositories: Array<{ id: string; name: string; parentRepoId?: string; branchName?: string; currentBranch?: string }> = [];
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
@@ -46,6 +47,7 @@ class RepositoryService {
           name: entry.name,
           ...(metadata?.parentRepoId && { parentRepoId: metadata.parentRepoId }),
           ...(metadata?.branchName && { branchName: metadata.branchName }),
+          ...(metadata?.currentBranch && { currentBranch: metadata.currentBranch }),
         });
       }
     }

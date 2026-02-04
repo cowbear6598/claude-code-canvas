@@ -12,6 +12,10 @@ import {
   repositoryGitCloneSchema,
   repositoryCheckGitSchema,
   repositoryWorktreeCreateSchema,
+  repositoryGetLocalBranchesSchema,
+  repositoryCheckDirtySchema,
+  repositoryCheckoutBranchSchema,
+  repositoryDeleteBranchSchema,
 } from '../../schemas/index.js';
 import {
   handleRepositoryList,
@@ -26,6 +30,10 @@ import {
   handleRepositoryGitClone,
   handleRepositoryCheckGit,
   handleRepositoryWorktreeCreate,
+  handleRepositoryGetLocalBranches,
+  handleRepositoryCheckDirty,
+  handleRepositoryCheckoutBranch,
+  handleRepositoryDeleteBranch,
 } from '../repositoryHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
 
@@ -103,6 +111,30 @@ export const repositoryHandlerGroup = createHandlerGroup({
       handler: handleRepositoryWorktreeCreate,
       schema: repositoryWorktreeCreateSchema,
       responseEvent: WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+    },
+    {
+      event: WebSocketRequestEvents.REPOSITORY_GET_LOCAL_BRANCHES,
+      handler: handleRepositoryGetLocalBranches,
+      schema: repositoryGetLocalBranchesSchema,
+      responseEvent: WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.REPOSITORY_CHECK_DIRTY,
+      handler: handleRepositoryCheckDirty,
+      schema: repositoryCheckDirtySchema,
+      responseEvent: WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
+      handler: handleRepositoryCheckoutBranch,
+      schema: repositoryCheckoutBranchSchema,
+      responseEvent: WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+    },
+    {
+      event: WebSocketRequestEvents.REPOSITORY_DELETE_BRANCH,
+      handler: handleRepositoryDeleteBranch,
+      schema: repositoryDeleteBranchSchema,
+      responseEvent: WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
     },
   ],
 });

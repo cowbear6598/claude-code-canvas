@@ -10,6 +10,7 @@ type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command'
 interface Props {
   note: BaseNote
   noteType: NoteType
+  branchName?: string
 }
 
 const props = defineProps<Props>()
@@ -198,6 +199,13 @@ const handleContextMenu = (e: MouseEvent): void => {
   e.preventDefault()
   emit('contextmenu', { noteId: props.note.id, event: e })
 }
+
+const displayName = computed(() => {
+  if (props.noteType === 'repository' && props.branchName) {
+    return `${props.note.name} (${props.branchName})`
+  }
+  return props.note.name
+})
 </script>
 
 <template>
@@ -211,7 +219,7 @@ const handleContextMenu = (e: MouseEvent): void => {
     @contextmenu="handleContextMenu"
   >
     <div :class="textClass">
-      {{ note.name }}
+      {{ displayName }}
     </div>
   </div>
 </template>

@@ -138,6 +138,12 @@ export interface BroadcastRepositoryDeletedPayload {
   deletedNoteIds?: string[]
 }
 
+export interface BroadcastRepositoryBranchChangedPayload {
+  canvasId: string
+  repositoryId: string
+  branchName: string
+}
+
 export interface BroadcastSubAgentNoteCreatedPayload {
   canvasId: string
   note: SubAgentNote

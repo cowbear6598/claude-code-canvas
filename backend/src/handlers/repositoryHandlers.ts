@@ -9,9 +9,14 @@ import type {
   RepositoryGitCloneResultPayload,
   RepositoryCheckGitResultPayload,
   RepositoryWorktreeCreatedPayload,
+  RepositoryLocalBranchesResultPayload,
+  RepositoryDirtyCheckResultPayload,
+  RepositoryBranchCheckedOutPayload,
+  RepositoryBranchDeletedPayload,
   BroadcastRepositoryCreatedPayload,
   BroadcastPodRepositoryBoundPayload,
   BroadcastPodRepositoryUnboundPayload,
+  BroadcastRepositoryBranchChangedPayload,
 } from '../types/index.js';
 import type {
   RepositoryListPayload,
@@ -22,6 +27,10 @@ import type {
   RepositoryGitClonePayload,
   RepositoryCheckGitPayload,
   RepositoryWorktreeCreatePayload,
+  RepositoryGetLocalBranchesPayload,
+  RepositoryCheckDirtyPayload,
+  RepositoryCheckoutBranchPayload,
+  RepositoryDeleteBranchPayload,
 } from '../schemas/index.js';
 import { repositoryService } from '../services/repositoryService.js';
 import { repositoryNoteStore } from '../services/noteStores.js';
@@ -65,6 +74,29 @@ export const handleRepositoryNoteCreate = repositoryNoteHandlers.handleNoteCreat
 export const handleRepositoryNoteList = repositoryNoteHandlers.handleNoteList;
 export const handleRepositoryNoteUpdate = repositoryNoteHandlers.handleNoteUpdate;
 export const handleRepositoryNoteDelete = repositoryNoteHandlers.handleNoteDelete;
+
+async function validateRepositoryIsGit(
+  socket: Socket,
+  repositoryId: string,
+  responseEvent: WebSocketResponseEvents,
+  requestId: string
+): Promise<string | null> {
+  const exists = await repositoryService.exists(repositoryId);
+  if (!exists) {
+    emitError(socket, responseEvent, `找不到 Repository: ${repositoryId}`, requestId, undefined, 'NOT_FOUND');
+    return null;
+  }
+
+  const repositoryPath = repositoryService.getRepositoryPath(repositoryId);
+  const isGitResult = await gitService.isGitRepository(repositoryPath);
+
+  if (!isGitResult.success || !isGitResult.data) {
+    emitError(socket, responseEvent, '不是 Git Repository', requestId, undefined, 'INVALID_STATE');
+    return null;
+  }
+
+  return repositoryPath;
+}
 
 export async function handleRepositoryList(
   socket: Socket,
@@ -370,6 +402,15 @@ export async function handleRepositoryGitClone(
 
   throttledEmit.flush();
   emitCloneProgress(socket, requestId, 95, '完成中...');
+
+  // Clone 成功後，取得目前分支名稱並儲存
+  const currentBranchResult = await gitService.getCurrentBranch(targetPath);
+  if (currentBranchResult.success) {
+    await repositoryService.registerMetadata(repoName, {
+      currentBranch: currentBranchResult.data
+    });
+  }
+
   emitCloneProgress(socket, requestId, 100, 'Clone 完成!');
 
   const response: RepositoryGitCloneResultPayload = {
@@ -404,6 +445,18 @@ function getStageMessage(stage: string): string {
   return stageMessages[stage] || `處理中: ${stage}...`;
 }
 
+/**
+ * 從 Git URL 提取並正規化 Repository 名稱
+ *
+ * 處理兩種主要格式：
+ * 1. SSH: git@github.com:user/repo.git → user/repo
+ * 2. HTTPS: https://github.com/user/repo.git → repo
+ *
+ * 轉換步驟：
+ * 1. SSH 格式從冒號後取路徑，HTTPS 格式移除協議前綴後取最後一段
+ * 2. 移除 .git 副檔名避免重複
+ * 3. 將非法字元（斜線等）替換為連字號，確保可作為資料夾名稱
+ */
 function parseRepoName(repoUrl: string): string {
   let urlPath: string;
 
@@ -627,4 +680,200 @@ export async function handleRepositoryWorktreeCreate(
   }
 
   logger.log('Repository', 'Create', `Created worktree ${newRepositoryId} from ${repositoryId}`);
+}
+
+export async function handleRepositoryGetLocalBranches(
+  socket: Socket,
+  payload: RepositoryGetLocalBranchesPayload,
+  requestId: string
+): Promise<void> {
+  const { repositoryId } = payload;
+
+  const repositoryPath = await validateRepositoryIsGit(
+    socket,
+    repositoryId,
+    WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
+    requestId
+  );
+  if (!repositoryPath) {
+    return;
+  }
+
+  const branchesResult = await gitService.getLocalBranches(repositoryPath);
+  if (!branchesResult.success) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
+      branchesResult.error!,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+    return;
+  }
+
+  const response: RepositoryLocalBranchesResultPayload = {
+    requestId,
+    success: true,
+    branches: branchesResult.data!.branches,
+    currentBranch: branchesResult.data!.current,
+    worktreeBranches: branchesResult.data!.worktreeBranches,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT, response);
+  logger.log('Repository', 'List', `Got local branches for ${repositoryId}`);
+}
+
+export async function handleRepositoryCheckDirty(
+  socket: Socket,
+  payload: RepositoryCheckDirtyPayload,
+  requestId: string
+): Promise<void> {
+  const { repositoryId } = payload;
+
+  const repositoryPath = await validateRepositoryIsGit(
+    socket,
+    repositoryId,
+    WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
+    requestId
+  );
+  if (!repositoryPath) {
+    return;
+  }
+
+  const dirtyResult = await gitService.hasUncommittedChanges(repositoryPath);
+  if (!dirtyResult.success) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
+      dirtyResult.error!,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+    return;
+  }
+
+  const response: RepositoryDirtyCheckResultPayload = {
+    requestId,
+    success: true,
+    isDirty: dirtyResult.data,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT, response);
+  logger.log('Repository', 'Check', `Checked dirty status for ${repositoryId}: ${dirtyResult.data}`);
+}
+
+export async function handleRepositoryCheckoutBranch(
+  socket: Socket,
+  payload: RepositoryCheckoutBranchPayload,
+  requestId: string
+): Promise<void> {
+  const { repositoryId, branchName, force } = payload;
+
+  const repositoryPath = await validateRepositoryIsGit(
+    socket,
+    repositoryId,
+    WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+    requestId
+  );
+  if (!repositoryPath) {
+    return;
+  }
+
+  const metadata = repositoryService.getMetadata(repositoryId);
+  if (metadata?.parentRepoId) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+      'Worktree 無法切換分支',
+      requestId,
+      undefined,
+      'INVALID_STATE'
+    );
+    return;
+  }
+
+  const checkoutResult = await gitService.smartCheckoutBranch(repositoryPath, branchName, force);
+  if (!checkoutResult.success) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+      checkoutResult.error!,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+    return;
+  }
+
+  const action = checkoutResult.data;
+
+  await repositoryService.registerMetadata(repositoryId, {
+    ...metadata,
+    currentBranch: branchName
+  });
+
+  const response: RepositoryBranchCheckedOutPayload = {
+    requestId,
+    success: true,
+    repositoryId,
+    branchName,
+    action,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, response);
+
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, requestId);
+  if (canvasId) {
+    const broadcastPayload: BroadcastRepositoryBranchChangedPayload = {
+      canvasId,
+      repositoryId,
+      branchName,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_REPOSITORY_BRANCH_CHANGED, broadcastPayload);
+  }
+
+  logger.log('Repository', 'Update', `Checked out branch ${branchName} for ${repositoryId} (${action})`);
+}
+
+export async function handleRepositoryDeleteBranch(
+  socket: Socket,
+  payload: RepositoryDeleteBranchPayload,
+  requestId: string
+): Promise<void> {
+  const { repositoryId, branchName, force } = payload;
+
+  const repositoryPath = await validateRepositoryIsGit(
+    socket,
+    repositoryId,
+    WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
+    requestId
+  );
+  if (!repositoryPath) {
+    return;
+  }
+
+  const deleteResult = await gitService.deleteBranch(repositoryPath, branchName, force);
+  if (!deleteResult.success) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
+      deleteResult.error!,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+    return;
+  }
+
+  const response: RepositoryBranchDeletedPayload = {
+    requestId,
+    success: true,
+    branchName,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED, response);
+
+  logger.log('Repository', 'Update', `Deleted branch ${branchName} from ${repositoryId}`);
 }

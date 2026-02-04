@@ -99,6 +99,34 @@ export const repositoryWorktreeCreateSchema = z.object({
     ),
 });
 
+export const repositoryGetLocalBranchesSchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+  repositoryId: z.string(),
+});
+
+export const repositoryCheckDirtySchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+  repositoryId: z.string(),
+});
+
+export const repositoryCheckoutBranchSchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+  repositoryId: z.string(),
+  branchName: z.string().regex(/^[a-zA-Z0-9_\-/]+$/, '分支名稱只能包含英文字母、數字、底線、連字號和斜線'),
+  force: z.boolean().default(false),
+});
+
+export const repositoryDeleteBranchSchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+  repositoryId: z.string(),
+  branchName: z.string().regex(/^[a-zA-Z0-9_\-/]+$/, '分支名稱只能包含英文字母、數字、底線、連字號和斜線'),
+  force: z.boolean().default(false),
+});
+
 export type RepositoryListPayload = z.infer<typeof repositoryListSchema>;
 export type RepositoryCreatePayload = z.infer<typeof repositoryCreateSchema>;
 export type PodBindRepositoryPayload = z.infer<typeof podBindRepositorySchema>;
@@ -111,3 +139,7 @@ export type RepositoryNoteCreatePayload = z.infer<typeof repositoryNoteCreateSch
 export type RepositoryNoteListPayload = z.infer<typeof repositoryNoteListSchema>;
 export type RepositoryNoteUpdatePayload = z.infer<typeof repositoryNoteUpdateSchema>;
 export type RepositoryNoteDeletePayload = z.infer<typeof repositoryNoteDeleteSchema>;
+export type RepositoryGetLocalBranchesPayload = z.infer<typeof repositoryGetLocalBranchesSchema>;
+export type RepositoryCheckDirtyPayload = z.infer<typeof repositoryCheckDirtySchema>;
+export type RepositoryCheckoutBranchPayload = z.infer<typeof repositoryCheckoutBranchSchema>;
+export type RepositoryDeleteBranchPayload = z.infer<typeof repositoryDeleteBranchSchema>;

@@ -3,7 +3,7 @@ import type { RepositoryNote } from '../repositoryNote.js';
 export interface RepositoryListResultPayload {
   requestId: string;
   success: boolean;
-  repositories?: Array<{ id: string; name: string }>;
+  repositories?: Array<{ id: string; name: string; parentRepoId?: string; branchName?: string; currentBranch?: string }>;
   error?: string;
 }
 
@@ -74,5 +74,37 @@ export interface RepositoryWorktreeCreatedPayload {
   requestId: string;
   success: boolean;
   repository?: { id: string; name: string; parentRepoId?: string; branchName?: string };
+  error?: string;
+}
+
+export interface RepositoryLocalBranchesResultPayload {
+  requestId: string;
+  success: boolean;
+  branches?: string[];
+  currentBranch?: string;
+  worktreeBranches?: string[];
+  error?: string;
+}
+
+export interface RepositoryDirtyCheckResultPayload {
+  requestId: string;
+  success: boolean;
+  isDirty?: boolean;
+  error?: string;
+}
+
+export interface RepositoryBranchCheckedOutPayload {
+  requestId: string;
+  success: boolean;
+  repositoryId?: string;
+  branchName?: string;
+  action?: 'switched' | 'fetched' | 'created';
+  error?: string;
+}
+
+export interface RepositoryBranchDeletedPayload {
+  requestId: string;
+  success: boolean;
+  branchName?: string;
   error?: string;
 }

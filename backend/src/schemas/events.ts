@@ -77,6 +77,10 @@ export enum WebSocketRequestEvents {
   CANVAS_DELETE = 'canvas:delete',
   CANVAS_SWITCH = 'canvas:switch',
   CANVAS_REORDER = 'canvas:reorder',
+  REPOSITORY_GET_LOCAL_BRANCHES = 'repository:get-local-branches',
+  REPOSITORY_CHECK_DIRTY = 'repository:check-dirty',
+  REPOSITORY_CHECKOUT_BRANCH = 'repository:checkout-branch',
+  REPOSITORY_DELETE_BRANCH = 'repository:delete-branch',
 }
 
 export enum WebSocketResponseEvents {
@@ -226,4 +230,9 @@ export enum WebSocketResponseEvents {
   BROADCAST_CANVAS_PASTED = 'broadcast:canvas:pasted',
   BROADCAST_WORKFLOW_CLEAR_RESULT = 'broadcast:workflow:clear:result',
   BROADCAST_POD_CHAT_USER_MESSAGE = 'broadcast:pod:chat:user-message',
+  REPOSITORY_LOCAL_BRANCHES_RESULT = 'repository:local-branches:result',
+  REPOSITORY_DIRTY_CHECK_RESULT = 'repository:dirty-check:result',
+  REPOSITORY_BRANCH_CHECKED_OUT = 'repository:branch:checked-out',
+  BROADCAST_REPOSITORY_BRANCH_CHANGED = 'broadcast:repository:branch:changed',
+  REPOSITORY_BRANCH_DELETED = 'repository:branch:deleted',
 }

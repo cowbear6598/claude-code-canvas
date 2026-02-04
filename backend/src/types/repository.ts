@@ -4,4 +4,5 @@ export interface Repository {
   path: string;
   parentRepoId?: string;
   branchName?: string;
+  currentBranch?: string;
 }

@@ -9,7 +9,15 @@ import type {
   RepositoryCheckGitPayload,
   RepositoryCheckGitResultPayload,
   RepositoryWorktreeCreatePayload,
-  RepositoryWorktreeCreatedPayload
+  RepositoryWorktreeCreatedPayload,
+  RepositoryGetLocalBranchesPayload,
+  RepositoryLocalBranchesResultPayload,
+  RepositoryCheckDirtyPayload,
+  RepositoryDirtyCheckResultPayload,
+  RepositoryCheckoutBranchPayload,
+  RepositoryBranchCheckedOutPayload,
+  RepositoryDeleteBranchPayload,
+  RepositoryBranchDeletedPayload
 } from '@/types/websocket'
 
 interface RepositoryStoreCustomActions {
@@ -18,6 +26,11 @@ interface RepositoryStoreCustomActions {
   loadRepositories(): Promise<void>
   checkIsGit(repositoryId: string): Promise<boolean>
   createWorktree(repositoryId: string, worktreeName: string, sourceNotePosition: { x: number; y: number }): Promise<{ success: boolean; error?: string }>
+  getLocalBranches(repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; worktreeBranches?: string[]; error?: string }>
+  checkDirty(repositoryId: string): Promise<{ success: boolean; isDirty?: boolean; error?: string }>
+  checkoutBranch(repositoryId: string, branchName: string, force?: boolean): Promise<{ success: boolean; branchName?: string; action?: 'switched' | 'fetched' | 'created'; error?: string }>
+  deleteBranch(repositoryId: string, branchName: string, force?: boolean): Promise<{ success: boolean; branchName?: string; error?: string }>
+  isWorktree(repositoryId: string): boolean
 }
 
 const store = createNoteStore<Repository, RepositoryNote>({
@@ -166,6 +179,131 @@ const store = createNoteStore<Repository, RepositoryNote>({
       }
 
       return { success: true }
+    },
+
+    async getLocalBranches(this, repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; error?: string }> {
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const canvasStore = useCanvasStore()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryGetLocalBranchesPayload, RepositoryLocalBranchesResultPayload>({
+          requestEvent: WebSocketRequestEvents.REPOSITORY_GET_LOCAL_BRANCHES,
+          responseEvent: WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
+          payload: {
+            canvasId: canvasStore.activeCanvasId!,
+            repositoryId
+          }
+        }),
+        '取得分支列表失敗'
+      )
+
+      if (!response) {
+        return { success: false, error: '取得分支列表失敗' }
+      }
+
+      return {
+        success: response.success,
+        branches: response.branches,
+        currentBranch: response.currentBranch,
+        worktreeBranches: response.worktreeBranches,
+        error: response.error
+      }
+    },
+
+    async checkDirty(this, repositoryId: string): Promise<{ success: boolean; isDirty?: boolean; error?: string }> {
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const canvasStore = useCanvasStore()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryCheckDirtyPayload, RepositoryDirtyCheckResultPayload>({
+          requestEvent: WebSocketRequestEvents.REPOSITORY_CHECK_DIRTY,
+          responseEvent: WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
+          payload: {
+            canvasId: canvasStore.activeCanvasId!,
+            repositoryId
+          }
+        }),
+        '檢查修改狀態失敗'
+      )
+
+      if (!response) {
+        return { success: false, error: '檢查修改狀態失敗' }
+      }
+
+      return {
+        success: response.success,
+        isDirty: response.isDirty,
+        error: response.error
+      }
+    },
+
+    async checkoutBranch(this, repositoryId: string, branchName: string, force: boolean = false): Promise<{ success: boolean; branchName?: string; action?: 'switched' | 'fetched' | 'created'; error?: string }> {
+      const canvasStore = useCanvasStore()
+
+      try {
+        const response = await createWebSocketRequest<RepositoryCheckoutBranchPayload, RepositoryBranchCheckedOutPayload>({
+          requestEvent: WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
+          responseEvent: WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+          payload: {
+            canvasId: canvasStore.activeCanvasId!,
+            repositoryId,
+            branchName,
+            force
+          }
+        })
+
+        if (response.success && response.branchName) {
+          const existingRepository = this.availableItems.find((item) => item.id === repositoryId)
+          if (existingRepository) {
+            existingRepository.currentBranch = response.branchName
+          }
+        }
+
+        return {
+          success: response.success,
+          branchName: response.branchName,
+          action: response.action,
+          error: response.error
+        }
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : '切換分支失敗'
+        }
+      }
+    },
+
+    async deleteBranch(this, repositoryId: string, branchName: string, force: boolean = false): Promise<{ success: boolean; branchName?: string; error?: string }> {
+      const canvasStore = useCanvasStore()
+
+      try {
+        const response = await createWebSocketRequest<RepositoryDeleteBranchPayload, RepositoryBranchDeletedPayload>({
+          requestEvent: WebSocketRequestEvents.REPOSITORY_DELETE_BRANCH,
+          responseEvent: WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
+          payload: {
+            canvasId: canvasStore.activeCanvasId!,
+            repositoryId,
+            branchName,
+            force
+          }
+        })
+
+        return {
+          success: response.success,
+          branchName: response.branchName,
+          error: response.error
+        }
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : '刪除分支失敗'
+        }
+      }
+    },
+
+    isWorktree(this, repositoryId: string): boolean {
+      const repository = this.availableItems.find((item) => item.id === repositoryId)
+      return !!repository?.parentRepoId
     },
   }
 })

@@ -67,12 +67,14 @@ const repositoryContextMenu = ref<{
   repositoryId: string
   repositoryName: string
   notePosition: { x: number; y: number }
+  isWorktree: boolean
 }>({
   visible: false,
   position: { x: 0, y: 0 },
   repositoryId: '',
   repositoryName: '',
-  notePosition: { x: 0, y: 0 }
+  notePosition: { x: 0, y: 0 },
+  isWorktree: false
 })
 
 const showCreateRepositoryModal = ref(false)
@@ -297,6 +299,11 @@ const subAgentHandlers = useNoteEventHandlers({ store: subAgentStore, trashZoneR
 const repositoryHandlers = useNoteEventHandlers({ store: repositoryStore, trashZoneRef })
 const commandHandlers = useNoteEventHandlers({ store: commandStore, trashZoneRef })
 
+const getRepositoryBranchName = (repositoryId: string): string | undefined => {
+  const repository = repositoryStore.availableItems.find(r => r.id === repositoryId)
+  return repository?.currentBranch || repository?.branchName
+}
+
 const handleRepositoryContextMenu = (data: { noteId: string; event: MouseEvent }): void => {
   const note = repositoryStore.notes.find(n => n.id === data.noteId)
   if (!note) return
@@ -309,7 +316,8 @@ const handleRepositoryContextMenu = (data: { noteId: string; event: MouseEvent }
     position: { x: data.event.clientX, y: data.event.clientY },
     repositoryId: repository.id,
     repositoryName: repository.name,
-    notePosition: { x: note.x, y: note.y }
+    notePosition: { x: note.x, y: note.y },
+    isWorktree: !!repository.parentRepoId
   }
 }
 
@@ -506,6 +514,7 @@ onUnmounted(() => {
       :key="note.id"
       :note="note"
       note-type="repository"
+      :branch-name="getRepositoryBranchName(note.repositoryId)"
       @drag-end="repositoryHandlers.handleDragEnd"
       @drag-move="repositoryHandlers.handleDragMove"
       @drag-complete="repositoryHandlers.handleDragComplete"
@@ -563,6 +572,7 @@ onUnmounted(() => {
     :repository-id="repositoryContextMenu.repositoryId"
     :repository-name="repositoryContextMenu.repositoryName"
     :note-position="repositoryContextMenu.notePosition"
+    :is-worktree="repositoryContextMenu.isWorktree"
     @close="handleRepositoryContextMenuClose"
     @worktree-created="handleRepositoryContextMenuClose"
   />

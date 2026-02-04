@@ -49,13 +49,13 @@ vi.mock('simple-git', () => {
   };
 });
 
-describe('gitService', () => {
+describe('Git 服務', () => {
   beforeEach(async () => {
     const simpleGit = await import('simple-git');
     (simpleGit as any).__resetMocks();
   });
 
-  describe('clone', () => {
+  describe('Clone 操作', () => {
     it('success_when_github_token_adds_authentication', async () => {
       const originalToken = config.githubToken;
       (config as any).githubToken = 'test-token-12345';

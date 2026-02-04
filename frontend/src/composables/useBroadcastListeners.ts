@@ -35,6 +35,7 @@ import type {
   BroadcastRepositoryNoteDeletedPayload,
   BroadcastRepositoryCreatedPayload,
   BroadcastRepositoryDeletedPayload,
+  BroadcastRepositoryBranchChangedPayload,
   BroadcastSubAgentNoteCreatedPayload,
   BroadcastSubAgentNoteUpdatedPayload,
   BroadcastSubAgentNoteDeletedPayload,
@@ -181,6 +182,14 @@ const handleBroadcastRepositoryCreated = createCanvasHandler<BroadcastRepository
 
 const handleBroadcastRepositoryDeleted = createCanvasHandler<BroadcastRepositoryDeletedPayload>((payload) => {
   useRepositoryStore().removeItemFromBroadcast(payload.repositoryId, payload.deletedNoteIds)
+})
+
+const handleBroadcastRepositoryBranchChanged = createCanvasHandler<BroadcastRepositoryBranchChangedPayload>((payload) => {
+  const repositoryStore = useRepositoryStore()
+  const repository = repositoryStore.availableItems.find((item) => item.id === payload.repositoryId)
+  if (repository) {
+    repository.currentBranch = payload.branchName
+  }
 })
 
 const handleBroadcastSubAgentNoteCreated = createCanvasHandler<BroadcastSubAgentNoteCreatedPayload>((payload) => {
@@ -397,6 +406,7 @@ const listeners = [
   {event: WebSocketResponseEvents.BROADCAST_REPOSITORY_NOTE_DELETED, handler: handleBroadcastRepositoryNoteDeleted},
   {event: WebSocketResponseEvents.BROADCAST_REPOSITORY_CREATED, handler: handleBroadcastRepositoryCreated},
   {event: WebSocketResponseEvents.BROADCAST_REPOSITORY_DELETED, handler: handleBroadcastRepositoryDeleted},
+  {event: WebSocketResponseEvents.BROADCAST_REPOSITORY_BRANCH_CHANGED, handler: handleBroadcastRepositoryBranchChanged},
   {event: WebSocketResponseEvents.BROADCAST_SUBAGENT_NOTE_CREATED, handler: handleBroadcastSubAgentNoteCreated},
   {event: WebSocketResponseEvents.BROADCAST_SUBAGENT_NOTE_UPDATED, handler: handleBroadcastSubAgentNoteUpdated},
   {event: WebSocketResponseEvents.BROADCAST_SUBAGENT_NOTE_DELETED, handler: handleBroadcastSubAgentNoteDeleted},

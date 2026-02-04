@@ -132,3 +132,9 @@ export interface BroadcastWorkflowClearResultPayload {
   canvasId: string;
   clearedPodIds: string[];
 }
+
+export interface BroadcastRepositoryBranchChangedPayload {
+  canvasId: string;
+  repositoryId: string;
+  branchName: string;
+}

@@ -6,6 +6,7 @@ export interface Repository {
   isGit?: boolean
   parentRepoId?: string
   branchName?: string
+  currentBranch?: string
 }
 
 export interface RepositoryNote extends BaseNote {

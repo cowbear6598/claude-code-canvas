@@ -360,3 +360,35 @@ export interface RepositoryWorktreeCreatedPayload {
     repository?: Repository
     error?: string
 }
+
+export interface RepositoryLocalBranchesResultPayload {
+    requestId: string
+    success: boolean
+    branches?: string[]
+    currentBranch?: string
+    worktreeBranches?: string[]
+    error?: string
+}
+
+export interface RepositoryDirtyCheckResultPayload {
+    requestId: string
+    success: boolean
+    isDirty?: boolean
+    error?: string
+}
+
+export interface RepositoryBranchCheckedOutPayload {
+    requestId: string
+    success: boolean
+    repositoryId?: string
+    branchName?: string
+    action?: 'switched' | 'fetched' | 'created'
+    error?: string
+}
+
+export interface RepositoryBranchDeletedPayload {
+    requestId: string
+    success: boolean
+    branchName?: string
+    error?: string
+}

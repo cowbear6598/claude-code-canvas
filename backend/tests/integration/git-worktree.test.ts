@@ -83,4 +83,66 @@ describe('Git Worktree 操作', () => {
       expect(result.error).toBe('刪除分支失敗');
     });
   });
+
+  describe('取得 Worktree 分支', () => {
+    it('success_when_get_worktree_branches', async () => {
+      const branchName = `worktree-branch-${uuidv4()}`;
+      const worktreePath = `${testWorktreePath}-${uuidv4()}`;
+
+      await gitService.createWorktree(testRepoPath, worktreePath, branchName);
+
+      const result = await gitService.getWorktreeBranches(testRepoPath);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toContain(branchName);
+
+      await gitService.removeWorktree(testRepoPath, worktreePath);
+    });
+
+    it('success_when_no_worktrees', async () => {
+      const emptyRepoId = `empty-repo-${uuidv4()}`;
+      const emptyRepoPath = path.join(config.repositoriesRoot, emptyRepoId);
+
+      await fs.mkdir(emptyRepoPath, { recursive: true });
+      execSync(`git init "${emptyRepoPath}"`, { encoding: 'utf-8' });
+      execSync(`git -C "${emptyRepoPath}" config user.email "test@example.com"`, { encoding: 'utf-8' });
+      execSync(`git -C "${emptyRepoPath}" config user.name "Test User"`, { encoding: 'utf-8' });
+      execSync(`echo "test" > "${emptyRepoPath}/README.md"`, { encoding: 'utf-8', shell: '/bin/bash' });
+      execSync(`git -C "${emptyRepoPath}" add .`, { encoding: 'utf-8' });
+      execSync(`git -C "${emptyRepoPath}" commit -m "Initial commit"`, { encoding: 'utf-8' });
+
+      const result = await gitService.getWorktreeBranches(emptyRepoPath);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(0);
+
+      await fs.rm(emptyRepoPath, { recursive: true, force: true });
+    });
+  });
+
+  describe('取得本地分支（包含 Worktree 資訊）', () => {
+    it('success_when_get_local_branches_with_worktree', async () => {
+      const branchName = `feature-${uuidv4()}`;
+      const worktreePath = `${testWorktreePath}-${uuidv4()}`;
+
+      await gitService.createWorktree(testRepoPath, worktreePath, branchName);
+
+      const result = await gitService.getLocalBranches(testRepoPath);
+
+      expect(result.success).toBe(true);
+      expect(result.data!.branches).toContain(branchName);
+      expect(result.data!.worktreeBranches).toContain(branchName);
+
+      await gitService.removeWorktree(testRepoPath, worktreePath);
+    });
+
+    it('success_when_get_local_branches_without_worktree', async () => {
+      const result = await gitService.getLocalBranches(testRepoPath);
+
+      expect(result.success).toBe(true);
+      expect(result.data!.branches).toBeDefined();
+      expect(result.data!.current).toBeDefined();
+      expect(result.data!.worktreeBranches).toBeDefined();
+    });
+  });
 });

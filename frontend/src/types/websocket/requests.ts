@@ -252,3 +252,31 @@ export interface RepositoryWorktreeCreatePayload {
   repositoryId: string
   worktreeName: string
 }
+
+export interface RepositoryGetLocalBranchesPayload {
+  requestId: string
+  canvasId: string
+  repositoryId: string
+}
+
+export interface RepositoryCheckDirtyPayload {
+  requestId: string
+  canvasId: string
+  repositoryId: string
+}
+
+export interface RepositoryCheckoutBranchPayload {
+  requestId: string
+  canvasId: string
+  repositoryId: string
+  branchName: string
+  force: boolean
+}
+
+export interface RepositoryDeleteBranchPayload {
+  requestId: string
+  canvasId: string
+  repositoryId: string
+  branchName: string
+  force: boolean
+}
