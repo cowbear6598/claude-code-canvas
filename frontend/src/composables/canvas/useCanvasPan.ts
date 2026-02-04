@@ -1,12 +1,18 @@
 import { ref, onUnmounted } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
 
+// 最小拖曳距離閾值（像素）
+const MIN_PAN_DISTANCE = 3
+
 export function useCanvasPan(): {
   isPanning: import('vue').Ref<boolean>
+  hasPanned: import('vue').Ref<boolean>
   startPan: (e: MouseEvent) => void
+  resetPanState: () => void
 } {
   const { viewportStore } = useCanvasContext()
   const isPanning = ref(false)
+  const hasPanned = ref(false)
 
   let startX = 0
   let startY = 0
@@ -24,6 +30,7 @@ export function useCanvasPan(): {
       target.classList.contains('canvas-content')
     ) {
       isPanning.value = true
+      hasPanned.value = false // 重置拖曳狀態
       startX = e.clientX
       startY = e.clientY
       startOffsetX = viewportStore.offset.x
@@ -40,6 +47,11 @@ export function useCanvasPan(): {
     const dx = e.clientX - startX
     const dy = e.clientY - startY
 
+    // 檢查滑鼠移動距離是否超過閾值
+    if (!hasPanned.value && (Math.abs(dx) > MIN_PAN_DISTANCE || Math.abs(dy) > MIN_PAN_DISTANCE)) {
+      hasPanned.value = true
+    }
+
     viewportStore.setOffset(startOffsetX + dx, startOffsetY + dy)
   }
 
@@ -47,6 +59,11 @@ export function useCanvasPan(): {
     isPanning.value = false
     document.removeEventListener('mousemove', onPanMove)
     document.removeEventListener('mouseup', stopPan)
+    // 注意：不在這裡重置 hasPanned，讓 contextmenu 事件可以讀取
+  }
+
+  const resetPanState = (): void => {
+    hasPanned.value = false
   }
 
   onUnmounted(() => {
@@ -55,6 +72,8 @@ export function useCanvasPan(): {
 
   return {
     isPanning,
+    hasPanned,
     startPan,
+    resetPanState,
   }
 }
