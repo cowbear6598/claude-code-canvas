@@ -54,6 +54,13 @@ export interface PodDeletedPayload {
   requestId: string;
   success: boolean;
   podId?: string;
+  deletedNoteIds?: {
+    note?: string[];
+    skillNote?: string[];
+    repositoryNote?: string[];
+    commandNote?: string[];
+    subAgentNote?: string[];
+  };
   error?: string;
 }
 

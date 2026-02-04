@@ -535,7 +535,6 @@ const handleClearScheduleFiredAnimation = (): void => {
           <!-- 標題 -->
           <PodHeader
             :name="pod.name"
-            :color="pod.color"
             :is-editing="isEditing"
             @update:name="handleUpdateName"
             @save="handleSaveName"

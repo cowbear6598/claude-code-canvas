@@ -104,23 +104,25 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
     );
   }
 
-  deleteByBoundPodId(canvasId: string, podId: string): number {
+  deleteByBoundPodId(canvasId: string, podId: string): string[] {
     const notesToDelete = this.findByBoundPodId(canvasId, podId);
+    const deletedIds: string[] = [];
 
     const notesMap = this.notesByCanvas.get(canvasId);
     if (!notesMap) {
-      return 0;
+      return deletedIds;
     }
 
     for (const note of notesToDelete) {
       notesMap.delete(note.id);
+      deletedIds.push(note.id);
     }
 
-    if (notesToDelete.length > 0) {
+    if (deletedIds.length > 0) {
       this.saveToDiskAsync(canvasId);
     }
 
-    return notesToDelete.length;
+    return deletedIds;
   }
 
   findByForeignKey(canvasId: string, foreignKeyValue: string): T[] {

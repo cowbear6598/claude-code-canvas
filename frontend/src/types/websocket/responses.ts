@@ -57,6 +57,13 @@ export interface PodDeletedPayload {
     success: boolean
     podId?: string
     error?: string
+    deletedNoteIds?: {
+        note?: string[]
+        skillNote?: string[]
+        repositoryNote?: string[]
+        commandNote?: string[]
+        subAgentNote?: string[]
+    }
 }
 
 export interface PodChatMessagePayload {

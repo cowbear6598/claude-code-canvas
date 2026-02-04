@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
-import type { PodColor } from '@/types'
-import { COLOR_MAP, MAX_POD_NAME_LENGTH } from '@/lib/constants'
+import { MAX_POD_NAME_LENGTH } from '@/lib/constants'
 import { Pencil } from 'lucide-vue-next'
 
 const props = defineProps<{
   name: string
-  color: PodColor
   isEditing: boolean
 }>()
 
@@ -46,9 +44,6 @@ const handleSave = (): void => {
   <div>
     <!-- 標題行 -->
     <div class="flex items-center gap-2 mb-2">
-      <div
-        :class="['w-3 h-3 rounded-full border border-doodle-ink/50', COLOR_MAP[color]]"
-      />
       <input
         v-if="isEditing"
         ref="inputRef"

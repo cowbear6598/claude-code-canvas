@@ -30,6 +30,11 @@ import type {
 } from '@/types/websocket'
 import {useConnectionStore} from '@/stores/connectionStore'
 import {useCanvasStore} from '@/stores/canvasStore'
+import {useOutputStyleStore} from '@/stores/note/outputStyleStore'
+import {useSkillStore} from '@/stores/note/skillStore'
+import {useRepositoryStore} from '@/stores/note/repositoryStore'
+import {useCommandStore} from '@/stores/note/commandStore'
+import {useSubAgentStore} from '@/stores/note/subAgentStore'
 
 const MAX_COORD = 100000
 
@@ -168,7 +173,7 @@ export const usePodStore = defineStore('pod', {
         async deletePodWithBackend(id: string): Promise<void> {
             const canvasStore = useCanvasStore()
 
-            await createWebSocketRequest<PodDeletePayload, PodDeletedPayload>({
+            const response = await createWebSocketRequest<PodDeletePayload, PodDeletedPayload>({
                 requestEvent: WebSocketRequestEvents.POD_DELETE,
                 responseEvent: WebSocketResponseEvents.POD_DELETED,
                 payload: {
@@ -176,6 +181,36 @@ export const usePodStore = defineStore('pod', {
                     podId: id
                 }
             })
+
+            // 處理 deletedNoteIds
+            if (response.deletedNoteIds) {
+                const {note, skillNote, repositoryNote, commandNote, subAgentNote} = response.deletedNoteIds
+
+                if (note && note.length > 0) {
+                    const outputStyleStore = useOutputStyleStore()
+                    note.forEach(noteId => outputStyleStore.removeNoteFromBroadcast(noteId))
+                }
+
+                if (skillNote && skillNote.length > 0) {
+                    const skillStore = useSkillStore()
+                    skillNote.forEach(noteId => skillStore.removeNoteFromBroadcast(noteId))
+                }
+
+                if (repositoryNote && repositoryNote.length > 0) {
+                    const repositoryStore = useRepositoryStore()
+                    repositoryNote.forEach(noteId => repositoryStore.removeNoteFromBroadcast(noteId))
+                }
+
+                if (commandNote && commandNote.length > 0) {
+                    const commandStore = useCommandStore()
+                    commandNote.forEach(noteId => commandStore.removeNoteFromBroadcast(noteId))
+                }
+
+                if (subAgentNote && subAgentNote.length > 0) {
+                    const subAgentStore = useSubAgentStore()
+                    subAgentNote.forEach(noteId => subAgentStore.removeNoteFromBroadcast(noteId))
+                }
+            }
 
             websocketClient.emit<PodLeavePayload>(WebSocketRequestEvents.POD_LEAVE, {
                 canvasId: canvasStore.activeCanvasId!,

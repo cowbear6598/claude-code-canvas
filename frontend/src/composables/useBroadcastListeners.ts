@@ -108,6 +108,35 @@ const handleBroadcastPodScheduleSet = createCanvasHandler<BroadcastPodScheduleSe
 
 const handleBroadcastPodDeleted = createCanvasHandler<BroadcastPodDeletedPayload>((payload) => {
   usePodStore().removePodFromBroadcast(payload.podId)
+
+  if (payload.deletedNoteIds) {
+    const {note, skillNote, repositoryNote, commandNote, subAgentNote} = payload.deletedNoteIds
+
+    if (note && note.length > 0) {
+      const outputStyleStore = useOutputStyleStore()
+      note.forEach(noteId => outputStyleStore.removeNoteFromBroadcast(noteId))
+    }
+
+    if (skillNote && skillNote.length > 0) {
+      const skillStore = useSkillStore()
+      skillNote.forEach(noteId => skillStore.removeNoteFromBroadcast(noteId))
+    }
+
+    if (repositoryNote && repositoryNote.length > 0) {
+      const repositoryStore = useRepositoryStore()
+      repositoryNote.forEach(noteId => repositoryStore.removeNoteFromBroadcast(noteId))
+    }
+
+    if (commandNote && commandNote.length > 0) {
+      const commandStore = useCommandStore()
+      commandNote.forEach(noteId => commandStore.removeNoteFromBroadcast(noteId))
+    }
+
+    if (subAgentNote && subAgentNote.length > 0) {
+      const subAgentStore = useSubAgentStore()
+      subAgentNote.forEach(noteId => subAgentStore.removeNoteFromBroadcast(noteId))
+    }
+  }
 })
 
 const handleBroadcastConnectionCreated = createCanvasHandler<BroadcastConnectionCreatedPayload>((payload) => {

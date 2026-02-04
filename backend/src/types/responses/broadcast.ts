@@ -40,6 +40,13 @@ export interface BroadcastPodScheduleSetPayload {
 export interface BroadcastPodDeletedPayload {
   canvasId: string;
   podId: string;
+  deletedNoteIds?: {
+    note?: string[];
+    skillNote?: string[];
+    repositoryNote?: string[];
+    commandNote?: string[];
+    subAgentNote?: string[];
+  };
 }
 
 export interface BroadcastConnectionCreatedPayload {

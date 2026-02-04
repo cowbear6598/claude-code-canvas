@@ -136,11 +136,11 @@ export const handlePodDelete = withCanvasId<PodDeletePayload>(
         logger.error('Pod', 'Delete', `Failed to delete workspace for Pod ${podId}`, deleteResult.error);
     }
 
-    noteStore.deleteByBoundPodId(canvasId, podId);
-    skillNoteStore.deleteByBoundPodId(canvasId, podId);
-    repositoryNoteStore.deleteByBoundPodId(canvasId, podId);
-    commandNoteStore.deleteByBoundPodId(canvasId, podId);
-    subAgentNoteStore.deleteByBoundPodId(canvasId, podId);
+    const deletedNoteIds = noteStore.deleteByBoundPodId(canvasId, podId);
+    const deletedSkillNoteIds = skillNoteStore.deleteByBoundPodId(canvasId, podId);
+    const deletedRepositoryNoteIds = repositoryNoteStore.deleteByBoundPodId(canvasId, podId);
+    const deletedCommandNoteIds = commandNoteStore.deleteByBoundPodId(canvasId, podId);
+    const deletedSubAgentNoteIds = subAgentNoteStore.deleteByBoundPodId(canvasId, podId);
     connectionStore.deleteByPodId(canvasId, podId);
 
     const repositoryId = pod.repositoryId;
@@ -167,10 +167,28 @@ export const handlePodDelete = withCanvasId<PodDeletePayload>(
         return;
     }
 
+    const deletedNoteIdsPayload: BroadcastPodDeletedPayload['deletedNoteIds'] = {};
+    if (deletedNoteIds.length > 0) {
+        deletedNoteIdsPayload.note = deletedNoteIds;
+    }
+    if (deletedSkillNoteIds.length > 0) {
+        deletedNoteIdsPayload.skillNote = deletedSkillNoteIds;
+    }
+    if (deletedRepositoryNoteIds.length > 0) {
+        deletedNoteIdsPayload.repositoryNote = deletedRepositoryNoteIds;
+    }
+    if (deletedCommandNoteIds.length > 0) {
+        deletedNoteIdsPayload.commandNote = deletedCommandNoteIds;
+    }
+    if (deletedSubAgentNoteIds.length > 0) {
+        deletedNoteIdsPayload.subAgentNote = deletedSubAgentNoteIds;
+    }
+
     const response: PodDeletedPayload = {
         requestId,
         success: true,
         podId,
+        ...(Object.keys(deletedNoteIdsPayload).length > 0 && { deletedNoteIds: deletedNoteIdsPayload }),
     };
 
     socketService.emitPodDeletedBroadcast(podId, response);
@@ -180,6 +198,7 @@ export const handlePodDelete = withCanvasId<PodDeletePayload>(
     const broadcastPayload: BroadcastPodDeletedPayload = {
         canvasId,
         podId,
+        ...(Object.keys(deletedNoteIdsPayload).length > 0 && { deletedNoteIds: deletedNoteIdsPayload }),
     };
         socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_DELETED, broadcastPayload);
 
