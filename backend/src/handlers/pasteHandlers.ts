@@ -3,11 +3,9 @@ import { WebSocketResponseEvents } from '../schemas/index.js';
 import type {
   CanvasPasteResultPayload,
   PasteError,
-  BroadcastCanvasPastedPayload,
 } from '../types/index.js';
 import type { CanvasPastePayload } from '../schemas/index.js';
 import { socketService } from '../services/socketService.js';
-import { emitSuccess } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { withCanvasId } from '../utils/handlerHelpers.js';
 import {
@@ -80,24 +78,12 @@ export const handleCanvasPaste = withCanvasId<CanvasPastePayload>(
     response.error = `貼上完成，但有 ${errors.length} 個錯誤`;
   }
 
-  emitSuccess(socket, WebSocketResponseEvents.CANVAS_PASTE_RESULT, response);
+  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.CANVAS_PASTE_RESULT, response);
 
-  const broadcastPayload: BroadcastCanvasPastedPayload = {
-    canvasId,
-    createdPods,
-    createdOutputStyleNotes,
-    createdSkillNotes,
-    createdRepositoryNotes,
-    createdSubAgentNotes,
-    createdCommandNotes,
-    createdConnections,
-  };
-  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CANVAS_PASTED, broadcastPayload);
-
-    logger.log(
-      'Paste',
-      'Complete',
-      `Paste completed: ${createdPods.length} pods, ${createdOutputStyleNotes.length} output style notes, ${createdSkillNotes.length} skill notes, ${createdRepositoryNotes.length} repository notes, ${createdSubAgentNotes.length} subagent notes, ${createdCommandNotes.length} command notes, ${createdConnections.length} connections, ${errors.length} errors`
-    );
+  logger.log(
+    'Paste',
+    'Complete',
+    `Paste completed: ${createdPods.length} pods, ${createdOutputStyleNotes.length} output style notes, ${createdSkillNotes.length} skill notes, ${createdRepositoryNotes.length} repository notes, ${createdSubAgentNotes.length} subagent notes, ${createdCommandNotes.length} command notes, ${createdConnections.length} connections, ${errors.length} errors`
+  );
   }
 );

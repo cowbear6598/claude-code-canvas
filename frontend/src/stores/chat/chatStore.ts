@@ -202,7 +202,7 @@ export const useChatStore = defineStore('chat', {
                 displayMessage = finalMessage
             }
 
-            this.addUserMessage(podId, displayMessage)
+            // 統一事件監聽器會處理用戶訊息的添加，這裡不需要手動添加
 
             const {useCanvasStore} = await import('../canvasStore')
             const canvasStore = useCanvasStore()

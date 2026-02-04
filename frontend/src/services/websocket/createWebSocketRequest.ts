@@ -17,6 +17,82 @@ interface WebSocketResponse {
   error?: string
 }
 
+export interface PendingRequest<T = unknown> {
+  requestId: string
+  resolve: (data: T) => void
+  reject: (error: Error) => void
+  timeoutId: ReturnType<typeof setTimeout>
+  responseEvent: string
+  timestamp: number
+}
+
+const pendingRequests = new Map<string, PendingRequest>()
+
+export function addPendingRequest<T>(
+  requestId: string,
+  resolve: (data: T) => void,
+  reject: (error: Error) => void,
+  timeout: number,
+  responseEvent: string
+): void {
+  const timeoutId = setTimeout(() => {
+    removePendingRequest(requestId)
+    reject(new Error(`Request timeout: ${responseEvent}`))
+  }, timeout)
+
+  pendingRequests.set(requestId, {
+    requestId,
+    resolve: resolve as (data: unknown) => void,
+    reject,
+    timeoutId,
+    responseEvent,
+    timestamp: Date.now()
+  })
+}
+
+export function removePendingRequest(requestId: string): void {
+  const request = pendingRequests.get(requestId)
+  if (request) {
+    clearTimeout(request.timeoutId)
+    pendingRequests.delete(requestId)
+  }
+}
+
+export function tryResolvePendingRequest(requestId: string, data: unknown): boolean {
+  const request = pendingRequests.get(requestId)
+  if (request) {
+    clearTimeout(request.timeoutId)
+    pendingRequests.delete(requestId)
+    request.resolve(data)
+    return true
+  }
+  return false
+}
+
+export function tryRejectPendingRequest(requestId: string, error: Error): boolean {
+  const request = pendingRequests.get(requestId)
+  if (request) {
+    clearTimeout(request.timeoutId)
+    pendingRequests.delete(requestId)
+    request.reject(error)
+    return true
+  }
+  return false
+}
+
+export function hasPendingRequest(requestId: string): boolean {
+  return pendingRequests.has(requestId)
+}
+
+export function clearAllPendingRequests(reason: string): void {
+  const error = new Error(reason)
+  for (const request of pendingRequests.values()) {
+    clearTimeout(request.timeoutId)
+    request.reject(error)
+  }
+  pendingRequests.clear()
+}
+
 export async function createWebSocketRequest<TPayload extends { requestId: string }, TResult>(
   config: WebSocketRequestConfig<TPayload, TResult>
 ): Promise<TResult> {

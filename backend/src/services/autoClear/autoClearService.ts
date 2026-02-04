@@ -108,14 +108,13 @@ class AutoClearService {
             }
 
             const payload = {
+                canvasId,
                 sourcePodId,
                 clearedPodIds: result.clearedPodIds,
                 clearedPodNames: result.clearedPodNames,
             };
 
-            for (const podId of result.clearedPodIds) {
-                socketService.emitToPod(podId, WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, payload);
-            }
+            socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, payload);
 
             logger.log('AutoClear', 'Complete', `Successfully cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`);
         } catch (error) {

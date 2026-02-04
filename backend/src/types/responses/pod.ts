@@ -3,6 +3,7 @@ import type { MessageRole } from '../message.js';
 
 export interface PodCreatedPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -24,6 +25,7 @@ export interface PodGetResultPayload {
 
 export interface PodMovedPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -31,6 +33,7 @@ export interface PodMovedPayload {
 
 export interface PodRenamedPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -38,6 +41,7 @@ export interface PodRenamedPayload {
 
 export interface PodModelSetPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -45,6 +49,7 @@ export interface PodModelSetPayload {
 
 export interface PodScheduleSetPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -52,6 +57,7 @@ export interface PodScheduleSetPayload {
 
 export interface PodDeletedPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   podId?: string;
   deletedNoteIds?: {
@@ -65,6 +71,7 @@ export interface PodDeletedPayload {
 }
 
 export interface PodChatMessagePayload {
+  canvasId: string;
   podId: string;
   messageId: string;
   content: string;
@@ -73,6 +80,7 @@ export interface PodChatMessagePayload {
 }
 
 export interface PodChatToolUsePayload {
+  canvasId: string;
   podId: string;
   messageId: string;
   toolUseId: string;
@@ -81,6 +89,7 @@ export interface PodChatToolUsePayload {
 }
 
 export interface PodChatToolResultPayload {
+  canvasId: string;
   podId: string;
   messageId: string;
   toolUseId: string;
@@ -89,6 +98,7 @@ export interface PodChatToolResultPayload {
 }
 
 export interface PodChatCompletePayload {
+  canvasId: string;
   podId: string;
   messageId: string;
   fullContent: string;
@@ -139,6 +149,7 @@ export interface PodErrorPayload {
 
 export interface PodOutputStyleBoundPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -146,6 +157,7 @@ export interface PodOutputStyleBoundPayload {
 
 export interface PodOutputStyleUnboundPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -153,6 +165,7 @@ export interface PodOutputStyleUnboundPayload {
 
 export interface PodSkillBoundPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -160,6 +173,7 @@ export interface PodSkillBoundPayload {
 
 export interface PodRepositoryBoundPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -167,6 +181,7 @@ export interface PodRepositoryBoundPayload {
 
 export interface PodRepositoryUnboundPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -174,6 +189,7 @@ export interface PodRepositoryUnboundPayload {
 
 export interface PodSubAgentBoundPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -181,6 +197,7 @@ export interface PodSubAgentBoundPayload {
 
 export interface PodAutoClearSetPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -188,6 +205,7 @@ export interface PodAutoClearSetPayload {
 
 export interface PodCommandBoundPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;
@@ -195,6 +213,7 @@ export interface PodCommandBoundPayload {
 
 export interface PodCommandUnboundPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   pod?: Pod;
   error?: string;

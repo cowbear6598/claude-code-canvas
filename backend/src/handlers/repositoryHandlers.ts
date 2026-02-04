@@ -13,10 +13,6 @@ import type {
   RepositoryDirtyCheckResultPayload,
   RepositoryBranchCheckedOutPayload,
   RepositoryBranchDeletedPayload,
-  BroadcastRepositoryCreatedPayload,
-  BroadcastPodRepositoryBoundPayload,
-  BroadcastPodRepositoryUnboundPayload,
-  BroadcastRepositoryBranchChangedPayload,
 } from '../types/index.js';
 import type {
   RepositoryListPayload,
@@ -45,7 +41,7 @@ import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { clearPodMessages } from './repository/repositoryBindHelpers.js';
 import { logger } from '../utils/logger.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';
-import { validatePod, handleResourceDelete, getCanvasId, withCanvasId } from '../utils/handlerHelpers.js';
+import { validatePod, handleResourceDelete, withCanvasId } from '../utils/handlerHelpers.js';
 import { throttle } from '../utils/throttle.js';
 import { fileExists } from '../services/shared/fileResourceHelpers.js';
 import { isPathWithinDirectory } from '../utils/pathValidator.js';
@@ -59,11 +55,6 @@ const repositoryNoteHandlers = createNoteHandlers({
     listResult: WebSocketResponseEvents.REPOSITORY_NOTE_LIST_RESULT,
     updated: WebSocketResponseEvents.REPOSITORY_NOTE_UPDATED,
     deleted: WebSocketResponseEvents.REPOSITORY_NOTE_DELETED,
-  },
-  broadcastEvents: {
-    created: WebSocketResponseEvents.BROADCAST_REPOSITORY_NOTE_CREATED,
-    updated: WebSocketResponseEvents.BROADCAST_REPOSITORY_NOTE_UPDATED,
-    deleted: WebSocketResponseEvents.BROADCAST_REPOSITORY_NOTE_DELETED,
   },
   foreignKeyField: 'repositoryId',
   entityName: 'Repository',
@@ -142,16 +133,7 @@ export async function handleRepositoryCreate(
     repository,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_CREATED, response);
-
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.REPOSITORY_CREATED, requestId);
-  if (canvasId) {
-    const broadcastPayload: BroadcastRepositoryCreatedPayload = {
-      canvasId,
-      repository,
-    };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_REPOSITORY_CREATED, broadcastPayload);
-  }
+  socketService.emitToAll(WebSocketResponseEvents.REPOSITORY_CREATED, response);
 
   logger.log('Repository', 'Create', `Created repository ${repository.id}`);
 }
@@ -215,19 +197,14 @@ export const handlePodBindRepository = withCanvasId<PodBindRepositoryPayload>(
 
   const response: PodRepositoryBoundPayload = {
     requestId,
+    canvasId,
     success: true,
     pod: updatedPod,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.POD_REPOSITORY_BOUND, response);
+  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_REPOSITORY_BOUND, response);
 
-  const broadcastPayload: BroadcastPodRepositoryBoundPayload = {
-    canvasId,
-    pod: updatedPod!,
-  };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_REPOSITORY_BOUND, broadcastPayload);
-
-    logger.log('Repository', 'Bind', `Bound repository ${repositoryId} to Pod ${podId}`);
+  logger.log('Repository', 'Bind', `Bound repository ${repositoryId} to Pod ${podId}`);
   }
 );
 
@@ -280,19 +257,14 @@ export const handlePodUnbindRepository = withCanvasId<PodUnbindRepositoryPayload
 
   const response: PodRepositoryUnboundPayload = {
     requestId,
+    canvasId,
     success: true,
     pod: updatedPod,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, response);
+  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, response);
 
-  const broadcastPayload: BroadcastPodRepositoryUnboundPayload = {
-    canvasId,
-    pod: updatedPod!,
-  };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_REPOSITORY_UNBOUND, broadcastPayload);
-
-    logger.log('Repository', 'Unbind', `Unbound repository from Pod ${podId}`);
+  logger.log('Repository', 'Unbind', `Unbound repository from Pod ${podId}`);
   }
 );
 
@@ -311,7 +283,6 @@ export async function handleRepositoryDelete(
     resourceId: repositoryId,
     resourceName: 'Repository',
     responseEvent: WebSocketResponseEvents.REPOSITORY_DELETED,
-    broadcastEvent: WebSocketResponseEvents.BROADCAST_REPOSITORY_DELETED,
     existsCheck: () => repositoryService.exists(repositoryId),
     findPodsUsing: (canvasId: string) => podStore.findByRepositoryId(canvasId, repositoryId),
     deleteNotes: (canvasId: string) => repositoryNoteStore.deleteByForeignKey(canvasId, repositoryId),
@@ -668,16 +639,7 @@ export async function handleRepositoryWorktreeCreate(
     repository,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED, response);
-
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED, requestId);
-  if (canvasId) {
-    const broadcastPayload: BroadcastRepositoryCreatedPayload = {
-      canvasId,
-      repository,
-    };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_REPOSITORY_CREATED, broadcastPayload);
-  }
+  socketService.emitToAll(WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED, response);
 
   logger.log('Repository', 'Create', `Created worktree ${newRepositoryId} from ${repositoryId}`);
 }
@@ -822,17 +784,7 @@ export async function handleRepositoryCheckoutBranch(
     action,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, response);
-
-  const canvasId = getCanvasId(socket, WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, requestId);
-  if (canvasId) {
-    const broadcastPayload: BroadcastRepositoryBranchChangedPayload = {
-      canvasId,
-      repositoryId,
-      branchName,
-    };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_REPOSITORY_BRANCH_CHANGED, broadcastPayload);
-  }
+  socketService.emitToAll(WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, response);
 
   logger.log('Repository', 'Update', `Checked out branch ${branchName} for ${repositoryId} (${action})`);
 }

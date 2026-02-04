@@ -2,7 +2,7 @@ import type { Socket } from 'socket.io';
 import type { GenericNoteStore, BaseNote } from '../../services/GenericNoteStore.js';
 import type { WebSocketResponseEvents } from '../../schemas/index.js';
 import { socketService } from '../../services/socketService.js';
-import { emitSuccess, emitError } from '../../utils/websocketResponse.js';
+import { emitError } from '../../utils/websocketResponse.js';
 import { logger } from '../../utils/logger.js';
 import { withCanvasId } from '../../utils/handlerHelpers.js';
 
@@ -11,11 +11,6 @@ interface NoteHandlerConfig<TNote extends BaseNote> {
   events: {
     created: WebSocketResponseEvents;
     listResult: WebSocketResponseEvents;
-    updated: WebSocketResponseEvents;
-    deleted: WebSocketResponseEvents;
-  };
-  broadcastEvents: {
-    created: WebSocketResponseEvents;
     updated: WebSocketResponseEvents;
     deleted: WebSocketResponseEvents;
   };
@@ -51,6 +46,7 @@ export interface DeleteNotePayload {
 
 interface BaseNoteResponse {
   requestId: string;
+  canvasId: string;
   success: true;
 }
 
@@ -63,7 +59,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
   handleNoteUpdate: (socket: Socket, payload: UpdateNotePayload, requestId: string) => Promise<void>;
   handleNoteDelete: (socket: Socket, payload: DeleteNotePayload, requestId: string) => Promise<void>;
 } {
-  const { noteStore, events, broadcastEvents, foreignKeyField, entityName } = config;
+  const { noteStore, events, foreignKeyField, entityName } = config;
 
   const handleNoteCreate = withCanvasId<CreateNotePayload>(
     events.created,
@@ -99,17 +95,12 @@ export function createNoteHandlers<TNote extends BaseNote>(
 
       const response: BaseNoteResponse & { note: TNote } = {
         requestId,
+        canvasId,
         success: true,
         note,
       };
 
-      emitSuccess(socket, events.created, response);
-
-      const broadcastPayload = {
-        canvasId,
-        note,
-      };
-      socketService.broadcastToCanvas(socket.id, canvasId, broadcastEvents.created, broadcastPayload);
+      socketService.emitToCanvas(canvasId, events.created, response);
 
       if (entityName === 'OutputStyle') {
         logger.log('Note', 'Create', `Created note ${note.id} (${note.name})`);
@@ -124,11 +115,12 @@ export function createNoteHandlers<TNote extends BaseNote>(
 
       const response: BaseNoteResponse & { notes: TNote[] } = {
         requestId,
+        canvasId,
         success: true,
         notes,
       };
 
-      emitSuccess(socket, events.listResult, response);
+      socket.emit(events.listResult, response);
     }
   );
 
@@ -172,17 +164,12 @@ export function createNoteHandlers<TNote extends BaseNote>(
 
       const response: BaseNoteResponse & { note: TNote } = {
         requestId,
+        canvasId,
         success: true,
         note: updatedNote,
       };
 
-      emitSuccess(socket, events.updated, response);
-
-      const broadcastPayload = {
-        canvasId,
-        note: updatedNote,
-      };
-      socketService.broadcastToCanvas(socket.id, canvasId, broadcastEvents.updated, broadcastPayload);
+      socketService.emitToCanvas(canvasId, events.updated, response);
     }
   );
 
@@ -220,17 +207,12 @@ export function createNoteHandlers<TNote extends BaseNote>(
 
       const response: BaseNoteResponse & { noteId: string } = {
         requestId,
+        canvasId,
         success: true,
         noteId,
       };
 
-      emitSuccess(socket, events.deleted, response);
-
-      const broadcastPayload = {
-        canvasId,
-        noteId,
-      };
-      socketService.broadcastToCanvas(socket.id, canvasId, broadcastEvents.deleted, broadcastPayload);
+      socketService.emitToCanvas(canvasId, events.deleted, response);
 
       if (entityName === 'OutputStyle') {
         logger.log('Note', 'Delete', `Deleted note ${noteId}`);

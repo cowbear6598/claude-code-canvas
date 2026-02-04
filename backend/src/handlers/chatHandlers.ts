@@ -78,9 +78,11 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
     };
 
     const userDisplayContent = extractDisplayContent(message);
-    socket.to(`pod:${podId}`).emit(
-        WebSocketResponseEvents.BROADCAST_POD_CHAT_USER_MESSAGE,
+    socketService.emitToCanvas(
+        canvasId,
+        WebSocketResponseEvents.POD_CHAT_USER_MESSAGE,
         {
+            canvasId,
             podId,
             messageId: uuidv4(),
             content: userDisplayContent,
@@ -95,14 +97,15 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
                 currentSubContent += event.content;
 
                 const textPayload: PodChatMessagePayload = {
+                    canvasId,
                     podId,
                     messageId,
                     content: accumulatedContent,
                     isPartial: true,
                     role: 'assistant',
                 };
-                socketService.emitToPod(
-                    podId,
+                socketService.emitToCanvas(
+                    canvasId,
                     WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE,
                     textPayload
                 );
@@ -119,14 +122,15 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
                 flushCurrentSubMessage();
 
                 const toolUsePayload: PodChatToolUsePayload = {
+                    canvasId,
                     podId,
                     messageId,
                     toolUseId: event.toolUseId,
                     toolName: event.toolName,
                     input: event.input,
                 };
-                socketService.emitToPod(
-                    podId,
+                socketService.emitToCanvas(
+                    canvasId,
                     WebSocketResponseEvents.POD_CHAT_TOOL_USE,
                     toolUsePayload
                 );
@@ -149,14 +153,15 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
                 }
 
                 const toolResultPayload: PodChatToolResultPayload = {
+                    canvasId,
                     podId,
                     messageId,
                     toolUseId: event.toolUseId,
                     toolName: event.toolName,
                     output: event.output,
                 };
-                socketService.emitToPod(
-                    podId,
+                socketService.emitToCanvas(
+                    canvasId,
                     WebSocketResponseEvents.POD_CHAT_TOOL_RESULT,
                     toolResultPayload
                 );
@@ -167,12 +172,13 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
                 flushCurrentSubMessage();
 
                 const completePayload: PodChatCompletePayload = {
+                    canvasId,
                     podId,
                     messageId,
                     fullContent: accumulatedContent,
                 };
-                socketService.emitToPod(
-                    podId,
+                socketService.emitToCanvas(
+                    canvasId,
                     WebSocketResponseEvents.POD_CHAT_COMPLETE,
                     completePayload
                 );

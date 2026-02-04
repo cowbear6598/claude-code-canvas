@@ -23,18 +23,11 @@ import type {
     PodModelSetPayload,
     PodSetSchedulePayload,
     PodScheduleSetPayload,
-    PodJoinPayload,
-    PodLeavePayload,
     PodSetAutoClearPayload,
     PodAutoClearSetPayload
 } from '@/types/websocket'
 import {useConnectionStore} from '@/stores/connectionStore'
 import {useCanvasStore} from '@/stores/canvasStore'
-import {useOutputStyleStore} from '@/stores/note/outputStyleStore'
-import {useSkillStore} from '@/stores/note/skillStore'
-import {useRepositoryStore} from '@/stores/note/repositoryStore'
-import {useCommandStore} from '@/stores/note/commandStore'
-import {useSubAgentStore} from '@/stores/note/subAgentStore'
 
 const MAX_COORD = 100000
 
@@ -161,19 +154,13 @@ export const usePodStore = defineStore('pod', {
                 output: pod.output || [],
             }
 
-            this.addPod(frontendPod)
-            websocketClient.emit<PodJoinPayload>(WebSocketRequestEvents.POD_JOIN, {
-                canvasId: canvasStore.activeCanvasId!,
-                podId: frontendPod.id
-            })
-
             return frontendPod
         },
 
         async deletePodWithBackend(id: string): Promise<void> {
             const canvasStore = useCanvasStore()
 
-            const response = await createWebSocketRequest<PodDeletePayload, PodDeletedPayload>({
+            await createWebSocketRequest<PodDeletePayload, PodDeletedPayload>({
                 requestEvent: WebSocketRequestEvents.POD_DELETE,
                 responseEvent: WebSocketResponseEvents.POD_DELETED,
                 payload: {
@@ -181,42 +168,6 @@ export const usePodStore = defineStore('pod', {
                     podId: id
                 }
             })
-
-            // 處理 deletedNoteIds
-            if (response.deletedNoteIds) {
-                const {note, skillNote, repositoryNote, commandNote, subAgentNote} = response.deletedNoteIds
-
-                if (note && note.length > 0) {
-                    const outputStyleStore = useOutputStyleStore()
-                    note.forEach(noteId => outputStyleStore.removeNoteFromBroadcast(noteId))
-                }
-
-                if (skillNote && skillNote.length > 0) {
-                    const skillStore = useSkillStore()
-                    skillNote.forEach(noteId => skillStore.removeNoteFromBroadcast(noteId))
-                }
-
-                if (repositoryNote && repositoryNote.length > 0) {
-                    const repositoryStore = useRepositoryStore()
-                    repositoryNote.forEach(noteId => repositoryStore.removeNoteFromBroadcast(noteId))
-                }
-
-                if (commandNote && commandNote.length > 0) {
-                    const commandStore = useCommandStore()
-                    commandNote.forEach(noteId => commandStore.removeNoteFromBroadcast(noteId))
-                }
-
-                if (subAgentNote && subAgentNote.length > 0) {
-                    const subAgentStore = useSubAgentStore()
-                    subAgentNote.forEach(noteId => subAgentStore.removeNoteFromBroadcast(noteId))
-                }
-            }
-
-            websocketClient.emit<PodLeavePayload>(WebSocketRequestEvents.POD_LEAVE, {
-                canvasId: canvasStore.activeCanvasId!,
-                podId: id
-            })
-            this.deletePod(id)
         },
 
         syncPodsFromBackend(pods: Pod[]): void {
@@ -294,7 +245,7 @@ export const usePodStore = defineStore('pod', {
                 throw new Error('無法重命名 Pod：沒有啟用的畫布')
             }
 
-            const response = await createWebSocketRequest<PodRenamePayload, PodRenamedPayload>({
+            await createWebSocketRequest<PodRenamePayload, PodRenamedPayload>({
                 requestEvent: WebSocketRequestEvents.POD_RENAME,
                 responseEvent: WebSocketResponseEvents.POD_RENAMED,
                 payload: {
@@ -303,13 +254,6 @@ export const usePodStore = defineStore('pod', {
                     name
                 }
             })
-
-            if (response.success && response.pod) {
-                const pod = this.pods.find((p) => p.id === podId)
-                if (pod) {
-                    pod.name = name
-                }
-            }
         },
 
         async setModelWithBackend(podId: string, model: ModelType): Promise<Pod | null> {
@@ -330,7 +274,6 @@ export const usePodStore = defineStore('pod', {
             })
 
             if (response.success && response.pod) {
-                this.updatePodModel(podId, model)
                 return response.pod
             }
 
@@ -355,10 +298,6 @@ export const usePodStore = defineStore('pod', {
             })
 
             if (response.success && response.pod) {
-                const pod = this.pods.find((p) => p.id === podId)
-                if (pod) {
-                    pod.schedule = schedule
-                }
                 return response.pod
             }
 
@@ -445,28 +384,21 @@ export const usePodStore = defineStore('pod', {
             })
 
             if (response.success && response.pod) {
-                this.updatePodAutoClear(podId, autoClear)
                 return response.pod
             }
 
             return null
         },
 
-        addPodFromBroadcast(pod: Pod): void {
+        addPodFromEvent(pod: Pod): void {
             const enrichedPod = this.enrichPod(pod)
 
             if (!this.isValidPod(enrichedPod)) return
 
             this.pods.push(enrichedPod)
-
-            const canvasStore = useCanvasStore()
-            websocketClient.emit<PodJoinPayload>(WebSocketRequestEvents.POD_JOIN, {
-                canvasId: canvasStore.activeCanvasId!,
-                podId: enrichedPod.id
-            })
         },
 
-        updatePodFromBroadcast(pod: Pod): void {
+        updatePodFromEvent(pod: Pod): void {
             const existingPod = this.pods.find((p) => p.id === pod.id)
             const enrichedPod = this.enrichPod(pod, existingPod?.output)
 
@@ -478,7 +410,7 @@ export const usePodStore = defineStore('pod', {
             }
         },
 
-        removePodFromBroadcast(podId: string): void {
+        removePod(podId: string): void {
             this.pods = this.pods.filter((p) => p.id !== podId)
 
             if (this.selectedPodId === podId) {
@@ -493,7 +425,7 @@ export const usePodStore = defineStore('pod', {
             connectionStore.deleteConnectionsByPodId(podId)
         },
 
-        updatePodPositionFromBroadcast(podId: string, x: number, y: number): void {
+        updatePodPosition(podId: string, x: number, y: number): void {
             const pod = this.pods.find((p) => p.id === podId)
             if (pod) {
                 pod.x = x
@@ -501,21 +433,21 @@ export const usePodStore = defineStore('pod', {
             }
         },
 
-        updatePodNameFromBroadcast(podId: string, name: string): void {
+        updatePodName(podId: string, name: string): void {
             const pod = this.pods.find((p) => p.id === podId)
             if (pod) {
                 pod.name = name
             }
         },
 
-        updatePodModelFromBroadcast(podId: string, model: ModelType): void {
+        updatePodModelFromEvent(podId: string, model: ModelType): void {
             const pod = this.pods.find((p) => p.id === podId)
             if (pod) {
                 pod.model = model
             }
         },
 
-        updatePodScheduleFromBroadcast(podId: string, schedule: Schedule | null): void {
+        updatePodScheduleFromEvent(podId: string, schedule: Schedule | null): void {
             const pod = this.pods.find((p) => p.id === podId)
             if (pod) {
                 pod.schedule = schedule

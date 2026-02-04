@@ -22,11 +22,6 @@ const skillNoteHandlers = createNoteHandlers({
         updated: WebSocketResponseEvents.SKILL_NOTE_UPDATED,
         deleted: WebSocketResponseEvents.SKILL_NOTE_DELETED,
     },
-    broadcastEvents: {
-        created: WebSocketResponseEvents.BROADCAST_SKILL_NOTE_CREATED,
-        updated: WebSocketResponseEvents.BROADCAST_SKILL_NOTE_UPDATED,
-        deleted: WebSocketResponseEvents.BROADCAST_SKILL_NOTE_DELETED,
-    },
     foreignKeyField: 'skillId',
     entityName: 'Skill',
 });
@@ -65,7 +60,6 @@ const skillBindHandler = createBindHandler({
     copyResourceToPod: (skillId, podId, workspacePath) => skillService.copySkillToPod(skillId, podId, workspacePath),
     events: {
         bound: WebSocketResponseEvents.POD_SKILL_BOUND,
-        broadcastBound: WebSocketResponseEvents.BROADCAST_POD_SKILL_BOUND,
     },
 });
 
@@ -90,7 +84,6 @@ export async function handleSkillDelete(
         resourceId: skillId,
         resourceName: 'Skill',
         responseEvent: WebSocketResponseEvents.SKILL_DELETED,
-        broadcastEvent: WebSocketResponseEvents.BROADCAST_SKILL_DELETED,
         existsCheck: () => skillService.exists(skillId),
         findPodsUsing: (canvasId: string) => podStore.findBySkillId(canvasId, skillId),
         deleteNotes: (canvasId: string) => skillNoteStore.deleteByForeignKey(canvasId, skillId),

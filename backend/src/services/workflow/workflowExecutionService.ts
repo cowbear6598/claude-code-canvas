@@ -175,6 +175,7 @@ ${content}
         );
 
         const pendingPayload: WorkflowPendingPayload = {
+          canvasId,
           targetPodId: connection.targetPodId,
           completedSourcePodIds,
           pendingSourcePodIds,
@@ -182,8 +183,8 @@ ${content}
           completedCount: pending.completedSources.size,
         };
 
-        socketService.emitToPod(
-          connection.targetPodId,
+        socketService.emitToCanvas(
+          canvasId,
           WebSocketResponseEvents.WORKFLOW_PENDING,
           pendingPayload
         );
@@ -205,24 +206,17 @@ ${content}
 
       const sourcePodIds = Array.from(completedSummaries.keys());
       const mergedPayload: WorkflowSourcesMergedPayload = {
+        canvasId,
         targetPodId: connection.targetPodId,
         sourcePodIds,
         mergedContentPreview: mergedPreview,
       };
 
-      socketService.emitToPod(
-        connection.targetPodId,
+      socketService.emitToCanvas(
+        canvasId,
         WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED,
         mergedPayload
       );
-
-      for (const sourceId of sourcePodIds) {
-        socketService.emitToPod(
-          sourceId,
-          WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED,
-          mergedPayload
-        );
-      }
 
       this.triggerWorkflowWithSummary(canvasId, connection.id, mergedContent, true).catch((error) => {
         logger.error('Workflow', 'Error', `Failed to trigger merged workflow ${connection.id}`, error);
@@ -274,8 +268,9 @@ ${content}
       isSummarized,
     };
 
-    workflowEventEmitter.emitWorkflowAutoTriggered(sourcePodId, targetPodId, autoTriggeredPayload);
+    workflowEventEmitter.emitWorkflowAutoTriggered(canvasId, sourcePodId, targetPodId, autoTriggeredPayload);
     workflowEventEmitter.emitWorkflowTriggered(
+      canvasId,
       connectionId,
       sourcePodId,
       targetPodId,
@@ -318,8 +313,9 @@ ${content}
       isSummarized,
     };
 
-    workflowEventEmitter.emitWorkflowAutoTriggered(sourcePodId, targetPodId, autoTriggeredPayload);
+    workflowEventEmitter.emitWorkflowAutoTriggered(canvasId, sourcePodId, targetPodId, autoTriggeredPayload);
     workflowEventEmitter.emitWorkflowTriggered(
+      canvasId,
       connectionId,
       sourcePodId,
       targetPodId,
@@ -352,25 +348,27 @@ ${content}
 
     try {
       const userMessagePayload: PodChatMessagePayload = {
+        canvasId,
         podId: targetPodId,
         messageId: userMessageId,
         content: messageToSend,
         isPartial: false,
         role: 'user',
       };
-      socketService.emitToPod(
-        targetPodId,
+      socketService.emitToCanvas(
+        canvasId,
         WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE,
         userMessagePayload
       );
 
       const userCompletePayload: PodChatCompletePayload = {
+        canvasId,
         podId: targetPodId,
         messageId: userMessageId,
         fullContent: messageToSend,
       };
-      socketService.emitToPod(
-        targetPodId,
+      socketService.emitToCanvas(
+        canvasId,
         WebSocketResponseEvents.POD_CHAT_COMPLETE,
         userCompletePayload
       );
@@ -383,14 +381,15 @@ ${content}
             accumulatedContent += event.content;
 
             const textPayload: PodChatMessagePayload = {
+              canvasId,
               podId: targetPodId,
               messageId: assistantMessageId,
               content: accumulatedContent,
               isPartial: true,
               role: 'assistant',
             };
-            socketService.emitToPod(
-              targetPodId,
+            socketService.emitToCanvas(
+              canvasId,
               WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE,
               textPayload
             );
@@ -399,14 +398,15 @@ ${content}
 
           case 'tool_use': {
             const toolUsePayload: PodChatToolUsePayload = {
+              canvasId,
               podId: targetPodId,
               messageId: assistantMessageId,
               toolUseId: event.toolUseId,
               toolName: event.toolName,
               input: event.input,
             };
-            socketService.emitToPod(
-              targetPodId,
+            socketService.emitToCanvas(
+              canvasId,
               WebSocketResponseEvents.POD_CHAT_TOOL_USE,
               toolUsePayload
             );
@@ -415,14 +415,15 @@ ${content}
 
           case 'tool_result': {
             const toolResultPayload: PodChatToolResultPayload = {
+              canvasId,
               podId: targetPodId,
               messageId: assistantMessageId,
               toolUseId: event.toolUseId,
               toolName: event.toolName,
               output: event.output,
             };
-            socketService.emitToPod(
-              targetPodId,
+            socketService.emitToCanvas(
+              canvasId,
               WebSocketResponseEvents.POD_CHAT_TOOL_RESULT,
               toolResultPayload
             );
@@ -431,12 +432,13 @@ ${content}
 
           case 'complete': {
             const completePayload: PodChatCompletePayload = {
+              canvasId,
               podId: targetPodId,
               messageId: assistantMessageId,
               fullContent: accumulatedContent,
             };
-            socketService.emitToPod(
-              targetPodId,
+            socketService.emitToCanvas(
+              canvasId,
               WebSocketResponseEvents.POD_CHAT_COMPLETE,
               completePayload
             );
@@ -457,7 +459,7 @@ ${content}
       podStore.setStatus(canvasId, targetPodId, 'idle');
       podStore.updateLastActive(canvasId, targetPodId);
 
-      workflowEventEmitter.emitWorkflowComplete(connectionId, sourcePodId, targetPodId, true);
+      workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, true);
 
       logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod ${targetPodId}`);
 
@@ -467,6 +469,7 @@ ${content}
 
       const errorMessage = error instanceof Error ? error.message : String(error);
       workflowEventEmitter.emitWorkflowComplete(
+        canvasId,
         connectionId,
         sourcePodId,
         targetPodId,

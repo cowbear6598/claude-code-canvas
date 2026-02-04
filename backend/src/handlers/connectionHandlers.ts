@@ -5,10 +5,7 @@ import type {
   ConnectionListResultPayload,
   ConnectionDeletedPayload,
   ConnectionUpdatedPayload,
-  BroadcastConnectionCreatedPayload,
-  BroadcastConnectionUpdatedPayload,
-  BroadcastConnectionDeletedPayload,
-  BroadcastPodScheduleSetPayload,
+  PodScheduleSetPayload,
 } from '../types/index.js';
 import type {
   ConnectionCreatePayload,
@@ -64,30 +61,24 @@ export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
 
   const response: ConnectionCreatedPayload = {
     requestId,
+    canvasId,
     success: true,
     connection,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.CONNECTION_CREATED, response);
+  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.CONNECTION_CREATED, response);
 
-  const broadcastPayload: BroadcastConnectionCreatedPayload = {
-    canvasId,
-    connection,
-  };
-  socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CONNECTION_CREATED, broadcastPayload);
-
-    // 當 POD 成為下游時，清除其 Schedule（只有 Source POD 才能設定 Schedule）
     if (targetPod.schedule) {
       const updatedPod = podStore.update(canvasId, targetPodId, { schedule: null });
 
       if (updatedPod) {
-        const podBroadcastPayload: BroadcastPodScheduleSetPayload = {
+        const podSchedulePayload: PodScheduleSetPayload = {
+          requestId: '',
           canvasId,
-          podId: targetPodId,
-          schedule: null,
+          success: true,
+          pod: updatedPod,
         };
-        // 使用 emitToCanvas 發送給整個 Canvas room（包含發送者），確保前端狀態同步
-        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.BROADCAST_POD_SCHEDULE_SET, podBroadcastPayload);
+        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_SCHEDULE_SET, podSchedulePayload);
 
         logger.log('Connection', 'Create', `Cleared schedule for target Pod ${targetPodId} (now downstream)`);
       }
@@ -149,19 +140,14 @@ export const handleConnectionDelete = withCanvasId<ConnectionDeletePayload>(
 
   const response: ConnectionDeletedPayload = {
     requestId,
+    canvasId,
     success: true,
     connectionId,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.CONNECTION_DELETED, response);
+  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.CONNECTION_DELETED, response);
 
-  const broadcastPayload: BroadcastConnectionDeletedPayload = {
-    canvasId,
-    connectionId,
-  };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CONNECTION_DELETED, broadcastPayload);
-
-    logger.log('Connection', 'Delete', `Deleted connection ${connectionId}`);
+  logger.log('Connection', 'Delete', `Deleted connection ${connectionId}`);
   }
 );
 
@@ -204,16 +190,11 @@ export const handleConnectionUpdate = withCanvasId<ConnectionUpdatePayload>(
 
   const response: ConnectionUpdatedPayload = {
     requestId,
+    canvasId,
     success: true,
     connection: updatedConnection,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.CONNECTION_UPDATED, response);
-
-    const broadcastPayload: BroadcastConnectionUpdatedPayload = {
-      canvasId,
-      connection: updatedConnection,
-    };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_CONNECTION_UPDATED, broadcastPayload);
+  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.CONNECTION_UPDATED, response);
   }
 );

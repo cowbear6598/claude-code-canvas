@@ -72,18 +72,6 @@ export interface PodChatSendPayload {
   message: string | ContentBlock[]
 }
 
-export interface PodJoinPayload {
-  podId: string
-}
-
-export interface PodLeavePayload {
-  podId: string
-}
-
-export interface PodJoinBatchPayload {
-  podIds: string[]
-}
-
 export interface PodChatHistoryPayload {
   requestId: string
   canvasId: string

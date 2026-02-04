@@ -7,7 +7,6 @@ import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT, PASTE_TIMEOUT_MS } from
 import type {
   CanvasPasteResultPayload,
   CanvasPastePayload,
-  PodJoinBatchPayload,
   SelectableElement,
   CopiedPod,
   CopiedOutputStyleNote,
@@ -472,47 +471,7 @@ export function useCopyPaste(): void {
 
     if (!response) return false
 
-    for (const pod of response.createdPods) {
-      podStore.addPod(pod)
-    }
-
-    const createdPodIds = response.createdPods.map(p => p.id)
-    if (createdPodIds.length > 0) {
-      websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, {
-        canvasId: canvasStore.activeCanvasId!,
-        podIds: createdPodIds
-      })
-    }
-
-    for (const note of response.createdOutputStyleNotes) {
-      outputStyleStore.notes.push(note)
-    }
-
-    for (const note of response.createdSkillNotes) {
-      skillStore.notes.push(note)
-    }
-
-    for (const note of response.createdRepositoryNotes) {
-      repositoryStore.notes.push(note)
-    }
-
-    for (const note of response.createdSubAgentNotes) {
-      subAgentStore.notes.push(note)
-    }
-
-    for (const note of response.createdCommandNotes) {
-      commandStore.notes.push(note)
-    }
-
-    for (const conn of response.createdConnections) {
-      connectionStore.connections.push({
-        ...conn,
-        createdAt: new Date(conn.createdAt),
-        autoTrigger: conn.autoTrigger ?? false,
-        status: 'inactive',
-      })
-    }
-
+    // 統一事件監聽器會處理 Store 更新，這裡只處理選取邏輯
     const newSelectedElements: SelectableElement[] = [
       ...response.createdPods.map(pod => ({ type: 'pod' as const, id: pod.id })),
       ...response.createdOutputStyleNotes

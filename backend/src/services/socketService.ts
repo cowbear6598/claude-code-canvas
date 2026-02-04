@@ -5,12 +5,10 @@ import {logger} from '../utils/logger.js';
 import {WebSocketResponseEvents} from '../schemas/index.js';
 import type {
     ConnectionReadyPayload,
-    PodDeletedPayload,
 } from '../types/index.js';
 
 class SocketService {
     private io: SocketIOServer | null = null;
-    private socketToPodRooms: Map<string, Set<string>> = new Map();
     private socketToCanvasRoom: Map<string, string> = new Map();
     private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
     private socketMissedHeartbeats: Map<string, number> = new Map();
@@ -48,15 +46,6 @@ class SocketService {
         return this.io;
     }
 
-    emitToPod(podId: string, event: string, payload: unknown): void {
-        if (!this.io) {
-            return;
-        }
-
-        const roomName = `pod:${podId}`;
-        this.io.to(roomName).emit(event, payload);
-    }
-
     emitToAll(event: string, payload: unknown): void {
         if (!this.io) {
             return;
@@ -80,53 +69,6 @@ class SocketService {
 
     emitConnectionReady(socketId: string, payload: ConnectionReadyPayload): void {
         this.emitToSocket(socketId, WebSocketResponseEvents.CONNECTION_READY, payload);
-    }
-
-    emitPodDeletedBroadcast(podId: string, payload: PodDeletedPayload): void {
-        this.emitToPod(podId, WebSocketResponseEvents.POD_DELETED, payload);
-    }
-
-    joinPodRoom(socketId: string, podId: string): void {
-        if (!this.io) {
-            return;
-        }
-
-        const socket = this.io.sockets.sockets.get(socketId);
-        if (!socket) {
-            return;
-        }
-
-        const roomName = `pod:${podId}`;
-        socket.join(roomName);
-
-        if (!this.socketToPodRooms.has(socketId)) {
-            this.socketToPodRooms.set(socketId, new Set());
-        }
-        this.socketToPodRooms.get(socketId)!.add(podId);
-    }
-
-    leavePodRoom(socketId: string, podId: string): void {
-        if (!this.io) {
-            return;
-        }
-
-        const socket = this.io.sockets.sockets.get(socketId);
-        if (!socket) {
-            return;
-        }
-
-        const roomName = `pod:${podId}`;
-        socket.leave(roomName);
-
-        const rooms = this.socketToPodRooms.get(socketId);
-        if (!rooms) {
-            return;
-        }
-
-        rooms.delete(podId);
-        if (rooms.size === 0) {
-            this.socketToPodRooms.delete(socketId);
-        }
     }
 
     joinCanvasRoom(socketId: string, canvasId: string): void {
@@ -166,20 +108,6 @@ class SocketService {
         this.socketToCanvasRoom.delete(socketId);
     }
 
-    broadcastToCanvas(socketId: string, canvasId: string, event: string, payload: unknown): void {
-        if (!this.io) {
-            return;
-        }
-
-        const roomName = `canvas:${canvasId}`;
-        const socket = this.io.sockets.sockets.get(socketId);
-        if (!socket) {
-            return;
-        }
-
-        socket.to(roomName).emit(event, payload);
-    }
-
     broadcastToAll(excludeSocketId: string, event: string, payload: unknown): void {
         if (!this.io) {
             return;
@@ -203,10 +131,6 @@ class SocketService {
     }
 
     cleanupSocket(socketId: string): void {
-        this.socketToPodRooms.get(socketId)?.forEach((podId) => {
-            this.leavePodRoom(socketId, podId);
-        });
-        this.socketToPodRooms.delete(socketId);
         this.leaveCanvasRoom(socketId);
         this.socketMissedHeartbeats.delete(socketId);
         this.clearSocketTimeout(socketId);

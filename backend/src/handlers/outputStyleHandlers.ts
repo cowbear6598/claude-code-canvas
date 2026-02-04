@@ -4,8 +4,6 @@ import type {
   OutputStyleListResultPayload,
   PodOutputStyleBoundPayload,
   PodOutputStyleUnboundPayload,
-  BroadcastPodOutputStyleBoundPayload,
-  BroadcastPodOutputStyleUnboundPayload,
 } from '../types/index.js';
 import type {
   OutputStyleListPayload,
@@ -17,7 +15,7 @@ import { outputStyleService } from '../services/outputStyleService.js';
 import { podStore } from '../services/podStore.js';
 import { noteStore } from '../services/noteStores.js';
 import { socketService } from '../services/socketService.js';
-import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { validatePod, handleResourceDelete, withCanvasId } from '../utils/handlerHelpers.js';
 import { createResourceHandlers } from './factories/createResourceHandlers.js';
@@ -29,10 +27,6 @@ const resourceHandlers = createResourceHandlers({
     created: WebSocketResponseEvents.OUTPUT_STYLE_CREATED,
     updated: WebSocketResponseEvents.OUTPUT_STYLE_UPDATED,
     readResult: WebSocketResponseEvents.OUTPUT_STYLE_READ_RESULT,
-  },
-  broadcastEvents: {
-    created: WebSocketResponseEvents.BROADCAST_OUTPUT_STYLE_CREATED,
-    updated: WebSocketResponseEvents.BROADCAST_OUTPUT_STYLE_UPDATED,
   },
   resourceName: 'OutputStyle',
   responseKey: 'outputStyle',
@@ -56,7 +50,7 @@ export async function handleOutputStyleList(
     styles,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT, response);
+  socket.emit(WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT, response);
 }
 
 export const handlePodBindOutputStyle = withCanvasId<PodBindOutputStylePayload>(
@@ -93,19 +87,14 @@ export const handlePodBindOutputStyle = withCanvasId<PodBindOutputStylePayload>(
 
   const response: PodOutputStyleBoundPayload = {
     requestId,
+    canvasId,
     success: true,
     pod: updatedPod,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, response);
+  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, response);
 
-  const broadcastPayload: BroadcastPodOutputStyleBoundPayload = {
-    canvasId,
-    pod: updatedPod,
-  };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_OUTPUT_STYLE_BOUND, broadcastPayload);
-
-    logger.log('OutputStyle', 'Bind', `Bound style ${outputStyleId} to Pod ${podId}`);
+  logger.log('OutputStyle', 'Bind', `Bound style ${outputStyleId} to Pod ${podId}`);
   }
 );
 
@@ -129,19 +118,14 @@ export const handlePodUnbindOutputStyle = withCanvasId<PodUnbindOutputStylePaylo
 
   const response: PodOutputStyleUnboundPayload = {
     requestId,
+    canvasId,
     success: true,
     pod: updatedPod,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, response);
+  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, response);
 
-  const broadcastPayload: BroadcastPodOutputStyleUnboundPayload = {
-    canvasId,
-    pod: updatedPod,
-  };
-    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_OUTPUT_STYLE_UNBOUND, broadcastPayload);
-
-    logger.log('OutputStyle', 'Unbind', `Unbound style from Pod ${podId}`);
+  logger.log('OutputStyle', 'Unbind', `Unbound style from Pod ${podId}`);
   }
 );
 
@@ -158,7 +142,6 @@ export async function handleOutputStyleDelete(
     resourceId: outputStyleId,
     resourceName: 'OutputStyle',
     responseEvent: WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
-    broadcastEvent: WebSocketResponseEvents.BROADCAST_OUTPUT_STYLE_DELETED,
     existsCheck: () => outputStyleService.exists(outputStyleId),
     findPodsUsing: (canvasId: string) => podStore.findByOutputStyleId(canvasId, outputStyleId),
     deleteNotes: (canvasId: string) => noteStore.deleteByForeignKey(canvasId, outputStyleId),

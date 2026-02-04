@@ -148,7 +148,6 @@ export const useConnectionStore = defineStore('connection', {
                 autoTrigger: response.connection.autoTrigger ?? false,
                 status: 'inactive' as ConnectionStatus
             }
-            this.connections.push(connection)
 
             return connection
         },
@@ -164,11 +163,6 @@ export const useConnectionStore = defineStore('connection', {
                     connectionId
                 }
             })
-
-            this.connections = this.connections.filter(c => c.id !== connectionId)
-            if (this.selectedConnectionId === connectionId) {
-                this.selectedConnectionId = null
-            }
         },
 
         deleteConnectionsByPodId(podId: string): void {
@@ -247,7 +241,7 @@ export const useConnectionStore = defineStore('connection', {
             this.updateConnectionStatusByTargetPod(payload.targetPodId, 'inactive')
         },
 
-        addConnectionFromBroadcast(connection: any): void {
+        addConnectionFromEvent(connection: any): void {
             const enrichedConnection: Connection = {
                 ...connection,
                 createdAt: new Date(connection.createdAt),
@@ -261,7 +255,7 @@ export const useConnectionStore = defineStore('connection', {
             }
         },
 
-        updateConnectionFromBroadcast(connection: any): void {
+        updateConnectionFromEvent(connection: any): void {
             const enrichedConnection: Connection = {
                 ...connection,
                 createdAt: new Date(connection.createdAt),
@@ -275,7 +269,7 @@ export const useConnectionStore = defineStore('connection', {
             }
         },
 
-        removeConnectionFromBroadcast(connectionId: string): void {
+        removeConnectionFromEvent(connectionId: string): void {
             this.connections = this.connections.filter(c => c.id !== connectionId)
         },
     },

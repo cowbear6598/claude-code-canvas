@@ -9,12 +9,6 @@ import type {
     PodModelSetPayload,
     PodScheduleSetPayload,
     PodDeletedPayload,
-    BroadcastPodCreatedPayload,
-    BroadcastPodMovedPayload,
-    BroadcastPodRenamedPayload,
-    BroadcastPodModelSetPayload,
-    BroadcastPodScheduleSetPayload,
-    BroadcastPodDeletedPayload,
 } from '../types/index.js';
 import type {
     PodCreatePayload,
@@ -62,19 +56,14 @@ export const handlePodCreate = withCanvasId<PodCreatePayload>(
 
     const response: PodCreatedPayload = {
         requestId,
+        canvasId,
         success: true,
         pod,
     };
 
-    emitSuccess(socket, WebSocketResponseEvents.POD_CREATED, response);
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_CREATED, response);
 
-    const broadcastPayload: BroadcastPodCreatedPayload = {
-        canvasId,
-        pod,
-    };
-        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_CREATED, broadcastPayload);
-
-        logger.log('Pod', 'Create', `Created Pod ${pod.id} (${pod.name})`);
+    logger.log('Pod', 'Create', `Created Pod ${pod.id} (${pod.name})`);
     }
 );
 
@@ -167,7 +156,7 @@ export const handlePodDelete = withCanvasId<PodDeletePayload>(
         return;
     }
 
-    const deletedNoteIdsPayload: BroadcastPodDeletedPayload['deletedNoteIds'] = {};
+    const deletedNoteIdsPayload: PodDeletedPayload['deletedNoteIds'] = {};
     if (deletedNoteIds.length > 0) {
         deletedNoteIdsPayload.note = deletedNoteIds;
     }
@@ -186,23 +175,15 @@ export const handlePodDelete = withCanvasId<PodDeletePayload>(
 
     const response: PodDeletedPayload = {
         requestId,
+        canvasId,
         success: true,
         podId,
         ...(Object.keys(deletedNoteIdsPayload).length > 0 && { deletedNoteIds: deletedNoteIdsPayload }),
     };
 
-    socketService.emitPodDeletedBroadcast(podId, response);
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_DELETED, response);
 
-    emitSuccess(socket, WebSocketResponseEvents.POD_DELETED, response);
-
-    const broadcastPayload: BroadcastPodDeletedPayload = {
-        canvasId,
-        podId,
-        ...(Object.keys(deletedNoteIdsPayload).length > 0 && { deletedNoteIds: deletedNoteIdsPayload }),
-    };
-        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_DELETED, broadcastPayload);
-
-        logger.log('Pod', 'Delete', `Deleted Pod ${podId}`);
+    logger.log('Pod', 'Delete', `Deleted Pod ${podId}`);
     }
 );
 
@@ -233,19 +214,12 @@ export const handlePodMove = withCanvasId<PodMovePayload>(
 
         const response: PodMovedPayload = {
             requestId,
+            canvasId,
             success: true,
             pod: updatedPod,
         };
 
-        emitSuccess(socket, WebSocketResponseEvents.POD_MOVED, response);
-
-        const broadcastPayload: BroadcastPodMovedPayload = {
-            canvasId,
-            podId,
-            x: updatedPod.x,
-            y: updatedPod.y,
-        };
-        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_MOVED, broadcastPayload);
+        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_MOVED, response);
     }
 );
 
@@ -276,18 +250,12 @@ export const handlePodRename = withCanvasId<PodRenamePayload>(
 
         const response: PodRenamedPayload = {
             requestId,
+            canvasId,
             success: true,
             pod: updatedPod,
         };
 
-        emitSuccess(socket, WebSocketResponseEvents.POD_RENAMED, response);
-
-        const broadcastPayload: BroadcastPodRenamedPayload = {
-            canvasId,
-            podId,
-            name: updatedPod.name,
-        };
-        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_RENAMED, broadcastPayload);
+        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_RENAMED, response);
     }
 );
 
@@ -318,18 +286,12 @@ export const handlePodSetModel = withCanvasId<PodSetModelPayload>(
 
         const response: PodModelSetPayload = {
             requestId,
+            canvasId,
             success: true,
             pod: updatedPod,
         };
 
-        emitSuccess(socket, WebSocketResponseEvents.POD_MODEL_SET, response);
-
-        const broadcastPayload: BroadcastPodModelSetPayload = {
-            canvasId,
-            podId,
-            model: updatedPod.model,
-        };
-        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_MODEL_SET, broadcastPayload);
+        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_MODEL_SET, response);
     }
 );
 
@@ -381,17 +343,11 @@ export const handlePodSetSchedule = withCanvasId<PodSetSchedulePayload>(
 
         const response: PodScheduleSetPayload = {
             requestId,
+            canvasId,
             success: true,
             pod: updatedPod,
         };
 
-        emitSuccess(socket, WebSocketResponseEvents.POD_SCHEDULE_SET, response);
-
-        const broadcastPayload: BroadcastPodScheduleSetPayload = {
-            canvasId,
-            podId,
-            schedule: updatedPod.schedule ?? null,
-        };
-        socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_POD_SCHEDULE_SET, broadcastPayload);
+        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_SCHEDULE_SET, response);
     }
 );

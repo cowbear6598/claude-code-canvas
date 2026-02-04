@@ -190,14 +190,15 @@ class ScheduleService {
             currentSubContent += event.content;
 
             const textPayload: PodChatMessagePayload = {
+              canvasId,
               podId,
               messageId,
               content: accumulatedContent,
               isPartial: true,
               role: 'assistant',
             };
-            socketService.emitToPod(
-              podId,
+            socketService.emitToCanvas(
+              canvasId,
               WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE,
               textPayload
             );
@@ -214,14 +215,15 @@ class ScheduleService {
             flushCurrentSubMessage();
 
             const toolUsePayload: PodChatToolUsePayload = {
+              canvasId,
               podId,
               messageId,
               toolUseId: event.toolUseId,
               toolName: event.toolName,
               input: event.input,
             };
-            socketService.emitToPod(
-              podId,
+            socketService.emitToCanvas(
+              canvasId,
               WebSocketResponseEvents.POD_CHAT_TOOL_USE,
               toolUsePayload
             );
@@ -244,14 +246,15 @@ class ScheduleService {
             }
 
             const toolResultPayload: PodChatToolResultPayload = {
+              canvasId,
               podId,
               messageId,
               toolUseId: event.toolUseId,
               toolName: event.toolName,
               output: event.output,
             };
-            socketService.emitToPod(
-              podId,
+            socketService.emitToCanvas(
+              canvasId,
               WebSocketResponseEvents.POD_CHAT_TOOL_RESULT,
               toolResultPayload
             );
@@ -262,12 +265,13 @@ class ScheduleService {
             flushCurrentSubMessage();
 
             const completePayload: PodChatCompletePayload = {
+              canvasId,
               podId,
               messageId,
               fullContent: accumulatedContent,
             };
-            socketService.emitToPod(
-              podId,
+            socketService.emitToCanvas(
+              canvasId,
               WebSocketResponseEvents.POD_CHAT_COMPLETE,
               completePayload
             );

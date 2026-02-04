@@ -7,6 +7,7 @@ export interface WorkflowAutoTriggeredPayload {
 }
 
 export interface WorkflowPendingPayload {
+  canvasId: string;
   targetPodId: string;
   completedSourcePodIds: string[];
   pendingSourcePodIds: string[];
@@ -15,6 +16,7 @@ export interface WorkflowPendingPayload {
 }
 
 export interface WorkflowSourcesMergedPayload {
+  canvasId: string;
   targetPodId: string;
   sourcePodIds: string[];
   mergedContentPreview: string;
@@ -29,6 +31,7 @@ export interface WorkflowGetDownstreamPodsResultPayload {
 
 export interface WorkflowClearResultPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   clearedPodIds?: string[];
   clearedPodNames?: string[];

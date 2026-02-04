@@ -9,6 +9,7 @@ import type {
 
 class WorkflowEventEmitter {
   emitWorkflowComplete(
+    canvasId: string,
     connectionId: string,
     sourcePodId: string,
     targetPodId: string,
@@ -16,6 +17,7 @@ class WorkflowEventEmitter {
     error?: string
   ): void {
     const payload = {
+      canvasId,
       requestId: uuidv4(),
       connectionId,
       targetPodId,
@@ -23,11 +25,11 @@ class WorkflowEventEmitter {
       ...(error && { error }),
     };
 
-    socketService.emitToPod(sourcePodId, WebSocketResponseEvents.WORKFLOW_COMPLETE, payload);
-    socketService.emitToPod(targetPodId, WebSocketResponseEvents.WORKFLOW_COMPLETE, payload);
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_COMPLETE, payload);
   }
 
   emitWorkflowTriggered(
+    canvasId: string,
     connectionId: string,
     sourcePodId: string,
     targetPodId: string,
@@ -35,6 +37,7 @@ class WorkflowEventEmitter {
     isSummarized: boolean
   ): void {
     const payload = {
+      canvasId,
       requestId: uuidv4(),
       success: true,
       connectionId,
@@ -44,33 +47,41 @@ class WorkflowEventEmitter {
       isSummarized,
     };
 
-    socketService.emitToPod(sourcePodId, WebSocketResponseEvents.WORKFLOW_TRIGGERED, payload);
-    socketService.emitToPod(targetPodId, WebSocketResponseEvents.WORKFLOW_TRIGGERED, payload);
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_TRIGGERED, payload);
   }
 
   emitWorkflowAutoTriggered(
+    canvasId: string,
     sourcePodId: string,
     targetPodId: string,
     payload: WorkflowAutoTriggeredPayload
   ): void {
-    socketService.emitToPod(sourcePodId, WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, payload);
-    socketService.emitToPod(targetPodId, WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, payload);
+    const fullPayload = {
+      ...payload,
+      canvasId,
+    };
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, fullPayload);
   }
 
-  emitWorkflowPending(targetPodId: string, payload: WorkflowPendingPayload): void {
-    socketService.emitToPod(targetPodId, WebSocketResponseEvents.WORKFLOW_PENDING, payload);
+  emitWorkflowPending(canvasId: string, targetPodId: string, payload: WorkflowPendingPayload): void {
+    const fullPayload = {
+      ...payload,
+      canvasId,
+    };
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_PENDING, fullPayload);
   }
 
   emitWorkflowSourcesMerged(
+    canvasId: string,
     targetPodId: string,
     sourcePodIds: string[],
     payload: WorkflowSourcesMergedPayload
   ): void {
-    socketService.emitToPod(targetPodId, WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, payload);
-
-    for (const sourceId of sourcePodIds) {
-      socketService.emitToPod(sourceId, WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, payload);
-    }
+    const fullPayload = {
+      ...payload,
+      canvasId,
+    };
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, fullPayload);
   }
 }
 

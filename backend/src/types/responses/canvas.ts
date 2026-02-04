@@ -25,6 +25,8 @@ export interface CanvasListResultPayload {
 export interface CanvasRenamedPayload {
   requestId: string;
   success: boolean;
+  canvasId?: string;
+  newName?: string;
   canvas?: {
     id: string;
     name: string;
@@ -49,5 +51,6 @@ export interface CanvasSwitchedPayload {
 export interface CanvasReorderedPayload {
   requestId: string;
   success: boolean;
+  canvasIds?: string[];
   error?: string;
 }

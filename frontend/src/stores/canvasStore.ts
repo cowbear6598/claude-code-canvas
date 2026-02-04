@@ -100,7 +100,6 @@ export const useCanvasStore = defineStore('canvas', {
         })
 
         if (response.canvas) {
-          this.canvases.push(response.canvas)
           // Notify backend which canvas is active
           await createWebSocketRequest<CanvasSwitchPayload, CanvasSwitchedPayload>({
             requestEvent: WebSocketRequestEvents.CANVAS_SWITCH,
@@ -122,7 +121,7 @@ export const useCanvasStore = defineStore('canvas', {
 
     async renameCanvas(canvasId: string, newName: string): Promise<void> {
       try {
-        const response = await createWebSocketRequest<CanvasRenamePayload, CanvasRenamedPayload>({
+        await createWebSocketRequest<CanvasRenamePayload, CanvasRenamedPayload>({
           requestEvent: WebSocketRequestEvents.CANVAS_RENAME,
           responseEvent: WebSocketResponseEvents.CANVAS_RENAMED,
           payload: {
@@ -130,13 +129,6 @@ export const useCanvasStore = defineStore('canvas', {
             newName,
           }
         })
-
-        if (response.canvas) {
-          const canvas = this.canvases.find(c => c.id === canvasId)
-          if (canvas) {
-            canvas.name = response.canvas.name
-          }
-        }
       } catch (error) {
         const {toast} = useToast()
         const msg = error instanceof Error ? error.message : '重新命名 Canvas 失敗'
@@ -153,17 +145,13 @@ export const useCanvasStore = defineStore('canvas', {
         }
       }
 
-      const response = await createWebSocketRequest<CanvasDeletePayload, CanvasDeletedPayload>({
+      await createWebSocketRequest<CanvasDeletePayload, CanvasDeletedPayload>({
         requestEvent: WebSocketRequestEvents.CANVAS_DELETE,
         responseEvent: WebSocketResponseEvents.CANVAS_DELETED,
         payload: {
           canvasId,
         }
       })
-
-      if (response.success && response.canvasId) {
-        this.canvases = this.canvases.filter(c => c.id !== canvasId)
-      }
     },
 
     async switchCanvas(canvasId: string): Promise<void> {
@@ -189,14 +177,14 @@ export const useCanvasStore = defineStore('canvas', {
       this.isLoading = false
     },
 
-    addCanvasFromBroadcast(canvas: Canvas): void {
+    addCanvasFromEvent(canvas: Canvas): void {
       const existingCanvas = this.canvases.find(c => c.id === canvas.id)
       if (!existingCanvas) {
         this.canvases.push(canvas)
       }
     },
 
-    reorderCanvasesFromBroadcast(canvasIds: string[]): void {
+    reorderCanvasesFromEvent(canvasIds: string[]): void {
       const canvasMap = new Map(this.canvases.map(c => [c.id, c]))
       const reorderedCanvases: Canvas[] = []
 
@@ -210,14 +198,14 @@ export const useCanvasStore = defineStore('canvas', {
       this.canvases = reorderedCanvases
     },
 
-    renameCanvasFromBroadcast(canvasId: string, newName: string): void {
+    renameCanvasFromEvent(canvasId: string, newName: string): void {
       const canvas = this.canvases.find(c => c.id === canvasId)
       if (canvas) {
         canvas.name = newName
       }
     },
 
-    async removeCanvasFromBroadcast(canvasId: string): Promise<void> {
+    async removeCanvasFromEvent(canvasId: string): Promise<void> {
       if (this.activeCanvasId === canvasId) {
         const deletedCanvas = this.canvases.find(c => c.id === canvasId)
         const {toast} = useToast()

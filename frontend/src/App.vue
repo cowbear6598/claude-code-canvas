@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
-import {websocketClient, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
-import type {PodStatusChangedPayload, PodJoinBatchPayload, ScheduleFiredPayload} from '@/types/websocket'
+import {websocketClient, WebSocketResponseEvents} from '@/services/websocket'
+import type {PodStatusChangedPayload, ScheduleFiredPayload} from '@/types/websocket'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
 import CanvasSidebar from '@/components/canvas/CanvasSidebar.vue'
@@ -10,7 +10,7 @@ import ChatModal from '@/components/chat/ChatModal.vue'
 import {Toast} from '@/components/ui/toast'
 import DisconnectOverlay from '@/components/ui/DisconnectOverlay.vue'
 import {useCopyPaste} from '@/composables/canvas'
-import {useBroadcastListeners} from '@/composables/useBroadcastListeners'
+import {useUnifiedEventListeners} from '@/composables/useUnifiedEventListeners'
 import {
   CONTENT_PREVIEW_LENGTH,
   RESPONSE_PREVIEW_LENGTH,
@@ -35,7 +35,7 @@ const selectedPod = computed(() => podStore.selectedPod)
 
 useCopyPaste()
 
-const {registerBroadcastListeners, unregisterBroadcastListeners} = useBroadcastListeners()
+const {registerUnifiedListeners, unregisterUnifiedListeners} = useUnifiedEventListeners()
 
 const isInitialized = ref(false)
 const isLoading = ref(false)
@@ -45,14 +45,6 @@ const loadCanvasData = async (): Promise<void> => {
   await podStore.loadPodsFromBackend()
 
   viewportStore.resetToCenter()
-
-  const podIds = podStore.pods.map(p => p.id)
-  if (podIds.length > 0) {
-    websocketClient.emit<PodJoinBatchPayload>(WebSocketRequestEvents.POD_JOIN_BATCH, {
-      canvasId: canvasStore.activeCanvasId!,
-      podIds
-    })
-  }
 
   await Promise.all([
     (async (): Promise<void> => {
@@ -81,6 +73,7 @@ const loadCanvasData = async (): Promise<void> => {
 
   connectionStore.setupWorkflowListeners()
 
+  const podIds = podStore.pods.map(p => p.id)
   if (podIds.length > 0) {
     await chatStore.loadAllPodsHistory(podIds)
     syncHistoryToPodOutput()
@@ -191,7 +184,7 @@ const loadAppData = async (): Promise<void> => {
 
     websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
     websocketClient.on<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
-    registerBroadcastListeners()
+    registerUnifiedListeners()
 
     isInitialized.value = true
     console.log('[App] Initialization complete')
@@ -231,7 +224,7 @@ watch(
         websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
         websocketClient.off<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
         connectionStore.cleanupWorkflowListeners()
-        unregisterBroadcastListeners()
+        unregisterUnifiedListeners()
         isInitialized.value = false
         isLoading.value = false
         canvasStore.reset()
@@ -297,7 +290,7 @@ onUnmounted(() => {
   websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
   websocketClient.off<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
   connectionStore.cleanupWorkflowListeners()
-  unregisterBroadcastListeners()
+  unregisterUnifiedListeners()
 })
 </script>
 

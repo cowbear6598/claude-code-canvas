@@ -207,15 +207,11 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                     originalPosition: null,
                 }
 
-                const response = await createWebSocketRequest<BasePayload, BaseResponse>({
+                await createWebSocketRequest<BasePayload, BaseResponse>({
                     requestEvent: config.events.createNote.request,
                     responseEvent: config.events.createNote.response,
                     payload
                 })
-
-                if (response.note) {
-                    this.notes.push(response.note)
-                }
             },
 
             updateNotePositionLocal(noteId: string, x: number, y: number): void {
@@ -303,8 +299,8 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
 
                 const canvasStore = useCanvasStore()
 
-                // 並行執行 bind 和 update，僅需要 update 的回應
-                const [, updateResponse] = await Promise.all([
+                // 並行執行 bind 和 update
+                await Promise.all([
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.bindEvents.request,
                         responseEvent: config.bindEvents.response,
@@ -325,13 +321,6 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                         }
                     })
                 ])
-
-                if (updateResponse.note) {
-                    const index = this.notes.findIndex(n => n.id === noteId)
-                    if (index !== -1) {
-                        this.notes[index] = updateResponse.note
-                    }
-                }
             },
 
             async unbindFromPod(podId: string, returnToOriginal: boolean = false, targetPosition?: Position): Promise<void> {
@@ -360,8 +349,8 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                     updatePayload.y = targetPosition.y
                 }
 
-                // 並行執行 unbind 和 update，僅需要 update 的回應
-                const [, updateResponse] = await Promise.all([
+                // 並行執行 unbind 和 update
+                await Promise.all([
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.unbindEvents.request,
                         responseEvent: config.unbindEvents.response,
@@ -376,29 +365,13 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                         payload: updatePayload
                     })
                 ])
-
-                if (updateResponse.note) {
-                    const index = this.notes.findIndex(n => n.id === noteId)
-                    if (index !== -1) {
-                        this.notes[index] = updateResponse.note
-                    }
-                }
             },
 
             async deleteNote(noteId: string): Promise<void> {
-                const index = this.notes.findIndex(n => n.id === noteId)
-                if (index === -1) return
-
-                const note = this.notes[index]
-                if (!note) return
-
-                const originalIndex = index
-                this.notes.splice(index, 1)
-
                 const {wrapWebSocketRequest} = useWebSocketErrorHandler()
                 const canvasStore = useCanvasStore()
 
-                const response = await wrapWebSocketRequest(
+                await wrapWebSocketRequest(
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.events.deleteNote.request,
                         responseEvent: config.events.deleteNote.response,
@@ -409,11 +382,6 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                     }),
                     '刪除筆記失敗'
                 )
-
-                if (!response) {
-                    this.notes.splice(originalIndex, 0, note)
-                    return
-                }
             },
 
             async deleteItem(itemId: string): Promise<void> {
@@ -443,32 +411,32 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 })
             },
 
-            addNoteFromBroadcast(note: TNote): void {
+            addNoteFromEvent(note: TNote): void {
                 const exists = this.notes.some(n => n.id === note.id)
                 if (!exists) {
                     this.notes.push(note)
                 }
             },
 
-            updateNoteFromBroadcast(note: TNote): void {
+            updateNoteFromEvent(note: TNote): void {
                 const index = this.notes.findIndex(n => n.id === note.id)
                 if (index !== -1) {
                     this.notes.splice(index, 1, note)
                 }
             },
 
-            removeNoteFromBroadcast(noteId: string): void {
+            removeNoteFromEvent(noteId: string): void {
                 this.notes = this.notes.filter(n => n.id !== noteId)
             },
 
-            addItemFromBroadcast(item: TItem): void {
+            addItemFromEvent(item: TItem): void {
                 const exists = this.availableItems.some(i => config.getItemId(i as TItem) === config.getItemId(item))
                 if (!exists) {
                     this.availableItems.push(item)
                 }
             },
 
-            removeItemFromBroadcast(itemId: string, deletedNoteIds?: string[]): void {
+            removeItemFromEvent(itemId: string, deletedNoteIds?: string[]): void {
                 this.availableItems = this.availableItems.filter(item => config.getItemId(item as TItem) !== itemId)
 
                 if (deletedNoteIds) {

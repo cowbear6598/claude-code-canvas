@@ -24,11 +24,6 @@ const commandNoteHandlers = createNoteHandlers({
         updated: WebSocketResponseEvents.COMMAND_NOTE_UPDATED,
         deleted: WebSocketResponseEvents.COMMAND_NOTE_DELETED,
     },
-    broadcastEvents: {
-        created: WebSocketResponseEvents.BROADCAST_COMMAND_NOTE_CREATED,
-        updated: WebSocketResponseEvents.BROADCAST_COMMAND_NOTE_UPDATED,
-        deleted: WebSocketResponseEvents.BROADCAST_COMMAND_NOTE_DELETED,
-    },
     foreignKeyField: 'commandId',
     entityName: 'Command',
 });
@@ -45,10 +40,6 @@ const resourceHandlers = createResourceHandlers({
         created: WebSocketResponseEvents.COMMAND_CREATED,
         updated: WebSocketResponseEvents.COMMAND_UPDATED,
         readResult: WebSocketResponseEvents.COMMAND_READ_RESULT,
-    },
-    broadcastEvents: {
-        created: WebSocketResponseEvents.BROADCAST_COMMAND_CREATED,
-        updated: WebSocketResponseEvents.BROADCAST_COMMAND_UPDATED,
     },
     resourceName: 'Command',
     responseKey: 'command',
@@ -91,8 +82,6 @@ const commandBindHandler = createBindHandler({
     events: {
         bound: WebSocketResponseEvents.POD_COMMAND_BOUND,
         unbound: WebSocketResponseEvents.POD_COMMAND_UNBOUND,
-        broadcastBound: WebSocketResponseEvents.BROADCAST_POD_COMMAND_BOUND,
-        broadcastUnbound: WebSocketResponseEvents.BROADCAST_POD_COMMAND_UNBOUND,
     },
 });
 
@@ -111,8 +100,6 @@ const commandUnbindHandler = createUnbindHandler({
     events: {
         bound: WebSocketResponseEvents.POD_COMMAND_BOUND,
         unbound: WebSocketResponseEvents.POD_COMMAND_UNBOUND,
-        broadcastBound: WebSocketResponseEvents.BROADCAST_POD_COMMAND_BOUND,
-        broadcastUnbound: WebSocketResponseEvents.BROADCAST_POD_COMMAND_UNBOUND,
     },
 });
 
@@ -145,7 +132,6 @@ export async function handleCommandDelete(
         resourceId: commandId,
         resourceName: 'Command',
         responseEvent: WebSocketResponseEvents.COMMAND_DELETED,
-        broadcastEvent: WebSocketResponseEvents.BROADCAST_COMMAND_DELETED,
         existsCheck: () => commandService.exists(commandId),
         findPodsUsing: (canvasId: string) => podStore.findByCommandId(canvasId, commandId),
         deleteNotes: (canvasId: string) => commandNoteStore.deleteByForeignKey(canvasId, commandId),

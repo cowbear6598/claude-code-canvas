@@ -2,6 +2,7 @@ import type { Connection } from '../connection.js';
 
 export interface ConnectionCreatedPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   connection?: Connection;
   error?: string;
@@ -16,6 +17,7 @@ export interface ConnectionListResultPayload {
 
 export interface ConnectionDeletedPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   connectionId?: string;
   error?: string;
@@ -23,6 +25,7 @@ export interface ConnectionDeletedPayload {
 
 export interface ConnectionUpdatedPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   connection?: Connection;
   error?: string;

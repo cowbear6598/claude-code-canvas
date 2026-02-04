@@ -71,7 +71,7 @@ class WorkflowStateService {
       const allComplete = pending.completedSources.size >= pending.requiredSourcePodIds.length;
 
       if (!allComplete) {
-        this.emitPendingStatus(targetPodId, pending);
+        this.emitPendingStatus(canvasId, targetPodId, pending);
         continue;
       }
 
@@ -86,12 +86,13 @@ class WorkflowStateService {
       const sourcePodIds = Array.from(completedSummaries.keys());
 
       const mergedPayload: WorkflowSourcesMergedPayload = {
+        canvasId,
         targetPodId,
         sourcePodIds,
         mergedContentPreview: mergedContent.substring(0, 200),
       };
 
-      workflowEventEmitter.emitWorkflowSourcesMerged(targetPodId, sourcePodIds, mergedPayload);
+      workflowEventEmitter.emitWorkflowSourcesMerged(canvasId, targetPodId, sourcePodIds, mergedPayload);
     }
 
     return affectedTargetIds;
@@ -125,7 +126,7 @@ class WorkflowStateService {
     const allComplete = pending.completedSources.size >= pending.requiredSourcePodIds.length;
 
     if (!allComplete) {
-      this.emitPendingStatus(targetPodId, pending);
+      this.emitPendingStatus(canvasId, targetPodId, pending);
       return;
     }
 
@@ -140,21 +141,23 @@ class WorkflowStateService {
     const sourcePodIds = Array.from(completedSummaries.keys());
 
     const mergedPayload: WorkflowSourcesMergedPayload = {
+      canvasId,
       targetPodId,
       sourcePodIds,
       mergedContentPreview: mergedContent.substring(0, 200),
     };
 
-    workflowEventEmitter.emitWorkflowSourcesMerged(targetPodId, sourcePodIds, mergedPayload);
+    workflowEventEmitter.emitWorkflowSourcesMerged(canvasId, targetPodId, sourcePodIds, mergedPayload);
   }
 
-  private emitPendingStatus(targetPodId: string, pending: { requiredSourcePodIds: string[]; completedSources: Map<string, string> }): void {
+  private emitPendingStatus(canvasId: string, targetPodId: string, pending: { requiredSourcePodIds: string[]; completedSources: Map<string, string> }): void {
     const completedSourcePodIds = Array.from(pending.completedSources.keys());
     const pendingSourcePodIds = pending.requiredSourcePodIds.filter(
       (id) => !completedSourcePodIds.includes(id)
     );
 
     const pendingPayload: WorkflowPendingPayload = {
+      canvasId,
       targetPodId,
       completedSourcePodIds,
       pendingSourcePodIds,
@@ -162,7 +165,7 @@ class WorkflowStateService {
       completedCount: pending.completedSources.size,
     };
 
-    workflowEventEmitter.emitWorkflowPending(targetPodId, pendingPayload);
+    workflowEventEmitter.emitWorkflowPending(canvasId, targetPodId, pendingPayload);
 
     logger.log('Workflow', 'Update', `Updated pending target ${targetPodId}: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources`);
   }

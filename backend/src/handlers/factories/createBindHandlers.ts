@@ -34,8 +34,6 @@ export interface BindResourceConfig<TService> {
     events: {
         bound: WebSocketResponseEvents;
         unbound?: WebSocketResponseEvents;
-        broadcastBound: WebSocketResponseEvents;
-        broadcastUnbound?: WebSocketResponseEvents;
     };
 }
 
@@ -120,17 +118,11 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
             // 回應成功
             const response = {
                 requestId,
+                canvasId,
                 success: true,
                 pod: updatedPod,
             };
-            emitSuccess(socket, config.events.bound, response);
-
-            // 廣播給其他客戶端
-            const broadcastPayload = {
-                canvasId,
-                pod: updatedPod!,
-            };
-            socketService.broadcastToCanvas(socket.id, canvasId, config.events.broadcastBound, broadcastPayload);
+            socketService.emitToCanvas(canvasId, config.events.bound, response);
 
             logger.log(config.resourceName as LogCategory, 'Bind', `Bound ${config.resourceName.toLowerCase()} ${resourceId} to Pod ${podId}`);
         }
@@ -147,8 +139,8 @@ export function createUnbindHandler<TService>(
         throw new Error('Unbind handler is only for single bind mode');
     }
 
-    if (!config.events.unbound || !config.events.broadcastUnbound) {
-        throw new Error('Unbind events are required for unbind handler');
+    if (!config.events.unbound) {
+        throw new Error('Unbind event is required for unbind handler');
     }
 
     if (!config.podStoreMethod.unbind || !config.deleteResourceFromPath) {
@@ -194,17 +186,11 @@ export function createUnbindHandler<TService>(
             // 回應成功
             const response = {
                 requestId,
+                canvasId,
                 success: true,
                 pod: updatedPod,
             };
-            emitSuccess(socket, config.events.unbound!, response);
-
-            // 廣播給其他客戶端
-            const broadcastPayload = {
-                canvasId,
-                pod: updatedPod!,
-            };
-            socketService.broadcastToCanvas(socket.id, canvasId, config.events.broadcastUnbound!, broadcastPayload);
+            socketService.emitToCanvas(canvasId, config.events.unbound!, response);
 
             logger.log(config.resourceName as LogCategory, 'Unbind', `Unbound ${config.resourceName.toLowerCase()} from Pod ${podId}`);
         }

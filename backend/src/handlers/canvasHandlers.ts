@@ -7,10 +7,6 @@ import type {
   CanvasDeletedPayload,
   CanvasSwitchedPayload,
   CanvasReorderedPayload,
-  BroadcastCanvasCreatedPayload,
-  BroadcastCanvasRenamedPayload,
-  BroadcastCanvasDeletedPayload,
-  BroadcastCanvasReorderedPayload,
 } from '../types/index.js';
 import type {
   CanvasCreatePayload,
@@ -52,17 +48,7 @@ export async function handleCanvasCreate(
     },
   };
 
-  socket.emit(WebSocketResponseEvents.CANVAS_CREATED, response);
-
-  const broadcastPayload: BroadcastCanvasCreatedPayload = {
-    canvas: {
-      id: canvas.id,
-      name: canvas.name,
-      createdAt: canvas.createdAt.toISOString(),
-      sortIndex: canvas.sortIndex,
-    },
-  };
-  socketService.broadcastToAll(socket.id, WebSocketResponseEvents.BROADCAST_CANVAS_CREATED, broadcastPayload);
+  socketService.emitToAll(WebSocketResponseEvents.CANVAS_CREATED, response);
 
   logger.log('Canvas', 'Create', `Canvas created: ${canvas.name} (${canvas.id})`);
 }
@@ -106,19 +92,15 @@ export async function handleCanvasRename(
   const response: CanvasRenamedPayload = {
     requestId: payload.requestId,
     success: true,
+    canvasId: canvas.id,
+    newName: canvas.name,
     canvas: {
       id: canvas.id,
       name: canvas.name,
     },
   };
 
-  socket.emit(WebSocketResponseEvents.CANVAS_RENAMED, response);
-
-  const broadcastPayload: BroadcastCanvasRenamedPayload = {
-    canvasId: payload.canvasId,
-    newName: payload.newName,
-  };
-  socketService.broadcastToAll(socket.id, WebSocketResponseEvents.BROADCAST_CANVAS_RENAMED, broadcastPayload);
+  socketService.emitToAll(WebSocketResponseEvents.CANVAS_RENAMED, response);
 
   logger.log('Canvas', 'Rename', `Canvas renamed: ${canvas.id} to ${canvas.name}`);
 }
@@ -167,12 +149,7 @@ export async function handleCanvasDelete(
     canvasId: payload.canvasId,
   };
 
-  socket.emit(WebSocketResponseEvents.CANVAS_DELETED, response);
-
-  const broadcastPayload: BroadcastCanvasDeletedPayload = {
-    canvasId: payload.canvasId,
-  };
-  socketService.broadcastToAll(socket.id, WebSocketResponseEvents.BROADCAST_CANVAS_DELETED, broadcastPayload);
+  socketService.emitToAll(WebSocketResponseEvents.CANVAS_DELETED, response);
 
   logger.log('Canvas', 'Delete', `Canvas deleted: ${payload.canvasId}`);
 }
@@ -224,14 +201,10 @@ export async function handleCanvasReorder(
   const response: CanvasReorderedPayload = {
     requestId: payload.requestId,
     success: true,
-  };
-
-  socket.emit(WebSocketResponseEvents.CANVAS_REORDERED, response);
-
-  const broadcastPayload: BroadcastCanvasReorderedPayload = {
     canvasIds: payload.canvasIds,
   };
-  socketService.broadcastToAll(socket.id, WebSocketResponseEvents.BROADCAST_CANVAS_REORDERED, broadcastPayload);
+
+  socketService.emitToAll(WebSocketResponseEvents.CANVAS_REORDERED, response);
 
   logger.log('Canvas', 'Reorder', `Canvases reordered: ${payload.canvasIds.length} items`);
 }

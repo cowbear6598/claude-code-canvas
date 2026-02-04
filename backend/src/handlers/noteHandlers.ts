@@ -11,11 +11,6 @@ const noteHandlersImpl = createNoteHandlers({
     updated: WebSocketResponseEvents.NOTE_UPDATED,
     deleted: WebSocketResponseEvents.NOTE_DELETED,
   },
-  broadcastEvents: {
-    created: WebSocketResponseEvents.BROADCAST_NOTE_CREATED,
-    updated: WebSocketResponseEvents.BROADCAST_NOTE_UPDATED,
-    deleted: WebSocketResponseEvents.BROADCAST_NOTE_DELETED,
-  },
   foreignKeyField: 'outputStyleId',
   entityName: 'OutputStyle',
   validateBeforeCreate: (outputStyleId) => outputStyleService.exists(outputStyleId),

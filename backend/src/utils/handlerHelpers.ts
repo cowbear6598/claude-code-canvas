@@ -4,7 +4,7 @@ import type {Pod} from '../types/index.js';
 import {podStore} from '../services/podStore.js';
 import {canvasStore} from '../services/canvasStore.js';
 import {socketService} from '../services/socketService.js';
-import {emitError, emitSuccess} from './websocketResponse.js';
+import {emitError} from './websocketResponse.js';
 import {logger, type LogCategory} from './logger.js';
 
 export function getCanvasId(
@@ -81,7 +81,6 @@ interface ResourceDeleteConfig {
     resourceId: string;
     resourceName: LogCategory;
     responseEvent: WebSocketResponseEvents;
-    broadcastEvent?: WebSocketResponseEvents;
     existsCheck: () => Promise<boolean>;
     findPodsUsing: (canvasId: string) => Pod[];
     deleteNotes: (canvasId: string) => string[];
@@ -96,7 +95,6 @@ export async function handleResourceDelete(config: ResourceDeleteConfig): Promis
         resourceId,
         resourceName,
         responseEvent,
-        broadcastEvent,
         existsCheck,
         findPodsUsing,
         deleteNotes,
@@ -146,16 +144,7 @@ export async function handleResourceDelete(config: ResourceDeleteConfig): Promis
         deletedNoteIds,
     };
 
-    emitSuccess(socket, responseEvent, response);
-
-    if (broadcastEvent) {
-        const broadcastPayload = {
-            canvasId,
-            [fieldName]: resourceId,
-            deletedNoteIds,
-        };
-        socketService.broadcastToCanvas(socket.id, canvasId, broadcastEvent, broadcastPayload);
-    }
+    socketService.emitToAll(responseEvent, response);
 
     logger.log(resourceName, 'Delete', `Deleted ${resourceName.toLowerCase()} ${resourceId} and ${deletedNoteIds.length} notes`);
 }

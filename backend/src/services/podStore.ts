@@ -156,12 +156,13 @@ class PodStore {
     pods.set(id, pod);
 
     const payload = {
+      canvasId,
       podId: id,
       status,
       previousStatus,
     };
 
-    socketService.emitToPod(id, WebSocketResponseEvents.POD_STATUS_CHANGED, payload);
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_STATUS_CHANGED, payload);
   }
 
   updateLastActive(canvasId: string, id: string): void {
