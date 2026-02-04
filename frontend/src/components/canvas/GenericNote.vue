@@ -20,6 +20,7 @@ const emit = defineEmits<{
   'drag-move': [data: { noteId: string; screenX: number; screenY: number }]
   'drag-complete': [data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }]
   'contextmenu': [data: { noteId: string; event: MouseEvent }]
+  'dblclick': [data: { noteId: string; noteType: NoteType }]
 }>()
 
 const cssClassMap: Record<NoteType, string> = {
@@ -45,7 +46,8 @@ const {
   skillStore,
   subAgentStore,
   repositoryStore,
-  commandStore
+  commandStore,
+  connectionStore
 } = useCanvasContext()
 const { startBatchDrag, isElementSelected } = useBatchDrag()
 
@@ -116,6 +118,9 @@ onUnmounted(() => {
 // 2. 需要計算相對於 viewport 的坐標變化
 // 3. 需要在 unmount 時精確清理監聽器以防記憶體洩漏
 const handleMouseDown = (e: MouseEvent): void => {
+  // 點擊 Note 時取消 Connection 選取
+  connectionStore.selectConnection(null)
+
   const selectionType = selectionTypeMap[props.noteType]
 
   if (isCtrlOrCmdPressed(e)) {
@@ -206,6 +211,18 @@ const displayName = computed(() => {
   }
   return props.note.name
 })
+
+/**
+ * 處理雙擊事件
+ * 只有 outputStyle、subAgent、command 三種類型可編輯
+ */
+const handleDoubleClick = (): void => {
+  const editableTypes: NoteType[] = ['outputStyle', 'subAgent', 'command']
+
+  if (editableTypes.includes(props.noteType)) {
+    emit('dblclick', { noteId: props.note.id, noteType: props.noteType })
+  }
+}
 </script>
 
 <template>
@@ -217,6 +234,7 @@ const displayName = computed(() => {
     }"
     @mousedown="handleMouseDown"
     @contextmenu="handleContextMenu"
+    @dblclick="handleDoubleClick"
   >
     <div :class="textClass">
       {{ displayName }}

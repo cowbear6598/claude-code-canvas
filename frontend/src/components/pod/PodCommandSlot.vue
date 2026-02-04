@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { CommandNote } from '@/types'
+import type { CommandNote, Position } from '@/types'
 import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import { useSlotDropTarget } from '@/composables/pod/useSlotDropTarget'
 import { useSlotEject } from '@/composables/pod/useSlotEject'
@@ -36,7 +36,7 @@ const { isEjecting, handleSlotClick: ejectSlotClick } = useSlotEject({
   podRotation: () => props.podRotation || 0,
   getNoteById: (id: string) => commandStore.getNoteById(id),
   setNoteAnimating: (noteId: string, animating: boolean) => commandStore.setNoteAnimating(noteId, animating),
-  unbindFromPod: (podId: string, notify: boolean, targetPosition?: {x: number, y: number}) => commandStore.unbindFromPod(podId, notify, targetPosition),
+  unbindFromPod: (podId: string, notify: boolean, targetPosition?: Position) => commandStore.unbindFromPod(podId, notify, targetPosition),
   getViewportZoom: () => viewportStore.zoom,
   getViewportOffset: () => viewportStore.offset
 })
@@ -63,7 +63,7 @@ const handleSlotClick = async (e: MouseEvent): Promise<void> => {
       <span class="text-xs font-mono">{{ boundNote.name }}</span>
     </template>
     <template v-else>
-      <span class="text-xs font-mono opacity-50">command</span>
+      <span class="text-xs font-mono opacity-50">Command</span>
     </template>
   </div>
 </template>
