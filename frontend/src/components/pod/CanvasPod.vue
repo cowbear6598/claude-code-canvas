@@ -100,6 +100,8 @@ const scheduleTooltip = computed(() => {
   return formatScheduleTooltip(props.pod.schedule)
 })
 
+const isScheduleFiredAnimating = computed(() => podStore.isScheduleFiredAnimating(props.pod.id))
+
 let currentMouseMoveHandler: ((e: MouseEvent) => void) | null = null
 let currentMouseUpHandler: (() => void) | null = null
 
@@ -459,6 +461,10 @@ const handleModelChange = async (model: ModelType): Promise<void> => {
 const handleToggleAutoClear = async (): Promise<void> => {
   await podStore.setAutoClearWithBackend(props.pod.id, !isAutoClearEnabled.value)
 }
+
+const handleClearScheduleFiredAnimation = (): void => {
+  podStore.clearScheduleFiredAnimation(props.pod.id)
+}
 </script>
 
 <template>
@@ -559,6 +565,7 @@ const handleToggleAutoClear = async (): Promise<void> => {
         :has-schedule="hasSchedule"
         :schedule-enabled="scheduleEnabled"
         :schedule-tooltip="scheduleTooltip"
+        :is-schedule-fired-animating="isScheduleFiredAnimating"
         @open-schedule-modal="handleOpenScheduleModal"
         @update:show-clear-dialog="showClearDialog = $event"
         @update:show-delete-dialog="showDeleteDialog = $event"
@@ -569,6 +576,7 @@ const handleToggleAutoClear = async (): Promise<void> => {
         @cancel-clear="handleCancelClear"
         @confirm-delete="handleDelete"
         @cancel-delete="showDeleteDialog = false"
+        @clear-schedule-fired-animation="handleClearScheduleFiredAnimation"
       />
 
       <!-- Schedule Modal -->

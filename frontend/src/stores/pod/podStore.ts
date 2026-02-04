@@ -38,6 +38,7 @@ interface PodStoreState {
     selectedPodId: string | null
     activePodId: string | null
     typeMenu: TypeMenuState
+    scheduleFiredPodIds: Set<string>
 }
 
 export const usePodStore = defineStore('pod', {
@@ -49,6 +50,7 @@ export const usePodStore = defineStore('pod', {
             visible: false,
             position: null,
         },
+        scheduleFiredPodIds: new Set(),
     }),
 
     getters: {
@@ -59,6 +61,10 @@ export const usePodStore = defineStore('pod', {
 
         getPodById: (state) => (id: string): Pod | undefined => {
             return state.pods.find((p) => p.id === id)
+        },
+
+        isScheduleFiredAnimating: (state) => (podId: string): boolean => {
+            return state.scheduleFiredPodIds.has(podId)
         },
     },
 
@@ -479,6 +485,16 @@ export const usePodStore = defineStore('pod', {
             if (pod) {
                 pod.schedule = schedule
             }
+        },
+
+        triggerScheduleFiredAnimation(podId: string): void {
+            this.scheduleFiredPodIds.delete(podId)
+            this.scheduleFiredPodIds = new Set([...this.scheduleFiredPodIds, podId])
+        },
+
+        clearScheduleFiredAnimation(podId: string): void {
+            this.scheduleFiredPodIds.delete(podId)
+            this.scheduleFiredPodIds = new Set(this.scheduleFiredPodIds)
         },
     },
 })

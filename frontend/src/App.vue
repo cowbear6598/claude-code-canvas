@@ -133,6 +133,7 @@ const handlePodStatusChanged = (payload: PodStatusChangedPayload): void => {
 const handleScheduleFired = (payload: ScheduleFiredPayload): void => {
   const pod = podStore.getPodById(payload.podId)
   if (pod) {
+    podStore.triggerScheduleFiredAnimation(payload.podId)
     chatStore.sendMessage(payload.podId, '')
   }
 }

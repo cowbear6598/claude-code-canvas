@@ -154,3 +154,64 @@
     opacity: 0;
   }
 }
+
+/* 排程觸發碼表跳躍動畫 - 只作用於 icon */
+@keyframes schedule-fired-jump {
+  /* 跳起階段 */
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+  }
+  15% {
+    transform: translateY(-40px) translateX(0) scale(1.2);
+  }
+
+  /* 短暫停留在最高點 */
+  20% {
+    transform: translateY(-40px) translateX(0) scale(1.2);
+  }
+
+  /* 快速震動階段 - 每 2-3% 切換一次 */
+  22% {
+    transform: translateY(-40px) translateX(3px) scale(1.2);
+  }
+  24% {
+    transform: translateY(-40px) translateX(-3px) scale(1.2);
+  }
+  26% {
+    transform: translateY(-40px) translateX(3px) scale(1.2);
+  }
+  28% {
+    transform: translateY(-40px) translateX(-3px) scale(1.2);
+  }
+  30% {
+    transform: translateY(-40px) translateX(3px) scale(1.2);
+  }
+  32% {
+    transform: translateY(-40px) translateX(-3px) scale(1.2);
+  }
+  34% {
+    transform: translateY(-40px) translateX(2px) scale(1.15);
+  }
+  36% {
+    transform: translateY(-40px) translateX(-2px) scale(1.15);
+  }
+  38% {
+    transform: translateY(-40px) translateX(2px) scale(1.1);
+  }
+  40% {
+    transform: translateY(-40px) translateX(-2px) scale(1.1);
+  }
+  42% {
+    transform: translateY(-40px) translateX(0) scale(1.1);
+  }
+
+  /* 震動結束後短暫停留 */
+  85% {
+    transform: translateY(-40px) translateX(0) scale(1);
+  }
+
+  /* 落下階段 (15%) - 與跳起對稱 */
+  100% {
+    transform: translateY(0) translateX(0) scale(1);
+  }
+}

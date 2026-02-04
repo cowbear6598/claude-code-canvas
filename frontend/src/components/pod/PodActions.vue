@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   podId: string
   podName: string
   isSourcePod: boolean
@@ -27,7 +27,10 @@ const props = defineProps<{
   hasSchedule: boolean
   scheduleEnabled: boolean
   scheduleTooltip: string
-}>()
+  isScheduleFiredAnimating?: boolean
+}>(), {
+  isScheduleFiredAnimating: false
+})
 
 const emit = defineEmits<{
   'delete': []
@@ -40,6 +43,7 @@ const emit = defineEmits<{
   'confirm-delete': []
   'cancel-delete': []
   'open-schedule-modal': []
+  'clear-schedule-fired-animation': []
 }>()
 
 const chatStore = useChatStore()
@@ -133,6 +137,8 @@ const cancelClear = (): void => {
   emit('cancel-clear')
 }
 
+let scheduleFiredAnimationTimer: ReturnType<typeof setTimeout> | null = null
+
 onUnmounted(() => {
   if (longPressTimer.value) {
     clearTimeout(longPressTimer.value)
@@ -141,6 +147,10 @@ onUnmounted(() => {
   if (progressAnimationFrame) {
     cancelAnimationFrame(progressAnimationFrame)
   }
+  if (scheduleFiredAnimationTimer) {
+    clearTimeout(scheduleFiredAnimationTimer)
+    scheduleFiredAnimationTimer = null
+  }
 })
 
 watch(() => props.isAutoClearAnimating, (newValue) => {
@@ -148,6 +158,17 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
     setTimeout(() => {
       chatStore.clearAutoClearAnimation()
     }, 600)
+  }
+})
+
+watch(() => props.isScheduleFiredAnimating, (newValue) => {
+  if (newValue) {
+    if (scheduleFiredAnimationTimer) {
+      clearTimeout(scheduleFiredAnimationTimer)
+    }
+    scheduleFiredAnimationTimer = setTimeout(() => {
+      emit('clear-schedule-fired-animation')
+    }, 1800)
   }
 })
 </script>
@@ -163,7 +184,7 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
     <button
       v-if="showScheduleButton"
       class="schedule-button"
-      :class="{ 'schedule-enabled': scheduleEnabled }"
+      :class="{ 'schedule-enabled': scheduleEnabled, 'schedule-fired-animating': isScheduleFiredAnimating }"
       :title="hasSchedule ? scheduleTooltip : undefined"
       @click.stop="$emit('open-schedule-modal')"
     >
@@ -205,7 +226,7 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
     <button
       v-if="showScheduleButton"
       class="schedule-button"
-      :class="{ 'schedule-enabled': scheduleEnabled }"
+      :class="{ 'schedule-enabled': scheduleEnabled, 'schedule-fired-animating': isScheduleFiredAnimating }"
       :title="hasSchedule ? scheduleTooltip : undefined"
       @click.stop="$emit('open-schedule-modal')"
     >
