@@ -12,6 +12,7 @@ import CloneProgressNote from './CloneProgressNote.vue'
 import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
 import SelectionBox from './SelectionBox.vue'
+import RepositoryContextMenu from './RepositoryContextMenu.vue'
 import type {Pod, PodTypeConfig} from '@/types'
 import {
   POD_MENU_X_OFFSET,
@@ -36,6 +37,20 @@ useDeleteSelection()
 const gitCloneProgress = useGitCloneProgress()
 
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
+
+const repositoryContextMenu = ref<{
+  visible: boolean
+  position: { x: number; y: number }
+  repositoryId: string
+  repositoryName: string
+  notePosition: { x: number; y: number }
+}>({
+  visible: false,
+  position: { x: 0, y: 0 },
+  repositoryId: '',
+  repositoryName: '',
+  notePosition: { x: 0, y: 0 }
+})
 
 const showTrashZone = computed(() => outputStyleStore.isDraggingNote || skillStore.isDraggingNote || subAgentStore.isDraggingNote || repositoryStore.isDraggingNote || commandStore.isDraggingNote)
 const isTrashHighlighted = computed(() => outputStyleStore.isOverTrash || skillStore.isOverTrash || subAgentStore.isOverTrash || repositoryStore.isOverTrash || commandStore.isOverTrash)
@@ -186,6 +201,26 @@ const subAgentHandlers = useNoteEventHandlers({ store: subAgentStore, trashZoneR
 const repositoryHandlers = useNoteEventHandlers({ store: repositoryStore, trashZoneRef })
 const commandHandlers = useNoteEventHandlers({ store: commandStore, trashZoneRef })
 
+const handleRepositoryContextMenu = (data: { noteId: string; event: MouseEvent }): void => {
+  const note = repositoryStore.notes.find(n => n.id === data.noteId)
+  if (!note) return
+
+  const repository = repositoryStore.availableItems.find(r => r.id === note.repositoryId)
+  if (!repository) return
+
+  repositoryContextMenu.value = {
+    visible: true,
+    position: { x: data.event.clientX, y: data.event.clientY },
+    repositoryId: repository.id,
+    repositoryName: repository.name,
+    notePosition: { x: note.x, y: note.y }
+  }
+}
+
+const handleRepositoryContextMenuClose = (): void => {
+  repositoryContextMenu.value.visible = false
+}
+
 const handleCloneStarted = (payload: { requestId: string; repoName: string }): void => {
   gitCloneProgress.addTask(payload.requestId, payload.repoName)
 }
@@ -260,6 +295,7 @@ onUnmounted(() => {
       @drag-end="repositoryHandlers.handleDragEnd"
       @drag-move="repositoryHandlers.handleDragMove"
       @drag-complete="repositoryHandlers.handleDragComplete"
+      @contextmenu="handleRepositoryContextMenu"
     />
 
     <!-- Command Notes -->
@@ -299,5 +335,16 @@ onUnmounted(() => {
     ref="trashZoneRef"
     :visible="showTrashZone"
     :is-highlighted="isTrashHighlighted"
+  />
+
+  <!-- Repository Context Menu -->
+  <RepositoryContextMenu
+    v-if="repositoryContextMenu.visible"
+    :position="repositoryContextMenu.position"
+    :repository-id="repositoryContextMenu.repositoryId"
+    :repository-name="repositoryContextMenu.repositoryName"
+    :note-position="repositoryContextMenu.notePosition"
+    @close="handleRepositoryContextMenuClose"
+    @worktree-created="handleRepositoryContextMenuClose"
   />
 </template>

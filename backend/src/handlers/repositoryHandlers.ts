@@ -7,6 +7,8 @@ import type {
   PodRepositoryUnboundPayload,
   RepositoryGitCloneProgressPayload,
   RepositoryGitCloneResultPayload,
+  RepositoryCheckGitResultPayload,
+  RepositoryWorktreeCreatedPayload,
   BroadcastRepositoryCreatedPayload,
   BroadcastPodRepositoryBoundPayload,
   BroadcastPodRepositoryUnboundPayload,
@@ -18,6 +20,8 @@ import type {
   PodUnbindRepositoryPayload,
   RepositoryDeletePayload,
   RepositoryGitClonePayload,
+  RepositoryCheckGitPayload,
+  RepositoryWorktreeCreatePayload,
 } from '../schemas/index.js';
 import { repositoryService } from '../services/repositoryService.js';
 import { repositoryNoteStore } from '../services/noteStores.js';
@@ -34,6 +38,10 @@ import { logger } from '../utils/logger.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';
 import { validatePod, handleResourceDelete, getCanvasId, withCanvasId } from '../utils/handlerHelpers.js';
 import { throttle } from '../utils/throttle.js';
+import { fileExists } from '../services/shared/fileResourceHelpers.js';
+import { isPathWithinDirectory } from '../utils/pathValidator.js';
+import { config } from '../config/index.js';
+import path from 'path';
 
 const repositoryNoteHandlers = createNoteHandlers({
   noteStore: repositoryNoteStore,
@@ -263,6 +271,8 @@ export async function handleRepositoryDelete(
 ): Promise<void> {
   const { repositoryId } = payload;
 
+  const metadata = repositoryService.getMetadata(repositoryId);
+
   await handleResourceDelete({
     socket,
     requestId,
@@ -273,7 +283,31 @@ export async function handleRepositoryDelete(
     existsCheck: () => repositoryService.exists(repositoryId),
     findPodsUsing: (canvasId: string) => podStore.findByRepositoryId(canvasId, repositoryId),
     deleteNotes: (canvasId: string) => repositoryNoteStore.deleteByForeignKey(canvasId, repositoryId),
-    deleteResource: () => repositoryService.delete(repositoryId),
+    deleteResource: async () => {
+      if (metadata?.parentRepoId) {
+        const parentExists = await repositoryService.exists(metadata.parentRepoId);
+        if (parentExists) {
+          const parentRepoPath = repositoryService.getRepositoryPath(metadata.parentRepoId);
+          const worktreePath = repositoryService.getRepositoryPath(repositoryId);
+
+          const removeResult = await gitService.removeWorktree(parentRepoPath, worktreePath);
+          if (!removeResult.success) {
+            logger.log('Repository', 'Delete', `警告：移除 worktree 註冊失敗: ${removeResult.error}`);
+          }
+
+          if (metadata.branchName) {
+            const deleteResult = await gitService.deleteBranch(parentRepoPath, metadata.branchName);
+            if (!deleteResult.success) {
+              logger.log('Repository', 'Delete', `警告：刪除分支失敗: ${deleteResult.error}`);
+            }
+          }
+        } else {
+          logger.log('Repository', 'Delete', `Parent repository ${metadata.parentRepoId} 不存在，跳過 worktree 清理`);
+        }
+      }
+
+      await repositoryService.delete(repositoryId);
+    },
   });
 }
 
@@ -388,4 +422,209 @@ function parseRepoName(repoUrl: string): string {
   }
 
   return repoName;
+}
+
+export async function handleRepositoryCheckGit(
+  socket: Socket,
+  payload: RepositoryCheckGitPayload,
+  requestId: string
+): Promise<void> {
+  const { repositoryId } = payload;
+
+  const exists = await repositoryService.exists(repositoryId);
+  if (!exists) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT,
+      `找不到 Repository: ${repositoryId}`,
+      requestId,
+      undefined,
+      'NOT_FOUND'
+    );
+    return;
+  }
+
+  const repositoryPath = repositoryService.getRepositoryPath(repositoryId);
+  const result = await gitService.isGitRepository(repositoryPath);
+
+  if (!result.success) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT,
+      result.error!,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+    return;
+  }
+
+  const response: RepositoryCheckGitResultPayload = {
+    requestId,
+    success: true,
+    isGit: result.data,
+  };
+
+  logger.log('Repository', 'Check', `${repositoryId} isGit: ${result.data}`);
+
+  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT, response);
+}
+
+export async function handleRepositoryWorktreeCreate(
+  socket: Socket,
+  payload: RepositoryWorktreeCreatePayload,
+  requestId: string
+): Promise<void> {
+  const { repositoryId, worktreeName } = payload;
+
+  const exists = await repositoryService.exists(repositoryId);
+  if (!exists) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+      `找不到 Repository: ${repositoryId}`,
+      requestId,
+      undefined,
+      'NOT_FOUND'
+    );
+    return;
+  }
+
+  const repositoryPath = repositoryService.getRepositoryPath(repositoryId);
+  const isGitResult = await gitService.isGitRepository(repositoryPath);
+
+  if (!isGitResult.success) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+      isGitResult.error!,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+    return;
+  }
+
+  if (!isGitResult.data) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+      `${repositoryId} 不是 Git Repository`,
+      requestId,
+      undefined,
+      'INVALID_STATE'
+    );
+    return;
+  }
+
+  const hasCommitsResult = await gitService.hasCommits(repositoryPath);
+  if (!hasCommitsResult.data) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+      'Repository 沒有任何 commit，無法建立 Worktree',
+      requestId,
+      undefined,
+      'INVALID_STATE'
+    );
+    return;
+  }
+
+  const parentDirectory = repositoryService.getParentDirectory();
+  const newRepositoryId = `${repositoryId}-${worktreeName}`;
+  const targetPath = path.join(parentDirectory, newRepositoryId);
+
+  if (!isPathWithinDirectory(targetPath, config.repositoriesRoot)) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+      '無效的 worktree 路徑',
+      requestId,
+      undefined,
+      'INVALID_PATH'
+    );
+    return;
+  }
+
+  const targetExists = await fileExists(targetPath);
+  if (targetExists) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+      `資料夾已存在: ${newRepositoryId}`,
+      requestId,
+      undefined,
+      'ALREADY_EXISTS'
+    );
+    return;
+  }
+
+  const branchExistsResult = await gitService.branchExists(repositoryPath, worktreeName);
+  if (!branchExistsResult.success) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+      branchExistsResult.error!,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+    return;
+  }
+
+  if (branchExistsResult.data) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+      `分支已存在: ${worktreeName}`,
+      requestId,
+      undefined,
+      'ALREADY_EXISTS'
+    );
+    return;
+  }
+
+  const createResult = await gitService.createWorktree(repositoryPath, targetPath, worktreeName);
+  if (!createResult.success) {
+    emitError(
+      socket,
+      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+      `建立 Worktree 失敗: ${createResult.error}`,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+    return;
+  }
+
+  await repositoryService.registerMetadata(newRepositoryId, {
+    parentRepoId: repositoryId,
+    branchName: worktreeName
+  });
+
+  const repository = {
+    id: newRepositoryId,
+    name: newRepositoryId,
+    parentRepoId: repositoryId,
+    branchName: worktreeName
+  };
+
+  const response: RepositoryWorktreeCreatedPayload = {
+    requestId,
+    success: true,
+    repository,
+  };
+
+  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED, response);
+
+  const canvasId = getCanvasId(socket, WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED, requestId);
+  if (canvasId) {
+    const broadcastPayload: BroadcastRepositoryCreatedPayload = {
+      canvasId,
+      repository,
+    };
+    socketService.broadcastToCanvas(socket.id, canvasId, WebSocketResponseEvents.BROADCAST_REPOSITORY_CREATED, broadcastPayload);
+  }
+
+  logger.log('Repository', 'Create', `Created worktree ${newRepositoryId} from ${repositoryId}`);
 }

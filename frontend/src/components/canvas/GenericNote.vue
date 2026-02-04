@@ -18,6 +18,7 @@ const emit = defineEmits<{
   'drag-end': [data: { noteId: string; x: number; y: number }]
   'drag-move': [data: { noteId: string; screenX: number; screenY: number }]
   'drag-complete': [data: { noteId: string; isOverTrash: boolean; startX: number; startY: number }]
+  'contextmenu': [data: { noteId: string; event: MouseEvent }]
 }>()
 
 const cssClassMap: Record<NoteType, string> = {
@@ -192,6 +193,11 @@ const handleMouseDown = (e: MouseEvent): void => {
 
 const cssClass = computed(() => cssClassMap[props.noteType])
 const textClass = computed(() => `${cssClassMap[props.noteType]}-text`)
+
+const handleContextMenu = (e: MouseEvent): void => {
+  e.preventDefault()
+  emit('contextmenu', { noteId: props.note.id, event: e })
+}
 </script>
 
 <template>
@@ -202,6 +208,7 @@ const textClass = computed(() => `${cssClassMap[props.noteType]}-text`)
       top: `${note.y}px`,
     }"
     @mousedown="handleMouseDown"
+    @contextmenu="handleContextMenu"
   >
     <div :class="textClass">
       {{ note.name }}

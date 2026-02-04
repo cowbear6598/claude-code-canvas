@@ -10,6 +10,8 @@ import {
   podUnbindRepositorySchema,
   repositoryDeleteSchema,
   repositoryGitCloneSchema,
+  repositoryCheckGitSchema,
+  repositoryWorktreeCreateSchema,
 } from '../../schemas/index.js';
 import {
   handleRepositoryList,
@@ -22,6 +24,8 @@ import {
   handlePodUnbindRepository,
   handleRepositoryDelete,
   handleRepositoryGitClone,
+  handleRepositoryCheckGit,
+  handleRepositoryWorktreeCreate,
 } from '../repositoryHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
 
@@ -87,6 +91,18 @@ export const repositoryHandlerGroup = createHandlerGroup({
       handler: handleRepositoryGitClone,
       schema: repositoryGitCloneSchema,
       responseEvent: WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.REPOSITORY_CHECK_GIT,
+      handler: handleRepositoryCheckGit,
+      schema: repositoryCheckGitSchema,
+      responseEvent: WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT,
+    },
+    {
+      event: WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+      handler: handleRepositoryWorktreeCreate,
+      schema: repositoryWorktreeCreateSchema,
+      responseEvent: WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
     },
   ],
 });

@@ -3,12 +3,21 @@ import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { useCanvasStore } from '@/stores/canvasStore'
-import type { RepositoryCreatePayload, RepositoryCreatedPayload } from '@/types/websocket'
+import type {
+  RepositoryCreatePayload,
+  RepositoryCreatedPayload,
+  RepositoryCheckGitPayload,
+  RepositoryCheckGitResultPayload,
+  RepositoryWorktreeCreatePayload,
+  RepositoryWorktreeCreatedPayload
+} from '@/types/websocket'
 
 interface RepositoryStoreCustomActions {
   createRepository(name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }>
   deleteRepository(repositoryId: string): Promise<void>
   loadRepositories(): Promise<void>
+  checkIsGit(repositoryId: string): Promise<boolean>
+  createWorktree(repositoryId: string, worktreeName: string, sourceNotePosition: { x: number; y: number }): Promise<{ success: boolean; error?: string }>
 }
 
 const store = createNoteStore<Repository, RepositoryNote>({
@@ -90,6 +99,77 @@ const store = createNoteStore<Repository, RepositoryNote>({
 
     async loadRepositories(this): Promise<void> {
       return this.loadItems()
+    },
+
+    async checkIsGit(this, repositoryId: string): Promise<boolean> {
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const canvasStore = useCanvasStore()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryCheckGitPayload, RepositoryCheckGitResultPayload>({
+          requestEvent: WebSocketRequestEvents.REPOSITORY_CHECK_GIT,
+          responseEvent: WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT,
+          payload: {
+            canvasId: canvasStore.activeCanvasId!,
+            repositoryId
+          }
+        }),
+        '檢查 Git Repository 失敗'
+      )
+
+      if (!response || !response.success) {
+        return false
+      }
+
+      const existingRepository = this.availableItems.find((item) => item.id === repositoryId)
+      if (existingRepository) {
+        existingRepository.isGit = response.isGit
+      }
+
+      return response.isGit
+    },
+
+    async createWorktree(this, repositoryId: string, worktreeName: string, sourceNotePosition: { x: number; y: number }): Promise<{ success: boolean; error?: string }> {
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const canvasStore = useCanvasStore()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>({
+          requestEvent: WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+          responseEvent: WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+          payload: {
+            canvasId: canvasStore.activeCanvasId!,
+            repositoryId,
+            worktreeName
+          }
+        }),
+        '建立 Worktree 失敗'
+      )
+
+      if (!response) {
+        return { success: false, error: '建立 Worktree 失敗' }
+      }
+
+      if (!response.success) {
+        return { success: false, error: response.error || '建立 Worktree 失敗' }
+      }
+
+      if (response.repository) {
+        this.availableItems.push(response.repository)
+
+        const newNote = {
+          id: crypto.randomUUID(),
+          repositoryId: response.repository.id,
+          name: response.repository.name,
+          x: sourceNotePosition.x + 150,
+          y: sourceNotePosition.y + 80,
+          boundToPodId: null,
+          originalPosition: null
+        }
+        this.notes.push(newNote)
+      }
+
+      return { success: true }
     },
   }
 })

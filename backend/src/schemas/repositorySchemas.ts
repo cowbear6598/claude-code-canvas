@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { requestIdSchema, positionSchema, canvasIdSchema } from './base.js';
 
+const RESERVED_NAMES = ['.git', 'HEAD', 'FETCH_HEAD', 'ORIG_HEAD', 'MERGE_HEAD', 'CHERRY_PICK_HEAD'];
+
 function isValidGitUrl(url: string): boolean {
   const gitUrlPattern = /^(https?:\/\/|git@|git:\/\/).+/;
   return gitUrlPattern.test(url);
@@ -76,12 +78,35 @@ export const repositoryGitCloneSchema = z.object({
   branch: z.string().optional(),
 });
 
+export const repositoryCheckGitSchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+  repositoryId: z.string(),
+});
+
+export const repositoryWorktreeCreateSchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+  repositoryId: z.string(),
+  worktreeName: z
+    .string()
+    .min(1, 'Worktree 名稱不可為空')
+    .max(100, 'Worktree 名稱過長')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Worktree 名稱只能包含英文字母、數字、底線和連字號')
+    .refine(
+      (name) => !RESERVED_NAMES.includes(name.toLowerCase()),
+      'Worktree 名稱不可使用保留名稱'
+    ),
+});
+
 export type RepositoryListPayload = z.infer<typeof repositoryListSchema>;
 export type RepositoryCreatePayload = z.infer<typeof repositoryCreateSchema>;
 export type PodBindRepositoryPayload = z.infer<typeof podBindRepositorySchema>;
 export type PodUnbindRepositoryPayload = z.infer<typeof podUnbindRepositorySchema>;
 export type RepositoryDeletePayload = z.infer<typeof repositoryDeleteSchema>;
 export type RepositoryGitClonePayload = z.infer<typeof repositoryGitCloneSchema>;
+export type RepositoryCheckGitPayload = z.infer<typeof repositoryCheckGitSchema>;
+export type RepositoryWorktreeCreatePayload = z.infer<typeof repositoryWorktreeCreateSchema>;
 export type RepositoryNoteCreatePayload = z.infer<typeof repositoryNoteCreateSchema>;
 export type RepositoryNoteListPayload = z.infer<typeof repositoryNoteListSchema>;
 export type RepositoryNoteUpdatePayload = z.infer<typeof repositoryNoteUpdateSchema>;

@@ -239,3 +239,16 @@ export interface PasteCommandNoteItem {
   boundToOriginalPodId: string | null
   originalPosition: { x: number; y: number } | null
 }
+
+export interface RepositoryCheckGitPayload {
+  requestId: string
+  canvasId: string
+  repositoryId: string
+}
+
+export interface RepositoryWorktreeCreatePayload {
+  requestId: string
+  canvasId: string
+  repositoryId: string
+  worktreeName: string
+}

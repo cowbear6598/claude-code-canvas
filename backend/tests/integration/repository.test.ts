@@ -22,6 +22,8 @@ import {
     type RepositoryNoteDeletePayload,
     type RepositoryNoteListPayload,
     type RepositoryNoteUpdatePayload,
+    type RepositoryCheckGitPayload,
+    type RepositoryWorktreeCreatePayload,
 } from '../../src/schemas/index.js';
 import {
     type PodRepositoryBoundPayload,
@@ -33,6 +35,8 @@ import {
     type RepositoryNoteDeletedPayload,
     type RepositoryNoteListResultPayload,
     type RepositoryNoteUpdatedPayload,
+    type RepositoryCheckGitResultPayload,
+    type RepositoryWorktreeCreatedPayload,
 } from '../../src/types/index.js';
 
 describe('Repository 管理', () => {
@@ -354,6 +358,281 @@ describe('Repository 管理', () => {
 
             expect(response.success).toBe(false);
             expect(response.error).toContain('使用中');
+        });
+    });
+
+    describe('Repository Git 檢查', () => {
+        it('success_when_check_non_git_repository', async () => {
+            const repo = await createRepository(client, `check-repo-${uuidv4()}`);
+
+            const canvasId = await getCanvasId(client);
+            const response = await emitAndWaitResponse<RepositoryCheckGitPayload, RepositoryCheckGitResultPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_CHECK_GIT,
+                WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT,
+                {requestId: uuidv4(), canvasId, repositoryId: repo.id}
+            );
+
+            expect(response.success).toBe(true);
+            expect(response.isGit).toBe(false);
+        });
+
+        it('failed_when_check_git_with_nonexistent_repository', async () => {
+            const canvasId = await getCanvasId(client);
+            const response = await emitAndWaitResponse<RepositoryCheckGitPayload, RepositoryCheckGitResultPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_CHECK_GIT,
+                WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT,
+                {requestId: uuidv4(), canvasId, repositoryId: FAKE_REPO_ID}
+            );
+
+            expect(response.success).toBe(false);
+            expect(response.error).toContain('找不到');
+        });
+    });
+
+    describe('Repository Worktree 建立', () => {
+        it('failed_when_create_worktree_from_nonexistent_repository', async () => {
+            const canvasId = await getCanvasId(client);
+            const response = await emitAndWaitResponse<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+                WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+                {requestId: uuidv4(), canvasId, repositoryId: FAKE_REPO_ID, worktreeName: 'feature'}
+            );
+
+            expect(response.success).toBe(false);
+            expect(response.error).toContain('找不到 Repository');
+        });
+
+        it('failed_when_create_worktree_from_non_git_repository', async () => {
+            const repo = await createRepository(client, `worktree-non-git-${uuidv4()}`);
+
+            const canvasId = await getCanvasId(client);
+            const response = await emitAndWaitResponse<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+                WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+                {requestId: uuidv4(), canvasId, repositoryId: repo.id, worktreeName: 'feature'}
+            );
+
+            expect(response.success).toBe(false);
+            expect(response.error).toContain('不是 Git Repository');
+        });
+
+        it('failed_when_create_worktree_from_repository_without_commits', async () => {
+            const repo = await createRepository(client, `worktree-no-commit-${uuidv4()}`);
+
+            const { config } = await import('../../src/config/index.js');
+            const { execSync } = await import('child_process');
+            const path = await import('path');
+            const repoPath = path.join(config.repositoriesRoot, repo.id);
+            execSync(`git init "${repoPath}"`, { encoding: 'utf-8' });
+
+            const canvasId = await getCanvasId(client);
+            const response = await emitAndWaitResponse<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+                WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+                {requestId: uuidv4(), canvasId, repositoryId: repo.id, worktreeName: 'feature'}
+            );
+
+            expect(response.success).toBe(false);
+            expect(response.error).toContain('沒有任何 commit');
+        });
+
+        it('success_when_worktree_created_with_parent_info', async () => {
+            const repo = await createRepository(client, `worktree-parent-${uuidv4()}`);
+
+            const { config } = await import('../../src/config/index.js');
+            const { execSync } = await import('child_process');
+            const path = await import('path');
+            const repoPath = path.join(config.repositoriesRoot, repo.id);
+
+            execSync(`git init "${repoPath}"`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" config user.email "test@example.com"`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" config user.name "Test User"`, { encoding: 'utf-8' });
+            execSync(`echo "test" > "${repoPath}/README.md"`, { encoding: 'utf-8', shell: '/bin/bash' });
+            execSync(`git -C "${repoPath}" add .`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" commit -m "Initial commit"`, { encoding: 'utf-8' });
+
+            const worktreeName = 'feature-test';
+            const canvasId = await getCanvasId(client);
+            const response = await emitAndWaitResponse<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+                WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+                {requestId: uuidv4(), canvasId, repositoryId: repo.id, worktreeName}
+            );
+
+            expect(response.success).toBe(true);
+            expect(response.repository!.parentRepoId).toBe(repo.id);
+            expect(response.repository!.branchName).toBe(worktreeName);
+        });
+    });
+
+    describe('Repository Metadata 持久化', () => {
+        it('success_when_metadata_persisted_after_worktree_creation', async () => {
+            const repo = await createRepository(client, `metadata-persist-${uuidv4()}`);
+
+            const { config } = await import('../../src/config/index.js');
+            const { execSync } = await import('child_process');
+            const path = await import('path');
+            const fs = await import('fs/promises');
+            const repoPath = path.join(config.repositoriesRoot, repo.id);
+
+            execSync(`git init "${repoPath}"`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" config user.email "test@example.com"`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" config user.name "Test User"`, { encoding: 'utf-8' });
+            execSync(`echo "test" > "${repoPath}/README.md"`, { encoding: 'utf-8', shell: '/bin/bash' });
+            execSync(`git -C "${repoPath}" add .`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" commit -m "Initial commit"`, { encoding: 'utf-8' });
+
+            const worktreeName = 'persist-branch';
+            const canvasId = await getCanvasId(client);
+            const createResponse = await emitAndWaitResponse<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+                WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+                {requestId: uuidv4(), canvasId, repositoryId: repo.id, worktreeName}
+            );
+
+            expect(createResponse.success).toBe(true);
+
+            const metadataPath = path.join(config.repositoriesRoot, '.metadata.json');
+            const metadataExists = await fs.access(metadataPath).then(() => true).catch(() => false);
+            expect(metadataExists).toBe(true);
+
+            const metadataContent = await fs.readFile(metadataPath, 'utf-8');
+            const metadata = JSON.parse(metadataContent);
+            const worktreeRepoId = createResponse.repository!.id;
+            expect(metadata[worktreeRepoId]).toBeDefined();
+            expect(metadata[worktreeRepoId].parentRepoId).toBe(repo.id);
+            expect(metadata[worktreeRepoId].branchName).toBe(worktreeName);
+        });
+
+        it('success_when_metadata_loaded_after_restart', async () => {
+            const repo = await createRepository(client, `metadata-restart-${uuidv4()}`);
+
+            const { config } = await import('../../src/config/index.js');
+            const { execSync } = await import('child_process');
+            const path = await import('path');
+            const repoPath = path.join(config.repositoriesRoot, repo.id);
+
+            execSync(`git init "${repoPath}"`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" config user.email "test@example.com"`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" config user.name "Test User"`, { encoding: 'utf-8' });
+            execSync(`echo "test" > "${repoPath}/README.md"`, { encoding: 'utf-8', shell: '/bin/bash' });
+            execSync(`git -C "${repoPath}" add .`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" commit -m "Initial commit"`, { encoding: 'utf-8' });
+
+            const worktreeName = 'restart-branch';
+            const canvasId = await getCanvasId(client);
+            const createResponse = await emitAndWaitResponse<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+                WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+                {requestId: uuidv4(), canvasId, repositoryId: repo.id, worktreeName}
+            );
+
+            expect(createResponse.success).toBe(true);
+            const worktreeRepoId = createResponse.repository!.id;
+
+            const { repositoryService } = await import('../../src/services/repositoryService.js');
+            await repositoryService.initialize();
+
+            const metadata = repositoryService.getMetadata(worktreeRepoId);
+            expect(metadata).toBeDefined();
+            expect(metadata!.parentRepoId).toBe(repo.id);
+            expect(metadata!.branchName).toBe(worktreeName);
+        });
+
+        it('success_when_metadata_removed_after_repository_deletion', async () => {
+            const repo = await createRepository(client, `metadata-delete-${uuidv4()}`);
+
+            const { config } = await import('../../src/config/index.js');
+            const { execSync } = await import('child_process');
+            const path = await import('path');
+            const fs = await import('fs/promises');
+            const repoPath = path.join(config.repositoriesRoot, repo.id);
+
+            execSync(`git init "${repoPath}"`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" config user.email "test@example.com"`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" config user.name "Test User"`, { encoding: 'utf-8' });
+            execSync(`echo "test" > "${repoPath}/README.md"`, { encoding: 'utf-8', shell: '/bin/bash' });
+            execSync(`git -C "${repoPath}" add .`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" commit -m "Initial commit"`, { encoding: 'utf-8' });
+
+            const worktreeName = 'delete-branch';
+            const canvasId = await getCanvasId(client);
+            const createResponse = await emitAndWaitResponse<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+                WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+                {requestId: uuidv4(), canvasId, repositoryId: repo.id, worktreeName}
+            );
+
+            expect(createResponse.success).toBe(true);
+            const worktreeRepoId = createResponse.repository!.id;
+
+            const deleteResponse = await emitAndWaitResponse<RepositoryDeletePayload, RepositoryDeletedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_DELETE,
+                WebSocketResponseEvents.REPOSITORY_DELETED,
+                {requestId: uuidv4(), canvasId, repositoryId: worktreeRepoId}
+            );
+
+            expect(deleteResponse.success).toBe(true);
+
+            const metadataPath = path.join(config.repositoriesRoot, '.metadata.json');
+            const metadataContent = await fs.readFile(metadataPath, 'utf-8');
+            const metadata = JSON.parse(metadataContent);
+            expect(metadata[worktreeRepoId]).toBeUndefined();
+        });
+    });
+
+    describe('Repository Worktree 刪除', () => {
+        it('success_when_worktree_repository_deleted_with_cleanup', async () => {
+            const repo = await createRepository(client, `worktree-cleanup-${uuidv4()}`);
+
+            const { config } = await import('../../src/config/index.js');
+            const { execSync } = await import('child_process');
+            const path = await import('path');
+            const repoPath = path.join(config.repositoriesRoot, repo.id);
+
+            execSync(`git init "${repoPath}"`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" config user.email "test@example.com"`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" config user.name "Test User"`, { encoding: 'utf-8' });
+            execSync(`echo "test" > "${repoPath}/README.md"`, { encoding: 'utf-8', shell: '/bin/bash' });
+            execSync(`git -C "${repoPath}" add .`, { encoding: 'utf-8' });
+            execSync(`git -C "${repoPath}" commit -m "Initial commit"`, { encoding: 'utf-8' });
+
+            const worktreeName = 'cleanup-branch';
+            const canvasId = await getCanvasId(client);
+            const createResponse = await emitAndWaitResponse<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+                WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+                {requestId: uuidv4(), canvasId, repositoryId: repo.id, worktreeName}
+            );
+
+            expect(createResponse.success).toBe(true);
+
+            const worktreeRepoId = createResponse.repository!.id;
+            const deleteResponse = await emitAndWaitResponse<RepositoryDeletePayload, RepositoryDeletedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_DELETE,
+                WebSocketResponseEvents.REPOSITORY_DELETED,
+                {requestId: uuidv4(), canvasId, repositoryId: worktreeRepoId}
+            );
+
+            expect(deleteResponse.success).toBe(true);
+
+            const branches = execSync(`git -C "${repoPath}" branch`, { encoding: 'utf-8' });
+            expect(branches).not.toContain(worktreeName);
+
+            const worktreeList = execSync(`git -C "${repoPath}" worktree list`, { encoding: 'utf-8' });
+            expect(worktreeList).not.toContain(worktreeRepoId);
         });
     });
 });

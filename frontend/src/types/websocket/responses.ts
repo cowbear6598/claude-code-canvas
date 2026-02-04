@@ -346,3 +346,17 @@ export interface ScheduleFiredPayload {
 export interface HeartbeatPingPayload {
     timestamp: number
 }
+
+export interface RepositoryCheckGitResultPayload {
+    requestId: string
+    success: boolean
+    isGit: boolean
+    error?: string
+}
+
+export interface RepositoryWorktreeCreatedPayload {
+    requestId: string
+    success: boolean
+    repository?: Repository
+    error?: string
+}

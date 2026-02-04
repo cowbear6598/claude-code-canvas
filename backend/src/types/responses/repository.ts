@@ -62,3 +62,17 @@ export interface RepositoryGitCloneResultPayload {
   repository?: { id: string; name: string };
   error?: string;
 }
+
+export interface RepositoryCheckGitResultPayload {
+  requestId: string;
+  success: boolean;
+  isGit?: boolean;
+  error?: string;
+}
+
+export interface RepositoryWorktreeCreatedPayload {
+  requestId: string;
+  success: boolean;
+  repository?: { id: string; name: string; parentRepoId?: string; branchName?: string };
+  error?: string;
+}

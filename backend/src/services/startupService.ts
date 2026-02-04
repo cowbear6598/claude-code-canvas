@@ -4,6 +4,7 @@ import { noteStore, skillNoteStore, commandNoteStore, subAgentNoteStore, reposit
 import { connectionStore } from './connectionStore.js';
 import { scheduleService } from './scheduleService.js';
 import { canvasStore } from './canvasStore.js';
+import { repositoryService } from './repositoryService.js';
 import { Result, ok, err } from '../types/index.js';
 import { config } from '../config/index.js';
 import { persistenceService } from './persistence/index.js';
@@ -25,6 +26,8 @@ class StartupService {
     if (!repoResult.success) {
       return err(`伺服器初始化失敗: ${repoResult.error}`);
     }
+
+    await repositoryService.initialize();
 
     const canvasLoadResult = await canvasStore.loadFromDisk();
     if (!canvasLoadResult.success) {
