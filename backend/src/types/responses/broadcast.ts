@@ -95,6 +95,15 @@ export interface BroadcastPodAutoClearSetPayload {
   pod: Pod;
 }
 
+export interface BroadcastCanvasCreatedPayload {
+  canvas: {
+    id: string;
+    name: string;
+    createdAt: string;
+    sortIndex: number;
+  };
+}
+
 export interface BroadcastCanvasRenamedPayload {
   canvasId: string;
   newName: string;
@@ -102,6 +111,10 @@ export interface BroadcastCanvasRenamedPayload {
 
 export interface BroadcastCanvasDeletedPayload {
   canvasId: string;
+}
+
+export interface BroadcastCanvasReorderedPayload {
+  canvasIds: string[];
 }
 
 export interface BroadcastCanvasPastedPayload {

@@ -189,6 +189,27 @@ export const useCanvasStore = defineStore('canvas', {
       this.isLoading = false
     },
 
+    addCanvasFromBroadcast(canvas: Canvas): void {
+      const existingCanvas = this.canvases.find(c => c.id === canvas.id)
+      if (!existingCanvas) {
+        this.canvases.push(canvas)
+      }
+    },
+
+    reorderCanvasesFromBroadcast(canvasIds: string[]): void {
+      const canvasMap = new Map(this.canvases.map(c => [c.id, c]))
+      const reorderedCanvases: Canvas[] = []
+
+      for (const id of canvasIds) {
+        const canvas = canvasMap.get(id)
+        if (canvas) {
+          reorderedCanvases.push(canvas)
+        }
+      }
+
+      this.canvases = reorderedCanvases
+    },
+
     renameCanvasFromBroadcast(canvasId: string, newName: string): void {
       const canvas = this.canvases.find(c => c.id === canvasId)
       if (canvas) {
@@ -197,6 +218,14 @@ export const useCanvasStore = defineStore('canvas', {
     },
 
     async removeCanvasFromBroadcast(canvasId: string): Promise<void> {
+      if (this.activeCanvasId === canvasId) {
+        const deletedCanvas = this.canvases.find(c => c.id === canvasId)
+        const {toast} = useToast()
+        if (deletedCanvas) {
+          toast({title: `${deletedCanvas.name} 已被刪除`, variant: 'destructive'})
+        }
+      }
+
       this.canvases = this.canvases.filter(c => c.id !== canvasId)
 
       if (this.activeCanvasId === canvasId) {

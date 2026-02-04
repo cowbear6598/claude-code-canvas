@@ -5,6 +5,7 @@ import type {SkillNote} from '@/types/skill'
 import type {RepositoryNote, Repository} from '@/types/repository'
 import type {SubAgentNote, SubAgent} from '@/types/subAgent'
 import type {CommandNote} from '@/types/command'
+import type {Canvas} from '@/types/canvas'
 
 export interface BroadcastPodCreatedPayload {
   canvasId: string
@@ -247,9 +248,17 @@ export interface BroadcastPodAutoClearSetPayload {
   pod: Pod
 }
 
+export interface BroadcastCanvasCreatedPayload {
+  canvas: Canvas
+}
+
 export interface BroadcastCanvasRenamedPayload {
   canvasId: string
   newName: string
+}
+
+export interface BroadcastCanvasReorderedPayload {
+  canvasIds: string[]
 }
 
 export interface BroadcastCanvasDeletedPayload {

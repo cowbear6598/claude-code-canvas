@@ -56,8 +56,10 @@ import type {
   BroadcastPodCommandBoundPayload,
   BroadcastPodCommandUnboundPayload,
   BroadcastPodAutoClearSetPayload,
+  BroadcastCanvasCreatedPayload,
   BroadcastCanvasRenamedPayload,
   BroadcastCanvasDeletedPayload,
+  BroadcastCanvasReorderedPayload,
   BroadcastCanvasPastedPayload,
   BroadcastWorkflowClearResultPayload,
   BroadcastPodChatUserMessagePayload,
@@ -267,12 +269,20 @@ const handleBroadcastPodAutoClearSet = createCanvasHandler<BroadcastPodAutoClear
   usePodStore().updatePodFromBroadcast(payload.pod)
 })
 
+const handleBroadcastCanvasCreated = (payload: BroadcastCanvasCreatedPayload): void => {
+  useCanvasStore().addCanvasFromBroadcast(payload.canvas)
+}
+
 const handleBroadcastCanvasRenamed = (payload: BroadcastCanvasRenamedPayload): void => {
   useCanvasStore().renameCanvasFromBroadcast(payload.canvasId, payload.newName)
 }
 
 const handleBroadcastCanvasDeleted = (payload: BroadcastCanvasDeletedPayload): void => {
   useCanvasStore().removeCanvasFromBroadcast(payload.canvasId)
+}
+
+const handleBroadcastCanvasReordered = (payload: BroadcastCanvasReorderedPayload): void => {
+  useCanvasStore().reorderCanvasesFromBroadcast(payload.canvasIds)
 }
 
 const handleBroadcastCanvasPasted = createCanvasHandler<BroadcastCanvasPastedPayload>((payload) => {
@@ -408,8 +418,10 @@ const listeners = [
   {event: WebSocketResponseEvents.BROADCAST_POD_COMMAND_BOUND, handler: handleBroadcastPodCommandBound},
   {event: WebSocketResponseEvents.BROADCAST_POD_COMMAND_UNBOUND, handler: handleBroadcastPodCommandUnbound},
   {event: WebSocketResponseEvents.BROADCAST_POD_AUTO_CLEAR_SET, handler: handleBroadcastPodAutoClearSet},
+  {event: WebSocketResponseEvents.BROADCAST_CANVAS_CREATED, handler: handleBroadcastCanvasCreated},
   {event: WebSocketResponseEvents.BROADCAST_CANVAS_RENAMED, handler: handleBroadcastCanvasRenamed},
   {event: WebSocketResponseEvents.BROADCAST_CANVAS_DELETED, handler: handleBroadcastCanvasDeleted},
+  {event: WebSocketResponseEvents.BROADCAST_CANVAS_REORDERED, handler: handleBroadcastCanvasReordered},
   {event: WebSocketResponseEvents.BROADCAST_CANVAS_PASTED, handler: handleBroadcastCanvasPasted},
   {event: WebSocketResponseEvents.BROADCAST_WORKFLOW_CLEAR_RESULT, handler: handleBroadcastWorkflowClearResult},
   {event: WebSocketResponseEvents.BROADCAST_POD_CHAT_USER_MESSAGE, handler: handleBroadcastPodChatUserMessage},
