@@ -185,17 +185,17 @@ const handleBranchDelete = (branchName: string): void => {
 }
 
 const handleDeleteBranchConfirm = async (): Promise<void> => {
-  modalState.showDeleteBranch = false
-
   const result = await repositoryStore.deleteBranch(props.repositoryId, dataState.branchToDelete, false)
 
   if (result.success) {
+    modalState.showDeleteBranch = false
     toast({
       title: '已刪除分支',
       description: `已刪除分支：${dataState.branchToDelete}`
     })
     await reloadBranchList()
   } else {
+    modalState.showDeleteBranch = false
     if (result.error?.includes('未合併') || result.error?.includes('not fully merged')) {
       modalState.showForceDeleteBranch = true
     } else {
@@ -208,9 +208,9 @@ const handleDeleteBranchConfirm = async (): Promise<void> => {
 }
 
 const handleForceDeleteBranch = async (): Promise<void> => {
-  modalState.showForceDeleteBranch = false
-
   const result = await repositoryStore.deleteBranch(props.repositoryId, dataState.branchToDelete, true)
+
+  modalState.showForceDeleteBranch = false
 
   if (result.success) {
     toast({
