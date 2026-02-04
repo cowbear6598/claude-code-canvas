@@ -84,6 +84,11 @@ function buildClaudeContentBlocks(
         text = `/${commandId} ${text}`;
         isFirstTextBlock = false;
       }
+
+      if (text.trim().length === 0) {
+        continue;
+      }
+
       contentArray.push({
         type: 'text',
         text,
@@ -98,6 +103,13 @@ function buildClaudeContentBlocks(
         },
       });
     }
+  }
+
+  if (contentArray.length === 0) {
+    contentArray.push({
+      type: 'text',
+      text: '請開始執行',
+    });
   }
 
   return contentArray;
@@ -127,7 +139,11 @@ class ClaudeQueryService {
     resumeSessionId: string | null
   ): string | AsyncIterable<SDKUserMessage> {
     if (typeof message === 'string') {
-      return commandId ? `/${commandId} ${message}` : message;
+      let prompt = commandId ? `/${commandId} ${message}` : message;
+      if (prompt.trim().length === 0) {
+        prompt = '請開始執行';
+      }
+      return prompt;
     }
 
     const contentArray = buildClaudeContentBlocks(message, commandId);

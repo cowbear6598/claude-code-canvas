@@ -399,9 +399,7 @@ export function createMessageActions(store: ChatStoreInstance): {
         for (const msg of messages) {
             if (msg.role === 'user') {
                 const userContent = msg.content
-                if (userContent) {
-                    outputLines.push(`> ${truncateContent(userContent, RESPONSE_PREVIEW_LENGTH)}`)
-                }
+                outputLines.push(`> ${truncateContent(userContent, RESPONSE_PREVIEW_LENGTH)}`)
             } else if (msg.role === 'assistant') {
                 if (msg.subMessages && msg.subMessages.length > 0) {
                     for (const sub of msg.subMessages) {

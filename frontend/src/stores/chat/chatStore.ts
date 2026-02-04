@@ -165,13 +165,6 @@ export const useChatStore = defineStore('chat', {
                 throw new Error('WebSocket not connected')
             }
 
-            const hasContentBlocks = contentBlocks && contentBlocks.length > 0
-            const hasTextContent = content.trim().length > 0
-
-            if (!hasContentBlocks && !hasTextContent) {
-                return
-            }
-
             const {usePodStore} = await import('../pod/podStore')
             const {useCommandStore} = await import('../note/commandStore')
             const podStore = usePodStore()
@@ -181,6 +174,13 @@ export const useChatStore = defineStore('chat', {
             const command = pod?.commandId
                 ? commandStore.availableItems.find(c => c.id === pod.commandId)
                 : null
+
+            const hasContentBlocks = contentBlocks && contentBlocks.length > 0
+            const hasTextContent = content.trim().length > 0
+
+            if (!hasContentBlocks && !hasTextContent) {
+                return
+            }
 
             let messagePayload: string | ContentBlock[]
             let displayMessage: string

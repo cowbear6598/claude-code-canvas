@@ -148,7 +148,7 @@ class ScheduleService {
     podStore.setScheduleLastTriggeredAt(canvasId, pod.id, now);
 
     // 發送 SCHEDULE_FIRED 事件
-    socketService.emitToAll(WebSocketResponseEvents.SCHEDULE_FIRED, {
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.SCHEDULE_FIRED, {
       podId: pod.id,
       timestamp: now.toISOString(),
     });

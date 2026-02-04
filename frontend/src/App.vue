@@ -130,11 +130,17 @@ const handlePodStatusChanged = (payload: PodStatusChangedPayload): void => {
   podStore.updatePodStatus(payload.podId, payload.status)
 }
 
-const handleScheduleFired = (payload: ScheduleFiredPayload): void => {
+const handleScheduleFired = async (payload: ScheduleFiredPayload): Promise<void> => {
   const pod = podStore.getPodById(payload.podId)
   if (pod) {
     podStore.triggerScheduleFiredAnimation(payload.podId)
-    chatStore.sendMessage(payload.podId, '')
+
+    const command = pod.commandId
+      ? commandStore.availableItems.find(c => c.id === pod.commandId)
+      : null
+    const displayMessage = command ? `/${command.name} ` : ''
+
+    chatStore.addUserMessage(payload.podId, displayMessage)
   }
 }
 
