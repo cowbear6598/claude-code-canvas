@@ -53,7 +53,7 @@ function createUnifiedHandler<T extends BasePayload>(
   }
 }
 
-const handlePodCreated = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodCreated = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().addPodFromEvent(payload.pod)
@@ -62,7 +62,7 @@ const handlePodCreated = createUnifiedHandler<BasePayload & { pod: Pod; canvasId
   { toastMessage: 'Pod 建立成功' }
 )
 
-const handlePodMoved = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodMoved = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePodPosition(payload.pod.id, payload.pod.x, payload.pod.y)
@@ -77,7 +77,7 @@ const handlePodRenamed = createUnifiedHandler<BasePayload & { podId: string; nam
   { toastMessage: '重命名成功' }
 )
 
-const handlePodModelSet = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodModelSet = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -86,7 +86,7 @@ const handlePodModelSet = createUnifiedHandler<BasePayload & { pod: Pod; canvasI
   { toastMessage: '模型設定成功' }
 )
 
-const handlePodScheduleSet = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodScheduleSet = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -94,6 +94,43 @@ const handlePodScheduleSet = createUnifiedHandler<BasePayload & { pod: Pod; canv
   },
   { toastMessage: '排程設定成功' }
 )
+
+const removeDeletedNotes = (deletedNoteIds: {
+  note?: string[]
+  skillNote?: string[]
+  repositoryNote?: string[]
+  commandNote?: string[]
+  subAgentNote?: string[]
+} | undefined): void => {
+  if (!deletedNoteIds) return
+
+  const { note, skillNote, repositoryNote, commandNote, subAgentNote } = deletedNoteIds
+
+  if (note && note.length > 0) {
+    const outputStyleStore = useOutputStyleStore()
+    note.forEach(noteId => outputStyleStore.removeNoteFromEvent(noteId))
+  }
+
+  if (skillNote && skillNote.length > 0) {
+    const skillStore = useSkillStore()
+    skillNote.forEach(noteId => skillStore.removeNoteFromEvent(noteId))
+  }
+
+  if (repositoryNote && repositoryNote.length > 0) {
+    const repositoryStore = useRepositoryStore()
+    repositoryNote.forEach(noteId => repositoryStore.removeNoteFromEvent(noteId))
+  }
+
+  if (commandNote && commandNote.length > 0) {
+    const commandStore = useCommandStore()
+    commandNote.forEach(noteId => commandStore.removeNoteFromEvent(noteId))
+  }
+
+  if (subAgentNote && subAgentNote.length > 0) {
+    const subAgentStore = useSubAgentStore()
+    subAgentNote.forEach(noteId => subAgentStore.removeNoteFromEvent(noteId))
+  }
+}
 
 const handlePodDeleted = createUnifiedHandler<BasePayload & {
   podId: string
@@ -108,40 +145,12 @@ const handlePodDeleted = createUnifiedHandler<BasePayload & {
 }>(
   (payload) => {
     usePodStore().removePod(payload.podId)
-
-    if (payload.deletedNoteIds) {
-      const { note, skillNote, repositoryNote, commandNote, subAgentNote } = payload.deletedNoteIds
-
-      if (note && note.length > 0) {
-        const outputStyleStore = useOutputStyleStore()
-        note.forEach(noteId => outputStyleStore.removeNoteFromEvent(noteId))
-      }
-
-      if (skillNote && skillNote.length > 0) {
-        const skillStore = useSkillStore()
-        skillNote.forEach(noteId => skillStore.removeNoteFromEvent(noteId))
-      }
-
-      if (repositoryNote && repositoryNote.length > 0) {
-        const repositoryStore = useRepositoryStore()
-        repositoryNote.forEach(noteId => repositoryStore.removeNoteFromEvent(noteId))
-      }
-
-      if (commandNote && commandNote.length > 0) {
-        const commandStore = useCommandStore()
-        commandNote.forEach(noteId => commandStore.removeNoteFromEvent(noteId))
-      }
-
-      if (subAgentNote && subAgentNote.length > 0) {
-        const subAgentStore = useSubAgentStore()
-        subAgentNote.forEach(noteId => subAgentStore.removeNoteFromEvent(noteId))
-      }
-    }
+    removeDeletedNotes(payload.deletedNoteIds)
   },
   { toastMessage: 'Pod 已刪除' }
 )
 
-const handlePodOutputStyleBound = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodOutputStyleBound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -149,7 +158,7 @@ const handlePodOutputStyleBound = createUnifiedHandler<BasePayload & { pod: Pod;
   }
 )
 
-const handlePodOutputStyleUnbound = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodOutputStyleUnbound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -157,7 +166,7 @@ const handlePodOutputStyleUnbound = createUnifiedHandler<BasePayload & { pod: Po
   }
 )
 
-const handlePodSkillBound = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodSkillBound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -165,7 +174,7 @@ const handlePodSkillBound = createUnifiedHandler<BasePayload & { pod: Pod; canva
   }
 )
 
-const handlePodRepositoryBound = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodRepositoryBound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -173,7 +182,7 @@ const handlePodRepositoryBound = createUnifiedHandler<BasePayload & { pod: Pod; 
   }
 )
 
-const handlePodRepositoryUnbound = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodRepositoryUnbound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -181,7 +190,7 @@ const handlePodRepositoryUnbound = createUnifiedHandler<BasePayload & { pod: Pod
   }
 )
 
-const handlePodSubAgentBound = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodSubAgentBound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -189,7 +198,7 @@ const handlePodSubAgentBound = createUnifiedHandler<BasePayload & { pod: Pod; ca
   }
 )
 
-const handlePodCommandBound = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodCommandBound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -197,7 +206,7 @@ const handlePodCommandBound = createUnifiedHandler<BasePayload & { pod: Pod; can
   }
 )
 
-const handlePodCommandUnbound = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodCommandUnbound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -205,7 +214,7 @@ const handlePodCommandUnbound = createUnifiedHandler<BasePayload & { pod: Pod; c
   }
 )
 
-const handlePodAutoClearSet = createUnifiedHandler<BasePayload & { pod: Pod; canvasId: string }>(
+const handlePodAutoClearSet = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -213,7 +222,7 @@ const handlePodAutoClearSet = createUnifiedHandler<BasePayload & { pod: Pod; can
   }
 )
 
-const handleConnectionCreated = createUnifiedHandler<BasePayload & { connection: Connection; canvasId: string }>(
+const handleConnectionCreated = createUnifiedHandler<BasePayload & { connection?: Connection; canvasId: string }>(
   (payload) => {
     if (payload.connection) {
       useConnectionStore().addConnectionFromEvent(payload.connection)
@@ -222,7 +231,7 @@ const handleConnectionCreated = createUnifiedHandler<BasePayload & { connection:
   { toastMessage: '連線建立成功' }
 )
 
-const handleConnectionUpdated = createUnifiedHandler<BasePayload & { connection: Connection; canvasId: string }>(
+const handleConnectionUpdated = createUnifiedHandler<BasePayload & { connection?: Connection; canvasId: string }>(
   (payload) => {
     if (payload.connection) {
       useConnectionStore().updateConnectionFromEvent(payload.connection)
@@ -237,7 +246,7 @@ const handleConnectionDeleted = createUnifiedHandler<BasePayload & { connectionI
   { toastMessage: '連線已刪除' }
 )
 
-const handleOutputStyleCreated = createUnifiedHandler<BasePayload & { outputStyle: { id: string; name: string }; canvasId: string }>(
+const handleOutputStyleCreated = createUnifiedHandler<BasePayload & { outputStyle?: { id: string; name: string }; canvasId: string }>(
   (payload) => {
     if (payload.outputStyle) {
       useOutputStyleStore().addItemFromEvent(payload.outputStyle)
@@ -260,7 +269,7 @@ const handleOutputStyleDeleted = createUnifiedHandler<BasePayload & { outputStyl
   { toastMessage: '輸出風格已刪除' }
 )
 
-const handleNoteCreated = createUnifiedHandler<BasePayload & { note: OutputStyleNote; canvasId: string }>(
+const handleNoteCreated = createUnifiedHandler<BasePayload & { note?: OutputStyleNote; canvasId: string }>(
   (payload) => {
     if (payload.note) {
       useOutputStyleStore().addNoteFromEvent(payload.note)
@@ -268,7 +277,7 @@ const handleNoteCreated = createUnifiedHandler<BasePayload & { note: OutputStyle
   }
 )
 
-const handleNoteUpdated = createUnifiedHandler<BasePayload & { note: OutputStyleNote; canvasId: string }>(
+const handleNoteUpdated = createUnifiedHandler<BasePayload & { note?: OutputStyleNote; canvasId: string }>(
   (payload) => {
     if (payload.note) {
       useOutputStyleStore().updateNoteFromEvent(payload.note)
@@ -282,7 +291,7 @@ const handleNoteDeleted = createUnifiedHandler<BasePayload & { noteId: string; c
   }
 )
 
-const handleSkillNoteCreated = createUnifiedHandler<BasePayload & { note: SkillNote; canvasId: string }>(
+const handleSkillNoteCreated = createUnifiedHandler<BasePayload & { note?: SkillNote; canvasId: string }>(
   (payload) => {
     if (payload.note) {
       useSkillStore().addNoteFromEvent(payload.note)
@@ -290,7 +299,7 @@ const handleSkillNoteCreated = createUnifiedHandler<BasePayload & { note: SkillN
   }
 )
 
-const handleSkillNoteUpdated = createUnifiedHandler<BasePayload & { note: SkillNote; canvasId: string }>(
+const handleSkillNoteUpdated = createUnifiedHandler<BasePayload & { note?: SkillNote; canvasId: string }>(
   (payload) => {
     if (payload.note) {
       useSkillStore().updateNoteFromEvent(payload.note)
@@ -311,7 +320,7 @@ const handleSkillDeleted = createUnifiedHandler<BasePayload & { skillId: string;
   { toastMessage: 'Skill 已刪除' }
 )
 
-const handleRepositoryCreated = createUnifiedHandler<BasePayload & { repository: { id: string; name: string; path: string; currentBranch?: string }; canvasId: string }>(
+const handleRepositoryCreated = createUnifiedHandler<BasePayload & { repository?: { id: string; name: string; path: string; currentBranch?: string }; canvasId: string }>(
   (payload) => {
     if (payload.repository) {
       useRepositoryStore().addItemFromEvent(payload.repository)
@@ -337,7 +346,7 @@ const handleRepositoryBranchChanged = createUnifiedHandler<BasePayload & { repos
   }
 )
 
-const handleRepositoryNoteCreated = createUnifiedHandler<BasePayload & { note: RepositoryNote; canvasId: string }>(
+const handleRepositoryNoteCreated = createUnifiedHandler<BasePayload & { note?: RepositoryNote; canvasId: string }>(
   (payload) => {
     if (payload.note) {
       useRepositoryStore().addNoteFromEvent(payload.note)
@@ -345,7 +354,7 @@ const handleRepositoryNoteCreated = createUnifiedHandler<BasePayload & { note: R
   }
 )
 
-const handleRepositoryNoteUpdated = createUnifiedHandler<BasePayload & { note: RepositoryNote; canvasId: string }>(
+const handleRepositoryNoteUpdated = createUnifiedHandler<BasePayload & { note?: RepositoryNote; canvasId: string }>(
   (payload) => {
     if (payload.note) {
       useRepositoryStore().updateNoteFromEvent(payload.note)
@@ -359,7 +368,7 @@ const handleRepositoryNoteDeleted = createUnifiedHandler<BasePayload & { noteId:
   }
 )
 
-const handleSubAgentCreated = createUnifiedHandler<BasePayload & { subAgent: { id: string; name: string }; canvasId: string }>(
+const handleSubAgentCreated = createUnifiedHandler<BasePayload & { subAgent?: { id: string; name: string }; canvasId: string }>(
   (payload) => {
     if (payload.subAgent) {
       useSubAgentStore().addItemFromEvent(payload.subAgent)
@@ -382,7 +391,7 @@ const handleSubAgentDeleted = createUnifiedHandler<BasePayload & { subAgentId: s
   { toastMessage: 'SubAgent 已刪除' }
 )
 
-const handleSubAgentNoteCreated = createUnifiedHandler<BasePayload & { note: SubAgentNote; canvasId: string }>(
+const handleSubAgentNoteCreated = createUnifiedHandler<BasePayload & { note?: SubAgentNote; canvasId: string }>(
   (payload) => {
     if (payload.note) {
       useSubAgentStore().addNoteFromEvent(payload.note)
@@ -390,7 +399,7 @@ const handleSubAgentNoteCreated = createUnifiedHandler<BasePayload & { note: Sub
   }
 )
 
-const handleSubAgentNoteUpdated = createUnifiedHandler<BasePayload & { note: SubAgentNote; canvasId: string }>(
+const handleSubAgentNoteUpdated = createUnifiedHandler<BasePayload & { note?: SubAgentNote; canvasId: string }>(
   (payload) => {
     if (payload.note) {
       useSubAgentStore().updateNoteFromEvent(payload.note)
@@ -404,7 +413,7 @@ const handleSubAgentNoteDeleted = createUnifiedHandler<BasePayload & { noteId: s
   }
 )
 
-const handleCommandCreated = createUnifiedHandler<BasePayload & { command: { id: string; name: string }; canvasId: string }>(
+const handleCommandCreated = createUnifiedHandler<BasePayload & { command?: { id: string; name: string }; canvasId: string }>(
   (payload) => {
     if (payload.command) {
       useCommandStore().addItemFromEvent(payload.command)
@@ -427,7 +436,7 @@ const handleCommandDeleted = createUnifiedHandler<BasePayload & { commandId: str
   { toastMessage: 'Command 已刪除' }
 )
 
-const handleCommandNoteCreated = createUnifiedHandler<BasePayload & { note: CommandNote; canvasId: string }>(
+const handleCommandNoteCreated = createUnifiedHandler<BasePayload & { note?: CommandNote; canvasId: string }>(
   (payload) => {
     if (payload.note) {
       useCommandStore().addNoteFromEvent(payload.note)
@@ -435,7 +444,7 @@ const handleCommandNoteCreated = createUnifiedHandler<BasePayload & { note: Comm
   }
 )
 
-const handleCommandNoteUpdated = createUnifiedHandler<BasePayload & { note: CommandNote; canvasId: string }>(
+const handleCommandNoteUpdated = createUnifiedHandler<BasePayload & { note?: CommandNote; canvasId: string }>(
   (payload) => {
     if (payload.note) {
       useCommandStore().updateNoteFromEvent(payload.note)
@@ -449,7 +458,7 @@ const handleCommandNoteDeleted = createUnifiedHandler<BasePayload & { noteId: st
   }
 )
 
-const handleCanvasCreated = createUnifiedHandler<BasePayload & { canvas: Canvas }>(
+const handleCanvasCreated = createUnifiedHandler<BasePayload & { canvas?: Canvas }>(
   (payload) => {
     if (payload.canvas) {
       useCanvasStore().addCanvasFromEvent(payload.canvas)
@@ -479,6 +488,17 @@ const handleCanvasReordered = createUnifiedHandler<BasePayload & { canvasIds: st
   { skipCanvasCheck: true }
 )
 
+const addCreatedItems = <T>(
+  items: T[] | undefined,
+  addFn: (item: T) => void
+): void => {
+  if (items) {
+    for (const item of items) {
+      addFn(item)
+    }
+  }
+}
+
 const handleCanvasPasted = createUnifiedHandler<BasePayload & {
   canvasId: string
   createdPods?: Pod[]
@@ -498,47 +518,13 @@ const handleCanvasPasted = createUnifiedHandler<BasePayload & {
     const subAgentStore = useSubAgentStore()
     const commandStore = useCommandStore()
 
-    if (payload.createdPods) {
-      for (const pod of payload.createdPods) {
-        podStore.addPod(pod)
-      }
-    }
-
-    if (payload.createdOutputStyleNotes) {
-      for (const note of payload.createdOutputStyleNotes) {
-        outputStyleStore.addNoteFromEvent(note)
-      }
-    }
-
-    if (payload.createdSkillNotes) {
-      for (const note of payload.createdSkillNotes) {
-        skillStore.addNoteFromEvent(note)
-      }
-    }
-
-    if (payload.createdRepositoryNotes) {
-      for (const note of payload.createdRepositoryNotes) {
-        repositoryStore.addNoteFromEvent(note)
-      }
-    }
-
-    if (payload.createdSubAgentNotes) {
-      for (const note of payload.createdSubAgentNotes) {
-        subAgentStore.addNoteFromEvent(note)
-      }
-    }
-
-    if (payload.createdCommandNotes) {
-      for (const note of payload.createdCommandNotes) {
-        commandStore.addNoteFromEvent(note)
-      }
-    }
-
-    if (payload.createdConnections) {
-      for (const connection of payload.createdConnections) {
-        connectionStore.addConnectionFromEvent(connection)
-      }
-    }
+    addCreatedItems(payload.createdPods, pod => podStore.addPod(pod))
+    addCreatedItems(payload.createdOutputStyleNotes, note => outputStyleStore.addNoteFromEvent(note))
+    addCreatedItems(payload.createdSkillNotes, note => skillStore.addNoteFromEvent(note))
+    addCreatedItems(payload.createdRepositoryNotes, note => repositoryStore.addNoteFromEvent(note))
+    addCreatedItems(payload.createdSubAgentNotes, note => subAgentStore.addNoteFromEvent(note))
+    addCreatedItems(payload.createdCommandNotes, note => commandStore.addNoteFromEvent(note))
+    addCreatedItems(payload.createdConnections, connection => connectionStore.addConnectionFromEvent(connection))
   },
   { toastMessage: '貼上成功' }
 )

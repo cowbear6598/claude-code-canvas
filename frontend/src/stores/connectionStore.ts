@@ -1,8 +1,8 @@
 import {defineStore} from 'pinia'
-import type {Connection, DraggingConnection, AnchorPosition, ConnectionStatus} from '@/types/connection'
+import type {AnchorPosition, Connection, ConnectionStatus, DraggingConnection} from '@/types/connection'
 import {
-    websocketClient,
     createWebSocketRequest,
+    websocketClient,
     WebSocketRequestEvents,
     WebSocketResponseEvents
 } from '@/services/websocket'
@@ -10,13 +10,13 @@ import {useToast} from '@/composables/useToast'
 import {useCanvasStore} from '@/stores/canvasStore'
 import type {
     ConnectionCreatedPayload,
-    ConnectionListResultPayload,
-    ConnectionDeletedPayload,
-    WorkflowAutoTriggeredPayload,
-    WorkflowCompletePayload,
-    ConnectionListPayload,
     ConnectionCreatePayload,
-    ConnectionDeletePayload
+    ConnectionDeletedPayload,
+    ConnectionDeletePayload,
+    ConnectionListPayload,
+    ConnectionListResultPayload,
+    WorkflowAutoTriggeredPayload,
+    WorkflowCompletePayload
 } from '@/types/websocket'
 
 interface ConnectionState {
@@ -142,14 +142,12 @@ export const useConnectionStore = defineStore('connection', {
                 return null
             }
 
-            const connection: Connection = {
+            return {
                 ...response.connection,
                 createdAt: new Date(response.connection.createdAt),
                 autoTrigger: response.connection.autoTrigger ?? false,
                 status: 'inactive' as ConnectionStatus
             }
-
-            return connection
         },
 
         async deleteConnection(connectionId: string): Promise<void> {
@@ -241,7 +239,7 @@ export const useConnectionStore = defineStore('connection', {
             this.updateConnectionStatusByTargetPod(payload.targetPodId, 'inactive')
         },
 
-        addConnectionFromEvent(connection: any): void {
+        addConnectionFromEvent(connection: Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }): void {
             const enrichedConnection: Connection = {
                 ...connection,
                 createdAt: new Date(connection.createdAt),
@@ -255,7 +253,7 @@ export const useConnectionStore = defineStore('connection', {
             }
         },
 
-        updateConnectionFromEvent(connection: any): void {
+        updateConnectionFromEvent(connection: Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }): void {
             const enrichedConnection: Connection = {
                 ...connection,
                 createdAt: new Date(connection.createdAt),

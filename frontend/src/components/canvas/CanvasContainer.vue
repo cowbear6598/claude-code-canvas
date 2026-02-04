@@ -428,9 +428,9 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
     await createActions[resourceType]()
   } else {
     const updateActions = {
-      outputStyle: (): Promise<void> => outputStyleStore.updateOutputStyle(itemId, content),
-      subAgent: (): Promise<void> => subAgentStore.updateSubAgent(itemId, content),
-      command: (): Promise<void> => commandStore.updateCommand(itemId, content)
+      outputStyle: () => outputStyleStore.updateOutputStyle(itemId, content),
+      subAgent: () => subAgentStore.updateSubAgent(itemId, content),
+      command: () => commandStore.updateCommand(itemId, content)
     }
 
     await updateActions[resourceType]()
