@@ -5,6 +5,7 @@ import {
   canvasRenameSchema,
   canvasDeleteSchema,
   canvasSwitchSchema,
+  canvasReorderSchema,
 } from '../../schemas/index.js';
 import {
   handleCanvasCreate,
@@ -12,6 +13,7 @@ import {
   handleCanvasRename,
   handleCanvasDelete,
   handleCanvasSwitch,
+  handleCanvasReorder,
 } from '../canvasHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
 
@@ -47,6 +49,12 @@ export const canvasHandlerGroup = createHandlerGroup({
       handler: handleCanvasSwitch,
       schema: canvasSwitchSchema,
       responseEvent: WebSocketResponseEvents.CANVAS_SWITCHED,
+    },
+    {
+      event: WebSocketRequestEvents.CANVAS_REORDER,
+      handler: handleCanvasReorder,
+      schema: canvasReorderSchema,
+      responseEvent: WebSocketResponseEvents.CANVAS_REORDERED,
     },
   ],
 });

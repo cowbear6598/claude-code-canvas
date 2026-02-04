@@ -9,6 +9,7 @@
       ref="sidebarRef"
       class="fixed right-0 z-40 flex h-[calc(100vh-64px)] w-72 flex-col border-l border-border bg-background"
       style="top: 64px"
+      @dragleave="handleSidebarDragLeave"
     >
       <!-- Header -->
       <div class="flex items-center justify-between border-b border-border px-4 py-3">
@@ -25,7 +26,10 @@
 
       <!-- New Canvas Button -->
       <div class="border-b border-border p-4">
-        <div v-if="isCreating" class="flex flex-col gap-2">
+        <div
+          v-if="isCreating"
+          class="flex flex-col gap-2"
+        >
           <input
             ref="createInputRef"
             v-model="newCanvasName"
@@ -49,22 +53,41 @@
 
       <!-- Canvas List -->
       <div class="flex-1 overflow-y-auto p-2">
-        <div v-if="canvasStore.canvases.length === 0" class="px-2 py-8 text-center text-sm text-muted-foreground">
+        <div
+          v-if="canvasStore.canvases.length === 0"
+          class="px-2 py-8 text-center text-sm text-muted-foreground"
+        >
           No canvases yet
         </div>
         <div
-          v-for="canvas in canvasStore.canvases"
+          v-for="(canvas, index) in canvasStore.canvases"
           :key="canvas.id"
           class="group relative mb-1"
+          draggable="true"
+          @dragstart="handleDragStart($event, index)"
+          @dragend="handleDragEnd"
+          @dragover="handleDragOver($event, index)"
+          @dragenter="handleDragEnter($event, index)"
+          @dragleave="handleDragLeave"
+          @drop="handleDrop($event, index)"
         >
           <div
-            class="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 hover:bg-accent"
+            class="flex items-center justify-between rounded-md px-3 py-2 hover:bg-accent transition-opacity duration-200"
             :class="{
-              'bg-accent': canvas.id === canvasStore.activeCanvasId
+              'bg-accent': canvas.id === canvasStore.activeCanvasId,
+              'opacity-50': draggedIndex === index,
+              'cursor-grabbing': draggedIndex === index,
+              'cursor-grab': draggedIndex !== index,
+              'border-t-2 border-t-blue-500': dragOverIndex === index && draggedIndex !== null && draggedIndex > index,
+              'border-b-2 border-b-blue-500': dragOverIndex === index && draggedIndex !== null && draggedIndex < index
             }"
             @click="handleSwitchCanvas(canvas.id)"
           >
-            <div v-if="renamingCanvasId === canvas.id" class="flex-1" @click.stop>
+            <div
+              v-if="renamingCanvasId === canvas.id"
+              class="flex-1"
+              @click.stop
+            >
               <input
                 ref="renameInputRef"
                 v-model="renamingName"
@@ -75,7 +98,10 @@
                 @blur="cancelRename"
               >
             </div>
-            <span v-else class="flex-1 text-sm">{{ canvas.name }}</span>
+            <span
+              v-else
+              class="flex-1 text-sm"
+            >{{ canvas.name }}</span>
 
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100">
               <button
@@ -141,6 +167,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
+import type {Canvas} from '@/types/canvas'
 
 interface Props {
   open: boolean
@@ -167,6 +194,11 @@ const renameInputRef = ref<HTMLInputElement | HTMLInputElement[] | undefined>(un
 const showDeleteDialog = ref(false)
 const deleteTargetId = ref<string | null>(null)
 const deleteTargetName = ref('')
+
+const draggedIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
+const isDraggingOver = ref(false)
+const originalCanvases = ref<Canvas[]>([])
 
 const handleClose = (): void => {
   emit('update:open', false)
@@ -256,7 +288,11 @@ const onLeave = (el: unknown): void => {
 }
 
 const handleClickOutside = (event: MouseEvent): void => {
-  const target = event.target as Node
+  const target = event.target
+
+  if (!(target instanceof Node)) {
+    return
+  }
 
   if (sidebarRef.value?.contains(target)) {
     return
@@ -271,10 +307,110 @@ const handleClickOutside = (event: MouseEvent): void => {
 }
 
 const handleKeyDown = (event: KeyboardEvent): void => {
-  if (event.key === 'Escape' && !isCreating.value && !renamingCanvasId.value) {
-    event.preventDefault()
-    handleClose()
+  if (event.key === 'Escape') {
+    if (draggedIndex.value !== null) {
+      event.preventDefault()
+      cancelDrag()
+      return
+    }
+
+    if (!isCreating.value && !renamingCanvasId.value) {
+      event.preventDefault()
+      handleClose()
+    }
   }
+}
+
+const handleDragStart = (event: Event, index: number): void => {
+  if (!(event instanceof DragEvent)) return
+  if (!event.dataTransfer) return
+
+  draggedIndex.value = index
+  originalCanvases.value = JSON.parse(JSON.stringify(canvasStore.canvases))
+
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', canvasStore.canvases[index].id)
+
+  canvasStore.setDragging(true, canvasStore.canvases[index].id)
+}
+
+const handleDragEnd = (): void => {
+  draggedIndex.value = null
+  dragOverIndex.value = null
+  isDraggingOver.value = false
+  canvasStore.setDragging(false, null)
+}
+
+const handleDragOver = (event: Event, index: number): void => {
+  if (!(event instanceof DragEvent)) return
+
+  event.preventDefault()
+  if (!event.dataTransfer) return
+
+  event.dataTransfer.dropEffect = 'move'
+  dragOverIndex.value = index
+}
+
+const handleDragEnter = (event: Event, index: number): void => {
+  dragOverIndex.value = index
+}
+
+const handleDragLeave = (event: Event): void => {
+  if (!(event instanceof DragEvent)) return
+
+  const relatedTarget = event.relatedTarget
+
+  if (!(relatedTarget instanceof HTMLElement)) {
+    dragOverIndex.value = null
+    return
+  }
+
+  if (!sidebarRef.value?.contains(relatedTarget)) {
+    dragOverIndex.value = null
+  }
+}
+
+const handleDrop = (event: Event, targetIndex: number): void => {
+  if (!(event instanceof DragEvent)) return
+
+  event.preventDefault()
+
+  if (draggedIndex.value === null || draggedIndex.value === targetIndex) {
+    return
+  }
+
+  canvasStore.reorderCanvases(draggedIndex.value, targetIndex)
+
+  draggedIndex.value = null
+  dragOverIndex.value = null
+  isDraggingOver.value = false
+}
+
+const handleSidebarDragLeave = (event: Event): void => {
+  if (!(event instanceof DragEvent)) return
+
+  const relatedTarget = event.relatedTarget
+
+  if (!(relatedTarget instanceof HTMLElement)) {
+    cancelDrag()
+    return
+  }
+
+  if (!sidebarRef.value?.contains(relatedTarget)) {
+    cancelDrag()
+  }
+}
+
+const cancelDrag = (): void => {
+  if (draggedIndex.value !== null && originalCanvases.value.length > 0) {
+    canvasStore.revertCanvasOrder(originalCanvases.value)
+  }
+
+  draggedIndex.value = null
+  dragOverIndex.value = null
+  isDraggingOver.value = false
+  originalCanvases.value = []
+  canvasStore.setDragging(false, null)
 }
 
 watch(() => props.open, (isOpen) => {

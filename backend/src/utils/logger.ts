@@ -36,7 +36,8 @@ export type LogAction =
   | 'Complete'
   | 'Rename'
   | 'Switch'
-  | 'Check';
+  | 'Check'
+  | 'Reorder';
 
 /**
  * Logger 類別

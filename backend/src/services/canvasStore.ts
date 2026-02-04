@@ -57,10 +57,15 @@ class CanvasStore {
         const trimmedName = name.trim();
         const createdAt = new Date();
 
+        // 計算新 Canvas 的 sortIndex，設為目前最大值 + 1
+        const maxSortIndex = Math.max(0, ...Array.from(this.canvases.values()).map(c => c.sortIndex));
+        const sortIndex = this.canvases.size === 0 ? 0 : maxSortIndex + 1;
+
         const canvas: Canvas = {
             id,
             name: trimmedName,
             createdAt,
+            sortIndex,
         };
 
         const canvasPath = config.getCanvasPath(trimmedName);
@@ -75,6 +80,7 @@ class CanvasStore {
                 id,
                 name: trimmedName,
                 createdAt: createdAt.toISOString(),
+                sortIndex,
             };
 
             await fs.writeFile(canvasJsonPath, JSON.stringify(persistedCanvas, null, 2), 'utf-8');
@@ -91,7 +97,7 @@ class CanvasStore {
     }
 
     list(): Canvas[] {
-        return Array.from(this.canvases.values());
+        return Array.from(this.canvases.values()).sort((a, b) => a.sortIndex - b.sortIndex);
     }
 
     getById(id: string): Canvas | undefined {
@@ -129,6 +135,7 @@ class CanvasStore {
                 id: canvas.id,
                 name: trimmedName,
                 createdAt: canvas.createdAt.toISOString(),
+                sortIndex: canvas.sortIndex,
             };
 
             await fs.writeFile(canvasJsonPath, JSON.stringify(persistedCanvas, null, 2), 'utf-8');
@@ -174,6 +181,57 @@ class CanvasStore {
         }
     }
 
+    async reorder(canvasIds: string[]): Promise<Result<void>> {
+        if (new Set(canvasIds).size !== canvasIds.length) {
+            return err('Canvas IDs 包含重複項目');
+        }
+
+        // 驗證所有傳入的 canvasIds 都存在
+        for (const id of canvasIds) {
+            if (!this.canvases.has(id)) {
+                return err(`找不到 Canvas: ${id}`);
+            }
+        }
+
+        try {
+            // 取得目前所有 Canvas 並按照 sortIndex 排序
+            const allCanvases = Array.from(this.canvases.values()).sort((a, b) => a.sortIndex - b.sortIndex);
+
+            // 建立一個 Set 用於快速查找傳入的 canvasIds
+            const reorderedSet = new Set(canvasIds);
+
+            // 分離出被重新排序的和未被重新排序的 canvases
+            const notReordered = allCanvases.filter(c => !reorderedSet.has(c.id));
+            const reordered = canvasIds.map(id => this.canvases.get(id)!);
+
+            // 合併陣列：重新排序的在前，未排序的保持原順序在後
+            const finalOrder = [...reordered, ...notReordered];
+
+            // 更新每個 Canvas 的 sortIndex 並持久化
+            for (let i = 0; i < finalOrder.length; i++) {
+                const canvas = finalOrder[i];
+                canvas.sortIndex = i;
+
+                // 持久化到 canvas.json
+                const canvasJsonPath = path.join(config.getCanvasPath(canvas.name), 'canvas.json');
+                const persistedCanvas: PersistedCanvas = {
+                    id: canvas.id,
+                    name: canvas.name,
+                    createdAt: canvas.createdAt.toISOString(),
+                    sortIndex: canvas.sortIndex,
+                };
+
+                await fs.writeFile(canvasJsonPath, JSON.stringify(persistedCanvas, null, 2), 'utf-8');
+            }
+
+            logger.log('Canvas', 'Reorder', `Reordered ${canvasIds.length} canvases`);
+            return ok(undefined);
+        } catch (error) {
+            logger.error('Canvas', 'Error', 'Failed to reorder canvases', error);
+            return err('重新排序 Canvas 失敗');
+        }
+    }
+
     async loadFromDisk(): Promise<Result<void>> {
         try {
             await fs.mkdir(config.canvasRoot, {recursive: true});
@@ -182,6 +240,8 @@ class CanvasStore {
             const directories = entries.filter((entry) => entry.isDirectory());
 
             this.canvases.clear();
+
+            const tempCanvases: Canvas[] = [];
 
             for (const dir of directories) {
                 const canvasJsonPath = path.join(config.canvasRoot, dir.name, 'canvas.json');
@@ -196,16 +256,27 @@ class CanvasStore {
                     const data = await fs.readFile(canvasJsonPath, 'utf-8');
                     const persistedCanvas: PersistedCanvas = JSON.parse(data);
 
+                    if (persistedCanvas.sortIndex === undefined) {
+                        logger.error('Canvas', 'Load', `Missing sortIndex in canvas.json for ${dir.name}`);
+                        continue;
+                    }
+
                     const canvas: Canvas = {
                         id: persistedCanvas.id,
                         name: persistedCanvas.name,
                         createdAt: new Date(persistedCanvas.createdAt),
+                        sortIndex: persistedCanvas.sortIndex,
                     };
 
-                    this.canvases.set(canvas.id, canvas);
+                    tempCanvases.push(canvas);
                 } catch (error) {
                     logger.error('Canvas', 'Load', `Failed to parse canvas.json in ${dir.name}`, error);
                 }
+            }
+
+            // 將載入的 canvases 放入 Map
+            for (const canvas of tempCanvases) {
+                this.canvases.set(canvas.id, canvas);
             }
 
             logger.log('Canvas', 'Load', `Loaded ${this.canvases.size} canvases`);

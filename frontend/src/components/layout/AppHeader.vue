@@ -6,7 +6,10 @@
       <!-- Logo -->
       <div class="flex items-center gap-3">
         <Sparkles class="h-6 w-6 text-primary" />
-        <h1 class="text-2xl font-bold tracking-tight" style="font-family: var(--font-handwriting)">
+        <h1
+          class="text-2xl font-bold tracking-tight"
+          style="font-family: var(--font-handwriting)"
+        >
           Agent Canvas
         </h1>
       </div>

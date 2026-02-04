@@ -65,7 +65,7 @@ const handleItemDelete = (item: T, event: Event): void => {
       v-model="searchQuery"
       class="pod-menu-submenu-search"
       type="text"
-    />
+    >
     <div class="pod-menu-submenu-scrollable">
       <div
         v-for="item in filteredItems"

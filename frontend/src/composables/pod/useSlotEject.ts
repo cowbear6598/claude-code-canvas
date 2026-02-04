@@ -16,7 +16,6 @@ interface UseSlotEjectOptions {
   getNoteById: (id: string) => NotePosition | undefined
   setNoteAnimating: (noteId: string, animating: boolean) => void
   unbindFromPod: (podId: string, returnToOriginal: boolean, targetPosition?: Position) => Promise<void>
-  updateNotePosition: (noteId: string, x: number, y: number) => Promise<void>
   getViewportZoom: () => number
   getViewportOffset: () => { x: number; y: number }
 }
@@ -33,7 +32,6 @@ export function useSlotEject(options: UseSlotEjectOptions): UseSlotEjectReturn {
     getNoteById,
     setNoteAnimating,
     unbindFromPod,
-    updateNotePosition,
     getViewportZoom,
     getViewportOffset
   } = options

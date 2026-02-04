@@ -9,6 +9,7 @@ import {
   type CanvasRenamePayload,
   type CanvasDeletePayload,
   type CanvasSwitchPayload,
+  type CanvasReorderPayload,
 } from '../../src/schemas/index.js';
 import {
   type CanvasCreatedPayload,
@@ -16,6 +17,7 @@ import {
   type CanvasRenamedPayload,
   type CanvasDeletedPayload,
   type CanvasSwitchedPayload,
+  type CanvasReorderedPayload,
 } from '../../src/types/index.js';
 
 export async function getCanvasId(client: Socket): Promise<string> {
@@ -36,7 +38,7 @@ export async function getCanvasId(client: Socket): Promise<string> {
 export async function createCanvas(
   client: Socket,
   name?: string
-): Promise<{ id: string; name: string; createdAt: string }> {
+): Promise<{ id: string; name: string; createdAt: string; sortIndex: number }> {
   if (!client.id) {
     throw new Error('Socket not connected');
   }
@@ -58,7 +60,7 @@ export async function createCanvas(
 
 export async function listCanvases(
   client: Socket
-): Promise<{ id: string; name: string; createdAt: string }[]> {
+): Promise<{ id: string; name: string; createdAt: string; sortIndex: number }[]> {
   if (!client.id) {
     throw new Error('Socket not connected');
   }
@@ -142,4 +144,27 @@ export async function switchCanvas(
     WebSocketResponseEvents.CANVAS_SWITCHED,
     payload
   );
+}
+
+export async function reorderCanvases(
+  client: Socket,
+  canvasIds: string[]
+): Promise<CanvasReorderedPayload> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const payload: CanvasReorderPayload = {
+    requestId: uuidv4(),
+    canvasIds,
+  };
+
+  const response = await emitAndWaitResponse<CanvasReorderPayload, CanvasReorderedPayload>(
+    client,
+    WebSocketRequestEvents.CANVAS_REORDER,
+    WebSocketResponseEvents.CANVAS_REORDERED,
+    payload
+  );
+
+  return response;
 }

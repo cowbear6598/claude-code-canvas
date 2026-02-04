@@ -76,6 +76,7 @@ export const WebSocketRequestEvents = {
   CANVAS_RENAME: 'canvas:rename',
   CANVAS_DELETE: 'canvas:delete',
   CANVAS_SWITCH: 'canvas:switch',
+  CANVAS_REORDER: 'canvas:reorder',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -174,6 +175,7 @@ export const WebSocketResponseEvents = {
   CANVAS_RENAMED: 'canvas:renamed',
   CANVAS_DELETED: 'canvas:deleted',
   CANVAS_SWITCHED: 'canvas:switched',
+  CANVAS_REORDERED: 'canvas:reordered',
   HEARTBEAT_PING: 'heartbeat:ping',
   BROADCAST_POD_CREATED: 'broadcast:pod:created',
   BROADCAST_POD_MOVED: 'broadcast:pod:moved',

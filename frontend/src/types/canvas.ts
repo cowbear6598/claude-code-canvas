@@ -2,6 +2,7 @@ export interface Canvas {
   id: string
   name: string
   createdAt: string
+  sortIndex: number
 }
 
 export interface CanvasCreatePayload {
@@ -64,5 +65,16 @@ export interface CanvasSwitchedPayload {
   requestId: string
   success: boolean
   canvasId?: string
+  error?: string
+}
+
+export interface CanvasReorderPayload {
+  requestId: string
+  canvasIds: string[]
+}
+
+export interface CanvasReorderedPayload {
+  requestId: string
+  success: boolean
   error?: string
 }

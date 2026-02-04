@@ -1,23 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-
-const centerX = ref(0)
-const centerY = ref(0)
-
-onMounted(() => {
-  centerX.value = Math.round(window.innerWidth / 2)
-  centerY.value = Math.round(window.innerHeight / 2)
-})
 </script>
 
 <template>
   <div
     class="absolute pointer-events-none"
-    :style="{
-      left: `${centerX}px`,
-      top: `${centerY}px`,
-      transform: 'translate(-50%, -50%)'
-    }"
+    style="left: 0; top: 0; transform: translate(-50%, -50%)"
   >
     <div class="text-center">
       <div

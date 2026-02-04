@@ -76,6 +76,7 @@ export enum WebSocketRequestEvents {
   CANVAS_RENAME = 'canvas:rename',
   CANVAS_DELETE = 'canvas:delete',
   CANVAS_SWITCH = 'canvas:switch',
+  CANVAS_REORDER = 'canvas:reorder',
 }
 
 export enum WebSocketResponseEvents {
@@ -172,6 +173,7 @@ export enum WebSocketResponseEvents {
   CANVAS_RENAMED = 'canvas:renamed',
   CANVAS_DELETED = 'canvas:deleted',
   CANVAS_SWITCHED = 'canvas:switched',
+  CANVAS_REORDERED = 'canvas:reordered',
   BROADCAST_POD_CREATED = 'broadcast:pod:created',
   BROADCAST_POD_MOVED = 'broadcast:pod:moved',
   BROADCAST_POD_RENAMED = 'broadcast:pod:renamed',

@@ -16,7 +16,9 @@ import type {
   CanvasDeletePayload,
   CanvasDeletedPayload,
   CanvasSwitchPayload,
-  CanvasSwitchedPayload
+  CanvasSwitchedPayload,
+  CanvasReorderPayload,
+  CanvasReorderedPayload
 } from '@/types/canvas'
 
 interface CanvasState {
@@ -24,6 +26,8 @@ interface CanvasState {
   activeCanvasId: string | null
   isSidebarOpen: boolean
   isLoading: boolean
+  isDragging: boolean
+  draggedCanvasId: string | null
 }
 
 export const useCanvasStore = defineStore('canvas', {
@@ -32,6 +36,8 @@ export const useCanvasStore = defineStore('canvas', {
     activeCanvasId: null,
     isSidebarOpen: false,
     isLoading: false,
+    isDragging: false,
+    draggedCanvasId: null,
   }),
 
   getters: {
@@ -61,7 +67,7 @@ export const useCanvasStore = defineStore('canvas', {
         })
 
         if (response.canvases) {
-          this.canvases = response.canvases
+          this.canvases = response.canvases.sort((a, b) => a.sortIndex - b.sortIndex)
           if (this.canvases.length > 0 && !this.activeCanvasId) {
             const firstCanvasId = this.canvases[0].id
             // Notify backend which canvas is active
@@ -71,7 +77,6 @@ export const useCanvasStore = defineStore('canvas', {
               payload: { canvasId: firstCanvasId }
             })
             this.activeCanvasId = firstCanvasId
-            console.log('[CanvasStore] Active canvas set to:', this.activeCanvasId)
           }
         } else {
           console.warn('[CanvasStore] No canvases returned from backend')
@@ -103,7 +108,6 @@ export const useCanvasStore = defineStore('canvas', {
             payload: { canvasId: response.canvas.id }
           })
           this.activeCanvasId = response.canvas.id
-          console.log('[CanvasStore] Canvas created and set as active:', this.activeCanvasId)
           return response.canvas
         }
 
@@ -122,7 +126,7 @@ export const useCanvasStore = defineStore('canvas', {
           requestEvent: WebSocketRequestEvents.CANVAS_RENAME,
           responseEvent: WebSocketResponseEvents.CANVAS_RENAMED,
           payload: {
-                      canvasId,
+            canvasId,
             newName,
           }
         })
@@ -153,7 +157,7 @@ export const useCanvasStore = defineStore('canvas', {
         requestEvent: WebSocketRequestEvents.CANVAS_DELETE,
         responseEvent: WebSocketResponseEvents.CANVAS_DELETED,
         payload: {
-                    canvasId,
+          canvasId,
         }
       })
 
@@ -169,7 +173,7 @@ export const useCanvasStore = defineStore('canvas', {
         requestEvent: WebSocketRequestEvents.CANVAS_SWITCH,
         responseEvent: WebSocketResponseEvents.CANVAS_SWITCHED,
         payload: {
-                    canvasId,
+          canvasId,
         }
       })
 
@@ -205,6 +209,48 @@ export const useCanvasStore = defineStore('canvas', {
           }
         }
       }
+    },
+
+    setDragging(isDragging: boolean, canvasId: string | null): void {
+      this.isDragging = isDragging
+      this.draggedCanvasId = canvasId
+    },
+
+    reorderCanvases(fromIndex: number, toIndex: number): void {
+      const canvas = this.canvases[fromIndex]
+      this.canvases.splice(fromIndex, 1)
+      this.canvases.splice(toIndex, 0, canvas)
+
+      this.syncCanvasOrder()
+    },
+
+    async syncCanvasOrder(): Promise<void> {
+      const originalOrder = [...this.canvases]
+      const canvasIds = this.canvases.map(c => c.id)
+
+      try {
+        const response = await createWebSocketRequest<CanvasReorderPayload, CanvasReorderedPayload>({
+          requestEvent: WebSocketRequestEvents.CANVAS_REORDER,
+          responseEvent: WebSocketResponseEvents.CANVAS_REORDERED,
+          payload: {
+            canvasIds,
+          }
+        })
+
+        if (!response.success) {
+          const {toast} = useToast()
+          toast({title: 'Canvas 排序儲存失敗', variant: 'destructive'})
+          this.canvases = originalOrder
+        }
+      } catch {
+        const {toast} = useToast()
+        toast({title: 'Canvas 排序儲存失敗', variant: 'destructive'})
+        this.canvases = originalOrder
+      }
+    },
+
+    revertCanvasOrder(originalCanvases: Canvas[]): void {
+      this.canvases = [...originalCanvases]
     },
   },
 })

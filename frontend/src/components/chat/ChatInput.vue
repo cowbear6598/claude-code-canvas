@@ -506,41 +506,41 @@ onUnmounted(() => {
   <div class="p-4 border-t-2 border-doodle-ink">
     <div class="flex gap-2">
       <ScrollArea
-          class="flex-1 border-2 border-doodle-ink rounded-lg bg-card focus-within:ring-2 focus-within:ring-primary"
-          :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)', maxHeight: TEXTAREA_MAX_HEIGHT + 'px' }"
+        class="flex-1 border-2 border-doodle-ink rounded-lg bg-card focus-within:ring-2 focus-within:ring-primary"
+        :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)', maxHeight: TEXTAREA_MAX_HEIGHT + 'px' }"
       >
         <div
-            ref="editableRef"
-            :contenteditable="!isTyping"
-            class="px-4 py-3 font-mono text-sm outline-none leading-5 chat-input-editable"
-            @input="handleInput"
-            @keydown="handleKeyDown"
-            @paste="handlePaste"
-            @dragover.prevent
-            @drop="handleDrop"
+          ref="editableRef"
+          :contenteditable="!isTyping"
+          class="px-4 py-3 font-mono text-sm outline-none leading-5 chat-input-editable"
+          @input="handleInput"
+          @keydown="handleKeyDown"
+          @paste="handlePaste"
+          @dragover.prevent
+          @drop="handleDrop"
         />
       </ScrollArea>
       <button
-          :disabled="isTyping"
-          class="px-4 py-3 bg-doodle-green border-2 border-doodle-ink rounded-lg hover:translate-x-[-1px] hover:translate-y-[-1px] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0"
-          :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
-          @click="handleSend"
+        :disabled="isTyping"
+        class="px-4 py-3 bg-doodle-green border-2 border-doodle-ink rounded-lg hover:translate-x-[-1px] hover:translate-y-[-1px] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0"
+        :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
+        @click="handleSend"
       >
         <Send
-            :size="20"
-            class="text-card"
+          :size="20"
+          class="text-card"
         />
       </button>
       <button
-          class="px-4 py-3 border-2 border-doodle-ink rounded-lg hover:translate-x-[-1px] hover:translate-y-[-1px] transition-transform"
-          :class="isListening ? 'bg-red-500' : 'bg-doodle-coral'"
-          :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
-          @click="toggleListening"
+        class="px-4 py-3 border-2 border-doodle-ink rounded-lg hover:translate-x-[-1px] hover:translate-y-[-1px] transition-transform"
+        :class="isListening ? 'bg-red-500' : 'bg-doodle-coral'"
+        :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
+        @click="toggleListening"
       >
         <Mic
-            :size="20"
-            class="text-card"
-            :class="{ 'animate-pulse': isListening }"
+          :size="20"
+          class="text-card"
+          :class="{ 'animate-pulse': isListening }"
         />
       </button>
     </div>

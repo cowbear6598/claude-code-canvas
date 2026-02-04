@@ -44,33 +44,33 @@ const {isDropTarget, isInserting} = useSlotDropTarget({
 
 <template>
   <div
-      ref="slotRef"
-      class="pod-subagent-slot"
-      :class="{
+    ref="slotRef"
+    class="pod-subagent-slot"
+    :class="{
       'drop-target': isDropTarget,
       'has-notes': hasSubAgents,
       inserting: isInserting
     }"
-      @mouseenter="showMenu = true"
-      @mouseleave="showMenu = false"
+    @mouseenter="showMenu = true"
+    @mouseleave="showMenu = false"
   >
     <span
-        class="text-xs font-mono"
-        :class="{ 'opacity-50': !hasSubAgents }"
+      class="text-xs font-mono"
+      :class="{ 'opacity-50': !hasSubAgents }"
     >
       <template v-if="hasSubAgents">({{ subAgentCount }}) </template>SubAgents
     </span>
 
     <div
-        v-if="showMenu && hasSubAgents"
-        class="pod-subagent-menu"
-        @wheel.stop.passive
+      v-if="showMenu && hasSubAgents"
+      class="pod-subagent-menu"
+      @wheel.stop.passive
     >
       <div class="pod-subagent-menu-scrollable">
         <div
-            v-for="note in boundNotes"
-            :key="note.id"
-            class="pod-subagent-menu-item"
+          v-for="note in boundNotes"
+          :key="note.id"
+          class="pod-subagent-menu-item"
         >
           {{ note.name }}
         </div>

@@ -90,5 +90,11 @@ export const useViewportStore = defineStore('viewport', {
       this.zoom = clampedZoom
       this.offset = { x: offsetX, y: offsetY }
     },
+
+    resetToCenter(): void {
+      this.offset.x = window.innerWidth / 2
+      this.offset.y = window.innerHeight / 2
+      this.zoom = 0.75
+    },
   },
 })

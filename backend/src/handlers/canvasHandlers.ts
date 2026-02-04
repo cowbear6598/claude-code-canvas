@@ -6,6 +6,7 @@ import type {
   CanvasRenamedPayload,
   CanvasDeletedPayload,
   CanvasSwitchedPayload,
+  CanvasReorderedPayload,
   BroadcastCanvasRenamedPayload,
   BroadcastCanvasDeletedPayload,
 } from '../types/index.js';
@@ -15,6 +16,7 @@ import type {
   CanvasRenamePayload,
   CanvasDeletePayload,
   CanvasSwitchPayload,
+  CanvasReorderPayload,
 } from '../schemas/index.js';
 import { canvasStore } from '../services/canvasStore.js';
 import { socketService } from '../services/socketService.js';
@@ -44,6 +46,7 @@ export async function handleCanvasCreate(
       id: canvas.id,
       name: canvas.name,
       createdAt: canvas.createdAt.toISOString(),
+      sortIndex: canvas.sortIndex,
     },
   };
 
@@ -63,6 +66,7 @@ export async function handleCanvasList(
       id: canvas.id,
       name: canvas.name,
       createdAt: canvas.createdAt.toISOString(),
+      sortIndex: canvas.sortIndex,
     })),
   };
 
@@ -186,4 +190,29 @@ export async function handleCanvasSwitch(
 
   socket.emit(WebSocketResponseEvents.CANVAS_SWITCHED, response);
   logger.log('Canvas', 'Switch', `Socket ${socket.id} switched to canvas ${payload.canvasId}`);
+}
+
+export async function handleCanvasReorder(
+  socket: Socket,
+  payload: CanvasReorderPayload
+): Promise<void> {
+  const result = await canvasStore.reorder(payload.canvasIds);
+
+  if (!result.success) {
+    const response: CanvasReorderedPayload = {
+      requestId: payload.requestId,
+      success: false,
+      error: result.error,
+    };
+    socket.emit(WebSocketResponseEvents.CANVAS_REORDERED, response);
+    return;
+  }
+
+  const response: CanvasReorderedPayload = {
+    requestId: payload.requestId,
+    success: true,
+  };
+
+  socket.emit(WebSocketResponseEvents.CANVAS_REORDERED, response);
+  logger.log('Canvas', 'Reorder', `Canvases reordered: ${payload.canvasIds.length} items`);
 }

@@ -5,6 +5,7 @@ export interface CanvasCreatedPayload {
     id: string;
     name: string;
     createdAt: string;
+    sortIndex: number;
   };
   error?: string;
 }
@@ -16,6 +17,7 @@ export interface CanvasListResultPayload {
     id: string;
     name: string;
     createdAt: string;
+    sortIndex: number;
   }>;
   error?: string;
 }
@@ -41,5 +43,11 @@ export interface CanvasSwitchedPayload {
   requestId: string;
   success: boolean;
   canvasId?: string;
+  error?: string;
+}
+
+export interface CanvasReorderedPayload {
+  requestId: string;
+  success: boolean;
   error?: string;
 }

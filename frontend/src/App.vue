@@ -44,7 +44,7 @@ let loadingAbortController: AbortController | null = null
 const loadCanvasData = async (): Promise<void> => {
   await podStore.loadPodsFromBackend()
 
-  viewportStore.fitToAllPods(podStore.pods)
+  viewportStore.resetToCenter()
 
   const podIds = podStore.pods.map(p => p.id)
   if (podIds.length > 0) {
@@ -297,7 +297,7 @@ onUnmounted(() => {
 <template>
   <div class="h-screen bg-background overflow-hidden flex flex-col">
     <!-- Header -->
-    <AppHeader/>
+    <AppHeader />
 
     <!-- Canvas Sidebar -->
     <CanvasSidebar
@@ -307,20 +307,20 @@ onUnmounted(() => {
 
     <!-- Canvas -->
     <main class="flex-1 relative">
-      <CanvasContainer/>
+      <CanvasContainer />
     </main>
 
     <!-- Chat Modal -->
     <ChatModal
-        v-if="selectedPod"
-        :pod="selectedPod"
-        @close="handleCloseChat"
+      v-if="selectedPod"
+      :pod="selectedPod"
+      @close="handleCloseChat"
     />
 
     <!-- Toast -->
-    <Toast/>
+    <Toast />
 
     <!-- Disconnect Overlay -->
-    <DisconnectOverlay/>
+    <DisconnectOverlay />
   </div>
 </template>

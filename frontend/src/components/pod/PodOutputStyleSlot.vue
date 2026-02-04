@@ -37,7 +37,6 @@ const { isEjecting, handleSlotClick: ejectSlotClick } = useSlotEject({
   getNoteById: (id: string) => outputStyleStore.getNoteById(id),
   setNoteAnimating: (noteId: string, animating: boolean) => outputStyleStore.setNoteAnimating(noteId, animating),
   unbindFromPod: (podId: string, notify: boolean, targetPosition?: {x: number, y: number}) => outputStyleStore.unbindFromPod(podId, notify, targetPosition),
-  updateNotePosition: (noteId: string, x: number, y: number) => outputStyleStore.updateNotePosition(noteId, x, y),
   getViewportZoom: () => viewportStore.zoom,
   getViewportOffset: () => viewportStore.offset
 })
