@@ -157,16 +157,12 @@ const store = createNoteStore<Repository, RepositoryNote>({
       if (response.repository) {
         this.availableItems.push(response.repository)
 
-        const newNote = {
-          id: crypto.randomUUID(),
-          repositoryId: response.repository.id,
-          name: response.repository.name,
-          x: sourceNotePosition.x + 150,
-          y: sourceNotePosition.y + 80,
-          boundToPodId: null,
-          originalPosition: null
-        }
-        this.notes.push(newNote)
+        // 透過後端 API 建立 Note
+        await this.createNote(
+          response.repository.id,
+          sourceNotePosition.x + 150,
+          sourceNotePosition.y + 80
+        )
       }
 
       return { success: true }
