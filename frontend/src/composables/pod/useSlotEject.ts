@@ -55,7 +55,6 @@ export function useSlotEject(options: UseSlotEjectOptions): UseSlotEjectReturn {
     const slotElement = slotRef.value
     if (!slotElement) return
 
-    const slotWidth = slotElement.getBoundingClientRect().width
     const zoom = getViewportZoom()
 
     const podElement = slotElement.closest('.pod-with-notch')
@@ -68,8 +67,7 @@ export function useSlotEject(options: UseSlotEjectOptions): UseSlotEjectReturn {
     const podCenterX = (podRect.right - viewportOffset.x) / zoom
     const podCenterY = (slotRect.top - viewportOffset.y) / zoom
 
-    const extraDistance = 30
-    const baseX = slotWidth / zoom + extraDistance
+    const baseX = 30
     const baseY = 0
 
     const rotation = podRotation()
