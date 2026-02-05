@@ -21,6 +21,10 @@ export interface OutputStyleCreatedPayload {
 export interface OutputStyleUpdatedPayload {
   requestId: string;
   success: boolean;
+  outputStyle?: {
+    id: string;
+    name: string;
+  };
   error?: string;
 }
 

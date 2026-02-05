@@ -36,6 +36,8 @@ export interface PodRenamedPayload {
   canvasId: string;
   success: boolean;
   pod?: Pod;
+  podId?: string;
+  name?: string;
   error?: string;
 }
 

@@ -51,7 +51,7 @@ class SubAgentService {
                 }
             }
         } catch {
-            // 如果目錄不存在或其他錯誤，回傳空陣列
+            // 如果目錄不存在或讀取失敗時忽略錯誤，因為初次執行時目錄可能不存在
         }
 
         return subAgents;
@@ -123,10 +123,17 @@ class SubAgentService {
         return {id: name, name, description, groupId: null};
     }
 
-    async update(subAgentId: string, content: string): Promise<void> {
+    async update(subAgentId: string, content: string): Promise<SubAgent> {
         const filePath = await this.findSubAgentFilePath(subAgentId);
         if (!filePath) throw new Error(`找不到子代理: ${subAgentId}`);
         await fs.writeFile(filePath, content, 'utf-8');
+        const description = parseFrontmatterDescription(content);
+        return {
+            id: subAgentId,
+            name: subAgentId,
+            description,
+            groupId: null,
+        };
     }
 
     async setGroupId(subAgentId: string, groupId: string | null): Promise<void> {
@@ -167,7 +174,7 @@ class SubAgentService {
                 }
             }
         } catch {
-            // 目錄不存在或其他錯誤，回傳 null
+            // 目錄不存在或讀取失敗時忽略錯誤，因為檔案可能確實不存在
         }
 
         return null;

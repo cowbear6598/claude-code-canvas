@@ -21,6 +21,10 @@ export interface CommandCreatedPayload {
 export interface CommandUpdatedPayload {
   requestId: string;
   success: boolean;
+  command?: {
+    id: string;
+    name: string;
+  };
   error?: string;
 }
 

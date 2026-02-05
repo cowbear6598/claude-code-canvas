@@ -35,7 +35,7 @@ export const handlePodCreate = withCanvasId<PodCreatePayload>(
     async (connectionId: string, canvasId: string, payload: PodCreatePayload, requestId: string): Promise<void> => {
         const {name, color, x, y, rotation} = payload;
 
-    const pod = podStore.create(canvasId, {name, color, x, y, rotation});
+        const pod = podStore.create(canvasId, {name, color, x, y, rotation});
 
     const workspaceResult = await workspaceService.createWorkspace(pod.workspacePath);
     if (!workspaceResult.success) {
@@ -243,7 +243,10 @@ export const handlePodRename = withCanvasId<PodRenamePayload>(
             {name},
             requestId,
             WebSocketResponseEvents.POD_RENAMED,
-            (pod) => ({requestId, canvasId, success: true, pod})
+            (pod) => {
+                logger.log('Pod', 'Rename', `Renamed Pod ${pod.id} to ${pod.name}`);
+                return {requestId, canvasId, success: true, pod, podId: pod.id, name: pod.name};
+            }
         );
     }
 );

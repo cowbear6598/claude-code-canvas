@@ -39,7 +39,7 @@ class CommandService {
                 }
             }
         } catch {
-            // 如果目錄不存在或其他錯誤，回傳空陣列
+            // 如果目錄不存在或讀取失敗時忽略錯誤，因為初次執行時目錄可能不存在
         }
 
         return commands;
@@ -120,10 +120,15 @@ class CommandService {
         return readFileOrNull(filePath);
     }
 
-    async update(commandId: string, content: string): Promise<void> {
+    async update(commandId: string, content: string): Promise<Command> {
         const filePath = await this.findCommandFilePath(commandId);
         if (!filePath) throw new Error(`找不到 Command: ${commandId}`);
         await fs.writeFile(filePath, content, 'utf-8');
+        return {
+            id: commandId,
+            name: commandId,
+            groupId: null,
+        };
     }
 
     async setGroupId(commandId: string, groupId: string | null): Promise<void> {
@@ -164,7 +169,7 @@ class CommandService {
                 }
             }
         } catch {
-            // 目錄不存在或其他錯誤，回傳 null
+            // 目錄不存在或讀取失敗時忽略錯誤，因為檔案可能確實不存在
         }
 
         return null;

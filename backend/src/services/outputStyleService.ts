@@ -3,7 +3,7 @@ import path from 'path';
 import {config} from '../config';
 import type {OutputStyleListItem} from '../types';
 import {readFileOrNull, fileExists, ensureDirectoryAndWriteFile} from './shared/fileResourceHelpers.js';
-import {sanitizePathSegment} from '../utils/pathValidator.js';
+import {sanitizePathSegment, validateOutputStyleId, isPathWithinDirectory} from '../utils/pathValidator.js';
 
 class OutputStyleService {
     async list(): Promise<OutputStyleListItem[]> {
@@ -39,7 +39,7 @@ class OutputStyleService {
                 }
             }
         } catch {
-            // 如果目錄不存在或其他錯誤，回傳空陣列
+            // 如果目錄不存在或讀取失敗時忽略錯誤，因為初次執行時目錄可能不存在
         }
 
         return styles;
@@ -67,15 +67,29 @@ class OutputStyleService {
     }
 
     async create(name: string, content: string): Promise<OutputStyleListItem> {
-        const filePath = path.join(config.outputStylesPath, `${name}.md`);
-        await ensureDirectoryAndWriteFile(filePath, content);
+        if (!validateOutputStyleId(name)) {
+            throw new Error('無效的 Output Style ID 格式');
+        }
+
+        const safePath = path.join(config.outputStylesPath, `${path.basename(name)}.md`);
+
+        if (!isPathWithinDirectory(safePath, config.outputStylesPath)) {
+            throw new Error('無效的 Output Style 路徑');
+        }
+
+        await ensureDirectoryAndWriteFile(safePath, content);
         return {id: name, name, groupId: null};
     }
 
-    async update(styleId: string, content: string): Promise<void> {
+    async update(styleId: string, content: string): Promise<OutputStyleListItem> {
         const filePath = await this.findStyleFilePath(styleId);
         if (!filePath) throw new Error(`找不到 Output Style: ${styleId}`);
         await fs.writeFile(filePath, content, 'utf-8');
+        return {
+            id: styleId,
+            name: styleId,
+            groupId: null,
+        };
     }
 
     async setGroupId(outputStyleId: string, groupId: string | null): Promise<void> {
@@ -96,6 +110,10 @@ class OutputStyleService {
     }
 
     private async findStyleFilePath(styleId: string): Promise<string | null> {
+        if (!validateOutputStyleId(styleId)) {
+            return null;
+        }
+
         const rootPath = path.join(config.outputStylesPath, `${styleId}.md`);
         if (await fileExists(rootPath)) {
             return rootPath;
@@ -112,7 +130,7 @@ class OutputStyleService {
                 }
             }
         } catch {
-            // 目錄不存在或其他錯誤，回傳 null
+            // 目錄不存在或讀取失敗時忽略錯誤，因為檔案可能確實不存在
         }
 
         return null;

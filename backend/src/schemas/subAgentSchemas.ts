@@ -9,27 +9,27 @@ export const subAgentListSchema = z.object({
 export const subAgentCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  name: z.string().min(1).max(100),
-  content: z.string(),
+  name: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  content: z.string().max(10000000),
 });
 
 export const subAgentUpdateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  subAgentId: z.string(),
-  content: z.string(),
+  subAgentId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  content: z.string().max(10000000),
 });
 
 export const subAgentReadSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  subAgentId: z.string(),
+  subAgentId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
 });
 
 export const subAgentNoteCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  subAgentId: z.string(),
+  subAgentId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
   name: z.string().min(1).max(100),
   x: z.number(),
   y: z.number(),
@@ -62,20 +62,20 @@ export const podBindSubAgentSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   podId: podIdSchema,
-  subAgentId: z.string(),
+  subAgentId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
 });
 
 export const subAgentDeleteSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  subAgentId: z.string(),
+  subAgentId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
 });
 
 const groupIdSchema = z.string().regex(/^[a-zA-Z0-9-]+$/, '群組 ID 格式不正確，只能包含英文、數字、dash').nullable();
 
 export const subAgentMoveToGroupSchema = z.object({
   requestId: requestIdSchema,
-  itemId: z.string(),
+  itemId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
   groupId: groupIdSchema,
 });
 

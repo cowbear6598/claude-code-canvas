@@ -21,6 +21,10 @@ export interface SubAgentCreatedPayload {
 export interface SubAgentUpdatedPayload {
   requestId: string;
   success: boolean;
+  subAgent?: {
+    id: string;
+    name: string;
+  };
   error?: string;
 }
 

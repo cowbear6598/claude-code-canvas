@@ -6,7 +6,7 @@ import { logger, type LogCategory } from '../../utils/logger.js';
 interface ResourceService<T = { id: string; name: string }> {
   exists(id: string): Promise<boolean>;
   create(name: string, content: string): Promise<T>;
-  update(id: string, content: string): Promise<void>;
+  update(id: string, content: string): Promise<T>;
   getContent?(id: string): Promise<string | null>;
 }
 
@@ -103,11 +103,15 @@ export function createResourceHandlers<T extends { id: string; name: string }>(c
       return;
     }
 
-    await service.update(resourceId, content);
+    const resource = await service.update(resourceId, content);
 
-    const response: BaseResponse = {
+    const response: BaseResponse & { [key: string]: unknown } = {
       requestId,
       success: true,
+      [responseKey]: {
+        id: resource.id,
+        name: resource.name,
+      },
     };
 
     socketService.emitToAll(events.updated, response);

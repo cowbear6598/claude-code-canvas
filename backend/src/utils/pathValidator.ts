@@ -40,6 +40,10 @@ export function validateCommandId(commandId: string): boolean {
   return validateIdFormat(commandId);
 }
 
+export function validateOutputStyleId(outputStyleId: string): boolean {
+  return validateIdFormat(outputStyleId);
+}
+
 export function isPathWithinDirectory(filePath: string, directory: string): boolean {
   const resolvedPath = path.resolve(filePath);
   const resolvedDir = path.resolve(directory);

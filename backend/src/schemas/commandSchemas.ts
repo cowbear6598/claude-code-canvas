@@ -9,27 +9,27 @@ export const commandListSchema = z.object({
 export const commandCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  name: z.string().min(1).max(100),
-  content: z.string(),
+  name: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  content: z.string().max(10000000),
 });
 
 export const commandUpdateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  commandId: z.string(),
-  content: z.string(),
+  commandId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  content: z.string().max(10000000),
 });
 
 export const commandReadSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  commandId: z.string(),
+  commandId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
 });
 
 export const commandNoteCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  commandId: z.string(),
+  commandId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
   name: z.string().min(1).max(100),
   x: z.number(),
   y: z.number(),
@@ -62,7 +62,7 @@ export const podBindCommandSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   podId: podIdSchema,
-  commandId: z.string(),
+  commandId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
 });
 
 export const podUnbindCommandSchema = z.object({
@@ -74,14 +74,14 @@ export const podUnbindCommandSchema = z.object({
 export const commandDeleteSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  commandId: z.string(),
+  commandId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
 });
 
 const groupIdSchema = z.string().regex(/^[a-zA-Z0-9-]+$/, '群組 ID 格式不正確，只能包含英文、數字、dash').nullable();
 
 export const commandMoveToGroupSchema = z.object({
   requestId: requestIdSchema,
-  itemId: z.string(),
+  itemId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
   groupId: groupIdSchema,
 });
 

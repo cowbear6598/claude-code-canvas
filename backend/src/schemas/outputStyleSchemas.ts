@@ -9,28 +9,28 @@ export const outputStyleListSchema = z.object({
 export const outputStyleCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  name: z.string().min(1).max(100),
-  content: z.string(),
+  name: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  content: z.string().max(10000000),
 });
 
 export const outputStyleUpdateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  outputStyleId: z.string(),
-  content: z.string(),
+  outputStyleId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  content: z.string().max(10000000),
 });
 
 export const outputStyleReadSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  outputStyleId: z.string(),
+  outputStyleId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
 });
 
 export const podBindOutputStyleSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   podId: podIdSchema,
-  outputStyleId: z.string(),
+  outputStyleId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
 });
 
 export const podUnbindOutputStyleSchema = z.object({
@@ -42,14 +42,14 @@ export const podUnbindOutputStyleSchema = z.object({
 export const outputStyleDeleteSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  outputStyleId: z.string(),
+  outputStyleId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
 });
 
 const groupIdSchema = z.string().regex(/^[a-zA-Z0-9-]+$/, '群組 ID 格式不正確，只能包含英文、數字、dash').nullable();
 
 export const outputStyleMoveToGroupSchema = z.object({
   requestId: requestIdSchema,
-  itemId: z.string(),
+  itemId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
   groupId: groupIdSchema,
 });
 

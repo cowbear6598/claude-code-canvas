@@ -394,7 +394,7 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
               class="text-card"
             />
           </span>
-          <span class="font-mono text-sm text-foreground">SubAgents &gt;</span>
+          <span class="font-mono text-sm text-foreground">Agents &gt;</span>
         </button>
 
         <PodTypeMenuSubmenu
