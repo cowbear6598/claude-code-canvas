@@ -1,17 +1,168 @@
 import {generateRequestId} from '@/services/utils'
-import type {Message, ToolUseInfo, ToolUseStatus} from '@/types/chat'
+import type {Message, SubMessage, ToolUseInfo, ToolUseStatus} from '@/types/chat'
 import type {
-    PodChatMessagePayload,
-    PodChatToolUsePayload,
-    PodChatToolResultPayload,
-    PodChatCompletePayload,
     PersistedMessage,
+    PodChatCompletePayload,
+    PodChatMessagePayload,
+    PodChatToolResultPayload,
+    PodChatToolUsePayload,
     PodMessagesClearedPayload,
     WorkflowAutoClearedPayload
 } from '@/types/websocket'
-import {RESPONSE_PREVIEW_LENGTH, CONTENT_PREVIEW_LENGTH} from '@/lib/constants'
+import {CONTENT_PREVIEW_LENGTH, RESPONSE_PREVIEW_LENGTH} from '@/lib/constants'
 import {truncateContent} from './chatUtils'
 import type {ChatStoreInstance} from './chatStore'
+
+// ===== Helper Functions =====
+
+/**
+ * 更新 SubMessage 內容
+ * 處理 expectingNewBlock 邏輯與 last subMessage 的 content 計算
+ */
+function updateSubMessageContent(
+    subMessages: SubMessage[],
+    existingMessage: Message,
+    delta: string,
+    isPartial: boolean,
+    content: string
+): SubMessage[] {
+    const updatedSubMessages = [...subMessages]
+
+    if (existingMessage.expectingNewBlock) {
+        const newSubMessage: SubMessage = {
+            id: `${existingMessage.id}-sub-${updatedSubMessages.length}`,
+            content: delta,
+            isPartial
+        }
+        updatedSubMessages.push(newSubMessage)
+    } else {
+        const lastSubIndex = updatedSubMessages.length - 1
+        if (lastSubIndex >= 0) {
+            const sumOfPreviousContents = updatedSubMessages
+                .slice(0, lastSubIndex)
+                .reduce((sum, sub) => sum + sub.content.length, 0)
+            const lastSubContent = content.slice(sumOfPreviousContents)
+
+            const lastSub = updatedSubMessages[lastSubIndex]
+            if (lastSub) {
+                updatedSubMessages[lastSubIndex] = {
+                    ...lastSub,
+                    content: lastSubContent,
+                    isPartial
+                }
+            }
+        }
+    }
+
+    return updatedSubMessages
+}
+
+/**
+ * 更新 SubMessages 中的 ToolUse Result
+ * 處理 toolUse status 更新與 allToolsCompleted 計算
+ */
+function updateSubMessagesToolUseResult(
+    subMessages: SubMessage[],
+    toolUseId: string,
+    output: string
+): SubMessage[] {
+    const updatedSubMessages = [...subMessages]
+
+    for (let i = 0; i < updatedSubMessages.length; i++) {
+        const sub = updatedSubMessages[i]
+        if (!sub) continue
+        if (sub.toolUse) {
+            const updatedSubToolUse = sub.toolUse.map(tool =>
+                tool.toolUseId === toolUseId
+                    ? {...tool, output, status: 'completed' as ToolUseStatus}
+                    : tool
+            )
+
+            const allToolsCompleted = updatedSubToolUse.every(
+                tool => tool.status === 'completed' || tool.status === 'error'
+            )
+
+            updatedSubMessages[i] = {
+                ...sub,
+                toolUse: updatedSubToolUse,
+                ...(allToolsCompleted && { isPartial: false })
+            }
+        }
+    }
+
+    return updatedSubMessages
+}
+
+/**
+ * 將 running 狀態的 toolUse 標記為 completed
+ */
+function finalizeToolUse(toolUse: ToolUseInfo[] | undefined): ToolUseInfo[] | undefined {
+    if (!toolUse || toolUse.length === 0) {
+        return undefined
+    }
+
+    return toolUse.map(tool =>
+        tool.status === 'running'
+            ? {...tool, status: 'completed' as ToolUseStatus}
+            : tool
+    )
+}
+
+/**
+ * 將所有 subMessages 設為 isPartial: false
+ * 並 finalize 每個 subMessage 中的 toolUse
+ */
+function finalizeSubMessages(subMessages: SubMessage[] | undefined): SubMessage[] | undefined {
+    if (!subMessages || subMessages.length === 0) {
+        return undefined
+    }
+
+    const updatedSubMessages = [...subMessages]
+
+    for (let i = 0; i < updatedSubMessages.length; i++) {
+        const sub = updatedSubMessages[i]
+        if (!sub) continue
+
+        if (sub.toolUse && sub.toolUse.length > 0) {
+            const updatedSubToolUse = sub.toolUse.map(tool =>
+                tool.status === 'running'
+                    ? {...tool, status: 'completed' as ToolUseStatus}
+                    : tool
+            )
+            updatedSubMessages[i] = {
+                ...sub,
+                isPartial: false,
+                toolUse: updatedSubToolUse
+            }
+        } else {
+            updatedSubMessages[i] = {
+                ...sub,
+                isPartial: false
+            }
+        }
+    }
+
+    return updatedSubMessages
+}
+
+/**
+ * 建立最終更新的 message 物件
+ */
+function updateMainMessageState(
+    message: Message,
+    fullContent: string,
+    updatedToolUse: ToolUseInfo[] | undefined,
+    finalizedSubMessages: SubMessage[] | undefined
+): Message {
+    return {
+        ...message,
+        content: fullContent,
+        isPartial: false,
+        ...(updatedToolUse && {toolUse: updatedToolUse}),
+        ...(finalizedSubMessages && {subMessages: finalizedSubMessages}),
+        expectingNewBlock: undefined
+    }
+}
 
 export function createMessageActions(store: ChatStoreInstance): {
     addUserMessage: (podId: string, content: string) => Promise<void>
@@ -87,7 +238,7 @@ export function createMessageActions(store: ChatStoreInstance): {
         }
 
         if ((role || 'assistant') === 'assistant') {
-            const firstSubMessage: import('@/types/chat').SubMessage = {
+            const firstSubMessage: SubMessage = {
                 id: `${messageId}-sub-0`,
                 content: delta || content,
                 isPartial
@@ -117,34 +268,14 @@ export function createMessageActions(store: ChatStoreInstance): {
         }
 
         if (existingMessage.role === 'assistant' && existingMessage.subMessages) {
-            const subMessages = [...existingMessage.subMessages]
-
-            if (existingMessage.expectingNewBlock) {
-                const newSubMessage: import('@/types/chat').SubMessage = {
-                    id: `${existingMessage.id}-sub-${subMessages.length}`,
-                    content: delta,
-                    isPartial
-                }
-                subMessages.push(newSubMessage)
-                updatedMessages[messageIndex].expectingNewBlock = false
-            } else {
-                const lastSubIndex = subMessages.length - 1
-                if (lastSubIndex >= 0) {
-                    const sumOfPreviousContents = subMessages.slice(0, lastSubIndex).reduce((sum, sub) => sum + sub.content.length, 0)
-                    const lastSubContent = content.slice(sumOfPreviousContents)
-
-                    const lastSub = subMessages[lastSubIndex]
-                    if (lastSub) {
-                        subMessages[lastSubIndex] = {
-                            ...lastSub,
-                            content: lastSubContent,
-                            isPartial
-                        }
-                    }
-                }
-            }
-
-            updatedMessages[messageIndex].subMessages = subMessages
+            updatedMessages[messageIndex].subMessages = updateSubMessageContent(
+                existingMessage.subMessages,
+                existingMessage,
+                delta,
+                isPartial,
+                content
+            )
+            updatedMessages[messageIndex].expectingNewBlock = existingMessage.expectingNewBlock ? false : undefined
         }
 
         store.messagesByPodId.set(podId, updatedMessages)
@@ -286,33 +417,11 @@ export function createMessageActions(store: ChatStoreInstance): {
         }
 
         if (message.subMessages) {
-            const subMessages = [...message.subMessages]
-
-            for (let i = 0; i < subMessages.length; i++) {
-                const sub = subMessages[i]
-                if (!sub) continue
-                if (sub.toolUse) {
-                    const updatedSubToolUse = sub.toolUse.map(tool =>
-                        tool.toolUseId === toolUseId
-                            ? {...tool, output, status: 'completed' as ToolUseStatus}
-                            : tool
-                    )
-
-                    // 檢查該 subMessage 中的所有 Tool 是否都已完成
-                    const allToolsCompleted = updatedSubToolUse.every(
-                        tool => tool.status === 'completed' || tool.status === 'error'
-                    )
-
-                    subMessages[i] = {
-                        ...sub,
-                        toolUse: updatedSubToolUse,
-                        // 如果所有 Tool 都完成了，將 isPartial 設為 false
-                        ...(allToolsCompleted && { isPartial: false })
-                    }
-                }
-            }
-
-            updatedMessages[messageIndex].subMessages = subMessages
+            updatedMessages[messageIndex].subMessages = updateSubMessagesToolUseResult(
+                message.subMessages,
+                toolUseId,
+                output
+            )
         }
 
         store.messagesByPodId.set(podId, updatedMessages)
@@ -347,53 +456,15 @@ export function createMessageActions(store: ChatStoreInstance): {
 
         if (!existingMessage) return
 
-        const hasToolUse = existingMessage.toolUse && existingMessage.toolUse.length > 0
+        const updatedToolUse = finalizeToolUse(existingMessage.toolUse)
+        const finalizedSubMessages = finalizeSubMessages(existingMessage.subMessages)
 
-        const updatedToolUse = hasToolUse
-            ? existingMessage.toolUse!.map(tool =>
-                tool.status === 'running'
-                    ? {...tool, status: 'completed' as ToolUseStatus}
-                    : tool
-            )
-            : undefined
-
-        updatedMessages[messageIndex] = {
-            ...existingMessage,
-            content: fullContent,
-            isPartial: false,
-            ...(updatedToolUse && {toolUse: updatedToolUse})
-        }
-
-        if (existingMessage.subMessages && existingMessage.subMessages.length > 0) {
-            const subMessages = [...existingMessage.subMessages]
-
-            for (let i = 0; i < subMessages.length; i++) {
-                const sub = subMessages[i]
-                if (!sub) continue
-
-                if (sub.toolUse && sub.toolUse.length > 0) {
-                    const updatedSubToolUse = sub.toolUse.map(tool =>
-                        tool.status === 'running'
-                            ? {...tool, status: 'completed' as ToolUseStatus}
-                            : tool
-                    )
-                    subMessages[i] = {
-                        ...sub,
-                        isPartial: false,
-                        toolUse: updatedSubToolUse
-                    }
-                } else {
-                    subMessages[i] = {
-                        ...sub,
-                        isPartial: false
-                    }
-                }
-            }
-
-            updatedMessages[messageIndex].subMessages = subMessages
-        }
-
-        updatedMessages[messageIndex].expectingNewBlock = undefined
+        updatedMessages[messageIndex] = updateMainMessageState(
+            existingMessage,
+            fullContent,
+            updatedToolUse,
+            finalizedSubMessages
+        )
 
         store.messagesByPodId.set(podId, updatedMessages)
 
