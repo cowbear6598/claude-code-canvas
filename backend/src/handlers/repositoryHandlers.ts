@@ -604,11 +604,12 @@ export async function handleRepositoryWorktreeCreate(
 
   const response: RepositoryWorktreeCreatedPayload = {
     requestId,
+    canvasId: payload.canvasId,
     success: true,
     repository,
   };
 
-  socketService.emitToAll(WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED, response);
+  socketService.emitToCanvas(payload.canvasId, WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED, response);
 
   logger.log('Repository', 'Create', `Created worktree ${newRepositoryId} from ${repositoryId}`);
 }

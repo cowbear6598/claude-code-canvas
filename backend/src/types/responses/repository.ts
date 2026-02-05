@@ -72,6 +72,7 @@ export interface RepositoryCheckGitResultPayload {
 
 export interface RepositoryWorktreeCreatedPayload {
   requestId: string;
+  canvasId: string;
   success: boolean;
   repository?: { id: string; name: string; parentRepoId?: string; branchName?: string };
   error?: string;

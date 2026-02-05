@@ -329,6 +329,34 @@ const handleRepositoryCreated = createUnifiedHandler<BasePayload & { repository?
   { toastMessage: 'Repository 建立成功' }
 )
 
+const handleRepositoryWorktreeCreated = createUnifiedHandler<BasePayload & { repository?: { id: string; name: string; parentRepoId?: string; branchName?: string }; canvasId: string }>(
+  (payload) => {
+    if (payload.repository) {
+      const { id, name } = payload.repository
+
+      // 驗證必要屬性
+      if (!id || typeof id !== 'string' || id.trim() === '') {
+        console.error('[Security] 無效的 repository.id:', id)
+        return
+      }
+
+      if (!name || typeof name !== 'string' || name.trim() === '') {
+        console.error('[Security] 無效的 repository.name:', name)
+        return
+      }
+
+      // 防止 XSS：檢查名稱中是否包含危險字元
+      if (/<script|javascript:|on\w+=/i.test(name)) {
+        console.error('[Security] 潛在惡意的 repository.name:', name)
+        return
+      }
+
+      useRepositoryStore().addItemFromEvent(payload.repository)
+    }
+  },
+  { toastMessage: 'Worktree 建立成功' }
+)
+
 const handleRepositoryDeleted = createUnifiedHandler<BasePayload & { repositoryId: string; deletedNoteIds?: string[]; canvasId: string }>(
   (payload) => {
     useRepositoryStore().removeItemFromEvent(payload.repositoryId, payload.deletedNoteIds)
@@ -596,6 +624,7 @@ const listeners = [
   { event: WebSocketResponseEvents.SKILL_NOTE_DELETED, handler: handleSkillNoteDeleted },
   { event: WebSocketResponseEvents.SKILL_DELETED, handler: handleSkillDeleted },
   { event: WebSocketResponseEvents.REPOSITORY_CREATED, handler: handleRepositoryCreated },
+  { event: WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED, handler: handleRepositoryWorktreeCreated },
   { event: WebSocketResponseEvents.REPOSITORY_DELETED, handler: handleRepositoryDeleted },
   { event: WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, handler: handleRepositoryBranchChanged },
   { event: WebSocketResponseEvents.REPOSITORY_NOTE_CREATED, handler: handleRepositoryNoteCreated },
