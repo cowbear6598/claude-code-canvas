@@ -1,29 +1,24 @@
 import {defineStore} from 'pinia'
-import {
-    websocketClient,
-    WebSocketRequestEvents,
-    WebSocketResponseEvents
-} from '@/services/websocket'
+import {websocketClient, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
 import {generateRequestId} from '@/services/utils'
-import type {Message, HistoryLoadingStatus} from '@/types/chat'
+import type {HistoryLoadingStatus, Message} from '@/types/chat'
 import type {
-    PodChatMessagePayload,
-    PodChatToolUsePayload,
-    PodChatToolResultPayload,
-    PodChatCompletePayload,
-    PodChatSendPayload,
-    PodErrorPayload,
     ConnectionReadyPayload,
-    PodMessagesClearedPayload,
-    WorkflowAutoClearedPayload,
-    HeartbeatPingPayload,
     ContentBlock,
-    TextContentBlock
+    HeartbeatPingPayload,
+    PodChatCompletePayload,
+    PodChatMessagePayload,
+    PodChatSendPayload,
+    PodChatToolResultPayload,
+    PodChatToolUsePayload,
+    PodErrorPayload,
+    PodMessagesClearedPayload,
+    TextContentBlock,
+    WorkflowAutoClearedPayload
 } from '@/types/websocket'
 import {createMessageActions} from './chatMessageActions'
 import {createConnectionActions} from './chatConnectionActions'
 import {createHistoryActions} from './chatHistoryActions'
-import {buildDisplayMessage} from './chatUtils'
 
 export type ChatStoreInstance = ReturnType<typeof useChatStore>
 
@@ -183,7 +178,6 @@ export const useChatStore = defineStore('chat', {
             }
 
             let messagePayload: string | ContentBlock[]
-            let displayMessage: string
 
             if (hasContentBlocks) {
                 const blocks = [...contentBlocks!]
@@ -194,12 +188,8 @@ export const useChatStore = defineStore('chat', {
                 }
 
                 messagePayload = blocks
-                const displayContent = buildDisplayMessage(contentBlocks!)
-                displayMessage = command ? `/${command.name} ${displayContent}` : displayContent
             } else {
-                const finalMessage = command ? `/${command.name} ${content}` : content
-                messagePayload = finalMessage
-                displayMessage = finalMessage
+                messagePayload = command ? `/${command.name} ${content}` : content
             }
 
             // 統一事件監聽器會處理用戶訊息的添加，這裡不需要手動添加
