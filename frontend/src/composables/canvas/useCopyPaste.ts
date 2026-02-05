@@ -45,6 +45,16 @@ export function useCopyPaste(): void {
     mousePosition.value = { x: event.clientX, y: event.clientY }
   }
 
+  const collectBoundNotesFromStore = <T, TNote extends { boundToPodId: string | null }>(
+    podId: string,
+    store: { notes: TNote[] },
+    mapFn: (note: TNote) => T
+  ): T[] => {
+    return store.notes
+      .filter(note => note.boundToPodId === podId)
+      .map(mapFn)
+  }
+
   const collectBoundNotes = (
     podId: string,
     outputStyleNotes: CopiedOutputStyleNote[],
@@ -53,11 +63,10 @@ export function useCopyPaste(): void {
     subAgentNotes: CopiedSubAgentNote[],
     commandNotes: CopiedCommandNote[]
   ): void => {
-    const boundOutputStyleNotes = outputStyleStore.notes.filter(
-      note => note.boundToPodId === podId
-    )
-    for (const note of boundOutputStyleNotes) {
-      outputStyleNotes.push({
+    outputStyleNotes.push(...collectBoundNotesFromStore(
+      podId,
+      outputStyleStore,
+      (note) => ({
         id: note.id,
         outputStyleId: note.outputStyleId,
         name: note.name,
@@ -66,13 +75,12 @@ export function useCopyPaste(): void {
         boundToPodId: note.boundToPodId,
         originalPosition: note.originalPosition,
       })
-    }
+    ))
 
-    const boundSkillNotes = skillStore.notes.filter(
-      note => note.boundToPodId === podId
-    )
-    for (const note of boundSkillNotes) {
-      skillNotes.push({
+    skillNotes.push(...collectBoundNotesFromStore(
+      podId,
+      skillStore,
+      (note) => ({
         id: note.id,
         skillId: note.skillId,
         name: note.name,
@@ -81,13 +89,12 @@ export function useCopyPaste(): void {
         boundToPodId: note.boundToPodId,
         originalPosition: note.originalPosition,
       })
-    }
+    ))
 
-    const boundRepositoryNotes = repositoryStore.notes.filter(
-      note => note.boundToPodId === podId
-    )
-    for (const note of boundRepositoryNotes) {
-      repositoryNotes.push({
+    repositoryNotes.push(...collectBoundNotesFromStore(
+      podId,
+      repositoryStore,
+      (note) => ({
         repositoryId: note.repositoryId,
         name: note.name,
         x: note.x,
@@ -95,13 +102,12 @@ export function useCopyPaste(): void {
         boundToOriginalPodId: note.boundToPodId,
         originalPosition: note.originalPosition,
       })
-    }
+    ))
 
-    const boundSubAgentNotes = subAgentStore.notes.filter(
-      note => note.boundToPodId === podId
-    )
-    for (const note of boundSubAgentNotes) {
-      subAgentNotes.push({
+    subAgentNotes.push(...collectBoundNotesFromStore(
+      podId,
+      subAgentStore,
+      (note) => ({
         id: note.id,
         subAgentId: note.subAgentId,
         name: note.name,
@@ -110,13 +116,12 @@ export function useCopyPaste(): void {
         boundToPodId: note.boundToPodId,
         originalPosition: note.originalPosition,
       })
-    }
+    ))
 
-    const boundCommandNotes = commandStore.notes.filter(
-      note => note.boundToPodId === podId
-    )
-    for (const note of boundCommandNotes) {
-      commandNotes.push({
+    commandNotes.push(...collectBoundNotesFromStore(
+      podId,
+      commandStore,
+      (note) => ({
         commandId: note.commandId,
         name: note.name,
         x: note.x,
@@ -124,7 +129,7 @@ export function useCopyPaste(): void {
         boundToOriginalPodId: note.boundToPodId,
         originalPosition: note.originalPosition,
       })
-    }
+    ))
   }
 
   const createUnboundNoteCollector = <T, TNote extends { id?: string; boundToPodId: string | null; x: number; y: number; name: string; originalPosition: { x: number; y: number } | null }>(
@@ -201,22 +206,8 @@ export function useCopyPaste(): void {
     })
   )
 
-  const handleCopy = (event: KeyboardEvent): boolean => {
-    const selectedElements = selectionStore.selectedElements
-    if (selectedElements.length === 0) return false
-
-    event.preventDefault()
-
+  const collectSelectedPods = (selectedElements: SelectableElement[]): CopiedPod[] => {
     const copiedPods: CopiedPod[] = []
-    const copiedOutputStyleNotes: CopiedOutputStyleNote[] = []
-    const copiedSkillNotes: CopiedSkillNote[] = []
-    const copiedRepositoryNotes: CopiedRepositoryNote[] = []
-    const copiedSubAgentNotes: CopiedSubAgentNote[] = []
-    const copiedCommandNotes: CopiedCommandNote[] = []
-
-    const selectedPodIds = new Set(
-      selectedElements.filter(el => el.type === 'pod').map(el => el.id)
-    )
 
     for (const element of selectedElements) {
       if (element.type === 'pod') {
@@ -240,6 +231,25 @@ export function useCopyPaste(): void {
       }
     }
 
+    return copiedPods
+  }
+
+  const collectSelectedNotes = (
+    selectedElements: SelectableElement[],
+    selectedPodIds: Set<string>
+  ): {
+    outputStyleNotes: CopiedOutputStyleNote[]
+    skillNotes: CopiedSkillNote[]
+    repositoryNotes: CopiedRepositoryNote[]
+    subAgentNotes: CopiedSubAgentNote[]
+    commandNotes: CopiedCommandNote[]
+  } => {
+    const copiedOutputStyleNotes: CopiedOutputStyleNote[] = []
+    const copiedSkillNotes: CopiedSkillNote[] = []
+    const copiedRepositoryNotes: CopiedRepositoryNote[] = []
+    const copiedSubAgentNotes: CopiedSubAgentNote[] = []
+    const copiedCommandNotes: CopiedCommandNote[] = []
+
     for (const podId of selectedPodIds) {
       collectBoundNotes(podId, copiedOutputStyleNotes, copiedSkillNotes, copiedRepositoryNotes, copiedSubAgentNotes, copiedCommandNotes)
     }
@@ -262,7 +272,18 @@ export function useCopyPaste(): void {
       }
     }
 
+    return {
+      outputStyleNotes: copiedOutputStyleNotes,
+      skillNotes: copiedSkillNotes,
+      repositoryNotes: copiedRepositoryNotes,
+      subAgentNotes: copiedSubAgentNotes,
+      commandNotes: copiedCommandNotes,
+    }
+  }
+
+  const collectRelatedConnections = (selectedPodIds: Set<string>): CopiedConnection[] => {
     const copiedConnections: CopiedConnection[] = []
+
     for (const connection of connectionStore.connections) {
       if (selectedPodIds.has(connection.sourcePodId) && selectedPodIds.has(connection.targetPodId)) {
         copiedConnections.push({
@@ -275,7 +296,33 @@ export function useCopyPaste(): void {
       }
     }
 
-    clipboardStore.setCopy(copiedPods, copiedOutputStyleNotes, copiedSkillNotes, copiedRepositoryNotes, copiedSubAgentNotes, copiedCommandNotes, copiedConnections)
+    return copiedConnections
+  }
+
+  const handleCopy = (event: KeyboardEvent): boolean => {
+    const selectedElements = selectionStore.selectedElements
+    if (selectedElements.length === 0) return false
+
+    event.preventDefault()
+
+    const selectedPodIds = new Set(
+      selectedElements.filter(el => el.type === 'pod').map(el => el.id)
+    )
+
+    const copiedPods = collectSelectedPods(selectedElements)
+    const copiedNotes = collectSelectedNotes(selectedElements, selectedPodIds)
+    const copiedConnections = collectRelatedConnections(selectedPodIds)
+
+    clipboardStore.setCopy(
+      copiedPods,
+      copiedNotes.outputStyleNotes,
+      copiedNotes.skillNotes,
+      copiedNotes.repositoryNotes,
+      copiedNotes.subAgentNotes,
+      copiedNotes.commandNotes,
+      copiedConnections
+    )
+
     return true
   }
 
@@ -290,6 +337,116 @@ export function useCopyPaste(): void {
     bounds.maxX = Math.max(bounds.maxX, x + width)
     bounds.minY = Math.min(bounds.minY, y)
     bounds.maxY = Math.max(bounds.maxY, y + height)
+  }
+
+  const calculateBoundingBox = <T extends { x: number; y: number }>(
+    pods: CopiedPod[],
+    notes: {
+      outputStyleNotes: T[]
+      skillNotes: T[]
+      repositoryNotes: T[]
+      subAgentNotes: T[]
+      commandNotes: T[]
+    },
+    getBoundKeys: {
+      outputStyleNote: (n: T) => string | null
+      skillNote: (n: T) => string | null
+      repositoryNote: (n: T) => string | null
+      subAgentNote: (n: T) => string | null
+      commandNote: (n: T) => string | null
+    }
+  ): { minX: number; maxX: number; minY: number; maxY: number } => {
+    const bounds = {
+      minX: Infinity,
+      maxX: -Infinity,
+      minY: Infinity,
+      maxY: -Infinity
+    }
+
+    for (const pod of pods) {
+      updateBoundingBox(bounds, pod.x, pod.y, POD_WIDTH, POD_HEIGHT)
+    }
+
+    const processUnboundNotes = <TNote extends { x: number; y: number }>(
+      noteList: TNote[],
+      getBoundKey: (n: TNote) => string | null
+    ): void => {
+      for (const note of noteList) {
+        if (getBoundKey(note) === null) {
+          updateBoundingBox(bounds, note.x, note.y, NOTE_WIDTH, NOTE_HEIGHT)
+        }
+      }
+    }
+
+    processUnboundNotes(notes.outputStyleNotes, getBoundKeys.outputStyleNote)
+    processUnboundNotes(notes.skillNotes, getBoundKeys.skillNote)
+    processUnboundNotes(notes.repositoryNotes, getBoundKeys.repositoryNote)
+    processUnboundNotes(notes.subAgentNotes, getBoundKeys.subAgentNote)
+    processUnboundNotes(notes.commandNotes, getBoundKeys.commandNote)
+
+    return bounds
+  }
+
+  const calculateOffsets = (
+    boundingBox: { minX: number; maxX: number; minY: number; maxY: number },
+    targetPosition: { x: number; y: number }
+  ): { offsetX: number; offsetY: number } => {
+    const centerX = (boundingBox.minX + boundingBox.maxX) / 2
+    const centerY = (boundingBox.minY + boundingBox.maxY) / 2
+
+    return {
+      offsetX: targetPosition.x - centerX,
+      offsetY: targetPosition.y - centerY
+    }
+  }
+
+  const transformPods = (
+    pods: CopiedPod[],
+    offset: { offsetX: number; offsetY: number }
+  ): PastePodItem[] => {
+    return pods.map(pod => ({
+      originalId: pod.id,
+      name: pod.name,
+      color: pod.color,
+      x: pod.x + offset.offsetX,
+      y: pod.y + offset.offsetY,
+      rotation: pod.rotation,
+      outputStyleId: pod.outputStyleId,
+      skillIds: pod.skillIds,
+      subAgentIds: pod.subAgentIds,
+      model: pod.model,
+      repositoryId: pod.repositoryId,
+      commandId: pod.commandId,
+    }))
+  }
+
+  const transformNotes = <
+    TSource extends { x: number; y: number; name: string; originalPosition: { x: number; y: number } | null },
+    TResult
+  >(
+    notes: TSource[],
+    offset: { offsetX: number; offsetY: number },
+    getBoundKey: (note: TSource) => string | null,
+    mapFn: (note: TSource, position: { x: number; y: number }) => TResult
+  ): TResult[] => {
+    return notes.map(note => {
+      const isBound = getBoundKey(note) !== null
+      const position = {
+        x: isBound ? 0 : note.x + offset.offsetX,
+        y: isBound ? 0 : note.y + offset.offsetY,
+      }
+      return mapFn(note, position)
+    })
+  }
+
+  const transformConnections = (connections: CopiedConnection[]): PasteConnectionItem[] => {
+    return connections.map(conn => ({
+      originalSourcePodId: conn.sourcePodId,
+      sourceAnchor: conn.sourceAnchor,
+      originalTargetPodId: conn.targetPodId,
+      targetAnchor: conn.targetAnchor,
+      autoTrigger: conn.autoTrigger,
+    }))
   }
 
   const calculatePastePositions = (targetPosition: { x: number; y: number }): {
@@ -307,127 +464,95 @@ export function useCopyPaste(): void {
       return { pods: [], outputStyleNotes: [], skillNotes: [], repositoryNotes: [], subAgentNotes: [], commandNotes: [], connections: [] }
     }
 
-    const bounds = {
-      minX: Infinity,
-      maxX: -Infinity,
-      minY: Infinity,
-      maxY: -Infinity
-    }
-
-    for (const pod of pods) {
-      updateBoundingBox(bounds, pod.x, pod.y, POD_WIDTH, POD_HEIGHT)
-    }
-
-    const processUnboundNotes = <T extends { x: number; y: number }>(
-      notes: T[],
-      getBoundKey: (n: T) => string | null
-    ): void => {
-      for (const note of notes) {
-        if (getBoundKey(note) === null) {
-          updateBoundingBox(bounds, note.x, note.y, NOTE_WIDTH, NOTE_HEIGHT)
-        }
-      }
-    }
-
-    processUnboundNotes(outputStyleNotes, n => n.boundToPodId)
-    processUnboundNotes(skillNotes, n => n.boundToPodId)
-    processUnboundNotes(repositoryNotes, n => n.boundToOriginalPodId)
-    processUnboundNotes(subAgentNotes, n => n.boundToPodId)
-    processUnboundNotes(commandNotes, n => n.boundToOriginalPodId)
-
-    const centerX = (bounds.minX + bounds.maxX) / 2
-    const centerY = (bounds.minY + bounds.maxY) / 2
-
-    const offsetX = targetPosition.x - centerX
-    const offsetY = targetPosition.y - centerY
-
-    const applyOffsetToNote = <T extends { x: number; y: number }>(note: T, isBound: boolean): { x: number; y: number } => ({
-      x: isBound ? 0 : note.x + offsetX,
-      y: isBound ? 0 : note.y + offsetY,
+    const boundingBox = calculateBoundingBox(pods, {
+      outputStyleNotes,
+      skillNotes,
+      repositoryNotes,
+      subAgentNotes,
+      commandNotes
+    }, {
+      outputStyleNote: n => n.boundToPodId,
+      skillNote: n => n.boundToPodId,
+      repositoryNote: n => n.boundToOriginalPodId,
+      subAgentNote: n => n.boundToPodId,
+      commandNote: n => n.boundToOriginalPodId
     })
 
-    const newPods = pods.map(pod => ({
-      originalId: pod.id,
-      name: pod.name,
-      color: pod.color,
-      x: pod.x + offsetX,
-      y: pod.y + offsetY,
-      rotation: pod.rotation,
-      outputStyleId: pod.outputStyleId,
-      skillIds: pod.skillIds,
-      subAgentIds: pod.subAgentIds,
-      model: pod.model,
-      repositoryId: pod.repositoryId,
-      commandId: pod.commandId,
-    }))
+    const offset = calculateOffsets(boundingBox, targetPosition)
 
-    const newOutputStyleNotes = outputStyleNotes.map(note => {
-      const offset = applyOffsetToNote(note, note.boundToPodId !== null)
-      return {
+    const newPods = transformPods(pods, offset)
+
+    const newOutputStyleNotes = transformNotes(
+      outputStyleNotes,
+      offset,
+      n => n.boundToPodId,
+      (note, position) => ({
         outputStyleId: note.outputStyleId,
         name: note.name,
-        x: offset.x,
-        y: offset.y,
+        x: position.x,
+        y: position.y,
         boundToOriginalPodId: note.boundToPodId,
         originalPosition: note.originalPosition,
-      }
-    })
+      })
+    )
 
-    const newSkillNotes = skillNotes.map(note => {
-      const offset = applyOffsetToNote(note, note.boundToPodId !== null)
-      return {
+    const newSkillNotes = transformNotes(
+      skillNotes,
+      offset,
+      n => n.boundToPodId,
+      (note, position) => ({
         skillId: note.skillId,
         name: note.name,
-        x: offset.x,
-        y: offset.y,
+        x: position.x,
+        y: position.y,
         boundToOriginalPodId: note.boundToPodId,
         originalPosition: note.originalPosition,
-      }
-    })
+      })
+    )
 
-    const newRepositoryNotes = repositoryNotes.map(note => {
-      const offset = applyOffsetToNote(note, note.boundToOriginalPodId !== null)
-      return {
+    const newRepositoryNotes = transformNotes(
+      repositoryNotes,
+      offset,
+      n => n.boundToOriginalPodId,
+      (note, position) => ({
         repositoryId: note.repositoryId,
         name: note.name,
-        x: offset.x,
-        y: offset.y,
+        x: position.x,
+        y: position.y,
         boundToOriginalPodId: note.boundToOriginalPodId,
         originalPosition: note.originalPosition,
-      }
-    })
+      })
+    )
 
-    const newSubAgentNotes = subAgentNotes.map(note => {
-      const offset = applyOffsetToNote(note, note.boundToPodId !== null)
-      return {
+    const newSubAgentNotes = transformNotes(
+      subAgentNotes,
+      offset,
+      n => n.boundToPodId,
+      (note, position) => ({
         subAgentId: note.subAgentId,
         name: note.name,
-        x: offset.x,
-        y: offset.y,
+        x: position.x,
+        y: position.y,
         boundToOriginalPodId: note.boundToPodId,
         originalPosition: note.originalPosition,
-      }
-    })
+      })
+    )
 
-    const newCommandNotes = commandNotes.map(note => {
-      const offset = applyOffsetToNote(note, note.boundToOriginalPodId !== null)
-      return {
+    const newCommandNotes = transformNotes(
+      commandNotes,
+      offset,
+      n => n.boundToOriginalPodId,
+      (note, position) => ({
         commandId: note.commandId,
         name: note.name,
-        x: offset.x,
-        y: offset.y,
+        x: position.x,
+        y: position.y,
         boundToOriginalPodId: note.boundToOriginalPodId,
         originalPosition: note.originalPosition,
-      }
-    })
+      })
+    )
 
-    const newConnections = connections.map(conn => ({
-      originalSourcePodId: conn.sourcePodId,
-      sourceAnchor: conn.sourceAnchor,
-      originalTargetPodId: conn.targetPodId,
-      targetAnchor: conn.targetAnchor,
-      autoTrigger: conn.autoTrigger,
-    }))
+    const newConnections = transformConnections(connections)
 
     return {
       pods: newPods,

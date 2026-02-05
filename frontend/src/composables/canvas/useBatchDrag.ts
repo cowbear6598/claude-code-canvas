@@ -76,43 +76,81 @@ export function useBatchDrag(): {
   }
 
   const moveSelectedElements = (dx: number, dy: number): void => {
+    const storeConfigMap = {
+      pod: {
+        store: podStore,
+        movedSet: movedPods,
+        moveItem: (id: string, x: number, y: number) => podStore.movePod(id, x, y),
+        getItem: (id: string) => podStore.pods.find(p => p.id === id),
+        isPod: true
+      },
+      outputStyleNote: {
+        store: outputStyleStore,
+        movedSet: movedOutputStyleNotes,
+        moveItem: (id: string, x: number, y: number) => outputStyleStore.updateNotePositionLocal(id, x, y),
+        getItem: (id: string) => outputStyleStore.notes.find(n => n.id === id),
+        isPod: false
+      },
+      skillNote: {
+        store: skillStore,
+        movedSet: movedSkillNotes,
+        moveItem: (id: string, x: number, y: number) => skillStore.updateNotePositionLocal(id, x, y),
+        getItem: (id: string) => skillStore.notes.find(n => n.id === id),
+        isPod: false
+      },
+      repositoryNote: {
+        store: repositoryStore,
+        movedSet: movedRepositoryNotes,
+        moveItem: (id: string, x: number, y: number) => repositoryStore.updateNotePositionLocal(id, x, y),
+        getItem: (id: string) => repositoryStore.notes.find(n => n.id === id),
+        isPod: false
+      },
+      subAgentNote: {
+        store: subAgentStore,
+        movedSet: movedSubAgentNotes,
+        moveItem: (id: string, x: number, y: number) => subAgentStore.updateNotePositionLocal(id, x, y),
+        getItem: (id: string) => subAgentStore.notes.find(n => n.id === id),
+        isPod: false
+      },
+      commandNote: {
+        store: commandStore,
+        movedSet: movedCommandNotes,
+        moveItem: (id: string, x: number, y: number) => commandStore.updateNotePositionLocal(id, x, y),
+        getItem: (id: string) => commandStore.notes.find(n => n.id === id),
+        isPod: false
+      }
+    } as const
+
     for (const element of selectionStore.selectedElements) {
-      if (element.type === 'pod') {
-        const pod = podStore.pods.find(p => p.id === element.id)
-        if (pod) {
-          podStore.movePod(element.id, pod.x + dx, pod.y + dy)
-          movedPods.add(element.id)
+      const config = storeConfigMap[element.type]
+      if (!config) continue
+
+      const item = config.getItem(element.id)
+      if (!item) continue
+
+      if (config.isPod) {
+        config.moveItem(element.id, item.x + dx, item.y + dy)
+        config.movedSet.add(element.id)
+      } else {
+        if (!item.boundToPodId) {
+          config.moveItem(element.id, item.x + dx, item.y + dy)
+          config.movedSet.add(element.id)
         }
-      } else if (element.type === 'outputStyleNote') {
-        const note = outputStyleStore.notes.find(n => n.id === element.id)
-        if (note && !note.boundToPodId) {
-          outputStyleStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
-          movedOutputStyleNotes.add(element.id)
-        }
-      } else if (element.type === 'skillNote') {
-        const note = skillStore.notes.find(n => n.id === element.id)
-        if (note && !note.boundToPodId) {
-          skillStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
-          movedSkillNotes.add(element.id)
-        }
-      } else if (element.type === 'repositoryNote') {
-        const note = repositoryStore.notes.find(n => n.id === element.id)
-        if (note && !note.boundToPodId) {
-          repositoryStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
-          movedRepositoryNotes.add(element.id)
-        }
-      } else if (element.type === 'subAgentNote') {
-        const note = subAgentStore.notes.find(n => n.id === element.id)
-        if (note && !note.boundToPodId) {
-          subAgentStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
-          movedSubAgentNotes.add(element.id)
-        }
-      } else if (element.type === 'commandNote') {
-        const note = commandStore.notes.find(n => n.id === element.id)
-        if (note && !note.boundToPodId) {
-          commandStore.updateNotePositionLocal(element.id, note.x + dx, note.y + dy)
-          movedCommandNotes.add(element.id)
-        }
+      }
+    }
+  }
+
+  const syncNotesByType = async <T extends { id?: string; x: number; y: number }>(
+    movedNoteIds: Set<string>,
+    store: {
+      notes: T[]
+      updateNotePosition: (noteId: string, x: number, y: number) => Promise<void>
+    }
+  ): Promise<void> => {
+    for (const noteId of movedNoteIds) {
+      const note = store.notes.find(n => n.id === noteId)
+      if (note) {
+        await store.updateNotePosition(noteId, note.x, note.y)
       }
     }
   }
@@ -122,40 +160,11 @@ export function useBatchDrag(): {
       podStore.syncPodPosition(podId)
     }
 
-    for (const noteId of movedOutputStyleNotes) {
-      const note = outputStyleStore.notes.find(n => n.id === noteId)
-      if (note) {
-        await outputStyleStore.updateNotePosition(noteId, note.x, note.y)
-      }
-    }
-
-    for (const noteId of movedSkillNotes) {
-      const note = skillStore.notes.find(n => n.id === noteId)
-      if (note) {
-        await skillStore.updateNotePosition(noteId, note.x, note.y)
-      }
-    }
-
-    for (const noteId of movedRepositoryNotes) {
-      const note = repositoryStore.notes.find(n => n.id === noteId)
-      if (note) {
-        await repositoryStore.updateNotePosition(noteId, note.x, note.y)
-      }
-    }
-
-    for (const noteId of movedSubAgentNotes) {
-      const note = subAgentStore.notes.find(n => n.id === noteId)
-      if (note) {
-        await subAgentStore.updateNotePosition(noteId, note.x, note.y)
-      }
-    }
-
-    for (const noteId of movedCommandNotes) {
-      const note = commandStore.notes.find(n => n.id === noteId)
-      if (note) {
-        await commandStore.updateNotePosition(noteId, note.x, note.y)
-      }
-    }
+    await syncNotesByType(movedOutputStyleNotes, outputStyleStore)
+    await syncNotesByType(movedSkillNotes, skillStore)
+    await syncNotesByType(movedRepositoryNotes, repositoryStore)
+    await syncNotesByType(movedSubAgentNotes, subAgentStore)
+    await syncNotesByType(movedCommandNotes, commandStore)
 
     movedPods.clear()
     movedOutputStyleNotes.clear()
