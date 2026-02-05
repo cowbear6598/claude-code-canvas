@@ -45,7 +45,7 @@
   transform: rotate(var(--pod-rotation, 0deg));
 }
 
-.pod-with-notch:hover {
+.pod-with-notch:has(.pod-doodle:hover) {
   transform: translate(-0.5px, -0.5px) rotate(calc(var(--pod-rotation, 0deg) + 0.5deg));
 }
 
