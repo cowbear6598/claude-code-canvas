@@ -10,7 +10,7 @@
   border-radius: 6px;
   padding: 4px;
   box-shadow: 3px 3px 0 var(--doodle-ink);
-  z-index: 60;
+  z-index: 40;
 }
 
 .pod-menu-submenu-search {
@@ -169,4 +169,52 @@
 .pod-menu-submenu-delete-btn:hover {
   background: oklch(0.9 0.15 25);
   color: oklch(0.5 0.2 25);
+}
+
+/* Pod Menu Submenu Group */
+.pod-menu-submenu-group {
+  cursor: pointer;
+}
+
+.pod-menu-submenu-group-chevron {
+  transition: transform 0.2s ease;
+}
+
+.pod-menu-submenu-group-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+/* Pod Menu Submenu Item Indented */
+.pod-menu-submenu-item--indented {
+  padding-left: 28px;
+}
+
+/* Pod Menu Submenu Item Dragging */
+.pod-menu-submenu-item--dragging {
+  opacity: 0.5;
+}
+
+/* Pod Menu Submenu Group Drag Over */
+.pod-menu-submenu-group--drag-over {
+  background: oklch(0.9 0.1 220);
+  border: 1px dashed oklch(0.6 0.15 220);
+}
+
+/* Pod Menu Submenu Root Dropzone */
+.pod-menu-submenu-root-dropzone {
+  min-height: 8px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.pod-menu-submenu-root-dropzone--drag-over {
+  background: oklch(0.95 0.05 220);
+}
+
+/* Pod Menu Submenu Group Delete Disabled */
+.pod-menu-submenu-group-delete-disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }

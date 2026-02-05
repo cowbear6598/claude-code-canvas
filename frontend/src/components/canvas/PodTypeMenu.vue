@@ -15,6 +15,7 @@ const props = defineProps<Props>()
 
 type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
 type ResourceType = 'outputStyle' | 'subAgent' | 'command'
+type GroupType = 'outputStyleGroup' | 'subAgentGroup' | 'commandGroup'
 
 const emit = defineEmits<{
   select: [config: PodTypeConfig]
@@ -27,6 +28,8 @@ const emit = defineEmits<{
   'open-create-modal': [resourceType: ResourceType, title: string]
   'open-edit-modal': [resourceType: ResourceType, id: string]
   'open-delete-modal': [type: ItemType, id: string, name: string]
+  'open-create-group-modal': [groupType: GroupType, title: string]
+  'open-delete-group-modal': [groupType: GroupType, groupId: string, name: string]
   'open-create-repository-modal': []
   'open-clone-repository-modal': []
   close: []
@@ -47,10 +50,13 @@ const hoveredItemId = ref<string | null>(null)
 onMounted(async () => {
   await Promise.all([
     outputStyleStore.loadOutputStyles(),
+    outputStyleStore.loadOutputStyleGroups(),
     skillStore.loadSkills(),
     subAgentStore.loadSubAgents(),
+    subAgentStore.loadSubAgentGroups(),
     repositoryStore.loadRepositories(),
-    commandStore.loadCommands()
+    commandStore.loadCommands(),
+    commandStore.loadCommandGroups()
   ])
 })
 
@@ -142,6 +148,35 @@ const handleSubAgentEdit = (id: string, _name: string, event: Event): void =>
 const handleCommandEdit = (id: string, _name: string, event: Event): void =>
   openEditModal('command', id, event)
 
+const openCreateGroupModal = (groupType: GroupType, title: string): void => {
+  openMenuType.value = null
+  emit('open-create-group-modal', groupType, title)
+  emit('close')
+}
+
+const handleNewOutputStyleGroup = (): void => openCreateGroupModal('outputStyleGroup', '新增 Output Style 群組')
+const handleNewSubAgentGroup = (): void => openCreateGroupModal('subAgentGroup', '新增 SubAgent 群組')
+const handleNewCommandGroup = (): void => openCreateGroupModal('commandGroup', '新增 Command 群組')
+
+const handleGroupDelete = (groupType: GroupType, groupId: string, name: string, event: Event): void => {
+  event.stopPropagation()
+  openMenuType.value = null
+  emit('open-delete-group-modal', groupType, groupId, name)
+  emit('close')
+}
+
+const handleOutputStyleDropToGroup = (itemId: string, groupId: string | null): void => {
+  outputStyleStore.moveOutputStyleToGroup(itemId, groupId)
+}
+
+const handleSubAgentDropToGroup = (itemId: string, groupId: string | null): void => {
+  subAgentStore.moveSubAgentToGroup(itemId, groupId)
+}
+
+const handleCommandDropToGroup = (itemId: string, groupId: string | null): void => {
+  commandStore.moveCommandToGroup(itemId, groupId)
+}
+
 // 在選單打開時處理右鍵點擊，更新選單位置
 const handleContextMenu = (e: MouseEvent): void => {
   e.preventDefault()
@@ -209,9 +244,14 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
           v-model:hovered-item-id="hoveredItemId"
           :items="outputStyleStore.availableItems"
           :visible="openMenuType === 'outputStyle'"
+          :groups="outputStyleStore.groups"
+          :expanded-group-ids="outputStyleStore.expandedGroupIds"
           @item-select="handleOutputStyleSelect"
           @item-edit="handleOutputStyleEdit"
           @item-delete="(id, name, event) => handleDeleteClick('outputStyle', id, name, event)"
+          @toggle-group="(groupId) => outputStyleStore.toggleGroupExpand(groupId)"
+          @group-delete="(groupId, name, event) => handleGroupDelete('outputStyleGroup', groupId, name, event)"
+          @item-drop-to-group="handleOutputStyleDropToGroup"
         >
           <template #footer>
             <div class="border-t border-doodle-ink/30 my-1" />
@@ -220,7 +260,14 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
               @click="handleNewOutputStyle"
             >
               <FilePlus :size="16" />
-              New...
+              New File...
+            </div>
+            <div
+              class="pod-menu-submenu-item flex items-center gap-2"
+              @click="handleNewOutputStyleGroup"
+            >
+              <FolderPlus :size="16" />
+              New Group...
             </div>
           </template>
         </PodTypeMenuSubmenu>
@@ -248,9 +295,14 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
           v-model:hovered-item-id="hoveredItemId"
           :items="commandStore.availableItems"
           :visible="openMenuType === 'command'"
+          :groups="commandStore.groups"
+          :expanded-group-ids="commandStore.expandedGroupIds"
           @item-select="handleCommandSelect"
           @item-edit="handleCommandEdit"
           @item-delete="(id, name, event) => handleDeleteClick('command', id, name, event)"
+          @toggle-group="(groupId) => commandStore.toggleGroupExpand(groupId)"
+          @group-delete="(groupId, name, event) => handleGroupDelete('commandGroup', groupId, name, event)"
+          @item-drop-to-group="handleCommandDropToGroup"
         >
           <template #footer>
             <div class="border-t border-doodle-ink/30 my-1" />
@@ -259,7 +311,14 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
               @click="handleNewCommand"
             >
               <FilePlus :size="16" />
-              New...
+              New File...
+            </div>
+            <div
+              class="pod-menu-submenu-item flex items-center gap-2"
+              @click="handleNewCommandGroup"
+            >
+              <FolderPlus :size="16" />
+              New Group...
             </div>
           </template>
         </PodTypeMenuSubmenu>
@@ -321,9 +380,14 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
           v-model:hovered-item-id="hoveredItemId"
           :items="subAgentStore.availableItems"
           :visible="openMenuType === 'subAgent'"
+          :groups="subAgentStore.groups"
+          :expanded-group-ids="subAgentStore.expandedGroupIds"
           @item-select="handleSubAgentSelect"
           @item-edit="handleSubAgentEdit"
           @item-delete="(id, name, event) => handleDeleteClick('subAgent', id, name, event)"
+          @toggle-group="(groupId) => subAgentStore.toggleGroupExpand(groupId)"
+          @group-delete="(groupId, name, event) => handleGroupDelete('subAgentGroup', groupId, name, event)"
+          @item-drop-to-group="handleSubAgentDropToGroup"
         >
           <template #footer>
             <div class="border-t border-doodle-ink/30 my-1" />
@@ -332,7 +396,14 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
               @click="handleNewSubAgent"
             >
               <FilePlus :size="16" />
-              New...
+              New File...
+            </div>
+            <div
+              class="pod-menu-submenu-item flex items-center gap-2"
+              @click="handleNewSubAgentGroup"
+            >
+              <FolderPlus :size="16" />
+              New Group...
             </div>
           </template>
         </PodTypeMenuSubmenu>

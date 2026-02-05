@@ -26,9 +26,12 @@ import {
 
 type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
 type ResourceType = 'outputStyle' | 'subAgent' | 'command'
+type GroupType = 'outputStyleGroup' | 'subAgentGroup' | 'commandGroup'
+type ExtendedResourceType = ResourceType | GroupType
+type ExtendedItemType = ItemType | GroupType
 
 interface DeleteTarget {
-  type: ItemType
+  type: ExtendedItemType
   id: string
   name: string
 }
@@ -39,8 +42,9 @@ interface EditModalState {
   title: string
   initialName: string
   initialContent: string
-  resourceType: ResourceType
+  resourceType: ExtendedResourceType
   itemId: string
+  showContent: boolean
 }
 
 const {
@@ -90,7 +94,8 @@ const editModal = ref<EditModalState>({
   initialName: '',
   initialContent: '',
   resourceType: 'outputStyle',
-  itemId: ''
+  itemId: '',
+  showContent: true
 })
 
 const isDeleteTargetInUse = computed(() => {
@@ -98,12 +103,15 @@ const isDeleteTargetInUse = computed(() => {
 
   const {type, id} = deleteTarget.value
 
-  const inUseChecks = {
+  const inUseChecks: Record<ExtendedItemType, () => boolean> = {
     outputStyle: (): boolean => outputStyleStore.isItemInUse(id),
     skill: (): boolean => skillStore.isItemInUse(id),
     subAgent: (): boolean => subAgentStore.isItemInUse(id),
     repository: (): boolean => repositoryStore.isItemInUse(id),
     command: (): boolean => commandStore.isItemInUse(id),
+    outputStyleGroup: (): boolean => false,
+    subAgentGroup: (): boolean => false,
+    commandGroup: (): boolean => false,
   }
 
   return inUseChecks[type]()
@@ -352,7 +360,22 @@ const handleOpenCreateModal = (resourceType: ResourceType, title: string): void 
     initialName: '',
     initialContent: '',
     resourceType,
-    itemId: ''
+    itemId: '',
+    showContent: true
+  }
+}
+
+const handleOpenCreateGroupModal = (groupType: GroupType, title: string): void => {
+  lastMenuPosition.value = podStore.typeMenu.position
+  editModal.value = {
+    visible: true,
+    mode: 'create',
+    title,
+    initialName: '',
+    initialContent: '',
+    resourceType: groupType,
+    itemId: '',
+    showContent: false
   }
 }
 
@@ -373,12 +396,18 @@ const handleOpenEditModal = async (resourceType: ResourceType, id: string): Prom
     initialName: data.name,
     initialContent: data.content,
     resourceType,
-    itemId: id
+    itemId: id,
+    showContent: true
   }
 }
 
 const handleOpenDeleteModal = (type: ItemType, id: string, name: string): void => {
   deleteTarget.value = {type, id, name}
+  showDeleteModal.value = true
+}
+
+const handleOpenDeleteGroupModal = (groupType: GroupType, groupId: string, name: string): void => {
+  deleteTarget.value = {type: groupType, id: groupId, name}
   showDeleteModal.value = true
 }
 
@@ -396,15 +425,25 @@ const handleDeleteConfirm = async (): Promise<void> => {
 
   const {type, id} = deleteTarget.value
 
-  const deleteActions = {
+  const deleteActions: Record<ExtendedItemType, () => Promise<void | { success: boolean; error?: string }>> = {
     outputStyle: (): Promise<void> => outputStyleStore.deleteOutputStyle(id),
     skill: (): Promise<void> => skillStore.deleteSkill(id),
     subAgent: (): Promise<void> => subAgentStore.deleteSubAgent(id),
     repository: (): Promise<void> => repositoryStore.deleteRepository(id),
     command: (): Promise<void> => commandStore.deleteCommand(id),
+    outputStyleGroup: () => outputStyleStore.deleteOutputStyleGroup(id),
+    subAgentGroup: () => subAgentStore.deleteSubAgentGroup(id),
+    commandGroup: () => commandStore.deleteCommandGroup(id),
   }
 
-  await deleteActions[type]()
+  const result = await deleteActions[type]()
+
+  // 如果是 group 刪除且失敗（有項目），顯示錯誤
+  if (result && typeof result === 'object' && !result.success) {
+    console.error('刪除失敗:', result.error)
+    // 保持 modal 開啟讓使用者知道失敗
+    return
+  }
 
   showDeleteModal.value = false
   deleteTarget.value = null
@@ -415,7 +454,7 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
   const {mode, resourceType, itemId} = editModal.value
 
   if (mode === 'create') {
-    const createActions = {
+    const createActions: Record<ExtendedResourceType, () => Promise<void>> = {
       outputStyle: async (): Promise<void> => {
         const result = await outputStyleStore.createOutputStyle(name, content)
         if (result.success && result.outputStyle && lastMenuPosition.value) {
@@ -436,18 +475,30 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
           const {x, y} = screenToCanvasPosition(lastMenuPosition.value)
           await commandStore.createNote(result.command.id, x, y)
         }
+      },
+      outputStyleGroup: async (): Promise<void> => {
+        await outputStyleStore.createOutputStyleGroup(name)
+      },
+      subAgentGroup: async (): Promise<void> => {
+        await subAgentStore.createSubAgentGroup(name)
+      },
+      commandGroup: async (): Promise<void> => {
+        await commandStore.createCommandGroup(name)
       }
     }
 
     await createActions[resourceType]()
   } else {
-    const updateActions = {
+    const updateActions: Partial<Record<ExtendedResourceType, () => Promise<unknown>>> = {
       outputStyle: () => outputStyleStore.updateOutputStyle(itemId, content),
       subAgent: () => subAgentStore.updateSubAgent(itemId, content),
       command: () => commandStore.updateCommand(itemId, content)
     }
 
-    await updateActions[resourceType]()
+    const action = updateActions[resourceType]
+    if (action) {
+      await action()
+    }
   }
 
   editModal.value.visible = false
@@ -611,8 +662,10 @@ onUnmounted(() => {
       @create-command-note="handleCreateCommandNote"
       @clone-started="handleCloneStarted"
       @open-create-modal="handleOpenCreateModal"
+      @open-create-group-modal="handleOpenCreateGroupModal"
       @open-edit-modal="handleOpenEditModal"
       @open-delete-modal="handleOpenDeleteModal"
+      @open-delete-group-modal="handleOpenDeleteGroupModal"
       @open-create-repository-modal="handleOpenCreateRepositoryModal"
       @open-clone-repository-modal="handleOpenCloneRepositoryModal"
       @close="podStore.hideTypeMenu"
@@ -663,6 +716,7 @@ onUnmounted(() => {
       :initial-name="editModal.initialName"
       :initial-content="editModal.initialContent"
       :name-editable="editModal.mode === 'create'"
+      :show-content="editModal.showContent"
       @submit="handleCreateEditSubmit"
   />
 </template>

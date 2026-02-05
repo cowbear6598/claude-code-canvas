@@ -8,39 +8,66 @@ import {readFileOrNull, fileExists, ensureDirectoryAndWriteFile, parseFrontmatte
 class SubAgentService {
     async list(): Promise<SubAgent[]> {
         await fs.mkdir(config.agentsPath, {recursive: true});
-        const entries = await fs.readdir(config.agentsPath, {withFileTypes: true});
-
         const subAgents: SubAgent[] = [];
 
-        for (const entry of entries) {
-            if (!entry.isFile() || !entry.name.endsWith('.md')) {
-                continue;
+        try {
+            const rootEntries = await fs.readdir(config.agentsPath, {withFileTypes: true});
+
+            for (const entry of rootEntries) {
+                if (entry.isFile() && entry.name.endsWith('.md')) {
+                    const agentId = entry.name.slice(0, -3);
+                    const agentFilePath = this.getSubAgentFilePath(agentId);
+
+                    const content = await fs.readFile(agentFilePath, 'utf-8');
+                    const description = parseFrontmatterDescription(content);
+
+                    subAgents.push({
+                        id: agentId,
+                        name: agentId,
+                        description,
+                        groupId: null,
+                    });
+                } else if (entry.isDirectory()) {
+                    const groupName = entry.name;
+                    const groupPath = path.join(config.agentsPath, groupName);
+                    const groupFiles = await fs.readdir(groupPath);
+
+                    for (const file of groupFiles) {
+                        if (file.endsWith('.md')) {
+                            const agentId = file.slice(0, -3);
+                            const agentFilePath = path.join(groupPath, file);
+
+                            const content = await fs.readFile(agentFilePath, 'utf-8');
+                            const description = parseFrontmatterDescription(content);
+
+                            subAgents.push({
+                                id: agentId,
+                                name: agentId,
+                                description,
+                                groupId: groupName,
+                            });
+                        }
+                    }
+                }
             }
-
-            const agentId = entry.name.replace(/\.md$/, '');
-            const agentFilePath = this.getSubAgentFilePath(agentId);
-
-            const content = await fs.readFile(agentFilePath, 'utf-8');
-            const description = parseFrontmatterDescription(content);
-
-            subAgents.push({
-                id: agentId,
-                name: agentId,
-                description,
-            });
+        } catch {
+            // 如果目錄不存在或其他錯誤，回傳空陣列
         }
 
         return subAgents;
     }
 
     async getContent(subAgentId: string): Promise<string | null> {
-        const filePath = this.getSubAgentFilePath(subAgentId);
+        const filePath = await this.findSubAgentFilePath(subAgentId);
+        if (!filePath) {
+            return null;
+        }
         return readFileOrNull(filePath);
     }
 
     async exists(subAgentId: string): Promise<boolean> {
-        const filePath = this.getSubAgentFilePath(subAgentId);
-        return fileExists(filePath);
+        const filePath = await this.findSubAgentFilePath(subAgentId);
+        return filePath !== null;
     }
 
     async copySubAgentToPod(subAgentId: string, podId: string, podWorkspacePath: string): Promise<void> {
@@ -51,14 +78,12 @@ class SubAgentService {
             throw new Error('無效的 Pod ID 格式');
         }
 
-        const srcPath = this.getSubAgentFilePath(subAgentId);
-        const destPath = path.join(podWorkspacePath, '.claude', 'agents', `${subAgentId}.md`);
-
-        try {
-            await fs.access(srcPath);
-        } catch {
+        const srcPath = await this.findSubAgentFilePath(subAgentId);
+        if (!srcPath) {
             throw new Error(`找不到子代理: ${subAgentId}`);
         }
+
+        const destPath = path.join(podWorkspacePath, '.claude', 'agents', `${subAgentId}.md`);
 
         await fs.mkdir(path.dirname(destPath), {recursive: true});
         await fs.copyFile(srcPath, destPath);
@@ -69,14 +94,12 @@ class SubAgentService {
             throw new Error('無效的子代理 ID 格式');
         }
 
-        const srcPath = this.getSubAgentFilePath(subAgentId);
-        const destPath = path.join(repositoryPath, '.claude', 'agents', `${subAgentId}.md`);
-
-        try {
-            await fs.access(srcPath);
-        } catch {
+        const srcPath = await this.findSubAgentFilePath(subAgentId);
+        if (!srcPath) {
             throw new Error(`找不到子代理: ${subAgentId}`);
         }
+
+        const destPath = path.join(repositoryPath, '.claude', 'agents', `${subAgentId}.md`);
 
         await fs.mkdir(path.dirname(destPath), {recursive: true});
         await fs.copyFile(srcPath, destPath);
@@ -88,7 +111,10 @@ class SubAgentService {
     }
 
     async delete(subAgentId: string): Promise<void> {
-        const filePath = this.getSubAgentFilePath(subAgentId);
+        const filePath = await this.findSubAgentFilePath(subAgentId);
+        if (!filePath) {
+            return;
+        }
         await fs.rm(filePath, {force: true});
     }
 
@@ -102,12 +128,68 @@ class SubAgentService {
             id: name,
             name,
             description,
+            groupId: null,
         };
     }
 
     async update(subAgentId: string, content: string): Promise<void> {
-        const filePath = this.getSubAgentFilePath(subAgentId);
+        const filePath = await this.findSubAgentFilePath(subAgentId);
+        if (!filePath) {
+            throw new Error(`找不到子代理: ${subAgentId}`);
+        }
         await fs.writeFile(filePath, content, 'utf-8');
+    }
+
+    async setGroupId(subAgentId: string, groupId: string | null): Promise<void> {
+        const oldPath = await this.findSubAgentFilePath(subAgentId);
+        if (!oldPath) {
+            throw new Error(`找不到子代理: ${subAgentId}`);
+        }
+
+        let newPath: string;
+        if (groupId === null) {
+            newPath = path.join(config.agentsPath, `${subAgentId}.md`);
+        } else {
+            const groupPath = path.join(config.agentsPath, groupId);
+            await fs.mkdir(groupPath, { recursive: true });
+            newPath = path.join(groupPath, `${subAgentId}.md`);
+        }
+
+        if (oldPath !== newPath) {
+            await fs.rename(oldPath, newPath);
+        }
+    }
+
+    async getItemsByGroupId(groupId: string | null): Promise<SubAgent[]> {
+        const allSubAgents = await this.list();
+        return allSubAgents.filter((subAgent) => subAgent.groupId === groupId);
+    }
+
+    private async findSubAgentFilePath(subAgentId: string): Promise<string | null> {
+        if (!validateSubAgentId(subAgentId)) {
+            return null;
+        }
+
+        const rootPath = path.join(config.agentsPath, `${subAgentId}.md`);
+        if (await fileExists(rootPath)) {
+            return rootPath;
+        }
+
+        try {
+            const entries = await fs.readdir(config.agentsPath, {withFileTypes: true});
+            for (const entry of entries) {
+                if (entry.isDirectory()) {
+                    const groupPath = path.join(config.agentsPath, entry.name, `${subAgentId}.md`);
+                    if (await fileExists(groupPath)) {
+                        return groupPath;
+                    }
+                }
+            }
+        } catch {
+            // 目錄不存在或其他錯誤，回傳 null
+        }
+
+        return null;
     }
 
     private getSubAgentFilePath(subAgentId: string): string {

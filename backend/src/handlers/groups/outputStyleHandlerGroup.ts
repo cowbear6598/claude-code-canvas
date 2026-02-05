@@ -7,6 +7,7 @@ import {
   podBindOutputStyleSchema,
   podUnbindOutputStyleSchema,
   outputStyleDeleteSchema,
+  outputStyleMoveToGroupSchema,
 } from '../../schemas/index.js';
 import {
   handleOutputStyleList,
@@ -16,6 +17,7 @@ import {
   handlePodBindOutputStyle,
   handlePodUnbindOutputStyle,
   handleOutputStyleDelete,
+  handleOutputStyleMoveToGroup,
 } from '../outputStyleHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
 
@@ -63,6 +65,12 @@ export const outputStyleHandlerGroup = createHandlerGroup({
       handler: handleOutputStyleDelete,
       schema: outputStyleDeleteSchema,
       responseEvent: WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
+    },
+    {
+      event: WebSocketRequestEvents.OUTPUT_STYLE_MOVE_TO_GROUP,
+      handler: handleOutputStyleMoveToGroup,
+      schema: outputStyleMoveToGroupSchema,
+      responseEvent: WebSocketResponseEvents.OUTPUT_STYLE_MOVED_TO_GROUP,
     },
   ],
 });

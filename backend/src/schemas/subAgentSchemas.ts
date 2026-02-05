@@ -71,6 +71,12 @@ export const subAgentDeleteSchema = z.object({
   subAgentId: z.string(),
 });
 
+export const subAgentMoveToGroupSchema = z.object({
+  requestId: requestIdSchema,
+  itemId: z.string(),
+  groupId: z.string().nullable(),
+});
+
 export type SubAgentListPayload = z.infer<typeof subAgentListSchema>;
 export type PodBindSubAgentPayload = z.infer<typeof podBindSubAgentSchema>;
 export type SubAgentDeletePayload = z.infer<typeof subAgentDeleteSchema>;
@@ -81,3 +87,4 @@ export type SubAgentNoteCreatePayload = z.infer<typeof subAgentNoteCreateSchema>
 export type SubAgentNoteListPayload = z.infer<typeof subAgentNoteListSchema>;
 export type SubAgentNoteUpdatePayload = z.infer<typeof subAgentNoteUpdateSchema>;
 export type SubAgentNoteDeletePayload = z.infer<typeof subAgentNoteDeleteSchema>;
+export type SubAgentMoveToGroupPayload = z.infer<typeof subAgentMoveToGroupSchema>;

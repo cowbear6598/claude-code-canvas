@@ -14,3 +14,4 @@ export * from './subAgentSchemas.js';
 export * from './autoClearSchemas.js';
 export * from './scheduleSchemas.js';
 export * from './canvasSchemas.js';
+export * from './groupSchemas.js';

@@ -8,6 +8,7 @@ import type {
     SubAgentListPayload,
     PodBindSubAgentPayload,
     SubAgentDeletePayload,
+    SubAgentMoveToGroupPayload,
 } from '../schemas/index.js';
 import {subAgentService} from '../services/subAgentService.js';
 import {subAgentNoteStore} from '../services/noteStores.js';
@@ -20,6 +21,8 @@ import {logger} from '../utils/logger.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
 import {validatePod, handleResourceDelete, withCanvasId} from '../utils/handlerHelpers.js';
+import {createMoveToGroupHandler} from './factories/createMoveToGroupHandler.js';
+import {GroupType} from '../types/index.js';
 
 const subAgentNoteHandlers = createNoteHandlers({
     noteStore: subAgentNoteStore,
@@ -153,4 +156,22 @@ export async function handleSubAgentDelete(
         deleteNotes: (canvasId: string) => subAgentNoteStore.deleteByForeignKey(canvasId, subAgentId),
         deleteResource: () => subAgentService.delete(subAgentId),
     });
+}
+
+const subAgentMoveToGroupHandler = createMoveToGroupHandler({
+    service: subAgentService,
+    resourceName: 'SubAgent',
+    idField: 'itemId',
+    groupType: GroupType.SUBAGENT,
+    events: {
+        moved: WebSocketResponseEvents.SUBAGENT_MOVED_TO_GROUP,
+    },
+});
+
+export async function handleSubAgentMoveToGroup(
+    socket: Socket,
+    payload: SubAgentMoveToGroupPayload,
+    requestId: string
+): Promise<void> {
+    return subAgentMoveToGroupHandler(socket, payload, requestId);
 }

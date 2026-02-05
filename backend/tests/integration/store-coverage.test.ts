@@ -81,9 +81,6 @@ describe('Store 覆蓋率測試', () => {
       const pod = await createPod(client);
       const canvasId = server.canvasId;
 
-      const socketServiceModule = await import('../../src/services/socketService.js');
-      socketServiceModule.socketService.joinPodRoom(client.id!, pod.id);
-
       const statusChanges: PodStatusChangedPayload[] = [];
       const listener = (payload: PodStatusChangedPayload): void => {
         statusChanges.push(payload);

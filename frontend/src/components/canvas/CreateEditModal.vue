@@ -17,12 +17,14 @@ interface Props {
   initialName?: string
   initialContent?: string
   nameEditable?: boolean
+  showContent?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   initialName: '',
   initialContent: '',
-  nameEditable: true
+  nameEditable: true,
+  showContent: true
 })
 
 const emit = defineEmits<{
@@ -54,8 +56,8 @@ const handleSubmit = (): void => {
   if (props.nameEditable && (!name.value.trim() || name.value.length > MAX_NAME_LENGTH)) {
     return
   }
-  // 驗證 content 長度
-  if (content.value.length > MAX_CONTENT_LENGTH) {
+  // 驗證 content 長度（僅在顯示 content 時檢查）
+  if (props.showContent && content.value.length > MAX_CONTENT_LENGTH) {
     return
   }
   emit('submit', { name: name.value, content: content.value })
@@ -83,7 +85,7 @@ const handleKeyDown = (e: KeyboardEvent): void => {
       <DialogHeader>
         <DialogTitle>{{ title }}</DialogTitle>
         <DialogDescription>
-          {{ mode === 'create' ? '請輸入名稱與內容' : '編輯內容' }}
+          {{ showContent ? (mode === 'create' ? '請輸入名稱與內容' : '編輯內容') : '請輸入名稱' }}
         </DialogDescription>
       </DialogHeader>
 
@@ -94,9 +96,11 @@ const handleKeyDown = (e: KeyboardEvent): void => {
           :disabled="!nameEditable"
           maxlength="100"
           class="w-full p-3 bg-card border-2 border-doodle-ink rounded text-base font-mono focus:outline-none focus:ring-2 focus:ring-doodle-ink/50 disabled:cursor-not-allowed disabled:opacity-50"
+          @keydown.enter="!showContent && handleSubmit()"
         >
 
         <textarea
+          v-if="showContent"
           v-model="content"
           placeholder="內容"
           maxlength="10000"

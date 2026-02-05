@@ -13,6 +13,7 @@ import { repositoryHandlerGroup } from './groups/repositoryHandlerGroup.js';
 import { subAgentHandlerGroup } from './groups/subAgentHandlerGroup.js';
 import { autoClearHandlerGroup } from './groups/autoClearHandlerGroup.js';
 import { canvasHandlerGroup } from './groups/canvasHandlerGroup.js';
+import { groupHandlerGroup } from './groups/groupHandlerGroup.js';
 
 const registry = new HandlerRegistry();
 
@@ -29,6 +30,7 @@ registry.registerGroup(repositoryHandlerGroup);
 registry.registerGroup(subAgentHandlerGroup);
 registry.registerGroup(autoClearHandlerGroup);
 registry.registerGroup(canvasHandlerGroup);
+registry.registerGroup(groupHandlerGroup);
 
 export function registerAllHandlers(socket: Socket): void {
   registry.applyToSocket(socket);

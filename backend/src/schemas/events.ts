@@ -78,6 +78,13 @@ export enum WebSocketRequestEvents {
   REPOSITORY_CHECK_DIRTY = 'repository:check-dirty',
   REPOSITORY_CHECKOUT_BRANCH = 'repository:checkout-branch',
   REPOSITORY_DELETE_BRANCH = 'repository:delete-branch',
+  GROUP_CREATE = 'group:create',
+  GROUP_LIST = 'group:list',
+  GROUP_UPDATE = 'group:update',
+  GROUP_DELETE = 'group:delete',
+  COMMAND_MOVE_TO_GROUP = 'command:move-to-group',
+  OUTPUT_STYLE_MOVE_TO_GROUP = 'output-style:move-to-group',
+  SUBAGENT_MOVE_TO_GROUP = 'subagent:move-to-group',
 }
 
 export enum WebSocketResponseEvents {
@@ -177,4 +184,11 @@ export enum WebSocketResponseEvents {
   REPOSITORY_DIRTY_CHECK_RESULT = 'repository:dirty-check:result',
   REPOSITORY_BRANCH_CHECKED_OUT = 'repository:branch:checked-out',
   REPOSITORY_BRANCH_DELETED = 'repository:branch:deleted',
+  GROUP_CREATED = 'group:created',
+  GROUP_LIST_RESULT = 'group:list:result',
+  GROUP_UPDATED = 'group:updated',
+  GROUP_DELETED = 'group:deleted',
+  COMMAND_MOVED_TO_GROUP = 'command:moved-to-group',
+  OUTPUT_STYLE_MOVED_TO_GROUP = 'output-style:moved-to-group',
+  SUBAGENT_MOVED_TO_GROUP = 'subagent:moved-to-group',
 }

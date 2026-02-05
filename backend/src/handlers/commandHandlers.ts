@@ -6,6 +6,7 @@ import type {
     PodBindCommandPayload,
     PodUnbindCommandPayload,
     CommandDeletePayload,
+    CommandMoveToGroupPayload,
 } from '../schemas/index.js';
 import {commandService} from '../services/commandService.js';
 import {commandNoteStore} from '../services/noteStores.js';
@@ -15,6 +16,8 @@ import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
 import {createBindHandler, createUnbindHandler} from './factories/createBindHandlers.js';
 import {handleResourceDelete} from '../utils/handlerHelpers.js';
+import {createMoveToGroupHandler} from './factories/createMoveToGroupHandler.js';
+import {GroupType} from '../types/index.js';
 
 const commandNoteHandlers = createNoteHandlers({
     noteStore: commandNoteStore,
@@ -137,4 +140,22 @@ export async function handleCommandDelete(
         deleteNotes: (canvasId: string) => commandNoteStore.deleteByForeignKey(canvasId, commandId),
         deleteResource: () => commandService.delete(commandId),
     });
+}
+
+const commandMoveToGroupHandler = createMoveToGroupHandler({
+    service: commandService,
+    resourceName: 'Command',
+    idField: 'itemId',
+    groupType: GroupType.COMMAND,
+    events: {
+        moved: WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
+    },
+});
+
+export async function handleCommandMoveToGroup(
+    socket: Socket,
+    payload: CommandMoveToGroupPayload,
+    requestId: string
+): Promise<void> {
+    return commandMoveToGroupHandler(socket, payload, requestId);
 }

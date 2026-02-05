@@ -77,6 +77,12 @@ export const commandDeleteSchema = z.object({
   commandId: z.string(),
 });
 
+export const commandMoveToGroupSchema = z.object({
+  requestId: requestIdSchema,
+  itemId: z.string(),
+  groupId: z.string().nullable(),
+});
+
 export type CommandListPayload = z.infer<typeof commandListSchema>;
 export type PodBindCommandPayload = z.infer<typeof podBindCommandSchema>;
 export type PodUnbindCommandPayload = z.infer<typeof podUnbindCommandSchema>;
@@ -88,3 +94,4 @@ export type CommandNoteCreatePayload = z.infer<typeof commandNoteCreateSchema>;
 export type CommandNoteListPayload = z.infer<typeof commandNoteListSchema>;
 export type CommandNoteUpdatePayload = z.infer<typeof commandNoteUpdateSchema>;
 export type CommandNoteDeletePayload = z.infer<typeof commandNoteDeleteSchema>;
+export type CommandMoveToGroupPayload = z.infer<typeof commandMoveToGroupSchema>;

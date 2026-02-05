@@ -268,3 +268,36 @@ export interface RepositoryDeleteBranchPayload {
   branchName: string
   force: boolean
 }
+
+export interface GroupCreatePayload {
+  requestId: string
+  canvasId: string
+  name: string
+  type: 'command' | 'outputStyle' | 'subAgent'
+}
+
+export interface GroupListPayload {
+  requestId: string
+  canvasId: string
+  type: 'command' | 'outputStyle' | 'subAgent'
+}
+
+export interface GroupUpdatePayload {
+  requestId: string
+  canvasId: string
+  groupId: string
+  name: string
+}
+
+export interface GroupDeletePayload {
+  requestId: string
+  canvasId: string
+  groupId: string
+}
+
+export interface MoveToGroupPayload {
+  requestId: string
+  canvasId: string
+  itemId: string
+  groupId: string | null
+}

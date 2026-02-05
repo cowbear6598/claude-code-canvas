@@ -47,6 +47,13 @@ export interface NoteStoreConfig<TItem> {
         request: string
         response: string
     }
+    groupEvents?: {
+        listGroups: { request: string; response: string }
+        createGroup: { request: string; response: string }
+        updateGroup: { request: string; response: string }
+        deleteGroup: { request: string; response: string }
+        moveItemToGroup: { request: string; response: string }
+    }
     createNotePayload: (item: TItem, x: number, y: number) => object
     getItemId: (item: TItem) => string
     getItemName: (item: TItem) => string
@@ -62,6 +69,8 @@ interface BaseNoteState {
     animatingNoteIds: Set<string>
     isDraggingNote: boolean
     isOverTrash: boolean
+    groups: any[]
+    expandedGroupIds: Set<string>
 }
 
 export function createNoteStore<TItem, TNote extends BaseNote>(
@@ -77,6 +86,8 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
             animatingNoteIds: new Set<string>(),
             isDraggingNote: false,
             isOverTrash: false,
+            groups: [],
+            expandedGroupIds: new Set<string>(),
         }),
 
         getters: {
@@ -111,6 +122,29 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
 
             isItemBoundToPod: (state) => (itemId: string, podId: string): boolean =>
                 state.notes.some(note => (note as Record<string, unknown>)[config.itemIdField] === itemId && note.boundToPodId === podId),
+
+            getGroupById: (state) => (groupId: string) =>
+                state.groups.find(group => group.id === groupId),
+
+            getItemsByGroupId: (state) => (groupId: string | null): TItem[] =>
+                state.availableItems.filter(item => (item as Record<string, unknown>).groupId === groupId) as TItem[],
+
+            getRootItems: (state): TItem[] =>
+                state.availableItems.filter(item => !(item as Record<string, unknown>).groupId) as TItem[],
+
+            getSortedItemsWithGroups: (state) => {
+                const groups = [...state.groups].sort((a, b) => a.name.localeCompare(b.name))
+                const rootItems = state.availableItems
+                    .filter(item => !(item as Record<string, unknown>).groupId)
+                    .sort((a, b) => config.getItemName(a as TItem).localeCompare(config.getItemName(b as TItem)))
+                return { groups, rootItems: rootItems as TItem[] }
+            },
+
+            isGroupExpanded: (state) => (groupId: string): boolean =>
+                state.expandedGroupIds.has(groupId),
+
+            canDeleteGroup: (state) => (groupId: string): boolean =>
+                !state.availableItems.some(item => (item as Record<string, unknown>).groupId === groupId),
         },
 
         actions: {
@@ -441,6 +475,60 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
 
                 if (deletedNoteIds) {
                     this.notes = this.notes.filter(note => !deletedNoteIds.includes(note.id))
+                }
+            },
+
+            toggleGroupExpand(groupId: string): void {
+                if (this.expandedGroupIds.has(groupId)) {
+                    this.expandedGroupIds.delete(groupId)
+                } else {
+                    this.expandedGroupIds.add(groupId)
+                }
+            },
+
+            setGroupExpanded(groupId: string, expanded: boolean): void {
+                if (expanded) {
+                    this.expandedGroupIds.add(groupId)
+                } else {
+                    this.expandedGroupIds.delete(groupId)
+                }
+            },
+
+            expandGroupsForSearch(matchingItemIds: string[]): void {
+                const groupsToExpand = new Set<string>()
+
+                for (const itemId of matchingItemIds) {
+                    const item = this.availableItems.find(i => config.getItemId(i as TItem) === itemId)
+                    if (item && (item as Record<string, unknown>).groupId) {
+                        groupsToExpand.add((item as Record<string, unknown>).groupId as string)
+                    }
+                }
+
+                groupsToExpand.forEach(groupId => this.expandedGroupIds.add(groupId))
+            },
+
+            addGroupFromEvent(group: Record<string, unknown>): void {
+                const exists = this.groups.some(g => g.id === group.id)
+                if (!exists) {
+                    this.groups.push(group)
+                }
+            },
+
+            updateGroupFromEvent(group: Record<string, unknown>): void {
+                const index = this.groups.findIndex(g => g.id === group.id)
+                if (index !== -1) {
+                    this.groups.splice(index, 1, group)
+                }
+            },
+
+            removeGroupFromEvent(groupId: string): void {
+                this.groups = this.groups.filter(g => g.id !== groupId)
+            },
+
+            updateItemGroupId(itemId: string, groupId: string | null): void {
+                const item = this.availableItems.find(i => config.getItemId(i as TItem) === itemId)
+                if (item) {
+                    (item as Record<string, unknown>).groupId = groupId
                 }
             },
 

@@ -10,6 +10,7 @@ import {
   subAgentNoteDeleteSchema,
   podBindSubAgentSchema,
   subAgentDeleteSchema,
+  subAgentMoveToGroupSchema,
 } from '../../schemas/index.js';
 import {
   handleSubAgentList,
@@ -22,6 +23,7 @@ import {
   handleSubAgentNoteDelete,
   handlePodBindSubAgent,
   handleSubAgentDelete,
+  handleSubAgentMoveToGroup,
 } from '../subAgentHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
 
@@ -87,6 +89,12 @@ export const subAgentHandlerGroup = createHandlerGroup({
       handler: handleSubAgentDelete,
       schema: subAgentDeleteSchema,
       responseEvent: WebSocketResponseEvents.SUBAGENT_DELETED,
+    },
+    {
+      event: WebSocketRequestEvents.SUBAGENT_MOVE_TO_GROUP,
+      handler: handleSubAgentMoveToGroup,
+      schema: subAgentMoveToGroupSchema,
+      responseEvent: WebSocketResponseEvents.SUBAGENT_MOVED_TO_GROUP,
     },
   ],
 });

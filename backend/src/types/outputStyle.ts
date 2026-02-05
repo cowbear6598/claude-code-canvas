@@ -7,4 +7,5 @@ export interface OutputStyle {
 export interface OutputStyleListItem {
   id: string;
   name: string;
+  groupId: string | null;
 }

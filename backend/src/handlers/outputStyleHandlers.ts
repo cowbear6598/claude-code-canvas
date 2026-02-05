@@ -10,6 +10,7 @@ import type {
   PodBindOutputStylePayload,
   PodUnbindOutputStylePayload,
   OutputStyleDeletePayload,
+  OutputStyleMoveToGroupPayload,
 } from '../schemas/index.js';
 import { outputStyleService } from '../services/outputStyleService.js';
 import { podStore } from '../services/podStore.js';
@@ -19,6 +20,8 @@ import { emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { validatePod, handleResourceDelete, withCanvasId } from '../utils/handlerHelpers.js';
 import { createResourceHandlers } from './factories/createResourceHandlers.js';
+import { createMoveToGroupHandler } from './factories/createMoveToGroupHandler.js';
+import { GroupType } from '../types/index.js';
 
 const resourceHandlers = createResourceHandlers({
   service: outputStyleService,
@@ -148,4 +151,22 @@ export async function handleOutputStyleDelete(
     deleteResource: () => outputStyleService.delete(outputStyleId),
     idFieldName: 'outputStyleId',
   });
+}
+
+const outputStyleMoveToGroupHandler = createMoveToGroupHandler({
+  service: outputStyleService,
+  resourceName: 'OutputStyle',
+  idField: 'itemId',
+  groupType: GroupType.OUTPUT_STYLE,
+  events: {
+    moved: WebSocketResponseEvents.OUTPUT_STYLE_MOVED_TO_GROUP,
+  },
+});
+
+export async function handleOutputStyleMoveToGroup(
+  socket: Socket,
+  payload: OutputStyleMoveToGroupPayload,
+  requestId: string
+): Promise<void> {
+  return outputStyleMoveToGroupHandler(socket, payload, requestId);
 }

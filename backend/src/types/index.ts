@@ -37,6 +37,10 @@ export type { SubAgent } from './subAgent.js';
 // SubAgent Note types
 export type { SubAgentNote } from './subAgentNote.js';
 
+// Group types
+export type { Group } from './group.js';
+export { GroupType } from './group.js';
+
 // Connection types
 export type { Connection, AnchorPosition } from './connection.js';
 

@@ -11,6 +11,7 @@ import {
   podBindCommandSchema,
   podUnbindCommandSchema,
   commandDeleteSchema,
+  commandMoveToGroupSchema,
 } from '../../schemas/index.js';
 import {
   handleCommandList,
@@ -24,6 +25,7 @@ import {
   handlePodBindCommand,
   handlePodUnbindCommand,
   handleCommandDelete,
+  handleCommandMoveToGroup,
 } from '../commandHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
 
@@ -95,6 +97,12 @@ export const commandHandlerGroup = createHandlerGroup({
       handler: handleCommandDelete,
       schema: commandDeleteSchema,
       responseEvent: WebSocketResponseEvents.COMMAND_DELETED,
+    },
+    {
+      event: WebSocketRequestEvents.COMMAND_MOVE_TO_GROUP,
+      handler: handleCommandMoveToGroup,
+      schema: commandMoveToGroupSchema,
+      responseEvent: WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
     },
   ],
 });

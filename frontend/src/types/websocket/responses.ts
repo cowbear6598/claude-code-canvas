@@ -399,3 +399,39 @@ export interface RepositoryBranchDeletedPayload {
     branchName?: string
     error?: string
 }
+
+export interface GroupCreatedPayload {
+    requestId: string
+    success: boolean
+    group?: { id: string; name: string; type: 'command' | 'outputStyle' | 'subAgent' }
+    error?: string
+}
+
+export interface GroupListResultPayload {
+    requestId: string
+    success: boolean
+    groups?: Array<{ id: string; name: string; type: 'command' | 'outputStyle' | 'subAgent' }>
+    error?: string
+}
+
+export interface GroupUpdatedPayload {
+    requestId: string
+    success: boolean
+    group?: { id: string; name: string; type: 'command' | 'outputStyle' | 'subAgent' }
+    error?: string
+}
+
+export interface GroupDeletedPayload {
+    requestId: string
+    success: boolean
+    groupId?: string
+    error?: string
+}
+
+export interface MovedToGroupPayload {
+    requestId: string
+    success: boolean
+    itemId?: string
+    groupId?: string | null
+    error?: string
+}

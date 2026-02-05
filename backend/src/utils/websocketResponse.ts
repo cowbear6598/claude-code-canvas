@@ -37,3 +37,32 @@ export function getErrorMessage(error: unknown): string {
   }
   return '發生未知錯誤';
 }
+
+export function sendSuccessResponse<T>(
+  socket: Socket,
+  event: WebSocketResponseEvents,
+  requestId: string,
+  data: T
+): void {
+  socket.emit(event, {
+    requestId,
+    success: true,
+    ...data,
+  });
+}
+
+export function sendErrorResponse(
+  socket: Socket,
+  requestId: string,
+  code: string,
+  message: string
+): void {
+  socket.emit('error', {
+    requestId,
+    success: false,
+    error: {
+      code,
+      message,
+    },
+  });
+}
