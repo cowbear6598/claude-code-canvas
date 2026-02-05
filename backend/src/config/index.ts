@@ -1,6 +1,37 @@
 import os from 'os';
 import path from 'path';
 
+/**
+ * 驗證 GitLab URL 格式
+ * @param url GitLab URL
+ * @throws Error 如果 URL 格式不正確
+ */
+function validateGitLabUrl(url: string | undefined): void {
+  if (!url) {
+    return;
+  }
+
+  // 必須是 HTTPS URL
+  if (!url.startsWith('https://')) {
+    throw new Error('GITLAB_URL 必須使用 HTTPS 協議');
+  }
+
+  // 驗證 URL 格式
+  try {
+    const urlObj = new URL(url);
+
+    // 驗證 hostname 格式合法（不包含非法字元）
+    if (!urlObj.hostname || urlObj.hostname.includes(' ')) {
+      throw new Error('GITLAB_URL 包含無效的主機名稱');
+    }
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error('GITLAB_URL 格式不正確');
+    }
+    throw error;
+  }
+}
+
 interface Config {
   port: number;
   nodeEnv: string;
@@ -9,6 +40,8 @@ interface Config {
   repositoriesRoot: string;
   corsOrigin: (origin: string | undefined) => boolean;
   githubToken?: string;
+  gitlabToken?: string;
+  gitlabUrl?: string;
   outputStylesPath: string;
   skillsPath: string;
   agentsPath: string;
@@ -21,6 +54,11 @@ function loadConfig(): Config {
   const port = parseInt(process.env.PORT || '3001', 10);
   const nodeEnv = process.env.NODE_ENV || 'development';
   const githubToken = process.env.GITHUB_TOKEN;
+  const gitlabToken = process.env.GITLAB_TOKEN;
+  const gitlabUrl = process.env.GITLAB_URL?.replace(/\/$/, '');
+
+  // 驗證 GitLab URL
+  validateGitLabUrl(gitlabUrl);
 
   const corsOrigin = (origin: string | undefined): boolean => {
     if (!origin) {
@@ -54,6 +92,8 @@ function loadConfig(): Config {
     repositoriesRoot,
     corsOrigin,
     githubToken,
+    gitlabToken,
+    gitlabUrl,
     outputStylesPath,
     skillsPath,
     agentsPath,

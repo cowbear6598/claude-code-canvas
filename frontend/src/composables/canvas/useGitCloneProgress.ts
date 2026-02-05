@@ -48,6 +48,36 @@ export function useGitCloneProgress() {
     task.message = payload.message
   }
 
+  const getErrorMessage = (error: string): string => {
+    const lowerError = error.toLowerCase()
+
+    if (error.includes('ALREADY_EXISTS')) {
+      return '倉庫已存在'
+    }
+
+    if (lowerError.includes('authentication') || lowerError.includes('401') || lowerError.includes('403')) {
+      return 'Token 權限不足，請檢查 .env 中的 Token 設定'
+    }
+
+    if (lowerError.includes('not found') || lowerError.includes('404')) {
+      return '找不到倉庫'
+    }
+
+    if (lowerError.includes('network') || lowerError.includes('timeout')) {
+      return '網路連線失敗'
+    }
+
+    if (lowerError.includes('branch') || lowerError.includes('ref')) {
+      return '指定的分支不存在'
+    }
+
+    if (lowerError.includes('space') || lowerError.includes('disk')) {
+      return '磁碟空間不足'
+    }
+
+    return error
+  }
+
   const handleResult = async (payload: RepositoryGitCloneResultPayload): Promise<void> => {
     const task = cloneTasks.value.get(payload.requestId)
     if (!task) return
@@ -68,12 +98,13 @@ export function useGitCloneProgress() {
         removeTask(payload.requestId)
       }, 1000)
     } else {
+      const errorMessage = payload.error ? getErrorMessage(payload.error) : 'Clone 失敗'
       task.status = 'failed'
-      task.message = payload.error || 'Clone 失敗'
+      task.message = errorMessage
 
       toast({
         title: 'Clone 失敗',
-        description: payload.error || '無法下載 repository',
+        description: errorMessage,
       })
 
       setTimeout(() => {

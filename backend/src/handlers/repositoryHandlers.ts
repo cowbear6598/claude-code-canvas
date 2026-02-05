@@ -307,12 +307,48 @@ export async function handleRepositoryDelete(
   });
 }
 
+/**
+ * 驗證 Git Repository URL 格式
+ * @param repoUrl Repository URL
+ * @returns 驗證結果
+ */
+function validateRepoUrl(repoUrl: string): { valid: boolean; error?: string } {
+  // 檢查 URL 長度
+  if (repoUrl.length > 500) {
+    return { valid: false, error: 'Repository URL 長度超過限制' };
+  }
+
+  // 檢查是否為合法的 Git URL 格式
+  const isHttpsUrl = /^https:\/\/[^\s]+$/.test(repoUrl);
+  const isSshUrl = /^git@[^\s:]+:[^\s]+$/.test(repoUrl);
+
+  if (!isHttpsUrl && !isSshUrl) {
+    return { valid: false, error: 'Repository URL 格式不正確' };
+  }
+
+  return { valid: true };
+}
+
 export async function handleRepositoryGitClone(
   connectionId: string,
   payload: RepositoryGitClonePayload,
   requestId: string
 ): Promise<void> {
   const { repoUrl, branch } = payload;
+
+  // 驗證 URL 格式
+  const validation = validateRepoUrl(repoUrl);
+  if (!validation.valid) {
+    emitError(
+      connectionId,
+      WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT,
+      validation.error!,
+      requestId,
+      undefined,
+      'INVALID_INPUT'
+    );
+    return;
+  }
 
   const repoName = parseRepoName(repoUrl);
 
@@ -385,7 +421,7 @@ export async function handleRepositoryGitClone(
 
   emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT, response);
 
-  logger.log('Repository', 'Create', `Successfully cloned ${repoUrl} to repository ${repoName}${branch ? ` (branch: ${branch})` : ''}`);
+  logger.log('Repository', 'Create', `Successfully cloned repository: ${repoName}${branch ? ` (branch: ${branch})` : ''}`);
 }
 
 function emitCloneProgress(connectionId: string, requestId: string, progress: number, message: string): void {

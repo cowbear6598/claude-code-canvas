@@ -17,6 +17,8 @@ interface GitCloneOptions {
     onProgress?: (progress: GitCloneProgress) => void;
 }
 
+type GitSource = 'github' | 'gitlab' | 'other';
+
 const BRANCH_NAME_PATTERN = /^[a-zA-Z0-9_\-/]+$/;
 
 function isValidBranchName(branchName: string): boolean {
@@ -48,13 +50,108 @@ function getCheckoutError(errorMessage: string, branchName: string): string {
     return '切換分支失敗';
 }
 
+function extractDomainFromUrl(url: string): string {
+    if (url.startsWith('git@')) {
+        const match = url.match(/^git@([^:]+):/);
+        return match ? match[1] : '';
+    }
+
+    if (url.startsWith('https://') || url.startsWith('http://')) {
+        const match = url.match(/^https?:\/\/([^/]+)/);
+        return match ? match[1] : '';
+    }
+
+    return '';
+}
+
+function detectGitSource(repoUrl: string): GitSource {
+    const domain = extractDomainFromUrl(repoUrl);
+
+    if (repoUrl.includes('github.com') || domain === 'github.com') {
+        return 'github';
+    }
+
+    if (repoUrl.includes('gitlab.com') || domain === 'gitlab.com') {
+        return 'gitlab';
+    }
+
+    if (config.gitlabUrl) {
+        const gitlabDomain = extractDomainFromUrl(config.gitlabUrl);
+        if (domain === gitlabDomain) {
+            return 'gitlab';
+        }
+    }
+
+    return 'other';
+}
+
+function buildAuthenticatedUrl(repoUrl: string): string {
+    const source = detectGitSource(repoUrl);
+
+    if (source === 'github' && config.githubToken) {
+        if (repoUrl.startsWith('https://github.com/')) {
+            return repoUrl.replace(
+                'https://github.com/',
+                `https://${config.githubToken}@github.com/`
+            );
+        }
+        return repoUrl;
+    }
+
+    if (source === 'gitlab' && config.gitlabToken) {
+        if (repoUrl.startsWith('https://gitlab.com/')) {
+            return repoUrl.replace(
+                'https://gitlab.com/',
+                `https://oauth2:${config.gitlabToken}@gitlab.com/`
+            );
+        }
+
+        if (config.gitlabUrl && repoUrl.startsWith(config.gitlabUrl)) {
+            const urlWithoutProtocol = config.gitlabUrl.replace(/^https?:\/\//, '');
+            return repoUrl.replace(
+                `https://${urlWithoutProtocol}/`,
+                `https://oauth2:${config.gitlabToken}@${urlWithoutProtocol}/`
+            );
+        }
+        return repoUrl;
+    }
+
+    return repoUrl;
+}
+
+function parseCloneErrorMessage(error: unknown, source: GitSource): string {
+    const errorMessage = parseGitErrorMessage(error);
+
+    if (errorMessage.includes('Authentication failed')) {
+        return '認證失敗，請檢查 Token 是否正確';
+    }
+
+    if (errorMessage.includes('Repository not found') || errorMessage.includes('not found')) {
+        return '找不到指定的倉庫';
+    }
+
+    if (errorMessage.includes('could not read Username')) {
+        if (source === 'github') {
+            return '無法存取私有倉庫，請設定 GITHUB_TOKEN';
+        }
+        if (source === 'gitlab') {
+            return '無法存取私有倉庫，請設定 GITLAB_TOKEN';
+        }
+        return '無法存取私有倉庫，請設定對應的 Token';
+    }
+
+    return '複製儲存庫失敗';
+}
+
 class GitService {
     async clone(
         repoUrl: string,
         targetPath: string,
         options?: GitCloneOptions
     ): Promise<Result<void>> {
-        return gitOperation(async () => {
+        const source = detectGitSource(repoUrl);
+
+        try {
             const git = simpleGit({
                 progress: options?.onProgress
                     ? (event: SimpleGitProgressEvent): void => {
@@ -67,19 +164,16 @@ class GitService {
                     : undefined,
             });
 
-            let authenticatedUrl = repoUrl;
-            if (config.githubToken && repoUrl.includes('github.com')) {
-                if (repoUrl.startsWith('https://github.com/')) {
-                    authenticatedUrl = repoUrl.replace(
-                        'https://github.com/',
-                        `https://${config.githubToken}@github.com/`
-                    );
-                }
-            }
-
+            const authenticatedUrl = buildAuthenticatedUrl(repoUrl);
             const cloneOptions = options?.branch ? ['--branch', options.branch] : [];
             await git.clone(authenticatedUrl, targetPath, cloneOptions);
-        }, '複製儲存庫失敗');
+            return ok(undefined);
+        } catch (error) {
+            const errorMessage = parseCloneErrorMessage(error, source);
+            // logger.error 已經內建清理機制，直接傳入錯誤即可
+            logger.error('Git', 'Error', `[Git] Failed to clone repository`, error);
+            return err(errorMessage);
+        }
     }
 
     async getCurrentBranch(workspacePath: string): Promise<Result<string>> {
@@ -339,3 +433,11 @@ class GitService {
 }
 
 export const gitService = new GitService();
+
+export {
+    detectGitSource,
+    buildAuthenticatedUrl,
+    parseCloneErrorMessage,
+    extractDomainFromUrl,
+    type GitSource
+};

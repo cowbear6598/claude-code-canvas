@@ -1,0 +1,208 @@
+import { describe, it, expect, beforeAll, afterAll, mock } from 'bun:test';
+import {
+  gitService,
+  detectGitSource,
+  buildAuthenticatedUrl,
+  parseCloneErrorMessage,
+  extractDomainFromUrl,
+  type GitSource
+} from '../../src/services/workspace/gitService';
+import { config } from '../../src/config';
+import path from 'path';
+import fs from 'fs/promises';
+import { existsSync } from 'fs';
+import os from 'os';
+
+describe('GitService - Git 來源偵測與認證', () => {
+  describe('extractDomainFromUrl', () => {
+    it('從 HTTPS URL 提取域名', () => {
+      expect(extractDomainFromUrl('https://github.com/user/repo.git')).toBe('github.com');
+      expect(extractDomainFromUrl('https://gitlab.com/user/repo.git')).toBe('gitlab.com');
+      expect(extractDomainFromUrl('https://gitlab.example.com/user/repo.git')).toBe('gitlab.example.com');
+    });
+
+    it('從 HTTP URL 提取域名', () => {
+      expect(extractDomainFromUrl('http://github.com/user/repo.git')).toBe('github.com');
+    });
+
+    it('從 SSH URL 提取域名', () => {
+      expect(extractDomainFromUrl('git@github.com:user/repo.git')).toBe('github.com');
+      expect(extractDomainFromUrl('git@gitlab.com:user/repo.git')).toBe('gitlab.com');
+      expect(extractDomainFromUrl('git@gitlab.example.com:user/repo.git')).toBe('gitlab.example.com');
+    });
+
+    it('無法解析的 URL 返回空字串', () => {
+      expect(extractDomainFromUrl('invalid-url')).toBe('');
+      expect(extractDomainFromUrl('')).toBe('');
+    });
+  });
+
+  describe('detectGitSource', () => {
+    it('偵測 GitHub HTTPS URL', () => {
+      expect(detectGitSource('https://github.com/user/repo.git')).toBe('github');
+    });
+
+    it('偵測 GitHub SSH URL', () => {
+      expect(detectGitSource('git@github.com:user/repo.git')).toBe('github');
+    });
+
+    it('偵測 GitLab.com HTTPS URL', () => {
+      expect(detectGitSource('https://gitlab.com/user/repo.git')).toBe('gitlab');
+    });
+
+    it('偵測 GitLab.com SSH URL', () => {
+      expect(detectGitSource('git@gitlab.com:user/repo.git')).toBe('gitlab');
+    });
+
+    it('偵測 Self-hosted GitLab URL', () => {
+      if (config.gitlabUrl) {
+        const url = `${config.gitlabUrl}/user/repo.git`;
+        expect(detectGitSource(url)).toBe('gitlab');
+      }
+    });
+
+    it('偵測其他 Git 服務', () => {
+      expect(detectGitSource('https://bitbucket.org/user/repo.git')).toBe('other');
+      expect(detectGitSource('https://example.com/user/repo.git')).toBe('other');
+    });
+  });
+
+  describe('buildAuthenticatedUrl', () => {
+    it('GitHub Token 注入格式正確', () => {
+      if (!config.githubToken) {
+        return;
+      }
+
+      const url = 'https://github.com/user/repo.git';
+      const result = buildAuthenticatedUrl(url);
+
+      expect(result).toContain(config.githubToken);
+      expect(result).toContain('@github.com');
+      expect(result).toMatch(/^https:\/\/.*@github\.com\//);
+    });
+
+    it('GitLab.com Token 注入格式正確', () => {
+      if (!config.gitlabToken) {
+        return;
+      }
+
+      const url = 'https://gitlab.com/user/repo.git';
+      const result = buildAuthenticatedUrl(url);
+
+      expect(result).toContain('oauth2');
+      expect(result).toContain(config.gitlabToken);
+      expect(result).toContain('@gitlab.com');
+      expect(result).toMatch(/^https:\/\/oauth2:.*@gitlab\.com\//);
+    });
+
+    it('Self-hosted GitLab Token 注入格式正確', () => {
+      if (!config.gitlabToken || !config.gitlabUrl) {
+        return;
+      }
+
+      const url = `${config.gitlabUrl}/user/repo.git`;
+      const result = buildAuthenticatedUrl(url);
+
+      expect(result).toContain('oauth2');
+      expect(result).toContain(config.gitlabToken);
+    });
+
+    it('無 Token 時返回原始 URL', () => {
+      const url = 'https://bitbucket.org/user/repo.git';
+      const result = buildAuthenticatedUrl(url);
+
+      expect(result).toBe(url);
+    });
+
+    it('非 HTTPS 格式返回原始 URL', () => {
+      const sshUrl = 'git@github.com:user/repo.git';
+      const result = buildAuthenticatedUrl(sshUrl);
+
+      expect(result).toBe(sshUrl);
+    });
+  });
+
+  describe('parseCloneErrorMessage', () => {
+    it('認證失敗錯誤訊息', () => {
+      const error = new Error('Authentication failed');
+      const result = parseCloneErrorMessage(error, 'github');
+
+      expect(result).toBe('認證失敗，請檢查 Token 是否正確');
+    });
+
+    it('倉庫不存在錯誤訊息', () => {
+      const error = new Error('Repository not found');
+      const result = parseCloneErrorMessage(error, 'github');
+
+      expect(result).toBe('找不到指定的倉庫');
+    });
+
+    it('無法讀取使用者名稱 - GitHub', () => {
+      const error = new Error('could not read Username');
+      const result = parseCloneErrorMessage(error, 'github');
+
+      expect(result).toBe('無法存取私有倉庫，請設定 GITHUB_TOKEN');
+    });
+
+    it('無法讀取使用者名稱 - GitLab', () => {
+      const error = new Error('could not read Username');
+      const result = parseCloneErrorMessage(error, 'gitlab');
+
+      expect(result).toBe('無法存取私有倉庫，請設定 GITLAB_TOKEN');
+    });
+
+    it('無法讀取使用者名稱 - 其他', () => {
+      const error = new Error('could not read Username');
+      const result = parseCloneErrorMessage(error, 'other');
+
+      expect(result).toBe('無法存取私有倉庫，請設定對應的 Token');
+    });
+
+    it('通用錯誤訊息', () => {
+      const error = new Error('Some other error');
+      const result = parseCloneErrorMessage(error, 'github');
+
+      expect(result).toBe('複製儲存庫失敗');
+    });
+
+    it('處理非 Error 物件', () => {
+      const result = parseCloneErrorMessage('string error', 'github');
+
+      expect(result).toBe('複製儲存庫失敗');
+    });
+  });
+
+  describe('clone 整合測試', () => {
+    let testRoot: string;
+
+    beforeAll(async () => {
+      testRoot = path.join(os.tmpdir(), `git-clone-test-${Date.now()}`);
+      await fs.mkdir(testRoot, { recursive: true });
+    });
+
+    afterAll(async () => {
+      await fs.rm(testRoot, { recursive: true, force: true });
+    });
+
+    it('成功複製公開的 GitHub 倉庫', async () => {
+      const url = 'https://github.com/octocat/Hello-World.git';
+      const targetPath = path.join(testRoot, 'hello-world');
+
+      const result = await gitService.clone(url, targetPath);
+
+      expect(result.success).toBe(true);
+      const exists = existsSync(path.join(targetPath, '.git'));
+      expect(exists).toBe(true);
+    }, 30000);
+
+    it('複製不存在的倉庫返回錯誤', async () => {
+      const url = 'https://github.com/this-repo-definitely-does-not-exist-xyz12345/test.git';
+      const targetPath = path.join(testRoot, 'not-found');
+
+      const result = await gitService.clone(url, targetPath);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/找不到/);
+    }, 30000);
+  });
+});

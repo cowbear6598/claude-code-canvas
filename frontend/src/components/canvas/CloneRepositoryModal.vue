@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,8 @@ import { WebSocketRequestEvents } from '@/types/websocket'
 import { generateRequestId } from '@/services/utils'
 import { useCanvasStore } from '@/stores/canvasStore'
 import type { RepositoryGitClonePayload } from '@/types/websocket'
+import type { GitPlatform } from '@/types/repository'
+import { parseGitUrl, getPlatformDisplayName } from '@/utils/gitUrlParser'
 
 const canvasStore = useCanvasStore()
 
@@ -32,6 +34,24 @@ const emit = defineEmits<{
 const repoUrl = ref('')
 const isSubmitting = ref(false)
 const errorMessage = ref('')
+const detectedPlatform = ref<GitPlatform | null>(null)
+
+const platformDisplayName = computed(() => {
+  if (!detectedPlatform.value) {
+    return ''
+  }
+  return getPlatformDisplayName(detectedPlatform.value)
+})
+
+watch(repoUrl, (newUrl) => {
+  if (!newUrl.trim()) {
+    detectedPlatform.value = null
+    return
+  }
+
+  const parseResult = parseGitUrl(newUrl)
+  detectedPlatform.value = parseResult.isValid ? parseResult.platform : null
+})
 
 const extractRepoName = (url: string): string => {
   const cleanUrl = url.trim().replace(/\.git$/, '')
@@ -99,15 +119,22 @@ const handleClose = (): void => {
       <DialogHeader>
         <DialogTitle>Clone Repository</DialogTitle>
         <DialogDescription>
-          請輸入 Git Repository URL（支援 https:// 或 git@ 格式）
+          請輸入 Git Repository URL
         </DialogDescription>
       </DialogHeader>
 
       <Input
         v-model="repoUrl"
-        placeholder="https://github.com/user/repo.git"
+        placeholder=""
         @keyup.enter="handleSubmit"
       />
+
+      <p
+        v-if="detectedPlatform"
+        class="text-sm text-muted-foreground"
+      >
+        偵測到 {{ platformDisplayName }}
+      </p>
 
       <p
         v-if="errorMessage"
