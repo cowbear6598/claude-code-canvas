@@ -375,6 +375,8 @@ const handleAnchorDragEnd = async (): Promise<void> => {
 }
 
 const handleClearWorkflow = async (): Promise<void> => {
+  if (!canvasStore.activeCanvasId) return
+
   isLoadingDownstream.value = true
 
   const {wrapWebSocketRequest} = useWebSocketErrorHandler()
@@ -384,7 +386,7 @@ const handleClearWorkflow = async (): Promise<void> => {
         requestEvent: WebSocketRequestEvents.WORKFLOW_GET_DOWNSTREAM_PODS,
         responseEvent: WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
         payload: {
-          canvasId: canvasStore.activeCanvasId!,
+          canvasId: canvasStore.activeCanvasId,
           sourcePodId: props.pod.id
         }
       }),
@@ -402,6 +404,8 @@ const handleClearWorkflow = async (): Promise<void> => {
 }
 
 const handleConfirmClear = async (): Promise<void> => {
+  if (!canvasStore.activeCanvasId) return
+
   isClearing.value = true
 
   const {wrapWebSocketRequest} = useWebSocketErrorHandler()
@@ -411,7 +415,7 @@ const handleConfirmClear = async (): Promise<void> => {
         requestEvent: WebSocketRequestEvents.WORKFLOW_CLEAR,
         responseEvent: WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
         payload: {
-          canvasId: canvasStore.activeCanvasId!,
+          canvasId: canvasStore.activeCanvasId,
           sourcePodId: props.pod.id
         }
       }),
@@ -436,6 +440,8 @@ const handleCancelClear = (): void => {
 }
 
 const handleModelChange = async (model: ModelType): Promise<void> => {
+  if (!canvasStore.activeCanvasId) return
+
   const {wrapWebSocketRequest} = useWebSocketErrorHandler()
 
   const response = await wrapWebSocketRequest(
@@ -443,7 +449,7 @@ const handleModelChange = async (model: ModelType): Promise<void> => {
         requestEvent: WebSocketRequestEvents.POD_SET_MODEL,
         responseEvent: WebSocketResponseEvents.POD_MODEL_SET,
         payload: {
-          canvasId: canvasStore.activeCanvasId!,
+          canvasId: canvasStore.activeCanvasId,
           podId: props.pod.id,
           model
         }
