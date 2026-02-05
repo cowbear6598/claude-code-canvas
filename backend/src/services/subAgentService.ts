@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import {config} from '../config/index.js';
 import type {SubAgent} from '../types/index.js';
-import {validateSubAgentId, validatePodId, isPathWithinDirectory} from '../utils/pathValidator.js';
+import {validateSubAgentId, validatePodId, isPathWithinDirectory, sanitizePathSegment} from '../utils/pathValidator.js';
 import {readFileOrNull, fileExists, ensureDirectoryAndWriteFile, parseFrontmatterDescription} from './shared/fileResourceHelpers.js';
 
 class SubAgentService {
@@ -150,7 +150,8 @@ class SubAgentService {
         if (groupId === null) {
             newPath = path.join(config.agentsPath, `${subAgentId}.md`);
         } else {
-            const groupPath = path.join(config.agentsPath, groupId);
+            const safeGroupId = sanitizePathSegment(groupId);
+            const groupPath = path.join(config.agentsPath, safeGroupId);
             await fs.mkdir(groupPath, { recursive: true });
             newPath = path.join(groupPath, `${subAgentId}.md`);
         }

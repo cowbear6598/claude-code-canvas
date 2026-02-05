@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import {config} from '../config/index.js';
 import type {Command} from '../types/index.js';
-import {isPathWithinDirectory, validatePodId, validateCommandId} from '../utils/pathValidator.js';
+import {isPathWithinDirectory, validatePodId, validateCommandId, sanitizePathSegment} from '../utils/pathValidator.js';
 import {readFileOrNull, fileExists, ensureDirectoryAndWriteFile} from './shared/fileResourceHelpers.js';
 
 class CommandService {
@@ -141,7 +141,8 @@ class CommandService {
         if (groupId === null) {
             newPath = path.join(config.commandsPath, `${commandId}.md`);
         } else {
-            const groupPath = path.join(config.commandsPath, groupId);
+            const safeGroupId = sanitizePathSegment(groupId);
+            const groupPath = path.join(config.commandsPath, safeGroupId);
             await fs.mkdir(groupPath, {recursive: true});
             newPath = path.join(groupPath, `${commandId}.md`);
         }

@@ -22,13 +22,12 @@ import {
   type SubAgentMoveToGroupPayload,
 } from '../../src/schemas/index.js';
 import {
-  type GroupCreatedPayload,
-  type GroupListResultPayload,
-  type GroupUpdatedPayload,
-  type GroupDeletedPayload,
-  type CommandMovedToGroupPayload,
-  type OutputStyleMovedToGroupPayload,
-  type SubAgentMovedToGroupPayload,
+  type Group,
+  type GroupCreatedResponse,
+  type GroupListResultResponse,
+  type GroupUpdatedResponse,
+  type GroupDeletedResponse,
+  type ItemMovedToGroupResponse,
 } from '../../src/types/index.js';
 
 describe('Group 管理', () => {
@@ -45,9 +44,9 @@ describe('Group 管理', () => {
     if (server) await closeTestServer(server);
   });
 
-  async function createGroup(type: string, name?: string) {
+  async function createGroup(type: 'command' | 'output-style' | 'subagent', name?: string) {
     const groupName = name ?? `group-${uuidv4().slice(0, 8)}`;
-    const response = await emitAndWaitResponse<GroupCreatePayload, GroupCreatedPayload>(
+    const response = await emitAndWaitResponse<GroupCreatePayload, GroupCreatedResponse>(
       client,
       WebSocketRequestEvents.GROUP_CREATE,
       WebSocketResponseEvents.GROUP_CREATED,
@@ -90,13 +89,58 @@ describe('Group 管理', () => {
       expect(response.success).toBe(false);
       expect(response.error).toContain('已存在');
     });
+
+    it('failed_when_create_group_with_path_traversal', async () => {
+      const response = await emitAndWaitResponse<GroupCreatePayload, GroupCreatedResponse>(
+        client,
+        WebSocketRequestEvents.GROUP_CREATE,
+        WebSocketResponseEvents.GROUP_CREATED,
+        { requestId: uuidv4(), name: '../malicious', type: 'command' }
+      );
+
+      expect(response.success).toBe(false);
+    });
+
+    it('failed_when_create_group_with_slash', async () => {
+      const response = await emitAndWaitResponse<GroupCreatePayload, GroupCreatedResponse>(
+        client,
+        WebSocketRequestEvents.GROUP_CREATE,
+        WebSocketResponseEvents.GROUP_CREATED,
+        { requestId: uuidv4(), name: 'test/path', type: 'command' }
+      );
+
+      expect(response.success).toBe(false);
+    });
+
+    it('failed_when_create_group_with_special_chars', async () => {
+      const response = await emitAndWaitResponse<GroupCreatePayload, GroupCreatedResponse>(
+        client,
+        WebSocketRequestEvents.GROUP_CREATE,
+        WebSocketResponseEvents.GROUP_CREATED,
+        { requestId: uuidv4(), name: 'test@group', type: 'command' }
+      );
+
+      expect(response.success).toBe(false);
+    });
+
+    it('success_when_create_group_with_dash', async () => {
+      const response = await emitAndWaitResponse<GroupCreatePayload, GroupCreatedResponse>(
+        client,
+        WebSocketRequestEvents.GROUP_CREATE,
+        WebSocketResponseEvents.GROUP_CREATED,
+        { requestId: uuidv4(), name: 'test-group-123', type: 'command' }
+      );
+
+      expect(response.success).toBe(true);
+      expect(response.group).toBeDefined();
+    });
   });
 
   describe('列出 Groups', () => {
     it('success_when_list_command_groups', async () => {
       const group = await createGroup('command');
 
-      const response = await emitAndWaitResponse<GroupListPayload, GroupListResultPayload>(
+      const response = await emitAndWaitResponse<GroupListPayload, GroupListResultResponse>(
         client,
         WebSocketRequestEvents.GROUP_LIST,
         WebSocketResponseEvents.GROUP_LIST_RESULT,
@@ -106,13 +150,13 @@ describe('Group 管理', () => {
       expect(response.success).toBe(true);
       expect(response.groups).toBeDefined();
       expect(response.groups!.length).toBeGreaterThan(0);
-      expect(response.groups!.some((g) => g.id === group.group!.id)).toBe(true);
+      expect(response.groups!.some((g: Group) => g.id === group.group!.id)).toBe(true);
     });
 
     it('success_when_list_output_style_groups', async () => {
       const group = await createGroup('output-style');
 
-      const response = await emitAndWaitResponse<GroupListPayload, GroupListResultPayload>(
+      const response = await emitAndWaitResponse<GroupListPayload, GroupListResultResponse>(
         client,
         WebSocketRequestEvents.GROUP_LIST,
         WebSocketResponseEvents.GROUP_LIST_RESULT,
@@ -121,13 +165,13 @@ describe('Group 管理', () => {
 
       expect(response.success).toBe(true);
       expect(response.groups).toBeDefined();
-      expect(response.groups!.some((g) => g.id === group.group!.id)).toBe(true);
+      expect(response.groups!.some((g: Group) => g.id === group.group!.id)).toBe(true);
     });
 
     it('success_when_list_subagent_groups', async () => {
       const group = await createGroup('subagent');
 
-      const response = await emitAndWaitResponse<GroupListPayload, GroupListResultPayload>(
+      const response = await emitAndWaitResponse<GroupListPayload, GroupListResultResponse>(
         client,
         WebSocketRequestEvents.GROUP_LIST,
         WebSocketResponseEvents.GROUP_LIST_RESULT,
@@ -136,7 +180,7 @@ describe('Group 管理', () => {
 
       expect(response.success).toBe(true);
       expect(response.groups).toBeDefined();
-      expect(response.groups!.some((g) => g.id === group.group!.id)).toBe(true);
+      expect(response.groups!.some((g: Group) => g.id === group.group!.id)).toBe(true);
     });
   });
 
@@ -145,7 +189,7 @@ describe('Group 管理', () => {
       const group = await createGroup('command');
       const newName = `renamed-${uuidv4().slice(0, 8)}`;
 
-      const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedPayload>(
+      const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedResponse>(
         client,
         WebSocketRequestEvents.GROUP_UPDATE,
         WebSocketResponseEvents.GROUP_UPDATED,
@@ -159,7 +203,7 @@ describe('Group 管理', () => {
     });
 
     it('failed_when_rename_nonexistent_group', async () => {
-      const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedPayload>(
+      const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedResponse>(
         client,
         WebSocketRequestEvents.GROUP_UPDATE,
         WebSocketResponseEvents.GROUP_UPDATED,
@@ -174,7 +218,7 @@ describe('Group 管理', () => {
       const group1 = await createGroup('command');
       const group2 = await createGroup('command');
 
-      const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedPayload>(
+      const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedResponse>(
         client,
         WebSocketRequestEvents.GROUP_UPDATE,
         WebSocketResponseEvents.GROUP_UPDATED,
@@ -184,13 +228,26 @@ describe('Group 管理', () => {
       expect(response.success).toBe(false);
       expect(response.error).toContain('已存在');
     });
+
+    it('failed_when_rename_with_path_traversal', async () => {
+      const group = await createGroup('command');
+
+      const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedResponse>(
+        client,
+        WebSocketRequestEvents.GROUP_UPDATE,
+        WebSocketResponseEvents.GROUP_UPDATED,
+        { requestId: uuidv4(), groupId: group.group!.id, name: '../evil' }
+      );
+
+      expect(response.success).toBe(false);
+    });
   });
 
   describe('刪除 Group', () => {
     it('success_when_delete_empty_group', async () => {
       const group = await createGroup('command');
 
-      const response = await emitAndWaitResponse<GroupDeletePayload, GroupDeletedPayload>(
+      const response = await emitAndWaitResponse<GroupDeletePayload, GroupDeletedResponse>(
         client,
         WebSocketRequestEvents.GROUP_DELETE,
         WebSocketResponseEvents.GROUP_DELETED,
@@ -205,14 +262,14 @@ describe('Group 管理', () => {
       const group = await createGroup('command');
       const command = await createCommand(client, `cmd-${uuidv4()}`, '# Content');
 
-      await emitAndWaitResponse<CommandMoveToGroupPayload, CommandMovedToGroupPayload>(
+      await emitAndWaitResponse<CommandMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.COMMAND_MOVE_TO_GROUP,
         WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
         { requestId: uuidv4(), itemId: command.id, groupId: group.group!.id }
       );
 
-      const response = await emitAndWaitResponse<GroupDeletePayload, GroupDeletedPayload>(
+      const response = await emitAndWaitResponse<GroupDeletePayload, GroupDeletedResponse>(
         client,
         WebSocketRequestEvents.GROUP_DELETE,
         WebSocketResponseEvents.GROUP_DELETED,
@@ -224,7 +281,7 @@ describe('Group 管理', () => {
     });
 
     it('failed_when_delete_nonexistent_group', async () => {
-      const response = await emitAndWaitResponse<GroupDeletePayload, GroupDeletedPayload>(
+      const response = await emitAndWaitResponse<GroupDeletePayload, GroupDeletedResponse>(
         client,
         WebSocketRequestEvents.GROUP_DELETE,
         WebSocketResponseEvents.GROUP_DELETED,
@@ -241,7 +298,7 @@ describe('Group 管理', () => {
       const group = await createGroup('command');
       const command = await createCommand(client, `cmd-${uuidv4()}`, '# Content');
 
-      const response = await emitAndWaitResponse<CommandMoveToGroupPayload, CommandMovedToGroupPayload>(
+      const response = await emitAndWaitResponse<CommandMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.COMMAND_MOVE_TO_GROUP,
         WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
@@ -257,14 +314,14 @@ describe('Group 管理', () => {
       const group = await createGroup('command');
       const command = await createCommand(client, `cmd-${uuidv4()}`, '# Content');
 
-      await emitAndWaitResponse<CommandMoveToGroupPayload, CommandMovedToGroupPayload>(
+      await emitAndWaitResponse<CommandMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.COMMAND_MOVE_TO_GROUP,
         WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
         { requestId: uuidv4(), itemId: command.id, groupId: group.group!.id }
       );
 
-      const response = await emitAndWaitResponse<CommandMoveToGroupPayload, CommandMovedToGroupPayload>(
+      const response = await emitAndWaitResponse<CommandMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.COMMAND_MOVE_TO_GROUP,
         WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
@@ -280,14 +337,14 @@ describe('Group 管理', () => {
       const group2 = await createGroup('command');
       const command = await createCommand(client, `cmd-${uuidv4()}`, '# Content');
 
-      await emitAndWaitResponse<CommandMoveToGroupPayload, CommandMovedToGroupPayload>(
+      await emitAndWaitResponse<CommandMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.COMMAND_MOVE_TO_GROUP,
         WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
         { requestId: uuidv4(), itemId: command.id, groupId: group1.group!.id }
       );
 
-      const response = await emitAndWaitResponse<CommandMoveToGroupPayload, CommandMovedToGroupPayload>(
+      const response = await emitAndWaitResponse<CommandMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.COMMAND_MOVE_TO_GROUP,
         WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
@@ -304,7 +361,7 @@ describe('Group 管理', () => {
       const group = await createGroup('output-style');
       const style = await createOutputStyle(client, `style-${uuidv4()}`, '# Style');
 
-      const response = await emitAndWaitResponse<OutputStyleMoveToGroupPayload, OutputStyleMovedToGroupPayload>(
+      const response = await emitAndWaitResponse<OutputStyleMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.OUTPUT_STYLE_MOVE_TO_GROUP,
         WebSocketResponseEvents.OUTPUT_STYLE_MOVED_TO_GROUP,
@@ -320,14 +377,14 @@ describe('Group 管理', () => {
       const group = await createGroup('output-style');
       const style = await createOutputStyle(client, `style-${uuidv4()}`, '# Style');
 
-      await emitAndWaitResponse<OutputStyleMoveToGroupPayload, OutputStyleMovedToGroupPayload>(
+      await emitAndWaitResponse<OutputStyleMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.OUTPUT_STYLE_MOVE_TO_GROUP,
         WebSocketResponseEvents.OUTPUT_STYLE_MOVED_TO_GROUP,
         { requestId: uuidv4(), itemId: style.id, groupId: group.group!.id }
       );
 
-      const response = await emitAndWaitResponse<OutputStyleMoveToGroupPayload, OutputStyleMovedToGroupPayload>(
+      const response = await emitAndWaitResponse<OutputStyleMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.OUTPUT_STYLE_MOVE_TO_GROUP,
         WebSocketResponseEvents.OUTPUT_STYLE_MOVED_TO_GROUP,
@@ -344,7 +401,7 @@ describe('Group 管理', () => {
       const group = await createGroup('subagent');
       const agent = await createSubAgent(client, `agent-${uuidv4()}`, '# Agent');
 
-      const response = await emitAndWaitResponse<SubAgentMoveToGroupPayload, SubAgentMovedToGroupPayload>(
+      const response = await emitAndWaitResponse<SubAgentMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.SUBAGENT_MOVE_TO_GROUP,
         WebSocketResponseEvents.SUBAGENT_MOVED_TO_GROUP,
@@ -360,14 +417,14 @@ describe('Group 管理', () => {
       const group = await createGroup('subagent');
       const agent = await createSubAgent(client, `agent-${uuidv4()}`, '# Agent');
 
-      await emitAndWaitResponse<SubAgentMoveToGroupPayload, SubAgentMovedToGroupPayload>(
+      await emitAndWaitResponse<SubAgentMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.SUBAGENT_MOVE_TO_GROUP,
         WebSocketResponseEvents.SUBAGENT_MOVED_TO_GROUP,
         { requestId: uuidv4(), itemId: agent.id, groupId: group.group!.id }
       );
 
-      const response = await emitAndWaitResponse<SubAgentMoveToGroupPayload, SubAgentMovedToGroupPayload>(
+      const response = await emitAndWaitResponse<SubAgentMoveToGroupPayload, ItemMovedToGroupResponse>(
         client,
         WebSocketRequestEvents.SUBAGENT_MOVE_TO_GROUP,
         WebSocketResponseEvents.SUBAGENT_MOVED_TO_GROUP,

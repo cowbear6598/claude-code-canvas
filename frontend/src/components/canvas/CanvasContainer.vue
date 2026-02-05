@@ -401,7 +401,7 @@ const handleOpenEditModal = async (resourceType: ResourceType, id: string): Prom
   }
 }
 
-const handleOpenDeleteModal = (type: ItemType, id: string, name: string): void => {
+const handleOpenDeleteModal = (type: ExtendedItemType, id: string, name: string): void => {
   deleteTarget.value = {type, id, name}
   showDeleteModal.value = true
 }

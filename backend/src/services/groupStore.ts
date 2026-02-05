@@ -3,23 +3,26 @@ import path from 'path';
 import { Group, GroupType } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
+import { sanitizePathSegment } from '../utils/pathValidator.js';
 
 class GroupStore {
   async create(name: string, type: GroupType): Promise<Group> {
-    const dirPath = path.join(this.getBasePath(type), name);
+    const safeName = sanitizePathSegment(name);
+    const dirPath = path.join(this.getBasePath(type), safeName);
 
     await fs.mkdir(dirPath, { recursive: true });
-    logger.log('Note', 'Create', `[GroupStore] 建立 Group 資料夾: ${name} (${type})`);
+    logger.log('Note', 'Create', `[GroupStore] 建立 Group 資料夾: ${safeName} (${type})`);
 
     return {
-      id: name,
-      name,
+      id: safeName,
+      name: safeName,
       type,
     };
   }
 
   async exists(name: string, type: GroupType): Promise<boolean> {
-    const dirPath = path.join(this.getBasePath(type), name);
+    const safeName = sanitizePathSegment(name);
+    const dirPath = path.join(this.getBasePath(type), safeName);
     try {
       const stat = await fs.stat(dirPath);
       return stat.isDirectory();
@@ -54,39 +57,43 @@ class GroupStore {
   }
 
   async update(oldName: string, newName: string, type: GroupType): Promise<Group | undefined> {
-    const oldPath = path.join(this.getBasePath(type), oldName);
-    const newPath = path.join(this.getBasePath(type), newName);
+    const safeOldName = sanitizePathSegment(oldName);
+    const safeNewName = sanitizePathSegment(newName);
+    const oldPath = path.join(this.getBasePath(type), safeOldName);
+    const newPath = path.join(this.getBasePath(type), safeNewName);
 
     try {
       await fs.rename(oldPath, newPath);
-      logger.log('Note', 'Update', `[GroupStore] 重命名 Group: ${oldName} -> ${newName}`);
+      logger.log('Note', 'Update', `[GroupStore] 重命名 Group: ${safeOldName} -> ${safeNewName}`);
 
       return {
-        id: newName,
-        name: newName,
+        id: safeNewName,
+        name: safeNewName,
         type,
       };
     } catch (error) {
-      logger.error('Note', 'Error', `[GroupStore] 重命名 Group 失敗: ${oldName}`, error);
+      logger.error('Note', 'Error', `[GroupStore] 重命名 Group 失敗: ${safeOldName}`, error);
       return undefined;
     }
   }
 
   async delete(name: string, type: GroupType): Promise<boolean> {
-    const dirPath = path.join(this.getBasePath(type), name);
+    const safeName = sanitizePathSegment(name);
+    const dirPath = path.join(this.getBasePath(type), safeName);
 
     try {
       await fs.rmdir(dirPath);
-      logger.log('Note', 'Delete', `[GroupStore] 刪除 Group: ${name}`);
+      logger.log('Note', 'Delete', `[GroupStore] 刪除 Group: ${safeName}`);
       return true;
     } catch (error) {
-      logger.error('Note', 'Error', `[GroupStore] 刪除 Group 失敗: ${name}`, error);
+      logger.error('Note', 'Error', `[GroupStore] 刪除 Group 失敗: ${safeName}`, error);
       return false;
     }
   }
 
   async hasItems(name: string, type: GroupType): Promise<boolean> {
-    const dirPath = path.join(this.getBasePath(type), name);
+    const safeName = sanitizePathSegment(name);
+    const dirPath = path.join(this.getBasePath(type), safeName);
 
     try {
       const entries = await fs.readdir(dirPath);

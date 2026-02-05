@@ -3,6 +3,7 @@ import path from 'path';
 import { config } from '../config/index.js';
 import type { OutputStyleListItem } from '../types/index.js';
 import {readFileOrNull, fileExists, ensureDirectoryAndWriteFile} from './shared/fileResourceHelpers.js';
+import {sanitizePathSegment} from '../utils/pathValidator.js';
 
 class OutputStyleService {
   async list(): Promise<OutputStyleListItem[]> {
@@ -94,7 +95,8 @@ class OutputStyleService {
     if (groupId === null) {
       newPath = path.join(config.outputStylesPath, `${outputStyleId}.md`);
     } else {
-      const groupPath = path.join(config.outputStylesPath, groupId);
+      const safeGroupId = sanitizePathSegment(groupId);
+      const groupPath = path.join(config.outputStylesPath, safeGroupId);
       await fs.mkdir(groupPath, { recursive: true });
       newPath = path.join(groupPath, `${outputStyleId}.md`);
     }

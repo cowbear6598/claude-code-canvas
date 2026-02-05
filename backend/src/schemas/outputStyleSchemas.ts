@@ -45,10 +45,12 @@ export const outputStyleDeleteSchema = z.object({
   outputStyleId: z.string(),
 });
 
+const groupIdSchema = z.string().regex(/^[a-zA-Z0-9-]+$/, '群組 ID 格式不正確，只能包含英文、數字、dash').nullable();
+
 export const outputStyleMoveToGroupSchema = z.object({
   requestId: requestIdSchema,
   itemId: z.string(),
-  groupId: z.string().nullable(),
+  groupId: groupIdSchema,
 });
 
 export type OutputStyleListPayload = z.infer<typeof outputStyleListSchema>;
