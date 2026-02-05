@@ -5,7 +5,7 @@
   border-radius: 6px;
   box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4);
   transition: all 0.15s ease;
-  cursor: grab;
+  cursor: pointer;
   position: relative;
 }
 
@@ -14,12 +14,12 @@
 }
 
 .pod-doodle:active {
-  cursor: grabbing;
+  cursor: pointer;
 }
 
 .pod-doodle.dragging,
 .pod-doodle.dragging:hover {
-  cursor: grabbing;
+  cursor: pointer;
   box-shadow: 4px 4px 0 oklch(0.4 0.02 50 / 0.5);
 }
 
