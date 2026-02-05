@@ -197,8 +197,7 @@ const handleMouseDown = (e: MouseEvent): void => {
   document.addEventListener('mouseup', handleMouseUp)
 }
 
-const cssClass = computed(() => cssClassMap[props.noteType])
-const textClass = computed(() => `${cssClassMap[props.noteType]}-text`)
+const cssClass = computed(() => ['note-base', cssClassMap[props.noteType]])
 
 const handleContextMenu = (e: MouseEvent): void => {
   e.preventDefault()
@@ -236,7 +235,7 @@ const handleDoubleClick = (): void => {
     @contextmenu="handleContextMenu"
     @dblclick="handleDoubleClick"
   >
-    <div :class="textClass">
+    <div class="note-text-base">
       {{ displayName }}
     </div>
   </div>

@@ -27,6 +27,18 @@
   animation: slide-into-slot-right 0.3s ease-out;
 }
 
+/* Slot 有項目時的基礎樣式 */
+.pod-slot-has-item {
+  border-style: solid;
+  border-color: var(--doodle-ink);
+  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
+  cursor: pointer;
+}
+
+.pod-slot-has-item:hover {
+  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
+}
+
 /* Notch Area 基礎樣式 */
 .pod-notch-area-base {
   position: absolute;
@@ -80,16 +92,11 @@
 
 .pod-output-style-slot.has-note {
   background: var(--doodle-yellow);
-  border-color: var(--doodle-ink);
-  border-style: solid;
-  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
-  cursor: pointer;
   transform: translateX(-50%);
 }
 
 .pod-output-style-slot.has-note:hover {
   transform: translateX(-50%) translate(0.5px, -0.5px);
-  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
 }
 
 .pod-output-style-slot.ejecting {
@@ -104,16 +111,11 @@
 
 .pod-repository-slot.has-note {
   background: var(--doodle-orange);
-  border-color: var(--doodle-ink);
-  border-style: solid;
-  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
-  cursor: pointer;
   transform: translateX(-50%);
 }
 
 .pod-repository-slot.has-note:hover {
   transform: translateX(-50%) translate(0.5px, -0.5px);
-  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
 }
 
 .pod-repository-slot.ejecting {
@@ -152,16 +154,11 @@
 
 .pod-command-slot.has-note {
   background: var(--doodle-mint);
-  border-color: var(--doodle-ink);
-  border-style: solid;
-  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
-  cursor: pointer;
   transform: translateX(-50%);
 }
 
 .pod-command-slot.has-note:hover {
   transform: translateX(-50%) translate(0.5px, -0.5px);
-  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
 }
 
 .pod-command-slot.ejecting {
@@ -209,16 +206,12 @@
 
 .pod-skill-slot.has-notes {
   background: var(--doodle-light-blue);
-  border-color: var(--doodle-ink);
   border-style: dashed;
-  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
-  cursor: pointer;
   transform: translateX(50%);
 }
 
 .pod-skill-slot.has-notes:hover {
   transform: translateX(50%) translate(-0.5px, -0.5px);
-  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
 }
 
 .pod-skill-slot.inserting {
@@ -257,16 +250,12 @@
 
 .pod-subagent-slot.has-notes {
   background: var(--doodle-sand);
-  border-color: var(--doodle-ink);
   border-style: dashed;
-  box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.3);
-  cursor: pointer;
   transform: translateX(50%);
 }
 
 .pod-subagent-slot.has-notes:hover {
   transform: translateX(50%) translate(-0.5px, -0.5px);
-  box-shadow: 3px 3px 0 oklch(0.4 0.02 50 / 0.4);
 }
 
 .pod-subagent-slot.inserting {

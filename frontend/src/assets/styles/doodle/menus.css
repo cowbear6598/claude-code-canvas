@@ -64,15 +64,14 @@
   overflow-y: auto;
 }
 
+/* Scrollbar 基礎樣式 */
 .pod-menu-submenu-scrollable::-webkit-scrollbar,
-.pod-skill-menu::-webkit-scrollbar,
 .pod-skill-menu-scrollable::-webkit-scrollbar,
 .pod-subagent-menu-scrollable::-webkit-scrollbar {
   width: 8px;
 }
 
 .pod-menu-submenu-scrollable::-webkit-scrollbar-track,
-.pod-skill-menu::-webkit-scrollbar-track,
 .pod-skill-menu-scrollable::-webkit-scrollbar-track,
 .pod-subagent-menu-scrollable::-webkit-scrollbar-track {
   background: oklch(0.9 0.01 50);
@@ -80,7 +79,6 @@
 }
 
 .pod-menu-submenu-scrollable::-webkit-scrollbar-thumb,
-.pod-skill-menu::-webkit-scrollbar-thumb,
 .pod-skill-menu-scrollable::-webkit-scrollbar-thumb,
 .pod-subagent-menu-scrollable::-webkit-scrollbar-thumb {
   background: oklch(0.6 0.02 50);
@@ -89,7 +87,6 @@
 }
 
 .pod-menu-submenu-scrollable::-webkit-scrollbar-thumb:hover,
-.pod-skill-menu::-webkit-scrollbar-thumb:hover,
 .pod-skill-menu-scrollable::-webkit-scrollbar-thumb:hover,
 .pod-subagent-menu-scrollable::-webkit-scrollbar-thumb:hover {
   background: oklch(0.5 0.02 50);

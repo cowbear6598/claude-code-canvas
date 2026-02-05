@@ -238,10 +238,11 @@ const store = createNoteStore<Repository, RepositoryNote>({
     },
 
     async checkoutBranch(this, repositoryId: string, branchName: string, force: boolean = false): Promise<{ success: boolean; branchName?: string; action?: 'switched' | 'fetched' | 'created'; error?: string }> {
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
       const canvasStore = useCanvasStore()
 
-      try {
-        const response = await createWebSocketRequest<RepositoryCheckoutBranchPayload, RepositoryBranchCheckedOutPayload>({
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryCheckoutBranchPayload, RepositoryBranchCheckedOutPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
           responseEvent: WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
           payload: {
@@ -250,34 +251,35 @@ const store = createNoteStore<Repository, RepositoryNote>({
             branchName,
             force
           }
-        })
+        }),
+        '切換分支失敗'
+      )
 
-        if (response.success && response.branchName) {
-          const existingRepository = this.availableItems.find((item) => item.id === repositoryId)
-          if (existingRepository) {
-            existingRepository.currentBranch = response.branchName
-          }
-        }
+      if (!response) {
+        return { success: false, error: '切換分支失敗' }
+      }
 
-        return {
-          success: response.success,
-          branchName: response.branchName,
-          action: response.action,
-          error: response.error
+      if (response.success && response.branchName) {
+        const existingRepository = this.availableItems.find((item) => item.id === repositoryId)
+        if (existingRepository) {
+          existingRepository.currentBranch = response.branchName
         }
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : '切換分支失敗'
-        }
+      }
+
+      return {
+        success: response.success,
+        branchName: response.branchName,
+        action: response.action,
+        error: response.error
       }
     },
 
     async deleteBranch(this, repositoryId: string, branchName: string, force: boolean = false): Promise<{ success: boolean; branchName?: string; error?: string }> {
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
       const canvasStore = useCanvasStore()
 
-      try {
-        const response = await createWebSocketRequest<RepositoryDeleteBranchPayload, RepositoryBranchDeletedPayload>({
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryDeleteBranchPayload, RepositoryBranchDeletedPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_DELETE_BRANCH,
           responseEvent: WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
           payload: {
@@ -286,18 +288,18 @@ const store = createNoteStore<Repository, RepositoryNote>({
             branchName,
             force
           }
-        })
+        }),
+        '刪除分支失敗'
+      )
 
-        return {
-          success: response.success,
-          branchName: response.branchName,
-          error: response.error
-        }
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : '刪除分支失敗'
-        }
+      if (!response) {
+        return { success: false, error: '刪除分支失敗' }
+      }
+
+      return {
+        success: response.success,
+        branchName: response.branchName,
+        error: response.error
       }
     },
 

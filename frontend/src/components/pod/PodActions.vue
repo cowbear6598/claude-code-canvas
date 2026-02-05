@@ -183,7 +183,7 @@ watch(() => props.isScheduleFiredAnimating, (newValue) => {
     <!-- 碼表按鈕（最左） -->
     <button
       v-if="showScheduleButton"
-      class="schedule-button"
+      class="pod-action-button-base schedule-button"
       :class="{ 'schedule-enabled': scheduleEnabled, 'schedule-fired-animating': isScheduleFiredAnimating }"
       :title="hasSchedule ? scheduleTooltip : undefined"
       @click.stop="$emit('open-schedule-modal')"
@@ -192,14 +192,14 @@ watch(() => props.isScheduleFiredAnimating, (newValue) => {
     </button>
     <!-- 刪除按鈕（中） -->
     <button
-      class="pod-delete-button"
+      class="pod-action-button-base pod-delete-button"
       @click.stop="handleDelete"
     >
       <Trash2 :size="16" />
     </button>
     <!-- 橡皮擦按鈕（右） -->
     <button
-      class="workflow-clear-button-in-group"
+      class="pod-action-button-base workflow-clear-button-in-group"
       :class="{
         'auto-clear-enabled': isAutoClearEnabled,
         'auto-clear-animating': isAutoClearAnimating
@@ -225,7 +225,7 @@ watch(() => props.isScheduleFiredAnimating, (newValue) => {
     <!-- 碼表按鈕（左） -->
     <button
       v-if="showScheduleButton"
-      class="schedule-button"
+      class="pod-action-button-base schedule-button"
       :class="{ 'schedule-enabled': scheduleEnabled, 'schedule-fired-animating': isScheduleFiredAnimating }"
       :title="hasSchedule ? scheduleTooltip : undefined"
       @click.stop="$emit('open-schedule-modal')"
@@ -234,7 +234,7 @@ watch(() => props.isScheduleFiredAnimating, (newValue) => {
     </button>
     <!-- 刪除按鈕（右） -->
     <button
-      class="pod-delete-button"
+      class="pod-action-button-base pod-delete-button"
       @click.stop="handleDelete"
     >
       <Trash2 :size="16" />

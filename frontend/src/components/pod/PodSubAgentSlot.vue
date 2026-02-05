@@ -48,6 +48,7 @@ const {isDropTarget, isInserting} = useSlotDropTarget({
     class="pod-slot-base pod-subagent-slot"
     :class="{
       'drop-target': isDropTarget,
+      'pod-slot-has-item': hasSubAgents,
       'has-notes': hasSubAgents,
       inserting: isInserting
     }"
@@ -63,14 +64,14 @@ const {isDropTarget, isInserting} = useSlotDropTarget({
 
     <div
       v-if="showMenu && hasSubAgents"
-      class="pod-slot-menu-base pod-subagent-menu"
+      class="pod-slot-menu-base"
       @wheel.stop.passive
     >
       <div class="pod-subagent-menu-scrollable">
         <div
           v-for="note in boundNotes"
           :key="note.id"
-          class="pod-slot-menu-item-base pod-subagent-menu-item"
+          class="pod-slot-menu-item-base"
         >
           {{ note.name }}
         </div>
