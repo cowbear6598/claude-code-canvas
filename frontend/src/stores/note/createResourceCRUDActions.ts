@@ -31,12 +31,26 @@ interface CRUDPayloadConfig<TItem> {
   updateItemsList: (items: TItem[], itemId: string, newItem: { id: string; name: string }) => void
 }
 
+interface ResourceCRUDActions {
+  create: (
+    items: unknown[],
+    name: string,
+    content: string
+  ) => Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }>
+  update: (
+    items: unknown[],
+    itemId: string,
+    content: string
+  ) => Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }>
+  read: (itemId: string) => Promise<{ id: string; name: string; content: string } | null>
+}
+
 export function createResourceCRUDActions<TItem extends { id: string; name: string }>(
   resourceType: string,
   events: CRUDEventsConfig,
   config: CRUDPayloadConfig<TItem>,
   toastCategory?: ToastCategory
-) {
+): ResourceCRUDActions {
   const { wrapWebSocketRequest } = useWebSocketErrorHandler()
   const { showSuccessToast, showErrorToast } = useToast()
 

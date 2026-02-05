@@ -10,9 +10,9 @@ const props = defineProps<Props>()
 
 const tasksArray = computed(() => Array.from(props.tasks.values()))
 
-const getProgressWidth = (task: CloneTask) => `${task.progress}%`
+const getProgressWidth = (task: CloneTask): string => `${task.progress}%`
 
-const getProgressBarColor = (task: CloneTask) => {
+const getProgressBarColor = (task: CloneTask): string => {
   if (task.status === 'failed') {
     return 'bg-destructive'
   }

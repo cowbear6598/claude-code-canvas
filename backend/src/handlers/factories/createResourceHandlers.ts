@@ -3,15 +3,15 @@ import { socketService } from '../../services/socketService.js';
 import { emitError } from '../../utils/websocketResponse.js';
 import { logger, type LogCategory } from '../../utils/logger.js';
 
-interface ResourceService {
+interface ResourceService<T = { id: string; name: string }> {
   exists(id: string): Promise<boolean>;
-  create(name: string, content: string): Promise<any>;
+  create(name: string, content: string): Promise<T>;
   update(id: string, content: string): Promise<void>;
   getContent?(id: string): Promise<string | null>;
 }
 
-interface ResourceHandlerConfig {
-  service: ResourceService;
+interface ResourceHandlerConfig<T = { id: string; name: string }> {
+  service: ResourceService<T>;
   events: {
     listResult: WebSocketResponseEvents;
     created: WebSocketResponseEvents;
@@ -42,7 +42,7 @@ interface BaseResponse {
   success: true;
 }
 
-export function createResourceHandlers(config: ResourceHandlerConfig): {
+export function createResourceHandlers<T extends { id: string; name: string }>(config: ResourceHandlerConfig<T>): {
   handleCreate: (connectionId: string, payload: CreateResourcePayload, requestId: string) => Promise<void>;
   handleUpdate: (connectionId: string, payload: UpdateResourcePayload, requestId: string) => Promise<void>;
   handleRead?: (connectionId: string, payload: ReadResourcePayload, requestId: string) => Promise<void>;

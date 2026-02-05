@@ -15,7 +15,15 @@ export interface CloneTask {
   status: CloneStatus
 }
 
-export function useGitCloneProgress() {
+interface UseGitCloneProgressReturn {
+  cloneTasks: Ref<Map<string, CloneTask>>
+  addTask: (requestId: string, repoName: string) => void
+  removeTask: (requestId: string) => void
+  setupListeners: () => void
+  cleanupListeners: () => void
+}
+
+export function useGitCloneProgress(): UseGitCloneProgressReturn {
   const cloneTasks = ref<Map<string, CloneTask>>(new Map())
   const { showSuccessToast, showErrorToast } = useToast()
   const { repositoryStore, chatStore } = useCanvasContext()

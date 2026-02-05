@@ -7,13 +7,15 @@ type EventCallbackWithAck<T> = (payload: T, ack: AckCallback) => void
 
 const RECONNECT_INTERVAL_MS = 3000
 
+type EventHandler = EventCallback<unknown> | EventCallbackWithAck<unknown>
+
 class WebSocketClient {
   private socket: WebSocket | null = null
   private reconnectTimer: ReturnType<typeof setInterval> | null = null
   private wsUrl: string = ''
-  private eventListeners: Map<string, Set<Function>> = new Map()
-  private ackCallbacks: Map<string, Function> = new Map()
-  private disconnectListeners: Set<Function> = new Set()
+  private eventListeners: Map<string, Set<EventHandler>> = new Map()
+  private ackCallbacks: Map<string, AckCallback> = new Map()
+  private disconnectListeners: Set<(reason: string) => void> = new Set()
 
   public readonly isConnected = ref(false)
   public readonly disconnectReason = ref<string | null>(null)
@@ -137,7 +139,7 @@ class WebSocketClient {
           try {
             // 如果有 ackId，提供 ack 函數
             if (message.ackId) {
-              const ack = (response?: unknown) => {
+              const ack = (response?: unknown): void => {
                 const ackMessage: WebSocketAckMessage = {
                   type: 'ack',
                   ackId: message.ackId!,

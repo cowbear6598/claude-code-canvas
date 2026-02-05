@@ -1,6 +1,7 @@
 import {v4 as uuidv4} from 'uuid';
 import {WebSocketResponseEvents} from '../schemas';
 import {Pod, PodStatus, CreatePodRequest, Result, ok, err, ScheduleConfig} from '../types';
+import type {PersistedPod} from '../types';
 import {podPersistenceService} from './persistence/podPersistence.js';
 import {socketService} from './socketService.js';
 import {logger} from '../utils/logger.js';
@@ -276,7 +277,7 @@ class PodStore {
         return result;
     }
 
-    private deserializePod(persistedPod: any, canvasDir: string): Pod {
+    private deserializePod(persistedPod: PersistedPod, canvasDir: string): Pod {
         const loadedStatus = persistedPod.status as string;
         const pod: Pod = {
             id: persistedPod.id,

@@ -251,12 +251,20 @@ const handleDblClick = (e: MouseEvent): void => {
 
 type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command'
 
+interface NoteItem {
+  outputStyleId?: string
+  skillId?: string
+  subAgentId?: string
+  repositoryId?: string
+  commandId?: string
+}
+
 interface NoteStoreMapping {
   bindToPod: (noteId: string, podId: string) => Promise<void>
-  getNoteById: (noteId: string) => any
+  getNoteById: (noteId: string) => NoteItem | undefined
   isItemBoundToPod?: (itemId: string, podId: string) => boolean
   unbindFromPod?: (podId: string, returnToOriginal: boolean) => Promise<void>
-  getItemId: (note: any) => string
+  getItemId: (note: NoteItem) => string
   updatePodField?: (podId: string, itemId: string | null) => void
 }
 

@@ -373,4 +373,4 @@ const store = createNoteStore<Command, CommandNote>({
   }
 })
 
-export const useCommandStore: (() => ReturnType<typeof store> & CommandStoreCustomActions) & { $id: string } = store as any
+export const useCommandStore: (() => ReturnType<typeof store> & CommandStoreCustomActions) & { $id: string } = store as (() => ReturnType<typeof store> & CommandStoreCustomActions) & { $id: string }

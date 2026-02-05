@@ -66,25 +66,39 @@ export interface NoteStoreConfig<TItem> {
     createNotePayload: (item: TItem, x: number, y: number) => object
     getItemId: (item: TItem) => string
     getItemName: (item: TItem) => string
-    customActions?: Record<string, (...args: any[]) => any> & ThisType<any>
+    customActions?: Record<string, (...args: unknown[]) => unknown>
+}
+
+interface GroupItem {
+    id: string
+    name: string
+    [key: string]: unknown
+}
+
+interface NoteItem {
+    id: string
+    boundToPodId: string | null
+    x: number
+    y: number
+    [key: string]: unknown
 }
 
 interface BaseNoteState {
-    availableItems: any[]
-    notes: any[]
+    availableItems: unknown[]
+    notes: NoteItem[]
     isLoading: boolean
     error: string | null
     draggedNoteId: string | null
     animatingNoteIds: Set<string>
     isDraggingNote: boolean
     isOverTrash: boolean
-    groups: any[]
+    groups: GroupItem[]
     expandedGroupIds: Set<string>
 }
 
 export function createNoteStore<TItem, TNote extends BaseNote>(
     config: NoteStoreConfig<TItem>
-) {
+): ReturnType<typeof defineStore> {
     return defineStore(config.storeName, {
         state: (): BaseNoteState => ({
             availableItems: [],
@@ -132,7 +146,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
             isItemBoundToPod: (state) => (itemId: string, podId: string): boolean =>
                 state.notes.some(note => (note as Record<string, unknown>)[config.itemIdField] === itemId && note.boundToPodId === podId),
 
-            getGroupById: (state) => (groupId: string) =>
+            getGroupById: (state) => (groupId: string): GroupItem | undefined =>
                 state.groups.find(group => group.id === groupId),
 
             getItemsByGroupId: (state) => (groupId: string | null): TItem[] =>
@@ -141,7 +155,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
             getRootItems: (state): TItem[] =>
                 state.availableItems.filter(item => !(item as Record<string, unknown>).groupId) as TItem[],
 
-            getSortedItemsWithGroups: (state) => {
+            getSortedItemsWithGroups: (state): { groups: GroupItem[]; rootItems: TItem[] } => {
                 const groups = [...state.groups].sort((a, b) => a.name.localeCompare(b.name))
                 const rootItems = state.availableItems
                     .filter(item => !(item as Record<string, unknown>).groupId)
@@ -189,7 +203,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 }
 
                 if (response[config.responseItemsKey]) {
-                    this.availableItems = response[config.responseItemsKey] as any[]
+                    this.availableItems = response[config.responseItemsKey] as unknown[]
                 }
             },
 
@@ -225,7 +239,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 }
 
                 if (response.notes) {
-                    this.notes = response.notes as any[]
+                    this.notes = response.notes as unknown[]
                 }
             },
 
@@ -456,14 +470,14 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                                 this.notes.splice(0, this.notes.length, ...this.notes.filter(note => !(res.deletedNoteIds as string[]).includes(note.id)))
                             }
 
-                            const category = STORE_TO_CATEGORY_MAP[config.storeName] || 'Note'
-                            showSuccessToast(category as any, '刪除成功', itemName)
+                            const category = (STORE_TO_CATEGORY_MAP[config.storeName] || 'Note') as 'Skill' | 'Repository' | 'SubAgent' | 'Command' | 'OutputStyle' | 'Note'
+                            showSuccessToast(category, '刪除成功', itemName)
                         }
                     })
                 } catch (error) {
-                    const category = STORE_TO_CATEGORY_MAP[config.storeName] || 'Note'
+                    const category = (STORE_TO_CATEGORY_MAP[config.storeName] || 'Note') as 'Skill' | 'Repository' | 'SubAgent' | 'Command' | 'OutputStyle' | 'Note'
                     const message = error instanceof Error ? error.message : '未知錯誤'
-                    showErrorToast(category as any, '刪除失敗', message)
+                    showErrorToast(category, '刪除失敗', message)
                     throw error
                 }
             },
@@ -534,7 +548,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 }
             },
 
-            ...((config.customActions ?? {}) as Record<string, (...args: any[]) => any>)
+            ...((config.customActions ?? {}) as Record<string, (...args: unknown[]) => unknown>)
         },
     })
 }

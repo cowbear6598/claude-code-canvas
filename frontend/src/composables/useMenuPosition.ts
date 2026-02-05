@@ -1,4 +1,4 @@
-import { computed, type Ref } from 'vue'
+import { computed, type Ref, type ComputedRef } from 'vue'
 import { HEADER_HEIGHT } from '@/lib/constants'
 
 interface MenuDirection {
@@ -9,7 +9,11 @@ interface UseMenuPositionOptions {
   position: Ref<{ x: number; y: number }> | { x: number; y: number }
 }
 
-export function useMenuPosition(options: UseMenuPositionOptions) {
+interface UseMenuPositionReturn {
+  menuStyle: ComputedRef<Record<string, string>>
+}
+
+export function useMenuPosition(options: UseMenuPositionOptions): UseMenuPositionReturn {
   const direction = computed<MenuDirection>(() => {
     const pos = 'value' in options.position ? options.position.value : options.position
     const availableHeight = window.innerHeight - HEADER_HEIGHT

@@ -323,4 +323,4 @@ const store = createNoteStore<SubAgent, SubAgentNote>({
   }
 })
 
-export const useSubAgentStore: (() => ReturnType<typeof store> & SubAgentStoreCustomActions) & { $id: string } = store as any
+export const useSubAgentStore: (() => ReturnType<typeof store> & SubAgentStoreCustomActions) & { $id: string } = store as (() => ReturnType<typeof store> & SubAgentStoreCustomActions) & { $id: string }

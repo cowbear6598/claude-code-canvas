@@ -95,4 +95,4 @@ const store = createNoteStore<Skill, SkillNote>({
   }
 })
 
-export const useSkillStore: (() => ReturnType<typeof store> & SkillStoreCustomActions) & { $id: string } = store as any
+export const useSkillStore: (() => ReturnType<typeof store> & SkillStoreCustomActions) & { $id: string } = store as (() => ReturnType<typeof store> & SkillStoreCustomActions) & { $id: string }

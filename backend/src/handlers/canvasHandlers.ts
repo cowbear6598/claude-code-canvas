@@ -15,12 +15,12 @@ import { canvasStore } from '../services/canvasStore.js';
 import { socketService } from '../services/socketService.js';
 import { logger } from '../utils/logger.js';
 
-function handleCanvasResult<T>(
+function handleCanvasResult<T, R extends { requestId: string; success: boolean }>(
   connectionId: string,
   result: Result<T>,
   event: WebSocketResponseEvents,
   requestId: string,
-  onSuccess: (data: T) => any,
+  onSuccess: (data: T) => R,
   emitToAll: boolean = false
 ): boolean {
   if (!result.success) {

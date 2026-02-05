@@ -373,4 +373,4 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
   }
 })
 
-export const useOutputStyleStore: (() => ReturnType<typeof store> & OutputStyleStoreCustomActions) & { $id: string } = store as any
+export const useOutputStyleStore: (() => ReturnType<typeof store> & OutputStyleStoreCustomActions) & { $id: string } = store as (() => ReturnType<typeof store> & OutputStyleStoreCustomActions) & { $id: string }

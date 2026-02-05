@@ -342,4 +342,4 @@ const store = createNoteStore<Repository, RepositoryNote>({
   }
 })
 
-export const useRepositoryStore: (() => ReturnType<typeof store> & RepositoryStoreCustomActions) & { $id: string } = store as any
+export const useRepositoryStore: (() => ReturnType<typeof store> & RepositoryStoreCustomActions) & { $id: string } = store as (() => ReturnType<typeof store> & RepositoryStoreCustomActions) & { $id: string }

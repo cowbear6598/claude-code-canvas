@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, type Ref } from 'vue'
 import { useSkillStore } from '@/stores/note/skillStore'
 import { useToast } from '@/composables/useToast'
 import { sanitizeErrorForUser } from '@/utils/errorSanitizer'
@@ -18,7 +18,7 @@ interface ValidationResult {
 /**
  * 驗證檔案格式和大小
  */
-function validateFile(file: File): ValidationResult {
+const validateFile = (file: File): ValidationResult => {
   // 檢查副檔名
   const fileName = file.name.toLowerCase()
   const hasValidExtension = ALLOWED_EXTENSIONS.some(ext => fileName.endsWith(ext))
@@ -43,11 +43,11 @@ function validateFile(file: File): ValidationResult {
 /**
  * 將檔案轉換為 Base64
  */
-function convertToBase64(file: File): Promise<string> {
+const convertToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
 
-    reader.onload = () => {
+    reader.onload = (): void => {
       const result = reader.result as string
       // 移除 data URL 前綴 (e.g., "data:application/zip;base64,")
       const parts = result.split(',')
@@ -59,7 +59,7 @@ function convertToBase64(file: File): Promise<string> {
       resolve(base64Data)
     }
 
-    reader.onerror = () => {
+    reader.onerror = (): void => {
       reject(new Error(ERROR_NETWORK_FAILED))
     }
 
@@ -70,19 +70,19 @@ function convertToBase64(file: File): Promise<string> {
 /**
  * 開啟檔案選擇對話框
  */
-function openFilePicker(): Promise<File | null> {
+const openFilePicker = (): Promise<File | null> => {
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = '.zip,application/zip'
 
-    input.onchange = (e) => {
+    input.onchange = (e): void => {
       const target = e.target as HTMLInputElement
       const file = target.files?.[0]
       resolve(file || null)
     }
 
-    input.oncancel = () => {
+    input.oncancel = (): void => {
       resolve(null)
     }
 
@@ -90,7 +90,12 @@ function openFilePicker(): Promise<File | null> {
   })
 }
 
-export function useSkillImport() {
+interface UseSkillImportReturn {
+  importSkill: () => Promise<void>
+  isImporting: Ref<boolean>
+}
+
+export function useSkillImport(): UseSkillImportReturn {
   const skillStore = useSkillStore()
   const { showSuccessToast, showErrorToast } = useToast()
   const isImporting = ref(false)
