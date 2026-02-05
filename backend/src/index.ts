@@ -26,7 +26,7 @@ async function startServer(): Promise<void> {
   });
 
   const PORT = config.port;
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     logger.log('Startup', 'Complete', `Server running on port ${PORT}`);
   });
 }

@@ -20,7 +20,9 @@ class WebSocketClient {
       return
     }
 
-    this.wsUrl = url || import.meta.env.VITE_WS_URL || 'http://localhost:3001'
+    // 自動使用目前網址的 hostname，這樣從 192.168.x.x:5173 訪問時會自動連到 192.168.x.x:3001
+    const defaultUrl = `http://${window.location.hostname}:3001`
+    this.wsUrl = url || import.meta.env.VITE_WS_URL || defaultUrl
 
     this.socket = io(this.wsUrl, {
       reconnection: false,

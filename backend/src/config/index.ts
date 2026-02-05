@@ -10,7 +10,7 @@ interface Config {
   appDataRoot: string;
   canvasRoot: string;
   repositoriesRoot: string;
-  corsOrigin: string;
+  corsOrigin: string | ((origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => void);
   githubToken?: string;
   outputStylesPath: string;
   skillsPath: string;
@@ -23,8 +23,23 @@ interface Config {
 function loadConfig(): Config {
   const port = parseInt(process.env.PORT || '3001', 10);
   const nodeEnv = process.env.NODE_ENV || 'development';
-  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
   const githubToken = process.env.GITHUB_TOKEN;
+
+  const corsOrigin = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void): void => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    const allowedOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$/;
+
+    if (allowedOriginPattern.test(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('不允許的 CORS origin'));
+  };
 
   const dataRoot = path.join(os.homedir(), 'Documents', 'ClaudeCanvas');
 

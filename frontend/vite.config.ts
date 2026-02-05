@@ -12,6 +12,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0',
     headers: {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
