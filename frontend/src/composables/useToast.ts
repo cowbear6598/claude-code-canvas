@@ -1,4 +1,5 @@
 import { ref, type Ref } from 'vue'
+import { generateUUID } from '@/services/utils'
 
 type ToastVariant = 'default' | 'destructive' | 'success'
 
@@ -21,7 +22,7 @@ export function useToast(): {
   toasts: Ref<ToastItem[]>
 } {
   const toast = ({ title, description, duration = 3000, variant = 'default' }: ToastOptions): string => {
-    const id = crypto.randomUUID()
+    const id = generateUUID()
     const item: ToastItem = { id, title, description, duration, variant }
 
     toasts.value.push(item)
