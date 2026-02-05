@@ -4,7 +4,7 @@
   border: 2px solid var(--doodle-ink);
   border-radius: 6px;
   box-shadow: 2px 2px 0 oklch(0.4 0.02 50 / 0.4);
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   cursor: grab;
   position: relative;
 }
@@ -15,6 +15,12 @@
 
 .pod-doodle:active {
   cursor: grabbing;
+}
+
+.pod-doodle.dragging,
+.pod-doodle.dragging:hover {
+  cursor: grabbing;
+  box-shadow: 4px 4px 0 oklch(0.4 0.02 50 / 0.5);
 }
 
 /* ===========================================
@@ -35,11 +41,17 @@
 
 .pod-with-notch {
   position: relative;
-  transition: transform 0.2s ease;
+  transition: transform 0.15s ease;
+  transform: rotate(var(--pod-rotation, 0deg));
 }
 
 .pod-with-notch:hover {
-  transform: translate(-0.5px, -0.5px);
+  transform: translate(-0.5px, -0.5px) rotate(calc(var(--pod-rotation, 0deg) + 0.5deg));
+}
+
+.pod-with-notch.dragging,
+.pod-with-notch.dragging:hover {
+  transform: rotate(calc(var(--pod-rotation, 0deg) - 1deg));
 }
 
 /* Model 凹槽（POD 上方） */

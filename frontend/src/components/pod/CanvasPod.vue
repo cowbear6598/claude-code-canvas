@@ -45,7 +45,7 @@ const {
 } = useCanvasContext()
 const {detectTargetAnchor} = useAnchorDetection()
 const {toast} = useToast()
-const {startBatchDrag, isElementSelected} = useBatchDrag()
+const {startBatchDrag, isElementSelected, isBatchDragging} = useBatchDrag()
 
 const isActive = computed(() => props.pod.id === podStore.activePodId)
 const boundNote = computed(() => outputStyleStore.getNotesByPodId(props.pod.id)[0])
@@ -480,7 +480,8 @@ const handleClearScheduleFiredAnimation = (): void => {
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
       class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch"
-      :style="{ transform: `rotate(${pod.rotation}deg)` }"
+      :class="{ dragging: isDragging || isBatchDragging }"
+      :style="{ '--pod-rotation': `${pod.rotation}deg` }"
     >
       <!-- Model Selector -->
       <PodModelSelector
@@ -511,7 +512,7 @@ const handleClearScheduleFiredAnimation = (): void => {
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
       <div
         class="pod-doodle w-56 overflow-visible relative"
-        :class="[podStatusClass, { selected: isSelected }]"
+        :class="[podStatusClass, { selected: isSelected, dragging: isDragging || isBatchDragging }]"
         @dblclick="handleDblClick"
       >
         <!-- Model 凹槽 -->
