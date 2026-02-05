@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T extends { id: string; name: string }">
 import { ref, computed, watch, nextTick } from 'vue'
-import { X, Pencil } from 'lucide-vue-next'
+import { X, Pencil, FileText } from 'lucide-vue-next'
 
 interface Props<T> {
   items: T[]
@@ -75,10 +75,11 @@ const handleItemDelete = (item: T, event: Event): void => {
         @mouseleave="hoveredItemId = null"
       >
         <button
-          class="pod-menu-submenu-item"
+          class="pod-menu-submenu-item flex items-center gap-2"
           :title="item.name"
           @click="handleItemSelect(item)"
         >
+          <FileText :size="14" class="flex-shrink-0" />
           <span class="truncate block">{{ item.name }}</span>
         </button>
         <button

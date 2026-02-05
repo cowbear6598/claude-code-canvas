@@ -162,7 +162,7 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
 
     <!-- 選單內容 -->
     <div
-      class="fixed z-50 bg-card border-2 border-doodle-ink rounded-lg p-2 min-w-48"
+      class="fixed z-50 bg-card border-2 border-doodle-ink rounded-lg p-2 min-w-36"
       :style="menuStyle"
     >
       <!-- Pod 按鈕 -->
@@ -202,7 +202,7 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
               class="text-card"
             />
           </span>
-          <span class="font-mono text-sm text-foreground">Output Styles &gt;</span>
+          <span class="font-mono text-sm text-foreground">Styles &gt;</span>
         </button>
 
         <PodTypeMenuSubmenu
