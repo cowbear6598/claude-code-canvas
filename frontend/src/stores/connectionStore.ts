@@ -176,16 +176,6 @@ export const useConnectionStore = defineStore('connection', {
             }
         },
 
-        deleteConnectionsByIds(connectionIds: string[]): void {
-            this.connections = this.connections.filter(
-                conn => !connectionIds.includes(conn.id)
-            )
-
-            if (this.selectedConnectionId && connectionIds.includes(this.selectedConnectionId)) {
-                this.selectedConnectionId = null
-            }
-        },
-
         selectConnection(connectionId: string | null): void {
             this.selectedConnectionId = connectionId
         },

@@ -60,6 +60,54 @@ async function copyClaudeDir(srcCwd: string, destCwd: string): Promise<void> {
   }
 }
 
+async function createSinglePod(
+  canvasId: string,
+  podItem: PastePodItem
+): Promise<{ pod: Pod; originalId: string }> {
+  let finalRepositoryId = podItem.repositoryId ?? null;
+
+  if (finalRepositoryId) {
+    const exists = await repositoryService.exists(finalRepositoryId);
+    if (!exists) {
+      throw new Error(`Repository 找不到: ${finalRepositoryId}`);
+    }
+  }
+
+  const pod = podStore.create(canvasId, {
+    name: podItem.name,
+    color: podItem.color,
+    x: podItem.x,
+    y: podItem.y,
+    rotation: podItem.rotation,
+    outputStyleId: podItem.outputStyleId ?? null,
+    skillIds: podItem.skillIds ?? [],
+    subAgentIds: podItem.subAgentIds ?? [],
+    model: podItem.model,
+    repositoryId: finalRepositoryId,
+    commandId: podItem.commandId ?? null,
+  });
+
+  const cwd = finalRepositoryId
+    ? repositoryService.getRepositoryPath(finalRepositoryId)
+    : pod.workspacePath;
+
+  await workspaceService.createWorkspace(pod.workspacePath);
+  await claudeSessionManager.createSession(pod.id, cwd);
+
+  const originalPod = podStore.getById(canvasId, podItem.originalId);
+  if (originalPod) {
+    const srcCwd = originalPod.repositoryId
+      ? repositoryService.getRepositoryPath(originalPod.repositoryId)
+      : originalPod.workspacePath;
+    const destCwd = finalRepositoryId
+      ? repositoryService.getRepositoryPath(finalRepositoryId)
+      : pod.workspacePath;
+    await copyClaudeDir(srcCwd, destCwd);
+  }
+
+  return { pod, originalId: podItem.originalId };
+}
+
 export async function createPastedPods(
   canvasId: string,
   pods: PastePodItem[],
@@ -70,51 +118,10 @@ export async function createPastedPods(
 
   for (const podItem of pods) {
     try {
-      let finalRepositoryId = podItem.repositoryId ?? null;
-
-      if (finalRepositoryId) {
-        const exists = await repositoryService.exists(finalRepositoryId);
-        if (!exists) {
-          recordError(errors, 'pod', podItem.originalId, `Repository 找不到: ${finalRepositoryId}`, '建立 Pod 失敗');
-          finalRepositoryId = null;
-        }
-      }
-
-      const pod = podStore.create(canvasId, {
-        name: podItem.name,
-        color: podItem.color,
-        x: podItem.x,
-        y: podItem.y,
-        rotation: podItem.rotation,
-        outputStyleId: podItem.outputStyleId ?? null,
-        skillIds: podItem.skillIds ?? [],
-        subAgentIds: podItem.subAgentIds ?? [],
-        model: podItem.model,
-        repositoryId: finalRepositoryId,
-        commandId: podItem.commandId ?? null,
-      });
-
-      const cwd = finalRepositoryId
-        ? repositoryService.getRepositoryPath(finalRepositoryId)
-        : pod.workspacePath;
-
-      await workspaceService.createWorkspace(pod.workspacePath);
-      await claudeSessionManager.createSession(pod.id, cwd);
-
-      // 從原始 Pod 的工作目錄複製 .claude/ 到新 Pod 的工作目錄
-      const originalPod = podStore.getById(canvasId, podItem.originalId);
-      if (originalPod) {
-        const srcCwd = originalPod.repositoryId
-          ? repositoryService.getRepositoryPath(originalPod.repositoryId)
-          : originalPod.workspacePath;
-        const destCwd = finalRepositoryId
-          ? repositoryService.getRepositoryPath(finalRepositoryId)
-          : pod.workspacePath;
-        await copyClaudeDir(srcCwd, destCwd);
-      }
+      const { pod, originalId } = await createSinglePod(canvasId, podItem);
 
       createdPods.push(pod);
-      podIdMapping[podItem.originalId] = pod.id;
+      podIdMapping[originalId] = pod.id;
 
       logger.log('Paste', 'Create', `Created Pod ${pod.id} (${pod.name})`);
     } catch (error) {
@@ -141,7 +148,7 @@ export function createPastedNotes<
   noteItems: TNoteItem[],
   noteStore: NoteStoreType<TNote>,
   podIdMapping: Record<string, string>,
-  noteType: 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote',
+  noteType: PasteError['type'],
   getResourceId: (item: TNoteItem) => string,
   createParams: (item: TNoteItem, boundToPodId: string | null) => NoteCreateParams<TNote>
 ): { notes: TNote[]; errors: PasteError[] } {
@@ -159,14 +166,7 @@ export function createPastedNotes<
       logger.log('Paste', 'Create', `Created ${noteType} ${note.id} (${note.name})`);
     } catch (error) {
       const resourceId = getResourceId(noteItem);
-      const errorTypeMap = {
-        outputStyleNote: 'outputStyleNote' as const,
-        skillNote: 'skillNote' as const,
-        repositoryNote: 'repositoryNote' as const,
-        subAgentNote: 'subAgentNote' as const,
-        commandNote: 'commandNote' as const,
-      };
-      recordError(errors, errorTypeMap[noteType], resourceId, error, `建立${noteType}失敗`);
+      recordError(errors, noteType, resourceId, error, `建立${noteType}失敗`);
     }
   }
 

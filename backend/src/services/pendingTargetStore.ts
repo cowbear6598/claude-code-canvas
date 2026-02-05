@@ -73,33 +73,6 @@ class PendingTargetStore {
     pending.requiredSourcePodIds = pending.requiredSourcePodIds.filter(id => id !== sourcePodId);
     pending.completedSources.delete(sourcePodId);
   }
-
-  setMergedContent(targetPodId: string, content: string): void {
-    const pending = this.pendingTargets.get(targetPodId);
-    if (!pending) {
-      return;
-    }
-
-    pending.mergedContent = content;
-    pending.isReadyToTrigger = true;
-  }
-
-  getPendingMergedContent(targetPodId: string): string | undefined {
-    const pending = this.pendingTargets.get(targetPodId);
-    return pending?.mergedContent;
-  }
-
-  getReadyTargets(): string[] {
-    const readyTargets: string[] = [];
-
-    for (const [targetPodId, pending] of this.pendingTargets.entries()) {
-      if (pending.isReadyToTrigger) {
-        readyTargets.push(targetPodId);
-      }
-    }
-
-    return readyTargets;
-  }
 }
 
 export const pendingTargetStore = new PendingTargetStore();

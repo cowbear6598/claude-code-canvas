@@ -42,6 +42,7 @@ import { clearPodMessages } from './repository/repositoryBindHelpers.js';
 import { logger } from '../utils/logger.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';
 import { validatePod, handleResourceDelete, withCanvasId } from '../utils/handlerHelpers.js';
+import { validateRepositoryExists, getValidatedGitRepository } from '../utils/validators.js';
 import { throttle } from '../utils/throttle.js';
 import { fileExists } from '../services/shared/fileResourceHelpers.js';
 import { isPathWithinDirectory } from '../utils/pathValidator.js';
@@ -72,21 +73,15 @@ async function validateRepositoryIsGit(
   responseEvent: WebSocketResponseEvents,
   requestId: string
 ): Promise<string | null> {
-  const exists = await repositoryService.exists(repositoryId);
-  if (!exists) {
-    emitError(socket, responseEvent, `找不到 Repository: ${repositoryId}`, requestId, undefined, 'NOT_FOUND');
+  const result = await getValidatedGitRepository(repositoryId);
+
+  if (!result.success) {
+    const errorCode = result.error!.includes('找不到') ? 'NOT_FOUND' : 'INVALID_STATE';
+    emitError(socket, responseEvent, result.error!, requestId, undefined, errorCode);
     return null;
   }
 
-  const repositoryPath = repositoryService.getRepositoryPath(repositoryId);
-  const isGitResult = await gitService.isGitRepository(repositoryPath);
-
-  if (!isGitResult.success || !isGitResult.data) {
-    emitError(socket, responseEvent, '不是 Git Repository', requestId, undefined, 'INVALID_STATE');
-    return null;
-  }
-
-  return repositoryPath;
+  return result.data!.repositoryPath;
 }
 
 export async function handleRepositoryList(
@@ -148,63 +143,62 @@ export const handlePodBindRepository = withCanvasId<PodBindRepositoryPayload>(
       return;
     }
 
-  const exists = await repositoryService.exists(repositoryId);
-  if (!exists) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.POD_REPOSITORY_BOUND,
-      `找不到 Repository: ${repositoryId}`,
+    const validateResult = await validateRepositoryExists(repositoryId);
+    if (!validateResult.success) {
+      emitError(
+        socket,
+        WebSocketResponseEvents.POD_REPOSITORY_BOUND,
+        validateResult.error!,
+        requestId,
+        undefined,
+        'NOT_FOUND'
+      );
+      return;
+    }
+
+    const oldRepositoryId = pod.repositoryId;
+
+    podStore.setRepositoryId(canvasId, podId, repositoryId);
+    podStore.setClaudeSessionId(canvasId, podId, '');
+
+    await repositorySyncService.syncRepositoryResources(repositoryId);
+
+    if (oldRepositoryId && oldRepositoryId !== repositoryId) {
+      await repositorySyncService.syncRepositoryResources(oldRepositoryId);
+    }
+
+    if (!oldRepositoryId) {
+      const podWorkspacePath = pod.workspacePath;
+      const deleteOperations = [
+        commandService.deleteCommandFromPath(podWorkspacePath),
+        skillService.deleteSkillsFromPath(podWorkspacePath),
+        subAgentService.deleteSubAgentsFromPath(podWorkspacePath),
+      ];
+
+      const results = await Promise.allSettled(deleteOperations);
+      const operationNames = ['commands', 'skills', 'subagents'];
+
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          logger.error('Repository', 'Bind', `Failed to delete ${operationNames[index]} from Pod ${podId} workspace`, result.reason);
+        }
+      });
+    }
+
+    await clearPodMessages(socket, podId);
+
+    const updatedPod = podStore.getById(canvasId, podId);
+
+    const response: PodRepositoryBoundPayload = {
       requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
-  }
+      canvasId,
+      success: true,
+      pod: updatedPod,
+    };
 
-  const oldRepositoryId = pod.repositoryId;
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_REPOSITORY_BOUND, response);
 
-  podStore.setRepositoryId(canvasId, podId, repositoryId);
-  podStore.setClaudeSessionId(canvasId, podId, '');
-
-  await repositorySyncService.syncRepositoryResources(repositoryId);
-
-  if (oldRepositoryId && oldRepositoryId !== repositoryId) {
-    await repositorySyncService.syncRepositoryResources(oldRepositoryId);
-  }
-
-  if (!oldRepositoryId) {
-    const podWorkspacePath = pod.workspacePath;
-    try {
-      await commandService.deleteCommandFromPath(podWorkspacePath);
-    } catch (error) {
-      logger.error('Repository', 'Bind', `Failed to delete commands from Pod ${podId} workspace`, error);
-    }
-    try {
-      await skillService.deleteSkillsFromPath(podWorkspacePath);
-    } catch (error) {
-      logger.error('Repository', 'Bind', `Failed to delete skills from Pod ${podId} workspace`, error);
-    }
-    try {
-      await subAgentService.deleteSubAgentsFromPath(podWorkspacePath);
-    } catch (error) {
-      logger.error('Repository', 'Bind', `Failed to delete subagents from Pod ${podId} workspace`, error);
-    }
-  }
-
-  await clearPodMessages(socket, podId);
-
-  const updatedPod = podStore.getById(canvasId, podId);
-
-  const response: PodRepositoryBoundPayload = {
-    requestId,
-    canvasId,
-    success: true,
-    pod: updatedPod,
-  };
-
-  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_REPOSITORY_BOUND, response);
-
-  logger.log('Repository', 'Bind', `Bound repository ${repositoryId} to Pod ${podId}`);
+    logger.log('Repository', 'Bind', `Bound repository ${repositoryId} to Pod ${podId}`);
   }
 );
 
@@ -218,53 +212,52 @@ export const handlePodUnbindRepository = withCanvasId<PodUnbindRepositoryPayload
       return;
     }
 
-  const oldRepositoryId = pod.repositoryId;
+    const oldRepositoryId = pod.repositoryId;
 
-  podStore.setRepositoryId(canvasId, podId, null);
-  podStore.setClaudeSessionId(canvasId, podId, '');
+    podStore.setRepositoryId(canvasId, podId, null);
+    podStore.setClaudeSessionId(canvasId, podId, '');
 
-  if (oldRepositoryId) {
-    await repositorySyncService.syncRepositoryResources(oldRepositoryId);
-  }
-
-  for (const skillId of pod.skillIds) {
-    try {
-      await skillService.copySkillToPod(skillId, podId, pod.workspacePath);
-    } catch (error) {
-      logger.error('Repository', 'Unbind', `Failed to copy skill ${skillId} to Pod ${podId}`, error);
+    if (oldRepositoryId) {
+      await repositorySyncService.syncRepositoryResources(oldRepositoryId);
     }
-  }
 
-  for (const subAgentId of pod.subAgentIds) {
-    try {
-      await subAgentService.copySubAgentToPod(subAgentId, podId, pod.workspacePath);
-    } catch (error) {
-      logger.error('Repository', 'Unbind', `Failed to copy subagent ${subAgentId} to Pod ${podId}`, error);
-    }
-  }
+    const copyOperations = [
+      ...pod.skillIds.map(skillId =>
+        skillService.copySkillToPod(skillId, podId, pod.workspacePath)
+          .then(() => ({ type: 'skill', id: skillId }))
+      ),
+      ...pod.subAgentIds.map(subAgentId =>
+        subAgentService.copySubAgentToPod(subAgentId, podId, pod.workspacePath)
+          .then(() => ({ type: 'subagent', id: subAgentId }))
+      ),
+      ...(pod.commandId ? [
+        commandService.copyCommandToPod(pod.commandId, podId, pod.workspacePath)
+          .then(() => ({ type: 'command', id: pod.commandId }))
+      ] : []),
+    ];
 
-  if (pod.commandId) {
-    try {
-      await commandService.copyCommandToPod(pod.commandId, podId, pod.workspacePath);
-    } catch (error) {
-      logger.error('Repository', 'Unbind', `Failed to copy command ${pod.commandId} to Pod ${podId}`, error);
-    }
-  }
+    const results = await Promise.allSettled(copyOperations);
 
-  await clearPodMessages(socket, podId);
+    results.forEach((result) => {
+      if (result.status === 'rejected') {
+        logger.error('Repository', 'Unbind', `Failed to copy resource to Pod ${podId}`, result.reason);
+      }
+    });
 
-  const updatedPod = podStore.getById(canvasId, podId);
+    await clearPodMessages(socket, podId);
 
-  const response: PodRepositoryUnboundPayload = {
-    requestId,
-    canvasId,
-    success: true,
-    pod: updatedPod,
-  };
+    const updatedPod = podStore.getById(canvasId, podId);
 
-  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, response);
+    const response: PodRepositoryUnboundPayload = {
+      requestId,
+      canvasId,
+      success: true,
+      pod: updatedPod,
+    };
 
-  logger.log('Repository', 'Unbind', `Unbound repository from Pod ${podId}`);
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, response);
+
+    logger.log('Repository', 'Unbind', `Unbound repository from Pod ${podId}`);
   }
 );
 
@@ -455,12 +448,12 @@ export async function handleRepositoryCheckGit(
 ): Promise<void> {
   const { repositoryId } = payload;
 
-  const exists = await repositoryService.exists(repositoryId);
-  if (!exists) {
+  const validateResult = await validateRepositoryExists(repositoryId);
+  if (!validateResult.success) {
     emitError(
       socket,
       WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT,
-      `找不到 Repository: ${repositoryId}`,
+      validateResult.error!,
       requestId,
       undefined,
       'NOT_FOUND'
@@ -468,7 +461,7 @@ export async function handleRepositoryCheckGit(
     return;
   }
 
-  const repositoryPath = repositoryService.getRepositoryPath(repositoryId);
+  const repositoryPath = validateResult.data!;
   const result = await gitService.isGitRepository(repositoryPath);
 
   if (!result.success) {
@@ -501,45 +494,21 @@ export async function handleRepositoryWorktreeCreate(
 ): Promise<void> {
   const { repositoryId, worktreeName } = payload;
 
-  const exists = await repositoryService.exists(repositoryId);
-  if (!exists) {
+  const validateResult = await getValidatedGitRepository(repositoryId);
+  if (!validateResult.success) {
+    const errorCode = validateResult.error!.includes('找不到') ? 'NOT_FOUND' : 'INVALID_STATE';
     emitError(
       socket,
       WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
-      `找不到 Repository: ${repositoryId}`,
+      validateResult.error!,
       requestId,
       undefined,
-      'NOT_FOUND'
+      errorCode
     );
     return;
   }
 
-  const repositoryPath = repositoryService.getRepositoryPath(repositoryId);
-  const isGitResult = await gitService.isGitRepository(repositoryPath);
-
-  if (!isGitResult.success) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
-      isGitResult.error!,
-      requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
-    return;
-  }
-
-  if (!isGitResult.data) {
-    emitError(
-      socket,
-      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
-      `${repositoryId} 不是 Git Repository`,
-      requestId,
-      undefined,
-      'INVALID_STATE'
-    );
-    return;
-  }
+  const repositoryPath = validateResult.data!.repositoryPath;
 
   const hasCommitsResult = await gitService.hasCommits(repositoryPath);
   if (!hasCommitsResult.data) {

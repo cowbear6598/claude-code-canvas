@@ -1,79 +1,48 @@
-import type { Socket } from 'socket.io-client';
-import { v4 as uuidv4 } from 'uuid';
-import { emitAndWaitResponse } from '../setup/index.js';
+import type {Socket} from 'socket.io-client';
+import {v4 as uuidv4} from 'uuid';
+import {emitAndWaitResponse} from '../setup/index.js';
 import {
-  WebSocketRequestEvents,
-  WebSocketResponseEvents,
-  type ChatSendPayload,
-  type ChatHistoryPayload,
+    WebSocketRequestEvents,
+    WebSocketResponseEvents,
+    type ChatSendPayload,
+    type ChatHistoryPayload,
 } from '../../src/schemas/index.js';
 import {
-  type PodChatCompletePayload,
-  type PodChatHistoryResultPayload,
+    type PodChatCompletePayload,
+    type PodChatHistoryResultPayload,
 } from '../../src/types/index.js';
 
 export async function seedPodMessages(
-  client: Socket,
-  podId: string,
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>
+    client: Socket,
+    podId: string,
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<void> {
-  if (!client.id) {
-    throw new Error('Socket not connected');
-  }
-
-  const canvasModule = await import('../../src/services/canvasStore.js');
-  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
-
-  if (!canvasId) {
-    throw new Error('No active canvas for socket');
-  }
-
-  for (const message of messages) {
-    if (message.role === 'user') {
-      const payload: ChatSendPayload = {
-        requestId: uuidv4(),
-        canvasId,
-        podId,
-        message: message.content,
-      };
-
-      await emitAndWaitResponse<ChatSendPayload, PodChatCompletePayload>(
-        client,
-        WebSocketRequestEvents.POD_CHAT_SEND,
-        WebSocketResponseEvents.POD_CHAT_COMPLETE,
-        payload
-      );
+    if (!client.id) {
+        throw new Error('Socket not connected');
     }
-  }
-}
 
-export async function getPodMessages(client: Socket, podId: string): Promise<PodChatHistoryResultPayload['messages']> {
-  if (!client.id) {
-    throw new Error('Socket not connected');
-  }
+    const canvasModule = await import('../../src/services/canvasStore.js');
+    const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
 
-  const canvasModule = await import('../../src/services/canvasStore.js');
-  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+    if (!canvasId) {
+        throw new Error('No active canvas for socket');
+    }
 
-  if (!canvasId) {
-    throw new Error('No active canvas for socket');
-  }
+    for (const message of messages) {
+        if (message.role === 'user') {
+            const payload: ChatSendPayload = {
+                requestId: uuidv4(),
+                canvasId,
+                podId,
+                message: message.content,
+            };
 
-  const payload: ChatHistoryPayload = {
-    requestId: uuidv4(),
-    canvasId,
-    podId,
-  };
-
-  const response = await emitAndWaitResponse<
-    ChatHistoryPayload,
-    PodChatHistoryResultPayload
-  >(
-    client,
-    WebSocketRequestEvents.POD_CHAT_HISTORY,
-    WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT,
-    payload
-  );
-
-  return response.messages || [];
+            await emitAndWaitResponse<ChatSendPayload, PodChatCompletePayload>(
+                client,
+                WebSocketRequestEvents.POD_CHAT_SEND,
+                WebSocketResponseEvents.POD_CHAT_COMPLETE,
+                payload
+            );
+        }
+    }
 }

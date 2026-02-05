@@ -6,45 +6,47 @@ import {terminalPodTracker} from './terminalPodTracker.js';
 import {WebSocketResponseEvents} from '../../schemas/index.js';
 import {logger} from '../../utils/logger.js';
 
+function getAutoTriggerTargets(canvasId: string, podId: string): string[] {
+    const connections = connectionStore.findBySourcePodId(canvasId, podId);
+    const autoTriggerConnections = connections.filter((conn) => conn.autoTrigger);
+    return autoTriggerConnections.map((conn) => conn.targetPodId);
+}
+
 class AutoClearService {
     findTerminalPods(canvasId: string, sourcePodId: string): string[] {
-        const visited = new Set<string>();
-        const queue: string[] = [sourcePodId];
-        const terminalPods: string[] = [];
+        const visitedPodIds = new Set<string>();
+        const pendingPodIds: string[] = [sourcePodId];
+        const terminalPodIds: string[] = [];
 
-        visited.add(sourcePodId);
+        visitedPodIds.add(sourcePodId);
 
-        while (queue.length > 0) {
-            const currentPodId = queue.shift()!;
-            const hasOutgoingAutoTrigger = this.hasOutgoingAutoTrigger(canvasId, currentPodId);
+        while (pendingPodIds.length > 0) {
+            const currentPodId = pendingPodIds.shift()!;
+            const autoTriggerTargets = getAutoTriggerTargets(canvasId, currentPodId);
+            const hasAutoTriggerTargets = autoTriggerTargets.length > 0;
 
-            if (currentPodId !== sourcePodId && !hasOutgoingAutoTrigger) {
-                terminalPods.push(currentPodId);
+            if (currentPodId !== sourcePodId && !hasAutoTriggerTargets) {
+                terminalPodIds.push(currentPodId);
             }
 
-            if (hasOutgoingAutoTrigger) {
-                const outgoingConnections = connectionStore
-                    .findBySourcePodId(canvasId, currentPodId)
-                    .filter((conn) => conn.autoTrigger);
-
-                for (const connection of outgoingConnections) {
-                    const targetPodId = connection.targetPodId;
-                    if (!visited.has(targetPodId)) {
-                        visited.add(targetPodId);
-                        queue.push(targetPodId);
+            if (hasAutoTriggerTargets) {
+                for (const targetPodId of autoTriggerTargets) {
+                    if (!visitedPodIds.has(targetPodId)) {
+                        visitedPodIds.add(targetPodId);
+                        pendingPodIds.push(targetPodId);
                     }
                 }
             }
         }
 
-        logger.log('AutoClear', 'List', `Found ${terminalPods.length} terminal PODs for source ${sourcePodId}: ${terminalPods.join(', ')}`);
+        logger.log('AutoClear', 'List', `Found ${terminalPodIds.length} terminal PODs for source ${sourcePodId}: ${terminalPodIds.join(', ')}`);
 
-        return terminalPods;
+        return terminalPodIds;
     }
 
     hasOutgoingAutoTrigger(canvasId: string, podId: string): boolean {
-        const outgoingConnections = connectionStore.findBySourcePodId(canvasId, podId);
-        return outgoingConnections.some((conn) => conn.autoTrigger);
+        const autoTriggerTargets = getAutoTriggerTargets(canvasId, podId);
+        return autoTriggerTargets.length > 0;
     }
 
     async onPodComplete(canvasId: string, podId: string): Promise<void> {
@@ -97,29 +99,25 @@ class AutoClearService {
     }
 
     async executeAutoClear(canvasId: string, sourcePodId: string): Promise<void> {
-        try {
-            logger.log('AutoClear', 'Complete', `Executing auto-clear for source POD ${sourcePodId}`);
+        logger.log('AutoClear', 'Complete', `Executing auto-clear for source POD ${sourcePodId}`);
 
-            const result = await workflowClearService.clearWorkflow(canvasId, sourcePodId);
+        const result = await workflowClearService.clearWorkflow(canvasId, sourcePodId);
 
-            if (!result.success) {
-                logger.error('AutoClear', 'Error', `Failed to execute auto-clear: ${result.error}`);
-                return;
-            }
-
-            const payload = {
-                canvasId,
-                sourcePodId,
-                clearedPodIds: result.clearedPodIds,
-                clearedPodNames: result.clearedPodNames,
-            };
-
-            socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, payload);
-
-            logger.log('AutoClear', 'Complete', `Successfully cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`);
-        } catch (error) {
-            logger.error('AutoClear', 'Error', 'Error during auto-clear execution', error);
+        if (!result.success) {
+            logger.error('AutoClear', 'Error', `Failed to execute auto-clear: ${result.error}`);
+            return;
         }
+
+        const payload = {
+            canvasId,
+            sourcePodId,
+            clearedPodIds: result.clearedPodIds,
+            clearedPodNames: result.clearedPodNames,
+        };
+
+        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, payload);
+
+        logger.log('AutoClear', 'Complete', `Successfully cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`);
     }
 }
 

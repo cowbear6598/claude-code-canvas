@@ -33,11 +33,6 @@ class SkillService {
         return skills;
     }
 
-    async getContent(skillId: string): Promise<string | null> {
-        const filePath = this.getSkillFilePath(skillId);
-        return readFileOrNull(filePath);
-    }
-
     async exists(skillId: string): Promise<boolean> {
         const filePath = this.getSkillFilePath(skillId);
         return fileExists(filePath);

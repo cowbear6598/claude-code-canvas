@@ -137,7 +137,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 const rootItems = state.availableItems
                     .filter(item => !(item as Record<string, unknown>).groupId)
                     .sort((a, b) => config.getItemName(a as TItem).localeCompare(config.getItemName(b as TItem)))
-                return { groups, rootItems: rootItems as TItem[] }
+                return {groups, rootItems: rootItems as TItem[]}
             },
 
             isGroupExpanded: (state) => (groupId: string): boolean =>
@@ -484,27 +484,6 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 } else {
                     this.expandedGroupIds.add(groupId)
                 }
-            },
-
-            setGroupExpanded(groupId: string, expanded: boolean): void {
-                if (expanded) {
-                    this.expandedGroupIds.add(groupId)
-                } else {
-                    this.expandedGroupIds.delete(groupId)
-                }
-            },
-
-            expandGroupsForSearch(matchingItemIds: string[]): void {
-                const groupsToExpand = new Set<string>()
-
-                for (const itemId of matchingItemIds) {
-                    const item = this.availableItems.find(i => config.getItemId(i as TItem) === itemId)
-                    if (item && (item as Record<string, unknown>).groupId) {
-                        groupsToExpand.add((item as Record<string, unknown>).groupId as string)
-                    }
-                }
-
-                groupsToExpand.forEach(groupId => this.expandedGroupIds.add(groupId))
             },
 
             addGroupFromEvent(group: Record<string, unknown>): void {

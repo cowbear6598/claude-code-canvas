@@ -221,16 +221,6 @@ class ConnectionStore {
             logger.error('Connection', 'Error', `[ConnectionStore] Failed to persist connections for canvas ${canvasId}`, error);
         });
     }
-
-    async loadAllCanvases(canvasEntries: Array<{ id: string; dataDir: string }>): Promise<void> {
-        for (const entry of canvasEntries) {
-            await this.loadFromDisk(entry.id, entry.dataDir);
-        }
-    }
-
-    clearCanvasData(canvasId: string): void {
-        this.connectionsByCanvas.delete(canvasId);
-    }
 }
 
 export const connectionStore = new ConnectionStore();

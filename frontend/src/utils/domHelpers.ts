@@ -19,7 +19,8 @@ export function hasTextSelection(): boolean {
 }
 
 export function getPlatformModifierKey(): 'metaKey' | 'ctrlKey' {
-  const isMac = navigator.platform.toUpperCase().includes('MAC')
+  const userAgent = navigator.userAgent.toUpperCase()
+  const isMac = userAgent.includes('MAC')
   return isMac ? 'metaKey' : 'ctrlKey'
 }
 

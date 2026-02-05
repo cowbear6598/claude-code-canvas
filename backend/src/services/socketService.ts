@@ -108,19 +108,6 @@ class SocketService {
         this.socketToCanvasRoom.delete(socketId);
     }
 
-    broadcastToAll(excludeSocketId: string, event: string, payload: unknown): void {
-        if (!this.io) {
-            return;
-        }
-
-        const socket = this.io.sockets.sockets.get(excludeSocketId);
-        if (!socket) {
-            return;
-        }
-
-        socket.broadcast.emit(event, payload);
-    }
-
     emitToCanvas(canvasId: string, event: string, payload: unknown): void {
         if (!this.io) {
             return;

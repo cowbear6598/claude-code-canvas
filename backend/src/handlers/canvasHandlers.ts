@@ -1,12 +1,8 @@
 import type { Socket } from 'socket.io';
 import { WebSocketResponseEvents } from '../schemas/index.js';
 import type {
-  CanvasCreatedPayload,
   CanvasListResultPayload,
-  CanvasRenamedPayload,
-  CanvasDeletedPayload,
-  CanvasSwitchedPayload,
-  CanvasReorderedPayload,
+  Result,
 } from '../types/index.js';
 import type {
   CanvasCreatePayload,
@@ -20,36 +16,59 @@ import { canvasStore } from '../services/canvasStore.js';
 import { socketService } from '../services/socketService.js';
 import { logger } from '../utils/logger.js';
 
+function handleCanvasResult<T>(
+  socket: Socket,
+  result: Result<T>,
+  event: WebSocketResponseEvents,
+  requestId: string,
+  onSuccess: (data: T) => any,
+  emitToAll: boolean = false
+): boolean {
+  if (!result.success) {
+    socket.emit(event, {
+      requestId,
+      success: false,
+      error: result.error,
+    });
+    return false;
+  }
+
+  const successResponse = onSuccess(result.data!);
+  if (emitToAll) {
+    socketService.emitToAll(event, successResponse);
+  } else {
+    socket.emit(event, successResponse);
+  }
+  return true;
+}
+
 export async function handleCanvasCreate(
   socket: Socket,
   payload: CanvasCreatePayload
 ): Promise<void> {
   const result = await canvasStore.create(payload.name);
 
-  if (!result.success) {
-    const response: CanvasCreatedPayload = {
+  const success = handleCanvasResult(
+    socket,
+    result,
+    WebSocketResponseEvents.CANVAS_CREATED,
+    payload.requestId,
+    (canvas) => ({
       requestId: payload.requestId,
-      success: false,
-      error: result.error,
-    };
-    socket.emit(WebSocketResponseEvents.CANVAS_CREATED, response);
-    return;
-  }
+      success: true,
+      canvas: {
+        id: canvas.id,
+        name: canvas.name,
+        createdAt: canvas.createdAt.toISOString(),
+        sortIndex: canvas.sortIndex,
+      },
+    }),
+    true
+  );
+
+  if (!success) return;
 
   const canvas = result.data!;
-  const response: CanvasCreatedPayload = {
-    requestId: payload.requestId,
-    success: true,
-    canvas: {
-      id: canvas.id,
-      name: canvas.name,
-      createdAt: canvas.createdAt.toISOString(),
-      sortIndex: canvas.sortIndex,
-    },
-  };
-
-  socketService.emitToAll(WebSocketResponseEvents.CANVAS_CREATED, response);
-
   logger.log('Canvas', 'Create', `Canvas created: ${canvas.name} (${canvas.id})`);
 }
 
@@ -78,30 +97,27 @@ export async function handleCanvasRename(
 ): Promise<void> {
   const result = await canvasStore.rename(payload.canvasId, payload.newName);
 
-  if (!result.success) {
-    const response: CanvasRenamedPayload = {
+  const success = handleCanvasResult(
+    socket,
+    result,
+    WebSocketResponseEvents.CANVAS_RENAMED,
+    payload.requestId,
+    (canvas) => ({
       requestId: payload.requestId,
-      success: false,
-      error: result.error,
-    };
-    socket.emit(WebSocketResponseEvents.CANVAS_RENAMED, response);
-    return;
-  }
+      success: true,
+      canvasId: canvas.id,
+      newName: canvas.name,
+      canvas: {
+        id: canvas.id,
+        name: canvas.name,
+      },
+    }),
+    true
+  );
+
+  if (!success) return;
 
   const canvas = result.data!;
-  const response: CanvasRenamedPayload = {
-    requestId: payload.requestId,
-    success: true,
-    canvasId: canvas.id,
-    newName: canvas.name,
-    canvas: {
-      id: canvas.id,
-      name: canvas.name,
-    },
-  };
-
-  socketService.emitToAll(WebSocketResponseEvents.CANVAS_RENAMED, response);
-
   logger.log('Canvas', 'Rename', `Canvas renamed: ${canvas.id} to ${canvas.name}`);
 }
 
@@ -111,45 +127,40 @@ export async function handleCanvasDelete(
 ): Promise<void> {
   const canvas = canvasStore.getById(payload.canvasId);
   if (!canvas) {
-    const response: CanvasDeletedPayload = {
+    socket.emit(WebSocketResponseEvents.CANVAS_DELETED, {
       requestId: payload.requestId,
       success: false,
       error: '找不到 Canvas',
-    };
-    socket.emit(WebSocketResponseEvents.CANVAS_DELETED, response);
+    });
     return;
   }
 
   const activeCanvasId = canvasStore.getActiveCanvas(socket.id);
   if (activeCanvasId === payload.canvasId) {
-    const response: CanvasDeletedPayload = {
+    socket.emit(WebSocketResponseEvents.CANVAS_DELETED, {
       requestId: payload.requestId,
       success: false,
       error: '無法刪除正在使用的 Canvas',
-    };
-    socket.emit(WebSocketResponseEvents.CANVAS_DELETED, response);
+    });
     return;
   }
 
   const result = await canvasStore.delete(payload.canvasId);
 
-  if (!result.success) {
-    const response: CanvasDeletedPayload = {
+  const success = handleCanvasResult(
+    socket,
+    result,
+    WebSocketResponseEvents.CANVAS_DELETED,
+    payload.requestId,
+    () => ({
       requestId: payload.requestId,
-      success: false,
-      error: result.error,
-    };
-    socket.emit(WebSocketResponseEvents.CANVAS_DELETED, response);
-    return;
-  }
+      success: true,
+      canvasId: payload.canvasId,
+    }),
+    true
+  );
 
-  const response: CanvasDeletedPayload = {
-    requestId: payload.requestId,
-    success: true,
-    canvasId: payload.canvasId,
-  };
-
-  socketService.emitToAll(WebSocketResponseEvents.CANVAS_DELETED, response);
+  if (!success) return;
 
   logger.log('Canvas', 'Delete', `Canvas deleted: ${payload.canvasId}`);
 }
@@ -160,25 +171,23 @@ export async function handleCanvasSwitch(
 ): Promise<void> {
   const canvas = canvasStore.getById(payload.canvasId);
   if (!canvas) {
-    const response: CanvasSwitchedPayload = {
+    socket.emit(WebSocketResponseEvents.CANVAS_SWITCHED, {
       requestId: payload.requestId,
       success: false,
       error: '找不到 Canvas',
-    };
-    socket.emit(WebSocketResponseEvents.CANVAS_SWITCHED, response);
+    });
     return;
   }
 
   canvasStore.setActiveCanvas(socket.id, payload.canvasId);
   socketService.joinCanvasRoom(socket.id, payload.canvasId);
 
-  const response: CanvasSwitchedPayload = {
+  socket.emit(WebSocketResponseEvents.CANVAS_SWITCHED, {
     requestId: payload.requestId,
     success: true,
     canvasId: payload.canvasId,
-  };
+  });
 
-  socket.emit(WebSocketResponseEvents.CANVAS_SWITCHED, response);
   logger.log('Canvas', 'Switch', `Socket ${socket.id} switched to canvas ${payload.canvasId}`);
 }
 
@@ -188,23 +197,20 @@ export async function handleCanvasReorder(
 ): Promise<void> {
   const result = await canvasStore.reorder(payload.canvasIds);
 
-  if (!result.success) {
-    const response: CanvasReorderedPayload = {
+  const success = handleCanvasResult(
+    socket,
+    result,
+    WebSocketResponseEvents.CANVAS_REORDERED,
+    payload.requestId,
+    () => ({
       requestId: payload.requestId,
-      success: false,
-      error: result.error,
-    };
-    socket.emit(WebSocketResponseEvents.CANVAS_REORDERED, response);
-    return;
-  }
+      success: true,
+      canvasIds: payload.canvasIds,
+    }),
+    true
+  );
 
-  const response: CanvasReorderedPayload = {
-    requestId: payload.requestId,
-    success: true,
-    canvasIds: payload.canvasIds,
-  };
-
-  socketService.emitToAll(WebSocketResponseEvents.CANVAS_REORDERED, response);
+  if (!success) return;
 
   logger.log('Canvas', 'Reorder', `Canvases reordered: ${payload.canvasIds.length} items`);
 }

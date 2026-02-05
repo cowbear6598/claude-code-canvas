@@ -325,13 +325,16 @@ const handleDragStart = (event: Event, index: number): void => {
   if (!(event instanceof DragEvent)) return
   if (!event.dataTransfer) return
 
+  const canvas = canvasStore.canvases[index]
+  if (!canvas) return
+
   draggedIndex.value = index
   originalCanvases.value = JSON.parse(JSON.stringify(canvasStore.canvases))
 
   event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', canvasStore.canvases[index].id)
+  event.dataTransfer.setData('text/plain', canvas.id)
 
-  canvasStore.setDragging(true, canvasStore.canvases[index].id)
+  canvasStore.setDragging(true, canvas.id)
 }
 
 const handleDragEnd = (): void => {

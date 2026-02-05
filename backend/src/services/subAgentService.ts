@@ -3,7 +3,7 @@ import path from 'path';
 import {config} from '../config/index.js';
 import type {SubAgent} from '../types/index.js';
 import {validateSubAgentId, validatePodId, isPathWithinDirectory, sanitizePathSegment} from '../utils/pathValidator.js';
-import {readFileOrNull, fileExists, ensureDirectoryAndWriteFile, parseFrontmatterDescription} from './shared/fileResourceHelpers.js';
+import {fileExists, parseFrontmatterDescription, readFileOrNull, ensureDirectoryAndWriteFile} from './shared/fileResourceHelpers.js';
 
 class SubAgentService {
     async list(): Promise<SubAgent[]> {
@@ -55,14 +55,6 @@ class SubAgentService {
         }
 
         return subAgents;
-    }
-
-    async getContent(subAgentId: string): Promise<string | null> {
-        const filePath = await this.findSubAgentFilePath(subAgentId);
-        if (!filePath) {
-            return null;
-        }
-        return readFileOrNull(filePath);
     }
 
     async exists(subAgentId: string): Promise<boolean> {
@@ -118,52 +110,40 @@ class SubAgentService {
         await fs.rm(filePath, {force: true});
     }
 
+    async getContent(subAgentId: string): Promise<string | null> {
+        const filePath = await this.findSubAgentFilePath(subAgentId);
+        if (!filePath) return null;
+        return readFileOrNull(filePath);
+    }
+
     async create(name: string, content: string): Promise<SubAgent> {
         const filePath = this.getSubAgentFilePath(name);
         await ensureDirectoryAndWriteFile(filePath, content);
-
         const description = parseFrontmatterDescription(content);
-
-        return {
-            id: name,
-            name,
-            description,
-            groupId: null,
-        };
+        return {id: name, name, description, groupId: null};
     }
 
     async update(subAgentId: string, content: string): Promise<void> {
         const filePath = await this.findSubAgentFilePath(subAgentId);
-        if (!filePath) {
-            throw new Error(`找不到子代理: ${subAgentId}`);
-        }
+        if (!filePath) throw new Error(`找不到子代理: ${subAgentId}`);
         await fs.writeFile(filePath, content, 'utf-8');
     }
 
     async setGroupId(subAgentId: string, groupId: string | null): Promise<void> {
         const oldPath = await this.findSubAgentFilePath(subAgentId);
-        if (!oldPath) {
-            throw new Error(`找不到子代理: ${subAgentId}`);
-        }
+        if (!oldPath) throw new Error(`找不到子代理: ${subAgentId}`);
 
-        let newPath: string;
-        if (groupId === null) {
-            newPath = path.join(config.agentsPath, `${subAgentId}.md`);
-        } else {
-            const safeGroupId = sanitizePathSegment(groupId);
-            const groupPath = path.join(config.agentsPath, safeGroupId);
-            await fs.mkdir(groupPath, { recursive: true });
-            newPath = path.join(groupPath, `${subAgentId}.md`);
+        const newPath = groupId === null
+            ? path.join(config.agentsPath, `${subAgentId}.md`)
+            : path.join(config.agentsPath, sanitizePathSegment(groupId), `${subAgentId}.md`);
+
+        if (groupId !== null) {
+            await fs.mkdir(path.dirname(newPath), {recursive: true});
         }
 
         if (oldPath !== newPath) {
             await fs.rename(oldPath, newPath);
         }
-    }
-
-    async getItemsByGroupId(groupId: string | null): Promise<SubAgent[]> {
-        const allSubAgents = await this.list();
-        return allSubAgents.filter((subAgent) => subAgent.groupId === groupId);
     }
 
     private async findSubAgentFilePath(subAgentId: string): Promise<string | null> {

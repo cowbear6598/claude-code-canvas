@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { Socket } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -16,14 +16,12 @@ import {
   type PodBindSkillPayload,
   type PodBindSubAgentPayload,
   type ConnectionCreatePayload,
-  type ConnectionDeletePayload,
 } from '../../src/schemas/index.js';
 import {
   type PodSkillBoundPayload,
   type PodSubAgentBoundPayload,
   type PodStatusChangedPayload,
   type ConnectionCreatedPayload,
-  type ConnectionDeletedPayload,
 } from '../../src/types/index.js';
 // 注意：podStore 和 connectionStore 使用動態 import，避免在測試配置覆蓋前載入
 

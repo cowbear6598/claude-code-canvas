@@ -11,7 +11,7 @@ class WorkflowEventEmitter {
   emitWorkflowComplete(
     canvasId: string,
     connectionId: string,
-    sourcePodId: string,
+    _sourcePodId: string,
     targetPodId: string,
     success: boolean,
     error?: string
@@ -52,8 +52,8 @@ class WorkflowEventEmitter {
 
   emitWorkflowAutoTriggered(
     canvasId: string,
-    sourcePodId: string,
-    targetPodId: string,
+    _sourcePodId: string,
+    _targetPodId: string,
     payload: WorkflowAutoTriggeredPayload
   ): void {
     const fullPayload = {
@@ -63,7 +63,7 @@ class WorkflowEventEmitter {
     socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, fullPayload);
   }
 
-  emitWorkflowPending(canvasId: string, targetPodId: string, payload: WorkflowPendingPayload): void {
+  emitWorkflowPending(canvasId: string, _targetPodId: string, payload: WorkflowPendingPayload): void {
     const fullPayload = {
       ...payload,
       canvasId,
@@ -73,8 +73,8 @@ class WorkflowEventEmitter {
 
   emitWorkflowSourcesMerged(
     canvasId: string,
-    targetPodId: string,
-    sourcePodIds: string[],
+    _targetPodId: string,
+    _sourcePodIds: string[],
     payload: WorkflowSourcesMergedPayload
   ): void {
     const fullPayload = {

@@ -49,6 +49,7 @@ export interface PodSetSchedulePayload {
 
 export interface PodDeletePayload {
   requestId: string
+  canvasId: string
   podId: string
 }
 
@@ -105,6 +106,7 @@ export interface ConnectionListPayload {
 
 export interface ConnectionDeletePayload {
   requestId: string
+  canvasId: string
   connectionId: string
 }
 
@@ -184,17 +186,20 @@ export interface CanvasPastePayload {
 
 export interface RepositoryCreatePayload {
   requestId: string
+  canvasId: string
   name: string
 }
 
 export interface RepositoryGitClonePayload {
   requestId: string
+  canvasId: string
   repoUrl: string
   branch?: string
 }
 
 export interface PodSetAutoClearPayload {
   requestId: string
+  canvasId: string
   podId: string
   autoClear: boolean
 }

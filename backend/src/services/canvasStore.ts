@@ -5,6 +5,7 @@ import type {Canvas, PersistedCanvas} from '../types/canvas.js';
 import {Result, ok, err} from '../types/index.js';
 import {config} from '../config/index.js';
 import {logger} from '../utils/logger.js';
+import {fsOperation} from '../utils/operationHelpers.js';
 
 class CanvasStore {
     private canvases: Map<string, Canvas> = new Map();
@@ -47,6 +48,26 @@ class CanvasStore {
         return ok(undefined);
     }
 
+    private async persistCanvas(canvas: Canvas): Promise<Result<void>> {
+        const canvasPath = config.getCanvasPath(canvas.name);
+        const canvasDataPath = config.getCanvasDataPath(canvas.name);
+        const canvasJsonPath = path.join(canvasPath, 'canvas.json');
+
+        return fsOperation(async () => {
+            await fs.mkdir(canvasPath, {recursive: true});
+            await fs.mkdir(canvasDataPath, {recursive: true});
+
+            const persistedCanvas: PersistedCanvas = {
+                id: canvas.id,
+                name: canvas.name,
+                createdAt: canvas.createdAt.toISOString(),
+                sortIndex: canvas.sortIndex,
+            };
+
+            await fs.writeFile(canvasJsonPath, JSON.stringify(persistedCanvas, null, 2), 'utf-8');
+        }, `建立 Canvas 檔案失敗: ${canvas.name}`);
+    }
+
     async create(name: string): Promise<Result<Canvas>> {
         const validationResult = this.validateCanvasName(name);
         if (!validationResult.success) {
@@ -57,7 +78,6 @@ class CanvasStore {
         const trimmedName = name.trim();
         const createdAt = new Date();
 
-        // 計算新 Canvas 的 sortIndex，設為目前最大值 + 1
         const maxSortIndex = Math.max(0, ...Array.from(this.canvases.values()).map(c => c.sortIndex));
         const sortIndex = this.canvases.size === 0 ? 0 : maxSortIndex + 1;
 
@@ -68,32 +88,15 @@ class CanvasStore {
             sortIndex,
         };
 
-        const canvasPath = config.getCanvasPath(trimmedName);
-        const canvasDataPath = config.getCanvasDataPath(trimmedName);
-        const canvasJsonPath = path.join(canvasPath, 'canvas.json');
-
-        try {
-            await fs.mkdir(canvasPath, {recursive: true});
-            await fs.mkdir(canvasDataPath, {recursive: true});
-
-            const persistedCanvas: PersistedCanvas = {
-                id,
-                name: trimmedName,
-                createdAt: createdAt.toISOString(),
-                sortIndex,
-            };
-
-            await fs.writeFile(canvasJsonPath, JSON.stringify(persistedCanvas, null, 2), 'utf-8');
-
-            this.canvases.set(id, canvas);
-
-            logger.log('Canvas', 'Create', `Created canvas: ${trimmedName} (${id})`);
-
-            return ok(canvas);
-        } catch (error) {
-            logger.error('Canvas', 'Error', `Failed to create canvas: ${trimmedName}`, error);
-            return err('建立 Canvas 失敗');
+        const persistResult = await this.persistCanvas(canvas);
+        if (!persistResult.success) {
+            return err(persistResult.error!);
         }
+
+        this.canvases.set(id, canvas);
+        logger.log('Canvas', 'Create', `Created canvas: ${trimmedName} (${id})`);
+
+        return ok(canvas);
     }
 
     list(): Canvas[] {
@@ -120,14 +123,19 @@ class CanvasStore {
         const oldPath = config.getCanvasPath(canvas.name);
         const newPath = config.getCanvasPath(trimmedName);
 
-        try {
-            try {
-                await fs.mkdir(newPath, {recursive: false});
-                await fs.rmdir(newPath);
-            } catch {
-                return err('目標路徑已存在');
-            }
+        const targetExistsResult = await fsOperation(
+            async () => {
+                await fs.access(newPath);
+                return true;
+            },
+            '檢查目標路徑失敗'
+        );
 
+        if (targetExistsResult.success && targetExistsResult.data) {
+            return err('目標路徑已存在');
+        }
+
+        const renameResult = await fsOperation(async () => {
             await fs.rename(oldPath, newPath);
 
             const canvasJsonPath = path.join(newPath, 'canvas.json');
@@ -139,17 +147,17 @@ class CanvasStore {
             };
 
             await fs.writeFile(canvasJsonPath, JSON.stringify(persistedCanvas, null, 2), 'utf-8');
+        }, `重新命名 Canvas 失敗: ${id}`);
 
-            canvas.name = trimmedName;
-            this.canvases.set(id, canvas);
-
-            logger.log('Canvas', 'Rename', `Renamed canvas from ${oldPath} to ${newPath}`);
-
-            return ok(canvas);
-        } catch (error) {
-            logger.error('Canvas', 'Error', `Failed to rename canvas: ${id}`, error);
-            return err('重新命名 Canvas 失敗');
+        if (!renameResult.success) {
+            return err(renameResult.error!);
         }
+
+        canvas.name = trimmedName;
+        this.canvases.set(id, canvas);
+        logger.log('Canvas', 'Rename', `Renamed canvas from ${oldPath} to ${newPath}`);
+
+        return ok(canvas);
     }
 
     async delete(id: string): Promise<Result<boolean>> {
@@ -168,17 +176,21 @@ class CanvasStore {
             return err('無效的 Canvas 路徑');
         }
 
-        try {
-            await fs.rm(canvasPath, {recursive: true, force: true});
-            this.canvases.delete(id);
+        const deleteResult = await fsOperation(
+            async () => {
+                await fs.rm(canvasPath, {recursive: true, force: true});
+            },
+            `刪除 Canvas 失敗: ${id}`
+        );
 
-            logger.log('Canvas', 'Delete', `Deleted canvas: ${canvas.name} (${id})`);
-
-            return ok(true);
-        } catch (error) {
-            logger.error('Canvas', 'Error', `Failed to delete canvas: ${id}`, error);
-            return err('刪除 Canvas 失敗');
+        if (!deleteResult.success) {
+            return err(deleteResult.error!);
         }
+
+        this.canvases.delete(id);
+        logger.log('Canvas', 'Delete', `Deleted canvas: ${canvas.name} (${id})`);
+
+        return ok(true);
     }
 
     async reorder(canvasIds: string[]): Promise<Result<void>> {
@@ -186,33 +198,25 @@ class CanvasStore {
             return err('Canvas IDs 包含重複項目');
         }
 
-        // 驗證所有傳入的 canvasIds 都存在
         for (const id of canvasIds) {
             if (!this.canvases.has(id)) {
                 return err(`找不到 Canvas: ${id}`);
             }
         }
 
-        try {
-            // 取得目前所有 Canvas 並按照 sortIndex 排序
+        const reorderResult = await fsOperation(async () => {
             const allCanvases = Array.from(this.canvases.values()).sort((a, b) => a.sortIndex - b.sortIndex);
-
-            // 建立一個 Set 用於快速查找傳入的 canvasIds
             const reorderedSet = new Set(canvasIds);
 
-            // 分離出被重新排序的和未被重新排序的 canvases
             const notReordered = allCanvases.filter(c => !reorderedSet.has(c.id));
             const reordered = canvasIds.map(id => this.canvases.get(id)!);
 
-            // 合併陣列：重新排序的在前，未排序的保持原順序在後
             const finalOrder = [...reordered, ...notReordered];
 
-            // 更新每個 Canvas 的 sortIndex 並持久化
             for (let i = 0; i < finalOrder.length; i++) {
                 const canvas = finalOrder[i];
                 canvas.sortIndex = i;
 
-                // 持久化到 canvas.json
                 const canvasJsonPath = path.join(config.getCanvasPath(canvas.name), 'canvas.json');
                 const persistedCanvas: PersistedCanvas = {
                     id: canvas.id,
@@ -223,68 +227,77 @@ class CanvasStore {
 
                 await fs.writeFile(canvasJsonPath, JSON.stringify(persistedCanvas, null, 2), 'utf-8');
             }
+        }, '重新排序 Canvas 失敗');
 
-            logger.log('Canvas', 'Reorder', `Reordered ${canvasIds.length} canvases`);
-            return ok(undefined);
+        if (!reorderResult.success) {
+            return err(reorderResult.error!);
+        }
+
+        logger.log('Canvas', 'Reorder', `Reordered ${canvasIds.length} canvases`);
+        return ok(undefined);
+    }
+
+    private async loadSingleCanvas(dirName: string): Promise<Canvas | null> {
+        const canvasJsonPath = path.join(config.canvasRoot, dirName, 'canvas.json');
+
+        try {
+            await fs.access(canvasJsonPath);
+        } catch {
+            return null;
+        }
+
+        try {
+            const data = await fs.readFile(canvasJsonPath, 'utf-8');
+            const persistedCanvas: PersistedCanvas = JSON.parse(data);
+
+            if (persistedCanvas.sortIndex === undefined) {
+                logger.error('Canvas', 'Load', `Missing sortIndex in canvas.json for ${dirName}`);
+                return null;
+            }
+
+            return {
+                id: persistedCanvas.id,
+                name: persistedCanvas.name,
+                createdAt: new Date(persistedCanvas.createdAt),
+                sortIndex: persistedCanvas.sortIndex,
+            };
         } catch (error) {
-            logger.error('Canvas', 'Error', 'Failed to reorder canvases', error);
-            return err('重新排序 Canvas 失敗');
+            logger.error('Canvas', 'Load', `Failed to parse canvas.json in ${dirName}`, error);
+            return null;
         }
     }
 
     async loadFromDisk(): Promise<Result<void>> {
-        try {
+        const loadResult = await fsOperation(async () => {
             await fs.mkdir(config.canvasRoot, {recursive: true});
 
             const entries = await fs.readdir(config.canvasRoot, {withFileTypes: true});
             const directories = entries.filter((entry) => entry.isDirectory());
 
-            this.canvases.clear();
+            const loadPromises = directories.map((dir) => this.loadSingleCanvas(dir.name));
+            const results = await Promise.allSettled(loadPromises);
 
-            const tempCanvases: Canvas[] = [];
-
-            for (const dir of directories) {
-                const canvasJsonPath = path.join(config.canvasRoot, dir.name, 'canvas.json');
-
-                try {
-                    await fs.access(canvasJsonPath);
-                } catch {
-                    continue;
-                }
-
-                try {
-                    const data = await fs.readFile(canvasJsonPath, 'utf-8');
-                    const persistedCanvas: PersistedCanvas = JSON.parse(data);
-
-                    if (persistedCanvas.sortIndex === undefined) {
-                        logger.error('Canvas', 'Load', `Missing sortIndex in canvas.json for ${dir.name}`);
-                        continue;
-                    }
-
-                    const canvas: Canvas = {
-                        id: persistedCanvas.id,
-                        name: persistedCanvas.name,
-                        createdAt: new Date(persistedCanvas.createdAt),
-                        sortIndex: persistedCanvas.sortIndex,
-                    };
-
-                    tempCanvases.push(canvas);
-                } catch (error) {
-                    logger.error('Canvas', 'Load', `Failed to parse canvas.json in ${dir.name}`, error);
+            const canvases: Canvas[] = [];
+            for (const result of results) {
+                if (result.status === 'fulfilled' && result.value !== null) {
+                    canvases.push(result.value);
                 }
             }
 
-            // 將載入的 canvases 放入 Map
-            for (const canvas of tempCanvases) {
-                this.canvases.set(canvas.id, canvas);
-            }
+            return canvases;
+        }, '載入 Canvas 列表失敗');
 
-            logger.log('Canvas', 'Load', `Loaded ${this.canvases.size} canvases`);
-            return ok(undefined);
-        } catch (error) {
-            logger.error('Canvas', 'Error', 'Failed to load canvases from disk', error);
-            return err('載入 Canvas 列表失敗');
+        if (!loadResult.success || !loadResult.data) {
+            return err(loadResult.error || '載入 Canvas 列表失敗');
         }
+
+        this.canvases.clear();
+        for (const canvas of loadResult.data) {
+            this.canvases.set(canvas.id, canvas);
+        }
+
+        logger.log('Canvas', 'Load', `Loaded ${this.canvases.size} canvases`);
+        return ok(undefined);
     }
 
     getCanvasDir(canvasId: string): string | undefined {
@@ -313,10 +326,6 @@ class CanvasStore {
 
     removeSocket(socketId: string): void {
         this.activeCanvasMap.delete(socketId);
-    }
-
-    clearCanvasData(canvasId: string): void {
-        this.canvases.delete(canvasId);
     }
 }
 

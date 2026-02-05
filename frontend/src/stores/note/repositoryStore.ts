@@ -134,7 +134,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
         return false
       }
 
-      const existingRepository = this.availableItems.find((item) => item.id === repositoryId)
+      const existingRepository = this.availableItems.find((item: Repository) => item.id === repositoryId)
       if (existingRepository) {
         existingRepository.isGit = response.isGit
       }
@@ -181,7 +181,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
       return { success: true }
     },
 
-    async getLocalBranches(this, repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; error?: string }> {
+    async getLocalBranches(this, repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; worktreeBranches?: string[]; error?: string }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
       const canvasStore = useCanvasStore()
 
@@ -260,7 +260,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
       }
 
       if (response.success && response.branchName) {
-        const existingRepository = this.availableItems.find((item) => item.id === repositoryId)
+        const existingRepository = this.availableItems.find((item: Repository) => item.id === repositoryId)
         if (existingRepository) {
           existingRepository.currentBranch = response.branchName
         }
@@ -304,7 +304,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
     },
 
     isWorktree(this, repositoryId: string): boolean {
-      const repository = this.availableItems.find((item) => item.id === repositoryId)
+      const repository = this.availableItems.find((item: Repository) => item.id === repositoryId)
       return !!repository?.parentRepoId
     },
   }

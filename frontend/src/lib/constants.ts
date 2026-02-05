@@ -1,13 +1,3 @@
-import type {PodColor} from '@/types'
-
-export const COLOR_MAP: Record<PodColor, string> = {
-    blue: 'bg-doodle-blue',
-    green: 'bg-doodle-green',
-    coral: 'bg-doodle-coral',
-    pink: 'bg-doodle-pink',
-    yellow: 'bg-doodle-yellow',
-}
-
 // UI Constants
 export const POD_MENU_X_OFFSET = 112
 export const POD_MENU_Y_OFFSET = 50
@@ -29,13 +19,6 @@ export const OUTPUT_LINES_PREVIEW_COUNT = 4
 export const DEFAULT_POD_ROTATION_RANGE = 2
 export const MAX_POD_NAME_LENGTH = 50
 
-// Trigger Constants
-export const TRIGGER_WIDTH = 120
-export const TRIGGER_HEIGHT = 70
-export const TRIGGER_ANCHOR_LOCAL_X = 120
-export const TRIGGER_ANCHOR_LOCAL_Y = 35
-export const DEFAULT_TRIGGER_ROTATION_RANGE = 2
-
 // Canvas Constants
 export const GRID_SIZE = 20
 
@@ -48,7 +31,6 @@ export const NOTE_WIDTH = 80
 export const NOTE_HEIGHT = 30
 
 // Time Constants (ms)
-export const POSITION_SYNC_DELAY_MS = 500
 export const PASTE_TIMEOUT_MS = 10000
 
 // Image Upload Constants

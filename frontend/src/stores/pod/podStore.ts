@@ -1,30 +1,28 @@
 import {defineStore} from 'pinia'
-import type {Pod, PodColor, PodStatus, Position, TypeMenuState, ModelType, Schedule} from '@/types'
+import type {ModelType, Pod, PodColor, PodStatus, Position, Schedule, TypeMenuState} from '@/types'
 import {initialPods} from '@/data/initialPods'
 import {validatePodName} from '@/lib/sanitize'
 import {generateRequestId} from '@/services/utils'
 import {
-    websocketClient,
     createWebSocketRequest,
+    websocketClient,
     WebSocketRequestEvents,
     WebSocketResponseEvents
 } from '@/services/websocket'
 import type {
+    PodAutoClearSetPayload,
     PodCreatedPayload,
-    PodDeletedPayload,
-    PodListResultPayload,
     PodCreatePayload,
+    PodDeletedPayload,
     PodDeletePayload,
     PodListPayload,
+    PodListResultPayload,
     PodMovePayload,
-    PodRenamePayload,
     PodRenamedPayload,
-    PodSetModelPayload,
-    PodModelSetPayload,
-    PodSetSchedulePayload,
+    PodRenamePayload,
     PodScheduleSetPayload,
     PodSetAutoClearPayload,
-    PodAutoClearSetPayload
+    PodSetSchedulePayload
 } from '@/types/websocket'
 import {useConnectionStore} from '@/stores/connectionStore'
 import {useCanvasStore} from '@/stores/canvasStore'
@@ -109,19 +107,6 @@ export const usePodStore = defineStore('pod', {
             }
         },
 
-        deletePod(id: string): void {
-            this.pods = this.pods.filter((p) => p.id !== id)
-            if (this.selectedPodId === id) {
-                this.selectedPodId = null
-            }
-            if (this.activePodId === id) {
-                this.activePodId = null
-            }
-
-            const connectionStore = useConnectionStore()
-            connectionStore.deleteConnectionsByPodId(id)
-        },
-
         async createPodWithBackend(pod: Omit<Pod, 'id'>): Promise<Pod | null> {
             const canvasStore = useCanvasStore()
 
@@ -146,15 +131,13 @@ export const usePodStore = defineStore('pod', {
                 throw new Error('Pod creation failed: no pod returned')
             }
 
-            const frontendPod: Pod = {
+            return {
                 ...response.pod,
                 x: pod.x,
                 y: pod.y,
                 rotation: pod.rotation,
                 output: pod.output || [],
             }
-
-            return frontendPod
         },
 
         async deletePodWithBackend(id: string): Promise<void> {
@@ -256,30 +239,6 @@ export const usePodStore = defineStore('pod', {
             })
         },
 
-        async setModelWithBackend(podId: string, model: ModelType): Promise<Pod | null> {
-            const canvasStore = useCanvasStore()
-
-            if (!canvasStore.activeCanvasId) {
-                throw new Error('無法設定模型：沒有啟用的畫布')
-            }
-
-            const response = await createWebSocketRequest<PodSetModelPayload, PodModelSetPayload>({
-                requestEvent: WebSocketRequestEvents.POD_SET_MODEL,
-                responseEvent: WebSocketResponseEvents.POD_MODEL_SET,
-                payload: {
-                    canvasId: canvasStore.activeCanvasId,
-                    podId,
-                    model
-                }
-            })
-
-            if (response.success && response.pod) {
-                return response.pod
-            }
-
-            return null
-        },
-
         async setScheduleWithBackend(podId: string, schedule: Schedule | null): Promise<Pod | null> {
             const canvasStore = useCanvasStore()
 
@@ -363,13 +322,6 @@ export const usePodStore = defineStore('pod', {
             pod.commandId = commandId
         },
 
-        updatePodAutoClear(podId: string, autoClear: boolean): void {
-            const pod = this.pods.find((p) => p.id === podId)
-            if (pod) {
-                pod.autoClear = autoClear
-            }
-        },
-
         async setAutoClearWithBackend(podId: string, autoClear: boolean): Promise<Pod | null> {
             const canvasStore = useCanvasStore()
 
@@ -396,18 +348,6 @@ export const usePodStore = defineStore('pod', {
             if (!this.isValidPod(enrichedPod)) return
 
             this.pods.push(enrichedPod)
-        },
-
-        updatePodFromEvent(pod: Pod): void {
-            const existingPod = this.pods.find((p) => p.id === pod.id)
-            const enrichedPod = this.enrichPod(pod, existingPod?.output)
-
-            if (!this.isValidPod(enrichedPod)) return
-
-            const index = this.pods.findIndex((p) => p.id === pod.id)
-            if (index !== -1) {
-                this.pods.splice(index, 1, enrichedPod)
-            }
         },
 
         removePod(podId: string): void {
@@ -437,20 +377,6 @@ export const usePodStore = defineStore('pod', {
             const pod = this.pods.find((p) => p.id === podId)
             if (pod) {
                 pod.name = name
-            }
-        },
-
-        updatePodModelFromEvent(podId: string, model: ModelType): void {
-            const pod = this.pods.find((p) => p.id === podId)
-            if (pod) {
-                pod.model = model
-            }
-        },
-
-        updatePodScheduleFromEvent(podId: string, schedule: Schedule | null): void {
-            const pod = this.pods.find((p) => p.id === podId)
-            if (pod) {
-                pod.schedule = schedule
             }
         },
 

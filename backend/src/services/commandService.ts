@@ -3,7 +3,7 @@ import path from 'path';
 import {config} from '../config/index.js';
 import type {Command} from '../types/index.js';
 import {isPathWithinDirectory, validatePodId, validateCommandId, sanitizePathSegment} from '../utils/pathValidator.js';
-import {readFileOrNull, fileExists, ensureDirectoryAndWriteFile} from './shared/fileResourceHelpers.js';
+import {fileExists, ensureDirectoryAndWriteFile, readFileOrNull} from './shared/fileResourceHelpers.js';
 
 class CommandService {
     async list(): Promise<Command[]> {
@@ -44,15 +44,6 @@ class CommandService {
 
         return commands;
     }
-
-    async getContent(commandId: string): Promise<string | null> {
-        const filePath = await this.findCommandFilePath(commandId);
-        if (!filePath) {
-            return null;
-        }
-        return readFileOrNull(filePath);
-    }
-
     async exists(commandId: string): Promise<boolean> {
         const filePath = await this.findCommandFilePath(commandId);
         return filePath !== null;
@@ -123,38 +114,33 @@ class CommandService {
         };
     }
 
+    async getContent(commandId: string): Promise<string | null> {
+        const filePath = await this.findCommandFilePath(commandId);
+        if (!filePath) return null;
+        return readFileOrNull(filePath);
+    }
+
     async update(commandId: string, content: string): Promise<void> {
         const filePath = await this.findCommandFilePath(commandId);
-        if (!filePath) {
-            throw new Error(`找不到 Command: ${commandId}`);
-        }
+        if (!filePath) throw new Error(`找不到 Command: ${commandId}`);
         await fs.writeFile(filePath, content, 'utf-8');
     }
 
     async setGroupId(commandId: string, groupId: string | null): Promise<void> {
         const oldPath = await this.findCommandFilePath(commandId);
-        if (!oldPath) {
-            throw new Error(`找不到 Command: ${commandId}`);
-        }
+        if (!oldPath) throw new Error(`找不到 Command: ${commandId}`);
 
-        let newPath: string;
-        if (groupId === null) {
-            newPath = path.join(config.commandsPath, `${commandId}.md`);
-        } else {
-            const safeGroupId = sanitizePathSegment(groupId);
-            const groupPath = path.join(config.commandsPath, safeGroupId);
-            await fs.mkdir(groupPath, {recursive: true});
-            newPath = path.join(groupPath, `${commandId}.md`);
+        const newPath = groupId === null
+            ? path.join(config.commandsPath, `${commandId}.md`)
+            : path.join(config.commandsPath, sanitizePathSegment(groupId), `${commandId}.md`);
+
+        if (groupId !== null) {
+            await fs.mkdir(path.dirname(newPath), {recursive: true});
         }
 
         if (oldPath !== newPath) {
             await fs.rename(oldPath, newPath);
         }
-    }
-
-    async getItemsByGroupId(groupId: string | null): Promise<Command[]> {
-        const allCommands = await this.list();
-        return allCommands.filter((command) => command.groupId === groupId);
     }
 
     private async findCommandFilePath(commandId: string): Promise<string | null> {

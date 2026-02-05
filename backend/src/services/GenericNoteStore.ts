@@ -211,16 +211,6 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
       logger.error('Note', 'Error', `[${this.config.storeName}] Failed to persist notes for canvas ${canvasId}`, error);
     });
   }
-
-  async loadAllCanvases(canvasEntries: Array<{ id: string; dataDir: string }>): Promise<void> {
-    for (const entry of canvasEntries) {
-      await this.loadFromDisk(entry.id, entry.dataDir);
-    }
-  }
-
-  clearCanvasData(canvasId: string): void {
-    this.notesByCanvas.delete(canvasId);
-  }
 }
 
 export function createNoteStore<T extends BaseNote, K extends keyof T>(

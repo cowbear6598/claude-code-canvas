@@ -6,34 +6,13 @@ import { outputStyleService } from '../outputStyleService.js';
 import { Message, ToolUseInfo, ContentBlock } from '../../types/index.js';
 import { config } from '../../config/index.js';
 import { logger } from '../../utils/logger.js';
+import {
+  buildClaudeContentBlocks,
+  createUserMessageStream,
+  type SDKUserMessage,
+} from './messageBuilder.js';
 
-type ClaudeTextContent = {
-  type: 'text';
-  text: string;
-};
-
-type ClaudeImageContent = {
-  type: 'image';
-  source: {
-    type: 'base64';
-    media_type: string;
-    data: string;
-  };
-};
-
-type ClaudeMessageContent = ClaudeTextContent | ClaudeImageContent;
-
-type SDKUserMessage = {
-  type: 'user';
-  message: {
-    role: 'user';
-    content: ClaudeMessageContent[];
-  };
-  parent_tool_use_id: null;
-  session_id: string;
-};
-
-type StreamEvent =
+export type StreamEvent =
   | TextStreamEvent
   | ToolUseStreamEvent
   | ToolResultStreamEvent
@@ -68,68 +47,190 @@ interface ErrorStreamEvent {
   error: string;
 }
 
-type StreamCallback = (event: StreamEvent) => void;
+export type StreamCallback = (event: StreamEvent) => void;
 
-function buildClaudeContentBlocks(
-  message: ContentBlock[],
-  commandId: string | null
-): ClaudeMessageContent[] {
-  const contentArray: ClaudeMessageContent[] = [];
-  let isFirstTextBlock = true;
+interface QueryState {
+  sessionId: string | null;
+  fullContent: string;
+  toolUseInfo: ToolUseInfo | null;
+  activeTools: Map<string, { toolName: string; input: Record<string, unknown> }>;
+}
 
-  for (const block of message) {
-    if (block.type === 'text') {
-      let text = block.text;
-      if (isFirstTextBlock && commandId) {
-        text = `/${commandId} ${text}`;
-        isFirstTextBlock = false;
-      }
+function createQueryState(): QueryState {
+  return {
+    sessionId: null,
+    fullContent: '',
+    toolUseInfo: null,
+    activeTools: new Map(),
+  };
+}
 
-      if (text.trim().length === 0) {
-        continue;
-      }
+function handleSystemInitMessage(msg: Record<string, unknown>, state: QueryState): void {
+  if (msg.type !== 'system' || msg.subtype !== 'init' || !('session_id' in msg)) {
+    return;
+  }
+  state.sessionId = msg.session_id as string;
+}
 
-      contentArray.push({
-        type: 'text',
-        text,
+function handleAssistantMessage(
+  msg: Record<string, unknown>,
+  state: QueryState,
+  onStream: StreamCallback
+): void {
+  if (msg.type !== 'assistant' || !('message' in msg)) {
+    return;
+  }
+
+  const assistantMsg = msg.message as { content?: unknown[] };
+  if (!assistantMsg.content) return;
+
+  for (const block of assistantMsg.content) {
+    const contentBlock = block as Record<string, unknown>;
+
+    if ('text' in contentBlock && contentBlock.text) {
+      const text = String(contentBlock.text);
+      state.fullContent += text;
+      onStream({ type: 'text', content: text });
+      continue;
+    }
+
+    if ('type' in contentBlock && contentBlock.type === 'tool_use') {
+      const toolBlock = contentBlock as {
+        id: string;
+        name: string;
+        input: Record<string, unknown>;
+      };
+
+      state.activeTools.set(toolBlock.id, {
+        toolName: toolBlock.name,
+        input: toolBlock.input,
       });
-    } else if (block.type === 'image') {
-      contentArray.push({
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: block.mediaType,
-          data: block.base64Data,
-        },
+
+      state.toolUseInfo = {
+        toolUseId: toolBlock.id,
+        toolName: toolBlock.name,
+        input: toolBlock.input,
+        output: null,
+      };
+
+      onStream({
+        type: 'tool_use',
+        toolUseId: toolBlock.id,
+        toolName: toolBlock.name,
+        input: toolBlock.input,
       });
     }
   }
-
-  if (contentArray.length === 0) {
-    contentArray.push({
-      type: 'text',
-      text: '請開始執行',
-    });
-  }
-
-  return contentArray;
 }
 
-function createUserMessageStream(
-  content: ClaudeMessageContent[],
-  sessionId: string
-): AsyncIterable<SDKUserMessage> {
-  return (async function* (): AsyncGenerator<SDKUserMessage, void, undefined> {
-    yield {
-      type: 'user' as const,
-      message: {
-        role: 'user' as const,
-        content,
-      },
-      parent_tool_use_id: null,
-      session_id: sessionId,
-    };
-  })();
+function handleUserMessage(
+  msg: Record<string, unknown>,
+  state: QueryState,
+  onStream: StreamCallback
+): void {
+  if (msg.type !== 'user' || !('message' in msg)) {
+    return;
+  }
+
+  const userMsg = msg.message as { content?: unknown[] };
+  if (!userMsg.content) return;
+
+  for (const block of userMsg.content) {
+    const contentBlock = block as Record<string, unknown>;
+
+    if (contentBlock.type === 'tool_result' && 'tool_use_id' in contentBlock) {
+      const toolUseId = String(contentBlock.tool_use_id);
+      const content = String(contentBlock.content || '');
+      const toolInfo = state.activeTools.get(toolUseId);
+
+      if (!toolInfo) continue;
+
+      if (state.toolUseInfo?.toolUseId === toolUseId) {
+        state.toolUseInfo.output = content;
+      }
+
+      onStream({
+        type: 'tool_result',
+        toolUseId,
+        toolName: toolInfo.toolName,
+        output: content,
+      });
+    }
+  }
+}
+
+function handleToolProgressMessage(
+  msg: Record<string, unknown>,
+  state: QueryState,
+  onStream: StreamCallback
+): void {
+  if (msg.type !== 'tool_progress') {
+    return;
+  }
+
+  const toolProgressMsg = msg as {
+    output?: string;
+    result?: string;
+    tool_use_id?: string;
+  };
+
+  const outputText = toolProgressMsg.output || toolProgressMsg.result;
+  if (!outputText) return;
+
+  const toolUseId = toolProgressMsg.tool_use_id;
+  const toolInfo = toolUseId ? state.activeTools.get(toolUseId) : null;
+
+  if (toolInfo && toolUseId) {
+    if (state.toolUseInfo?.toolUseId === toolUseId) {
+      state.toolUseInfo.output = outputText;
+    }
+
+    onStream({
+      type: 'tool_result',
+      toolUseId,
+      toolName: toolInfo.toolName,
+      output: outputText,
+    });
+    return;
+  }
+
+  if (state.toolUseInfo) {
+    state.toolUseInfo.output = outputText;
+
+    onStream({
+      type: 'tool_result',
+      toolUseId: state.toolUseInfo.toolUseId,
+      toolName: state.toolUseInfo.toolName,
+      output: outputText,
+    });
+  }
+}
+
+function handleResultMessage(
+  msg: Record<string, unknown>,
+  state: QueryState,
+  onStream: StreamCallback
+): void {
+  if (msg.type !== 'result') {
+    return;
+  }
+
+  if (msg.subtype === 'success') {
+    if (!state.fullContent && 'result' in msg && msg.result) {
+      state.fullContent = String(msg.result);
+    }
+
+    onStream({ type: 'complete' });
+    return;
+  }
+
+  const errorMessage =
+    'errors' in msg && Array.isArray(msg.errors)
+      ? msg.errors.join(', ')
+      : 'Unknown error';
+
+  onStream({ type: 'error', error: errorMessage });
+  throw new Error(errorMessage);
 }
 
 class ClaudeQueryService {
@@ -153,158 +254,16 @@ class ClaudeQueryService {
 
   private processSDKMessage(
     sdkMessage: unknown,
-    capturedSessionIdRef: { value: string | null },
-    fullContentRef: { value: string },
-    toolUseInfoRef: { value: ToolUseInfo | null },
-    activeTools: Map<string, { toolName: string; input: Record<string, unknown> }>,
+    state: QueryState,
     onStream: StreamCallback
   ): void {
     const msg = sdkMessage as Record<string, unknown>;
 
-    if (
-      msg.type === 'system' &&
-      'subtype' in msg &&
-      msg.subtype === 'init' &&
-      'session_id' in msg
-    ) {
-      capturedSessionIdRef.value = msg.session_id as string;
-      return;
-    }
-
-    if (msg.type === 'assistant' && 'message' in msg) {
-      const assistantMsg = msg.message as { content?: unknown[] };
-      if (!assistantMsg.content) return;
-
-      for (const block of assistantMsg.content) {
-        const contentBlock = block as Record<string, unknown>;
-
-        if ('text' in contentBlock && contentBlock.text) {
-          const text = String(contentBlock.text);
-          fullContentRef.value += text;
-          onStream({
-            type: 'text',
-            content: text,
-          });
-        } else if ('type' in contentBlock && contentBlock.type === 'tool_use') {
-          const toolBlock = contentBlock as {
-            id: string;
-            name: string;
-            input: Record<string, unknown>;
-          };
-
-          activeTools.set(toolBlock.id, {
-            toolName: toolBlock.name,
-            input: toolBlock.input,
-          });
-
-          toolUseInfoRef.value = {
-            toolUseId: toolBlock.id,
-            toolName: toolBlock.name,
-            input: toolBlock.input,
-            output: null,
-          };
-
-          onStream({
-            type: 'tool_use',
-            toolUseId: toolBlock.id,
-            toolName: toolBlock.name,
-            input: toolBlock.input,
-          });
-        }
-      }
-      return;
-    }
-
-    // 處理 user 訊息中的 tool_result
-    if (msg.type === 'user' && 'message' in msg) {
-      const userMsg = msg.message as { content?: unknown[] };
-      if (!userMsg.content) return;
-
-      for (const block of userMsg.content) {
-        const contentBlock = block as Record<string, unknown>;
-
-        if (contentBlock.type === 'tool_result' && 'tool_use_id' in contentBlock) {
-          const toolUseId = String(contentBlock.tool_use_id);
-          const content = String(contentBlock.content || '');
-          const toolInfo = activeTools.get(toolUseId);
-
-          if (toolInfo) {
-            if (toolUseInfoRef.value && toolUseInfoRef.value.toolUseId === toolUseId) {
-              toolUseInfoRef.value.output = content;
-            }
-
-            onStream({
-              type: 'tool_result',
-              toolUseId,
-              toolName: toolInfo.toolName,
-              output: content,
-            });
-          }
-        }
-      }
-      return;
-    }
-
-    if (msg.type === 'tool_progress') {
-      const toolProgressMsg = msg as {
-        output?: string;
-        result?: string;
-        tool_use_id?: string;
-      };
-
-      const outputText = toolProgressMsg.output || toolProgressMsg.result;
-      if (!outputText) return;
-
-      const toolUseId = toolProgressMsg.tool_use_id;
-      const toolInfo = toolUseId ? activeTools.get(toolUseId) : null;
-
-      if (toolInfo && toolUseId) {
-        if (toolUseInfoRef.value && toolUseInfoRef.value.toolUseId === toolUseId) {
-          toolUseInfoRef.value.output = outputText;
-        }
-
-        onStream({
-          type: 'tool_result',
-          toolUseId,
-          toolName: toolInfo.toolName,
-          output: outputText,
-        });
-      } else if (toolUseInfoRef.value) {
-        toolUseInfoRef.value.output = outputText;
-
-        onStream({
-          type: 'tool_result',
-          toolUseId: toolUseInfoRef.value.toolUseId,
-          toolName: toolUseInfoRef.value.toolName,
-          output: outputText,
-        });
-      }
-      return;
-    }
-
-    if (msg.type === 'result') {
-      if (msg.subtype === 'success') {
-        if (!fullContentRef.value && 'result' in msg && msg.result) {
-          fullContentRef.value = String(msg.result);
-        }
-
-        onStream({
-          type: 'complete',
-        });
-      } else {
-        const errorMessage =
-          'errors' in msg && Array.isArray(msg.errors)
-            ? msg.errors.join(', ')
-            : 'Unknown error';
-
-        onStream({
-          type: 'error',
-          error: errorMessage,
-        });
-
-        throw new Error(errorMessage);
-      }
-    }
+    handleSystemInitMessage(msg, state);
+    handleAssistantMessage(msg, state, onStream);
+    handleUserMessage(msg, state, onStream);
+    handleToolProgressMessage(msg, state, onStream);
+    handleResultMessage(msg, state, onStream);
   }
 
   async sendMessage(
@@ -318,12 +277,8 @@ class ClaudeQueryService {
     }
 
     const { canvasId, pod } = result;
-
     const messageId = uuidv4();
-    const capturedSessionIdRef = { value: null as string | null };
-    const fullContentRef = { value: '' };
-    const toolUseInfoRef = { value: null as ToolUseInfo | null };
-    const activeTools = new Map<string, { toolName: string; input: Record<string, unknown> }>();
+    const state = createQueryState();
 
     try {
       const resumeSessionId = pod.claudeSessionId;
@@ -360,26 +315,19 @@ class ClaudeQueryService {
       });
 
       for await (const sdkMessage of queryStream) {
-        this.processSDKMessage(
-          sdkMessage,
-          capturedSessionIdRef,
-          fullContentRef,
-          toolUseInfoRef,
-          activeTools,
-          onStream
-        );
+        this.processSDKMessage(sdkMessage, state, onStream);
       }
 
-      if (capturedSessionIdRef.value && capturedSessionIdRef.value !== pod.claudeSessionId) {
-        podStore.setClaudeSessionId(canvasId, podId, capturedSessionIdRef.value);
+      if (state.sessionId && state.sessionId !== pod.claudeSessionId) {
+        podStore.setClaudeSessionId(canvasId, podId, state.sessionId);
       }
 
       return {
         id: messageId,
         podId,
         role: 'assistant',
-        content: fullContentRef.value,
-        toolUse: toolUseInfoRef.value,
+        content: state.fullContent,
+        toolUse: state.toolUseInfo,
         createdAt: new Date(),
       };
     } catch (error) {

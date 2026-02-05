@@ -69,14 +69,16 @@ export const useCanvasStore = defineStore('canvas', {
         if (response.canvases) {
           this.canvases = response.canvases.sort((a, b) => a.sortIndex - b.sortIndex)
           if (this.canvases.length > 0 && !this.activeCanvasId) {
-            const firstCanvasId = this.canvases[0].id
+            const firstCanvas = this.canvases[0]
+            if (!firstCanvas) return
+
             // Notify backend which canvas is active
             await createWebSocketRequest<CanvasSwitchPayload, CanvasSwitchedPayload>({
               requestEvent: WebSocketRequestEvents.CANVAS_SWITCH,
               responseEvent: WebSocketResponseEvents.CANVAS_SWITCHED,
-              payload: { canvasId: firstCanvasId }
+              payload: { canvasId: firstCanvas.id }
             })
-            this.activeCanvasId = firstCanvasId
+            this.activeCanvasId = firstCanvas.id
           }
         } else {
           console.warn('[CanvasStore] No canvases returned from backend')
@@ -218,7 +220,10 @@ export const useCanvasStore = defineStore('canvas', {
 
       if (this.activeCanvasId === canvasId) {
         if (this.canvases.length > 0) {
-          await this.switchCanvas(this.canvases[0].id)
+          const firstCanvas = this.canvases[0]
+          if (!firstCanvas) return
+
+          await this.switchCanvas(firstCanvas.id)
         } else {
           const defaultCanvas = await this.createCanvas('Default')
           if (defaultCanvas) {
@@ -235,6 +240,11 @@ export const useCanvasStore = defineStore('canvas', {
 
     reorderCanvases(fromIndex: number, toIndex: number): void {
       const canvas = this.canvases[fromIndex]
+      if (!canvas) {
+        console.warn('[CanvasStore] Canvas not found at index:', fromIndex)
+        return
+      }
+
       this.canvases.splice(fromIndex, 1)
       this.canvases.splice(toIndex, 0, canvas)
 

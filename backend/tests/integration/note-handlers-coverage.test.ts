@@ -9,7 +9,7 @@ import {
   disconnectSocket,
   type TestServerInstance,
 } from '../setup/index.js';
-import { createOutputStyle, createSkillFile, FAKE_UUID, FAKE_STYLE_ID, FAKE_SKILL_ID, getCanvasId} from '../helpers/index.js';
+import { createOutputStyle, createSkillFile, FAKE_UUID, FAKE_STYLE_ID, getCanvasId} from '../helpers/index.js';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,

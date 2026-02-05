@@ -11,7 +11,6 @@ describe('Git Worktree 操作', () => {
   const testRepoPath = path.join(config.repositoriesRoot, testRepoId);
   const testWorktreeId = `${testRepoId}-feature`;
   const testWorktreePath = path.join(config.repositoriesRoot, testWorktreeId);
-  const testBranchName = 'feature-branch';
 
   beforeAll(async () => {
     await fs.mkdir(testRepoPath, { recursive: true });
@@ -117,6 +116,30 @@ describe('Git Worktree 操作', () => {
       expect(result.data).toHaveLength(0);
 
       await fs.rm(emptyRepoPath, { recursive: true, force: true });
+    });
+
+    it('success_when_exclude_main_repo_path', async () => {
+      const branchName1 = `worktree-branch-${uuidv4()}`;
+      const branchName2 = `worktree-branch-${uuidv4()}`;
+      const worktreePath1 = `${testWorktreePath}-${uuidv4()}`;
+      const worktreePath2 = `${testWorktreePath}-${uuidv4()}`;
+
+      await gitService.createWorktree(testRepoPath, worktreePath1, branchName1);
+      await gitService.createWorktree(testRepoPath, worktreePath2, branchName2);
+
+      const result = await gitService.getWorktreeBranches(testRepoPath);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toContain(branchName1);
+      expect(result.data).toContain(branchName2);
+      // 確認主 repo 的分支（main 或 master）不在 worktree 分支列表中
+      const currentBranchResult = await gitService.getCurrentBranch(testRepoPath);
+      if (currentBranchResult.success && currentBranchResult.data) {
+        expect(result.data).not.toContain(currentBranchResult.data);
+      }
+
+      await gitService.removeWorktree(testRepoPath, worktreePath1);
+      await gitService.removeWorktree(testRepoPath, worktreePath2);
     });
   });
 

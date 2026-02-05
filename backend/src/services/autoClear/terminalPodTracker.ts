@@ -45,23 +45,6 @@ class TerminalPodTracker {
       logger.log('AutoClear', 'Delete', `Cleared tracking for source ${sourcePodId}`);
     }
   }
-
-  hasTracking(sourcePodId: string): boolean {
-    return this.pendingAutoClearMap.has(sourcePodId);
-  }
-
-  getTracking(sourcePodId: string): PendingAutoClear | undefined {
-    return this.pendingAutoClearMap.get(sourcePodId);
-  }
-
-  findTrackingByTerminalPod(podId: string): string | null {
-    for (const [sourcePodId, pending] of this.pendingAutoClearMap) {
-      if (pending.terminalPodIds.includes(podId)) {
-        return sourcePodId;
-      }
-    }
-    return null;
-  }
 }
 
 export const terminalPodTracker = new TerminalPodTracker();

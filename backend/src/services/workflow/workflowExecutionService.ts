@@ -8,6 +8,7 @@ import type {
     WorkflowAutoTriggeredPayload,
     WorkflowPendingPayload,
     WorkflowSourcesMergedPayload,
+    Connection,
 } from '../../types/index.js';
 import {connectionStore} from '../connectionStore.js';
 import {podStore} from '../podStore.js';
@@ -21,46 +22,20 @@ import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {autoClearService} from '../autoClear/index.js';
 import {logger} from '../../utils/logger.js';
 import {commandService} from '../commandService.js';
+import {
+    createSubMessageState,
+    createSubMessageFlusher,
+    processTextEvent,
+    processToolUseEvent,
+    processToolResultEvent,
+} from '../claude/streamEventProcessor.js';
+import {
+    formatMergedSummaries,
+    buildTransferMessage,
+    buildMessageWithCommand,
+} from './workflowHelpers.js';
 
 class WorkflowExecutionService {
-  private formatMergedSummaries(canvasId: string, summaries: Map<string, string>): string {
-    const formatted: string[] = [];
-
-    for (const [sourcePodId, content] of summaries.entries()) {
-      const sourcePod = podStore.getById(canvasId, sourcePodId);
-      const podName = sourcePod?.name || sourcePodId;
-
-      formatted.push(`## Source: ${podName}\n${content}\n\n---`);
-    }
-
-    let result = formatted.join('\n\n');
-    result = result.replace(/\n\n---$/, '');
-
-    return result;
-  }
-
-  private buildTransferMessage(content: string): string {
-    return `以下是從另一個 POD 傳遞過來的內容,請根據這些資訊繼續處理:
-
----
-${content}
----`;
-  }
-
-  private async buildMessageWithCommand(canvasId: string, targetPodId: string, baseMessage: string): Promise<string> {
-    const targetPod = podStore.getById(canvasId, targetPodId);
-    if (!targetPod?.commandId) {
-      return baseMessage;
-    }
-
-    const commands = await commandService.list();
-    const command = commands.find((cmd) => cmd.id === targetPod.commandId);
-    if (!command) {
-      return baseMessage;
-    }
-
-    return `/${command.name} ${baseMessage}`;
-  }
 
   private getLastAssistantMessage(sourcePodId: string): string | null {
     const messages = messageStore.getMessages(sourcePodId);
@@ -105,6 +80,142 @@ ${content}
     }
   }
 
+  private async processAutoTriggerConnection(
+    canvasId: string,
+    sourcePodId: string,
+    connection: Connection,
+    summaryContentRef: { value: string | null }
+  ): Promise<void> {
+    const podStatus = podStore.getById(canvasId, connection.targetPodId)?.status;
+    if (!podStatus) {
+      logger.log('Workflow', 'Error', `Target Pod ${connection.targetPodId} not found, skipping auto-trigger`);
+      return;
+    }
+
+    if (podStatus === 'chatting' || podStatus === 'summarizing') {
+      logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is ${podStatus}, skipping auto-trigger`);
+      return;
+    }
+
+    const { isMultiInput, requiredSourcePodIds } = workflowStateService.checkMultiInputScenario(
+      canvasId,
+      connection.targetPodId
+    );
+
+    if (!isMultiInput) {
+      this.triggerWorkflowInternal(canvasId, connection.id).catch((error) => {
+        logger.error('Workflow', 'Error', `Failed to auto-trigger workflow ${connection.id}`, error);
+      });
+      return;
+    }
+
+    await this.handleMultiInputScenario(
+      canvasId,
+      sourcePodId,
+      connection,
+      requiredSourcePodIds,
+      summaryContentRef
+    );
+  }
+
+  private async handleMultiInputScenario(
+    canvasId: string,
+    sourcePodId: string,
+    connection: Connection,
+    requiredSourcePodIds: string[],
+    summaryContentRef: { value: string | null }
+  ): Promise<void> {
+    if (!summaryContentRef.value) {
+      const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, connection.targetPodId);
+      if (!result) {
+        return;
+      }
+      summaryContentRef.value = result.content;
+    }
+
+    if (!pendingTargetStore.hasPendingTarget(connection.targetPodId)) {
+      workflowStateService.initializePendingTarget(connection.targetPodId, requiredSourcePodIds);
+    }
+
+    const allSourcesComplete = workflowStateService.recordSourceCompletion(
+      connection.targetPodId,
+      sourcePodId,
+      summaryContentRef.value
+    );
+
+    if (!allSourcesComplete) {
+      this.emitPendingStatus(canvasId, connection.targetPodId);
+      return;
+    }
+
+    this.triggerMergedWorkflow(canvasId, connection);
+  }
+
+  private emitPendingStatus(canvasId: string, targetPodId: string): void {
+    const pending = pendingTargetStore.getPendingTarget(targetPodId);
+    if (!pending) {
+      return;
+    }
+
+    const completedSourcePodIds = Array.from(pending.completedSources.keys());
+    const pendingSourcePodIds = pending.requiredSourcePodIds.filter(
+      (id) => !completedSourcePodIds.includes(id)
+    );
+
+    const pendingPayload: WorkflowPendingPayload = {
+      canvasId,
+      targetPodId,
+      completedSourcePodIds,
+      pendingSourcePodIds,
+      totalSources: pending.requiredSourcePodIds.length,
+      completedCount: pending.completedSources.size,
+    };
+
+    socketService.emitToCanvas(
+      canvasId,
+      WebSocketResponseEvents.WORKFLOW_PENDING,
+      pendingPayload
+    );
+
+    logger.log('Workflow', 'Update', `Target ${targetPodId} waiting: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources complete`);
+  }
+
+  private triggerMergedWorkflow(canvasId: string, connection: Connection): void {
+    logger.log('Workflow', 'Complete', `All sources complete for target ${connection.targetPodId}`);
+
+    const completedSummaries = workflowStateService.getCompletedSummaries(connection.targetPodId);
+    if (!completedSummaries) {
+      logger.error('Workflow', 'Error', 'Failed to get completed summaries');
+      return;
+    }
+
+    const mergedContent = formatMergedSummaries(
+      completedSummaries,
+      (podId) => podStore.getById(canvasId, podId)
+    );
+    const mergedPreview = mergedContent.substring(0, 200);
+
+    const sourcePodIds = Array.from(completedSummaries.keys());
+    const mergedPayload: WorkflowSourcesMergedPayload = {
+      canvasId,
+      targetPodId: connection.targetPodId,
+      sourcePodIds,
+      mergedContentPreview: mergedPreview,
+    };
+
+    socketService.emitToCanvas(
+      canvasId,
+      WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED,
+      mergedPayload
+    );
+
+    this.triggerWorkflowWithSummary(canvasId, connection.id, mergedContent, true).catch((error) => {
+      logger.error('Workflow', 'Error', `Failed to trigger merged workflow ${connection.id}`, error);
+    });
+
+    workflowStateService.clearPendingTarget(connection.targetPodId);
+  }
+
   async checkAndTriggerWorkflows(canvasId: string, sourcePodId: string): Promise<void> {
     const connections = connectionStore.findBySourcePodId(canvasId, sourcePodId);
     const autoTriggerConnections = connections.filter((conn) => conn.autoTrigger);
@@ -117,112 +228,10 @@ ${content}
 
     autoClearService.initializeWorkflowTracking(canvasId, sourcePodId);
 
-    let summaryContent: string | null = null;
+    const summaryContentRef = { value: null as string | null };
 
     for (const connection of autoTriggerConnections) {
-      const podStatus = podStore.getById(canvasId, connection.targetPodId)?.status;
-      if (!podStatus) {
-        logger.log('Workflow', 'Error', `Target Pod ${connection.targetPodId} not found, skipping auto-trigger`);
-        continue;
-      }
-
-      if (podStatus === 'chatting' || podStatus === 'summarizing') {
-        logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is ${podStatus}, skipping auto-trigger`);
-        continue;
-      }
-
-      const { isMultiInput, requiredSourcePodIds } = workflowStateService.checkMultiInputScenario(
-        canvasId,
-        connection.targetPodId
-      );
-
-      if (!isMultiInput) {
-        this.triggerWorkflowInternal(canvasId, connection.id).catch((error) => {
-          logger.error('Workflow', 'Error', `Failed to auto-trigger workflow ${connection.id}`, error);
-        });
-        continue;
-      }
-
-      if (!summaryContent) {
-        const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, connection.targetPodId);
-
-        if (!result) {
-          continue;
-        }
-
-        summaryContent = result.content;
-      }
-
-      if (!pendingTargetStore.hasPendingTarget(connection.targetPodId)) {
-        workflowStateService.initializePendingTarget(connection.targetPodId, requiredSourcePodIds);
-      }
-
-      const allSourcesComplete = workflowStateService.recordSourceCompletion(
-        connection.targetPodId,
-        sourcePodId,
-        summaryContent
-      );
-
-      if (!allSourcesComplete) {
-        const pending = pendingTargetStore.getPendingTarget(connection.targetPodId);
-        if (!pending) {
-          continue;
-        }
-
-        const completedSourcePodIds = Array.from(pending.completedSources.keys());
-        const pendingSourcePodIds = pending.requiredSourcePodIds.filter(
-          (id) => !completedSourcePodIds.includes(id)
-        );
-
-        const pendingPayload: WorkflowPendingPayload = {
-          canvasId,
-          targetPodId: connection.targetPodId,
-          completedSourcePodIds,
-          pendingSourcePodIds,
-          totalSources: pending.requiredSourcePodIds.length,
-          completedCount: pending.completedSources.size,
-        };
-
-        socketService.emitToCanvas(
-          canvasId,
-          WebSocketResponseEvents.WORKFLOW_PENDING,
-          pendingPayload
-        );
-
-        logger.log('Workflow', 'Update', `Target ${connection.targetPodId} waiting: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources complete`);
-        continue;
-      }
-
-      logger.log('Workflow', 'Complete', `All sources complete for target ${connection.targetPodId}`);
-
-      const completedSummaries = workflowStateService.getCompletedSummaries(connection.targetPodId);
-      if (!completedSummaries) {
-        logger.error('Workflow', 'Error', 'Failed to get completed summaries');
-        continue;
-      }
-
-      const mergedContent = this.formatMergedSummaries(canvasId, completedSummaries);
-      const mergedPreview = mergedContent.substring(0, 200);
-
-      const sourcePodIds = Array.from(completedSummaries.keys());
-      const mergedPayload: WorkflowSourcesMergedPayload = {
-        canvasId,
-        targetPodId: connection.targetPodId,
-        sourcePodIds,
-        mergedContentPreview: mergedPreview,
-      };
-
-      socketService.emitToCanvas(
-        canvasId,
-        WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED,
-        mergedPayload
-      );
-
-      this.triggerWorkflowWithSummary(canvasId, connection.id, mergedContent, true).catch((error) => {
-        logger.error('Workflow', 'Error', `Failed to trigger merged workflow ${connection.id}`, error);
-      });
-
-      workflowStateService.clearPendingTarget(connection.targetPodId);
+      await this.processAutoTriggerConnection(canvasId, sourcePodId, connection, summaryContentRef);
     }
   }
 
@@ -339,12 +348,16 @@ ${content}
   ): Promise<void> {
     podStore.setStatus(canvasId, targetPodId, 'chatting');
 
-    const baseMessage = this.buildTransferMessage(content);
-    const messageToSend = await this.buildMessageWithCommand(canvasId, targetPodId, baseMessage);
+    const baseMessage = buildTransferMessage(content);
+    const targetPod = podStore.getById(canvasId, targetPodId);
+    const commands = await commandService.list();
+    const messageToSend = buildMessageWithCommand(baseMessage, targetPod, commands);
 
     const userMessageId = uuidv4();
     const assistantMessageId = uuidv4();
-    let accumulatedContent = '';
+    const accumulatedContentRef = {value: ''};
+    const subMessageState = createSubMessageState();
+    const flushCurrentSubMessage = createSubMessageFlusher(assistantMessageId, subMessageState);
 
     try {
       const userMessagePayload: PodChatMessagePayload = {
@@ -378,13 +391,13 @@ ${content}
       await claudeQueryService.sendMessage(targetPodId, messageToSend, (event) => {
         switch (event.type) {
           case 'text': {
-            accumulatedContent += event.content;
+            processTextEvent(event.content, accumulatedContentRef, subMessageState);
 
             const textPayload: PodChatMessagePayload = {
               canvasId,
               podId: targetPodId,
               messageId: assistantMessageId,
-              content: accumulatedContent,
+              content: accumulatedContentRef.value,
               isPartial: true,
               role: 'assistant',
             };
@@ -397,6 +410,14 @@ ${content}
           }
 
           case 'tool_use': {
+            processToolUseEvent(
+              event.toolUseId,
+              event.toolName,
+              event.input,
+              subMessageState,
+              flushCurrentSubMessage
+            );
+
             const toolUsePayload: PodChatToolUsePayload = {
               canvasId,
               podId: targetPodId,
@@ -414,6 +435,8 @@ ${content}
           }
 
           case 'tool_result': {
+            processToolResultEvent(event.toolUseId, event.output, subMessageState);
+
             const toolResultPayload: PodChatToolResultPayload = {
               canvasId,
               podId: targetPodId,
@@ -431,11 +454,13 @@ ${content}
           }
 
           case 'complete': {
+            flushCurrentSubMessage();
+
             const completePayload: PodChatCompletePayload = {
               canvasId,
               podId: targetPodId,
               messageId: assistantMessageId,
-              fullContent: accumulatedContent,
+              fullContent: accumulatedContentRef.value,
             };
             socketService.emitToCanvas(
               canvasId,
@@ -452,8 +477,14 @@ ${content}
         }
       });
 
-      if (accumulatedContent) {
-        await messageStore.addMessage(canvasId, targetPodId, 'assistant', accumulatedContent);
+      if (accumulatedContentRef.value || subMessageState.subMessages.length > 0) {
+        await messageStore.addMessage(
+          canvasId,
+          targetPodId,
+          'assistant',
+          accumulatedContentRef.value,
+          subMessageState.subMessages.length > 0 ? subMessageState.subMessages : undefined
+        );
       }
 
       podStore.setStatus(canvasId, targetPodId, 'idle');

@@ -4,9 +4,6 @@ import type {
     PodCreatedPayload,
     PodListResultPayload,
     PodGetResultPayload,
-    PodMovedPayload,
-    PodRenamedPayload,
-    PodModelSetPayload,
     PodScheduleSetPayload,
     PodDeletedPayload,
 } from '../types/index.js';
@@ -20,13 +17,14 @@ import type {
     PodSetSchedulePayload,
     PodDeletePayload,
 } from '../schemas/index.js';
+import type {Pod} from '../types/index.js';
 import {podStore} from '../services/podStore.js';
 import {workspaceService} from '../services/workspace/index.js';
 import {claudeSessionManager} from '../services/claude/sessionManager.js';
 import {noteStore, skillNoteStore, repositoryNoteStore, commandNoteStore, subAgentNoteStore} from '../services/noteStores.js';
 import {connectionStore} from '../services/connectionStore.js';
 import {socketService} from '../services/socketService.js';
-import { workflowStateService } from '../services/workflow/index.js';
+import {workflowStateService} from '../services/workflow/index.js';
 import {repositorySyncService} from '../services/repositorySyncService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
@@ -105,106 +103,64 @@ export async function handlePodGet(
     emitSuccess(socket, WebSocketResponseEvents.POD_GET_RESULT, response);
 }
 
+function deleteAllPodNotes(canvasId: string, podId: string): PodDeletedPayload['deletedNoteIds'] {
+    const deletedNoteIds = noteStore.deleteByBoundPodId(canvasId, podId);
+    const deletedSkillNoteIds = skillNoteStore.deleteByBoundPodId(canvasId, podId);
+    const deletedRepositoryNoteIds = repositoryNoteStore.deleteByBoundPodId(canvasId, podId);
+    const deletedCommandNoteIds = commandNoteStore.deleteByBoundPodId(canvasId, podId);
+    const deletedSubAgentNoteIds = subAgentNoteStore.deleteByBoundPodId(canvasId, podId);
+
+    const result: PodDeletedPayload['deletedNoteIds'] = {};
+
+    if (deletedNoteIds.length > 0) {
+        result.note = deletedNoteIds;
+    }
+    if (deletedSkillNoteIds.length > 0) {
+        result.skillNote = deletedSkillNoteIds;
+    }
+    if (deletedRepositoryNoteIds.length > 0) {
+        result.repositoryNote = deletedRepositoryNoteIds;
+    }
+    if (deletedCommandNoteIds.length > 0) {
+        result.commandNote = deletedCommandNoteIds;
+    }
+    if (deletedSubAgentNoteIds.length > 0) {
+        result.subAgentNote = deletedSubAgentNoteIds;
+    }
+
+    return result;
+}
+
 export const handlePodDelete = withCanvasId<PodDeletePayload>(
     WebSocketResponseEvents.POD_DELETED,
     async (socket: Socket, canvasId: string, payload: PodDeletePayload, requestId: string): Promise<void> => {
         const {podId} = payload;
 
         const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_DELETED, requestId);
-
         if (!pod) {
             return;
         }
 
-    workflowStateService.handleSourceDeletion(canvasId, podId);
+        workflowStateService.handleSourceDeletion(canvasId, podId);
 
-    await claudeSessionManager.destroySession(podId);
+        await claudeSessionManager.destroySession(podId);
 
-    const deleteResult = await workspaceService.deleteWorkspace(pod.workspacePath);
-    if (!deleteResult.success) {
-        logger.error('Pod', 'Delete', `Failed to delete workspace for Pod ${podId}`, deleteResult.error);
-    }
-
-    const deletedNoteIds = noteStore.deleteByBoundPodId(canvasId, podId);
-    const deletedSkillNoteIds = skillNoteStore.deleteByBoundPodId(canvasId, podId);
-    const deletedRepositoryNoteIds = repositoryNoteStore.deleteByBoundPodId(canvasId, podId);
-    const deletedCommandNoteIds = commandNoteStore.deleteByBoundPodId(canvasId, podId);
-    const deletedSubAgentNoteIds = subAgentNoteStore.deleteByBoundPodId(canvasId, podId);
-    connectionStore.deleteByPodId(canvasId, podId);
-
-    const repositoryId = pod.repositoryId;
-
-    const deleted = podStore.delete(canvasId, podId);
-
-    if (repositoryId) {
-        try {
-            await repositorySyncService.syncRepositoryResources(repositoryId);
-        } catch (error) {
-            logger.error('Pod', 'Delete', `Failed to sync repository ${repositoryId} after pod deletion`, error);
-        }
-    }
-
-    if (!deleted) {
-        emitError(
-            socket,
-            WebSocketResponseEvents.POD_DELETED,
-            `Failed to delete Pod from store: ${podId}`,
-            requestId,
-            podId,
-            'INTERNAL_ERROR'
-        );
-        return;
-    }
-
-    const deletedNoteIdsPayload: PodDeletedPayload['deletedNoteIds'] = {};
-    if (deletedNoteIds.length > 0) {
-        deletedNoteIdsPayload.note = deletedNoteIds;
-    }
-    if (deletedSkillNoteIds.length > 0) {
-        deletedNoteIdsPayload.skillNote = deletedSkillNoteIds;
-    }
-    if (deletedRepositoryNoteIds.length > 0) {
-        deletedNoteIdsPayload.repositoryNote = deletedRepositoryNoteIds;
-    }
-    if (deletedCommandNoteIds.length > 0) {
-        deletedNoteIdsPayload.commandNote = deletedCommandNoteIds;
-    }
-    if (deletedSubAgentNoteIds.length > 0) {
-        deletedNoteIdsPayload.subAgentNote = deletedSubAgentNoteIds;
-    }
-
-    const response: PodDeletedPayload = {
-        requestId,
-        canvasId,
-        success: true,
-        podId,
-        ...(Object.keys(deletedNoteIdsPayload).length > 0 && { deletedNoteIds: deletedNoteIdsPayload }),
-    };
-
-    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_DELETED, response);
-
-    logger.log('Pod', 'Delete', `Deleted Pod ${podId}`);
-    }
-);
-
-export const handlePodMove = withCanvasId<PodMovePayload>(
-    WebSocketResponseEvents.POD_MOVED,
-    async (socket: Socket, canvasId: string, payload: PodMovePayload, requestId: string): Promise<void> => {
-        const {podId, x, y} = payload;
-
-        const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_MOVED, requestId);
-
-        if (!existingPod) {
-            return;
+        const deleteResult = await workspaceService.deleteWorkspace(pod.workspacePath);
+        if (!deleteResult.success) {
+            logger.error('Pod', 'Delete', `無法刪除 Pod ${podId} 的工作區`, deleteResult.error);
         }
 
-        const updatedPod = podStore.update(canvasId, podId, {x, y});
+        const deletedNoteIdsPayload = deleteAllPodNotes(canvasId, podId);
+        connectionStore.deleteByPodId(canvasId, podId);
 
-        if (!updatedPod) {
+        const repositoryId = pod.repositoryId;
+
+        const deleted = podStore.delete(canvasId, podId);
+        if (!deleted) {
             emitError(
                 socket,
-                WebSocketResponseEvents.POD_MOVED,
-                `無法更新 Pod: ${podId}`,
+                WebSocketResponseEvents.POD_DELETED,
+                `無法從 store 刪除 Pod: ${podId}`,
                 requestId,
                 podId,
                 'INTERNAL_ERROR'
@@ -212,14 +168,66 @@ export const handlePodMove = withCanvasId<PodMovePayload>(
             return;
         }
 
-        const response: PodMovedPayload = {
+        if (repositoryId) {
+            try {
+                await repositorySyncService.syncRepositoryResources(repositoryId);
+            } catch (error) {
+                logger.error('Pod', 'Delete', `刪除 Pod 後無法同步 repository ${repositoryId}`, error);
+            }
+        }
+
+        const response: PodDeletedPayload = {
             requestId,
             canvasId,
             success: true,
-            pod: updatedPod,
+            podId,
+            ...(deletedNoteIdsPayload && Object.keys(deletedNoteIdsPayload).length > 0 && {deletedNoteIds: deletedNoteIdsPayload}),
         };
 
-        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_MOVED, response);
+        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_DELETED, response);
+
+        logger.log('Pod', 'Delete', `Deleted Pod ${podId}`);
+    }
+);
+
+function handlePodUpdate<TResponse>(
+    socket: Socket,
+    canvasId: string,
+    podId: string,
+    updates: Partial<Omit<Pod, 'id'>>,
+    requestId: string,
+    responseEvent: WebSocketResponseEvents,
+    createResponse: (pod: Pod) => TResponse
+): void {
+    const existingPod = validatePod(socket, podId, responseEvent, requestId);
+    if (!existingPod) {
+        return;
+    }
+
+    const updatedPod = podStore.update(canvasId, podId, updates);
+    if (!updatedPod) {
+        emitError(socket, responseEvent, `無法更新 Pod: ${podId}`, requestId, podId, 'INTERNAL_ERROR');
+        return;
+    }
+
+    const response = createResponse(updatedPod);
+    socketService.emitToCanvas(canvasId, responseEvent, response);
+}
+
+export const handlePodMove = withCanvasId<PodMovePayload>(
+    WebSocketResponseEvents.POD_MOVED,
+    async (socket: Socket, canvasId: string, payload: PodMovePayload, requestId: string): Promise<void> => {
+        const {podId, x, y} = payload;
+
+        handlePodUpdate(
+            socket,
+            canvasId,
+            podId,
+            {x, y},
+            requestId,
+            WebSocketResponseEvents.POD_MOVED,
+            (pod) => ({requestId, canvasId, success: true, pod})
+        );
     }
 );
 
@@ -228,34 +236,15 @@ export const handlePodRename = withCanvasId<PodRenamePayload>(
     async (socket: Socket, canvasId: string, payload: PodRenamePayload, requestId: string): Promise<void> => {
         const {podId, name} = payload;
 
-        const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_RENAMED, requestId);
-
-        if (!existingPod) {
-            return;
-        }
-
-        const updatedPod = podStore.update(canvasId, podId, {name});
-
-        if (!updatedPod) {
-            emitError(
-                socket,
-                WebSocketResponseEvents.POD_RENAMED,
-                `無法更新 Pod: ${podId}`,
-                requestId,
-                podId,
-                'INTERNAL_ERROR'
-            );
-            return;
-        }
-
-        const response: PodRenamedPayload = {
-            requestId,
+        handlePodUpdate(
+            socket,
             canvasId,
-            success: true,
-            pod: updatedPod,
-        };
-
-        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_RENAMED, response);
+            podId,
+            {name},
+            requestId,
+            WebSocketResponseEvents.POD_RENAMED,
+            (pod) => ({requestId, canvasId, success: true, pod})
+        );
     }
 );
 
@@ -264,34 +253,15 @@ export const handlePodSetModel = withCanvasId<PodSetModelPayload>(
     async (socket: Socket, canvasId: string, payload: PodSetModelPayload, requestId: string): Promise<void> => {
         const {podId, model} = payload;
 
-        const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_MODEL_SET, requestId);
-
-        if (!existingPod) {
-            return;
-        }
-
-        const updatedPod = podStore.update(canvasId, podId, {model});
-
-        if (!updatedPod) {
-            emitError(
-                socket,
-                WebSocketResponseEvents.POD_MODEL_SET,
-                `無法更新 Pod: ${podId}`,
-                requestId,
-                podId,
-                'INTERNAL_ERROR'
-            );
-            return;
-        }
-
-        const response: PodModelSetPayload = {
-            requestId,
+        handlePodUpdate(
+            socket,
             canvasId,
-            success: true,
-            pod: updatedPod,
-        };
-
-        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_MODEL_SET, response);
+            podId,
+            {model},
+            requestId,
+            WebSocketResponseEvents.POD_MODEL_SET,
+            (pod) => ({requestId, canvasId, success: true, pod})
+        );
     }
 );
 

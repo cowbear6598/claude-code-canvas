@@ -5,17 +5,23 @@ import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type ConnectionCreatePayload,
+  type ConnectionUpdatePayload,
 } from '../../src/schemas/index.js';
 import {
   type ConnectionCreatedPayload,
+  type ConnectionUpdatedPayload,
   type Connection,
 } from '../../src/types/index.js';
+
+interface CreateConnectionOptions extends Partial<ConnectionCreatePayload> {
+  autoTrigger?: boolean;
+}
 
 export async function createConnection(
   client: Socket,
   sourcePodId: string,
   targetPodId: string,
-  overrides?: Partial<ConnectionCreatePayload>
+  options?: CreateConnectionOptions
 ): Promise<Connection> {
   if (!client.id) {
     throw new Error('Socket not connected');
@@ -28,6 +34,8 @@ export async function createConnection(
     throw new Error('No active canvas for socket');
   }
 
+  const { autoTrigger, ...createOverrides } = options || {};
+
   const payload: ConnectionCreatePayload = {
     requestId: uuidv4(),
     canvasId,
@@ -35,7 +43,7 @@ export async function createConnection(
     sourceAnchor: 'right',
     targetPodId,
     targetAnchor: 'left',
-    ...overrides,
+    ...createOverrides,
   };
 
   const response = await emitAndWaitResponse<ConnectionCreatePayload, ConnectionCreatedPayload>(
@@ -45,5 +53,25 @@ export async function createConnection(
     payload
   );
 
-  return response.connection!;
+  const connection = response.connection!;
+
+  if (autoTrigger !== undefined) {
+    const updatePayload: ConnectionUpdatePayload = {
+      requestId: uuidv4(),
+      canvasId,
+      connectionId: connection.id,
+      autoTrigger,
+    };
+
+    const updateResponse = await emitAndWaitResponse<ConnectionUpdatePayload, ConnectionUpdatedPayload>(
+      client,
+      WebSocketRequestEvents.CONNECTION_UPDATE,
+      WebSocketResponseEvents.CONNECTION_UPDATED,
+      updatePayload
+    );
+
+    return updateResponse.connection!;
+  }
+
+  return connection;
 }
