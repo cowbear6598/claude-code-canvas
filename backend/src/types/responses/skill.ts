@@ -43,3 +43,11 @@ export interface SkillDeletedPayload {
   deletedNoteIds?: string[];
   error?: string;
 }
+
+export interface SkillImportedPayload {
+  requestId: string;
+  success: boolean;
+  skill?: Skill;
+  isOverwrite?: boolean;
+  error?: string;
+}

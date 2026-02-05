@@ -306,3 +306,11 @@ export interface MoveToGroupPayload {
   itemId: string
   groupId: string | null
 }
+
+export interface SkillImportPayload {
+  requestId: string
+  canvasId: string
+  fileName: string
+  fileData: string
+  fileSize: number
+}

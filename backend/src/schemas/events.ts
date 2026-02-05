@@ -85,6 +85,7 @@ export enum WebSocketRequestEvents {
   COMMAND_MOVE_TO_GROUP = 'command:move-to-group',
   OUTPUT_STYLE_MOVE_TO_GROUP = 'output-style:move-to-group',
   SUBAGENT_MOVE_TO_GROUP = 'subagent:move-to-group',
+  SKILL_IMPORT = 'skill:import',
 }
 
 export enum WebSocketResponseEvents {
@@ -192,4 +193,5 @@ export enum WebSocketResponseEvents {
   COMMAND_MOVED_TO_GROUP = 'command:moved-to-group',
   OUTPUT_STYLE_MOVED_TO_GROUP = 'output-style:moved-to-group',
   SUBAGENT_MOVED_TO_GROUP = 'subagent:moved-to-group',
+  SKILL_IMPORTED = 'skill:imported',
 }

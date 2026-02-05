@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus, FilePlus } from 'lucide-vue-next'
+import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus, FilePlus, Import } from 'lucide-vue-next'
 import type { Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent } from '@/types'
 import { podTypes } from '@/data/podTypes'
 import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import { useMenuPosition } from '@/composables/useMenuPosition'
+import { useSkillImport } from '@/composables/useSkillImport'
 import PodTypeMenuSubmenu from './PodTypeMenuSubmenu.vue'
 
 interface Props {
@@ -43,6 +44,8 @@ const {
   commandStore,
   podStore
 } = useCanvasContext()
+
+const { importSkill, isImporting } = useSkillImport()
 
 const openMenuType = ref<'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | null>(null)
 const hoveredItemId = ref<string | null>(null)
@@ -175,6 +178,12 @@ const handleSubAgentDropToGroup = (itemId: string, groupId: string | null): void
 
 const handleCommandDropToGroup = (itemId: string, groupId: string | null): void => {
   commandStore.moveCommandToGroup(itemId, groupId)
+}
+
+const handleImportSkill = async (): Promise<void> => {
+  openMenuType.value = null
+  await importSkill()
+  emit('close')
 }
 
 // 在選單打開時處理右鍵點擊，更新選單位置
@@ -352,7 +361,19 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
           :editable="false"
           @item-select="handleSkillSelect"
           @item-delete="(id, name, event) => handleDeleteClick('skill', id, name, event)"
-        />
+        >
+          <template #footer>
+            <div class="border-t border-doodle-ink/30 my-1" />
+            <div
+              class="pod-menu-submenu-item flex items-center gap-2"
+              :class="{ 'opacity-50 cursor-not-allowed': isImporting }"
+              @click="handleImportSkill"
+            >
+              <Import :size="16" />
+              Import...
+            </div>
+          </template>
+        </PodTypeMenuSubmenu>
       </div>
 
       <!-- SubAgents 按鈕 -->

@@ -1,9 +1,10 @@
 import {WebSocketResponseEvents} from '../schemas';
-import type {SkillListResultPayload} from '../types';
+import type {SkillListResultPayload, SkillImportedPayload} from '../types';
 import type {
     SkillListPayload,
     PodBindSkillPayload,
     SkillDeletePayload,
+    SkillImportPayload,
 } from '../schemas';
 import {skillService} from '../services/skillService.js';
 import {skillNoteStore} from '../services/noteStores.js';
@@ -12,6 +13,7 @@ import {emitSuccess} from '../utils/websocketResponse.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createBindHandler} from './factories/createBindHandlers.js';
 import {handleResourceDelete} from '../utils/handlerHelpers.js';
+import {logger} from '../utils/logger.js';
 
 const skillNoteHandlers = createNoteHandlers({
     noteStore: skillNoteStore,
@@ -88,4 +90,25 @@ export async function handleSkillDelete(
         deleteNotes: (canvasId: string) => skillNoteStore.deleteByForeignKey(canvasId, skillId),
         deleteResource: () => skillService.delete(skillId),
     });
+}
+
+export async function handleSkillImport(
+    connectionId: string,
+    payload: SkillImportPayload,
+    requestId: string
+): Promise<void> {
+    const {fileName, fileData, fileSize} = payload;
+
+    const result = await skillService.import(fileName, fileData, fileSize);
+
+    logger.log('Skill', 'Create', `Skill import - connectionId: ${connectionId}, fileName: ${fileName}, fileSize: ${fileSize}, skillId: ${result.skill.id}, isOverwrite: ${result.isOverwrite}`);
+
+    const response: SkillImportedPayload = {
+        requestId,
+        success: true,
+        skill: result.skill,
+        isOverwrite: result.isOverwrite,
+    };
+
+    emitSuccess(connectionId, WebSocketResponseEvents.SKILL_IMPORTED, response);
 }

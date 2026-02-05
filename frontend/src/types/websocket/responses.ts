@@ -435,3 +435,11 @@ export interface MovedToGroupPayload {
     groupId?: string | null
     error?: string
 }
+
+export interface SkillImportedPayload {
+    requestId: string
+    success: boolean
+    skill?: { id: string; name: string; description: string }
+    isOverwrite?: boolean
+    error?: string
+}

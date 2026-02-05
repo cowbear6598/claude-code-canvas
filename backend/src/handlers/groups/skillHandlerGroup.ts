@@ -7,6 +7,7 @@ import {
   skillNoteDeleteSchema,
   podBindSkillSchema,
   skillDeleteSchema,
+  skillImportSchema,
 } from '../../schemas';
 import {
   handleSkillList,
@@ -16,6 +17,7 @@ import {
   handleSkillNoteDelete,
   handlePodBindSkill,
   handleSkillDelete,
+  handleSkillImport,
 } from '../skillHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
 
@@ -63,6 +65,12 @@ export const skillHandlerGroup = createHandlerGroup({
       handler: handleSkillDelete,
       schema: skillDeleteSchema,
       responseEvent: WebSocketResponseEvents.SKILL_DELETED,
+    },
+    {
+      event: WebSocketRequestEvents.SKILL_IMPORT,
+      handler: handleSkillImport,
+      schema: skillImportSchema,
+      responseEvent: WebSocketResponseEvents.SKILL_IMPORTED,
     },
   ],
 });
