@@ -70,12 +70,9 @@
 
 /* Output Style Slot 容器位置（移至右側） */
 .pod-notch-area {
-  position: absolute;
   right: 0;
-  top: 18px;  /* 調整此值來移動 Slot 的垂直位置 */
+  top: 18px;
   transform: translateX(100%);
-  z-index: -1;
-  pointer-events: none;
 }
 
 /* Output Style 凹槽視覺效果（POD 右側的小突出） */

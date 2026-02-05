@@ -70,7 +70,7 @@ const handleCommandRemoved = (): void => {
 
 <template>
   <!-- Output Style 凹槽 -->
-  <div class="pod-notch-area">
+  <div class="pod-notch-area-base pod-notch-area">
     <PodOutputStyleSlot
       :pod-id="podId"
       :bound-note="boundOutputStyleNote"
@@ -81,7 +81,7 @@ const handleCommandRemoved = (): void => {
   </div>
 
   <!-- Skill 凹槽 -->
-  <div class="pod-skill-notch-area">
+  <div class="pod-notch-area-base pod-skill-notch-area">
     <PodSkillSlot
       :pod-id="podId"
       :bound-notes="boundSkillNotes"
@@ -90,7 +90,7 @@ const handleCommandRemoved = (): void => {
   </div>
 
   <!-- SubAgent 凹槽 -->
-  <div class="pod-subagent-notch-area">
+  <div class="pod-notch-area-base pod-subagent-notch-area">
     <PodSubAgentSlot
       :pod-id="podId"
       :bound-notes="boundSubAgentNotes"
@@ -99,7 +99,7 @@ const handleCommandRemoved = (): void => {
   </div>
 
   <!-- Repository 凹槽（右側） -->
-  <div class="pod-repository-notch-area">
+  <div class="pod-notch-area-base pod-repository-notch-area">
     <PodRepositorySlot
       :pod-id="podId"
       :bound-note="boundRepositoryNote"
@@ -110,7 +110,7 @@ const handleCommandRemoved = (): void => {
   </div>
 
   <!-- Command 插槽（右側） -->
-  <div class="pod-command-notch-area">
+  <div class="pod-notch-area-base pod-command-notch-area">
     <PodCommandSlot
       :pod-id="podId"
       :bound-note="boundCommandNote"

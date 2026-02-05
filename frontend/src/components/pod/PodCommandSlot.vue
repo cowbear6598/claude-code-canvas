@@ -50,7 +50,7 @@ const handleSlotClick = async (e: MouseEvent): Promise<void> => {
 <template>
   <div
     ref="slotRef"
-    class="pod-command-slot"
+    class="pod-slot-base pod-command-slot"
     :class="{
       'drop-target': isDropTarget,
       'has-note': boundNote !== undefined,

@@ -1,5 +1,9 @@
-/* Pod Output Style Slot */
-.pod-output-style-slot {
+/* ===================================
+   基礎類別
+   =================================== */
+
+/* Slot 基礎樣式 */
+.pod-slot-base {
   padding: 6px 12px;
   background: transparent;
   border: 2px dashed oklch(0.6 0.02 50 / 0.4);
@@ -12,12 +16,67 @@
   pointer-events: auto;
 }
 
-.pod-output-style-slot.drop-target {
+.pod-slot-base.drop-target {
   background: oklch(0.7 0.1 150 / 0.3);
   border: 2px solid oklch(0.6 0.1 150);
   box-shadow: 0 0 12px oklch(0.6 0.1 150 / 0.6);
   transform: scale(1.05);
 }
+
+.pod-slot-base.inserting {
+  animation: slide-into-slot-right 0.3s ease-out;
+}
+
+/* Notch Area 基礎樣式 */
+.pod-notch-area-base {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 選單基礎樣式 */
+.pod-slot-menu-base {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: -2px;
+  min-width: 120px;
+  max-width: 200px;
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 4px;
+  padding: 4px;
+  box-shadow: 3px 3px 0 var(--doodle-ink);
+  z-index: 200;
+  pointer-events: auto;
+}
+
+/* 選單項目基礎樣式 */
+.pod-slot-menu-item-base {
+  width: 100%;
+  padding: 6px 10px;
+  font-family: var(--font-mono), monospace, sans-serif;
+  font-size: 0.75rem;
+  color: var(--foreground);
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pod-slot-menu-item-base:hover {
+  background: var(--secondary);
+}
+
+/* ===================================
+   Output Style Slot
+   =================================== */
+
+/* Pod Output Style Slot */
 
 .pod-output-style-slot.has-note {
   background: var(--doodle-yellow);
@@ -37,30 +96,11 @@
   animation: eject-from-slot-right 0.3s ease-out forwards;
 }
 
-.pod-output-style-slot.inserting {
-  animation: slide-into-slot-right 0.3s ease-out;
-}
+/* ===================================
+   Repository Slot
+   =================================== */
 
 /* Pod Repository Slot */
-.pod-repository-slot {
-  padding: 6px 12px;
-  background: transparent;
-  border: 2px dashed oklch(0.6 0.02 50 / 0.4);
-  border-radius: 2px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-  pointer-events: auto;
-}
-
-.pod-repository-slot.drop-target {
-  background: oklch(0.7 0.1 150 / 0.3);
-  border: 2px solid oklch(0.6 0.1 150);
-  box-shadow: 0 0 12px oklch(0.6 0.1 150 / 0.6);
-  transform: scale(1.05);
-}
 
 .pod-repository-slot.has-note {
   background: var(--doodle-orange);
@@ -80,18 +120,11 @@
   animation: eject-from-slot-right 0.3s ease-out forwards;
 }
 
-.pod-repository-slot.inserting {
-  animation: slide-into-slot-right 0.3s ease-out;
-}
-
 /* Repository Slot 容器位置（POD 右側） */
 .pod-repository-notch-area {
-  position: absolute;
   right: 0;
   top: 98px;
   transform: translateX(100%);
-  z-index: -1;
-  pointer-events: none;
 }
 
 /* Repository 凹槽視覺效果（POD 右側的小突出） */
@@ -108,26 +141,13 @@
   z-index: -1;
 }
 
+/* ===================================
+   Command Slot
+   =================================== */
+
 /* Pod Command Slot（位於 POD 右側，水平書寫） */
 .pod-command-slot {
-  padding: 6px 12px;
-  background: transparent;
-  border: 2px dashed oklch(0.6 0.02 50 / 0.4);
-  border-radius: 2px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  white-space: nowrap;
   box-sizing: border-box;
-  pointer-events: auto;
-}
-
-.pod-command-slot.drop-target {
-  background: oklch(0.7 0.1 150 / 0.3);
-  border: 2px solid oklch(0.6 0.1 150);
-  box-shadow: 0 0 12px oklch(0.6 0.1 150 / 0.6);
-  transform: scale(1.05);
 }
 
 .pod-command-slot.has-note {
@@ -148,19 +168,11 @@
   animation: eject-from-slot-right 0.3s ease-out forwards;
 }
 
-.pod-command-slot.inserting {
-  animation: slide-into-slot-right 0.3s ease-out;
-}
-
-
 /* Command Slot 容器位置（POD 右側） */
 .pod-command-notch-area {
-  position: absolute;
   right: 0;
   top: 58px;
   transform: translateX(100%);
-  z-index: -1;
-  pointer-events: none;
 }
 
 /* Command 凹槽視覺效果（POD 右側） */
@@ -177,19 +189,13 @@
   z-index: -1;
 }
 
+/* ===================================
+   Skill Slot
+   =================================== */
+
 /* Pod Skill Slot */
 .pod-skill-slot {
-  padding: 6px 12px;
-  background: transparent;
-  border: 2px dashed oklch(0.6 0.02 50 / 0.4);
-  border-radius: 2px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  white-space: nowrap;
   position: relative;
-  pointer-events: auto;
 }
 
 .pod-skill-slot::before {
@@ -199,13 +205,6 @@
   top: 0;
   width: 16px;
   height: 100%;
-}
-
-.pod-skill-slot.drop-target {
-  background: oklch(0.7 0.1 150 / 0.3);
-  border: 2px solid oklch(0.6 0.1 150);
-  box-shadow: 0 0 12px oklch(0.6 0.1 150 / 0.6);
-  transform: scale(1.05);
 }
 
 .pod-skill-slot.has-notes {
@@ -228,49 +227,9 @@
 
 /* Skill Slot 容器位置 */
 .pod-skill-notch-area {
-  position: absolute;
   left: 0;
-  top: 18px;  /* 調整此值來移動 Skill Slot 的垂直位置 */
+  top: 18px;
   transform: translateX(-100%);
-  z-index: -1;
-  pointer-events: none;
-}
-
-/* Skill Hover 選單（顯示已綁定的 Skills 列表） */
-.pod-skill-menu {
-  position: absolute;
-  right: calc(100% + 8px);  /* 選單在 Slot 左邊，減少間隙 */
-  top: -2px;  /* 微調選單垂直位置，讓它和 Slot 對齊 */
-  min-width: 120px;
-  max-width: 200px;
-  background: var(--card);
-  border: 2px solid var(--doodle-ink);
-  border-radius: 4px;
-  padding: 4px;
-  box-shadow: 3px 3px 0 var(--doodle-ink);
-  z-index: 200;
-  pointer-events: auto;
-}
-
-.pod-skill-menu-item {
-  width: 100%;
-  padding: 6px 10px;
-  font-family: var(--font-mono), monospace, sans-serif;
-  font-size: 0.75rem;
-  color: var(--foreground);
-  background: transparent;
-  border: none;
-  border-radius: 2px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pod-skill-menu-item:hover {
-  background: var(--secondary);
 }
 
 /* Pod Skill Menu Scrollable max-height 與其他不同，保持獨立 */
@@ -278,19 +237,13 @@
   max-height: calc(30px * 5 + 8px);
 }
 
+/* ===================================
+   SubAgent Slot
+   =================================== */
+
 /* Pod SubAgent Slot */
 .pod-subagent-slot {
-  padding: 6px 12px;
-  background: transparent;
-  border: 2px dashed oklch(0.6 0.02 50 / 0.4);
-  border-radius: 2px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  white-space: nowrap;
   position: relative;
-  pointer-events: auto;
 }
 
 .pod-subagent-slot::before {
@@ -300,13 +253,6 @@
   top: 0;
   width: 16px;
   height: 100%;
-}
-
-.pod-subagent-slot.drop-target {
-  background: oklch(0.7 0.1 150 / 0.3);
-  border: 2px solid oklch(0.6 0.1 150);
-  box-shadow: 0 0 12px oklch(0.6 0.1 150 / 0.6);
-  transform: scale(1.05);
 }
 
 .pod-subagent-slot.has-notes {
@@ -329,12 +275,9 @@
 
 /* SubAgent Slot 容器位置（在 Skill 下方） */
 .pod-subagent-notch-area {
-  position: absolute;
   left: 0;
   top: 58px;
   transform: translateX(-100%);
-  z-index: -1;
-  pointer-events: none;
 }
 
 /* SubAgent 凹槽視覺效果（POD 左側第二個凹槽） */
@@ -349,41 +292,4 @@
   border-right: none;
   border-radius: 4px 0 0 4px;
   z-index: -1;
-}
-
-/* SubAgent Hover 選單 */
-.pod-subagent-menu {
-  position: absolute;
-  right: calc(100% + 8px);
-  top: -2px;
-  min-width: 120px;
-  max-width: 200px;
-  background: var(--card);
-  border: 2px solid var(--doodle-ink);
-  border-radius: 4px;
-  padding: 4px;
-  box-shadow: 3px 3px 0 var(--doodle-ink);
-  z-index: 200;
-  pointer-events: auto;
-}
-
-.pod-subagent-menu-item {
-  width: 100%;
-  padding: 6px 10px;
-  font-family: var(--font-mono), monospace, sans-serif;
-  font-size: 0.75rem;
-  color: var(--foreground);
-  background: transparent;
-  border: none;
-  border-radius: 2px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pod-subagent-menu-item:hover {
-  background: var(--secondary);
 }
