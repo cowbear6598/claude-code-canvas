@@ -3,6 +3,7 @@ import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { useCanvasStore } from '@/stores/canvasStore'
+import { useToast } from '@/composables/useToast'
 import type {
   RepositoryCreatePayload,
   RepositoryCreatedPayload,
@@ -19,6 +20,12 @@ import type {
   RepositoryDeleteBranchPayload,
   RepositoryBranchDeletedPayload
 } from '@/types/websocket'
+
+const CHECKOUT_ACTION_MAP: Record<'switched' | 'fetched' | 'created', string> = {
+  'switched': '切換',
+  'fetched': '拉取',
+  'created': '建立'
+}
 
 interface RepositoryStoreCustomActions {
   createRepository(name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }>
@@ -80,6 +87,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
   customActions: {
     async createRepository(this, name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const { showSuccessToast, showErrorToast } = useToast()
       const canvasStore = useCanvasStore()
 
       const response = await wrapWebSocketRequest(
@@ -95,14 +103,18 @@ const store = createNoteStore<Repository, RepositoryNote>({
       )
 
       if (!response) {
+        showErrorToast('Repository', '建立失敗', '建立資料夾失敗')
         return { success: false, error: '建立資料夾失敗' }
       }
 
       if (!response.repository) {
-        return { success: false, error: response.error || '建立資料夾失敗' }
+        const error = response.error || '建立資料夾失敗'
+        showErrorToast('Repository', '建立失敗', error)
+        return { success: false, error }
       }
 
       this.availableItems.push(response.repository)
+      showSuccessToast('Repository', '建立成功', name)
       return { success: true, repository: response.repository }
     },
 
@@ -144,6 +156,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
 
     async createWorktree(this, repositoryId: string, worktreeName: string, sourceNotePosition: { x: number; y: number }): Promise<{ success: boolean; error?: string }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const { showSuccessToast, showErrorToast } = useToast()
       const canvasStore = useCanvasStore()
 
       const response = await wrapWebSocketRequest(
@@ -160,11 +173,14 @@ const store = createNoteStore<Repository, RepositoryNote>({
       )
 
       if (!response) {
+        showErrorToast('Repository', 'Worktree 建立失敗')
         return { success: false, error: '建立 Worktree 失敗' }
       }
 
       if (!response.success) {
-        return { success: false, error: response.error || '建立 Worktree 失敗' }
+        const error = response.error || '建立 Worktree 失敗'
+        showErrorToast('Repository', 'Worktree 建立失敗', error)
+        return { success: false, error }
       }
 
       if (response.repository) {
@@ -178,6 +194,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
         )
       }
 
+      showSuccessToast('Repository', 'Worktree 建立成功', worktreeName)
       return { success: true }
     },
 
@@ -239,6 +256,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
 
     async checkoutBranch(this, repositoryId: string, branchName: string, force: boolean = false): Promise<{ success: boolean; branchName?: string; action?: 'switched' | 'fetched' | 'created'; error?: string }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const { showSuccessToast, showErrorToast } = useToast()
       const canvasStore = useCanvasStore()
 
       const response = await wrapWebSocketRequest(
@@ -256,6 +274,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
       )
 
       if (!response) {
+        showErrorToast('Git', '切換分支失敗')
         return { success: false, error: '切換分支失敗' }
       }
 
@@ -264,6 +283,11 @@ const store = createNoteStore<Repository, RepositoryNote>({
         if (existingRepository) {
           existingRepository.currentBranch = response.branchName
         }
+
+        const actionText = response.action ? CHECKOUT_ACTION_MAP[response.action] : '切換'
+        showSuccessToast('Git', `${actionText}分支成功`, branchName)
+      } else if (!response.success && response.error) {
+        showErrorToast('Git', '切換分支失敗', response.error)
       }
 
       return {
@@ -276,6 +300,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
 
     async deleteBranch(this, repositoryId: string, branchName: string, force: boolean = false): Promise<{ success: boolean; branchName?: string; error?: string }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const { showSuccessToast, showErrorToast } = useToast()
       const canvasStore = useCanvasStore()
 
       const response = await wrapWebSocketRequest(
@@ -293,7 +318,14 @@ const store = createNoteStore<Repository, RepositoryNote>({
       )
 
       if (!response) {
+        showErrorToast('Git', '刪除分支失敗')
         return { success: false, error: '刪除分支失敗' }
+      }
+
+      if (response.success) {
+        showSuccessToast('Git', '刪除分支成功', branchName)
+      } else if (response.error) {
+        showErrorToast('Git', '刪除分支失敗', response.error)
       }
 
       return {

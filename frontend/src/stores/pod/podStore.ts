@@ -26,6 +26,8 @@ import type {
 } from '@/types/websocket'
 import {useConnectionStore} from '@/stores/connectionStore'
 import {useCanvasStore} from '@/stores/canvasStore'
+import {useToast} from '@/composables/useToast'
+import {sanitizeErrorForUser} from '@/utils/errorSanitizer'
 
 const MAX_COORD = 100000
 
@@ -109,48 +111,69 @@ export const usePodStore = defineStore('pod', {
 
         async createPodWithBackend(pod: Omit<Pod, 'id'>): Promise<Pod | null> {
             const canvasStore = useCanvasStore()
+            const { showSuccessToast, showErrorToast } = useToast()
 
             if (!canvasStore.activeCanvasId) {
                 throw new Error('Cannot create pod: no active canvas')
             }
 
-            const response = await createWebSocketRequest<PodCreatePayload, PodCreatedPayload>({
-                requestEvent: WebSocketRequestEvents.POD_CREATE,
-                responseEvent: WebSocketResponseEvents.POD_CREATED,
-                payload: {
-                    canvasId: canvasStore.activeCanvasId,
-                    name: pod.name,
-                    color: pod.color,
+            try {
+                const response = await createWebSocketRequest<PodCreatePayload, PodCreatedPayload>({
+                    requestEvent: WebSocketRequestEvents.POD_CREATE,
+                    responseEvent: WebSocketResponseEvents.POD_CREATED,
+                    payload: {
+                        canvasId: canvasStore.activeCanvasId,
+                        name: pod.name,
+                        color: pod.color,
+                        x: pod.x,
+                        y: pod.y,
+                        rotation: pod.rotation
+                    }
+                })
+
+                if (!response.pod) {
+                    throw new Error('Pod creation failed: no pod returned')
+                }
+
+                showSuccessToast('Pod', '建立成功', pod.name)
+
+                return {
+                    ...response.pod,
                     x: pod.x,
                     y: pod.y,
-                    rotation: pod.rotation
+                    rotation: pod.rotation,
+                    output: pod.output || [],
                 }
-            })
-
-            if (!response.pod) {
-                throw new Error('Pod creation failed: no pod returned')
-            }
-
-            return {
-                ...response.pod,
-                x: pod.x,
-                y: pod.y,
-                rotation: pod.rotation,
-                output: pod.output || [],
+            } catch (error) {
+                const message = sanitizeErrorForUser(error)
+                showErrorToast('Pod', '建立失敗', message)
+                throw error
             }
         },
 
         async deletePodWithBackend(id: string): Promise<void> {
             const canvasStore = useCanvasStore()
+            const { showSuccessToast, showErrorToast } = useToast()
 
-            await createWebSocketRequest<PodDeletePayload, PodDeletedPayload>({
-                requestEvent: WebSocketRequestEvents.POD_DELETE,
-                responseEvent: WebSocketResponseEvents.POD_DELETED,
-                payload: {
-                    canvasId: canvasStore.activeCanvasId!,
-                    podId: id
-                }
-            })
+            const pod = this.pods.find((p) => p.id === id)
+            const podName = pod?.name || 'Pod'
+
+            try {
+                await createWebSocketRequest<PodDeletePayload, PodDeletedPayload>({
+                    requestEvent: WebSocketRequestEvents.POD_DELETE,
+                    responseEvent: WebSocketResponseEvents.POD_DELETED,
+                    payload: {
+                        canvasId: canvasStore.activeCanvasId!,
+                        podId: id
+                    }
+                })
+
+                showSuccessToast('Pod', '刪除成功', podName)
+            } catch (error) {
+                const message = sanitizeErrorForUser(error)
+                showErrorToast('Pod', '刪除失敗', message)
+                throw error
+            }
         },
 
         syncPodsFromBackend(pods: Pod[]): void {
@@ -223,24 +246,34 @@ export const usePodStore = defineStore('pod', {
 
         async renamePodWithBackend(podId: string, name: string): Promise<void> {
             const canvasStore = useCanvasStore()
+            const { showSuccessToast, showErrorToast } = useToast()
 
             if (!canvasStore.activeCanvasId) {
                 throw new Error('無法重命名 Pod：沒有啟用的畫布')
             }
 
-            await createWebSocketRequest<PodRenamePayload, PodRenamedPayload>({
-                requestEvent: WebSocketRequestEvents.POD_RENAME,
-                responseEvent: WebSocketResponseEvents.POD_RENAMED,
-                payload: {
-                    canvasId: canvasStore.activeCanvasId,
-                    podId,
-                    name
-                }
-            })
+            try {
+                await createWebSocketRequest<PodRenamePayload, PodRenamedPayload>({
+                    requestEvent: WebSocketRequestEvents.POD_RENAME,
+                    responseEvent: WebSocketResponseEvents.POD_RENAMED,
+                    payload: {
+                        canvasId: canvasStore.activeCanvasId,
+                        podId,
+                        name
+                    }
+                })
+
+                showSuccessToast('Pod', '重新命名成功', name)
+            } catch (error) {
+                const message = sanitizeErrorForUser(error)
+                showErrorToast('Pod', '重新命名失敗', message)
+                throw error
+            }
         },
 
         async setScheduleWithBackend(podId: string, schedule: Schedule | null): Promise<Pod | null> {
             const canvasStore = useCanvasStore()
+            const { showSuccessToast } = useToast()
 
             if (!canvasStore.activeCanvasId) {
                 throw new Error('無法設定排程：沒有啟用的畫布')
@@ -257,6 +290,8 @@ export const usePodStore = defineStore('pod', {
             })
 
             if (response.success && response.pod) {
+                const action = schedule === null ? '清除成功' : '更新成功'
+                showSuccessToast('Schedule', action)
                 return response.pod
             }
 
@@ -324,6 +359,7 @@ export const usePodStore = defineStore('pod', {
 
         async setAutoClearWithBackend(podId: string, autoClear: boolean): Promise<Pod | null> {
             const canvasStore = useCanvasStore()
+            const { showSuccessToast } = useToast()
 
             const response = await createWebSocketRequest<PodSetAutoClearPayload, PodAutoClearSetPayload>({
                 requestEvent: WebSocketRequestEvents.POD_SET_AUTO_CLEAR,
@@ -336,6 +372,7 @@ export const usePodStore = defineStore('pod', {
             })
 
             if (response.success && response.pod) {
+                showSuccessToast('Pod', '設定成功')
                 return response.pod
             }
 

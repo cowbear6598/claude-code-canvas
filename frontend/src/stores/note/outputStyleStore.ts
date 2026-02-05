@@ -67,7 +67,8 @@ const outputStyleCRUD = createResourceCRUDActions<OutputStyleListItem>(
         items[index] = newItem as OutputStyleListItem
       }
     }
-  }
+  },
+  'OutputStyle'
 )
 
 const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({

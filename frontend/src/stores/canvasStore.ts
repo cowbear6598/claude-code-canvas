@@ -5,6 +5,7 @@ import {
   WebSocketResponseEvents
 } from '@/services/websocket'
 import {useToast} from '@/composables/useToast'
+import {sanitizeErrorForUser} from '@/utils/errorSanitizer'
 import type {
   Canvas,
   CanvasCreatePayload,
@@ -92,6 +93,8 @@ export const useCanvasStore = defineStore('canvas', {
     },
 
     async createCanvas(name: string): Promise<Canvas | null> {
+      const {showSuccessToast, showErrorToast} = useToast()
+
       try {
         const response = await createWebSocketRequest<CanvasCreatePayload, CanvasCreatedPayload>({
           requestEvent: WebSocketRequestEvents.CANVAS_CREATE,
@@ -109,19 +112,21 @@ export const useCanvasStore = defineStore('canvas', {
             payload: { canvasId: response.canvas.id }
           })
           this.activeCanvasId = response.canvas.id
+          showSuccessToast('Canvas', '建立成功', name)
           return response.canvas
         }
 
         return null
       } catch (error) {
-        const {toast} = useToast()
-        const msg = error instanceof Error ? error.message : '建立 Canvas 失敗'
-        toast({title: msg, variant: 'destructive'})
+        const message = sanitizeErrorForUser(error)
+        showErrorToast('Canvas', '建立失敗', message)
         return null
       }
     },
 
     async renameCanvas(canvasId: string, newName: string): Promise<void> {
+      const {showSuccessToast, showErrorToast} = useToast()
+
       try {
         await createWebSocketRequest<CanvasRenamePayload, CanvasRenamedPayload>({
           requestEvent: WebSocketRequestEvents.CANVAS_RENAME,
@@ -131,14 +136,16 @@ export const useCanvasStore = defineStore('canvas', {
             newName,
           }
         })
+        showSuccessToast('Canvas', '重新命名成功', newName)
       } catch (error) {
-        const {toast} = useToast()
-        const msg = error instanceof Error ? error.message : '重新命名 Canvas 失敗'
-        toast({title: msg, variant: 'destructive'})
+        const message = sanitizeErrorForUser(error)
+        showErrorToast('Canvas', '重新命名失敗', message)
       }
     },
 
     async deleteCanvas(canvasId: string): Promise<void> {
+      const {showSuccessToast} = useToast()
+
       // If deleting active canvas, switch to another one first
       if (this.activeCanvasId === canvasId) {
         const otherCanvas = this.canvases.find(c => c.id !== canvasId)
@@ -154,10 +161,14 @@ export const useCanvasStore = defineStore('canvas', {
           canvasId,
         }
       })
+
+      showSuccessToast('Canvas', '刪除成功')
     },
 
     async switchCanvas(canvasId: string): Promise<void> {
       if (this.activeCanvasId === canvasId) return
+
+      const {showSuccessToast} = useToast()
 
       const response = await createWebSocketRequest<CanvasSwitchPayload, CanvasSwitchedPayload>({
         requestEvent: WebSocketRequestEvents.CANVAS_SWITCH,
@@ -169,6 +180,10 @@ export const useCanvasStore = defineStore('canvas', {
 
       if (response.success && response.canvasId) {
         this.activeCanvasId = canvasId
+        const canvas = this.canvases.find(c => c.id === canvasId)
+        if (canvas) {
+          showSuccessToast('Canvas', '切換成功', canvas.name)
+        }
       }
     },
 
@@ -254,6 +269,7 @@ export const useCanvasStore = defineStore('canvas', {
     async syncCanvasOrder(): Promise<void> {
       const originalOrder = [...this.canvases]
       const canvasIds = this.canvases.map(c => c.id)
+      const {showErrorToast} = useToast()
 
       try {
         const response = await createWebSocketRequest<CanvasReorderPayload, CanvasReorderedPayload>({
@@ -265,13 +281,11 @@ export const useCanvasStore = defineStore('canvas', {
         })
 
         if (!response.success) {
-          const {toast} = useToast()
-          toast({title: 'Canvas 排序儲存失敗', variant: 'destructive'})
+          showErrorToast('Canvas', '排序儲存失敗')
           this.canvases = originalOrder
         }
       } catch {
-        const {toast} = useToast()
-        toast({title: 'Canvas 排序儲存失敗', variant: 'destructive'})
+        showErrorToast('Canvas', '排序儲存失敗')
         this.canvases = originalOrder
       }
     },

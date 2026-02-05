@@ -1,7 +1,9 @@
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { createWebSocketRequest } from '@/services/websocket'
 import { useCanvasStore } from '@/stores/canvasStore'
+import { useToast } from '@/composables/useToast'
 import type { WebSocketRequestEvents, WebSocketResponseEvents } from '@/types/websocket'
+import type { ToastCategory } from '@/composables/useToast'
 
 interface CRUDEventsConfig {
   create: {
@@ -32,9 +34,11 @@ interface CRUDPayloadConfig<TItem> {
 export function createResourceCRUDActions<TItem extends { id: string; name: string }>(
   resourceType: string,
   events: CRUDEventsConfig,
-  config: CRUDPayloadConfig<TItem>
+  config: CRUDPayloadConfig<TItem>,
+  toastCategory?: ToastCategory
 ) {
   const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+  const { showSuccessToast, showErrorToast } = useToast()
 
   return {
     async create(
@@ -58,18 +62,28 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
       )
 
       if (!response) {
+        if (toastCategory) {
+          showErrorToast(toastCategory, '建立失敗', `建立 ${resourceType} 失敗`)
+        }
         return { success: false, error: `建立 ${resourceType} 失敗` }
       }
 
       const item = config.extractItemFromResponse.create(response)
       if (!item) {
+        const error = (response as { error?: string }).error || `建立 ${resourceType} 失敗`
+        if (toastCategory) {
+          showErrorToast(toastCategory, '建立失敗', error)
+        }
         return {
           success: false,
-          error: (response as { error?: string }).error || `建立 ${resourceType} 失敗`
+          error
         }
       }
 
       items.push(item as TItem)
+      if (toastCategory) {
+        showSuccessToast(toastCategory, '建立成功', name)
+      }
       return { success: true, item }
     },
 
@@ -93,18 +107,28 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
       )
 
       if (!response) {
+        if (toastCategory) {
+          showErrorToast(toastCategory, '更新失敗', `更新 ${resourceType} 失敗`)
+        }
         return { success: false, error: `更新 ${resourceType} 失敗` }
       }
 
       const item = config.extractItemFromResponse.update(response)
       if (!item) {
+        const error = (response as { error?: string }).error || `更新 ${resourceType} 失敗`
+        if (toastCategory) {
+          showErrorToast(toastCategory, '更新失敗', error)
+        }
         return {
           success: false,
-          error: (response as { error?: string }).error || `更新 ${resourceType} 失敗`
+          error
         }
       }
 
       config.updateItemsList(items, itemId, item)
+      if (toastCategory) {
+        showSuccessToast(toastCategory, '更新成功', item.name)
+      }
       return { success: true, item }
     },
 

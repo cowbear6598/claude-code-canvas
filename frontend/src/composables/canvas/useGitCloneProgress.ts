@@ -17,7 +17,7 @@ export interface CloneTask {
 
 export function useGitCloneProgress() {
   const cloneTasks = ref<Map<string, CloneTask>>(new Map())
-  const { toast } = useToast()
+  const { showSuccessToast, showErrorToast } = useToast()
   const { repositoryStore, chatStore } = useCanvasContext()
   const listenersRegistered = ref(false)
 
@@ -48,6 +48,15 @@ export function useGitCloneProgress() {
     task.message = payload.message
   }
 
+  /**
+   * 將 Git Clone 錯誤轉換為用戶友善訊息
+   *
+   * 需要多層錯誤檢查的原因：
+   * 1. 後端回傳的錯誤訊息格式不一致（有些是錯誤代碼，有些是描述文字）
+   * 2. 需要處理大小寫差異（error.includes 與 lowerError.includes）
+   * 3. 需要覆蓋多種可能的錯誤來源（網路、權限、檔案系統等）
+   * 4. 優先檢查錯誤代碼（精確匹配），再檢查描述文字（模糊匹配）
+   */
   const getErrorMessage = (error: string): string => {
     const lowerError = error.toLowerCase()
 
@@ -87,10 +96,7 @@ export function useGitCloneProgress() {
       task.progress = 100
       task.message = '下載完畢'
 
-      toast({
-        title: '下載完畢',
-        description: `Repository "${task.repoName}" 已成功下載`,
-      })
+      showSuccessToast('Repository', 'Clone 成功', task.repoName)
 
       await repositoryStore.loadRepositories()
 
@@ -98,14 +104,11 @@ export function useGitCloneProgress() {
         removeTask(payload.requestId)
       }, 1000)
     } else {
-      const errorMessage = payload.error ? getErrorMessage(payload.error) : 'Clone 失敗'
+      const errorMessage = payload.error ? getErrorMessage(payload.error) : '未知錯誤'
       task.status = 'failed'
       task.message = errorMessage
 
-      toast({
-        title: 'Clone 失敗',
-        description: errorMessage,
-      })
+      showErrorToast('Repository', 'Clone 失敗', errorMessage)
 
       setTimeout(() => {
         removeTask(payload.requestId)

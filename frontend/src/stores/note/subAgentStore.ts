@@ -65,7 +65,8 @@ const subAgentCRUD = createResourceCRUDActions<SubAgent>(
         items[index] = newItem as SubAgent
       }
     }
-  }
+  },
+  'SubAgent'
 )
 
 const store = createNoteStore<SubAgent, SubAgentNote>({

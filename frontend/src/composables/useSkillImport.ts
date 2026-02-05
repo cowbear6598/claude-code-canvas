@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { useSkillStore } from '@/stores/note/skillStore'
 import { useToast } from '@/composables/useToast'
+import { sanitizeErrorForUser } from '@/utils/errorSanitizer'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_EXTENSIONS = ['.zip']
@@ -91,7 +92,7 @@ function openFilePicker(): Promise<File | null> {
 
 export function useSkillImport() {
   const skillStore = useSkillStore()
-  const { toast } = useToast()
+  const { showSuccessToast, showErrorToast } = useToast()
   const isImporting = ref(false)
 
   /**
@@ -112,11 +113,7 @@ export function useSkillImport() {
       // 2. 驗證檔案
       const validation = validateFile(file)
       if (!validation.valid) {
-        toast({
-          title: '匯入失敗',
-          description: validation.error,
-          variant: 'destructive'
-        })
+        showErrorToast('Skill', '匯入失敗', validation.error)
         return
       }
 
@@ -127,11 +124,8 @@ export function useSkillImport() {
       try {
         fileData = await convertToBase64(file)
       } catch (error) {
-        toast({
-          title: '匯入失敗',
-          description: error instanceof Error ? error.message : ERROR_NETWORK_FAILED,
-          variant: 'destructive'
-        })
+        const message = sanitizeErrorForUser(error)
+        showErrorToast('Skill', '匯入失敗', message)
         return
       }
 
@@ -142,31 +136,16 @@ export function useSkillImport() {
         const skillName = result.skill?.name || file.name
 
         if (result.isOverwrite) {
-          toast({
-            title: '匯入成功（已覆蓋）',
-            description: `已覆蓋現有 Skill「${skillName}」`,
-            variant: 'success'
-          })
+          showSuccessToast('Skill', '匯入成功（已覆蓋）', skillName)
         } else {
-          toast({
-            title: '匯入成功',
-            description: `已成功匯入 Skill「${skillName}」`,
-            variant: 'success'
-          })
+          showSuccessToast('Skill', '匯入成功', skillName)
         }
       } else {
-        toast({
-          title: '匯入失敗',
-          description: result.error || '未知錯誤',
-          variant: 'destructive'
-        })
+        showErrorToast('Skill', '匯入失敗', result.error || '未知錯誤')
       }
     } catch (error) {
-      toast({
-        title: '匯入失敗',
-        description: error instanceof Error ? error.message : '未知錯誤',
-        variant: 'destructive'
-      })
+      const message = sanitizeErrorForUser(error)
+      showErrorToast('Skill', '匯入失敗', message)
     } finally {
       isImporting.value = false
     }

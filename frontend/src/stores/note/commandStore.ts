@@ -67,7 +67,8 @@ const commandCRUD = createResourceCRUDActions<Command>(
         items[index] = newItem as Command
       }
     }
-  }
+  },
+  'Command'
 )
 
 const store = createNoteStore<Command, CommandNote>({

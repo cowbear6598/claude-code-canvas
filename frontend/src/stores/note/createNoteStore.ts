@@ -4,6 +4,15 @@ import {createWebSocketRequest} from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import {useDeleteItem} from '@/composables/useDeleteItem'
 import {useCanvasStore} from '@/stores/canvasStore'
+import {useToast} from '@/composables/useToast'
+
+const STORE_TO_CATEGORY_MAP: Record<string, string> = {
+    'skill': 'Skill',
+    'repository': 'Repository',
+    'subAgent': 'SubAgent',
+    'command': 'Command',
+    'outputStyle': 'OutputStyle'
+}
 
 interface Position {
     x: number
@@ -423,26 +432,40 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
 
                 const {deleteItem} = useDeleteItem()
                 const canvasStore = useCanvasStore()
+                const {showSuccessToast, showErrorToast} = useToast()
 
-                await deleteItem<Record<string, unknown>, BaseResponse>({
-                    requestEvent: config.deleteItemEvents.request,
-                    responseEvent: config.deleteItemEvents.response,
-                    payload: {
-                        canvasId: canvasStore.activeCanvasId!,
-                        [config.itemIdField]: itemId
-                    },
-                    errorMessage: '刪除項目失敗',
-                    onSuccess: (res) => {
-                        const index = this.availableItems.findIndex(item => config.getItemId(item as TItem) === itemId)
-                        if (index !== -1) {
-                            this.availableItems.splice(index, 1)
-                        }
+                const item = this.availableItems.find(i => config.getItemId(i as TItem) === itemId)
+                const itemName = item ? config.getItemName(item as TItem) : undefined
 
-                        if (res.deletedNoteIds) {
-                            this.notes.splice(0, this.notes.length, ...this.notes.filter(note => !(res.deletedNoteIds as string[]).includes(note.id)))
+                try {
+                    await deleteItem<Record<string, unknown>, BaseResponse>({
+                        requestEvent: config.deleteItemEvents.request,
+                        responseEvent: config.deleteItemEvents.response,
+                        payload: {
+                            canvasId: canvasStore.activeCanvasId!,
+                            [config.itemIdField]: itemId
+                        },
+                        errorMessage: '刪除項目失敗',
+                        onSuccess: (res) => {
+                            const index = this.availableItems.findIndex(item => config.getItemId(item as TItem) === itemId)
+                            if (index !== -1) {
+                                this.availableItems.splice(index, 1)
+                            }
+
+                            if (res.deletedNoteIds) {
+                                this.notes.splice(0, this.notes.length, ...this.notes.filter(note => !(res.deletedNoteIds as string[]).includes(note.id)))
+                            }
+
+                            const category = STORE_TO_CATEGORY_MAP[config.storeName] || 'Note'
+                            showSuccessToast(category as any, '刪除成功', itemName)
                         }
-                    }
-                })
+                    })
+                } catch (error) {
+                    const category = STORE_TO_CATEGORY_MAP[config.storeName] || 'Note'
+                    const message = error instanceof Error ? error.message : '未知錯誤'
+                    showErrorToast(category as any, '刪除失敗', message)
+                    throw error
+                }
             },
 
             addNoteFromEvent(note: TNote): void {

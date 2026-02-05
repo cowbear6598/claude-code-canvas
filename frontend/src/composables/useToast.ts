@@ -3,6 +3,24 @@ import { generateUUID } from '@/services/utils'
 
 type ToastVariant = 'default' | 'destructive' | 'success'
 
+const MAX_DESCRIPTION_LENGTH = 200
+
+export type ToastCategory =
+  | 'Pod'
+  | 'Skill'
+  | 'Repository'
+  | 'Canvas'
+  | 'Workspace'
+  | 'SubAgent'
+  | 'Workflow'
+  | 'Git'
+  | 'Command'
+  | 'OutputStyle'
+  | 'Note'
+  | 'Schedule'
+  | 'Paste'
+  | 'WebSocket'
+
 interface ToastOptions {
   title: string
   description?: string
@@ -16,14 +34,37 @@ interface ToastItem extends ToastOptions {
 
 const toasts = ref<ToastItem[]>([])
 
+/**
+ * 限制描述文字長度
+ */
+function limitDescriptionLength(description: string | undefined): string | undefined {
+  if (!description) return description
+
+  if (description.length <= MAX_DESCRIPTION_LENGTH) {
+    return description
+  }
+
+  return description.substring(0, MAX_DESCRIPTION_LENGTH) + '...'
+}
+
+/**
+ * 建立 Toast 描述文字的 Helper 函式
+ */
+function createDescription(action: string, detail?: string): string {
+  return detail ? `${action} - ${detail}` : action
+}
+
 export function useToast(): {
   toast: (options: ToastOptions) => string
   dismiss: (id: string) => void
   toasts: Ref<ToastItem[]>
+  showSuccessToast: (category: ToastCategory, action: string, target?: string) => string
+  showErrorToast: (category: ToastCategory, action: string, reason?: string) => string
 } {
   const toast = ({ title, description, duration = 3000, variant = 'default' }: ToastOptions): string => {
     const id = generateUUID()
-    const item: ToastItem = { id, title, description, duration, variant }
+    const limitedDescription = limitDescriptionLength(description)
+    const item: ToastItem = { id, title, description: limitedDescription, duration, variant }
 
     toasts.value.push(item)
 
@@ -41,9 +82,29 @@ export function useToast(): {
     }
   }
 
+  const showSuccessToast = (category: ToastCategory, action: string, target?: string): string => {
+    const description = createDescription(action, target)
+    return toast({
+      title: category,
+      description,
+      variant: 'default',
+    })
+  }
+
+  const showErrorToast = (category: ToastCategory, action: string, reason?: string): string => {
+    const description = createDescription(action, reason)
+    return toast({
+      title: category,
+      description,
+      variant: 'destructive',
+    })
+  }
+
   return {
     toast,
     dismiss,
     toasts,
+    showSuccessToast,
+    showErrorToast,
   }
 }

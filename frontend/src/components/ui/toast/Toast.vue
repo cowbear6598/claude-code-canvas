@@ -13,6 +13,10 @@ const { toasts, dismiss } = useToast()
           v-for="toast in toasts"
           :key="toast.id"
           class="toast-item"
+          :class="{
+            'toast-item--default': toast.variant === 'default' || !toast.variant,
+            'toast-item--destructive': toast.variant === 'destructive',
+          }"
         >
           <div class="toast-content">
             <p class="toast-title">
@@ -54,13 +58,21 @@ const { toasts, dismiss } = useToast()
   align-items: flex-start;
   gap: 12px;
   padding: 12px 16px;
-  background: oklch(0.92 0.12 85);
   border: 2px solid var(--doodle-ink);
   border-radius: 8px;
-  box-shadow: 4px 4px 0 oklch(0.4 0.02 50 / 0.3);
   min-width: 280px;
   max-width: 400px;
   pointer-events: auto;
+}
+
+.toast-item--default {
+  background: oklch(0.92 0.12 85);
+  box-shadow: 4px 4px 0 oklch(0.4 0.02 50 / 0.3);
+}
+
+.toast-item--destructive {
+  background: oklch(0.85 0.15 25);
+  box-shadow: 4px 4px 0 oklch(0.4 0.05 25 / 0.3);
 }
 
 .toast-content {

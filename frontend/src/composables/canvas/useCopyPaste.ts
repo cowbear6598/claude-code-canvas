@@ -2,6 +2,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
 import { createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
+import { useToast } from '@/composables/useToast'
 import { isEditingElement, isModifierKeyPressed, hasTextSelection } from '@/utils/domHelpers'
 import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT, PASTE_TIMEOUT_MS } from '@/lib/constants'
 import type {
@@ -574,6 +575,7 @@ export function useCopyPaste(): void {
     const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, commandNotes, connections } = calculatePastePositions(canvasPos)
 
     const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+    const { showSuccessToast } = useToast()
 
     const response = await wrapWebSocketRequest(
       createWebSocketRequest<CanvasPastePayload, CanvasPasteResultPayload>({
@@ -617,6 +619,7 @@ export function useCopyPaste(): void {
     ]
 
     selectionStore.setSelectedElements(newSelectedElements)
+    showSuccessToast('Paste', '貼上成功')
 
     return true
   }
