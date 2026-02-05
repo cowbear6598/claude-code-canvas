@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { Result, ok, err } from '../../types/index.js';
+import { Result, ok, err } from '../../types';
 import { logger } from '../../utils/logger.js';
 
 class PersistenceService {

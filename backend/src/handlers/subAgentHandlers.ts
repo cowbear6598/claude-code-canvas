@@ -1,15 +1,14 @@
-import type {Socket} from 'socket.io';
-import {WebSocketResponseEvents} from '../schemas/index.js';
+import {WebSocketResponseEvents} from '../schemas';
 import type {
     SubAgentListResultPayload,
     PodSubAgentBoundPayload,
-} from '../types/index.js';
+} from '../types';
 import type {
     SubAgentListPayload,
     PodBindSubAgentPayload,
     SubAgentDeletePayload,
     SubAgentMoveToGroupPayload,
-} from '../schemas/index.js';
+} from '../schemas';
 import {subAgentService} from '../services/subAgentService.js';
 import {subAgentNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
@@ -22,7 +21,7 @@ import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
 import {validatePod, handleResourceDelete, withCanvasId} from '../utils/handlerHelpers.js';
 import {createMoveToGroupHandler} from './factories/createMoveToGroupHandler.js';
-import {GroupType} from '../types/index.js';
+import {GroupType} from '../types';
 
 const subAgentNoteHandlers = createNoteHandlers({
     noteStore: subAgentNoteStore,
@@ -59,7 +58,7 @@ export const handleSubAgentUpdate = resourceHandlers.handleUpdate;
 export const handleSubAgentRead = resourceHandlers.handleRead!;
 
 export async function handleSubAgentList(
-    socket: Socket,
+    connectionId: string,
     _: SubAgentListPayload,
     requestId: string
 ): Promise<void> {
@@ -71,15 +70,15 @@ export async function handleSubAgentList(
         subAgents,
     };
 
-    socket.emit(WebSocketResponseEvents.SUBAGENT_LIST_RESULT, response);
+    socketService.emitToConnection(connectionId, WebSocketResponseEvents.SUBAGENT_LIST_RESULT, response);
 }
 
 export const handlePodBindSubAgent = withCanvasId<PodBindSubAgentPayload>(
     WebSocketResponseEvents.POD_SUBAGENT_BOUND,
-    async (socket: Socket, canvasId: string, payload: PodBindSubAgentPayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: PodBindSubAgentPayload, requestId: string): Promise<void> => {
         const {podId, subAgentId} = payload;
 
-        const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_SUBAGENT_BOUND, requestId);
+        const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_SUBAGENT_BOUND, requestId);
 
         if (!pod) {
             return;
@@ -88,7 +87,7 @@ export const handlePodBindSubAgent = withCanvasId<PodBindSubAgentPayload>(
     const subAgentExists = await subAgentService.exists(subAgentId);
     if (!subAgentExists) {
         emitError(
-            socket,
+            connectionId,
             WebSocketResponseEvents.POD_SUBAGENT_BOUND,
             `SubAgent 找不到: ${subAgentId}`,
             requestId,
@@ -100,7 +99,7 @@ export const handlePodBindSubAgent = withCanvasId<PodBindSubAgentPayload>(
 
     if (pod.subAgentIds.includes(subAgentId)) {
         emitError(
-            socket,
+            connectionId,
             WebSocketResponseEvents.POD_SUBAGENT_BOUND,
             `SubAgent ${subAgentId} 已綁定到 Pod ${podId}`,
             requestId,
@@ -139,14 +138,14 @@ export const handlePodBindSubAgent = withCanvasId<PodBindSubAgentPayload>(
 );
 
 export async function handleSubAgentDelete(
-    socket: Socket,
+    connectionId: string,
     payload: SubAgentDeletePayload,
     requestId: string
 ): Promise<void> {
     const {subAgentId} = payload;
 
     await handleResourceDelete({
-        socket,
+        connectionId,
         requestId,
         resourceId: subAgentId,
         resourceName: 'SubAgent',
@@ -169,9 +168,9 @@ const subAgentMoveToGroupHandler = createMoveToGroupHandler({
 });
 
 export async function handleSubAgentMoveToGroup(
-    socket: Socket,
+    connectionId: string,
     payload: SubAgentMoveToGroupPayload,
     requestId: string
 ): Promise<void> {
-    return subAgentMoveToGroupHandler(socket, payload, requestId);
+    return subAgentMoveToGroupHandler(connectionId, payload, requestId);
 }

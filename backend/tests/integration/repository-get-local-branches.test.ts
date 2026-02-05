@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Socket } from 'socket.io-client';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import type { TestWebSocketClient } from '../setup';
 import { v4 as uuidv4 } from 'uuid';
 import {
     closeTestServer,
@@ -8,22 +8,22 @@ import {
     disconnectSocket,
     emitAndWaitResponse,
     type TestServerInstance,
-} from '../setup/index.js';
-import { createRepository, getCanvasId } from '../helpers/index.js';
+} from '../setup';
+import { createRepository, getCanvasId } from '../helpers';
 import {
     WebSocketRequestEvents,
     WebSocketResponseEvents,
     type RepositoryGetLocalBranchesPayload,
     type RepositoryWorktreeCreatePayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
     type RepositoryLocalBranchesResultPayload,
     type RepositoryWorktreeCreatedPayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 describe('Repository 取得本地分支', () => {
     let server: TestServerInstance;
-    let client: Socket;
+    let client: TestWebSocketClient;
 
     beforeAll(async () => {
         server = await createTestServer();

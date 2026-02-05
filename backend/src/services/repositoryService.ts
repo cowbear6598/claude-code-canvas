@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { config } from '../config/index.js';
+import { config } from '../config';
 import { isPathWithinDirectory } from '../utils/pathValidator.js';
 import {fileExists} from './shared/fileResourceHelpers.js';
 

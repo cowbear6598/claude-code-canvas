@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
-import type { Socket } from 'socket.io-client';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, mock } from 'bun:test';
+import type { TestWebSocketClient } from '../setup';
 import { v4 as uuidv4 } from 'uuid';
 import {
   createTestServer,
@@ -9,8 +9,8 @@ import {
   waitForEvent,
   disconnectSocket,
   type TestServerInstance,
-} from '../setup/index.js';
-import { createPod, FAKE_UUID, getCanvasId } from '../helpers/index.js';
+} from '../setup';
+import { createPod, FAKE_UUID, getCanvasId } from '../helpers';
 
 async function* mockQuery(): AsyncGenerator<any> {
   yield {
@@ -37,9 +37,10 @@ async function* mockQuery(): AsyncGenerator<any> {
   };
 }
 
-vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
-  query: vi.fn(() => mockQuery()),
+mock.module('@anthropic-ai/claude-agent-sdk', () => ({
+  query: mock(() => mockQuery()),
 }));
+
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
@@ -53,7 +54,7 @@ import {
 
 describe('Chat 管理', () => {
   let server: TestServerInstance;
-  let client: Socket;
+  let client: TestWebSocketClient;
 
   beforeAll(async () => {
     server = await createTestServer();

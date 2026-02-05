@@ -1,20 +1,19 @@
-import type {Socket} from 'socket.io';
 import {v4 as uuidv4} from 'uuid';
-import {WebSocketResponseEvents} from '../schemas/index.js';
+import {WebSocketResponseEvents} from '../schemas';
 import type {
     PodChatMessagePayload,
     PodChatToolUsePayload,
     PodChatToolResultPayload,
     PodChatCompletePayload,
     ContentBlock,
-} from '../types/index.js';
-import type {ChatSendPayload, ChatHistoryPayload} from '../schemas/index.js';
+} from '../types';
+import type {ChatSendPayload, ChatHistoryPayload} from '../schemas';
 import {podStore} from '../services/podStore.js';
 import {messageStore} from '../services/messageStore.js';
 import {claudeQueryService} from '../services/claude/queryService.js';
 import {socketService} from '../services/socketService.js';
-import {workflowExecutionService} from '../services/workflow/index.js';
-import {autoClearService} from '../services/autoClear/index.js';
+import {workflowExecutionService} from '../services/workflow';
+import {autoClearService} from '../services/autoClear';
 import {emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';
@@ -36,15 +35,15 @@ function extractDisplayContent(message: string | ContentBlock[]): string {
 
 export const handleChatSend = withCanvasId<ChatSendPayload>(
     WebSocketResponseEvents.POD_ERROR,
-    async (socket: Socket, canvasId: string, payload: ChatSendPayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: ChatSendPayload, requestId: string): Promise<void> => {
         const {podId, message} = payload;
 
-        const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_ERROR, requestId);
+        const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_ERROR, requestId);
         if (!pod) return;
 
         if (pod.status === 'chatting' || pod.status === 'summarizing') {
             emitError(
-                socket,
+                connectionId,
                 WebSocketResponseEvents.POD_ERROR,
                 `Pod ${podId} is currently ${pod.status}, please wait`,
                 requestId,
@@ -191,12 +190,12 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
 
 export const handleChatHistory = withCanvasId<ChatHistoryPayload>(
     WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT,
-    async (socket: Socket, canvasId: string, payload: ChatHistoryPayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: ChatHistoryPayload, requestId: string): Promise<void> => {
         const {podId} = payload;
 
         const pod = podStore.getById(canvasId, podId);
         if (!pod) {
-            socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, {
+            socketService.emitToConnection(connectionId, WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, {
                 requestId,
                 success: false,
                 error: `Pod 找不到: ${podId}`,
@@ -205,7 +204,7 @@ export const handleChatHistory = withCanvasId<ChatHistoryPayload>(
         }
 
         const messages = messageStore.getMessages(podId);
-        socket.emit(WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, {
+        socketService.emitToConnection(connectionId, WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, {
             requestId,
             success: true,
             messages: messages.map((msg) => ({

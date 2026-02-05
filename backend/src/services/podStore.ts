@@ -1,6 +1,6 @@
 import {v4 as uuidv4} from 'uuid';
-import {WebSocketResponseEvents} from '../schemas/index.js';
-import {Pod, PodStatus, CreatePodRequest, Result, ok, err, ScheduleConfig} from '../types/index.js';
+import {WebSocketResponseEvents} from '../schemas';
+import {Pod, PodStatus, CreatePodRequest, Result, ok, err, ScheduleConfig} from '../types';
 import {podPersistenceService} from './persistence/podPersistence.js';
 import {socketService} from './socketService.js';
 import {logger} from '../utils/logger.js';

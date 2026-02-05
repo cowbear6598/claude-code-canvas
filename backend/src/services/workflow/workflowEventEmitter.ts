@@ -1,11 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 import { socketService } from '../socketService.js';
-import { WebSocketResponseEvents } from '../../schemas/index.js';
+import { WebSocketResponseEvents } from '../../schemas';
 import type {
   WorkflowAutoTriggeredPayload,
   WorkflowPendingPayload,
   WorkflowSourcesMergedPayload,
-} from '../../types/index.js';
+} from '../../types';
 
 class WorkflowEventEmitter {
   emitWorkflowComplete(

@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import {config} from '../config/index.js';
-import type {Command} from '../types/index.js';
+import {config} from '../config';
+import type {Command} from '../types';
 import {isPathWithinDirectory, validatePodId, validateCommandId, sanitizePathSegment} from '../utils/pathValidator.js';
 import {fileExists, ensureDirectoryAndWriteFile, readFileOrNull} from './shared/fileResourceHelpers.js';
 

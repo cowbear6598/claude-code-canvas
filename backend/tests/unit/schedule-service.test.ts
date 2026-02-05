@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import type { ScheduleConfig } from '../../src/types/index.js';
 
 // 測試用的內部 shouldFire 檢查函數
@@ -87,12 +87,11 @@ function shouldFire(schedule: ScheduleConfig, now: Date): boolean {
 
 describe('Schedule Service', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    // bun:test 不支援 fake timers，使用實際時間
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
-    vi.useRealTimers();
+    // bun:test 會自動清理 mock
   });
 
   describe('shouldFire - every-second', () => {
@@ -473,22 +472,28 @@ describe('Schedule Service', () => {
   });
 
   describe('lastTriggeredAt 更新邏輯', () => {
-    it('觸發後應設定 lastTriggeredAt', async () => {
-      // 這個測試需要 mock podStore 和其他服務
-      // 由於這涉及到實際的 scheduleService 實例和其依賴，
-      // 這裡展示測試的概念結構
+    it('觸發後應設定 lastTriggeredAt', () => {
+      // 這個測試驗證 schedule 配置中 lastTriggeredAt 會影響觸發邏輯
+      const lastTriggered = new Date('2026-02-05T12:00:00Z');
+      const schedule: ScheduleConfig = {
+        frequency: 'every-second',
+        second: 5,
+        intervalMinute: 0,
+        intervalHour: 0,
+        hour: 0,
+        minute: 0,
+        weekdays: [],
+        enabled: true,
+        lastTriggeredAt: lastTriggered,
+      };
 
-      const { podStore } = await import('../../src/services/podStore.js');
-      const setScheduleLastTriggeredAtSpy = vi.spyOn(podStore, 'setScheduleLastTriggeredAt');
+      // 未達到間隔時間，不應觸發
+      const now = new Date(lastTriggered.getTime() + 3 * MS_PER_SECOND);
+      expect(shouldFire(schedule, now)).toBe(false);
 
-      const canvasId = 'test-canvas';
-      const podId = 'test-pod';
-      const now = new Date('2026-02-05T12:00:00Z');
-
-      // 呼叫 setScheduleLastTriggeredAt
-      podStore.setScheduleLastTriggeredAt(canvasId, podId, now);
-
-      expect(setScheduleLastTriggeredAtSpy).toHaveBeenCalledWith(canvasId, podId, now);
+      // 達到間隔時間，應該觸發
+      const later = new Date(lastTriggered.getTime() + 5 * MS_PER_SECOND);
+      expect(shouldFire(schedule, later)).toBe(true);
     });
   });
 

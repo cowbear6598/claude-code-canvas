@@ -1,5 +1,5 @@
 import {v4 as uuidv4} from 'uuid';
-import {WebSocketResponseEvents} from '../../schemas/index.js';
+import {WebSocketResponseEvents} from '../../schemas';
 import type {
     PodChatCompletePayload,
     PodChatMessagePayload,
@@ -9,7 +9,7 @@ import type {
     WorkflowPendingPayload,
     WorkflowSourcesMergedPayload,
     Connection,
-} from '../../types/index.js';
+} from '../../types';
 import {connectionStore} from '../connectionStore.js';
 import {podStore} from '../podStore.js';
 import {messageStore} from '../messageStore.js';

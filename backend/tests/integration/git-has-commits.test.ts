@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import { gitService } from '../../src/services/workspace/gitService.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';

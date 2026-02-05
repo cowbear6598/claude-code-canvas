@@ -1,4 +1,4 @@
-import { WebSocketResponseEvents } from '../schemas/index.js';
+import { WebSocketResponseEvents } from '../schemas';
 import { noteStore } from '../services/noteStores.js';
 import { outputStyleService } from '../services/outputStyleService.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';

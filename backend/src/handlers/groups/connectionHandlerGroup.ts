@@ -1,10 +1,10 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
 import {
   connectionCreateSchema,
   connectionListSchema,
   connectionDeleteSchema,
   connectionUpdateSchema,
-} from '../../schemas/index.js';
+} from '../../schemas';
 import {
   handleConnectionCreate,
   handleConnectionList,

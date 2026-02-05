@@ -1,24 +1,22 @@
-import {describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi} from 'vitest';
-import type {Socket} from 'socket.io-client';
-import {v4 as uuidv4} from 'uuid';
+import {describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, mock} from 'bun:test';
 import {
     createTestServer,
     closeTestServer,
     createSocketClient,
     waitForEvent,
     disconnectSocket,
-    type TestServerInstance,
-} from '../setup/index.js';
-import {createPod, getCanvasId} from '../helpers/index.js';
-import {createConnection} from '../helpers/index.js';
-import {seedPodMessages} from '../helpers/index.js';
-import {WebSocketRequestEvents, WebSocketResponseEvents} from '../../src/schemas/index.js';
+    type TestServerInstance, TestWebSocketClient,
+} from '../setup';
+import {createPod, getCanvasId} from '../helpers';
+import {createConnection} from '../helpers';
+import {seedPodMessages} from '../helpers';
+import {WebSocketResponseEvents} from '../../src/schemas';
 import type {
     WorkflowAutoTriggeredPayload,
     WorkflowPendingPayload,
     WorkflowSourcesMergedPayload,
     PodChatCompletePayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 // Mock Claude Agent SDK
 async function* mockQuery(): AsyncGenerator<any> {
@@ -46,13 +44,13 @@ async function* mockQuery(): AsyncGenerator<any> {
     };
 }
 
-vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
-    query: vi.fn(() => mockQuery()),
+mock.module('@anthropic-ai/claude-agent-sdk', () => ({
+    query: mock(() => mockQuery()),
 }));
 
 describe('WorkflowExecution 服務測試', () => {
     let server: TestServerInstance;
-    let client: Socket;
+    let client: TestWebSocketClient;
 
     beforeAll(async () => {
         server = await createTestServer();

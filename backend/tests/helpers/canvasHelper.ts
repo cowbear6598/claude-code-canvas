@@ -1,26 +1,20 @@
-import type { Socket } from 'socket.io-client';
+import type { TestWebSocketClient } from '../setup';
 import { v4 as uuidv4 } from 'uuid';
-import { emitAndWaitResponse } from '../setup/index.js';
+import { emitAndWaitResponse } from '../setup';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type CanvasCreatePayload,
   type CanvasListPayload,
-  type CanvasRenamePayload,
-  type CanvasDeletePayload,
-  type CanvasSwitchPayload,
   type CanvasReorderPayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
   type CanvasCreatedPayload,
   type CanvasListResultPayload,
-  type CanvasRenamedPayload,
-  type CanvasDeletedPayload,
-  type CanvasSwitchedPayload,
   type CanvasReorderedPayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
-export async function getCanvasId(client: Socket): Promise<string> {
+export async function getCanvasId(client: TestWebSocketClient): Promise<string> {
   if (!client.id) {
     throw new Error('Socket not connected');
   }
@@ -36,7 +30,7 @@ export async function getCanvasId(client: Socket): Promise<string> {
 }
 
 export async function createCanvas(
-  client: Socket,
+  client: TestWebSocketClient,
   name?: string
 ): Promise<{ id: string; name: string; createdAt: string; sortIndex: number }> {
   if (!client.id) {
@@ -59,7 +53,7 @@ export async function createCanvas(
 }
 
 export async function listCanvases(
-  client: Socket
+  client: TestWebSocketClient
 ): Promise<{ id: string; name: string; createdAt: string; sortIndex: number }[]> {
   if (!client.id) {
     throw new Error('Socket not connected');
@@ -80,7 +74,7 @@ export async function listCanvases(
 }
 
 export async function reorderCanvases(
-  client: Socket,
+  client: TestWebSocketClient,
   canvasIds: string[]
 ): Promise<CanvasReorderedPayload> {
   if (!client.id) {

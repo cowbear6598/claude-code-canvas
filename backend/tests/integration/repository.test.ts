@@ -1,5 +1,4 @@
-import {afterAll, beforeAll, describe, expect, it} from 'vitest';
-import type {Socket} from 'socket.io-client';
+import {afterAll, beforeAll, describe, expect, it} from 'bun:test';
 import {v4 as uuidv4} from 'uuid';
 import {
     closeTestServer,
@@ -7,9 +6,9 @@ import {
     createTestServer,
     disconnectSocket,
     emitAndWaitResponse,
-    type TestServerInstance,
-} from '../setup/index.js';
-import {createPod, createRepository, FAKE_REPO_ID, FAKE_UUID, getCanvasId} from '../helpers/index.js';
+    type TestServerInstance, TestWebSocketClient,
+} from '../setup';
+import {createPod, createRepository, FAKE_REPO_ID, FAKE_UUID, getCanvasId} from '../helpers';
 import {
     WebSocketRequestEvents,
     WebSocketResponseEvents,
@@ -24,7 +23,7 @@ import {
     type RepositoryNoteUpdatePayload,
     type RepositoryCheckGitPayload,
     type RepositoryWorktreeCreatePayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
     type PodRepositoryBoundPayload,
     type PodRepositoryUnboundPayload,
@@ -37,11 +36,11 @@ import {
     type RepositoryNoteUpdatedPayload,
     type RepositoryCheckGitResultPayload,
     type RepositoryWorktreeCreatedPayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 describe('Repository 管理', () => {
     let server: TestServerInstance;
-    let client: Socket;
+    let client: TestWebSocketClient;
 
     beforeAll(async () => {
         server = await createTestServer();

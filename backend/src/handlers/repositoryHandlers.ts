@@ -1,4 +1,4 @@
-import type { Socket } from 'socket.io';
+
 import { WebSocketResponseEvents } from '../schemas/index.js';
 import type {
   RepositoryListResultPayload,
@@ -68,7 +68,7 @@ export const handleRepositoryNoteUpdate = repositoryNoteHandlers.handleNoteUpdat
 export const handleRepositoryNoteDelete = repositoryNoteHandlers.handleNoteDelete;
 
 async function validateRepositoryIsGit(
-  socket: Socket,
+  connectionId: string,
   repositoryId: string,
   responseEvent: WebSocketResponseEvents,
   requestId: string
@@ -77,7 +77,7 @@ async function validateRepositoryIsGit(
 
   if (!result.success) {
     const errorCode = result.error!.includes('找不到') ? 'NOT_FOUND' : 'INVALID_STATE';
-    emitError(socket, responseEvent, result.error!, requestId, undefined, errorCode);
+    emitError(connectionId, responseEvent, result.error!, requestId, undefined, errorCode);
     return null;
   }
 
@@ -85,7 +85,7 @@ async function validateRepositoryIsGit(
 }
 
 export async function handleRepositoryList(
-  socket: Socket,
+  connectionId: string,
   _: RepositoryListPayload,
   requestId: string
 ): Promise<void> {
@@ -97,11 +97,11 @@ export async function handleRepositoryList(
     repositories,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_LIST_RESULT, response);
+  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_LIST_RESULT, response);
 }
 
 export async function handleRepositoryCreate(
-  socket: Socket,
+  connectionId: string,
   payload: RepositoryCreatePayload,
   requestId: string
 ): Promise<void> {
@@ -110,7 +110,7 @@ export async function handleRepositoryCreate(
   const exists = await repositoryService.exists(name);
   if (exists) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_CREATED,
       `Repository 已存在: ${name}`,
       requestId,
@@ -135,10 +135,10 @@ export async function handleRepositoryCreate(
 
 export const handlePodBindRepository = withCanvasId<PodBindRepositoryPayload>(
   WebSocketResponseEvents.POD_REPOSITORY_BOUND,
-  async (socket: Socket, canvasId: string, payload: PodBindRepositoryPayload, requestId: string): Promise<void> => {
+  async (connectionId: string, canvasId: string, payload: PodBindRepositoryPayload, requestId: string): Promise<void> => {
     const { podId, repositoryId } = payload;
 
-    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_REPOSITORY_BOUND, requestId);
+    const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_REPOSITORY_BOUND, requestId);
     if (!pod) {
       return;
     }
@@ -146,7 +146,7 @@ export const handlePodBindRepository = withCanvasId<PodBindRepositoryPayload>(
     const validateResult = await validateRepositoryExists(repositoryId);
     if (!validateResult.success) {
       emitError(
-        socket,
+        connectionId,
         WebSocketResponseEvents.POD_REPOSITORY_BOUND,
         validateResult.error!,
         requestId,
@@ -185,7 +185,7 @@ export const handlePodBindRepository = withCanvasId<PodBindRepositoryPayload>(
       });
     }
 
-    await clearPodMessages(socket, podId);
+    await clearPodMessages(connectionId, podId);
 
     const updatedPod = podStore.getById(canvasId, podId);
 
@@ -204,10 +204,10 @@ export const handlePodBindRepository = withCanvasId<PodBindRepositoryPayload>(
 
 export const handlePodUnbindRepository = withCanvasId<PodUnbindRepositoryPayload>(
   WebSocketResponseEvents.POD_REPOSITORY_UNBOUND,
-  async (socket: Socket, canvasId: string, payload: PodUnbindRepositoryPayload, requestId: string): Promise<void> => {
+  async (connectionId: string, canvasId: string, payload: PodUnbindRepositoryPayload, requestId: string): Promise<void> => {
     const { podId } = payload;
 
-    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, requestId);
+    const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, requestId);
     if (!pod) {
       return;
     }
@@ -244,7 +244,7 @@ export const handlePodUnbindRepository = withCanvasId<PodUnbindRepositoryPayload
       }
     });
 
-    await clearPodMessages(socket, podId);
+    await clearPodMessages(connectionId, podId);
 
     const updatedPod = podStore.getById(canvasId, podId);
 
@@ -262,7 +262,7 @@ export const handlePodUnbindRepository = withCanvasId<PodUnbindRepositoryPayload
 );
 
 export async function handleRepositoryDelete(
-  socket: Socket,
+  connectionId: string,
   payload: RepositoryDeletePayload,
   requestId: string
 ): Promise<void> {
@@ -271,7 +271,7 @@ export async function handleRepositoryDelete(
   const metadata = repositoryService.getMetadata(repositoryId);
 
   await handleResourceDelete({
-    socket,
+    connectionId,
     requestId,
     resourceId: repositoryId,
     resourceName: 'Repository',
@@ -308,7 +308,7 @@ export async function handleRepositoryDelete(
 }
 
 export async function handleRepositoryGitClone(
-  socket: Socket,
+  connectionId: string,
   payload: RepositoryGitClonePayload,
   requestId: string
 ): Promise<void> {
@@ -316,12 +316,12 @@ export async function handleRepositoryGitClone(
 
   const repoName = parseRepoName(repoUrl);
 
-  emitCloneProgress(socket, requestId, 0, '開始 Git clone...');
+  emitCloneProgress(connectionId, requestId, 0, '開始 Git clone...');
 
   const exists = await repositoryService.exists(repoName);
   if (exists) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT,
       `Repository 已存在: ${repoName}`,
       requestId,
@@ -333,12 +333,12 @@ export async function handleRepositoryGitClone(
 
   await repositoryService.create(repoName);
 
-  emitCloneProgress(socket, requestId, 5, 'Repository 已建立，開始 clone...');
+  emitCloneProgress(connectionId, requestId, 5, 'Repository 已建立，開始 clone...');
 
   const targetPath = repositoryService.getRepositoryPath(repoName);
 
   const throttledEmit = throttle((progress: number, message: string) => {
-    emitCloneProgress(socket, requestId, progress, message);
+    emitCloneProgress(connectionId, requestId, progress, message);
   }, 500);
 
   const cloneResult = await gitService.clone(repoUrl, targetPath, {
@@ -354,7 +354,7 @@ export async function handleRepositoryGitClone(
     throttledEmit.cancel();
     await repositoryService.delete(repoName);
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT,
       cloneResult.error!,
       requestId,
@@ -365,7 +365,7 @@ export async function handleRepositoryGitClone(
   }
 
   throttledEmit.flush();
-  emitCloneProgress(socket, requestId, 95, '完成中...');
+  emitCloneProgress(connectionId, requestId, 95, '完成中...');
 
   // Clone 成功後，取得目前分支名稱並儲存
   const currentBranchResult = await gitService.getCurrentBranch(targetPath);
@@ -375,7 +375,7 @@ export async function handleRepositoryGitClone(
     });
   }
 
-  emitCloneProgress(socket, requestId, 100, 'Clone 完成!');
+  emitCloneProgress(connectionId, requestId, 100, 'Clone 完成!');
 
   const response: RepositoryGitCloneResultPayload = {
     requestId,
@@ -383,18 +383,18 @@ export async function handleRepositoryGitClone(
     repository: { id: repoName, name: repoName },
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT, response);
+  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT, response);
 
   logger.log('Repository', 'Create', `Successfully cloned ${repoUrl} to repository ${repoName}${branch ? ` (branch: ${branch})` : ''}`);
 }
 
-function emitCloneProgress(socket: Socket, requestId: string, progress: number, message: string): void {
+function emitCloneProgress(connectionId: string, requestId: string, progress: number, message: string): void {
   const payload: RepositoryGitCloneProgressPayload = {
     requestId,
     progress,
     message,
   };
-  socket.emit(WebSocketResponseEvents.REPOSITORY_GIT_CLONE_PROGRESS, payload);
+  socketService.emitToConnection(connectionId, WebSocketResponseEvents.REPOSITORY_GIT_CLONE_PROGRESS, payload);
 }
 
 function getStageMessage(stage: string): string {
@@ -442,7 +442,7 @@ function parseRepoName(repoUrl: string): string {
 }
 
 export async function handleRepositoryCheckGit(
-  socket: Socket,
+  connectionId: string,
   payload: RepositoryCheckGitPayload,
   requestId: string
 ): Promise<void> {
@@ -451,7 +451,7 @@ export async function handleRepositoryCheckGit(
   const validateResult = await validateRepositoryExists(repositoryId);
   if (!validateResult.success) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT,
       validateResult.error!,
       requestId,
@@ -466,7 +466,7 @@ export async function handleRepositoryCheckGit(
 
   if (!result.success) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT,
       result.error!,
       requestId,
@@ -484,11 +484,11 @@ export async function handleRepositoryCheckGit(
 
   logger.log('Repository', 'Check', `${repositoryId} isGit: ${result.data}`);
 
-  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT, response);
+  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT, response);
 }
 
 export async function handleRepositoryWorktreeCreate(
-  socket: Socket,
+  connectionId: string,
   payload: RepositoryWorktreeCreatePayload,
   requestId: string
 ): Promise<void> {
@@ -498,7 +498,7 @@ export async function handleRepositoryWorktreeCreate(
   if (!validateResult.success) {
     const errorCode = validateResult.error!.includes('找不到') ? 'NOT_FOUND' : 'INVALID_STATE';
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
       validateResult.error!,
       requestId,
@@ -513,7 +513,7 @@ export async function handleRepositoryWorktreeCreate(
   const hasCommitsResult = await gitService.hasCommits(repositoryPath);
   if (!hasCommitsResult.data) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
       'Repository 沒有任何 commit，無法建立 Worktree',
       requestId,
@@ -529,7 +529,7 @@ export async function handleRepositoryWorktreeCreate(
 
   if (!isPathWithinDirectory(targetPath, config.repositoriesRoot)) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
       '無效的 worktree 路徑',
       requestId,
@@ -542,7 +542,7 @@ export async function handleRepositoryWorktreeCreate(
   const targetExists = await fileExists(targetPath);
   if (targetExists) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
       `資料夾已存在: ${newRepositoryId}`,
       requestId,
@@ -555,7 +555,7 @@ export async function handleRepositoryWorktreeCreate(
   const branchExistsResult = await gitService.branchExists(repositoryPath, worktreeName);
   if (!branchExistsResult.success) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
       branchExistsResult.error!,
       requestId,
@@ -567,7 +567,7 @@ export async function handleRepositoryWorktreeCreate(
 
   if (branchExistsResult.data) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
       `分支已存在: ${worktreeName}`,
       requestId,
@@ -580,7 +580,7 @@ export async function handleRepositoryWorktreeCreate(
   const createResult = await gitService.createWorktree(repositoryPath, targetPath, worktreeName);
   if (!createResult.success) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
       `建立 Worktree 失敗: ${createResult.error}`,
       requestId,
@@ -614,14 +614,14 @@ export async function handleRepositoryWorktreeCreate(
 }
 
 export async function handleRepositoryGetLocalBranches(
-  socket: Socket,
+  connectionId: string,
   payload: RepositoryGetLocalBranchesPayload,
   requestId: string
 ): Promise<void> {
   const { repositoryId } = payload;
 
   const repositoryPath = await validateRepositoryIsGit(
-    socket,
+    connectionId,
     repositoryId,
     WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
     requestId
@@ -633,7 +633,7 @@ export async function handleRepositoryGetLocalBranches(
   const branchesResult = await gitService.getLocalBranches(repositoryPath);
   if (!branchesResult.success) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
       branchesResult.error!,
       requestId,
@@ -651,19 +651,19 @@ export async function handleRepositoryGetLocalBranches(
     worktreeBranches: branchesResult.data!.worktreeBranches,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT, response);
+  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT, response);
   logger.log('Repository', 'List', `Got local branches for ${repositoryId}`);
 }
 
 export async function handleRepositoryCheckDirty(
-  socket: Socket,
+  connectionId: string,
   payload: RepositoryCheckDirtyPayload,
   requestId: string
 ): Promise<void> {
   const { repositoryId } = payload;
 
   const repositoryPath = await validateRepositoryIsGit(
-    socket,
+    connectionId,
     repositoryId,
     WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
     requestId
@@ -675,7 +675,7 @@ export async function handleRepositoryCheckDirty(
   const dirtyResult = await gitService.hasUncommittedChanges(repositoryPath);
   if (!dirtyResult.success) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
       dirtyResult.error!,
       requestId,
@@ -691,19 +691,19 @@ export async function handleRepositoryCheckDirty(
     isDirty: dirtyResult.data,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT, response);
+  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT, response);
   logger.log('Repository', 'Check', `Checked dirty status for ${repositoryId}: ${dirtyResult.data}`);
 }
 
 export async function handleRepositoryCheckoutBranch(
-  socket: Socket,
+  connectionId: string,
   payload: RepositoryCheckoutBranchPayload,
   requestId: string
 ): Promise<void> {
   const { repositoryId, branchName, force } = payload;
 
   const repositoryPath = await validateRepositoryIsGit(
-    socket,
+    connectionId,
     repositoryId,
     WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
     requestId
@@ -715,7 +715,7 @@ export async function handleRepositoryCheckoutBranch(
   const metadata = repositoryService.getMetadata(repositoryId);
   if (metadata?.parentRepoId) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
       'Worktree 無法切換分支',
       requestId,
@@ -728,7 +728,7 @@ export async function handleRepositoryCheckoutBranch(
   const checkoutResult = await gitService.smartCheckoutBranch(repositoryPath, branchName, force);
   if (!checkoutResult.success) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
       checkoutResult.error!,
       requestId,
@@ -759,14 +759,14 @@ export async function handleRepositoryCheckoutBranch(
 }
 
 export async function handleRepositoryDeleteBranch(
-  socket: Socket,
+  connectionId: string,
   payload: RepositoryDeleteBranchPayload,
   requestId: string
 ): Promise<void> {
   const { repositoryId, branchName, force } = payload;
 
   const repositoryPath = await validateRepositoryIsGit(
-    socket,
+    connectionId,
     repositoryId,
     WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
     requestId
@@ -778,7 +778,7 @@ export async function handleRepositoryDeleteBranch(
   const deleteResult = await gitService.deleteBranch(repositoryPath, branchName, force);
   if (!deleteResult.success) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
       deleteResult.error!,
       requestId,
@@ -794,7 +794,7 @@ export async function handleRepositoryDeleteBranch(
     branchName,
   };
 
-  emitSuccess(socket, WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED, response);
+  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED, response);
 
   logger.log('Repository', 'Update', `Deleted branch ${branchName} from ${repositoryId}`);
 }

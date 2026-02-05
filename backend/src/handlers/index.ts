@@ -1,4 +1,3 @@
-import type { Socket } from 'socket.io';
 import { HandlerRegistry } from './registry.js';
 import { podHandlerGroup } from './groups/podHandlerGroup.js';
 import { chatHandlerGroup } from './groups/chatHandlerGroup.js';
@@ -32,6 +31,6 @@ registry.registerGroup(autoClearHandlerGroup);
 registry.registerGroup(canvasHandlerGroup);
 registry.registerGroup(groupHandlerGroup);
 
-export function registerAllHandlers(socket: Socket): void {
-  registry.applyToSocket(socket);
+export function registerAllHandlers(): void {
+	registry.registerToRouter();
 }

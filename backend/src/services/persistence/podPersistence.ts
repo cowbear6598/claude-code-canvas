@@ -1,8 +1,8 @@
 import path from 'path';
 import fs from 'fs/promises';
 import { persistenceService } from './index.js';
-import type { Pod, PersistedPod } from '../../types/index.js';
-import { Result, ok, err } from '../../types/index.js';
+import type { Pod, PersistedPod } from '../../types';
+import { Result, ok, err } from '../../types';
 import { logger } from '../../utils/logger.js';
 
 class PodPersistenceService {

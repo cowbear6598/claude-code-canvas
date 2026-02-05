@@ -1,5 +1,4 @@
-import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import type {Socket} from 'socket.io-client';
+import {describe, it, expect, beforeAll, afterAll} from 'bun:test';
 import {v4 as uuidv4} from 'uuid';
 import {
     createTestServer,
@@ -8,14 +7,14 @@ import {
     disconnectSocket,
     emitAndWaitResponse,
     type TestServerInstance,
-} from '../setup/index.js';
+} from '../setup';
 import {
     createCanvas,
     getCanvasId,
     listCanvases,
     reorderCanvases,
-} from '../helpers/index.js';
-import {FAKE_UUID} from '../helpers/index.js';
+} from '../helpers';
+import {FAKE_UUID} from '../helpers';
 import {
     WebSocketRequestEvents,
     WebSocketResponseEvents,
@@ -25,7 +24,7 @@ import {
     type CanvasDeletePayload,
     type CanvasSwitchPayload,
     type CanvasReorderPayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
     type CanvasCreatedPayload,
     type CanvasListResultPayload,
@@ -33,11 +32,12 @@ import {
     type CanvasDeletedPayload,
     type CanvasSwitchedPayload,
     type CanvasReorderedPayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
+import {TestWebSocketClient} from "../setup";
 
 describe('Canvas 管理', () => {
     let server: TestServerInstance;
-    let client: Socket;
+    let client: TestWebSocketClient;
 
     beforeAll(async () => {
         server = await createTestServer();

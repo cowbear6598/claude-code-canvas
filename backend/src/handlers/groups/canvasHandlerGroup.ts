@@ -1,4 +1,4 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
 import {
   canvasCreateSchema,
   canvasListSchema,
@@ -6,7 +6,7 @@ import {
   canvasDeleteSchema,
   canvasSwitchSchema,
   canvasReorderSchema,
-} from '../../schemas/index.js';
+} from '../../schemas';
 import {
   handleCanvasCreate,
   handleCanvasList,

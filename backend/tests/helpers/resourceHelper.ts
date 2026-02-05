@@ -1,9 +1,9 @@
-import type { Socket } from 'socket.io-client';
+import type { TestWebSocketClient } from '../setup';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { emitAndWaitResponse } from '../setup/index.js';
-import { testConfig } from '../setup/index.js';
+import { emitAndWaitResponse } from '../setup';
+import { testConfig } from '../setup';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
@@ -11,16 +11,16 @@ import {
   type RepositoryCreatePayload,
   type SubAgentCreatePayload,
   type CommandCreatePayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
   type OutputStyleCreatedPayload,
   type RepositoryCreatedPayload,
   type SubAgentCreatedPayload,
   type CommandCreatedPayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 export async function createOutputStyle(
-  client: Socket,
+  client: TestWebSocketClient,
   name: string,
   content: string
 ): Promise<{ id: string; name: string }> {
@@ -56,7 +56,7 @@ export async function createSkillFile(
 }
 
 export async function createRepository(
-  client: Socket,
+  client: TestWebSocketClient,
   name: string
 ): Promise<{ id: string; name: string }> {
   if (!client.id) {
@@ -81,7 +81,7 @@ export async function createRepository(
 }
 
 export async function createSubAgent(
-  client: Socket,
+  client: TestWebSocketClient,
   name: string,
   content: string
 ): Promise<{ id: string; name: string }> {
@@ -107,7 +107,7 @@ export async function createSubAgent(
 }
 
 export async function createCommand(
-  client: Socket,
+  client: TestWebSocketClient,
   name: string,
   content: string
 ): Promise<{ id: string; name: string }> {

@@ -1,5 +1,4 @@
-import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import type {Socket} from 'socket.io-client';
+import {describe, it, expect, beforeAll, afterAll} from 'bun:test';
 import {v4 as uuidv4} from 'uuid';
 import {
     createTestServer,
@@ -7,8 +6,8 @@ import {
     createSocketClient,
     emitAndWaitResponse,
     disconnectSocket,
-    type TestServerInstance,
-} from '../setup/index.js';
+    type TestServerInstance, TestWebSocketClient,
+} from '../setup';
 import {
     createOutputStyle,
     createSkillFile,
@@ -16,7 +15,7 @@ import {
     createSubAgent,
     createCommand,
     getCanvasId,
-} from '../helpers/index.js';
+} from '../helpers';
 import {
     WebSocketRequestEvents,
     WebSocketResponseEvents,
@@ -28,12 +27,12 @@ import {
     type PasteRepositoryNoteItem,
     type PasteSubAgentNoteItem,
     type PasteCommandNoteItem,
-} from '../../src/schemas/index.js';
-import { type CanvasPasteResultPayload } from '../../src/types/index.js';
+} from '../../src/schemas';
+import { type CanvasPasteResultPayload } from '../../src/types';
 
 describe('貼上功能', () => {
     let server: TestServerInstance;
-    let client: Socket;
+    let client: TestWebSocketClient;
 
     beforeAll(async () => {
         server = await createTestServer();

@@ -1,4 +1,4 @@
-import type { Socket } from 'socket.io-client';
+import type { TestWebSocketClient } from '../setup/socketClient.js';
 import { v4 as uuidv4 } from 'uuid';
 import { emitAndWaitResponse } from '../setup/index.js';
 import {
@@ -18,7 +18,7 @@ interface CreateConnectionOptions extends Partial<ConnectionCreatePayload> {
 }
 
 export async function createConnection(
-  client: Socket,
+  client: TestWebSocketClient,
   sourcePodId: string,
   targetPodId: string,
   options?: CreateConnectionOptions

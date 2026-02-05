@@ -1,212 +1,221 @@
-import {Server as HttpServer} from 'http';
-import {Server as SocketIOServer, Socket} from 'socket.io';
-import {config} from '../config/index.js';
-import {logger} from '../utils/logger.js';
-import {WebSocketResponseEvents} from '../schemas/index.js';
-import type {
-    ConnectionReadyPayload,
-} from '../types/index.js';
+import { logger } from '../utils/logger.js';
+import { WebSocketResponseEvents } from '../schemas';
+import type { ConnectionReadyPayload } from '../types';
+import type { WebSocketResponse } from '../types/websocket.js';
+import { connectionManager } from './connectionManager.js';
+import { roomManager } from './roomManager.js';
+import { serialize } from '../utils/messageSerializer.js';
 
 class SocketService {
-    private io: SocketIOServer | null = null;
-    private socketToCanvasRoom: Map<string, string> = new Map();
-    private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-    private socketMissedHeartbeats: Map<string, number> = new Map();
-    private socketTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+	private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+	private heartbeatTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+	private initialized = false;
 
-    private readonly HEARTBEAT_INTERVAL = 15000;
-    private readonly HEARTBEAT_TIMEOUT = 10000;
-    private readonly MAX_MISSED_HEARTBEATS = 2;
+	private readonly HEARTBEAT_INTERVAL = 15000;
+	private readonly HEARTBEAT_TIMEOUT = 10000;
+	private readonly MAX_MISSED_HEARTBEATS = 2;
 
-    initialize(httpServer: HttpServer): void {
-        if (this.io) {
-            logger.log('Startup', 'Complete', '[Socket.io] Already initialized');
-            return;
-        }
+	initialize(): void {
+		if (this.initialized) {
+			logger.log('Startup', 'Complete', '[WebSocket] Already initialized');
+			return;
+		}
 
-        this.io = new SocketIOServer(httpServer, {
-            cors: {
-                origin: config.corsOrigin,
-                methods: ['GET', 'POST'],
-            },
-            pingInterval: 10000,
-            pingTimeout: 5000,
-            maxHttpBufferSize: 10 * 1024 * 1024,
-        });
+		this.initialized = true;
+		logger.log('Startup', 'Complete', '[WebSocket] Service initialized');
 
-        logger.log('Startup', 'Complete', '[Socket.io] Server initialized');
+		this.startHeartbeat();
+	}
 
-        this.startHeartbeat();
-    }
+	/**
+	 * 發送訊息給所有連線
+	 */
+	emitToAll(event: string, payload: unknown): void {
+		const connections = connectionManager.getAll();
+		for (const connection of connections) {
+			this.emitToConnection(connection.id, event, payload);
+		}
+	}
 
-    getIO(): SocketIOServer {
-        if (!this.io) {
-            throw new Error('Socket.io 尚未初始化。請先呼叫 initialize()');
-        }
-        return this.io;
-    }
+	/**
+	 * 發送訊息給指定連線
+	 */
+	emitToConnection(connectionId: string, event: string, payload: unknown): void {
+		const connection = connectionManager.get(connectionId);
+		if (!connection) {
+			return;
+		}
 
-    emitToAll(event: string, payload: unknown): void {
-        if (!this.io) {
-            return;
-        }
+		const response: WebSocketResponse = {
+			type: event,
+			requestId: '',
+			success: true,
+			payload,
+		};
 
-        this.io.emit(event, payload);
-    }
+		try {
+			connection.ws.send(serialize(response));
+		} catch (error) {
+			logger.log('Connection', 'Error', `Failed to send message to ${connectionId}: ${error}`);
+		}
+	}
 
-    private emitToSocket(socketId: string, event: string, payload: unknown): void {
-        if (!this.io) {
-            return;
-        }
+	/**
+	 * 發送連線就緒訊息
+	 */
+	emitConnectionReady(connectionId: string, payload: ConnectionReadyPayload): void {
+		this.emitToConnection(connectionId, WebSocketResponseEvents.CONNECTION_READY, payload);
+	}
 
-        const socket = this.io.sockets.sockets.get(socketId);
-        if (!socket) {
-            return;
-        }
+	/**
+	 * 加入 Canvas Room
+	 */
+	joinCanvasRoom(connectionId: string, canvasId: string): void {
+		this.leaveCanvasRoom(connectionId);
 
-        socket.emit(event, payload);
-    }
+		const roomName = `canvas:${canvasId}`;
+		roomManager.join(connectionId, roomName);
+		connectionManager.setCanvasId(connectionId, canvasId);
+	}
 
-    emitConnectionReady(socketId: string, payload: ConnectionReadyPayload): void {
-        this.emitToSocket(socketId, WebSocketResponseEvents.CONNECTION_READY, payload);
-    }
+	/**
+	 * 離開 Canvas Room
+	 */
+	leaveCanvasRoom(connectionId: string): void {
+		const currentCanvasId = connectionManager.getCanvasId(connectionId);
+		if (!currentCanvasId) {
+			return;
+		}
 
-    joinCanvasRoom(socketId: string, canvasId: string): void {
-        if (!this.io) {
-            return;
-        }
+		const roomName = `canvas:${currentCanvasId}`;
+		roomManager.leave(connectionId, roomName);
+		connectionManager.setCanvasId(connectionId, '');
+	}
 
-        const socket = this.io.sockets.sockets.get(socketId);
-        if (!socket) {
-            return;
-        }
+	/**
+	 * 發送訊息給指定 Canvas 的所有連線
+	 */
+	emitToCanvas(canvasId: string, event: string, payload: unknown): void {
+		const roomName = `canvas:${canvasId}`;
+		const members = roomManager.getMembers(roomName);
 
-        this.leaveCanvasRoom(socketId);
+		for (const connectionId of members) {
+			this.emitToConnection(connectionId, event, payload);
+		}
+	}
 
-        const roomName = `canvas:${canvasId}`;
-        socket.join(roomName);
-        this.socketToCanvasRoom.set(socketId, canvasId);
-    }
+	/**
+	 * 清理連線
+	 */
+	cleanupSocket(connectionId: string): void {
+		roomManager.leaveAll(connectionId);
+		connectionManager.remove(connectionId);
+		this.clearHeartbeatTimeout(connectionId);
+	}
 
-    leaveCanvasRoom(socketId: string): void {
-        if (!this.io) {
-            return;
-        }
+	/**
+	 * 清除心跳超時計時器
+	 */
+	private clearHeartbeatTimeout(connectionId: string): void {
+		const timeout = this.heartbeatTimeouts.get(connectionId);
+		if (timeout) {
+			clearTimeout(timeout);
+			this.heartbeatTimeouts.delete(connectionId);
+		}
+	}
 
-        const socket = this.io.sockets.sockets.get(socketId);
-        if (!socket) {
-            return;
-        }
+	/**
+	 * 開始心跳檢測
+	 */
+	private startHeartbeat(): void {
+		if (this.heartbeatInterval) {
+			return;
+		}
 
-        const currentCanvasId = this.socketToCanvasRoom.get(socketId);
-        if (!currentCanvasId) {
-            return;
-        }
+		this.heartbeatInterval = setInterval(() => {
+			const connections = connectionManager.getAll();
+			for (const connection of connections) {
+				this.sendHeartbeatPing(connection.id);
+			}
+		}, this.HEARTBEAT_INTERVAL);
 
-        const roomName = `canvas:${currentCanvasId}`;
-        socket.leave(roomName);
-        this.socketToCanvasRoom.delete(socketId);
-    }
+		logger.log('Startup', 'Complete', '[Heartbeat] Started');
+	}
 
-    emitToCanvas(canvasId: string, event: string, payload: unknown): void {
-        if (!this.io) {
-            return;
-        }
+	/**
+	 * 發送心跳 ping
+	 */
+	private sendHeartbeatPing(connectionId: string): void {
+		const connection = connectionManager.get(connectionId);
+		if (!connection) {
+			return;
+		}
 
-        const roomName = `canvas:${canvasId}`;
-        this.io.to(roomName).emit(event, payload);
-    }
+		this.clearHeartbeatTimeout(connectionId);
 
-    cleanupSocket(socketId: string): void {
-        this.leaveCanvasRoom(socketId);
-        this.socketMissedHeartbeats.delete(socketId);
-        this.clearSocketTimeout(socketId);
-    }
+		const timestamp = Date.now();
+		const ackId = `heartbeat-${connectionId}-${timestamp}`;
+		const response: WebSocketResponse = {
+			type: WebSocketResponseEvents.HEARTBEAT_PING,
+			requestId: '',
+			success: true,
+			payload: { timestamp },
+			ackId,
+		};
 
-    private clearSocketTimeout(socketId: string): void {
-        const timeout = this.socketTimeouts.get(socketId);
-        if (!timeout) {
-            return;
-        }
+		try {
+			connection.ws.send(serialize(response));
+		} catch (error) {
+			logger.log('Connection', 'Error', `Failed to send heartbeat to ${connectionId}: ${error}`);
+			return;
+		}
 
-        clearTimeout(timeout);
-        this.socketTimeouts.delete(socketId);
-    }
+		// 設定超時檢查
+		const timeout = setTimeout(() => {
+			const conn = connectionManager.get(connectionId);
+			if (!conn) {
+				return;
+			}
 
-    private startHeartbeat(): void {
-        if (this.heartbeatInterval) {
-            return;
-        }
+			connectionManager.incrementMissedHeartbeats(connectionId);
 
-        this.heartbeatInterval = setInterval(() => {
-            if (!this.io) {
-                return;
-            }
+			const missed = conn.missedHeartbeats;
+			logger.log('Connection', 'Error', `Connection ${connectionId} missed heartbeat (${missed}/${this.MAX_MISSED_HEARTBEATS})`);
 
-            this.io.sockets.sockets.forEach((socket) => {
-                this.sendHeartbeatPing(socket);
-            });
-        }, this.HEARTBEAT_INTERVAL);
+			if (missed >= this.MAX_MISSED_HEARTBEATS) {
+				logger.log('Connection', 'Delete', `Connection ${connectionId} disconnected due to heartbeat timeout`);
+				this.clearHeartbeatTimeout(connectionId);
+				conn.ws.close(1000, 'Heartbeat timeout');
+			}
+		}, this.HEARTBEAT_TIMEOUT);
 
-        logger.log('Startup', 'Complete', '[Heartbeat] Started');
-    }
+		this.heartbeatTimeouts.set(connectionId, timeout);
+	}
 
-    private sendHeartbeatPing(socket: Socket): void {
-        const socketId = socket.id;
-        const timestamp = Date.now();
+	/**
+	 * 處理心跳 pong 回應
+	 */
+	handleHeartbeatPong(connectionId: string): void {
+		connectionManager.updateHeartbeat(connectionId);
+		this.clearHeartbeatTimeout(connectionId);
+	}
 
-        this.clearSocketTimeout(socketId);
+	/**
+	 * 停止心跳檢測
+	 */
+	stopHeartbeat(): void {
+		if (!this.heartbeatInterval) {
+			return;
+		}
 
-        let ackReceived = false;
+		clearInterval(this.heartbeatInterval);
+		this.heartbeatInterval = null;
 
-        socket.emit(
-            WebSocketResponseEvents.HEARTBEAT_PING,
-            {timestamp},
-            (_: { timestamp: number }) => {
-                ackReceived = true;
-                this.socketMissedHeartbeats.set(socketId, 0);
-            }
-        );
+		this.heartbeatTimeouts.forEach((timeout) => clearTimeout(timeout));
+		this.heartbeatTimeouts.clear();
 
-        const timeout = setTimeout(() => {
-            if (ackReceived) {
-                return;
-            }
-
-            if (!this.io?.sockets.sockets.has(socketId)) {
-                return;
-            }
-
-            const currentMissed = this.socketMissedHeartbeats.get(socketId) || 0;
-            const newMissed = currentMissed + 1;
-            this.socketMissedHeartbeats.set(socketId, newMissed);
-
-            logger.log('Connection', 'Error', `Socket ${socketId} missed heartbeat (${newMissed}/${this.MAX_MISSED_HEARTBEATS})`);
-
-            if (newMissed >= this.MAX_MISSED_HEARTBEATS) {
-                logger.log('Connection', 'Delete', `Socket ${socketId} disconnected due to heartbeat timeout`);
-                this.clearSocketTimeout(socketId);
-                socket.disconnect(true);
-            }
-        }, this.HEARTBEAT_TIMEOUT);
-
-        this.socketTimeouts.set(socketId, timeout);
-    }
-
-    stopHeartbeat(): void {
-        if (!this.heartbeatInterval) {
-            return;
-        }
-
-        clearInterval(this.heartbeatInterval);
-        this.heartbeatInterval = null;
-        this.socketMissedHeartbeats.clear();
-
-        this.socketTimeouts.forEach((timeout) => clearTimeout(timeout));
-        this.socketTimeouts.clear();
-
-        logger.log('Startup', 'Complete', '[Heartbeat] Stopped');
-    }
+		logger.log('Startup', 'Complete', '[Heartbeat] Stopped');
+	}
 }
 
 export const socketService = new SocketService();

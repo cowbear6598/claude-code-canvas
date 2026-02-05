@@ -1,4 +1,4 @@
-import type { PersistedMessage } from '../types/index.js';
+import type { PersistedMessage } from '../types';
 
 interface SummaryPromptContext {
   sourcePodName: string;

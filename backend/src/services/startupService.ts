@@ -5,9 +5,9 @@ import { connectionStore } from './connectionStore.js';
 import { scheduleService } from './scheduleService.js';
 import { canvasStore } from './canvasStore.js';
 import { repositoryService } from './repositoryService.js';
-import { Result, ok, err } from '../types/index.js';
-import { config } from '../config/index.js';
-import { persistenceService } from './persistence/index.js';
+import { Result, ok, err } from '../types';
+import { config } from '../config';
+import { persistenceService } from './persistence';
 import { logger } from '../utils/logger.js';
 
 class StartupService {

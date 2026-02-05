@@ -1,5 +1,4 @@
-import type {Socket} from 'socket.io';
-import type {WebSocketResponseEvents} from '../../schemas/index.js';
+import type {WebSocketResponseEvents} from '../../schemas';
 import {podStore} from '../../services/podStore.js';
 import {socketService} from '../../services/socketService.js';
 import {repositorySyncService} from '../../services/repositorySyncService.js';
@@ -60,11 +59,11 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
 ): ReturnType<typeof withCanvasId<{podId: string; [key: string]: string}>> {
     return withCanvasId<{podId: string; [key: string]: string}>(
         config.events.bound,
-        async (socket: Socket, canvasId: string, payload: {podId: string; [key: string]: string}, requestId: string): Promise<void> => {
+        async (connectionId: string, canvasId: string, payload: {podId: string; [key: string]: string}, requestId: string): Promise<void> => {
             const {podId} = payload;
             const resourceId = payload[config.idField] as string;
 
-            const pod = validatePod(socket, podId, config.events.bound, requestId);
+            const pod = validatePod(connectionId, podId, config.events.bound, requestId);
             if (!pod) {
                 return;
             }
@@ -73,7 +72,7 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
             const resourceExists = await config.service.exists(resourceId);
             if (!resourceExists) {
                 emitError(
-                    socket,
+                    connectionId,
                     config.events.bound,
                     `${config.resourceName} 找不到: ${resourceId}`,
                     requestId,
@@ -91,7 +90,7 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
                     : `Pod ${podId} 已有 ${config.resourceName.toLowerCase()} ${boundIds} 綁定，請先解綁`;
 
                 emitError(
-                    socket,
+                    connectionId,
                     config.events.bound,
                     conflictMessage,
                     requestId,
@@ -149,10 +148,10 @@ export function createUnbindHandler<TService>(
 
     return withCanvasId<{podId: string}>(
         config.events.unbound!,
-        async (socket: Socket, canvasId: string, payload: {podId: string}, requestId: string): Promise<void> => {
+        async (connectionId: string, canvasId: string, payload: {podId: string}, requestId: string): Promise<void> => {
             const {podId} = payload;
 
-            const pod = validatePod(socket, podId, config.events.unbound!, requestId);
+            const pod = validatePod(connectionId, podId, config.events.unbound!, requestId);
             if (!pod) {
                 return;
             }
@@ -165,7 +164,7 @@ export function createUnbindHandler<TService>(
                     success: true,
                     pod,
                 };
-                emitSuccess(socket, config.events.unbound!, response);
+                emitSuccess(connectionId, config.events.unbound!, response);
                 return;
             }
 

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { Socket } from 'socket.io-client';
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import type { TestWebSocketClient } from '../setup';
 import { v4 as uuidv4 } from 'uuid';
 import {
   createTestServer,
@@ -8,8 +8,8 @@ import {
   emitAndWaitResponse,
   disconnectSocket,
   type TestServerInstance,
-} from '../setup/index.js';
-import { createOutputStyle, createSkillFile, FAKE_UUID, FAKE_STYLE_ID, getCanvasId} from '../helpers/index.js';
+} from '../setup';
+import { createOutputStyle, createSkillFile, FAKE_UUID, FAKE_STYLE_ID, getCanvasId} from '../helpers';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
@@ -19,7 +19,7 @@ import {
   type SkillNoteCreatePayload,
   type SkillNoteUpdatePayload,
   type SkillNoteDeletePayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
   type NoteCreatedPayload,
   type NoteUpdatedPayload,
@@ -27,11 +27,11 @@ import {
   type SkillNoteCreatedPayload,
   type SkillNoteUpdatedPayload,
   type SkillNoteDeletedPayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 describe('Note Handler 覆蓋率測試', () => {
   let server: TestServerInstance;
-  let client: Socket;
+  let client: TestWebSocketClient;
 
   beforeAll(async () => {
     server = await createTestServer();

@@ -173,6 +173,7 @@ export enum WebSocketResponseEvents {
   REPOSITORY_CHECK_GIT_RESULT = 'repository:check-git:result',
   REPOSITORY_WORKTREE_CREATED = 'repository:worktree:created',
   HEARTBEAT_PING = 'heartbeat:ping',
+  HEARTBEAT_PONG = 'heartbeat:pong',
   SCHEDULE_FIRED = 'schedule:fired',
   CANVAS_CREATED = 'canvas:created',
   CANVAS_LIST_RESULT = 'canvas:list:result',

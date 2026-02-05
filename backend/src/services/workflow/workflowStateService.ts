@@ -5,7 +5,7 @@ import { workflowEventEmitter } from './workflowEventEmitter.js';
 import {
   type WorkflowPendingPayload,
   type WorkflowSourcesMergedPayload,
-} from '../../types/index.js';
+} from '../../types';
 import { logger } from '../../utils/logger.js';
 
 class WorkflowStateService {

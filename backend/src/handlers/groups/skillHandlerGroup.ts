@@ -1,4 +1,4 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
 import {
   skillListSchema,
   skillNoteCreateSchema,
@@ -7,7 +7,7 @@ import {
   skillNoteDeleteSchema,
   podBindSkillSchema,
   skillDeleteSchema,
-} from '../../schemas/index.js';
+} from '../../schemas';
 import {
   handleSkillList,
   handleSkillNoteCreate,

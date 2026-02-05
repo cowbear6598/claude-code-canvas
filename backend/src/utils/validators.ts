@@ -1,5 +1,5 @@
-import { PodColor, Pod } from '../types/index.js';
-import { Result, ok, err } from '../types/index.js';
+import { PodColor, Pod } from '../types';
+import { Result, ok, err } from '../types';
 import { repositoryService } from '../services/repositoryService.js';
 import { gitService } from '../services/workspace/gitService.js';
 import { podStore } from '../services/podStore.js';

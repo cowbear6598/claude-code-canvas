@@ -1,5 +1,4 @@
-import {afterAll, beforeAll, describe, expect, it} from 'vitest';
-import type {Socket} from 'socket.io-client';
+import {afterAll, beforeAll, describe, expect, it} from 'bun:test';
 import {v4 as uuidv4} from 'uuid';
 import {
     closeTestServer,
@@ -7,9 +6,9 @@ import {
     createTestServer,
     disconnectSocket,
     emitAndWaitResponse,
-    type TestServerInstance,
-} from '../setup/index.js';
-import {createCommand, createOutputStyle, createSubAgent} from '../helpers/index.js';
+    type TestServerInstance, TestWebSocketClient,
+} from '../setup';
+import {createCommand, createOutputStyle, createSubAgent} from '../helpers';
 import {
     type CommandMoveToGroupPayload,
     type GroupCreatePayload,
@@ -20,7 +19,7 @@ import {
     type SubAgentMoveToGroupPayload,
     WebSocketRequestEvents,
     WebSocketResponseEvents,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
     type Group,
     type GroupCreatedResponse,
@@ -28,11 +27,11 @@ import {
     type GroupListResultResponse,
     type GroupUpdatedResponse,
     type ItemMovedToGroupResponse,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 describe('Group 管理', () => {
     let server: TestServerInstance;
-    let client: Socket;
+    let client: TestWebSocketClient;
 
     beforeAll(async () => {
         server = await createTestServer();

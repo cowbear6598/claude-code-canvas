@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { Result, ok, err } from '../../types/index.js';
-import { config } from '../../config/index.js';
+import { Result, ok, err } from '../../types';
+import { config } from '../../config';
 import { logger } from '../../utils/logger.js';
 
 class WorkspaceService {

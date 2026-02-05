@@ -1,5 +1,4 @@
-import type { Socket } from 'socket.io';
-import type { WebSocketResponseEvents } from '../../schemas/index.js';
+import type { WebSocketResponseEvents } from '../../schemas';
 import { socketService } from '../../services/socketService.js';
 import { emitError } from '../../utils/websocketResponse.js';
 import { logger, type LogCategory } from '../../utils/logger.js';
@@ -44,14 +43,14 @@ interface BaseResponse {
 }
 
 export function createResourceHandlers(config: ResourceHandlerConfig): {
-  handleCreate: (socket: Socket, payload: CreateResourcePayload, requestId: string) => Promise<void>;
-  handleUpdate: (socket: Socket, payload: UpdateResourcePayload, requestId: string) => Promise<void>;
-  handleRead?: (socket: Socket, payload: ReadResourcePayload, requestId: string) => Promise<void>;
+  handleCreate: (connectionId: string, payload: CreateResourcePayload, requestId: string) => Promise<void>;
+  handleUpdate: (connectionId: string, payload: UpdateResourcePayload, requestId: string) => Promise<void>;
+  handleRead?: (connectionId: string, payload: ReadResourcePayload, requestId: string) => Promise<void>;
 } {
   const { service, events, resourceName, responseKey, idField } = config;
 
   async function handleCreate(
-    socket: Socket,
+    connectionId: string,
     payload: CreateResourcePayload,
     requestId: string
   ): Promise<void> {
@@ -60,7 +59,7 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
     const exists = await service.exists(name);
     if (exists) {
       emitError(
-        socket,
+        connectionId,
         events.created,
         `${resourceName} 已存在: ${name}`,
         requestId,
@@ -84,7 +83,7 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
   }
 
   async function handleUpdate(
-    socket: Socket,
+    connectionId: string,
     payload: UpdateResourcePayload,
     requestId: string
   ): Promise<void> {
@@ -94,7 +93,7 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
     const exists = await service.exists(resourceId);
     if (!exists) {
       emitError(
-        socket,
+        connectionId,
         events.updated,
         `${resourceName} 找不到: ${resourceId}`,
         requestId,
@@ -116,11 +115,11 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
     logger.log(resourceName, 'Update', `Updated ${resourceName.toLowerCase()} ${resourceId}`);
   }
 
-  let handleRead: ((socket: Socket, payload: ReadResourcePayload, requestId: string) => Promise<void>) | undefined;
+  let handleRead: ((connectionId: string, payload: ReadResourcePayload, requestId: string) => Promise<void>) | undefined;
 
   if (service.getContent && events.readResult) {
     handleRead = async function (
-      socket: Socket,
+      connectionId: string,
       payload: ReadResourcePayload,
       requestId: string
     ): Promise<void> {
@@ -129,7 +128,7 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
       const content = await service.getContent!(resourceId);
       if (!content) {
         emitError(
-          socket,
+          connectionId,
           events.readResult!,
           `${resourceName} 找不到: ${resourceId}`,
           requestId,
@@ -149,7 +148,7 @@ export function createResourceHandlers(config: ResourceHandlerConfig): {
         },
       };
 
-      socket.emit(events.readResult!, response);
+      socketService.emitToConnection(connectionId, events.readResult!, response);
     };
   }
 

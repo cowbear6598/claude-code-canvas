@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { Socket } from 'socket.io-client';
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import type { TestWebSocketClient } from '../setup';
 import { v4 as uuidv4 } from 'uuid';
 import {
   createTestServer,
@@ -8,18 +8,18 @@ import {
   emitAndWaitResponse,
   disconnectSocket,
   type TestServerInstance,
-} from '../setup/index.js';
-import { createPod, FAKE_UUID, getCanvasId} from '../helpers/index.js';
+} from '../setup';
+import { createPod, FAKE_UUID, getCanvasId} from '../helpers';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type PodSetAutoClearPayload,
-} from '../../src/schemas/index.js';
-import { type PodAutoClearSetPayload } from '../../src/types/index.js';
+} from '../../src/schemas';
+import { type PodAutoClearSetPayload } from '../../src/types';
 
 describe('自動清除', () => {
   let server: TestServerInstance;
-  let client: Socket;
+  let client: TestWebSocketClient;
 
   beforeAll(async () => {
     server = await createTestServer();

@@ -1,17 +1,16 @@
-import type { Socket } from 'socket.io';
-import { WebSocketResponseEvents } from '../schemas/index.js';
+import { WebSocketResponseEvents } from '../schemas';
 import type {
   OutputStyleListResultPayload,
   PodOutputStyleBoundPayload,
   PodOutputStyleUnboundPayload,
-} from '../types/index.js';
+} from '../types';
 import type {
   OutputStyleListPayload,
   PodBindOutputStylePayload,
   PodUnbindOutputStylePayload,
   OutputStyleDeletePayload,
   OutputStyleMoveToGroupPayload,
-} from '../schemas/index.js';
+} from '../schemas';
 import { outputStyleService } from '../services/outputStyleService.js';
 import { podStore } from '../services/podStore.js';
 import { noteStore } from '../services/noteStores.js';
@@ -21,7 +20,7 @@ import { logger } from '../utils/logger.js';
 import { validatePod, handleResourceDelete, withCanvasId } from '../utils/handlerHelpers.js';
 import { createResourceHandlers } from './factories/createResourceHandlers.js';
 import { createMoveToGroupHandler } from './factories/createMoveToGroupHandler.js';
-import { GroupType } from '../types/index.js';
+import { GroupType } from '../types';
 
 const resourceHandlers = createResourceHandlers({
   service: outputStyleService,
@@ -41,7 +40,7 @@ export const handleOutputStyleUpdate = resourceHandlers.handleUpdate;
 export const handleOutputStyleRead = resourceHandlers.handleRead!;
 
 export async function handleOutputStyleList(
-  socket: Socket,
+  connectionId: string,
   _: OutputStyleListPayload,
   requestId: string
 ): Promise<void> {
@@ -53,15 +52,15 @@ export async function handleOutputStyleList(
     styles,
   };
 
-  socket.emit(WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT, response);
+  socketService.emitToConnection(connectionId, WebSocketResponseEvents.OUTPUT_STYLE_LIST_RESULT, response);
 }
 
 export const handlePodBindOutputStyle = withCanvasId<PodBindOutputStylePayload>(
   WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND,
-  async (socket: Socket, canvasId: string, payload: PodBindOutputStylePayload, requestId: string): Promise<void> => {
+  async (connectionId: string, canvasId: string, payload: PodBindOutputStylePayload, requestId: string): Promise<void> => {
     const { podId, outputStyleId } = payload;
 
-    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, requestId);
+    const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, requestId);
     if (!pod) {
       return;
     }
@@ -69,7 +68,7 @@ export const handlePodBindOutputStyle = withCanvasId<PodBindOutputStylePayload>(
   const styleExists = await outputStyleService.exists(outputStyleId);
   if (!styleExists) {
     emitError(
-      socket,
+      connectionId,
       WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND,
       `Output style 找不到: ${outputStyleId}`,
       requestId,
@@ -103,10 +102,10 @@ export const handlePodBindOutputStyle = withCanvasId<PodBindOutputStylePayload>(
 
 export const handlePodUnbindOutputStyle = withCanvasId<PodUnbindOutputStylePayload>(
   WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND,
-  async (socket: Socket, canvasId: string, payload: PodUnbindOutputStylePayload, requestId: string): Promise<void> => {
+  async (connectionId: string, canvasId: string, payload: PodUnbindOutputStylePayload, requestId: string): Promise<void> => {
     const { podId } = payload;
 
-    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, requestId);
+    const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, requestId);
     if (!pod) {
       return;
     }
@@ -133,14 +132,14 @@ export const handlePodUnbindOutputStyle = withCanvasId<PodUnbindOutputStylePaylo
 );
 
 export async function handleOutputStyleDelete(
-  socket: Socket,
+  connectionId: string,
   payload: OutputStyleDeletePayload,
   requestId: string
 ): Promise<void> {
   const { outputStyleId } = payload;
 
   await handleResourceDelete({
-    socket,
+    connectionId,
     requestId,
     resourceId: outputStyleId,
     resourceName: 'OutputStyle',
@@ -164,9 +163,9 @@ const outputStyleMoveToGroupHandler = createMoveToGroupHandler({
 });
 
 export async function handleOutputStyleMoveToGroup(
-  socket: Socket,
+  connectionId: string,
   payload: OutputStyleMoveToGroupPayload,
   requestId: string
 ): Promise<void> {
-  return outputStyleMoveToGroupHandler(socket, payload, requestId);
+  return outputStyleMoveToGroupHandler(connectionId, payload, requestId);
 }

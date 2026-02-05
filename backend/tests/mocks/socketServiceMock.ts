@@ -4,7 +4,7 @@
 // 2. 使用 getEmittedEvents() 或 getLastEmittedEvent() 檢查 socket 事件
 // 3. 使用 resetSocketMock() 清除事件記錄
 
-import { vi } from 'vitest';
+import { mock } from 'bun:test';
 
 interface EmittedEvent {
   event: string;
@@ -33,35 +33,35 @@ export function resetSocketMock(): void {
   clearEmittedEvents();
 }
 
-export const mockEmitToPod = vi.fn((podId: string, event: string, payload: unknown): void => {
+export const mockEmitToPod = mock((podId: string, event: string, payload: unknown): void => {
   emittedEvents.push({ event, payload });
 });
 
-export const mockEmitToAll = vi.fn((event: string, payload: unknown): void => {
+export const mockEmitToAll = mock((event: string, payload: unknown): void => {
   emittedEvents.push({ event, payload });
 });
 
-export const mockBroadcastToCanvas = vi.fn(
+export const mockBroadcastToCanvas = mock(
   (socketId: string, canvasId: string, event: string, payload: unknown): void => {
     emittedEvents.push({ event, payload });
   }
 );
 
 export function mockSocketService(): void {
-  vi.mock('../../src/services/socketService.js', () => ({
+  mock.module('../../src/services/socketService.js', () => ({
     socketService: {
-      initialize: vi.fn(),
+      initialize: mock(),
       emitToPod: mockEmitToPod,
       emitToAll: mockEmitToAll,
       broadcastToCanvas: mockBroadcastToCanvas,
-      getIO: vi.fn(),
-      emitConnectionReady: vi.fn(),
-      emitPodDeletedBroadcast: vi.fn(),
-      joinPodRoom: vi.fn(),
-      leavePodRoom: vi.fn(),
-      joinCanvasRoom: vi.fn(),
-      leaveCanvasRoom: vi.fn(),
-      cleanupSocket: vi.fn(),
+      getIO: mock(),
+      emitConnectionReady: mock(),
+      emitPodDeletedBroadcast: mock(),
+      joinPodRoom: mock(),
+      leavePodRoom: mock(),
+      joinCanvasRoom: mock(),
+      leaveCanvasRoom: mock(),
+      cleanupSocket: mock(),
     },
   }));
 }

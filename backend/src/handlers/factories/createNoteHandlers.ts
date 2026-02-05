@@ -1,6 +1,5 @@
-import type { Socket } from 'socket.io';
 import type { GenericNoteStore, BaseNote } from '../../services/GenericNoteStore.js';
-import type { WebSocketResponseEvents } from '../../schemas/index.js';
+import type { WebSocketResponseEvents } from '../../schemas';
 import { socketService } from '../../services/socketService.js';
 import { emitError } from '../../utils/websocketResponse.js';
 import { logger } from '../../utils/logger.js';
@@ -54,16 +53,16 @@ interface BaseNoteResponse {
 export function createNoteHandlers<TNote extends BaseNote>(
   config: NoteHandlerConfig<TNote>
 ): {
-  handleNoteCreate: (socket: Socket, payload: CreateNotePayload, requestId: string) => Promise<void>;
-  handleNoteList: (socket: Socket, payload: ListNotePayload, requestId: string) => Promise<void>;
-  handleNoteUpdate: (socket: Socket, payload: UpdateNotePayload, requestId: string) => Promise<void>;
-  handleNoteDelete: (socket: Socket, payload: DeleteNotePayload, requestId: string) => Promise<void>;
+  handleNoteCreate: (connectionId: string, payload: CreateNotePayload, requestId: string) => Promise<void>;
+  handleNoteList: (connectionId: string, payload: ListNotePayload, requestId: string) => Promise<void>;
+  handleNoteUpdate: (connectionId: string, payload: UpdateNotePayload, requestId: string) => Promise<void>;
+  handleNoteDelete: (connectionId: string, payload: DeleteNotePayload, requestId: string) => Promise<void>;
 } {
   const { noteStore, events, foreignKeyField, entityName } = config;
 
   const handleNoteCreate = withCanvasId<CreateNotePayload>(
     events.created,
-    async (socket: Socket, canvasId: string, payload: CreateNotePayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: CreateNotePayload, requestId: string): Promise<void> => {
       const { name, x, y, boundToPodId, originalPosition, ...rest } = payload;
       const foreignKeyValue = rest[foreignKeyField] as string;
 
@@ -71,7 +70,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
         const isValid = await config.validateBeforeCreate(foreignKeyValue);
         if (!isValid) {
           emitError(
-            socket,
+            connectionId,
             events.created,
             `${entityName} 找不到: ${foreignKeyValue}`,
             requestId,
@@ -110,7 +109,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
 
   const handleNoteList = withCanvasId<ListNotePayload>(
     events.listResult,
-    async (socket: Socket, canvasId: string, _: ListNotePayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, _: ListNotePayload, requestId: string): Promise<void> => {
       const notes = noteStore.list(canvasId);
 
       const response: BaseNoteResponse & { notes: TNote[] } = {
@@ -120,19 +119,19 @@ export function createNoteHandlers<TNote extends BaseNote>(
         notes,
       };
 
-      socket.emit(events.listResult, response);
+      socketService.emitToConnection(connectionId, events.listResult, response);
     }
   );
 
   const handleNoteUpdate = withCanvasId<UpdateNotePayload>(
     events.updated,
-    async (socket: Socket, canvasId: string, payload: UpdateNotePayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: UpdateNotePayload, requestId: string): Promise<void> => {
       const { noteId, x, y, boundToPodId, originalPosition } = payload;
 
       const existingNote = noteStore.getById(canvasId, noteId);
       if (!existingNote) {
         emitError(
-          socket,
+          connectionId,
           events.updated,
           `Note 找不到: ${noteId}`,
           requestId,
@@ -152,7 +151,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
 
       if (!updatedNote) {
         emitError(
-          socket,
+          connectionId,
           events.updated,
           `Failed to update note: ${noteId}`,
           requestId,
@@ -175,13 +174,13 @@ export function createNoteHandlers<TNote extends BaseNote>(
 
   const handleNoteDelete = withCanvasId<DeleteNotePayload>(
     events.deleted,
-    async (socket: Socket, canvasId: string, payload: DeleteNotePayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: DeleteNotePayload, requestId: string): Promise<void> => {
       const { noteId } = payload;
 
       const note = noteStore.getById(canvasId, noteId);
       if (!note) {
         emitError(
-          socket,
+          connectionId,
           events.deleted,
           `Note 找不到: ${noteId}`,
           requestId,
@@ -195,7 +194,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
 
       if (!deleted) {
         emitError(
-          socket,
+          connectionId,
           events.deleted,
           `Failed to delete note from store: ${noteId}`,
           requestId,

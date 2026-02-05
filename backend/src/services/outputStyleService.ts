@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import {config} from '../config/index.js';
-import type {OutputStyleListItem} from '../types/index.js';
+import {config} from '../config';
+import type {OutputStyleListItem} from '../types';
 import {readFileOrNull, fileExists, ensureDirectoryAndWriteFile} from './shared/fileResourceHelpers.js';
 import {sanitizePathSegment} from '../utils/pathValidator.js';
 

@@ -48,6 +48,9 @@ export default [
         performance: 'readonly',
         crypto: 'readonly',
         AbortController: 'readonly',
+        WebSocket: 'readonly',
+        MessageEvent: 'readonly',
+        CloseEvent: 'readonly',
       },
     },
     plugins: {
@@ -109,6 +112,9 @@ export default [
         performance: 'readonly',
         crypto: 'readonly',
         AbortController: 'readonly',
+        WebSocket: 'readonly',
+        MessageEvent: 'readonly',
+        CloseEvent: 'readonly',
       },
     },
     plugins: {

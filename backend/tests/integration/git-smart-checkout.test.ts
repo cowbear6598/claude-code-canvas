@@ -1,10 +1,10 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { v4 as uuidv4 } from 'uuid';
 import { execSync } from 'child_process';
 import path from 'path';
 import { promises as fs } from 'fs';
 import { gitService } from '../../src/services/workspace/gitService.js';
-import { config } from '../../src/config/index.js';
+import { config } from '../../src/config';
 
 describe('Git 智慧分支切換', () => {
   const testRepoId = `test-smart-checkout-${uuidv4()}`;

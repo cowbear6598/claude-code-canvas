@@ -1,37 +1,37 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
 import type { ContentBlock } from '../../src/types/index.js';
 
 // Mock query function
 let mockQueryGenerator: any;
 
 // Mock @anthropic-ai/claude-agent-sdk 必須在最前面
-vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
-  query: vi.fn(() => mockQueryGenerator()),
+mock.module('@anthropic-ai/claude-agent-sdk', () => ({
+  query: mock(() => mockQueryGenerator()),
 }));
 
 // Mock dependencies
-vi.mock('../../src/services/podStore.js', () => ({
+mock.module('../../src/services/podStore.js', () => ({
   podStore: {
-    getByIdGlobal: vi.fn(),
-    setClaudeSessionId: vi.fn(),
+    getByIdGlobal: mock(),
+    setClaudeSessionId: mock(),
   },
 }));
 
-vi.mock('../../src/services/outputStyleService.js', () => ({
+mock.module('../../src/services/outputStyleService.js', () => ({
   outputStyleService: {
-    getContent: vi.fn(),
+    getContent: mock(),
   },
 }));
 
-vi.mock('../../src/config/index.js', () => ({
+mock.module('../../src/config/index.js', () => ({
   config: {
     repositoriesRoot: '/test/repos',
   },
 }));
 
-vi.mock('../../src/utils/logger.js', () => ({
+mock.module('../../src/utils/logger.js', () => ({
   logger: {
-    log: vi.fn(),
+    log: mock(),
   },
 }));
 
@@ -42,14 +42,27 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 describe('Claude QueryService', () => {
   let streamEvents: StreamEvent[];
 
-  beforeEach(() => {
-    vi.clearAllMocks();
+  beforeEach(async () => {
     streamEvents = [];
     mockQueryGenerator = null;
+
+    // 重置所有 mock 的調用歷史
+    const { podStore } = await import('../../src/services/podStore.js');
+    const { outputStyleService } = await import('../../src/services/outputStyleService.js');
+
+    if ((podStore.getByIdGlobal as any).mockClear) {
+      (podStore.getByIdGlobal as any).mockClear();
+    }
+    if ((podStore.setClaudeSessionId as any).mockClear) {
+      (podStore.setClaudeSessionId as any).mockClear();
+    }
+    if ((outputStyleService.getContent as any).mockClear) {
+      (outputStyleService.getContent as any).mockClear();
+    }
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    // bun:test 會自動清理 mock
   });
 
   const createMockPod = (overrides = {}) => ({
@@ -74,7 +87,7 @@ describe('Claude QueryService', () => {
       const { podStore } = await import('../../src/services/podStore.js');
       const mockPod = createMockPod();
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -137,7 +150,7 @@ describe('Claude QueryService', () => {
       const { podStore } = await import('../../src/services/podStore.js');
       const mockPod = createMockPod();
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -218,7 +231,7 @@ describe('Claude QueryService', () => {
 
     it('Pod 不存在時拋出錯誤', async () => {
       const { podStore } = await import('../../src/services/podStore.js');
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue(null);
+      (podStore.getByIdGlobal as any).mockReturnValue(null);
 
       await expect(
         claudeQueryService.sendMessage('nonexistent-pod', 'Hello', onStreamCallback)
@@ -234,7 +247,7 @@ describe('Claude QueryService', () => {
         claudeSessionId: 'old-invalid-session',
       });
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -305,7 +318,7 @@ describe('Claude QueryService', () => {
       const { podStore } = await import('../../src/services/podStore.js');
       const mockPod = createMockPod();
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -334,12 +347,10 @@ describe('Claude QueryService', () => {
         error: 'Network error occurred',
       });
 
-      // 驗證沒有清除 session ID
-      expect(podStore.setClaudeSessionId).not.toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        ''
-      );
+      // 驗證沒有清除 session ID (檢查是否有用空字串呼叫)
+      const calls = (podStore.setClaudeSessionId as any).mock.calls || [];
+      const hasEmptyStringCall = calls.some((call: any[]) => call[2] === '');
+      expect(hasEmptyStringCall).toBe(false);
     });
   });
 
@@ -348,7 +359,7 @@ describe('Claude QueryService', () => {
       const { podStore } = await import('../../src/services/podStore.js');
       const mockPod = createMockPod();
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -400,7 +411,7 @@ describe('Claude QueryService', () => {
       const { podStore } = await import('../../src/services/podStore.js');
       const mockPod = createMockPod();
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -453,7 +464,7 @@ describe('Claude QueryService', () => {
       const { podStore } = await import('../../src/services/podStore.js');
       const mockPod = createMockPod();
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -501,7 +512,7 @@ describe('Claude QueryService', () => {
       const { podStore } = await import('../../src/services/podStore.js');
       const mockPod = createMockPod();
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -545,7 +556,7 @@ describe('Claude QueryService', () => {
         commandId: 'review',
       });
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -587,7 +598,7 @@ describe('Claude QueryService', () => {
         commandId: 'analyze',
       });
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -634,7 +645,7 @@ describe('Claude QueryService', () => {
         commandId: null,
       });
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -676,7 +687,7 @@ describe('Claude QueryService', () => {
         commandId: 'start',
       });
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -722,7 +733,7 @@ describe('Claude QueryService', () => {
         repositoryId: 'my-repo',
       });
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -767,12 +778,12 @@ describe('Claude QueryService', () => {
         outputStyleId: 'style-123',
       });
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
 
-      vi.mocked(outputStyleService.getContent).mockResolvedValue('Custom system prompt');
+      (outputStyleService.getContent as any).mockResolvedValue('Custom system prompt');
 
       mockQueryGenerator = async function* () {
         yield {
@@ -813,7 +824,7 @@ describe('Claude QueryService', () => {
         outputStyleId: null,
       });
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });
@@ -842,7 +853,7 @@ describe('Claude QueryService', () => {
       await claudeQueryService.sendMessage('test-pod-id', 'test', onStreamCallback);
 
       // 驗證 options 不包含 systemPrompt
-      const callArgs = vi.mocked(query).mock.calls[0][0];
+      const callArgs = (query as any).mock.calls[0][0];
       expect(callArgs.options).not.toHaveProperty('systemPrompt');
     });
 
@@ -852,7 +863,7 @@ describe('Claude QueryService', () => {
         claudeSessionId: 'existing-session-123',
       });
 
-      vi.mocked(podStore.getByIdGlobal).mockReturnValue({
+      (podStore.getByIdGlobal as any).mockReturnValue({
         canvasId: 'test-canvas',
         pod: mockPod,
       });

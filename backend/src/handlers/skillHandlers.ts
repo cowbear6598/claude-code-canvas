@@ -1,11 +1,10 @@
-import type {Socket} from 'socket.io';
-import {WebSocketResponseEvents} from '../schemas/index.js';
-import type {SkillListResultPayload} from '../types/index.js';
+import {WebSocketResponseEvents} from '../schemas';
+import type {SkillListResultPayload} from '../types';
 import type {
     SkillListPayload,
     PodBindSkillPayload,
     SkillDeletePayload,
-} from '../schemas/index.js';
+} from '../schemas';
 import {skillService} from '../services/skillService.js';
 import {skillNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
@@ -32,7 +31,7 @@ export const handleSkillNoteUpdate = skillNoteHandlers.handleNoteUpdate;
 export const handleSkillNoteDelete = skillNoteHandlers.handleNoteDelete;
 
 export async function handleSkillList(
-    socket: Socket,
+    connectionId: string,
     _: SkillListPayload,
     requestId: string
 ): Promise<void> {
@@ -44,7 +43,7 @@ export async function handleSkillList(
         skills,
     };
 
-    emitSuccess(socket, WebSocketResponseEvents.SKILL_LIST_RESULT, response);
+    emitSuccess(connectionId, WebSocketResponseEvents.SKILL_LIST_RESULT, response);
 }
 
 // 使用工廠函數建立 Skill 綁定處理器
@@ -64,22 +63,22 @@ const skillBindHandler = createBindHandler({
 });
 
 export async function handlePodBindSkill(
-    socket: Socket,
+    connectionId: string,
     payload: PodBindSkillPayload,
     requestId: string
 ): Promise<void> {
-    return skillBindHandler(socket, payload, requestId);
+    return skillBindHandler(connectionId, payload, requestId);
 }
 
 export async function handleSkillDelete(
-    socket: Socket,
+    connectionId: string,
     payload: SkillDeletePayload,
     requestId: string
 ): Promise<void> {
     const {skillId} = payload;
 
     await handleResourceDelete({
-        socket,
+        connectionId,
         requestId,
         resourceId: skillId,
         resourceName: 'Skill',

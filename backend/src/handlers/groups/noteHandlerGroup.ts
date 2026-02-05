@@ -1,10 +1,10 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
 import {
   noteCreateSchema,
   noteListSchema,
   noteUpdateSchema,
   noteDeleteSchema,
-} from '../../schemas/index.js';
+} from '../../schemas';
 import {
   handleNoteCreate,
   handleNoteList,

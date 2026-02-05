@@ -1,13 +1,12 @@
-import type { Socket } from 'socket.io';
-import { WebSocketResponseEvents } from '../schemas/index.js';
+import { WebSocketResponseEvents } from '../schemas';
 import type {
   WorkflowGetDownstreamPodsResultPayload,
   WorkflowClearResultPayload,
-} from '../types/index.js';
+} from '../types';
 import type {
   WorkflowGetDownstreamPodsPayload,
   WorkflowClearPayload,
-} from '../schemas/index.js';
+} from '../schemas';
 import { workflowClearService } from '../services/workflowClearService.js';
 import { podStore } from '../services/podStore.js';
 import { socketService } from '../services/socketService.js';
@@ -17,13 +16,13 @@ import { withCanvasId } from '../utils/handlerHelpers.js';
 
 export const handleWorkflowGetDownstreamPods = withCanvasId<WorkflowGetDownstreamPodsPayload>(
   WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
-  async (socket: Socket, canvasId: string, payload: WorkflowGetDownstreamPodsPayload, requestId: string): Promise<void> => {
+  async (connectionId: string, canvasId: string, payload: WorkflowGetDownstreamPodsPayload, requestId: string): Promise<void> => {
     const { sourcePodId } = payload;
 
     const sourcePod = podStore.getById(canvasId, sourcePodId);
     if (!sourcePod) {
       emitError(
-        socket,
+        connectionId,
         WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
         `找不到來源 Pod: ${sourcePodId}`,
         requestId,
@@ -41,19 +40,19 @@ export const handleWorkflowGetDownstreamPods = withCanvasId<WorkflowGetDownstrea
       pods,
     };
 
-    emitSuccess(socket, WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT, response);
+    emitSuccess(connectionId, WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT, response);
   }
 );
 
 export const handleWorkflowClear = withCanvasId<WorkflowClearPayload>(
   WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
-  async (socket: Socket, canvasId: string, payload: WorkflowClearPayload, requestId: string): Promise<void> => {
+  async (connectionId: string, canvasId: string, payload: WorkflowClearPayload, requestId: string): Promise<void> => {
     const { sourcePodId } = payload;
 
     const sourcePod = podStore.getById(canvasId, sourcePodId);
     if (!sourcePod) {
       emitError(
-        socket,
+        connectionId,
         WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
         `找不到來源 Pod: ${sourcePodId}`,
         requestId,
@@ -67,7 +66,7 @@ export const handleWorkflowClear = withCanvasId<WorkflowClearPayload>(
 
     if (!result.success) {
       emitError(
-        socket,
+        connectionId,
         WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
         result.error || 'Unknown error occurred during workflow clear',
         requestId,

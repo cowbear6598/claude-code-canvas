@@ -1,5 +1,5 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
-import { chatSendSchema, chatHistorySchema } from '../../schemas/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
+import { chatSendSchema, chatHistorySchema } from '../../schemas';
 import { handleChatSend, handleChatHistory } from '../chatHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
 

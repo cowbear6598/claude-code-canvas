@@ -1,9 +1,9 @@
 import fs from 'fs/promises';
 import path from 'path';
-import {config} from '../config/index.js';
-import type {Skill} from '../types/index.js';
+import {config} from '../config';
+import type {Skill} from '../types';
 import {isPathWithinDirectory, validatePodId, validateSkillId} from '../utils/pathValidator.js';
-import {readFileOrNull, fileExists, parseFrontmatterDescription} from './shared/fileResourceHelpers.js';
+import {fileExists, parseFrontmatterDescription} from './shared/fileResourceHelpers.js';
 
 class SkillService {
     async list(): Promise<Skill[]> {

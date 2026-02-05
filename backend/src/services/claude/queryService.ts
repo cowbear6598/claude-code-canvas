@@ -3,8 +3,8 @@ import path from 'path';
 import { type Options, query } from '@anthropic-ai/claude-agent-sdk';
 import { podStore } from '../podStore.js';
 import { outputStyleService } from '../outputStyleService.js';
-import { Message, ToolUseInfo, ContentBlock } from '../../types/index.js';
-import { config } from '../../config/index.js';
+import { Message, ToolUseInfo, ContentBlock } from '../../types';
+import { config } from '../../config';
 import { logger } from '../../utils/logger.js';
 import {
   buildClaudeContentBlocks,

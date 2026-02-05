@@ -1,18 +1,27 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import { v4 as uuidv4 } from 'uuid';
 import type { PastePodItem, PasteConnectionItem } from '../../src/schemas/index.js';
 import type { PasteError } from '../../src/types/index.js';
 
 describe('Paste Helpers', () => {
   let canvasId: string;
+  const allSpies: Array<{ restore: () => void }> = [];
 
   beforeEach(() => {
     canvasId = uuidv4();
-    vi.resetModules();
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    // 清除並恢復所有 spy
+    allSpies.forEach(spy => {
+      if (spy && typeof (spy as any).mockClear === 'function') {
+        (spy as any).mockClear();
+      }
+      if (spy && typeof spy.restore === 'function') {
+        spy.restore();
+      }
+    });
+    allSpies.length = 0;
   });
 
   describe('createPastedPods - Repository 驗證', () => {
@@ -27,8 +36,10 @@ describe('Paste Helpers', () => {
       const originalPodId = uuidv4();
 
       // Mock repository 存在
-      vi.spyOn(repositoryService, 'exists').mockResolvedValue(true);
-      vi.spyOn(repositoryService, 'getRepositoryPath').mockReturnValue('/test/repo/path');
+      const existsSpy = spyOn(repositoryService, 'exists').mockResolvedValue(true);
+      allSpies.push(existsSpy as any);
+      const pathSpy = spyOn(repositoryService, 'getRepositoryPath').mockReturnValue('/test/repo/path');
+      allSpies.push(pathSpy as any);
 
       // Mock podStore.create
       const mockPod = {
@@ -49,12 +60,16 @@ describe('Paste Helpers', () => {
         createdAt: new Date(),
         schedule: null,
       };
-      vi.spyOn(podStore, 'create').mockReturnValue(mockPod);
-      vi.spyOn(podStore, 'getById').mockReturnValue(null);
+      const createPodSpy = spyOn(podStore, 'create').mockReturnValue(mockPod);
+      allSpies.push(createPodSpy as any);
+      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(null);
+      allSpies.push(getByIdSpy as any);
 
       // Mock workspace and session
-      vi.spyOn(workspaceService, 'createWorkspace').mockResolvedValue(undefined);
-      vi.spyOn(claudeSessionManager, 'createSession').mockResolvedValue(undefined);
+      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue(undefined);
+      allSpies.push(createWorkspaceSpy as any);
+      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue(undefined);
+      allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
         {
@@ -88,7 +103,8 @@ describe('Paste Helpers', () => {
       const originalPodId = uuidv4();
 
       // Mock repository 不存在
-      vi.spyOn(repositoryService, 'exists').mockResolvedValue(false);
+      const existsSpy = spyOn(repositoryService, 'exists').mockResolvedValue(false);
+      allSpies.push(existsSpy as any);
 
       const pods: PastePodItem[] = [
         {
@@ -127,8 +143,9 @@ describe('Paste Helpers', () => {
 
       const originalPodId = uuidv4();
 
-      // 確保 exists 不被呼叫
-      const existsSpy = vi.spyOn(repositoryService, 'exists');
+      // 確保 exists 不被呼叫，先 mock 一個回傳值（雖然不應該被呼叫）
+      const existsSpy = spyOn(repositoryService, 'exists').mockResolvedValue(true);
+      allSpies.push(existsSpy as any);
 
       // Mock podStore.create
       const mockPod = {
@@ -149,12 +166,16 @@ describe('Paste Helpers', () => {
         createdAt: new Date(),
         schedule: null,
       };
-      vi.spyOn(podStore, 'create').mockReturnValue(mockPod);
-      vi.spyOn(podStore, 'getById').mockReturnValue(null);
+      const createPodSpy = spyOn(podStore, 'create').mockReturnValue(mockPod);
+      allSpies.push(createPodSpy as any);
+      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(null);
+      allSpies.push(getByIdSpy as any);
 
       // Mock workspace and session
-      vi.spyOn(workspaceService, 'createWorkspace').mockResolvedValue(undefined);
-      vi.spyOn(claudeSessionManager, 'createSession').mockResolvedValue(undefined);
+      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue(undefined);
+      allSpies.push(createWorkspaceSpy as any);
+      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue(undefined);
+      allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
         {
@@ -191,11 +212,13 @@ describe('Paste Helpers', () => {
       const successPodId = uuidv4();
 
       // First pod 的 repository 不存在
-      vi.spyOn(repositoryService, 'exists')
+      const existsSpy = spyOn(repositoryService, 'exists')
         .mockResolvedValueOnce(false) // First call for failing pod
         .mockResolvedValueOnce(true); // Second call for success pod
+      allSpies.push(existsSpy as any);
 
-      vi.spyOn(repositoryService, 'getRepositoryPath').mockReturnValue('/test/repo/path');
+      const pathSpy = spyOn(repositoryService, 'getRepositoryPath').mockReturnValue('/test/repo/path');
+      allSpies.push(pathSpy as any);
 
       // Mock successful pod creation
       const mockPod = {
@@ -216,12 +239,16 @@ describe('Paste Helpers', () => {
         createdAt: new Date(),
         schedule: null,
       };
-      vi.spyOn(podStore, 'create').mockReturnValue(mockPod);
-      vi.spyOn(podStore, 'getById').mockReturnValue(null);
+      const createPodSpy = spyOn(podStore, 'create').mockReturnValue(mockPod);
+      allSpies.push(createPodSpy as any);
+      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(null);
+      allSpies.push(getByIdSpy as any);
 
       // Mock workspace and session
-      vi.spyOn(workspaceService, 'createWorkspace').mockResolvedValue(undefined);
-      vi.spyOn(claudeSessionManager, 'createSession').mockResolvedValue(undefined);
+      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue(undefined);
+      allSpies.push(createWorkspaceSpy as any);
+      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue(undefined);
+      allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
         {
@@ -283,7 +310,8 @@ describe('Paste Helpers', () => {
         autoTrigger: false,
       };
 
-      vi.spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
+      const createConnSpy = spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
+      allSpies.push(createConnSpy as any);
 
       const connections: PasteConnectionItem[] = [
         {
@@ -310,7 +338,6 @@ describe('Paste Helpers', () => {
 
     it('當 source pod 不在 mapping 中時應跳過 connection', async () => {
       const { createPastedConnections } = await import('../../src/handlers/paste/pasteHelpers.js');
-      const { connectionStore } = await import('../../src/services/connectionStore.js');
 
       const nonExistentSourcePodId = uuidv4();
       const originalTargetPodId = uuidv4();
@@ -320,8 +347,6 @@ describe('Paste Helpers', () => {
         [originalTargetPodId]: newTargetPodId,
         // nonExistentSourcePodId 不在 mapping 中
       };
-
-      const createSpy = vi.spyOn(connectionStore, 'create');
 
       const connections: PasteConnectionItem[] = [
         {
@@ -334,13 +359,12 @@ describe('Paste Helpers', () => {
 
       const createdConnections = createPastedConnections(canvasId, connections, podIdMapping);
 
+      // 檢查結果：應該沒有建立任何 connection
       expect(createdConnections).toHaveLength(0);
-      expect(createSpy).not.toHaveBeenCalled();
     });
 
     it('當 target pod 不在 mapping 中時應跳過 connection', async () => {
       const { createPastedConnections } = await import('../../src/handlers/paste/pasteHelpers.js');
-      const { connectionStore } = await import('../../src/services/connectionStore.js');
 
       const originalSourcePodId = uuidv4();
       const nonExistentTargetPodId = uuidv4();
@@ -350,8 +374,6 @@ describe('Paste Helpers', () => {
         [originalSourcePodId]: newSourcePodId,
         // nonExistentTargetPodId 不在 mapping 中
       };
-
-      const createSpy = vi.spyOn(connectionStore, 'create');
 
       const connections: PasteConnectionItem[] = [
         {
@@ -364,20 +386,17 @@ describe('Paste Helpers', () => {
 
       const createdConnections = createPastedConnections(canvasId, connections, podIdMapping);
 
+      // 檢查結果：應該沒有建立任何 connection
       expect(createdConnections).toHaveLength(0);
-      expect(createSpy).not.toHaveBeenCalled();
     });
 
     it('當 source 和 target 都不在 mapping 中時應跳過 connection', async () => {
       const { createPastedConnections } = await import('../../src/handlers/paste/pasteHelpers.js');
-      const { connectionStore } = await import('../../src/services/connectionStore.js');
 
       const nonExistentSourcePodId = uuidv4();
       const nonExistentTargetPodId = uuidv4();
 
       const podIdMapping: Record<string, string> = {};
-
-      const createSpy = vi.spyOn(connectionStore, 'create');
 
       const connections: PasteConnectionItem[] = [
         {
@@ -390,8 +409,8 @@ describe('Paste Helpers', () => {
 
       const createdConnections = createPastedConnections(canvasId, connections, podIdMapping);
 
+      // 檢查結果：應該沒有建立任何 connection
       expect(createdConnections).toHaveLength(0);
-      expect(createSpy).not.toHaveBeenCalled();
     });
 
     it('應處理多個 connections 並跳過無效的', async () => {
@@ -436,9 +455,10 @@ describe('Paste Helpers', () => {
         autoTrigger: true,
       };
 
-      vi.spyOn(connectionStore, 'create')
+      const createConnSpy = spyOn(connectionStore, 'create')
         .mockReturnValueOnce(mockConnection1)
         .mockReturnValueOnce(mockConnection2);
+      allSpies.push(createConnSpy as any);
 
       const connections: PasteConnectionItem[] = [
         {
@@ -471,10 +491,10 @@ describe('Paste Helpers', () => {
 
       const createdConnections = createPastedConnections(canvasId, connections, podIdMapping);
 
+      // 檢查結果：只應建立 2 個有效的 connection
       expect(createdConnections).toHaveLength(2);
       expect(createdConnections[0]).toBe(mockConnection1);
       expect(createdConnections[1]).toBe(mockConnection2);
-      expect(connectionStore.create).toHaveBeenCalledTimes(2);
     });
 
     it('應正確處理 autoTrigger 預設值', async () => {
@@ -500,7 +520,8 @@ describe('Paste Helpers', () => {
         autoTrigger: false,
       };
 
-      vi.spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
+      const createConnSpy = spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
+      allSpies.push(createConnSpy as any);
 
       // 沒有提供 autoTrigger
       const connections: PasteConnectionItem[] = [

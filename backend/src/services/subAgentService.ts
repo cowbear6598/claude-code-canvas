@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import {config} from '../config/index.js';
-import type {SubAgent} from '../types/index.js';
+import {config} from '../config';
+import type {SubAgent} from '../types';
 import {validateSubAgentId, validatePodId, isPathWithinDirectory, sanitizePathSegment} from '../utils/pathValidator.js';
 import {fileExists, parseFrontmatterDescription, readFileOrNull, ensureDirectoryAndWriteFile} from './shared/fileResourceHelpers.js';
 

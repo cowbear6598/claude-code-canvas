@@ -1,4 +1,4 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
 import {
   subAgentListSchema,
   subAgentCreateSchema,
@@ -11,7 +11,7 @@ import {
   podBindSubAgentSchema,
   subAgentDeleteSchema,
   subAgentMoveToGroupSchema,
-} from '../../schemas/index.js';
+} from '../../schemas';
 import {
   handleSubAgentList,
   handleSubAgentCreate,

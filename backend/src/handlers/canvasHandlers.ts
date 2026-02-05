@@ -1,9 +1,8 @@
-import type { Socket } from 'socket.io';
-import { WebSocketResponseEvents } from '../schemas/index.js';
+import { WebSocketResponseEvents } from '../schemas';
 import type {
   CanvasListResultPayload,
   Result,
-} from '../types/index.js';
+} from '../types';
 import type {
   CanvasCreatePayload,
   CanvasListPayload,
@@ -11,13 +10,13 @@ import type {
   CanvasDeletePayload,
   CanvasSwitchPayload,
   CanvasReorderPayload,
-} from '../schemas/index.js';
+} from '../schemas';
 import { canvasStore } from '../services/canvasStore.js';
 import { socketService } from '../services/socketService.js';
 import { logger } from '../utils/logger.js';
 
 function handleCanvasResult<T>(
-  socket: Socket,
+  connectionId: string,
   result: Result<T>,
   event: WebSocketResponseEvents,
   requestId: string,
@@ -25,7 +24,7 @@ function handleCanvasResult<T>(
   emitToAll: boolean = false
 ): boolean {
   if (!result.success) {
-    socket.emit(event, {
+    socketService.emitToConnection(connectionId, event, {
       requestId,
       success: false,
       error: result.error,
@@ -37,19 +36,19 @@ function handleCanvasResult<T>(
   if (emitToAll) {
     socketService.emitToAll(event, successResponse);
   } else {
-    socket.emit(event, successResponse);
+    socketService.emitToConnection(connectionId, event, successResponse);
   }
   return true;
 }
 
 export async function handleCanvasCreate(
-  socket: Socket,
+  connectionId: string,
   payload: CanvasCreatePayload
 ): Promise<void> {
   const result = await canvasStore.create(payload.name);
 
   const success = handleCanvasResult(
-    socket,
+    connectionId,
     result,
     WebSocketResponseEvents.CANVAS_CREATED,
     payload.requestId,
@@ -73,7 +72,7 @@ export async function handleCanvasCreate(
 }
 
 export async function handleCanvasList(
-  socket: Socket,
+  connectionId: string,
   payload: CanvasListPayload
 ): Promise<void> {
   const canvases = canvasStore.list();
@@ -88,17 +87,17 @@ export async function handleCanvasList(
     })),
   };
 
-  socket.emit(WebSocketResponseEvents.CANVAS_LIST_RESULT, response);
+  socketService.emitToConnection(connectionId, WebSocketResponseEvents.CANVAS_LIST_RESULT, response);
 }
 
 export async function handleCanvasRename(
-  socket: Socket,
+  connectionId: string,
   payload: CanvasRenamePayload
 ): Promise<void> {
   const result = await canvasStore.rename(payload.canvasId, payload.newName);
 
   const success = handleCanvasResult(
-    socket,
+    connectionId,
     result,
     WebSocketResponseEvents.CANVAS_RENAMED,
     payload.requestId,
@@ -122,12 +121,12 @@ export async function handleCanvasRename(
 }
 
 export async function handleCanvasDelete(
-  socket: Socket,
+  connectionId: string,
   payload: CanvasDeletePayload
 ): Promise<void> {
   const canvas = canvasStore.getById(payload.canvasId);
   if (!canvas) {
-    socket.emit(WebSocketResponseEvents.CANVAS_DELETED, {
+    socketService.emitToConnection(connectionId, WebSocketResponseEvents.CANVAS_DELETED, {
       requestId: payload.requestId,
       success: false,
       error: '找不到 Canvas',
@@ -135,9 +134,9 @@ export async function handleCanvasDelete(
     return;
   }
 
-  const activeCanvasId = canvasStore.getActiveCanvas(socket.id);
+  const activeCanvasId = canvasStore.getActiveCanvas(connectionId);
   if (activeCanvasId === payload.canvasId) {
-    socket.emit(WebSocketResponseEvents.CANVAS_DELETED, {
+    socketService.emitToConnection(connectionId, WebSocketResponseEvents.CANVAS_DELETED, {
       requestId: payload.requestId,
       success: false,
       error: '無法刪除正在使用的 Canvas',
@@ -148,7 +147,7 @@ export async function handleCanvasDelete(
   const result = await canvasStore.delete(payload.canvasId);
 
   const success = handleCanvasResult(
-    socket,
+    connectionId,
     result,
     WebSocketResponseEvents.CANVAS_DELETED,
     payload.requestId,
@@ -166,12 +165,12 @@ export async function handleCanvasDelete(
 }
 
 export async function handleCanvasSwitch(
-  socket: Socket,
+  connectionId: string,
   payload: CanvasSwitchPayload
 ): Promise<void> {
   const canvas = canvasStore.getById(payload.canvasId);
   if (!canvas) {
-    socket.emit(WebSocketResponseEvents.CANVAS_SWITCHED, {
+    socketService.emitToConnection(connectionId, WebSocketResponseEvents.CANVAS_SWITCHED, {
       requestId: payload.requestId,
       success: false,
       error: '找不到 Canvas',
@@ -179,26 +178,26 @@ export async function handleCanvasSwitch(
     return;
   }
 
-  canvasStore.setActiveCanvas(socket.id, payload.canvasId);
-  socketService.joinCanvasRoom(socket.id, payload.canvasId);
+  canvasStore.setActiveCanvas(connectionId, payload.canvasId);
+  socketService.joinCanvasRoom(connectionId, payload.canvasId);
 
-  socket.emit(WebSocketResponseEvents.CANVAS_SWITCHED, {
+  socketService.emitToConnection(connectionId, WebSocketResponseEvents.CANVAS_SWITCHED, {
     requestId: payload.requestId,
     success: true,
     canvasId: payload.canvasId,
   });
 
-  logger.log('Canvas', 'Switch', `Socket ${socket.id} switched to canvas ${payload.canvasId}`);
+  logger.log('Canvas', 'Switch', `Connection ${connectionId} switched to canvas ${payload.canvasId}`);
 }
 
 export async function handleCanvasReorder(
-  socket: Socket,
+  connectionId: string,
   payload: CanvasReorderPayload
 ): Promise<void> {
   const result = await canvasStore.reorder(payload.canvasIds);
 
   const success = handleCanvasResult(
-    socket,
+    connectionId,
     result,
     WebSocketResponseEvents.CANVAS_REORDERED,
     payload.requestId,

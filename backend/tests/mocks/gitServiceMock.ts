@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { mock } from 'bun:test';
 import type { Result } from '../../src/types/index.js';
 import { ok, err } from '../../src/types/index.js';
 
@@ -40,7 +40,7 @@ export function getLastCloneCall(): LastCloneCall | null {
   return lastCloneCall;
 }
 
-const mockClone = vi.fn(
+const mockClone = mock(
   async (
     repoUrl: string,
     destPath: string,
@@ -63,7 +63,7 @@ const mockClone = vi.fn(
   }
 );
 
-vi.mock('../../src/services/workspace/gitService.js', () => ({
+mock.module('../../src/services/workspace/gitService.js', () => ({
   gitService: {
     clone: mockClone,
   },

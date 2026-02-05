@@ -1,8 +1,5 @@
-import dotenv from 'dotenv';
 import os from 'os';
 import path from 'path';
-
-dotenv.config();
 
 interface Config {
   port: number;
@@ -10,7 +7,7 @@ interface Config {
   appDataRoot: string;
   canvasRoot: string;
   repositoriesRoot: string;
-  corsOrigin: string | ((origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => void);
+  corsOrigin: (origin: string | undefined) => boolean;
   githubToken?: string;
   outputStylesPath: string;
   skillsPath: string;
@@ -25,20 +22,14 @@ function loadConfig(): Config {
   const nodeEnv = process.env.NODE_ENV || 'development';
   const githubToken = process.env.GITHUB_TOKEN;
 
-  const corsOrigin = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void): void => {
+  const corsOrigin = (origin: string | undefined): boolean => {
     if (!origin) {
-      callback(null, true);
-      return;
+      return true;
     }
 
     const allowedOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$/;
 
-    if (allowedOriginPattern.test(origin)) {
-      callback(null, true);
-      return;
-    }
-
-    callback(new Error('不允許的 CORS origin'));
+    return allowedOriginPattern.test(origin);
   };
 
   const dataRoot = path.join(os.homedir(), 'Documents', 'ClaudeCanvas');

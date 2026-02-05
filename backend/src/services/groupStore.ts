@@ -1,8 +1,8 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { Group, GroupType } from '../types/index.js';
+import { Group, GroupType } from '../types';
 import { logger } from '../utils/logger.js';
-import { config } from '../config/index.js';
+import { config } from '../config';
 import { sanitizePathSegment } from '../utils/pathValidator.js';
 
 class GroupStore {

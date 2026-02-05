@@ -1,13 +1,12 @@
-import type {Socket} from 'socket.io';
-import {WebSocketResponseEvents} from '../schemas/index.js';
-import type {CommandListResultPayload} from '../types/index.js';
+import {WebSocketResponseEvents} from '../schemas';
+import type {CommandListResultPayload} from '../types';
 import type {
     CommandListPayload,
     PodBindCommandPayload,
     PodUnbindCommandPayload,
     CommandDeletePayload,
     CommandMoveToGroupPayload,
-} from '../schemas/index.js';
+} from '../schemas';
 import {commandService} from '../services/commandService.js';
 import {commandNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
@@ -17,7 +16,7 @@ import {createResourceHandlers} from './factories/createResourceHandlers.js';
 import {createBindHandler, createUnbindHandler} from './factories/createBindHandlers.js';
 import {handleResourceDelete} from '../utils/handlerHelpers.js';
 import {createMoveToGroupHandler} from './factories/createMoveToGroupHandler.js';
-import {GroupType} from '../types/index.js';
+import {GroupType} from '../types';
 
 const commandNoteHandlers = createNoteHandlers({
     noteStore: commandNoteStore,
@@ -54,7 +53,7 @@ export const handleCommandUpdate = resourceHandlers.handleUpdate;
 export const handleCommandRead = resourceHandlers.handleRead!;
 
 export async function handleCommandList(
-    socket: Socket,
+    connectionId: string,
     _: CommandListPayload,
     requestId: string
 ): Promise<void> {
@@ -66,7 +65,7 @@ export async function handleCommandList(
         commands,
     };
 
-    emitSuccess(socket, WebSocketResponseEvents.COMMAND_LIST_RESULT, response);
+    emitSuccess(connectionId, WebSocketResponseEvents.COMMAND_LIST_RESULT, response);
 }
 
 // 使用工廠函數建立 Command 綁定/解綁處理器
@@ -107,30 +106,30 @@ const commandUnbindHandler = createUnbindHandler({
 });
 
 export async function handlePodBindCommand(
-    socket: Socket,
+    connectionId: string,
     payload: PodBindCommandPayload,
     requestId: string
 ): Promise<void> {
-    return commandBindHandler(socket, payload, requestId);
+    return commandBindHandler(connectionId, payload, requestId);
 }
 
 export async function handlePodUnbindCommand(
-    socket: Socket,
+    connectionId: string,
     payload: PodUnbindCommandPayload,
     requestId: string
 ): Promise<void> {
-    return commandUnbindHandler(socket, payload, requestId);
+    return commandUnbindHandler(connectionId, payload, requestId);
 }
 
 export async function handleCommandDelete(
-    socket: Socket,
+    connectionId: string,
     payload: CommandDeletePayload,
     requestId: string
 ): Promise<void> {
     const {commandId} = payload;
 
     await handleResourceDelete({
-        socket,
+        connectionId,
         requestId,
         resourceId: commandId,
         resourceName: 'Command',
@@ -153,9 +152,9 @@ const commandMoveToGroupHandler = createMoveToGroupHandler({
 });
 
 export async function handleCommandMoveToGroup(
-    socket: Socket,
+    connectionId: string,
     payload: CommandMoveToGroupPayload,
     requestId: string
 ): Promise<void> {
-    return commandMoveToGroupHandler(socket, payload, requestId);
+    return commandMoveToGroupHandler(connectionId, payload, requestId);
 }

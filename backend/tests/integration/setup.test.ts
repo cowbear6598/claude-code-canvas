@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import {
   createTestServer,
   closeTestServer,
@@ -8,8 +8,8 @@ import {
   createSocketClientNoConnect,
   waitForConnection,
   type TestServerInstance,
-} from '../setup/index.js';
-import { type ConnectionReadyPayload } from '../../src/types/index.js';
+} from '../setup';
+import { type ConnectionReadyPayload } from '../../src/types';
 
 describe('測試環境設定', () => {
   let server: TestServerInstance;
@@ -26,10 +26,9 @@ describe('測試環境設定', () => {
 
   it('success_when_test_server_starts', () => {
     expect(server).toBeDefined();
-    expect(server.httpServer).toBeDefined();
-    expect(server.io).toBeDefined();
-    expect(server.app).toBeDefined();
+    expect(server.server).toBeDefined();
     expect(server.baseUrl).toBeDefined();
+    expect(server.wsUrl).toBeDefined();
     expect(server.port).toBeGreaterThan(0);
   });
 
@@ -41,10 +40,11 @@ describe('測試環境設定', () => {
 
   it('success_when_connection_ready_event_received', async () => {
     const socket = createSocketClientNoConnect(server.baseUrl);
+    // 在連線之前設置監聽器
     const readyPromise = waitForEvent<ConnectionReadyPayload>(socket, 'connection:ready');
-    const connectPromise = waitForConnection(socket);
     socket.connect();
-    await connectPromise;
+    // 只等待 readyPromise，不要再次調用 waitForConnection（它內部也會等待 connection:ready）
+    await socket.waitForOpen();
     const payload = await readyPromise;
     expect(payload.socketId).toBeDefined();
     await disconnectSocket(socket);

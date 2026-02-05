@@ -1,5 +1,5 @@
 import { createNoteStore } from './GenericNoteStore.js';
-import type { OutputStyleNote, SkillNote, RepositoryNote, SubAgentNote, CommandNote } from '../types/index.js';
+import type { OutputStyleNote, SkillNote, RepositoryNote, SubAgentNote, CommandNote } from '../types';
 
 export const noteStore = createNoteStore<OutputStyleNote, 'outputStyleId'>({
   fileName: 'notes.json',

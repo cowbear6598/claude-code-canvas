@@ -1,6 +1,6 @@
 import {v4 as uuidv4} from 'uuid';
-import type {PersistedMessage, PersistedSubMessage} from '../types/index.js';
-import {Result, ok, err} from '../types/index.js';
+import type {PersistedMessage, PersistedSubMessage} from '../types';
+import {Result, ok, err} from '../types';
 import {chatPersistenceService} from './persistence/chatPersistence.js';
 import {logger} from '../utils/logger.js';
 import {canvasStore} from './canvasStore.js';

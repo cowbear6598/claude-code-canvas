@@ -1,4 +1,4 @@
-import type {PersistedSubMessage, PersistedToolUseInfo} from '../../types/index.js';
+import type {PersistedSubMessage, PersistedToolUseInfo} from '../../types';
 
 export interface SubMessageState {
     subMessages: PersistedSubMessage[];

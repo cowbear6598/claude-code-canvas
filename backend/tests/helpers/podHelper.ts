@@ -1,6 +1,6 @@
-import type { Socket } from 'socket.io-client';
+import type { TestWebSocketClient } from '../setup';
 import { v4 as uuidv4 } from 'uuid';
-import { emitAndWaitResponse } from '../setup/index.js';
+import { emitAndWaitResponse } from '../setup';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
@@ -9,7 +9,7 @@ import {
   type PodRenamePayload,
   type PodSetModelPayload,
   type PodSetSchedulePayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
   type PodCreatedPayload,
   type PodMovedPayload,
@@ -19,10 +19,10 @@ import {
   type Pod,
   type ModelType,
   type ScheduleConfigInput,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 export async function createPod(
-  client: Socket,
+  client: TestWebSocketClient,
   overrides?: Partial<PodCreatePayload>
 ): Promise<Pod> {
   if (!client.id) {
@@ -58,7 +58,7 @@ export async function createPod(
 }
 
 export async function createPodPair(
-  client: Socket
+  client: TestWebSocketClient
 ): Promise<{ podA: Pod; podB: Pod }> {
   const podA = await createPod(client, { name: 'Pod A' });
   const podB = await createPod(client, { name: 'Pod B' });
@@ -66,7 +66,7 @@ export async function createPodPair(
 }
 
 export async function movePod(
-  client: Socket,
+  client: TestWebSocketClient,
   podId: string,
   x: number,
   y: number
@@ -101,7 +101,7 @@ export async function movePod(
 }
 
 export async function renamePod(
-  client: Socket,
+  client: TestWebSocketClient,
   podId: string,
   name: string
 ): Promise<Pod> {
@@ -134,7 +134,7 @@ export async function renamePod(
 }
 
 export async function setPodModel(
-  client: Socket,
+  client: TestWebSocketClient,
   podId: string,
   model: ModelType
 ): Promise<Pod> {
@@ -167,7 +167,7 @@ export async function setPodModel(
 }
 
 export async function setPodSchedule(
-  client: Socket,
+  client: TestWebSocketClient,
   podId: string,
   schedule: ScheduleConfigInput | null
 ): Promise<Pod> {

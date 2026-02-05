@@ -1,7 +1,7 @@
 import path from 'path';
 import { persistenceService } from './index.js';
-import type { PersistedMessage, ChatHistory } from '../../types/index.js';
-import { Result, ok, err } from '../../types/index.js';
+import type { PersistedMessage, ChatHistory } from '../../types';
+import { Result, ok, err } from '../../types';
 
 class ChatPersistenceService {
   getChatFilePath(canvasDir: string, podId: string): string {

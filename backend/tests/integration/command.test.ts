@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { Socket } from 'socket.io-client';
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import type { TestWebSocketClient } from '../setup';
 import { v4 as uuidv4 } from 'uuid';
 import {
   createTestServer,
@@ -8,8 +8,8 @@ import {
   emitAndWaitResponse,
   disconnectSocket,
   type TestServerInstance,
-} from '../setup/index.js';
-import { createPod, createCommand, getCanvasId, FAKE_UUID, FAKE_COMMAND_ID } from '../helpers/index.js';
+} from '../setup';
+import { createPod, createCommand, getCanvasId, FAKE_UUID, FAKE_COMMAND_ID } from '../helpers';
 import { podStore } from '../../src/services/podStore.js';
 import {
   WebSocketRequestEvents,
@@ -25,7 +25,7 @@ import {
   type PodBindCommandPayload,
   type PodUnbindCommandPayload,
   type CommandDeletePayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
   type CommandCreatedPayload,
   type CommandListResultPayload,
@@ -38,11 +38,11 @@ import {
   type PodCommandBoundPayload,
   type PodCommandUnboundPayload,
   type CommandDeletedPayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 describe('Command 管理', () => {
   let server: TestServerInstance;
-  let client: Socket;
+  let client: TestWebSocketClient;
 
   beforeAll(async () => {
     server = await createTestServer();

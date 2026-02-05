@@ -1,4 +1,4 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
 import {
   commandListSchema,
   commandCreateSchema,
@@ -12,7 +12,7 @@ import {
   podUnbindCommandSchema,
   commandDeleteSchema,
   commandMoveToGroupSchema,
-} from '../../schemas/index.js';
+} from '../../schemas';
 import {
   handleCommandList,
   handleCommandCreate,

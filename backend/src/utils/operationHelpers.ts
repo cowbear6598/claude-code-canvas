@@ -1,4 +1,4 @@
-import { Result, ok, err } from '../types/index.js';
+import { Result, ok, err } from '../types';
 import { logger } from './logger.js';
 
 export async function gitOperation<T>(

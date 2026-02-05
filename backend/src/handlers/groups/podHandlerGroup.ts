@@ -1,4 +1,4 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
 import {
   podCreateSchema,
   podListSchema,
@@ -8,7 +8,7 @@ import {
   podSetModelSchema,
   podSetScheduleSchema,
   podDeleteSchema,
-} from '../../schemas/index.js';
+} from '../../schemas';
 import {
   handlePodCreate,
   handlePodList,

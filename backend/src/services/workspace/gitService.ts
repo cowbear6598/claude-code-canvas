@@ -1,6 +1,6 @@
 import {simpleGit, SimpleGitProgressEvent} from 'simple-git';
-import {Result, ok, err} from '../../types/index.js';
-import {config} from '../../config/index.js';
+import {Result, ok, err} from '../../types';
+import {config} from '../../config';
 import {logger} from '../../utils/logger.js';
 import {fileExists} from '../shared/fileResourceHelpers.js';
 import {isPathWithinDirectory} from '../../utils/pathValidator.js';

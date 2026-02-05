@@ -18,7 +18,8 @@ export type LogCategory =
   | 'AutoClear'
   | 'Schedule'
   | 'Canvas'
-  | 'Workspace';
+  | 'Workspace'
+  | 'WebSocket';
 
 /**
  * 日誌動作

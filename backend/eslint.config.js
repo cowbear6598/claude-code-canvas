@@ -24,6 +24,8 @@ export default [
         clearTimeout: 'readonly',
         clearInterval: 'readonly',
         NodeJS: 'readonly',
+        Bun: 'readonly',
+        Response: 'readonly',
       },
     },
     plugins: {

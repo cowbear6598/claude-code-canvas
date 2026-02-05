@@ -1,4 +1,4 @@
-import { ContentBlock } from '../../types/index.js';
+import { ContentBlock } from '../../types';
 
 type ClaudeTextContent = {
   type: 'text';

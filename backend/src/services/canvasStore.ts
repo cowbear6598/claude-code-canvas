@@ -1,9 +1,9 @@
 import {v4 as uuidv4} from 'uuid';
 import {promises as fs} from 'fs';
 import path from 'path';
-import type {Canvas, PersistedCanvas} from '../types/canvas.js';
-import {Result, ok, err} from '../types/index.js';
-import {config} from '../config/index.js';
+import type {Canvas, PersistedCanvas} from '../types';
+import {Result, ok, err} from '../types';
+import {config} from '../config';
 import {logger} from '../utils/logger.js';
 import {fsOperation} from '../utils/operationHelpers.js';
 

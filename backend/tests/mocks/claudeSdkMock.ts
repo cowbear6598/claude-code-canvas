@@ -2,7 +2,7 @@
 // 完全 Mock @anthropic-ai/claude-agent-sdk 模組
 // 支援設定回應內容、模擬 streaming events
 
-import { vi } from 'vitest';
+import { mock } from 'bun:test';
 
 export interface MockTextEvent {
   type: 'text';
@@ -203,7 +203,6 @@ async function* mockQuery(): AsyncGenerator<any> {
   }
 }
 
-// Mock @anthropic-ai/claude-agent-sdk 模組
-vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
-  query: vi.fn(() => mockQuery()),
+mock.module('@anthropic-ai/claude-agent-sdk', () => ({
+  query: mock(() => mockQuery()),
 }));

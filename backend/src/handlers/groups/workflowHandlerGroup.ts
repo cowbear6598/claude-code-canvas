@@ -1,8 +1,8 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
 import {
   workflowGetDownstreamPodsSchema,
   workflowClearSchema,
-} from '../../schemas/index.js';
+} from '../../schemas';
 import {
   handleWorkflowGetDownstreamPods,
   handleWorkflowClear,

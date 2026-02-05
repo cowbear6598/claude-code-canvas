@@ -1,34 +1,179 @@
-// Socket.io Client 輔助工具
-// 提供 Socket.io Client 連線、事件等待和請求/回應模式的輔助函數
+// WebSocket Client 輔助工具
+// 提供原生 WebSocket Client 連線、事件等待和請求/回應模式的輔助函數
 
-import { io, Socket } from 'socket.io-client';
+import type { WebSocketMessage, WebSocketResponse } from '../../src/types/websocket.js';
+import { serialize, deserialize } from '../../src/utils/messageSerializer.js';
 
 /**
- * 建立並連線 Socket.io Client
+ * 模擬 Socket.io 的 Socket 介面，但使用原生 WebSocket
+ */
+export class TestWebSocketClient {
+  private ws: WebSocket | null = null;
+  private url: string;
+  private listeners: Map<string, Set<(data: any) => void>> = new Map();
+  public id: string = '';
+  public connected: boolean = false;
+  private autoConnect: boolean;
+
+  constructor(url: string, autoConnect: boolean = true) {
+    this.url = url;
+    this.autoConnect = autoConnect;
+    if (autoConnect) {
+      this.connect();
+    }
+  }
+
+  /**
+   * 建立 WebSocket 連線
+   */
+  connect(): void {
+    if (this.ws) {
+      throw new Error('WebSocket already connected');
+    }
+    this.ws = new WebSocket(this.url);
+    this.setupInternalHandlers();
+  }
+
+  private setupInternalHandlers(): void {
+    if (!this.ws) {
+      throw new Error('WebSocket not initialized');
+    }
+
+    this.ws.onmessage = (event) => {
+      try {
+        const response: WebSocketResponse = deserialize(event.data);
+
+        // 處理連線就緒事件，設定 socket ID
+        if (response.type === 'connection:ready' && response.payload) {
+          this.id = (response.payload as any).socketId;
+        }
+
+        // 觸發對應的事件監聽器，傳遞 payload 而不是整個 response
+        const handlers = this.listeners.get(response.type);
+        if (handlers) {
+          // 傳遞 payload 給監聽器（這是實際的業務資料）
+          handlers.forEach((handler) => handler(response.payload));
+        }
+      } catch (error) {
+        console.error('Failed to parse message:', error);
+      }
+    };
+
+    this.ws.onerror = (error) => {
+      const handlers = this.listeners.get('error');
+      if (handlers) {
+        handlers.forEach((handler) => handler(error));
+      }
+    };
+
+    this.ws.onclose = () => {
+      this.connected = false;
+      this.ws = null;
+      const handlers = this.listeners.get('close');
+      if (handlers) {
+        handlers.forEach((handler) => handler({}));
+      }
+    };
+  }
+
+  /**
+   * 等待連線開啟
+   */
+  async waitForOpen(): Promise<void> {
+    if (!this.ws) {
+      throw new Error('WebSocket not initialized. Call connect() first.');
+    }
+
+    if (this.ws.readyState === WebSocket.OPEN) {
+      this.connected = true;
+      return;
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('WebSocket connection timeout'));
+      }, 5000);
+
+      this.ws!.onopen = () => {
+        clearTimeout(timeout);
+        this.connected = true;
+        resolve();
+      };
+
+      this.ws!.onerror = (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      };
+    });
+  }
+
+  /**
+   * 註冊事件監聽器
+   */
+  on(event: string, handler: (data: any) => void): void {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event)!.add(handler);
+  }
+
+  /**
+   * 移除事件監聽器
+   */
+  off(event: string, handler: (data: any) => void): void {
+    const handlers = this.listeners.get(event);
+    if (handlers) {
+      handlers.delete(handler);
+    }
+  }
+
+  /**
+   * 發送訊息
+   */
+  emit(event: string, payload: any): void {
+    if (!this.ws) {
+      throw new Error('WebSocket not initialized. Call connect() first.');
+    }
+    const message: WebSocketMessage = {
+      type: event,
+      requestId: payload.requestId || '',
+      payload,
+    };
+    this.ws.send(serialize(message));
+  }
+
+  /**
+   * 關閉連線
+   */
+  disconnect(): void {
+    if (this.ws) {
+      this.ws.close();
+    }
+  }
+}
+
+/**
+ * 建立並連線 WebSocket Client
  * 並自動切換到預設 Canvas
  */
-export async function createSocketClient(baseUrl: string, canvasId?: string): Promise<Socket> {
-  const socket = io(baseUrl, {
-    transports: ['websocket'],
-    reconnection: false,
-  });
+export async function createSocketClient(baseUrl: string, canvasId?: string): Promise<TestWebSocketClient> {
+  // 將 http/https URL 轉換為 ws/wss URL
+  const wsUrl = baseUrl.replace(/^http/, 'ws');
+
+  // 建立但不自動連線，先設置監聽器
+  const socket = new TestWebSocketClient(wsUrl, false);
+
+  // 在連線之前設置監聽器
+  const readyPromise = waitForEvent(socket, 'connection:ready');
+
+  // 開始連線
+  socket.connect();
 
   // 等待連線成功
-  await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error('Socket connection timeout'));
-    }, 5000);
+  await socket.waitForOpen();
 
-    socket.on('connect', () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-
-    socket.on('connect_error', (error) => {
-      clearTimeout(timeout);
-      reject(error);
-    });
-  });
+  // 等待 connection:ready 事件
+  await readyPromise;
 
   if (canvasId) {
     const { v4: uuidv4 } = await import('uuid');
@@ -45,7 +190,7 @@ export async function createSocketClient(baseUrl: string, canvasId?: string): Pr
  * 回傳 Promise 化的事件等待
  */
 export function waitForEvent<T>(
-  socket: Socket,
+  socket: TestWebSocketClient,
   eventName: string,
   timeout: number = 5000
 ): Promise<T> {
@@ -70,7 +215,7 @@ export function waitForEvent<T>(
  * 適用於 Request/Response 模式
  */
 export async function emitAndWaitResponse<TReq, TRes>(
-  socket: Socket,
+  socket: TestWebSocketClient,
   requestEvent: string,
   responseEvent: string,
   payload: TReq,
@@ -91,7 +236,7 @@ export async function emitAndWaitResponse<TReq, TRes>(
  * 用於監聽會被多次觸發的事件（如 streaming）
  */
 export function collectEvents<T>(
-  socket: Socket,
+  socket: TestWebSocketClient,
   eventName: string,
   stopEvent: string,
   timeout: number = 5000
@@ -123,9 +268,9 @@ export function collectEvents<T>(
 /**
  * 斷開 Socket 連線
  */
-export function disconnectSocket(socket: Socket): Promise<void> {
+export function disconnectSocket(socket: TestWebSocketClient): Promise<void> {
   return new Promise<void>((resolve) => {
-    socket.on('disconnect', () => {
+    socket.on('close', () => {
       resolve();
     });
     socket.disconnect();
@@ -136,31 +281,15 @@ export function disconnectSocket(socket: Socket): Promise<void> {
  * 建立 Socket 但不自動連線
  * 適用於需要在連線前設定監聽器的情況
  */
-export function createSocketClientNoConnect(baseUrl: string): Socket {
-  return io(baseUrl, {
-    transports: ['websocket'],
-    reconnection: false,
-    autoConnect: false,
-  });
+export function createSocketClientNoConnect(baseUrl: string): TestWebSocketClient {
+  const wsUrl = baseUrl.replace(/^http/, 'ws');
+  return new TestWebSocketClient(wsUrl, false);
 }
 
 /**
  * 等待 Socket 連線完成
  */
-export async function waitForConnection(socket: Socket, timeout: number = 5000): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error('Socket connection timeout'));
-    }, timeout);
-
-    socket.on('connect', () => {
-      clearTimeout(timer);
-      resolve();
-    });
-
-    socket.on('connect_error', (error) => {
-      clearTimeout(timer);
-      reject(error);
-    });
-  });
+export async function waitForConnection(socket: TestWebSocketClient, timeout: number = 5000): Promise<void> {
+  await socket.waitForOpen();
+  await waitForEvent(socket, 'connection:ready', timeout);
 }

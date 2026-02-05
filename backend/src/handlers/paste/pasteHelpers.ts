@@ -7,13 +7,13 @@ import type {
   CommandNote,
   Connection,
   PasteError,
-} from '../../types/index.js';
+} from '../../types';
 import type {
   CanvasPastePayload,
   PastePodItem,
-} from '../../schemas/index.js';
+} from '../../schemas';
 import { podStore } from '../../services/podStore.js';
-import { workspaceService } from '../../services/workspace/index.js';
+import { workspaceService } from '../../services/workspace';
 import { claudeSessionManager } from '../../services/claude/sessionManager.js';
 import { noteStore, skillNoteStore, subAgentNoteStore, repositoryNoteStore, commandNoteStore } from '../../services/noteStores.js';
 import { connectionStore } from '../../services/connectionStore.js';

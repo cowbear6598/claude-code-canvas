@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { WebSocketResponseEvents } from '../schemas/index.js';
+import { WebSocketResponseEvents } from '../schemas';
 import type {
   PodChatMessagePayload,
   PodChatToolUsePayload,
@@ -7,13 +7,13 @@ import type {
   PodChatCompletePayload,
   Pod,
   ScheduleConfig,
-} from '../types/index.js';
+} from '../types';
 import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { claudeQueryService } from './claude/queryService.js';
 import { socketService } from './socketService.js';
-import { workflowExecutionService } from './workflow/index.js';
-import { autoClearService } from './autoClear/index.js';
+import { workflowExecutionService } from './workflow';
+import { autoClearService } from './autoClear';
 import { logger } from '../utils/logger.js';
 import {
   createSubMessageState,

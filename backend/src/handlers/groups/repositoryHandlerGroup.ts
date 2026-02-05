@@ -1,4 +1,4 @@
-import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas/index.js';
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
 import {
   repositoryListSchema,
   repositoryCreateSchema,
@@ -16,7 +16,7 @@ import {
   repositoryCheckDirtySchema,
   repositoryCheckoutBranchSchema,
   repositoryDeleteBranchSchema,
-} from '../../schemas/index.js';
+} from '../../schemas';
 import {
   handleRepositoryList,
   handleRepositoryCreate,

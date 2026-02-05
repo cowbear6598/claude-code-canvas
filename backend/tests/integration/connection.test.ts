@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { Socket } from 'socket.io-client';
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import type { TestWebSocketClient } from '../setup';
 import { v4 as uuidv4 } from 'uuid';
 import {
   createTestServer,
@@ -8,9 +8,9 @@ import {
   emitAndWaitResponse,
   disconnectSocket,
   type TestServerInstance,
-} from '../setup/index.js';
-import { createPod, createPodPair, setPodSchedule, FAKE_UUID, getCanvasId} from '../helpers/index.js';
-import { createConnection } from '../helpers/index.js';
+} from '../setup';
+import { createPod, createPodPair, setPodSchedule, FAKE_UUID, getCanvasId} from '../helpers';
+import { createConnection } from '../helpers';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
@@ -18,17 +18,17 @@ import {
   type ConnectionListPayload,
   type ConnectionDeletePayload,
   type ConnectionUpdatePayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
   type ConnectionCreatedPayload,
   type ConnectionListResultPayload,
   type ConnectionDeletedPayload,
   type ConnectionUpdatedPayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 describe('Connection 管理', () => {
   let server: TestServerInstance;
-  let client: Socket;
+  let client: TestWebSocketClient;
 
   beforeAll(async () => {
     server = await createTestServer();

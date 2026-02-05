@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "lib": ["ES2022"],
-    "types": ["node"],
+    "types": ["bun-types"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,

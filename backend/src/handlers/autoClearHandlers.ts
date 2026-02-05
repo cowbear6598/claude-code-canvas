@@ -1,17 +1,16 @@
-import type {Socket} from 'socket.io';
 import {podStore} from '../services/podStore.js';
 import {socketService} from '../services/socketService.js';
-import {WebSocketResponseEvents} from '../schemas/index.js';
-import type {PodAutoClearSetPayload} from '../types/index.js';
-import type {PodSetAutoClearPayload} from '../schemas/index.js';
+import {WebSocketResponseEvents} from '../schemas';
+import type {PodAutoClearSetPayload} from '../types';
+import type {PodSetAutoClearPayload} from '../schemas';
 import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';
 
 export const handlePodSetAutoClear = withCanvasId<PodSetAutoClearPayload>(
     WebSocketResponseEvents.POD_AUTO_CLEAR_SET,
-    async (socket: Socket, canvasId: string, payload: PodSetAutoClearPayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: PodSetAutoClearPayload, requestId: string): Promise<void> => {
         const {podId, autoClear} = payload;
 
-        const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_AUTO_CLEAR_SET, requestId);
+        const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_AUTO_CLEAR_SET, requestId);
 
         if (!pod) {
             return;

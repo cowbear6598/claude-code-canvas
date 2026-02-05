@@ -1,19 +1,17 @@
-import type {Socket} from 'socket.io-client';
+import type { TestWebSocketClient } from '../setup';
 import {v4 as uuidv4} from 'uuid';
-import {emitAndWaitResponse} from '../setup/index.js';
+import {emitAndWaitResponse} from '../setup';
 import {
     WebSocketRequestEvents,
     WebSocketResponseEvents,
     type ChatSendPayload,
-    type ChatHistoryPayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
     type PodChatCompletePayload,
-    type PodChatHistoryResultPayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 export async function seedPodMessages(
-    client: Socket,
+    client: TestWebSocketClient,
     podId: string,
     messages: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<void> {

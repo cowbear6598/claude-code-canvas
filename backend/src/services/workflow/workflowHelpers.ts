@@ -1,4 +1,4 @@
-import type {Pod, Command} from '../../types/index.js';
+import type {Pod, Command} from '../../types';
 
 export function formatMergedSummaries(
     summaries: Map<string, string>,

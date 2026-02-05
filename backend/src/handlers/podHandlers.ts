@@ -1,4 +1,4 @@
-import type {Socket} from 'socket.io';
+// Socket 類型已由 connectionId 取代
 import {WebSocketResponseEvents} from '../schemas/index.js';
 import type {
     PodCreatedPayload,
@@ -32,7 +32,7 @@ import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';
 
 export const handlePodCreate = withCanvasId<PodCreatePayload>(
     WebSocketResponseEvents.POD_CREATED,
-    async (socket: Socket, canvasId: string, payload: PodCreatePayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: PodCreatePayload, requestId: string): Promise<void> => {
         const {name, color, x, y, rotation} = payload;
 
     const pod = podStore.create(canvasId, {name, color, x, y, rotation});
@@ -40,7 +40,7 @@ export const handlePodCreate = withCanvasId<PodCreatePayload>(
     const workspaceResult = await workspaceService.createWorkspace(pod.workspacePath);
     if (!workspaceResult.success) {
         emitError(
-            socket,
+            connectionId,
             WebSocketResponseEvents.POD_CREATED,
             `建立工作區失敗 (Pod ${pod.id})`,
             requestId,
@@ -67,7 +67,7 @@ export const handlePodCreate = withCanvasId<PodCreatePayload>(
 
 export const handlePodList = withCanvasId<PodListPayload>(
     WebSocketResponseEvents.POD_LIST_RESULT,
-    async (socket: Socket, canvasId: string, _: PodListPayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, _: PodListPayload, requestId: string): Promise<void> => {
 
     const pods = podStore.getAll(canvasId);
 
@@ -77,18 +77,18 @@ export const handlePodList = withCanvasId<PodListPayload>(
             pods,
         };
 
-        emitSuccess(socket, WebSocketResponseEvents.POD_LIST_RESULT, response);
+        emitSuccess(connectionId, WebSocketResponseEvents.POD_LIST_RESULT, response);
     }
 );
 
 export async function handlePodGet(
-    socket: Socket,
+    connectionId: string,
     payload: PodGetPayload,
     requestId: string
 ): Promise<void> {
     const {podId} = payload;
 
-    const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_GET_RESULT, requestId);
+    const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_GET_RESULT, requestId);
 
     if (!pod) {
         return;
@@ -100,7 +100,7 @@ export async function handlePodGet(
         pod,
     };
 
-    emitSuccess(socket, WebSocketResponseEvents.POD_GET_RESULT, response);
+    emitSuccess(connectionId, WebSocketResponseEvents.POD_GET_RESULT, response);
 }
 
 function deleteAllPodNotes(canvasId: string, podId: string): PodDeletedPayload['deletedNoteIds'] {
@@ -133,10 +133,10 @@ function deleteAllPodNotes(canvasId: string, podId: string): PodDeletedPayload['
 
 export const handlePodDelete = withCanvasId<PodDeletePayload>(
     WebSocketResponseEvents.POD_DELETED,
-    async (socket: Socket, canvasId: string, payload: PodDeletePayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: PodDeletePayload, requestId: string): Promise<void> => {
         const {podId} = payload;
 
-        const pod = validatePod(socket, podId, WebSocketResponseEvents.POD_DELETED, requestId);
+        const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_DELETED, requestId);
         if (!pod) {
             return;
         }
@@ -158,7 +158,7 @@ export const handlePodDelete = withCanvasId<PodDeletePayload>(
         const deleted = podStore.delete(canvasId, podId);
         if (!deleted) {
             emitError(
-                socket,
+                connectionId,
                 WebSocketResponseEvents.POD_DELETED,
                 `無法從 store 刪除 Pod: ${podId}`,
                 requestId,
@@ -191,7 +191,7 @@ export const handlePodDelete = withCanvasId<PodDeletePayload>(
 );
 
 function handlePodUpdate<TResponse>(
-    socket: Socket,
+    connectionId: string,
     canvasId: string,
     podId: string,
     updates: Partial<Omit<Pod, 'id'>>,
@@ -199,14 +199,14 @@ function handlePodUpdate<TResponse>(
     responseEvent: WebSocketResponseEvents,
     createResponse: (pod: Pod) => TResponse
 ): void {
-    const existingPod = validatePod(socket, podId, responseEvent, requestId);
+    const existingPod = validatePod(connectionId, podId, responseEvent, requestId);
     if (!existingPod) {
         return;
     }
 
     const updatedPod = podStore.update(canvasId, podId, updates);
     if (!updatedPod) {
-        emitError(socket, responseEvent, `無法更新 Pod: ${podId}`, requestId, podId, 'INTERNAL_ERROR');
+        emitError(connectionId, responseEvent, `無法更新 Pod: ${podId}`, requestId, podId, 'INTERNAL_ERROR');
         return;
     }
 
@@ -216,11 +216,11 @@ function handlePodUpdate<TResponse>(
 
 export const handlePodMove = withCanvasId<PodMovePayload>(
     WebSocketResponseEvents.POD_MOVED,
-    async (socket: Socket, canvasId: string, payload: PodMovePayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: PodMovePayload, requestId: string): Promise<void> => {
         const {podId, x, y} = payload;
 
         handlePodUpdate(
-            socket,
+            connectionId,
             canvasId,
             podId,
             {x, y},
@@ -233,11 +233,11 @@ export const handlePodMove = withCanvasId<PodMovePayload>(
 
 export const handlePodRename = withCanvasId<PodRenamePayload>(
     WebSocketResponseEvents.POD_RENAMED,
-    async (socket: Socket, canvasId: string, payload: PodRenamePayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: PodRenamePayload, requestId: string): Promise<void> => {
         const {podId, name} = payload;
 
         handlePodUpdate(
-            socket,
+            connectionId,
             canvasId,
             podId,
             {name},
@@ -250,11 +250,11 @@ export const handlePodRename = withCanvasId<PodRenamePayload>(
 
 export const handlePodSetModel = withCanvasId<PodSetModelPayload>(
     WebSocketResponseEvents.POD_MODEL_SET,
-    async (socket: Socket, canvasId: string, payload: PodSetModelPayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: PodSetModelPayload, requestId: string): Promise<void> => {
         const {podId, model} = payload;
 
         handlePodUpdate(
-            socket,
+            connectionId,
             canvasId,
             podId,
             {model},
@@ -267,10 +267,10 @@ export const handlePodSetModel = withCanvasId<PodSetModelPayload>(
 
 export const handlePodSetSchedule = withCanvasId<PodSetSchedulePayload>(
     WebSocketResponseEvents.POD_SCHEDULE_SET,
-    async (socket: Socket, canvasId: string, payload: PodSetSchedulePayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, payload: PodSetSchedulePayload, requestId: string): Promise<void> => {
         const {podId, schedule} = payload;
 
-        const existingPod = validatePod(socket, podId, WebSocketResponseEvents.POD_SCHEDULE_SET, requestId);
+        const existingPod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_SCHEDULE_SET, requestId);
 
         if (!existingPod) {
             return;
@@ -301,7 +301,7 @@ export const handlePodSetSchedule = withCanvasId<PodSetSchedulePayload>(
 
         if (!updatedPod) {
             emitError(
-                socket,
+                connectionId,
                 WebSocketResponseEvents.POD_SCHEDULE_SET,
                 `無法更新 Pod: ${podId}`,
                 requestId,
