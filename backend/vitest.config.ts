@@ -23,6 +23,9 @@ export default defineConfig({
     // Test file patterns
     include: ['tests/**/*.test.ts'],
 
+    // 禁用並行執行，改為序列執行（解決 WSL 環境下的 timeout 問題）
+    fileParallelism: false,
+
     // Global test configuration
     globals: true,
 

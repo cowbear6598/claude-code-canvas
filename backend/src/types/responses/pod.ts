@@ -127,19 +127,6 @@ export interface PodChatHistoryResultPayload {
   error?: string;
 }
 
-export interface PodJoinedPayload {
-  podId: string;
-}
-
-export interface PodJoinedBatchPayload {
-  joinedPodIds: string[];
-  failedPodIds: string[];
-}
-
-export interface PodLeftPayload {
-  podId: string;
-}
-
 export interface PodErrorPayload {
   requestId?: string;
   podId?: string;

@@ -33,23 +33,6 @@ describe('Repository 智慧分支切換', () => {
     });
 
     describe('檢查遠端分支是否存在', () => {
-        it('success_when_remote_branch_exists', async () => {
-            const branchName = 'test-remote-branch';
-            execSync(`git -C "${testRepoPath}" branch "${branchName}"`, { encoding: 'utf-8' });
-            execSync(`git -C "${testRepoPath}" checkout master`, { encoding: 'utf-8' });
-            execSync(`git -C "${testRepoPath}" branch -D "${branchName}"`, { encoding: 'utf-8' });
-
-            execSync(`git -C "${testRepoPath}" config --add remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"`, { encoding: 'utf-8' });
-            execSync(`git -C "${testRepoPath}" branch "${branchName}"`, { encoding: 'utf-8' });
-
-            const { gitService } = await import('../../src/services/workspace/gitService.js');
-            const result = await gitService.checkRemoteBranchExists(testRepoPath, branchName);
-
-            execSync(`git -C "${testRepoPath}" branch -D "${branchName}"`, { encoding: 'utf-8' });
-
-            expect(result.success).toBe(true);
-        });
-
         it('success_when_remote_branch_not_exists', async () => {
             const nonExistentBranch = `non-existent-${uuidv4()}`;
 

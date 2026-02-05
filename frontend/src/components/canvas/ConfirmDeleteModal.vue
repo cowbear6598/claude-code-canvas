@@ -10,12 +10,14 @@ import {
 import { Button } from '@/components/ui/button'
 
 type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
+type GroupType = 'outputStyleGroup' | 'subAgentGroup' | 'commandGroup'
+type ExtendedItemType = ItemType | GroupType
 
 interface Props {
   open: boolean
   itemName: string
   isInUse: boolean
-  itemType: ItemType
+  itemType: ExtendedItemType
 }
 
 defineProps<Props>()

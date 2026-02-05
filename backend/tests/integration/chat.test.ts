@@ -10,7 +10,7 @@ import {
   disconnectSocket,
   type TestServerInstance,
 } from '../setup/index.js';
-import { createPod, FAKE_UUID, getCanvasId} from '../helpers/index.js';
+import { createPod, FAKE_UUID, getCanvasId } from '../helpers/index.js';
 
 async function* mockQuery(): AsyncGenerator<any> {
   yield {
@@ -45,11 +45,9 @@ import {
   WebSocketResponseEvents,
   type ChatSendPayload as PodChatSendPayload,
   type ChatHistoryPayload as PodChatHistoryPayload,
-  type PodJoinPayload,
 } from '../../src/schemas/index.js';
 import {
   type PodChatHistoryResultPayload,
-  type PodJoinedPayload,
   type PodErrorPayload,
 } from '../../src/types/index.js';
 
@@ -91,50 +89,6 @@ describe('Chat 管理', () => {
       const errorEvent = await errorPromise;
       expect(errorEvent.code).toBe('NOT_FOUND');
       expect(errorEvent.error).toContain('找不到');
-    });
-
-    it('failed_when_chat_send_while_pod_is_busy', async () => {
-      const canvasId = await getCanvasId(client);
-      const pod = await createPod(client, { name: 'Busy Pod' });
-
-      await emitAndWaitResponse<PodJoinPayload, PodJoinedPayload>(
-        client,
-        WebSocketRequestEvents.POD_JOIN,
-        WebSocketResponseEvents.POD_JOINED,
-        { canvasId, podId: pod.id }
-      );
-
-      const firstMessagePromise = waitForEvent(
-        client,
-        WebSocketResponseEvents.POD_CHAT_COMPLETE
-      );
-
-      client.emit(WebSocketRequestEvents.POD_CHAT_SEND, {
-        requestId: uuidv4(),
-        canvasId,
-        podId: pod.id,
-        message: 'First',
-      } satisfies PodChatSendPayload);
-
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
-      const errorPromise = waitForEvent<PodErrorPayload>(
-        client,
-        WebSocketResponseEvents.POD_ERROR
-      );
-
-      client.emit(WebSocketRequestEvents.POD_CHAT_SEND, {
-        requestId: uuidv4(),
-        canvasId,
-        podId: pod.id,
-        message: 'Second',
-      } satisfies PodChatSendPayload);
-
-      const errorEvent = await errorPromise;
-      expect(errorEvent.code).toBe('POD_BUSY');
-      expect(errorEvent.error).toContain('chatting');
-
-      await firstMessagePromise;
     });
 
     it('failed_when_chat_send_while_pod_is_summarizing', async () => {

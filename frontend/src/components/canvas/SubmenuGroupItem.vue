@@ -80,8 +80,6 @@ const handleDrop = (event: DragEvent): void => {
     <button
       v-if="canDelete"
       class="pod-menu-submenu-delete-btn"
-      :class="{ 'pod-menu-submenu-group-delete-disabled': !canDelete }"
-      :disabled="!canDelete"
       @click.stop="handleDelete"
     >
       <X :size="14" />

@@ -17,7 +17,7 @@ import CreateRepositoryModal from './CreateRepositoryModal.vue'
 import CloneRepositoryModal from './CloneRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 import CreateEditModal from './CreateEditModal.vue'
-import type {Pod, PodTypeConfig, Position} from '@/types'
+import type {Pod, PodTypeConfig, Position, Group} from '@/types'
 import {
   POD_MENU_X_OFFSET,
   POD_MENU_Y_OFFSET,
@@ -270,50 +270,22 @@ const handlePodDragComplete = (data: { id: string }): void => {
   podStore.syncPodPosition(data.id)
 }
 
-const handleCreateOutputStyleNote = (outputStyleId: string): void => {
-  if (!podStore.typeMenu.position) return
+const createNoteHandler = (store: { createNote: (id: string, x: number, y: number) => void }) => {
+  return (itemId: string): void => {
+    if (!podStore.typeMenu.position) return
 
-  const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
-  const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
+    const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
+    const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
 
-  outputStyleStore.createNote(outputStyleId, canvasX, canvasY)
+    store.createNote(itemId, canvasX, canvasY)
+  }
 }
 
-const handleCreateSkillNote = (skillId: string): void => {
-  if (!podStore.typeMenu.position) return
-
-  const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
-  const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
-
-  skillStore.createNote(skillId, canvasX, canvasY)
-}
-
-const handleCreateSubAgentNote = (subAgentId: string): void => {
-  if (!podStore.typeMenu.position) return
-
-  const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
-  const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
-
-  subAgentStore.createNote(subAgentId, canvasX, canvasY)
-}
-
-const handleCreateRepositoryNote = (repositoryId: string): void => {
-  if (!podStore.typeMenu.position) return
-
-  const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
-  const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
-
-  repositoryStore.createNote(repositoryId, canvasX, canvasY)
-}
-
-const handleCreateCommandNote = (commandId: string): void => {
-  if (!podStore.typeMenu.position) return
-
-  const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
-  const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
-
-  commandStore.createNote(commandId, canvasX, canvasY)
-}
+const handleCreateOutputStyleNote = createNoteHandler(outputStyleStore)
+const handleCreateSkillNote = createNoteHandler(skillStore)
+const handleCreateSubAgentNote = createNoteHandler(subAgentStore)
+const handleCreateRepositoryNote = createNoteHandler(repositoryStore)
+const handleCreateCommandNote = createNoteHandler(commandStore)
 
 const outputStyleHandlers = useNoteEventHandlers({store: outputStyleStore, trashZoneRef})
 const skillHandlers = useNoteEventHandlers({store: skillStore, trashZoneRef})
@@ -449,46 +421,36 @@ const handleDeleteConfirm = async (): Promise<void> => {
   deleteTarget.value = null
 }
 
+const createResourceWithNote = async (
+  name: string,
+  content: string,
+  createFn: (name: string, content: string) => Promise<{ success: boolean; [key: string]: unknown }>,
+  storeName: string
+): Promise<void> => {
+  const result = await createFn(name, content)
+
+  if (!result.success || !lastMenuPosition.value) return
+
+  const resource = result[storeName]
+  if (!resource || typeof resource !== 'object' || !('id' in resource)) return
+
+  const {x, y} = screenToCanvasPosition(lastMenuPosition.value)
+  const store = {
+    outputStyle: outputStyleStore,
+    subAgent: subAgentStore,
+    command: commandStore
+  }[storeName]
+
+  if (store && 'createNote' in store) {
+    await store.createNote(resource.id as string, x, y)
+  }
+}
+
 const handleCreateEditSubmit = async (payload: { name: string; content: string }): Promise<void> => {
   const {name, content} = payload
   const {mode, resourceType, itemId} = editModal.value
 
-  if (mode === 'create') {
-    const createActions: Record<ExtendedResourceType, () => Promise<void>> = {
-      outputStyle: async (): Promise<void> => {
-        const result = await outputStyleStore.createOutputStyle(name, content)
-        if (result.success && result.outputStyle && lastMenuPosition.value) {
-          const {x, y} = screenToCanvasPosition(lastMenuPosition.value)
-          await outputStyleStore.createNote(result.outputStyle.id, x, y)
-        }
-      },
-      subAgent: async (): Promise<void> => {
-        const result = await subAgentStore.createSubAgent(name, content)
-        if (result.success && result.subAgent && lastMenuPosition.value) {
-          const {x, y} = screenToCanvasPosition(lastMenuPosition.value)
-          await subAgentStore.createNote(result.subAgent.id, x, y)
-        }
-      },
-      command: async (): Promise<void> => {
-        const result = await commandStore.createCommand(name, content)
-        if (result.success && result.command && lastMenuPosition.value) {
-          const {x, y} = screenToCanvasPosition(lastMenuPosition.value)
-          await commandStore.createNote(result.command.id, x, y)
-        }
-      },
-      outputStyleGroup: async (): Promise<void> => {
-        await outputStyleStore.createOutputStyleGroup(name)
-      },
-      subAgentGroup: async (): Promise<void> => {
-        await subAgentStore.createSubAgentGroup(name)
-      },
-      commandGroup: async (): Promise<void> => {
-        await commandStore.createCommandGroup(name)
-      }
-    }
-
-    await createActions[resourceType]()
-  } else {
+  if (mode === 'edit') {
     const updateActions: Partial<Record<ExtendedResourceType, () => Promise<unknown>>> = {
       outputStyle: () => outputStyleStore.updateOutputStyle(itemId, content),
       subAgent: () => subAgentStore.updateSubAgent(itemId, content),
@@ -499,8 +461,36 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
     if (action) {
       await action()
     }
+
+    editModal.value.visible = false
+    return
   }
 
+  const createActions: Record<ExtendedResourceType, () => Promise<void | { success: boolean; group?: Group; error?: string }>> = {
+    outputStyle: () => createResourceWithNote(
+      name,
+      content,
+      (n, c) => outputStyleStore.createOutputStyle(n, c),
+      'outputStyle'
+    ),
+    subAgent: () => createResourceWithNote(
+      name,
+      content,
+      (n, c) => subAgentStore.createSubAgent(n, c),
+      'subAgent'
+    ),
+    command: () => createResourceWithNote(
+      name,
+      content,
+      (n, c) => commandStore.createCommand(n, c),
+      'command'
+    ),
+    outputStyleGroup: () => outputStyleStore.createOutputStyleGroup(name),
+    subAgentGroup: () => subAgentStore.createSubAgentGroup(name),
+    commandGroup: () => commandStore.createCommandGroup(name)
+  }
+
+  await createActions[resourceType]()
   editModal.value.visible = false
 }
 
@@ -562,161 +552,161 @@ onUnmounted(() => {
 
 <template>
   <CanvasViewport
-      @contextmenu="handleContextMenu"
-      @click="handleCanvasClick"
+    @contextmenu="handleContextMenu"
+    @click="handleCanvasClick"
   >
     <!-- Connection Layer -->
-    <ConnectionLayer/>
+    <ConnectionLayer />
 
     <!-- Selection Box -->
-    <SelectionBox/>
+    <SelectionBox />
 
     <!-- Pod 列表 -->
     <CanvasPod
-        v-for="pod in podStore.pods"
-        :key="pod.id"
-        :pod="pod"
-        @select="handleSelectPod"
-        @update="handleUpdatePod"
-        @delete="handleDeletePod"
-        @drag-end="handleDragEnd"
-        @drag-complete="handlePodDragComplete"
+      v-for="pod in podStore.pods"
+      :key="pod.id"
+      :pod="pod"
+      @select="handleSelectPod"
+      @update="handleUpdatePod"
+      @delete="handleDeletePod"
+      @drag-end="handleDragEnd"
+      @drag-complete="handlePodDragComplete"
     />
 
     <!-- Output Style Notes -->
     <GenericNote
-        v-for="note in outputStyleStore.getUnboundNotes"
-        :key="note.id"
-        :note="note"
-        note-type="outputStyle"
-        @drag-end="outputStyleHandlers.handleDragEnd"
-        @drag-move="outputStyleHandlers.handleDragMove"
-        @drag-complete="outputStyleHandlers.handleDragComplete"
-        @dblclick="handleNoteDoubleClick"
+      v-for="note in outputStyleStore.getUnboundNotes"
+      :key="note.id"
+      :note="note"
+      note-type="outputStyle"
+      @drag-end="outputStyleHandlers.handleDragEnd"
+      @drag-move="outputStyleHandlers.handleDragMove"
+      @drag-complete="outputStyleHandlers.handleDragComplete"
+      @dblclick="handleNoteDoubleClick"
     />
 
     <!-- Skill Notes -->
     <GenericNote
-        v-for="note in skillStore.getUnboundNotes"
-        :key="note.id"
-        :note="note"
-        note-type="skill"
-        @drag-end="skillHandlers.handleDragEnd"
-        @drag-move="skillHandlers.handleDragMove"
-        @drag-complete="skillHandlers.handleDragComplete"
+      v-for="note in skillStore.getUnboundNotes"
+      :key="note.id"
+      :note="note"
+      note-type="skill"
+      @drag-end="skillHandlers.handleDragEnd"
+      @drag-move="skillHandlers.handleDragMove"
+      @drag-complete="skillHandlers.handleDragComplete"
     />
 
     <!-- SubAgent Notes -->
     <GenericNote
-        v-for="note in subAgentStore.getUnboundNotes"
-        :key="note.id"
-        :note="note"
-        note-type="subAgent"
-        @drag-end="subAgentHandlers.handleDragEnd"
-        @drag-move="subAgentHandlers.handleDragMove"
-        @drag-complete="subAgentHandlers.handleDragComplete"
-        @dblclick="handleNoteDoubleClick"
+      v-for="note in subAgentStore.getUnboundNotes"
+      :key="note.id"
+      :note="note"
+      note-type="subAgent"
+      @drag-end="subAgentHandlers.handleDragEnd"
+      @drag-move="subAgentHandlers.handleDragMove"
+      @drag-complete="subAgentHandlers.handleDragComplete"
+      @dblclick="handleNoteDoubleClick"
     />
 
     <!-- Repository Notes -->
     <GenericNote
-        v-for="note in repositoryStore.getUnboundNotes"
-        :key="note.id"
-        :note="note"
-        note-type="repository"
-        :branch-name="getRepositoryBranchName(note.repositoryId)"
-        @drag-end="repositoryHandlers.handleDragEnd"
-        @drag-move="repositoryHandlers.handleDragMove"
-        @drag-complete="repositoryHandlers.handleDragComplete"
-        @contextmenu="handleRepositoryContextMenu"
+      v-for="note in repositoryStore.getUnboundNotes"
+      :key="note.id"
+      :note="note"
+      note-type="repository"
+      :branch-name="getRepositoryBranchName(note.repositoryId)"
+      @drag-end="repositoryHandlers.handleDragEnd"
+      @drag-move="repositoryHandlers.handleDragMove"
+      @drag-complete="repositoryHandlers.handleDragComplete"
+      @contextmenu="handleRepositoryContextMenu"
     />
 
     <!-- Command Notes -->
     <GenericNote
-        v-for="note in commandStore.getUnboundNotes"
-        :key="note.id"
-        :note="note"
-        note-type="command"
-        @drag-end="commandHandlers.handleDragEnd"
-        @drag-move="commandHandlers.handleDragMove"
-        @drag-complete="commandHandlers.handleDragComplete"
-        @dblclick="handleNoteDoubleClick"
+      v-for="note in commandStore.getUnboundNotes"
+      :key="note.id"
+      :note="note"
+      note-type="command"
+      @drag-end="commandHandlers.handleDragEnd"
+      @drag-move="commandHandlers.handleDragMove"
+      @drag-complete="commandHandlers.handleDragComplete"
+      @dblclick="handleNoteDoubleClick"
     />
 
     <!-- 空狀態 - 在畫布座標中央 -->
-    <EmptyState v-if="isCanvasEmpty"/>
+    <EmptyState v-if="isCanvasEmpty" />
   </CanvasViewport>
 
   <!-- Clone Progress Panel - Fixed at bottom-right corner -->
-  <CloneProgressNote :tasks="gitCloneProgress.cloneTasks.value"/>
+  <CloneProgressNote :tasks="gitCloneProgress.cloneTasks.value" />
 
   <!-- Pod 類型選單 - 放在 transform 容器外面 -->
   <PodTypeMenu
-      v-if="podStore.typeMenu.visible && podStore.typeMenu.position"
-      :position="podStore.typeMenu.position"
-      @select="handleSelectType"
-      @create-output-style-note="handleCreateOutputStyleNote"
-      @create-skill-note="handleCreateSkillNote"
-      @create-subagent-note="handleCreateSubAgentNote"
-      @create-repository-note="handleCreateRepositoryNote"
-      @create-command-note="handleCreateCommandNote"
-      @clone-started="handleCloneStarted"
-      @open-create-modal="handleOpenCreateModal"
-      @open-create-group-modal="handleOpenCreateGroupModal"
-      @open-edit-modal="handleOpenEditModal"
-      @open-delete-modal="handleOpenDeleteModal"
-      @open-delete-group-modal="handleOpenDeleteGroupModal"
-      @open-create-repository-modal="handleOpenCreateRepositoryModal"
-      @open-clone-repository-modal="handleOpenCloneRepositoryModal"
-      @close="podStore.hideTypeMenu"
+    v-if="podStore.typeMenu.visible && podStore.typeMenu.position"
+    :position="podStore.typeMenu.position"
+    @select="handleSelectType"
+    @create-output-style-note="handleCreateOutputStyleNote"
+    @create-skill-note="handleCreateSkillNote"
+    @create-subagent-note="handleCreateSubAgentNote"
+    @create-repository-note="handleCreateRepositoryNote"
+    @create-command-note="handleCreateCommandNote"
+    @clone-started="handleCloneStarted"
+    @open-create-modal="handleOpenCreateModal"
+    @open-create-group-modal="handleOpenCreateGroupModal"
+    @open-edit-modal="handleOpenEditModal"
+    @open-delete-modal="handleOpenDeleteModal"
+    @open-delete-group-modal="handleOpenDeleteGroupModal"
+    @open-create-repository-modal="handleOpenCreateRepositoryModal"
+    @open-clone-repository-modal="handleOpenCloneRepositoryModal"
+    @close="podStore.hideTypeMenu"
   />
 
   <!-- Trash Zone -->
   <TrashZone
-      ref="trashZoneRef"
-      :visible="showTrashZone"
-      :is-highlighted="isTrashHighlighted"
+    ref="trashZoneRef"
+    :visible="showTrashZone"
+    :is-highlighted="isTrashHighlighted"
   />
 
   <!-- Repository Context Menu -->
   <RepositoryContextMenu
-      v-if="repositoryContextMenu.visible"
-      :position="repositoryContextMenu.position"
-      :repository-id="repositoryContextMenu.repositoryId"
-      :repository-name="repositoryContextMenu.repositoryName"
-      :note-position="repositoryContextMenu.notePosition"
-      :is-worktree="repositoryContextMenu.isWorktree"
-      @close="handleRepositoryContextMenuClose"
-      @worktree-created="handleRepositoryContextMenuClose"
+    v-if="repositoryContextMenu.visible"
+    :position="repositoryContextMenu.position"
+    :repository-id="repositoryContextMenu.repositoryId"
+    :repository-name="repositoryContextMenu.repositoryName"
+    :note-position="repositoryContextMenu.notePosition"
+    :is-worktree="repositoryContextMenu.isWorktree"
+    @close="handleRepositoryContextMenuClose"
+    @worktree-created="handleRepositoryContextMenuClose"
   />
 
   <!-- Modals -->
   <CreateRepositoryModal
-      v-model:open="showCreateRepositoryModal"
-      @created="handleRepositoryCreated"
+    v-model:open="showCreateRepositoryModal"
+    @created="handleRepositoryCreated"
   />
 
   <CloneRepositoryModal
-      v-model:open="showCloneRepositoryModal"
-      @clone-started="handleCloneStarted"
+    v-model:open="showCloneRepositoryModal"
+    @clone-started="handleCloneStarted"
   />
 
   <ConfirmDeleteModal
-      v-model:open="showDeleteModal"
-      :item-name="deleteTarget?.name ?? ''"
-      :is-in-use="isDeleteTargetInUse"
-      :item-type="deleteTarget?.type ?? 'outputStyle'"
-      @confirm="handleDeleteConfirm"
+    v-model:open="showDeleteModal"
+    :item-name="deleteTarget?.name ?? ''"
+    :is-in-use="isDeleteTargetInUse"
+    :item-type="deleteTarget?.type ?? 'outputStyle'"
+    @confirm="handleDeleteConfirm"
   />
 
   <CreateEditModal
-      v-model:open="editModal.visible"
-      :mode="editModal.mode"
-      :title="editModal.title"
-      :initial-name="editModal.initialName"
-      :initial-content="editModal.initialContent"
-      :name-editable="editModal.mode === 'create'"
-      :show-content="editModal.showContent"
-      @submit="handleCreateEditSubmit"
+    v-model:open="editModal.visible"
+    :mode="editModal.mode"
+    :title="editModal.title"
+    :initial-name="editModal.initialName"
+    :initial-content="editModal.initialContent"
+    :name-editable="editModal.mode === 'create'"
+    :show-content="editModal.showContent"
+    @submit="handleCreateEditSubmit"
   />
 </template>

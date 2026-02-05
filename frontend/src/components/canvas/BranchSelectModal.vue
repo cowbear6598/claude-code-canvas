@@ -45,10 +45,7 @@ const isValidBranchName = (name: string): boolean => {
     return false
   }
   // 禁止以斜線開頭或結尾
-  if (name.startsWith('/') || name.endsWith('/')) {
-    return false
-  }
-  return true
+  return !(name.startsWith('/') || name.endsWith('/'));
 }
 
 const normalBranches = computed(() => {
@@ -86,8 +83,7 @@ const handleInputSubmit = (): void => {
   if (!isValidBranchName(trimmedName)) {
     toast({
       title: '分支名稱格式錯誤',
-      description: '只能包含英文字母、數字、底線、連字號和斜線',
-      variant: 'destructive'
+      description: '只能包含英文字母、數字、底線、連字號和斜線'
     })
     return
   }
@@ -182,9 +178,9 @@ const handleDeleteClick = (event: Event, branchName: string): void => {
 
           <template v-if="hasWorktreeBranches">
             <div class="flex items-center gap-2 py-2">
-              <div class="flex-1 border-t border-border"></div>
+              <div class="flex-1 border-t border-border" />
               <span class="text-xs text-muted-foreground">已被 Worktree 佔用</span>
-              <div class="flex-1 border-t border-border"></div>
+              <div class="flex-1 border-t border-border" />
             </div>
 
             <div

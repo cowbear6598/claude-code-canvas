@@ -42,7 +42,6 @@ const handleSave = (): void => {
 
 <template>
   <div>
-    <!-- 標題行 -->
     <div class="flex items-center gap-2 mb-2">
       <input
         v-if="isEditing"
