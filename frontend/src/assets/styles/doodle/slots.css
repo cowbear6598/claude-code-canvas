@@ -9,6 +9,7 @@
   justify-content: center;
   transition: all 0.3s ease;
   white-space: nowrap;
+  pointer-events: auto;
 }
 
 .pod-output-style-slot.drop-target {
@@ -51,6 +52,7 @@
   justify-content: center;
   transition: all 0.3s ease;
   white-space: nowrap;
+  pointer-events: auto;
 }
 
 .pod-repository-slot.drop-target {
@@ -89,6 +91,7 @@
   top: 98px;
   transform: translateX(100%);
   z-index: -1;
+  pointer-events: none;
 }
 
 /* Repository 凹槽視覺效果（POD 右側的小突出） */
@@ -117,6 +120,7 @@
   transition: all 0.3s ease;
   white-space: nowrap;
   box-sizing: border-box;
+  pointer-events: auto;
 }
 
 .pod-command-slot.drop-target {
@@ -156,6 +160,7 @@
   top: 58px;
   transform: translateX(100%);
   z-index: -1;
+  pointer-events: none;
 }
 
 /* Command 凹槽視覺效果（POD 右側） */
@@ -184,6 +189,7 @@
   transition: all 0.3s ease;
   white-space: nowrap;
   position: relative;
+  pointer-events: auto;
 }
 
 .pod-skill-slot::before {
@@ -227,6 +233,7 @@
   top: 18px;  /* 調整此值來移動 Skill Slot 的垂直位置 */
   transform: translateX(-100%);
   z-index: -1;
+  pointer-events: none;
 }
 
 /* Skill Hover 選單（顯示已綁定的 Skills 列表） */
@@ -242,6 +249,7 @@
   padding: 4px;
   box-shadow: 3px 3px 0 var(--doodle-ink);
   z-index: 200;
+  pointer-events: auto;
 }
 
 .pod-skill-menu-item {
@@ -282,6 +290,7 @@
   transition: all 0.3s ease;
   white-space: nowrap;
   position: relative;
+  pointer-events: auto;
 }
 
 .pod-subagent-slot::before {
@@ -325,6 +334,7 @@
   top: 58px;
   transform: translateX(-100%);
   z-index: -1;
+  pointer-events: none;
 }
 
 /* SubAgent 凹槽視覺效果（POD 左側第二個凹槽） */
@@ -354,6 +364,7 @@
   padding: 4px;
   box-shadow: 3px 3px 0 var(--doodle-ink);
   z-index: 200;
+  pointer-events: auto;
 }
 
 .pod-subagent-menu-item {
