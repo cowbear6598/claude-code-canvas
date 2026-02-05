@@ -44,7 +44,7 @@ describe('Git Worktree 操作', () => {
 
       try {
         await fs.access(worktreePath);
-        expect.fail('Worktree 目錄應該被移除');
+        expect.unreachable('Worktree 目錄應該被移除');
       } catch {
         // 預期會失敗
       }

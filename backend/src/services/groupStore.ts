@@ -106,11 +106,11 @@ class GroupStore {
 
   private getBasePath(type: GroupType): string {
     switch (type) {
-      case GroupType.COMMAND:
+      case 'command':
         return config.commandsPath;
-      case GroupType.OUTPUT_STYLE:
+      case 'output-style':
         return config.outputStylesPath;
-      case GroupType.SUBAGENT:
+      case 'subagent':
         return config.agentsPath;
       default:
         throw new Error(`未知的 GroupType: ${type}`);

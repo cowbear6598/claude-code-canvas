@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
-import type { ContentBlock } from '../../src/types/index.js';
+import type { ContentBlock } from '../../src/types';
 
 // Mock query function
 let mockQueryGenerator: any;

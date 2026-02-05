@@ -20,7 +20,7 @@ import { logger } from '../utils/logger.js';
 import { validatePod, handleResourceDelete, withCanvasId } from '../utils/handlerHelpers.js';
 import { createResourceHandlers } from './factories/createResourceHandlers.js';
 import { createMoveToGroupHandler } from './factories/createMoveToGroupHandler.js';
-import { GroupType } from '../types';
+import { GROUP_TYPES } from '../types';
 
 const resourceHandlers = createResourceHandlers({
   service: outputStyleService,
@@ -156,7 +156,7 @@ const outputStyleMoveToGroupHandler = createMoveToGroupHandler({
   service: outputStyleService,
   resourceName: 'OutputStyle',
   idField: 'itemId',
-  groupType: GroupType.OUTPUT_STYLE,
+  groupType: GROUP_TYPES.OUTPUT_STYLE,
   events: {
     moved: WebSocketResponseEvents.OUTPUT_STYLE_MOVED_TO_GROUP,
   },

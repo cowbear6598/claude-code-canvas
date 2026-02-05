@@ -16,7 +16,7 @@ import {createResourceHandlers} from './factories/createResourceHandlers.js';
 import {createBindHandler, createUnbindHandler} from './factories/createBindHandlers.js';
 import {handleResourceDelete} from '../utils/handlerHelpers.js';
 import {createMoveToGroupHandler} from './factories/createMoveToGroupHandler.js';
-import {GroupType} from '../types';
+import {GROUP_TYPES} from '../types';
 
 const commandNoteHandlers = createNoteHandlers({
     noteStore: commandNoteStore,
@@ -145,7 +145,7 @@ const commandMoveToGroupHandler = createMoveToGroupHandler({
     service: commandService,
     resourceName: 'Command',
     idField: 'itemId',
-    groupType: GroupType.COMMAND,
+    groupType: GROUP_TYPES.COMMAND,
     events: {
         moved: WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
     },

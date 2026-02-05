@@ -21,7 +21,7 @@ import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
 import {validatePod, handleResourceDelete, withCanvasId} from '../utils/handlerHelpers.js';
 import {createMoveToGroupHandler} from './factories/createMoveToGroupHandler.js';
-import {GroupType} from '../types';
+import {GROUP_TYPES} from '../types';
 
 const subAgentNoteHandlers = createNoteHandlers({
     noteStore: subAgentNoteStore,
@@ -161,7 +161,7 @@ const subAgentMoveToGroupHandler = createMoveToGroupHandler({
     service: subAgentService,
     resourceName: 'SubAgent',
     idField: 'itemId',
-    groupType: GroupType.SUBAGENT,
+    groupType: GROUP_TYPES.SUBAGENT,
     events: {
         moved: WebSocketResponseEvents.SUBAGENT_MOVED_TO_GROUP,
     },

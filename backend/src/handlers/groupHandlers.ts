@@ -98,7 +98,7 @@ export async function handleGroupDelete(connectionId: string, payload: GroupDele
 }
 
 async function findGroupType(groupId: string): Promise<GroupType | null> {
-  for (const type of [GroupType.COMMAND, GroupType.OUTPUT_STYLE, GroupType.SUBAGENT]) {
+  for (const type of ['command', 'output-style', 'subagent'] as const) {
     const exists = await groupStore.exists(groupId, type);
     if (exists) {
       return type;

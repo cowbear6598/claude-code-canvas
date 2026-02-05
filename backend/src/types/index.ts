@@ -38,8 +38,8 @@ export type { SubAgent } from './subAgent.js';
 export type { SubAgentNote } from './subAgentNote.js';
 
 // Group types
-export type { Group } from './group.js';
-export { GroupType } from './group.js';
+export type { Group, GroupType } from './group.js';
+export { GROUP_TYPES } from './group.js';
 
 // Connection types
 export type { Connection, AnchorPosition } from './connection.js';

@@ -50,7 +50,7 @@ import {
 import {
   type PodChatHistoryResultPayload,
   type PodErrorPayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 describe('Chat 管理', () => {
   let server: TestServerInstance;

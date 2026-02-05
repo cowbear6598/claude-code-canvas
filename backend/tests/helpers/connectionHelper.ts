@@ -1,17 +1,17 @@
-import type { TestWebSocketClient } from '../setup/socketClient.js';
+import type { TestWebSocketClient } from '../setup';
 import { v4 as uuidv4 } from 'uuid';
-import { emitAndWaitResponse } from '../setup/index.js';
+import { emitAndWaitResponse } from '../setup';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
   type ConnectionCreatePayload,
   type ConnectionUpdatePayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
   type ConnectionCreatedPayload,
   type ConnectionUpdatedPayload,
   type Connection,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 interface CreateConnectionOptions extends Partial<ConnectionCreatePayload> {
   autoTrigger?: boolean;

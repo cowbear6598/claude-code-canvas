@@ -8,7 +8,7 @@ import { overrideConfig, testConfig } from './testConfig.js';
 // 這些模組需要在 overrideConfig() 之後動態 import
 
 export interface TestServerInstance {
-  server: Server;
+  server: Server<{ connectionId: string }>;
   baseUrl: string;
   wsUrl: string;
   port: number;
@@ -143,7 +143,7 @@ export async function createTestServer(): Promise<TestServerInstance> {
     server,
     baseUrl,
     wsUrl,
-    port,
+    port: server.port ?? 0,
     canvasId: defaultCanvas.id,
     canvasDataDir,
   };

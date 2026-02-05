@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import { v4 as uuidv4 } from 'uuid';
-import type { PastePodItem, PasteConnectionItem } from '../../src/schemas/index.js';
+import type { PastePodItem, PasteConnectionItem } from '../../src/schemas';
 import type { PasteError } from '../../src/types/index.js';
 
 describe('Paste Helpers', () => {
@@ -55,20 +55,26 @@ describe('Paste Helpers', () => {
         skillIds: [],
         subAgentIds: [],
         commandId: null,
-        model: undefined,
+        model: 'sonnet' as const,
         status: 'idle' as const,
         createdAt: new Date(),
-        schedule: null,
+        schedule: undefined,
+        gitUrl: null,
+        lastActiveAt: new Date(),
+        output: [],
+        claudeSessionId: null,
+        needsForkSession: false,
+        autoClear: false,
       };
       const createPodSpy = spyOn(podStore, 'create').mockReturnValue(mockPod);
       allSpies.push(createPodSpy as any);
-      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(null);
+      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
       // Mock workspace and session
-      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue(undefined);
+      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
       allSpies.push(createWorkspaceSpy as any);
-      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue(undefined);
+      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
       allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
@@ -161,20 +167,26 @@ describe('Paste Helpers', () => {
         skillIds: [],
         subAgentIds: [],
         commandId: null,
-        model: undefined,
+        model: 'sonnet' as const,
         status: 'idle' as const,
         createdAt: new Date(),
-        schedule: null,
+        schedule: undefined,
+        gitUrl: null,
+        lastActiveAt: new Date(),
+        output: [],
+        claudeSessionId: null,
+        needsForkSession: false,
+        autoClear: false,
       };
       const createPodSpy = spyOn(podStore, 'create').mockReturnValue(mockPod);
       allSpies.push(createPodSpy as any);
-      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(null);
+      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
       // Mock workspace and session
-      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue(undefined);
+      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
       allSpies.push(createWorkspaceSpy as any);
-      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue(undefined);
+      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
       allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
@@ -234,27 +246,33 @@ describe('Paste Helpers', () => {
         skillIds: [],
         subAgentIds: [],
         commandId: null,
-        model: undefined,
+        model: 'sonnet' as const,
         status: 'idle' as const,
         createdAt: new Date(),
-        schedule: null,
+        schedule: undefined,
+        gitUrl: null,
+        lastActiveAt: new Date(),
+        output: [],
+        claudeSessionId: null,
+        needsForkSession: false,
+        autoClear: false,
       };
       const createPodSpy = spyOn(podStore, 'create').mockReturnValue(mockPod);
       allSpies.push(createPodSpy as any);
-      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(null);
+      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
       // Mock workspace and session
-      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue(undefined);
+      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
       allSpies.push(createWorkspaceSpy as any);
-      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue(undefined);
+      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
       allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
         {
           originalId: failingPodId,
           name: 'Failing Pod',
-          color: 'red',
+          color: 'coral',
           x: 100,
           y: 100,
           rotation: 0,
@@ -308,6 +326,7 @@ describe('Paste Helpers', () => {
         targetPodId: newTargetPodId,
         targetAnchor: 'left' as const,
         autoTrigger: false,
+        createdAt: new Date(),
       };
 
       const createConnSpy = spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
@@ -444,6 +463,7 @@ describe('Paste Helpers', () => {
         targetPodId: newTarget1,
         targetAnchor: 'left' as const,
         autoTrigger: false,
+        createdAt: new Date(),
       };
 
       const mockConnection2 = {
@@ -453,6 +473,7 @@ describe('Paste Helpers', () => {
         targetPodId: newTarget2,
         targetAnchor: 'top' as const,
         autoTrigger: true,
+        createdAt: new Date(),
       };
 
       const createConnSpy = spyOn(connectionStore, 'create')
@@ -518,6 +539,7 @@ describe('Paste Helpers', () => {
         targetPodId: newTargetPodId,
         targetAnchor: 'left' as const,
         autoTrigger: false,
+        createdAt: new Date(),
       };
 
       const createConnSpy = spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
