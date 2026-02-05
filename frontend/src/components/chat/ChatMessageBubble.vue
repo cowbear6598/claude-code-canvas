@@ -21,7 +21,23 @@ const bubbleStyle = computed(() =>
     : 'bg-card text-foreground'
 )
 
-const hasToolUse = computed(() => props.toolUse && props.toolUse.length > 0)
+const uniqueToolUse = computed(() => {
+  if (!props.toolUse || props.toolUse.length === 0) return []
+
+  const seen = new Set<string>()
+  const unique: ToolUseInfo[] = []
+
+  for (const tool of props.toolUse) {
+    if (!seen.has(tool.toolUseId)) {
+      seen.add(tool.toolUseId)
+      unique.push(tool)
+    }
+  }
+
+  return unique
+})
+
+const hasToolUse = computed(() => uniqueToolUse.value.length > 0)
 </script>
 
 <template>
@@ -36,7 +52,7 @@ const hasToolUse = computed(() => props.toolUse && props.toolUse.length > 0)
           class="mb-2 flex flex-wrap gap-1.5"
         >
           <div
-            v-for="tool in toolUse"
+            v-for="tool in uniqueToolUse"
             :key="tool.toolUseId"
             :class="[
               'inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-mono border',

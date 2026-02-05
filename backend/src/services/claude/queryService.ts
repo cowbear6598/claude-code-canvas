@@ -215,6 +215,36 @@ class ClaudeQueryService {
       return;
     }
 
+    // 處理 user 訊息中的 tool_result
+    if (msg.type === 'user' && 'message' in msg) {
+      const userMsg = msg.message as { content?: unknown[] };
+      if (!userMsg.content) return;
+
+      for (const block of userMsg.content) {
+        const contentBlock = block as Record<string, unknown>;
+
+        if (contentBlock.type === 'tool_result' && 'tool_use_id' in contentBlock) {
+          const toolUseId = String(contentBlock.tool_use_id);
+          const content = String(contentBlock.content || '');
+          const toolInfo = activeTools.get(toolUseId);
+
+          if (toolInfo) {
+            if (toolUseInfoRef.value && toolUseInfoRef.value.toolUseId === toolUseId) {
+              toolUseInfoRef.value.output = content;
+            }
+
+            onStream({
+              type: 'tool_result',
+              toolUseId,
+              toolName: toolInfo.toolName,
+              output: content,
+            });
+          }
+        }
+      }
+      return;
+    }
+
     if (msg.type === 'tool_progress') {
       const toolProgressMsg = msg as {
         output?: string;

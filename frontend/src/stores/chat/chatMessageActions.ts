@@ -164,11 +164,21 @@ export function createMessageActions(store: ChatStoreInstance): {
             return
         }
 
+        const existingMessage = messages[messageIndex]
+        if (!existingMessage) return
+
+        const toolAlreadyExists = existingMessage.toolUse?.some(t => t.toolUseId === toolUseId)
+        if (toolAlreadyExists) return
+
         addToolUseToMessage(podId, messages, messageIndex, toolUseId, toolName, input)
     }
 
     const createMessageWithToolUse = (podId: string, messageId: string, toolUseId: string, toolName: string, input: Record<string, unknown>): void => {
         const messages = store.messagesByPodId.get(podId) || []
+
+        const existingMessage = messages.find(m => m.id === messageId)
+        if (existingMessage?.toolUse?.some(t => t.toolUseId === toolUseId)) return
+
         const toolUseInfo: ToolUseInfo = {
             toolUseId,
             toolName,
@@ -213,7 +223,7 @@ export function createMessageActions(store: ChatStoreInstance): {
 
         const updatedToolUse = toolIndex === -1
             ? [...toolUse, toolUseInfo]
-            : toolUse.map((tool, idx) => idx === toolIndex ? toolUseInfo : tool)
+            : toolUse
 
         updatedMessages[messageIndex] = {
             ...message,
@@ -232,7 +242,7 @@ export function createMessageActions(store: ChatStoreInstance): {
 
             const updatedSubToolUse = subToolIndex === -1
                 ? [...subToolUse, toolUseInfo]
-                : subToolUse.map((tool, idx) => idx === subToolIndex ? toolUseInfo : tool)
+                : subToolUse
 
             subMessages[lastSubIndex] = {
                 ...lastSub,
@@ -287,9 +297,17 @@ export function createMessageActions(store: ChatStoreInstance): {
                             ? {...tool, output, status: 'completed' as ToolUseStatus}
                             : tool
                     )
+
+                    // 檢查該 subMessage 中的所有 Tool 是否都已完成
+                    const allToolsCompleted = updatedSubToolUse.every(
+                        tool => tool.status === 'completed' || tool.status === 'error'
+                    )
+
                     subMessages[i] = {
                         ...sub,
-                        toolUse: updatedSubToolUse
+                        toolUse: updatedSubToolUse,
+                        // 如果所有 Tool 都完成了，將 isPartial 設為 false
+                        ...(allToolsCompleted && { isPartial: false })
                     }
                 }
             }

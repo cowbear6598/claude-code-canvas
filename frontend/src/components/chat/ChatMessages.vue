@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, watch, nextTick, onMounted } from 'vue'
 import type { Message } from '@/types'
 import ChatMessageBubble from './ChatMessageBubble.vue'
 import TypingIndicator from './TypingIndicator.vue'
@@ -17,13 +17,6 @@ const props = withDefaults(
 )
 
 const messagesEndRef = ref<HTMLDivElement | null>(null)
-
-/**
- * Check if there's any partial message in the messages array
- */
-const hasPartialMessage = computed(() => {
-  return props.messages.some(msg => msg.isPartial === true)
-})
 
 /**
  * Scroll to bottom of messages container
@@ -108,9 +101,9 @@ watch(
           </template>
         </template>
 
-        <!-- 打字指示器 - 僅在沒有 partial 訊息時顯示 -->
+        <!-- 打字指示器 - Claude 回應中顯示 -->
         <div
-          v-if="isTyping && !hasPartialMessage"
+          v-if="isTyping"
           class="flex justify-start"
         >
           <div
