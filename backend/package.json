@@ -11,6 +11,7 @@
     "dev": "bun --watch src/index.ts",
     "build": "bun build src/index.ts --outdir ./dist --target bun",
     "start": "bun dist/index.js",
+    "prod": "cd ../frontend && bunx vite build && cd ../backend && NODE_ENV=production bun src/index.ts",
     "style": "tsc --noEmit && eslint src --ext .ts",
     "test": "bun test"
   },

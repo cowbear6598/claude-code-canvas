@@ -9,6 +9,7 @@ import { eventRouter } from './services/eventRouter.js';
 import { deserialize } from './utils/messageSerializer.js';
 import { logger } from './utils/logger.js';
 import { WebSocketResponseEvents } from './schemas/index.js';
+import { isStaticFilesAvailable, serveStaticFile } from './utils/staticFileServer.js';
 
 async function startServer(): Promise<void> {
 	const result = await startupService.initialize();
@@ -23,6 +24,12 @@ async function startServer(): Promise<void> {
 
 	const PORT = config.port;
 
+	// 檢查是否啟用靜態檔案服務
+	const enableStaticFiles = config.nodeEnv === 'production' || (await isStaticFilesAvailable());
+	if (enableStaticFiles) {
+		logger.log('Startup', 'Complete', '已啟用前端靜態檔案服務');
+	}
+
 	Bun.serve<{ connectionId: string }>({
 		port: PORT,
 		hostname: '0.0.0.0',
@@ -33,13 +40,22 @@ async function startServer(): Promise<void> {
 				return new Response('Forbidden', { status: 403 });
 			}
 
-			// 嘗試升級為 WebSocket
-			const success = server.upgrade(req, {
-				data: { connectionId: '' }, // 將在 open 時設置
-			});
-			if (success) return undefined;
+			// 檢查是否為 WebSocket upgrade 請求
+			const upgradeHeader = req.headers.get('upgrade');
+			if (upgradeHeader?.toLowerCase() === 'websocket') {
+				// 嘗試升級為 WebSocket
+				const success = server.upgrade(req, {
+					data: { connectionId: '' }, // 將在 open 時設置
+				});
+				if (success) return undefined;
+			}
 
-			// 非 WebSocket 請求返回 404
+			// 普通 HTTP 請求：serve 靜態檔案（如果已啟用）
+			if (enableStaticFiles) {
+				return serveStaticFile(req);
+			}
+
+			// 未啟用靜態檔案服務時返回 404
 			return new Response('Not Found', { status: 404 });
 		},
 		websocket: {
