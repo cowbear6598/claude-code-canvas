@@ -8,7 +8,7 @@ import {logger} from '../../utils/logger.js';
 
 function getAutoTriggerTargets(canvasId: string, podId: string): string[] {
     const connections = connectionStore.findBySourcePodId(canvasId, podId);
-    const triggerableConnections = connections.filter((conn) => conn.triggerMode === 'auto' || conn.triggerMode === 'ai-decide');
+    const triggerableConnections = connections.filter((conn) => conn.triggerMode === 'auto');
     return triggerableConnections.map((conn) => conn.targetPodId);
 }
 

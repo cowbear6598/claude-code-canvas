@@ -1,6 +1,14 @@
-import { describe, it, expect } from 'bun:test';
-import { summaryPromptBuilder } from '../../src/services/summaryPromptBuilder.js';
+import { describe, it, expect, beforeAll } from 'bun:test';
 import type { PersistedMessage } from '../../src/types';
+
+// 確保測試使用真實的 summaryPromptBuilder 實例，而非其他測試的 mock
+let summaryPromptBuilder: any;
+
+beforeAll(async () => {
+  // 動態重新載入模組以繞過其他測試的 mock
+  const module = await import('../../src/services/summaryPromptBuilder.js?' + Date.now());
+  summaryPromptBuilder = module.summaryPromptBuilder;
+});
 
 describe('SummaryPromptBuilder', () => {
   const mockMessages: PersistedMessage[] = [

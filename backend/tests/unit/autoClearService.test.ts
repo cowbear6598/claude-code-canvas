@@ -23,10 +23,10 @@ describe('AutoClearService 單元測試', () => {
       // Mock connectionStore
       spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
-          return [createMockConnection(podA.id, podB.id, true)];
+          return [createMockConnection(podA.id, podB.id, 'auto')];
         }
         if (sourceId === podB.id) {
-          return [createMockConnection(podB.id, podC.id, true)];
+          return [createMockConnection(podB.id, podC.id, 'auto')];
         }
         if (sourceId === podC.id) {
           return [];
@@ -50,8 +50,8 @@ describe('AutoClearService 單元測試', () => {
       spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [
-            createMockConnection(podA.id, podB.id, true),
-            createMockConnection(podA.id, podC.id, true),
+            createMockConnection(podA.id, podB.id, 'auto'),
+            createMockConnection(podA.id, podC.id, 'auto'),
           ];
         }
         if (sourceId === podB.id || sourceId === podC.id) {
@@ -76,13 +76,13 @@ describe('AutoClearService 單元測試', () => {
       // Mock connectionStore - 創建循環
       spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
-          return [createMockConnection(podA.id, podB.id, true)];
+          return [createMockConnection(podA.id, podB.id, 'auto')];
         }
         if (sourceId === podB.id) {
-          return [createMockConnection(podB.id, podC.id, true)];
+          return [createMockConnection(podB.id, podC.id, 'auto')];
         }
         if (sourceId === podC.id) {
-          return [createMockConnection(podC.id, podA.id, true)];
+          return [createMockConnection(podC.id, podA.id, 'auto')];
         }
         return [];
       });
@@ -103,12 +103,12 @@ describe('AutoClearService 單元測試', () => {
       spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [
-            createMockConnection(podA.id, podB.id, true),
-            createMockConnection(podA.id, podC.id, false), // 不是 auto-trigger
+            createMockConnection(podA.id, podB.id, 'auto'),
+            createMockConnection(podA.id, podC.id, 'ai-decide'), // 不是 auto-trigger
           ];
         }
         if (sourceId === podB.id) {
-          return [createMockConnection(podB.id, podD.id, true)];
+          return [createMockConnection(podB.id, podD.id, 'auto')];
         }
         if (sourceId === podC.id || sourceId === podD.id) {
           return [];
@@ -133,15 +133,15 @@ describe('AutoClearService 單元測試', () => {
       spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [
-            createMockConnection(podA.id, podB.id, true),
-            createMockConnection(podA.id, podC.id, true),
+            createMockConnection(podA.id, podB.id, 'auto'),
+            createMockConnection(podA.id, podC.id, 'auto'),
           ];
         }
         if (sourceId === podB.id) {
-          return [createMockConnection(podB.id, podD.id, true)];
+          return [createMockConnection(podB.id, podD.id, 'auto')];
         }
         if (sourceId === podC.id) {
-          return [createMockConnection(podC.id, podE.id, true)];
+          return [createMockConnection(podC.id, podE.id, 'auto')];
         }
         if (sourceId === podD.id || sourceId === podE.id) {
           return [];
@@ -201,10 +201,10 @@ describe('AutoClearService 單元測試', () => {
       spyOn(podStore, 'getById').mockReturnValue(podA);
       spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
-          return [createMockConnection(podA.id, podB.id, true)];
+          return [createMockConnection(podA.id, podB.id, 'auto')];
         }
         if (sourceId === podB.id) {
-          return [createMockConnection(podB.id, podA.id, true)];
+          return [createMockConnection(podB.id, podA.id, 'auto')];
         }
         return [];
       });
@@ -225,8 +225,8 @@ describe('AutoClearService 單元測試', () => {
       spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [
-            createMockConnection(podA.id, podB.id, true),
-            createMockConnection(podA.id, podC.id, true),
+            createMockConnection(podA.id, podB.id, 'auto'),
+            createMockConnection(podA.id, podC.id, 'auto'),
           ];
         }
         return [];
@@ -280,7 +280,7 @@ describe('AutoClearService 單元測試', () => {
         sourcePodId: null,
       });
       spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([
-        createMockConnection(podA.id, podB.id, true),
+        createMockConnection(podA.id, podB.id, 'auto'),
       ]);
       spyOn(autoClearService, 'executeAutoClear');
 
@@ -335,13 +335,11 @@ describe('AutoClearService 單元測試', () => {
       expect(result).toBe(false);
     });
 
-    it('當有 outgoing connections 但都不是 auto-trigger 時，返回 false', () => {
+    it('當沒有 triggerable connections 時，返回 false', () => {
       const podA = createMockPod('A');
-      const podB = createMockPod('B');
 
-      spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([
-        createMockConnection(podA.id, podB.id, false),
-      ]);
+      // Mock 沒有任何 outgoing connections
+      spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
 
       const result = autoClearService.hasOutgoingAutoTrigger(canvasId, podA.id);
 
@@ -354,8 +352,8 @@ describe('AutoClearService 單元測試', () => {
       const podC = createMockPod('C');
 
       spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([
-        createMockConnection(podA.id, podB.id, false),
-        createMockConnection(podA.id, podC.id, true),
+        createMockConnection(podA.id, podB.id),
+        createMockConnection(podA.id, podC.id, 'auto'),
       ]);
 
       const result = autoClearService.hasOutgoingAutoTrigger(canvasId, podA.id);
@@ -395,7 +393,7 @@ function createMockPod(name: string, autoClear: boolean = false): Pod {
 function createMockConnection(
   sourcePodId: string,
   targetPodId: string,
-  autoTrigger: boolean
+  triggerMode: 'auto' | 'ai-decide' = 'auto'
 ): Connection {
   return {
     id: uuidv4(),
@@ -403,7 +401,9 @@ function createMockConnection(
     sourceAnchor: 'right',
     targetPodId,
     targetAnchor: 'left',
-    autoTrigger,
+    triggerMode,
+    decideStatus: 'none',
+    decideReason: null,
     createdAt: new Date(),
   };
 }

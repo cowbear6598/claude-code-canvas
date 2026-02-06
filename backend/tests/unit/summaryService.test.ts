@@ -31,11 +31,17 @@ mock.module('../../src/services/claude/disposableChatService.js', () => ({
   },
 }));
 
+// 注意：此 mock 必須提供完整的 summaryPromptBuilder 介面
+// 避免影響其他測試檔案的執行
+const mockFormatConversationHistory = mock(() => '[User]: Hello\n\n[Assistant]: Hi');
+const mockBuildSystemPrompt = mock(() => 'System prompt');
+const mockBuildUserPrompt = mock(() => 'User prompt');
+
 mock.module('../../src/services/summaryPromptBuilder.js', () => ({
   summaryPromptBuilder: {
-    formatConversationHistory: mock(() => '[User]: Hello\n\n[Assistant]: Hi'),
-    buildSystemPrompt: mock(() => 'System prompt'),
-    buildUserPrompt: mock(() => 'User prompt'),
+    formatConversationHistory: mockFormatConversationHistory,
+    buildSystemPrompt: mockBuildSystemPrompt,
+    buildUserPrompt: mockBuildUserPrompt,
   },
 }));
 
@@ -105,9 +111,9 @@ describe('SummaryService', () => {
     (podStore.getById as any).mockClear?.();
     (messageStore.getMessages as any).mockClear?.();
     (disposableChatService.executeDisposableChat as any).mockClear?.();
-    (summaryPromptBuilder.formatConversationHistory as any).mockClear?.();
-    (summaryPromptBuilder.buildSystemPrompt as any).mockClear?.();
-    (summaryPromptBuilder.buildUserPrompt as any).mockClear?.();
+    mockFormatConversationHistory.mockClear?.();
+    mockBuildSystemPrompt.mockClear?.();
+    mockBuildUserPrompt.mockClear?.();
 
     // Default mock returns
     (commandService.getContent as any).mockResolvedValue(null);
@@ -122,9 +128,9 @@ describe('SummaryService', () => {
       success: true,
       content: 'Summary result',
     });
-    (summaryPromptBuilder.formatConversationHistory as any).mockReturnValue('[User]: Hello\n\n[Assistant]: Hi');
-    (summaryPromptBuilder.buildSystemPrompt as any).mockReturnValue('System prompt');
-    (summaryPromptBuilder.buildUserPrompt as any).mockReturnValue('User prompt');
+    mockFormatConversationHistory.mockReturnValue('[User]: Hello\n\n[Assistant]: Hi');
+    mockBuildSystemPrompt.mockReturnValue('System prompt');
+    mockBuildUserPrompt.mockReturnValue('User prompt');
   });
 
   describe('generateSummaryForTarget Command 讀取邏輯', () => {

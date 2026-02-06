@@ -14,7 +14,7 @@ import {
 } from '../../src/types';
 
 interface CreateConnectionOptions extends Partial<ConnectionCreatePayload> {
-  autoTrigger?: boolean;
+  triggerMode?: 'auto' | 'ai-decide';
 }
 
 export async function createConnection(
@@ -34,7 +34,7 @@ export async function createConnection(
     throw new Error('No active canvas for socket');
   }
 
-  const { autoTrigger, ...createOverrides } = options || {};
+  const { triggerMode, ...createOverrides } = options || {};
 
   const payload: ConnectionCreatePayload = {
     requestId: uuidv4(),
@@ -55,12 +55,12 @@ export async function createConnection(
 
   const connection = response.connection!;
 
-  if (autoTrigger !== undefined) {
+  if (triggerMode !== undefined) {
     const updatePayload: ConnectionUpdatePayload = {
       requestId: uuidv4(),
       canvasId,
       connectionId: connection.id,
-      autoTrigger,
+      triggerMode,
     };
 
     const updateResponse = await emitAndWaitResponse<ConnectionUpdatePayload, ConnectionUpdatedPayload>(

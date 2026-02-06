@@ -76,12 +76,12 @@ describe('WorkflowExecution 服務測試', () => {
             const sourcePod = await createPod(client, {name: 'Source Pod', x: 0, y: 0});
             const targetPod = await createPod(client, {name: 'Target Pod', x: 300, y: 0});
 
-            // 設定 autoTrigger connection
+            // 設定 auto trigger mode connection
             const connection = await createConnection(client, sourcePod.id, targetPod.id, {
-                autoTrigger: true,
+                triggerMode: 'auto',
             });
 
-            expect(connection.autoTrigger).toBe(true);
+            expect(connection.triggerMode).toBe('auto');
 
             // 監聽 workflow auto-triggered 事件
             const autoTriggeredPromise = waitForEvent<WorkflowAutoTriggeredPayload>(
@@ -134,9 +134,9 @@ describe('WorkflowExecution 服務測試', () => {
             const sourcePod = await createPod(client, {name: 'Source Pod', x: 0, y: 0});
             const targetPod = await createPod(client, {name: 'Target Pod', x: 300, y: 0});
 
-            // 設定 autoTrigger connection
+            // 設定 auto trigger mode connection
             await createConnection(client, sourcePod.id, targetPod.id, {
-                autoTrigger: true,
+                triggerMode: 'auto',
             });
 
             // 將 target pod 設為 chatting 狀態
@@ -169,13 +169,13 @@ describe('WorkflowExecution 服務測試', () => {
             const sourceB = await createPod(client, {name: 'Source B', x: 0, y: 200});
             const targetPod = await createPod(client, {name: 'Target Pod', x: 400, y: 100});
 
-            // 設定兩個 autoTrigger connections
+            // 設定兩個 auto trigger mode connections
             await createConnection(client, sourceA.id, targetPod.id, {
-                autoTrigger: true,
+                triggerMode: 'auto',
             });
 
             await createConnection(client, sourceB.id, targetPod.id, {
-                autoTrigger: true,
+                triggerMode: 'auto',
             });
 
             // 監聽 pending 事件
@@ -236,12 +236,12 @@ describe('WorkflowExecution 服務測試', () => {
             const sourceB = await createPod(client, {name: 'Source B', x: 0, y: 200});
             const targetPod = await createPod(client, {name: 'Target Pod', x: 400, y: 100});
 
-            // 設定兩個 autoTrigger connections
+            // 設定兩個 auto trigger mode connections
             await createConnection(client, sourceA.id, targetPod.id, {
-                autoTrigger: true,
+                triggerMode: 'auto',
             });
             await createConnection(client, sourceB.id, targetPod.id, {
-                autoTrigger: true,
+                triggerMode: 'auto',
             });
 
             // 監聽 auto-triggered 事件（不應該發生）
@@ -278,10 +278,10 @@ describe('WorkflowExecution 服務測試', () => {
             const podC = await createPod(client, {name: 'Pod C', x: 600, y: 0});
 
             const connAB = await createConnection(client, podA.id, podB.id, {
-                autoTrigger: true,
+                triggerMode: 'auto',
             });
             const connBC = await createConnection(client, podB.id, podC.id, {
-                autoTrigger: true,
+                triggerMode: 'auto',
             });
 
             // 收集所有 auto-triggered 事件
@@ -352,9 +352,9 @@ describe('WorkflowExecution 服務測試', () => {
             const podC = await createPod(client, {name: 'Pod C', x: 300, y: 100});
             const podD = await createPod(client, {name: 'Pod D', x: 600, y: -100});
 
-            await createConnection(client, podA.id, podB.id, {autoTrigger: true});
-            await createConnection(client, podA.id, podC.id, {autoTrigger: true});
-            await createConnection(client, podB.id, podD.id, {autoTrigger: true});
+            await createConnection(client, podA.id, podB.id, {triggerMode: 'auto'});
+            await createConnection(client, podA.id, podC.id, {triggerMode: 'auto'});
+            await createConnection(client, podB.id, podD.id, {triggerMode: 'auto'});
 
             // 收集所有 auto-triggered 事件
             const autoTriggeredEvents: WorkflowAutoTriggeredPayload[] = [];
@@ -401,7 +401,7 @@ describe('WorkflowExecution 服務測試', () => {
             const sourcePod = await createPod(client, {name: 'Source Pod', x: 0, y: 0});
             const targetPod = await createPod(client, {name: 'Target Pod', x: 300, y: 0});
             const connection = await createConnection(client, sourcePod.id, targetPod.id, {
-                autoTrigger: true,
+                triggerMode: 'auto',
             });
 
             // 先給 source pod 一些訊息
@@ -451,7 +451,7 @@ describe('WorkflowExecution 服務測試', () => {
             const targetPod = await createPod(client, {name: 'Target Pod', x: 400, y: 100});
 
             const connA = await createConnection(client, sourceA.id, targetPod.id, {
-                autoTrigger: true,
+                triggerMode: 'auto',
             });
 
             // 給兩個 source 都添加訊息

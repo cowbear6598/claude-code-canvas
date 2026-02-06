@@ -182,7 +182,7 @@ describe('Connection 管理', () => {
   });
 
   describe('Connection 更新', () => {
-    it('success_when_connection_updated_with_auto_trigger', async () => {
+    it('success_when_connection_updated_with_trigger_mode', async () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
 
@@ -191,11 +191,11 @@ describe('Connection 管理', () => {
         client,
         WebSocketRequestEvents.CONNECTION_UPDATE,
         WebSocketResponseEvents.CONNECTION_UPDATED,
-        { requestId: uuidv4(), canvasId, connectionId: conn.id, autoTrigger: false }
+        { requestId: uuidv4(), canvasId, connectionId: conn.id, triggerMode: 'ai-decide' }
       );
 
       expect(response.success).toBe(true);
-      expect(response.connection!.autoTrigger).toBe(false);
+      expect(response.connection!.triggerMode).toBe('ai-decide');
     });
 
     it('failed_when_connection_update_with_nonexistent_id', async () => {
@@ -204,7 +204,7 @@ describe('Connection 管理', () => {
         client,
         WebSocketRequestEvents.CONNECTION_UPDATE,
         WebSocketResponseEvents.CONNECTION_UPDATED,
-        { requestId: uuidv4(), canvasId, connectionId: FAKE_UUID, autoTrigger: true }
+        { requestId: uuidv4(), canvasId, connectionId: FAKE_UUID, triggerMode: 'auto' }
       );
 
       expect(response.success).toBe(false);

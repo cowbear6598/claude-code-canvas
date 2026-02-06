@@ -34,6 +34,7 @@ describe('Paste Helpers', () => {
 
       const repositoryId = 'test-repo-id';
       const originalPodId = uuidv4();
+      const newPodId = uuidv4();
 
       // Mock repository 存在
       const existsSpy = spyOn(repositoryService, 'exists').mockResolvedValue(true);
@@ -41,9 +42,9 @@ describe('Paste Helpers', () => {
       const pathSpy = spyOn(repositoryService, 'getRepositoryPath').mockReturnValue('/test/repo/path');
       allSpies.push(pathSpy as any);
 
-      // Mock podStore.create
+      // Mock podStore.create - 使用 prototype mock 方式
       const mockPod = {
-        id: uuidv4(),
+        id: newPodId,
         name: 'Test Pod',
         color: 'blue' as const,
         x: 100,
@@ -66,8 +67,18 @@ describe('Paste Helpers', () => {
         needsForkSession: false,
         autoClear: false,
       };
-      const createPodSpy = spyOn(podStore, 'create').mockReturnValue(mockPod);
-      allSpies.push(createPodSpy as any);
+
+      // 保存原始方法並替換
+      const originalCreate = podStore.create ? podStore.create.bind(podStore) : undefined;
+      (podStore as any).create = (() => mockPod) as any;
+      allSpies.push({
+        restore: () => {
+          if (originalCreate) {
+            (podStore as any).create = originalCreate;
+          }
+        }
+      });
+
       const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
@@ -148,6 +159,7 @@ describe('Paste Helpers', () => {
       const { claudeSessionManager } = await import('../../src/services/claude/sessionManager.js');
 
       const originalPodId = uuidv4();
+      const newPodId = uuidv4();
 
       // 確保 exists 不被呼叫，先 mock 一個回傳值（雖然不應該被呼叫）
       const existsSpy = spyOn(repositoryService, 'exists').mockResolvedValue(true);
@@ -155,7 +167,7 @@ describe('Paste Helpers', () => {
 
       // Mock podStore.create
       const mockPod = {
-        id: uuidv4(),
+        id: newPodId,
         name: 'Test Pod',
         color: 'blue' as const,
         x: 100,
@@ -178,8 +190,18 @@ describe('Paste Helpers', () => {
         needsForkSession: false,
         autoClear: false,
       };
-      const createPodSpy = spyOn(podStore, 'create').mockReturnValue(mockPod);
-      allSpies.push(createPodSpy as any);
+
+      // 保存原始方法並替換
+      const originalCreate = podStore.create ? podStore.create.bind(podStore) : undefined;
+      (podStore as any).create = (() => mockPod) as any;
+      allSpies.push({
+        restore: () => {
+          if (originalCreate) {
+            (podStore as any).create = originalCreate;
+          }
+        }
+      });
+
       const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
@@ -222,6 +244,7 @@ describe('Paste Helpers', () => {
 
       const failingPodId = uuidv4();
       const successPodId = uuidv4();
+      const newPodId = uuidv4();
 
       // First pod 的 repository 不存在
       const existsSpy = spyOn(repositoryService, 'exists')
@@ -234,7 +257,7 @@ describe('Paste Helpers', () => {
 
       // Mock successful pod creation
       const mockPod = {
-        id: uuidv4(),
+        id: newPodId,
         name: 'Success Pod',
         color: 'green' as const,
         x: 200,
@@ -257,8 +280,18 @@ describe('Paste Helpers', () => {
         needsForkSession: false,
         autoClear: false,
       };
-      const createPodSpy = spyOn(podStore, 'create').mockReturnValue(mockPod);
-      allSpies.push(createPodSpy as any);
+
+      // 保存原始方法並替換
+      const originalCreate = podStore.create ? podStore.create.bind(podStore) : undefined;
+      (podStore as any).create = (() => mockPod) as any;
+      allSpies.push({
+        restore: () => {
+          if (originalCreate) {
+            (podStore as any).create = originalCreate;
+          }
+        }
+      });
+
       const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
@@ -325,7 +358,9 @@ describe('Paste Helpers', () => {
         sourceAnchor: 'right' as const,
         targetPodId: newTargetPodId,
         targetAnchor: 'left' as const,
-        autoTrigger: false,
+        triggerMode: 'auto' as const,
+        decideStatus: 'none' as const,
+        decideReason: null,
         createdAt: new Date(),
       };
 
@@ -338,7 +373,7 @@ describe('Paste Helpers', () => {
           sourceAnchor: 'right',
           originalTargetPodId,
           targetAnchor: 'left',
-          autoTrigger: false,
+          triggerMode: 'auto',
         },
       ];
 
@@ -351,7 +386,7 @@ describe('Paste Helpers', () => {
         sourceAnchor: 'right',
         targetPodId: newTargetPodId,
         targetAnchor: 'left',
-        autoTrigger: false,
+        triggerMode: 'auto',
       });
     });
 
@@ -462,7 +497,9 @@ describe('Paste Helpers', () => {
         sourceAnchor: 'right' as const,
         targetPodId: newTarget1,
         targetAnchor: 'left' as const,
-        autoTrigger: false,
+        triggerMode: 'auto' as const,
+        decideStatus: 'none' as const,
+        decideReason: null,
         createdAt: new Date(),
       };
 
@@ -472,7 +509,9 @@ describe('Paste Helpers', () => {
         sourceAnchor: 'bottom' as const,
         targetPodId: newTarget2,
         targetAnchor: 'top' as const,
-        autoTrigger: true,
+        triggerMode: 'auto' as const,
+        decideStatus: 'none' as const,
+        decideReason: null,
         createdAt: new Date(),
       };
 
@@ -487,7 +526,7 @@ describe('Paste Helpers', () => {
           sourceAnchor: 'right',
           originalTargetPodId: validTarget1,
           targetAnchor: 'left',
-          autoTrigger: false,
+          triggerMode: 'auto',
         },
         {
           originalSourcePodId: invalidSource,
@@ -500,7 +539,7 @@ describe('Paste Helpers', () => {
           sourceAnchor: 'bottom',
           originalTargetPodId: validTarget2,
           targetAnchor: 'top',
-          autoTrigger: true,
+          triggerMode: 'auto',
         },
         {
           originalSourcePodId: validSource1,
@@ -518,7 +557,7 @@ describe('Paste Helpers', () => {
       expect(createdConnections[1]).toBe(mockConnection2);
     });
 
-    it('應正確處理 autoTrigger 預設值', async () => {
+    it('應正確處理 triggerMode 預設值', async () => {
       const { createPastedConnections } = await import('../../src/handlers/paste/pasteHelpers.js');
       const { connectionStore } = await import('../../src/services/connectionStore.js');
 
@@ -538,14 +577,16 @@ describe('Paste Helpers', () => {
         sourceAnchor: 'right' as const,
         targetPodId: newTargetPodId,
         targetAnchor: 'left' as const,
-        autoTrigger: false,
+        triggerMode: 'auto' as const,
+        decideStatus: 'none' as const,
+        decideReason: null,
         createdAt: new Date(),
       };
 
       const createConnSpy = spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
       allSpies.push(createConnSpy as any);
 
-      // 沒有提供 autoTrigger
+      // 沒有提供 triggerMode
       const connections: PasteConnectionItem[] = [
         {
           originalSourcePodId,
@@ -562,7 +603,7 @@ describe('Paste Helpers', () => {
         sourceAnchor: 'right',
         targetPodId: newTargetPodId,
         targetAnchor: 'left',
-        autoTrigger: false, // 預設為 false
+        triggerMode: 'auto', // 預設為 'auto'
       });
     });
 
