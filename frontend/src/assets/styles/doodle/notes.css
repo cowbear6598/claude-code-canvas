@@ -35,6 +35,10 @@
   z-index: 100;
 }
 
+.note-base.selected {
+  z-index: 100;
+}
+
 /* Note 文字基礎樣式 */
 .note-text-base {
   font-family: var(--font-mono), monospace, sans-serif;
