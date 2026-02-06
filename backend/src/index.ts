@@ -24,8 +24,8 @@ async function startServer(): Promise<void> {
 
 	const PORT = config.port;
 
-	// 檢查是否啟用靜態檔案服務
-	const enableStaticFiles = config.nodeEnv === 'production' || (await isStaticFilesAvailable());
+	// 只在 production 模式且 dist 目錄存在時才啟用靜態檔案服務，dev 模式由 Vite dev server 提供
+	const enableStaticFiles = config.nodeEnv === 'production' && (await isStaticFilesAvailable());
 	if (enableStaticFiles) {
 		logger.log('Startup', 'Complete', '已啟用前端靜態檔案服務');
 	}
