@@ -261,6 +261,8 @@ const handlePaste = async (e: ClipboardEvent): Promise<void> => {
       range.setEndAfter(textNode)
       selection.removeAllRanges()
       selection.addRange(range)
+      // 同步更新 input.value，避免貼上後送出時檢查失敗
+      input.value = editableRef.value?.innerText ?? ''
     }
   }
 }
