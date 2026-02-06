@@ -68,7 +68,7 @@ export const pasteConnectionItemSchema = z.object({
   sourceAnchor: anchorPositionSchema,
   originalTargetPodId: z.uuid(),
   targetAnchor: anchorPositionSchema,
-  autoTrigger: z.boolean().optional(),
+  triggerMode: z.enum(['auto', 'ai-decide']).optional(),
 });
 
 export const canvasPasteSchema = z.object({

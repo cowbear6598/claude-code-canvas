@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import type {AnchorPosition, Connection, ConnectionStatus, DraggingConnection} from '@/types/connection'
+import type {AnchorPosition, Connection, ConnectionStatus, DraggingConnection, TriggerMode} from '@/types/connection'
 import {
     createWebSocketRequest,
     websocketClient,
@@ -15,8 +15,13 @@ import type {
     ConnectionDeletePayload,
     ConnectionListPayload,
     ConnectionListResultPayload,
+    ConnectionUpdatePayload,
     WorkflowAutoTriggeredPayload,
-    WorkflowCompletePayload
+    WorkflowCompletePayload,
+    WorkflowAiDecidePendingPayload,
+    WorkflowAiDecideResultPayload,
+    WorkflowAiDecideErrorPayload,
+    WorkflowAiDecideClearPayload
 } from '@/types/websocket'
 
 interface ConnectionState {
@@ -59,6 +64,16 @@ export const useConnectionStore = defineStore('connection', {
         hasUpstreamConnections: (state) => (podId: string): boolean => {
             return state.connections.some(conn => conn.targetPodId === podId)
         },
+
+        getAiDecideConnections: (state): Connection[] => {
+            return state.connections.filter(conn => conn.triggerMode === 'ai-decide')
+        },
+
+        getAiDecideConnectionsBySourcePodId: (state) => (sourcePodId: string): Connection[] => {
+            return state.connections.filter(
+                conn => conn.sourcePodId === sourcePodId && conn.triggerMode === 'ai-decide'
+            )
+        },
     },
 
     actions: {
@@ -82,8 +97,9 @@ export const useConnectionStore = defineStore('connection', {
                 this.connections = response.connections.map(conn => ({
                     ...conn,
                     createdAt: new Date(conn.createdAt),
-                    autoTrigger: conn.autoTrigger ?? false,
-                    status: 'inactive' as ConnectionStatus
+                    triggerMode: conn.triggerMode ?? 'auto',
+                    status: this.mapDecideStatusToConnectionStatus(conn.decideStatus),
+                    decideReason: conn.decideReason ?? undefined
                 }))
             }
         },
@@ -145,8 +161,9 @@ export const useConnectionStore = defineStore('connection', {
             return {
                 ...response.connection,
                 createdAt: new Date(response.connection.createdAt),
-                autoTrigger: response.connection.autoTrigger ?? false,
-                status: 'inactive' as ConnectionStatus
+                triggerMode: response.connection.triggerMode ?? 'auto',
+                status: this.mapDecideStatusToConnectionStatus(response.connection.decideStatus),
+                decideReason: response.connection.decideReason ?? undefined
             }
         },
 
@@ -206,19 +223,62 @@ export const useConnectionStore = defineStore('connection', {
         updateConnectionStatusByTargetPod(targetPodId: string, status: ConnectionStatus): void {
             this.connections.forEach(conn => {
                 if (conn.targetPodId === targetPodId) {
+                    // 跳過 AI Decide 連線且目前狀態為 ai-approved 的情況，只在要設成 active 時才跳過
+                    // 防止覆蓋掉經 AI 批准的連線狀態，但允許更新為 inactive
+                    if (conn.triggerMode === 'ai-decide' && conn.status === 'ai-approved' && status === 'active') {
+                        return
+                    }
                     conn.status = status
                 }
             })
         },
 
+        async updateConnectionTriggerMode(connectionId: string, triggerMode: TriggerMode): Promise<Connection | null> {
+            const canvasStore = useCanvasStore()
+
+            if (!canvasStore.activeCanvasId) {
+                throw new Error('無法更新連線：沒有啟用的畫布')
+            }
+
+            const response = await createWebSocketRequest<ConnectionUpdatePayload, ConnectionCreatedPayload>({
+                requestEvent: WebSocketRequestEvents.CONNECTION_UPDATE,
+                responseEvent: WebSocketResponseEvents.CONNECTION_UPDATED,
+                payload: {
+                    canvasId: canvasStore.activeCanvasId,
+                    connectionId,
+                    triggerMode
+                }
+            })
+
+            if (!response.connection) {
+                return null
+            }
+
+            return {
+                ...response.connection,
+                createdAt: new Date(response.connection.createdAt),
+                triggerMode: response.connection.triggerMode ?? 'auto',
+                status: this.mapDecideStatusToConnectionStatus(response.connection.decideStatus),
+                decideReason: response.connection.decideReason ?? undefined
+            }
+        },
+
         setupWorkflowListeners(): void {
             websocketClient.on<WorkflowAutoTriggeredPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, this.handleWorkflowAutoTriggered)
             websocketClient.on<WorkflowCompletePayload>(WebSocketResponseEvents.WORKFLOW_COMPLETE, this.handleWorkflowComplete)
+            websocketClient.on<WorkflowAiDecidePendingPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_PENDING, this.handleAiDecidePending)
+            websocketClient.on<WorkflowAiDecideResultPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_RESULT, this.handleAiDecideResult)
+            websocketClient.on<WorkflowAiDecideErrorPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_ERROR, this.handleAiDecideError)
+            websocketClient.on<WorkflowAiDecideClearPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_CLEAR, this.handleAiDecideClear)
         },
 
         cleanupWorkflowListeners(): void {
             websocketClient.off<WorkflowAutoTriggeredPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, this.handleWorkflowAutoTriggered)
             websocketClient.off<WorkflowCompletePayload>(WebSocketResponseEvents.WORKFLOW_COMPLETE, this.handleWorkflowComplete)
+            websocketClient.off<WorkflowAiDecidePendingPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_PENDING, this.handleAiDecidePending)
+            websocketClient.off<WorkflowAiDecideResultPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_RESULT, this.handleAiDecideResult)
+            websocketClient.off<WorkflowAiDecideErrorPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_ERROR, this.handleAiDecideError)
+            websocketClient.off<WorkflowAiDecideClearPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_CLEAR, this.handleAiDecideClear)
         },
 
         handleWorkflowAutoTriggered(payload: WorkflowAutoTriggeredPayload): void {
@@ -229,11 +289,66 @@ export const useConnectionStore = defineStore('connection', {
             this.updateConnectionStatusByTargetPod(payload.targetPodId, 'inactive')
         },
 
+        handleAiDecidePending(payload: WorkflowAiDecidePendingPayload): void {
+            payload.connectionIds.forEach(connectionId => {
+                const connection = this.connections.find(c => c.id === connectionId)
+                if (connection) {
+                    connection.status = 'ai-deciding'
+                    connection.decideReason = undefined
+                }
+            })
+        },
+
+        handleAiDecideResult(payload: WorkflowAiDecideResultPayload): void {
+            const connection = this.connections.find(c => c.id === payload.connectionId)
+            if (connection) {
+                connection.status = payload.shouldTrigger ? 'ai-approved' : 'ai-rejected'
+                connection.decideReason = payload.shouldTrigger ? undefined : payload.reason
+            }
+        },
+
+        handleAiDecideError(payload: WorkflowAiDecideErrorPayload): void {
+            const connection = this.connections.find(c => c.id === payload.connectionId)
+            if (connection) {
+                connection.status = 'ai-error'
+                connection.decideReason = payload.error
+            }
+        },
+
+        handleAiDecideClear(payload: WorkflowAiDecideClearPayload): void {
+            payload.connectionIds.forEach(connectionId => {
+                const connection = this.connections.find(c => c.id === connectionId)
+                if (connection) {
+                    connection.status = 'inactive'
+                    connection.decideReason = undefined
+                }
+            })
+        },
+
+        clearAiDecideStatusByConnectionIds(connectionIds: string[]): void {
+            connectionIds.forEach(connectionId => {
+                const connection = this.connections.find(c => c.id === connectionId)
+                if (connection) {
+                    connection.status = 'inactive'
+                    connection.decideReason = undefined
+                }
+            })
+        },
+
+        mapDecideStatusToConnectionStatus(decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'): ConnectionStatus {
+            if (!decideStatus || decideStatus === 'none') return 'inactive'
+            if (decideStatus === 'pending') return 'ai-deciding'
+            if (decideStatus === 'approved') return 'ai-approved'
+            if (decideStatus === 'rejected') return 'ai-rejected'
+            if (decideStatus === 'error') return 'ai-error'
+            return 'inactive'
+        },
+
         addConnectionFromEvent(connection: Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }): void {
             const enrichedConnection: Connection = {
                 ...connection,
                 createdAt: new Date(connection.createdAt),
-                autoTrigger: connection.autoTrigger ?? false,
+                triggerMode: connection.triggerMode ?? 'auto',
                 status: 'inactive' as ConnectionStatus
             }
 
@@ -244,11 +359,13 @@ export const useConnectionStore = defineStore('connection', {
         },
 
         updateConnectionFromEvent(connection: Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }): void {
+            const existingConnection = this.connections.find(c => c.id === connection.id)
             const enrichedConnection: Connection = {
                 ...connection,
                 createdAt: new Date(connection.createdAt),
-                autoTrigger: connection.autoTrigger ?? false,
-                status: 'inactive' as ConnectionStatus
+                triggerMode: connection.triggerMode ?? 'auto',
+                status: existingConnection?.status ?? 'inactive' as ConnectionStatus,
+                decideReason: connection.decideReason ?? existingConnection?.decideReason
             }
 
             const index = this.connections.findIndex(c => c.id === enrichedConnection.id)

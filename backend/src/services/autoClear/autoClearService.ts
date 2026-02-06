@@ -8,8 +8,8 @@ import {logger} from '../../utils/logger.js';
 
 function getAutoTriggerTargets(canvasId: string, podId: string): string[] {
     const connections = connectionStore.findBySourcePodId(canvasId, podId);
-    const autoTriggerConnections = connections.filter((conn) => conn.autoTrigger);
-    return autoTriggerConnections.map((conn) => conn.targetPodId);
+    const triggerableConnections = connections.filter((conn) => conn.triggerMode === 'auto' || conn.triggerMode === 'ai-decide');
+    return triggerableConnections.map((conn) => conn.targetPodId);
 }
 
 class AutoClearService {

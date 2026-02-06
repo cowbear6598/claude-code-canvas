@@ -10,6 +10,7 @@ import type {
 import { workflowClearService } from '../services/workflowClearService.js';
 import { podStore } from '../services/podStore.js';
 import { socketService } from '../services/socketService.js';
+import { workflowEventEmitter } from '../services/workflow/workflowEventEmitter.js';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { withCanvasId } from '../utils/handlerHelpers.js';
@@ -85,6 +86,11 @@ export const handleWorkflowClear = withCanvasId<WorkflowClearPayload>(
     };
 
     socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, response);
+
+    // 發送 AI Decide Clear 事件
+    if (result.clearedConnectionIds.length > 0) {
+      workflowEventEmitter.emitAiDecideClear(canvasId, result.clearedConnectionIds);
+    }
 
     logger.log(
       'Workflow',

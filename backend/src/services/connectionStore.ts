@@ -1,7 +1,7 @@
 import {v4 as uuidv4} from 'uuid';
 import {promises as fs} from 'fs';
 import path from 'path';
-import type {Connection, AnchorPosition} from '../types';
+import type {Connection, AnchorPosition, TriggerMode, DecideStatus} from '../types';
 import type {PersistedConnection} from '../types';
 import {Result, ok, err} from '../types';
 import {logger} from '../utils/logger.js';
@@ -12,7 +12,7 @@ interface CreateConnectionData {
     sourceAnchor: AnchorPosition;
     targetPodId: string;
     targetAnchor: AnchorPosition;
-    autoTrigger?: boolean;
+    triggerMode?: TriggerMode;
 }
 
 class ConnectionStore {
@@ -36,7 +36,9 @@ class ConnectionStore {
             sourceAnchor: data.sourceAnchor,
             targetPodId: data.targetPodId,
             targetAnchor: data.targetAnchor,
-            autoTrigger: data.autoTrigger ?? true,
+            triggerMode: data.triggerMode ?? 'auto',
+            decideStatus: 'none',
+            decideReason: null,
             createdAt: new Date(),
         };
 
@@ -103,7 +105,7 @@ class ConnectionStore {
         );
     }
 
-    update(canvasId: string, id: string, updates: Partial<{ autoTrigger: boolean }>): Connection | undefined {
+    update(canvasId: string, id: string, updates: Partial<{ triggerMode: TriggerMode; decideStatus: DecideStatus; decideReason: string | null }>): Connection | undefined {
         const connectionsMap = this.connectionsByCanvas.get(canvasId);
         if (!connectionsMap) {
             return undefined;
@@ -114,8 +116,23 @@ class ConnectionStore {
             return undefined;
         }
 
-        if (updates.autoTrigger !== undefined) {
-            connection.autoTrigger = updates.autoTrigger;
+        // 當 triggerMode 從 ai-decide 切換為 auto 時，自動重設 decideStatus 和 decideReason
+        if (updates.triggerMode !== undefined) {
+            const oldMode = connection.triggerMode;
+            connection.triggerMode = updates.triggerMode;
+
+            if (oldMode === 'ai-decide' && updates.triggerMode === 'auto') {
+                connection.decideStatus = 'none';
+                connection.decideReason = null;
+            }
+        }
+
+        if (updates.decideStatus !== undefined) {
+            connection.decideStatus = updates.decideStatus;
+        }
+
+        if (updates.decideReason !== undefined) {
+            connection.decideReason = updates.decideReason;
         }
 
         connectionsMap.set(id, connection);
@@ -159,18 +176,35 @@ class ConnectionStore {
         const data = await fs.readFile(connectionsFilePath, 'utf-8');
 
         try {
-            const persistedConnections: PersistedConnection[] = JSON.parse(data);
+            const persistedConnections: unknown[] = JSON.parse(data);
 
             const connectionsMap = new Map<string, Connection>();
             for (const persisted of persistedConnections) {
+                // 向後相容：從舊格式轉換
+                const persistedObj = persisted as Record<string, unknown>;
+                let triggerMode: TriggerMode = 'auto';
+
+                if ('triggerMode' in persistedObj && typeof persistedObj.triggerMode === 'string') {
+                    triggerMode = persistedObj.triggerMode as TriggerMode;
+                } else if ('autoTrigger' in persistedObj) {
+                    // 舊版的 autoTrigger 無論 true/false 都視為 'auto' 模式
+                    triggerMode = 'auto';
+                }
+
                 const connection: Connection = {
-                    id: persisted.id,
-                    sourcePodId: persisted.sourcePodId,
-                    sourceAnchor: persisted.sourceAnchor,
-                    targetPodId: persisted.targetPodId,
-                    targetAnchor: persisted.targetAnchor,
-                    autoTrigger: persisted.autoTrigger ?? false,
-                    createdAt: new Date(persisted.createdAt),
+                    id: persistedObj.id as string,
+                    sourcePodId: persistedObj.sourcePodId as string,
+                    sourceAnchor: persistedObj.sourceAnchor as AnchorPosition,
+                    targetPodId: persistedObj.targetPodId as string,
+                    targetAnchor: persistedObj.targetAnchor as AnchorPosition,
+                    triggerMode,
+                    decideStatus: ('decideStatus' in persistedObj && typeof persistedObj.decideStatus === 'string')
+                        ? persistedObj.decideStatus as DecideStatus
+                        : 'none',
+                    decideReason: ('decideReason' in persistedObj && persistedObj.decideReason !== undefined)
+                        ? persistedObj.decideReason as string | null
+                        : null,
+                    createdAt: new Date(persistedObj.createdAt as string),
                 };
                 connectionsMap.set(connection.id, connection);
             }
@@ -203,7 +237,9 @@ class ConnectionStore {
             sourceAnchor: connection.sourceAnchor,
             targetPodId: connection.targetPodId,
             targetAnchor: connection.targetAnchor,
-            autoTrigger: connection.autoTrigger,
+            triggerMode: connection.triggerMode,
+            decideStatus: connection.decideStatus,
+            decideReason: connection.decideReason,
             createdAt: connection.createdAt.toISOString(),
         }));
 
@@ -220,6 +256,40 @@ class ConnectionStore {
         this.saveToDisk(canvasId).catch((error) => {
             logger.error('Connection', 'Error', `[ConnectionStore] Failed to persist connections for canvas ${canvasId}`, error);
         });
+    }
+
+    /**
+     * 更新單一 connection 的 AI Decide 狀態
+     */
+    updateDecideStatus(canvasId: string, connectionId: string, status: DecideStatus, reason: string | null): Connection | undefined {
+        return this.update(canvasId, connectionId, {
+            decideStatus: status,
+            decideReason: reason,
+        });
+    }
+
+    /**
+     * 清除該 Pod 所有出站 connections 的 decideStatus 為 'none' 並清空 reason
+     */
+    clearDecideStatusByPodId(canvasId: string, podId: string): void {
+        const outgoingConnections = this.findBySourcePodId(canvasId, podId);
+
+        for (const connection of outgoingConnections) {
+            if (connection.triggerMode === 'ai-decide') {
+                this.update(canvasId, connection.id, {
+                    decideStatus: 'none',
+                    decideReason: null,
+                });
+            }
+        }
+    }
+
+    /**
+     * 根據 triggerMode 過濾出站 connections
+     */
+    findByTriggerMode(canvasId: string, sourcePodId: string, triggerMode: TriggerMode): Connection[] {
+        const connections = this.findBySourcePodId(canvasId, sourcePodId);
+        return connections.filter(conn => conn.triggerMode === triggerMode);
     }
 }
 

@@ -27,7 +27,7 @@ export const connectionUpdateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   connectionId: z.uuid(),
-  autoTrigger: z.boolean().optional(),
+  triggerMode: z.enum(['auto', 'ai-decide']).optional(),
 });
 
 export type ConnectionCreatePayload = z.infer<typeof connectionCreateSchema>;

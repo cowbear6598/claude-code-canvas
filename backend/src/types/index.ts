@@ -42,7 +42,7 @@ export type { Group, GroupType } from './group.js';
 export { GROUP_TYPES } from './group.js';
 
 // Connection types
-export type { Connection, AnchorPosition } from './connection.js';
+export type { Connection, AnchorPosition, TriggerMode, DecideStatus } from './connection.js';
 
 // Schedule types
 export type { ScheduleConfig, ScheduleConfigInput, ScheduleFrequency, PersistedScheduleConfig } from './schedule.js';

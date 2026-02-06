@@ -438,6 +438,18 @@ const handleConfirmClear = async (): Promise<void> => {
 
   chatStore.clearMessagesByPodIds(response.clearedPodIds)
   podStore.clearPodOutputsByIds(response.clearedPodIds)
+
+  // 清除下游 AI Decide connections 的狀態
+  const downstreamAiDecideConnectionIds: string[] = []
+  response.clearedPodIds.forEach(podId => {
+    const connections = connectionStore.getAiDecideConnectionsBySourcePodId(podId)
+    downstreamAiDecideConnectionIds.push(...connections.map(c => c.id))
+  })
+
+  if (downstreamAiDecideConnectionIds.length > 0) {
+    connectionStore.clearAiDecideStatusByConnectionIds(downstreamAiDecideConnectionIds)
+  }
+
   showClearDialog.value = false
   downstreamPods.value = []
 }

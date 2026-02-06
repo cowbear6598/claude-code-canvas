@@ -27,11 +27,12 @@ class WorkflowStateService {
 
   checkMultiInputScenario(canvasId: string, targetPodId: string): { isMultiInput: boolean; requiredSourcePodIds: string[] } {
     const incomingConnections = connectionStore.findByTargetPodId(canvasId, targetPodId);
-    const autoTriggerConnections = incomingConnections.filter((conn) => conn.autoTrigger);
-    const requiredSourcePodIds = autoTriggerConnections.map((conn) => conn.sourcePodId);
+    // 所有觸發模式（auto 和 ai-decide）都參與多輸入判斷
+    const triggerableConnections = incomingConnections.filter((conn) => conn.triggerMode === 'auto' || conn.triggerMode === 'ai-decide');
+    const requiredSourcePodIds = triggerableConnections.map((conn) => conn.sourcePodId);
 
     return {
-      isMultiInput: autoTriggerConnections.length > 1,
+      isMultiInput: triggerableConnections.length > 1,
       requiredSourcePodIds,
     };
   }
@@ -41,8 +42,16 @@ class WorkflowStateService {
     logger.log('Workflow', 'Create', `Initialized pending target ${targetPodId}, waiting for ${requiredSourcePodIds.length} sources`);
   }
 
-  recordSourceCompletion(targetPodId: string, sourcePodId: string, summary: string): boolean {
+  recordSourceCompletion(targetPodId: string, sourcePodId: string, summary: string): { allSourcesResponded: boolean; hasRejection: boolean } {
     return pendingTargetStore.recordSourceCompletion(targetPodId, sourcePodId, summary);
+  }
+
+  recordSourceRejection(targetPodId: string, sourcePodId: string, reason: string): void {
+    pendingTargetStore.recordSourceRejection(targetPodId, sourcePodId, reason);
+  }
+
+  hasAnyRejectedSource(targetPodId: string): boolean {
+    return pendingTargetStore.hasAnyRejectedSource(targetPodId);
   }
 
   getCompletedSummaries(targetPodId: string): Map<string, string> | null {
@@ -100,7 +109,7 @@ class WorkflowStateService {
 
   handleConnectionDeletion(canvasId: string, connectionId: string): void {
     const connection = connectionStore.getById(canvasId, connectionId);
-    if (!connection || !connection.autoTrigger) {
+    if (!connection || (connection.triggerMode !== 'auto' && connection.triggerMode !== 'ai-decide')) {
       return;
     }
 
@@ -150,10 +159,11 @@ class WorkflowStateService {
     workflowEventEmitter.emitWorkflowSourcesMerged(canvasId, targetPodId, sourcePodIds, mergedPayload);
   }
 
-  private emitPendingStatus(canvasId: string, targetPodId: string, pending: { requiredSourcePodIds: string[]; completedSources: Map<string, string> }): void {
+  private emitPendingStatus(canvasId: string, targetPodId: string, pending: { requiredSourcePodIds: string[]; completedSources: Map<string, string>; rejectedSources: Map<string, string> }): void {
     const completedSourcePodIds = Array.from(pending.completedSources.keys());
+    const rejectedSourcePodIds = Array.from(pending.rejectedSources.keys());
     const pendingSourcePodIds = pending.requiredSourcePodIds.filter(
-      (id) => !completedSourcePodIds.includes(id)
+      (id) => !completedSourcePodIds.includes(id) && !rejectedSourcePodIds.includes(id)
     );
 
     const pendingPayload: WorkflowPendingPayload = {
@@ -163,6 +173,8 @@ class WorkflowStateService {
       pendingSourcePodIds,
       totalSources: pending.requiredSourcePodIds.length,
       completedCount: pending.completedSources.size,
+      rejectedSourcePodIds,
+      hasRejectedSources: rejectedSourcePodIds.length > 0,
     };
 
     workflowEventEmitter.emitWorkflowPending(canvasId, targetPodId, pendingPayload);

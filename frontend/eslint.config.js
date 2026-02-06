@@ -51,6 +51,7 @@ export default [
         WebSocket: 'readonly',
         MessageEvent: 'readonly',
         CloseEvent: 'readonly',
+        SVGPathElement: 'readonly',
       },
     },
     plugins: {
@@ -115,6 +116,7 @@ export default [
         WebSocket: 'readonly',
         MessageEvent: 'readonly',
         CloseEvent: 'readonly',
+        SVGPathElement: 'readonly',
       },
     },
     plugins: {

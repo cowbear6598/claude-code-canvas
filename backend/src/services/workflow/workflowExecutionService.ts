@@ -22,6 +22,7 @@ import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {autoClearService} from '../autoClear/index.js';
 import {logger} from '../../utils/logger.js';
 import {commandService} from '../commandService.js';
+import {aiDecideService} from './aiDecideService.js';
 import {
     createSubMessageState,
     createSubMessageFlusher,
@@ -139,13 +140,20 @@ class WorkflowExecutionService {
       workflowStateService.initializePendingTarget(connection.targetPodId, requiredSourcePodIds);
     }
 
-    const allSourcesComplete = workflowStateService.recordSourceCompletion(
+    const { allSourcesResponded, hasRejection } = workflowStateService.recordSourceCompletion(
       connection.targetPodId,
       sourcePodId,
       summaryContentRef.value
     );
 
-    if (!allSourcesComplete) {
+    if (!allSourcesResponded) {
+      this.emitPendingStatus(canvasId, connection.targetPodId);
+      return;
+    }
+
+    // 如果有任何來源被 rejected，則永遠不觸發
+    if (hasRejection) {
+      logger.log('Workflow', 'Update', `Target ${connection.targetPodId} has rejected sources, not triggering`);
       this.emitPendingStatus(canvasId, connection.targetPodId);
       return;
     }
@@ -160,8 +168,9 @@ class WorkflowExecutionService {
     }
 
     const completedSourcePodIds = Array.from(pending.completedSources.keys());
+    const rejectedSourcePodIds = Array.from(pending.rejectedSources.keys());
     const pendingSourcePodIds = pending.requiredSourcePodIds.filter(
-      (id) => !completedSourcePodIds.includes(id)
+      (id) => !completedSourcePodIds.includes(id) && !rejectedSourcePodIds.includes(id)
     );
 
     const pendingPayload: WorkflowPendingPayload = {
@@ -171,6 +180,8 @@ class WorkflowExecutionService {
       pendingSourcePodIds,
       totalSources: pending.requiredSourcePodIds.length,
       completedCount: pending.completedSources.size,
+      rejectedSourcePodIds,
+      hasRejectedSources: rejectedSourcePodIds.length > 0,
     };
 
     socketService.emitToCanvas(
@@ -218,24 +229,171 @@ class WorkflowExecutionService {
     workflowStateService.clearPendingTarget(connection.targetPodId);
   }
 
+  /**
+   * 處理 AI Decide connections 的批次判斷和觸發
+   */
+  private async processAiDecideConnections(
+    canvasId: string,
+    sourcePodId: string,
+    connections: Connection[]
+  ): Promise<void> {
+    try {
+      // 1. 發送 PENDING 事件
+      const connectionIds = connections.map(conn => conn.id);
+      workflowEventEmitter.emitAiDecidePending(canvasId, connectionIds, sourcePodId);
+
+      // 2. 更新所有 connections 狀態為 pending
+      for (const conn of connections) {
+        connectionStore.updateDecideStatus(canvasId, conn.id, 'pending', null);
+      }
+
+      // 3. 呼叫 AI Decide Service
+      const batchResult = await aiDecideService.decideConnections(canvasId, sourcePodId, connections);
+
+      // 4. 處理成功的判斷結果
+      for (const result of batchResult.results) {
+        const conn = connections.find(c => c.id === result.connectionId);
+        if (!conn) continue;
+
+        if (result.shouldTrigger) {
+          // Approved - 觸發 workflow
+          connectionStore.updateDecideStatus(canvasId, result.connectionId, 'approved', result.reason);
+
+          workflowEventEmitter.emitAiDecideResult(
+            canvasId,
+            result.connectionId,
+            sourcePodId,
+            conn.targetPodId,
+            true,
+            result.reason
+          );
+
+          logger.log('Workflow', 'Create', `AI Decide approved connection ${result.connectionId}: ${result.reason}`);
+
+          // 檢查是否為多輸入場景
+          const { isMultiInput, requiredSourcePodIds } = workflowStateService.checkMultiInputScenario(
+            canvasId,
+            conn.targetPodId
+          );
+
+          if (!isMultiInput) {
+            // 單一輸入：直接觸發
+            this.triggerWorkflowInternal(canvasId, conn.id).catch((error) => {
+              logger.error('Workflow', 'Error', `Failed to trigger AI-decided workflow ${conn.id}`, error);
+            });
+          } else {
+            // 多輸入：需要生成摘要並記錄完成
+            const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, conn.targetPodId);
+            if (result) {
+              if (!pendingTargetStore.hasPendingTarget(conn.targetPodId)) {
+                workflowStateService.initializePendingTarget(conn.targetPodId, requiredSourcePodIds);
+              }
+
+              const { allSourcesResponded, hasRejection } = workflowStateService.recordSourceCompletion(
+                conn.targetPodId,
+                sourcePodId,
+                result.content
+              );
+
+              if (!allSourcesResponded) {
+                this.emitPendingStatus(canvasId, conn.targetPodId);
+              } else if (!hasRejection) {
+                this.triggerMergedWorkflow(canvasId, conn);
+              } else {
+                logger.log('Workflow', 'Update', `Target ${conn.targetPodId} has rejected sources, not triggering`);
+                this.emitPendingStatus(canvasId, conn.targetPodId);
+              }
+            }
+          }
+        } else {
+          // Rejected - 不觸發
+          connectionStore.updateDecideStatus(canvasId, result.connectionId, 'rejected', result.reason);
+
+          workflowEventEmitter.emitAiDecideResult(
+            canvasId,
+            result.connectionId,
+            sourcePodId,
+            conn.targetPodId,
+            false,
+            result.reason
+          );
+
+          logger.log('Workflow', 'Update', `AI Decide rejected connection ${result.connectionId}: ${result.reason}`);
+
+          // 若 target Pod 在多輸入場景中，記錄 rejection
+          const { isMultiInput } = workflowStateService.checkMultiInputScenario(canvasId, conn.targetPodId);
+          if (isMultiInput && pendingTargetStore.hasPendingTarget(conn.targetPodId)) {
+            workflowStateService.recordSourceRejection(conn.targetPodId, sourcePodId, result.reason);
+            this.emitPendingStatus(canvasId, conn.targetPodId);
+          }
+        }
+      }
+
+      // 5. 處理錯誤結果
+      for (const errorResult of batchResult.errors) {
+        const conn = connections.find(c => c.id === errorResult.connectionId);
+        if (!conn) continue;
+
+        connectionStore.updateDecideStatus(canvasId, errorResult.connectionId, 'error', errorResult.error);
+
+        workflowEventEmitter.emitAiDecideError(
+          canvasId,
+          errorResult.connectionId,
+          sourcePodId,
+          conn.targetPodId,
+          errorResult.error
+        );
+
+        logger.error('Workflow', 'Error', `AI Decide error for connection ${errorResult.connectionId}: ${errorResult.error}`);
+      }
+    } catch (error) {
+      logger.error('Workflow', 'Error', '[processAiDecideConnections] Unexpected error', error);
+
+      // 所有 connections 標記為 error
+      for (const conn of connections) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        connectionStore.updateDecideStatus(canvasId, conn.id, 'error', errorMessage);
+
+        workflowEventEmitter.emitAiDecideError(
+          canvasId,
+          conn.id,
+          sourcePodId,
+          conn.targetPodId,
+          errorMessage
+        );
+      }
+    }
+  }
+
   async checkAndTriggerWorkflows(canvasId: string, sourcePodId: string): Promise<void> {
     const connections = connectionStore.findBySourcePodId(canvasId, sourcePodId);
-    const autoTriggerConnections = connections.filter((conn) => conn.autoTrigger);
+    const autoConnections = connections.filter((conn) => conn.triggerMode === 'auto');
+    const aiDecideConnections = connections.filter((conn) => conn.triggerMode === 'ai-decide');
 
-    if (autoTriggerConnections.length === 0) {
+    if (autoConnections.length === 0 && aiDecideConnections.length === 0) {
       return;
     }
 
     const sourcePod = podStore.getById(canvasId, sourcePodId);
-    logger.log('Workflow', 'Create', `Found ${autoTriggerConnections.length} auto-trigger connections for Pod "${sourcePod?.name ?? sourcePodId}"`);
+    logger.log('Workflow', 'Create', `Found ${autoConnections.length} auto connections and ${aiDecideConnections.length} ai-decide connections for Pod "${sourcePod?.name ?? sourcePodId}"`);
 
     autoClearService.initializeWorkflowTracking(canvasId, sourcePodId);
 
     const summaryContentRef = { value: null as string | null };
 
-    for (const connection of autoTriggerConnections) {
-      await this.processAutoTriggerConnection(canvasId, sourcePodId, connection, summaryContentRef);
-    }
+    // 平行處理 auto 和 ai-decide connections
+    await Promise.all([
+      // Auto 組：循序處理
+      (async (): Promise<void> => {
+        for (const connection of autoConnections) {
+          await this.processAutoTriggerConnection(canvasId, sourcePodId, connection, summaryContentRef);
+        }
+      })(),
+      // AI Decide 組：批次處理
+      aiDecideConnections.length > 0
+        ? this.processAiDecideConnections(canvasId, sourcePodId, aiDecideConnections)
+        : Promise.resolve(),
+    ]);
   }
 
   async triggerWorkflowInternal(canvasId: string, connectionId: string): Promise<void> {

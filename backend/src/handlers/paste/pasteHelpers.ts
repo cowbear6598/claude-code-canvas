@@ -194,7 +194,7 @@ export function createPastedConnections(
         sourceAnchor: connItem.sourceAnchor,
         targetPodId: newTargetPodId,
         targetAnchor: connItem.targetAnchor,
-        autoTrigger: connItem.autoTrigger ?? false,
+        triggerMode: connItem.triggerMode ?? 'auto',
       });
 
       createdConnections.push(newConnection);

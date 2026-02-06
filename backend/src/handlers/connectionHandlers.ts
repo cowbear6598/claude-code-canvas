@@ -199,7 +199,7 @@ export const handleConnectionDelete = withCanvasId<ConnectionDeletePayload>(
 export const handleConnectionUpdate = withCanvasId<ConnectionUpdatePayload>(
   WebSocketResponseEvents.CONNECTION_UPDATED,
   async (wsConnectionId: string, canvasId: string, payload: ConnectionUpdatePayload, requestId: string): Promise<void> => {
-    const { connectionId: connId, autoTrigger } = payload;
+    const { connectionId: connId, triggerMode } = payload;
 
     withConnection(
       wsConnectionId,
@@ -208,9 +208,9 @@ export const handleConnectionUpdate = withCanvasId<ConnectionUpdatePayload>(
       WebSocketResponseEvents.CONNECTION_UPDATED,
       requestId,
       () => {
-        const updates: Partial<{ autoTrigger: boolean }> = {};
-        if (autoTrigger !== undefined) {
-          updates.autoTrigger = autoTrigger;
+        const updates: Partial<{ triggerMode: 'auto' | 'ai-decide' }> = {};
+        if (triggerMode !== undefined) {
+          updates.triggerMode = triggerMode;
         }
 
         const updatedConnection = connectionStore.update(canvasId, connId, updates);

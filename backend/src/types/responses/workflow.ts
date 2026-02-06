@@ -13,6 +13,8 @@ export interface WorkflowPendingPayload {
   pendingSourcePodIds: string[];
   totalSources: number;
   completedCount: number;
+  rejectedSourcePodIds?: string[];
+  hasRejectedSources?: boolean;
 }
 
 export interface WorkflowSourcesMergedPayload {
@@ -36,4 +38,32 @@ export interface WorkflowClearResultPayload {
   clearedPodIds?: string[];
   clearedPodNames?: string[];
   error?: string;
+}
+
+export interface WorkflowAiDecidePendingPayload {
+  canvasId: string;
+  connectionIds: string[];
+  sourcePodId: string;
+}
+
+export interface WorkflowAiDecideResultPayload {
+  canvasId: string;
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+  shouldTrigger: boolean;
+  reason: string;
+}
+
+export interface WorkflowAiDecideErrorPayload {
+  canvasId: string;
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+  error: string;
+}
+
+export interface WorkflowAiDecideClearPayload {
+  canvasId: string;
+  connectionIds: string[];
 }

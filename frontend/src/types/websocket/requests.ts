@@ -175,7 +175,14 @@ export interface PasteConnectionItem {
   sourceAnchor: AnchorPosition
   originalTargetPodId: string
   targetAnchor: AnchorPosition
-  autoTrigger?: boolean
+  triggerMode?: 'auto' | 'ai-decide'
+}
+
+export interface ConnectionUpdatePayload {
+  requestId: string
+  canvasId: string
+  connectionId: string
+  triggerMode: 'auto' | 'ai-decide'
 }
 
 export interface CanvasPastePayload {

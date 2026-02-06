@@ -5,6 +5,10 @@ import type {
   WorkflowAutoTriggeredPayload,
   WorkflowPendingPayload,
   WorkflowSourcesMergedPayload,
+  WorkflowAiDecidePendingPayload,
+  WorkflowAiDecideResultPayload,
+  WorkflowAiDecideErrorPayload,
+  WorkflowAiDecideClearPayload,
 } from '../../types';
 
 class WorkflowEventEmitter {
@@ -82,6 +86,59 @@ class WorkflowEventEmitter {
       canvasId,
     };
     socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, fullPayload);
+  }
+
+  emitAiDecidePending(canvasId: string, connectionIds: string[], sourcePodId: string): void {
+    const payload: WorkflowAiDecidePendingPayload = {
+      canvasId,
+      connectionIds,
+      sourcePodId,
+    };
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AI_DECIDE_PENDING, payload);
+  }
+
+  emitAiDecideResult(
+    canvasId: string,
+    connectionId: string,
+    sourcePodId: string,
+    targetPodId: string,
+    shouldTrigger: boolean,
+    reason: string
+  ): void {
+    const payload: WorkflowAiDecideResultPayload = {
+      canvasId,
+      connectionId,
+      sourcePodId,
+      targetPodId,
+      shouldTrigger,
+      reason,
+    };
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AI_DECIDE_RESULT, payload);
+  }
+
+  emitAiDecideError(
+    canvasId: string,
+    connectionId: string,
+    sourcePodId: string,
+    targetPodId: string,
+    error: string
+  ): void {
+    const payload: WorkflowAiDecideErrorPayload = {
+      canvasId,
+      connectionId,
+      sourcePodId,
+      targetPodId,
+      error,
+    };
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AI_DECIDE_ERROR, payload);
+  }
+
+  emitAiDecideClear(canvasId: string, connectionIds: string[]): void {
+    const payload: WorkflowAiDecideClearPayload = {
+      canvasId,
+      connectionIds,
+    };
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AI_DECIDE_CLEAR, payload);
   }
 }
 

@@ -58,6 +58,69 @@
   stroke-dasharray: none;
 }
 
+/* AI Decide Connection Styles */
+/* AI Decide 永遠都是虛線 */
+.connection-line.ai-decide .line {
+  stroke-dasharray: 8, 4;
+}
+
+.connection-line.ai-deciding .line {
+  stroke: oklch(0.7 0.1 300 / 0.7);
+  animation: ai-decide-flow 2s linear infinite;
+  stroke-width: 4px;
+}
+
+.connection-line.ai-approved .line {
+  stroke: oklch(0.7 0.15 50);
+  animation: ai-decide-flow 2s linear infinite;
+  stroke-width: 4px;
+}
+
+.connection-line.ai-rejected .line {
+  stroke: oklch(0.65 0.15 20);
+}
+
+.connection-line.ai-error .line {
+  stroke: oklch(0.7 0.15 60 / 0.8);
+}
+
+/* Connection Mid Label */
+.connection-mid-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  pointer-events: auto;
+  user-select: none;
+  padding: 2px 6px;
+}
+
+.connection-mid-label.ai-label {
+  background: oklch(0.7 0.1 300);
+  color: white;
+}
+
+.connection-mid-label.rejected-label {
+  background: oklch(0.65 0.15 20);
+  color: white;
+}
+
+.connection-mid-label.error-label {
+  background: oklch(0.7 0.15 60);
+  color: oklch(0.3 0.05 60);
+}
+
+.connection-mid-label.deciding-label {
+  background: oklch(0.7 0.1 300);
+  color: white;
+}
+
+.connection-mid-label.deciding-label svg {
+  animation: spin 1s linear infinite;
+}
+
 /* Message Summary Badge */
 .message-summary-badge {
   display: inline-flex;
@@ -69,4 +132,23 @@
   background: oklch(0.9 0.05 220 / 0.3);
   color: oklch(0.4 0.1 220);
   margin-bottom: 4px;
+}
+
+/* Animations */
+@keyframes connection-flow {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+@keyframes ai-decide-flow {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

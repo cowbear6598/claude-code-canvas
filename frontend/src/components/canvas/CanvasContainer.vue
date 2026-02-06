@@ -13,6 +13,7 @@ import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
 import SelectionBox from './SelectionBox.vue'
 import RepositoryContextMenu from './RepositoryContextMenu.vue'
+import ConnectionContextMenu from './ConnectionContextMenu.vue'
 import CreateRepositoryModal from './CreateRepositoryModal.vue'
 import CloneRepositoryModal from './CloneRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
@@ -79,6 +80,18 @@ const repositoryContextMenu = ref<{
   repositoryName: '',
   notePosition: {x: 0, y: 0},
   isWorktree: false
+})
+
+const connectionContextMenu = ref<{
+  visible: boolean
+  position: { x: number; y: number }
+  connectionId: string
+  triggerMode: 'auto' | 'ai-decide'
+}>({
+  visible: false,
+  position: {x: 0, y: 0},
+  connectionId: '',
+  triggerMode: 'auto'
 })
 
 const showCreateRepositoryModal = ref(false)
@@ -319,6 +332,22 @@ const handleRepositoryContextMenuClose = (): void => {
   repositoryContextMenu.value.visible = false
 }
 
+const handleConnectionContextMenu = (data: { connectionId: string; event: MouseEvent }): void => {
+  const connection = connectionStore.connections.find(c => c.id === data.connectionId)
+  if (!connection) return
+
+  connectionContextMenu.value = {
+    visible: true,
+    position: {x: data.event.clientX, y: data.event.clientY},
+    connectionId: connection.id,
+    triggerMode: connection.triggerMode
+  }
+}
+
+const handleConnectionContextMenuClose = (): void => {
+  connectionContextMenu.value.visible = false
+}
+
 const handleCloneStarted = (payload: { requestId: string; repoName: string }): void => {
   gitCloneProgress.addTask(payload.requestId, payload.repoName)
 }
@@ -556,7 +585,7 @@ onUnmounted(() => {
     @click="handleCanvasClick"
   >
     <!-- Connection Layer -->
-    <ConnectionLayer />
+    <ConnectionLayer @connection-context-menu="handleConnectionContextMenu" />
 
     <!-- Selection Box -->
     <SelectionBox />
@@ -678,6 +707,16 @@ onUnmounted(() => {
     :is-worktree="repositoryContextMenu.isWorktree"
     @close="handleRepositoryContextMenuClose"
     @worktree-created="handleRepositoryContextMenuClose"
+  />
+
+  <!-- Connection Context Menu -->
+  <ConnectionContextMenu
+    v-if="connectionContextMenu.visible"
+    :position="connectionContextMenu.position"
+    :connection-id="connectionContextMenu.connectionId"
+    :current-trigger-mode="connectionContextMenu.triggerMode"
+    @close="handleConnectionContextMenuClose"
+    @trigger-mode-changed="handleConnectionContextMenuClose"
   />
 
   <!-- Modals -->

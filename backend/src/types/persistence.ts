@@ -72,6 +72,8 @@ export interface PersistedConnection {
   sourceAnchor: AnchorPosition;
   targetPodId: string;
   targetAnchor: AnchorPosition;
-  autoTrigger: boolean;
+  triggerMode: 'auto' | 'ai-decide';
+  decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error';
+  decideReason?: string | null;
   createdAt: string; // ISO 8601 format
 }

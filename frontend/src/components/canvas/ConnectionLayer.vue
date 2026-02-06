@@ -16,8 +16,16 @@ const draggingPathData = computed(() => {
   return `M ${startPoint.x} ${startPoint.y} L ${currentPoint.x} ${currentPoint.y}`
 })
 
+const emit = defineEmits<{
+  connectionContextMenu: [data: { connectionId: string; event: MouseEvent }]
+}>()
+
 const handleSelectConnection = (connectionId: string): void => {
   connectionStore.selectConnection(connectionId)
+}
+
+const handleConnectionContextMenu = (data: { connectionId: string; event: MouseEvent }): void => {
+  emit('connectionContextMenu', data)
 }
 
 const handleCanvasClick = (e: MouseEvent): void => {
@@ -55,7 +63,10 @@ onUnmounted(() => {
       :pods="podStore.pods"
       :is-selected="connection.id === connectionStore.selectedConnectionId"
       :status="connection.status || 'inactive'"
+      :trigger-mode="connection.triggerMode || 'auto'"
+      :decide-reason="connection.decideReason"
       @select="handleSelectConnection"
+      @contextmenu="handleConnectionContextMenu"
     />
 
     <g

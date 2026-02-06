@@ -177,7 +177,9 @@ export interface ConnectionCreatedPayload {
         targetPodId: string
         targetAnchor: AnchorPosition
         createdAt: string
-        autoTrigger?: boolean
+        triggerMode?: 'auto' | 'ai-decide'
+        decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'
+        decideReason?: string | null
     }
     error?: string
 }
@@ -192,7 +194,9 @@ export interface ConnectionListResultPayload {
         targetPodId: string
         targetAnchor: AnchorPosition
         createdAt: string
-        autoTrigger?: boolean
+        triggerMode?: 'auto' | 'ai-decide'
+        decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'
+        decideReason?: string | null
     }>
     error?: string
 }
@@ -257,7 +261,9 @@ export interface CanvasPasteResultPayload {
         targetPodId: string
         targetAnchor: AnchorPosition
         createdAt: string
-        autoTrigger?: boolean
+        triggerMode?: 'auto' | 'ai-decide'
+        decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'
+        decideReason?: string | null
     }>
     podIdMapping: Record<string, string>
     errors: PasteError[]
@@ -447,4 +453,32 @@ export interface SkillImportedPayload {
     skill?: { id: string; name: string; description: string }
     isOverwrite?: boolean
     error?: string
+}
+
+export interface WorkflowAiDecidePendingPayload {
+    canvasId: string
+    connectionIds: string[]
+    sourcePodId: string
+}
+
+export interface WorkflowAiDecideResultPayload {
+    canvasId: string
+    connectionId: string
+    sourcePodId: string
+    targetPodId: string
+    shouldTrigger: boolean
+    reason: string
+}
+
+export interface WorkflowAiDecideErrorPayload {
+    canvasId: string
+    connectionId: string
+    sourcePodId: string
+    targetPodId: string
+    error: string
+}
+
+export interface WorkflowAiDecideClearPayload {
+    canvasId: string
+    connectionIds: string[]
 }

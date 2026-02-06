@@ -2,6 +2,7 @@ interface PendingTarget {
   targetPodId: string;
   requiredSourcePodIds: string[];
   completedSources: Map<string, string>;
+  rejectedSources: Map<string, string>; // key: sourcePodId, value: rejection reason
   createdAt: Date;
   mergedContent?: string;
   isReadyToTrigger: boolean;
@@ -15,20 +16,57 @@ class PendingTargetStore {
       targetPodId,
       requiredSourcePodIds,
       completedSources: new Map(),
+      rejectedSources: new Map(),
       createdAt: new Date(),
       isReadyToTrigger: false,
     });
   }
 
-  recordSourceCompletion(targetPodId: string, sourcePodId: string, summaryContent: string): boolean {
+  recordSourceCompletion(targetPodId: string, sourcePodId: string, summaryContent: string): { allSourcesResponded: boolean; hasRejection: boolean } {
     const pending = this.pendingTargets.get(targetPodId);
     if (!pending) {
-      return false;
+      return { allSourcesResponded: false, hasRejection: false };
     }
 
     pending.completedSources.set(sourcePodId, summaryContent);
 
-    return pending.completedSources.size >= pending.requiredSourcePodIds.length;
+    const allSourcesResponded =
+      pending.completedSources.size + pending.rejectedSources.size >= pending.requiredSourcePodIds.length;
+    const hasRejection = pending.rejectedSources.size > 0;
+
+    return { allSourcesResponded, hasRejection };
+  }
+
+  recordSourceRejection(targetPodId: string, sourcePodId: string, reason: string): void {
+    const pending = this.pendingTargets.get(targetPodId);
+    if (!pending) {
+      return;
+    }
+
+    pending.rejectedSources.set(sourcePodId, reason);
+  }
+
+  hasAnyRejectedSource(targetPodId: string): boolean {
+    const pending = this.pendingTargets.get(targetPodId);
+    return pending ? pending.rejectedSources.size > 0 : false;
+  }
+
+  getRejectedSources(targetPodId: string): Map<string, string> | undefined {
+    const pending = this.pendingTargets.get(targetPodId);
+    return pending?.rejectedSources;
+  }
+
+  clearRejections(targetPodId: string): void {
+    const pending = this.pendingTargets.get(targetPodId);
+    if (pending) {
+      pending.rejectedSources.clear();
+    }
+  }
+
+  clearAllRejectionsForConnections(targetPodIds: string[]): void {
+    for (const targetPodId of targetPodIds) {
+      this.clearRejections(targetPodId);
+    }
   }
 
   getCompletedSummaries(targetPodId: string): Map<string, string> | undefined {
@@ -57,6 +95,7 @@ class PendingTargetStore {
       if (wasInRequired) {
         pending.requiredSourcePodIds = pending.requiredSourcePodIds.filter(id => id !== sourcePodId);
         pending.completedSources.delete(sourcePodId);
+        pending.rejectedSources.delete(sourcePodId);
         affectedTargetIds.push(targetPodId);
       }
     }
@@ -72,6 +111,7 @@ class PendingTargetStore {
 
     pending.requiredSourcePodIds = pending.requiredSourcePodIds.filter(id => id !== sourcePodId);
     pending.completedSources.delete(sourcePodId);
+    pending.rejectedSources.delete(sourcePodId);
   }
 }
 

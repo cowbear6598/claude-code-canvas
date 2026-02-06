@@ -1,6 +1,8 @@
 export type AnchorPosition = 'top' | 'bottom' | 'left' | 'right'
 
-export type ConnectionStatus = 'inactive' | 'active'
+export type TriggerMode = 'auto' | 'ai-decide'
+
+export type ConnectionStatus = 'inactive' | 'active' | 'ai-deciding' | 'ai-approved' | 'ai-rejected' | 'ai-error'
 
 export interface Connection {
   id: string
@@ -10,7 +12,8 @@ export interface Connection {
   targetAnchor: AnchorPosition
   createdAt: Date
   status?: ConnectionStatus
-  autoTrigger?: boolean
+  triggerMode: TriggerMode
+  decideReason?: string
 }
 
 export interface DraggingConnection {
