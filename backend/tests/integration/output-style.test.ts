@@ -69,6 +69,32 @@ describe('OutputStyle 管理', () => {
       expect(response.success).toBe(false);
       expect(response.error).toContain('已存在');
     });
+
+    it('failed_when_output_style_create_with_chinese_name', async () => {
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<OutputStyleCreatePayload, OutputStyleCreatedPayload>(
+        client,
+        WebSocketRequestEvents.OUTPUT_STYLE_CREATE,
+        WebSocketResponseEvents.OUTPUT_STYLE_CREATED,
+        { requestId: uuidv4(), canvasId, name: '測試風格', content: '# Content' }
+      );
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('名稱只允許英文字母、數字、底線（_）、連字號（-）');
+    });
+
+    it('failed_when_output_style_create_with_special_characters', async () => {
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<OutputStyleCreatePayload, OutputStyleCreatedPayload>(
+        client,
+        WebSocketRequestEvents.OUTPUT_STYLE_CREATE,
+        WebSocketResponseEvents.OUTPUT_STYLE_CREATED,
+        { requestId: uuidv4(), canvasId, name: 'my style!', content: '# Content' }
+      );
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('名稱只允許英文字母、數字、底線（_）、連字號（-）');
+    });
   });
 
   describe('OutputStyle 列表', () => {

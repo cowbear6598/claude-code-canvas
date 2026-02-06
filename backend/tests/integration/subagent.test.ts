@@ -92,6 +92,32 @@ describe('SubAgent 管理', () => {
       expect(response.success).toBe(false);
       expect(response.error).toContain('已存在');
     });
+
+    it('failed_when_subagent_create_with_chinese_name', async () => {
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<SubAgentCreatePayload, SubAgentCreatedPayload>(
+        client,
+        WebSocketRequestEvents.SUBAGENT_CREATE,
+        WebSocketResponseEvents.SUBAGENT_CREATED,
+        { requestId: uuidv4(), canvasId, name: '測試代理', content: '# Content' }
+      );
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('名稱只允許英文字母、數字、底線（_）、連字號（-）');
+    });
+
+    it('failed_when_subagent_create_with_special_characters', async () => {
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<SubAgentCreatePayload, SubAgentCreatedPayload>(
+        client,
+        WebSocketRequestEvents.SUBAGENT_CREATE,
+        WebSocketResponseEvents.SUBAGENT_CREATED,
+        { requestId: uuidv4(), canvasId, name: 'my agent!', content: '# Content' }
+      );
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('名稱只允許英文字母、數字、底線（_）、連字號（-）');
+    });
   });
 
   describe('SubAgent 列表', () => {

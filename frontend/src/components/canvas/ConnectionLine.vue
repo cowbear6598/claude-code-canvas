@@ -71,7 +71,7 @@ const lineColor = computed(() => {
   // AI Decide 模式顏色優先
   if (props.triggerMode === 'ai-decide') {
     if (props.status === 'ai-deciding') {
-      return 'oklch(0.7 0.1 300 / 0.7)' // 淡紫色（deciding）
+      return 'oklch(0.65 0.14 300 / 0.8)' // 淡紫色（deciding）
     }
     if (props.status === 'ai-rejected') {
       return 'oklch(0.65 0.15 20)' // 柔和的淡紅色（rejected）
@@ -83,7 +83,7 @@ const lineColor = computed(() => {
       return 'oklch(0.7 0.15 50)' // 橘色（approved，與 auto 相同）
     }
     // inactive 時使用更淡的紫色
-    return 'oklch(0.7 0.08 300 / 0.6)'
+    return 'oklch(0.65 0.12 300 / 0.7)'
   }
 
   // Auto 模式原有邏輯
@@ -97,7 +97,7 @@ const arrowColor = computed(() => {
   // AI Decide 模式顏色優先
   if (props.triggerMode === 'ai-decide') {
     if (props.status === 'ai-deciding') {
-      return 'oklch(0.7 0.1 300 / 0.7)' // 淡紫色（deciding）
+      return 'oklch(0.65 0.14 300 / 0.8)' // 淡紫色（deciding）
     }
     if (props.status === 'ai-rejected') {
       return 'oklch(0.65 0.15 20)' // 柔和的淡紅色（rejected）
@@ -109,7 +109,7 @@ const arrowColor = computed(() => {
       return 'oklch(0.7 0.15 50)' // 橘色（approved，與 auto 相同）
     }
     // inactive 時使用更淡的紫色
-    return 'oklch(0.7 0.08 300 / 0.6)'
+    return 'oklch(0.65 0.12 300 / 0.7)'
   }
 
   // Auto 模式原有邏輯
@@ -297,6 +297,7 @@ const handleContextMenu = (e: MouseEvent): void => {
       class="line"
       :d="pathData.path"
       :stroke="lineColor"
+      :style="{ color: lineColor }"
       fill="none"
     />
 

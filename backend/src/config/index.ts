@@ -66,9 +66,18 @@ function loadConfig(): Config {
       return true;
     }
 
-    const allowedOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$/;
+    // 允許 localhost、127.0.0.1 和區域網路 IP（可選 port）
+    const localOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$/;
 
-    return allowedOriginPattern.test(origin);
+    // 允許 ngrok 免費版網域（*.ngrok-free.dev）
+    const ngrokFreePattern = /^https?:\/\/[\w-]+\.ngrok-free\.dev$/;
+
+    // 允許 ngrok 付費版網域（*.ngrok.io）
+    const ngrokProPattern = /^https?:\/\/[\w-]+\.ngrok\.io$/;
+
+    return localOriginPattern.test(origin) ||
+           ngrokFreePattern.test(origin) ||
+           ngrokProPattern.test(origin);
   };
 
   const dataRoot = path.join(os.homedir(), 'Documents', 'ClaudeCanvas');

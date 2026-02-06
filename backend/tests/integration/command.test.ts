@@ -93,6 +93,32 @@ describe('Command 管理', () => {
       expect(response.success).toBe(false);
       expect(response.error).toContain('已存在');
     });
+
+    it('failed_when_command_create_with_chinese_name', async () => {
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<CommandCreatePayload, CommandCreatedPayload>(
+        client,
+        WebSocketRequestEvents.COMMAND_CREATE,
+        WebSocketResponseEvents.COMMAND_CREATED,
+        { requestId: uuidv4(), canvasId, name: '測試指令', content: '# Content' }
+      );
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('名稱只允許英文字母、數字、底線（_）、連字號（-）');
+    });
+
+    it('failed_when_command_create_with_special_characters', async () => {
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<CommandCreatePayload, CommandCreatedPayload>(
+        client,
+        WebSocketRequestEvents.COMMAND_CREATE,
+        WebSocketResponseEvents.COMMAND_CREATED,
+        { requestId: uuidv4(), canvasId, name: 'my command!', content: '# Content' }
+      );
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('名稱只允許英文字母、數字、底線（_）、連字號（-）');
+    });
   });
 
   describe('Command 列表', () => {

@@ -9,7 +9,7 @@ export const outputStyleListSchema = z.object({
 export const outputStyleCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  name: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  name: z.string().regex(/^[a-zA-Z0-9_-]+$/, '名稱只允許英文字母、數字、底線（_）、連字號（-）').min(1).max(100),
   content: z.string().max(10000000),
 });
 

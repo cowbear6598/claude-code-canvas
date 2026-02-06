@@ -22,7 +22,7 @@
 
 .connection-line .line {
   stroke-width: 3px;
-  transition: stroke-width 0.2s ease;
+  transition: stroke-width 0.2s ease, filter 0.2s ease;
 }
 
 .connection-line:hover .line {

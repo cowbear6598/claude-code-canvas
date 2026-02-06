@@ -25,8 +25,11 @@ class WebSocketClient {
       return
     }
 
-    // 自動使用目前網址的 hostname，這樣從 192.168.x.x:5173 訪問時會自動連到 192.168.x.x:3001
-    const defaultUrl = `http://${window.location.hostname}:3001`
+    // dev 模式（port 5173）連到後端 port 3001；prod 模式（前後端同 port）直接用當前 origin
+    const isDev = window.location.port === '5173'
+    const defaultUrl = isDev
+      ? `http://${window.location.hostname}:3001`
+      : window.location.origin
     this.wsUrl = url || import.meta.env.VITE_WS_URL || defaultUrl
 
     // 將 http:// 或 https:// 改為 ws:// 或 wss://
