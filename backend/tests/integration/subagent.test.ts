@@ -93,26 +93,16 @@ describe('SubAgent 管理', () => {
       expect(response.error).toContain('已存在');
     });
 
-    it('failed_when_subagent_create_with_chinese_name', async () => {
+    it.each([
+      { name: '測試代理', desc: '中文名稱' },
+      { name: 'my agent!', desc: '特殊字元' },
+    ])('建立 SubAgent 失敗 - 不合法名稱: $desc', async ({ name }) => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<SubAgentCreatePayload, SubAgentCreatedPayload>(
         client,
         WebSocketRequestEvents.SUBAGENT_CREATE,
         WebSocketResponseEvents.SUBAGENT_CREATED,
-        { requestId: uuidv4(), canvasId, name: '測試代理', content: '# Content' }
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error).toContain('名稱只允許英文字母、數字、底線（_）、連字號（-）');
-    });
-
-    it('failed_when_subagent_create_with_special_characters', async () => {
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentCreatePayload, SubAgentCreatedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_CREATE,
-        WebSocketResponseEvents.SUBAGENT_CREATED,
-        { requestId: uuidv4(), canvasId, name: 'my agent!', content: '# Content' }
+        { requestId: uuidv4(), canvasId, name, content: '# Content' }
       );
 
       expect(response.success).toBe(false);

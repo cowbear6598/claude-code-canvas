@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema, positionSchema, canvasIdSchema } from './base.js';
+import { requestIdSchema, podIdSchema, positionSchema, canvasIdSchema, resourceNameSchema } from './base.js';
 
 export const subAgentListSchema = z.object({
   requestId: requestIdSchema,
@@ -9,7 +9,7 @@ export const subAgentListSchema = z.object({
 export const subAgentCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  name: z.string().regex(/^[a-zA-Z0-9_-]+$/, '名稱只允許英文字母、數字、底線（_）、連字號（-）').min(1).max(100),
+  name: resourceNameSchema,
   content: z.string().max(10000000),
 });
 

@@ -93,32 +93,6 @@ const lineColor = computed(() => {
   return 'oklch(0.7 0.15 50)'
 })
 
-const arrowColor = computed(() => {
-  // AI Decide 模式顏色優先
-  if (props.triggerMode === 'ai-decide') {
-    if (props.status === 'ai-deciding') {
-      return 'oklch(0.65 0.14 300 / 0.8)' // 淡紫色（deciding）
-    }
-    if (props.status === 'ai-rejected') {
-      return 'oklch(0.65 0.15 20)' // 柔和的淡紅色（rejected）
-    }
-    if (props.status === 'ai-error') {
-      return 'oklch(0.7 0.15 60 / 0.8)'
-    }
-    if (props.status === 'ai-approved') {
-      return 'oklch(0.7 0.15 50)' // 橘色（approved，與 auto 相同）
-    }
-    // inactive 時使用更淡的紫色
-    return 'oklch(0.65 0.12 300 / 0.7)'
-  }
-
-  // Auto 模式原有邏輯
-  if (props.status === 'inactive') {
-    return 'oklch(0.6 0.02 50 / 0.5)'
-  }
-  return 'oklch(0.7 0.15 50)'
-})
-
 const midLabel = computed(() => {
   if (props.triggerMode !== 'ai-decide') {
     return null
@@ -309,7 +283,7 @@ const handleContextMenu = (e: MouseEvent): void => {
       :key="`static-${index}`"
       class="arrow"
       :points="`0,-5 10,0 0,5`"
-      :fill="arrowColor"
+      :fill="lineColor"
       :transform="`translate(${arrow.x}, ${arrow.y}) rotate(${arrow.angle})`"
     />
 
@@ -320,7 +294,7 @@ const handleContextMenu = (e: MouseEvent): void => {
         :key="`animated-${i}`"
         class="arrow arrow-animated"
         :points="`0,-5 10,0 0,5`"
-        :fill="arrowColor"
+        :fill="lineColor"
       >
         <animateMotion
           dur="4s"
@@ -353,7 +327,7 @@ const handleContextMenu = (e: MouseEvent): void => {
         y1="-4"
         x2="4"
         y2="4"
-        :stroke="arrowColor"
+        :stroke="lineColor"
         stroke-width="2"
         stroke-linecap="round"
       />
@@ -363,7 +337,7 @@ const handleContextMenu = (e: MouseEvent): void => {
         y1="-4"
         x2="-4"
         y2="4"
-        :stroke="arrowColor"
+        :stroke="lineColor"
         stroke-width="2"
         stroke-linecap="round"
       />
