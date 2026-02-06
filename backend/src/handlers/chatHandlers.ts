@@ -5,9 +5,10 @@ import type {
     PodChatToolUsePayload,
     PodChatToolResultPayload,
     PodChatCompletePayload,
+    PodChatAbortedPayload,
     ContentBlock,
 } from '../types';
-import type {ChatSendPayload, ChatHistoryPayload} from '../schemas';
+import type {ChatSendPayload, ChatHistoryPayload, ChatAbortPayload} from '../schemas';
 import {podStore} from '../services/podStore.js';
 import {messageStore} from '../services/messageStore.js';
 import {claudeQueryService} from '../services/claude/queryService.js';
@@ -24,6 +25,7 @@ import {
     processToolUseEvent,
     processToolResultEvent,
 } from '../services/claude/streamEventProcessor.js';
+import {AbortError} from '@anthropic-ai/claude-agent-sdk';
 
 function extractDisplayContent(message: string | ContentBlock[]): string {
     if (typeof message === 'string') return message;
@@ -73,7 +75,8 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
             }
         );
 
-        await claudeQueryService.sendMessage(podId, message, (event) => {
+        try {
+            await claudeQueryService.sendMessage(podId, message, (event) => {
             switch (event.type) {
                 case 'text': {
                     processTextEvent(event.content, accumulatedContentRef, subMessageState);
@@ -160,31 +163,119 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
                     break;
                 }
             }
-        });
+            }, connectionId);
 
-        const userMessageText = extractDisplayContent(message);
-        await messageStore.addMessage(canvasId, podId, 'user', userMessageText);
+            const userMessageText = extractDisplayContent(message);
+            await messageStore.addMessage(canvasId, podId, 'user', userMessageText);
 
-        if (accumulatedContentRef.value || subMessageState.subMessages.length > 0) {
-            await messageStore.addMessage(
-                canvasId,
+            if (accumulatedContentRef.value || subMessageState.subMessages.length > 0) {
+                await messageStore.addMessage(
+                    canvasId,
+                    podId,
+                    'assistant',
+                    accumulatedContentRef.value,
+                    subMessageState.subMessages.length > 0 ? subMessageState.subMessages : undefined
+                );
+            }
+
+            podStore.setStatus(canvasId, podId, 'idle');
+            podStore.updateLastActive(canvasId, podId);
+
+            autoClearService.onPodComplete(canvasId, podId).catch((error) => {
+                logger.error('AutoClear', 'Error', `Failed to check auto-clear for Pod ${podId}`, error);
+            });
+
+            workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch((error) => {
+                logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error);
+            });
+        } catch (error) {
+            const isAbortError = error instanceof AbortError || (error instanceof Error && error.name === 'AbortError');
+
+            if (isAbortError) {
+                flushCurrentSubMessage();
+
+                const userMessageText = extractDisplayContent(message);
+                await messageStore.addMessage(canvasId, podId, 'user', userMessageText);
+
+                if (accumulatedContentRef.value || subMessageState.subMessages.length > 0) {
+                    await messageStore.addMessage(
+                        canvasId,
+                        podId,
+                        'assistant',
+                        accumulatedContentRef.value,
+                        subMessageState.subMessages.length > 0 ? subMessageState.subMessages : undefined
+                    );
+                }
+
+                podStore.setStatus(canvasId, podId, 'idle');
+
+                const abortedPayload: PodChatAbortedPayload = {
+                    canvasId,
+                    podId,
+                    messageId,
+                };
+                socketService.emitToCanvas(
+                    canvasId,
+                    WebSocketResponseEvents.POD_CHAT_ABORTED,
+                    abortedPayload
+                );
+
+                logger.log('Chat', 'Abort', `Pod「${pod.name}」對話已中斷`);
+                return;
+            }
+
+            podStore.setStatus(canvasId, podId, 'idle');
+            throw error;
+        }
+    }
+);
+
+export const handleChatAbort = withCanvasId<ChatAbortPayload>(
+    WebSocketResponseEvents.POD_ERROR,
+    async (connectionId: string, canvasId: string, payload: ChatAbortPayload, requestId: string): Promise<void> => {
+        const {podId} = payload;
+
+        const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_ERROR, requestId);
+        if (!pod) return;
+
+        if (pod.status !== 'chatting') {
+            emitError(
+                connectionId,
+                WebSocketResponseEvents.POD_ERROR,
+                `Pod ${podId} 目前不在對話中，無法中斷`,
+                requestId,
                 podId,
-                'assistant',
-                accumulatedContentRef.value,
-                subMessageState.subMessages.length > 0 ? subMessageState.subMessages : undefined
+                'POD_NOT_CHATTING'
             );
+            return;
         }
 
-        podStore.setStatus(canvasId, podId, 'idle');
-        podStore.updateLastActive(canvasId, podId);
+        // 驗證請求者是否為對話發起者
+        const queryConnectionId = claudeQueryService.getQueryConnectionId(podId);
+        if (queryConnectionId && queryConnectionId !== connectionId) {
+            emitError(
+                connectionId,
+                WebSocketResponseEvents.POD_ERROR,
+                `無權限中斷此對話`,
+                requestId,
+                podId,
+                'UNAUTHORIZED'
+            );
+            return;
+        }
 
-        autoClearService.onPodComplete(canvasId, podId).catch((error) => {
-            logger.error('AutoClear', 'Error', `Failed to check auto-clear for Pod ${podId}`, error);
-        });
-
-        workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch((error) => {
-            logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error);
-        });
+        const aborted = claudeQueryService.abortQuery(podId);
+        if (!aborted) {
+            emitError(
+                connectionId,
+                WebSocketResponseEvents.POD_ERROR,
+                `找不到 Pod ${podId} 的活躍查詢`,
+                requestId,
+                podId,
+                'NO_ACTIVE_QUERY'
+            );
+            return;
+        }
     }
 );
 

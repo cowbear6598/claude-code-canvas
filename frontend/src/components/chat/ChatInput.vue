@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import {ref, onMounted, onUnmounted} from 'vue'
-import {Send, Mic} from 'lucide-vue-next'
+import {ref, onMounted, onUnmounted, watch} from 'vue'
+import {Send, Mic, Square} from 'lucide-vue-next'
 import {
   MAX_MESSAGE_LENGTH,
   TEXTAREA_MAX_HEIGHT,
@@ -58,12 +58,14 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   send: [message: string, contentBlocks?: ContentBlock[]]
+  abort: []
 }>()
 
 const input = ref('')
 const editableRef = ref<HTMLDivElement | null>(null)
 const isListening = ref(false)
 const recognition = ref<ISpeechRecognition | null>(null)
+const isAborting = ref(false)
 const {toast} = useToast()
 
 const imageDataMap = new Map<HTMLElement, ImageAttachment>()
@@ -362,8 +364,16 @@ const clearInput = (): void => {
   }
 }
 
+const handleAbort = (): void => {
+  if (isAborting.value) return
+  isAborting.value = true
+  emit('abort')
+  setTimeout(() => {
+    isAborting.value = false
+  }, 1000)
+}
+
 const handleSend = (): void => {
-  if (props.isTyping) return
   if (input.value.length > MAX_MESSAGE_LENGTH) return
 
   const hasContent = input.value.trim() || imageDataMap.size > 0
@@ -492,6 +502,12 @@ const cleanupSpeechRecognition = (): void => {
   recognition.value.onerror = null
 }
 
+watch(() => props.isTyping, (newValue, oldValue) => {
+  if (oldValue === true && newValue === false) {
+    isAborting.value = false
+  }
+})
+
 onMounted(() => {
   initializeSpeechRecognition()
 })
@@ -521,7 +537,19 @@ onUnmounted(() => {
         />
       </ScrollArea>
       <button
-        :disabled="isTyping"
+        v-if="isTyping"
+        :disabled="isAborting"
+        class="px-4 py-3 bg-doodle-coral border-2 border-doodle-ink rounded-lg hover:translate-x-[-1px] hover:translate-y-[-1px] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0"
+        :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
+        @click="handleAbort"
+      >
+        <Square
+          :size="16"
+          class="text-card"
+        />
+      </button>
+      <button
+        v-else
         class="px-4 py-3 bg-doodle-green border-2 border-doodle-ink rounded-lg hover:translate-x-[-1px] hover:translate-y-[-1px] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0"
         :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
         @click="handleSend"

@@ -1,6 +1,6 @@
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
-import { chatSendSchema, chatHistorySchema } from '../../schemas';
-import { handleChatSend, handleChatHistory } from '../chatHandlers.js';
+import { chatSendSchema, chatAbortSchema, chatHistorySchema } from '../../schemas';
+import { handleChatSend, handleChatAbort, handleChatHistory } from '../chatHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
 
 export const chatHandlerGroup = createHandlerGroup({
@@ -10,6 +10,12 @@ export const chatHandlerGroup = createHandlerGroup({
       event: WebSocketRequestEvents.POD_CHAT_SEND,
       handler: handleChatSend,
       schema: chatSendSchema,
+      responseEvent: WebSocketResponseEvents.POD_ERROR,
+    },
+    {
+      event: WebSocketRequestEvents.POD_CHAT_ABORT,
+      handler: handleChatAbort,
+      schema: chatAbortSchema,
       responseEvent: WebSocketResponseEvents.POD_ERROR,
     },
     {

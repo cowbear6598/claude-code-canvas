@@ -2,6 +2,8 @@ import { ref, onUnmounted } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
 import { isCtrlOrCmdPressed } from '@/utils/keyboardHelpers'
 
+const BOX_SELECT_THRESHOLD = 5
+
 export function useBoxSelect(): {
   isBoxSelecting: import('vue').Ref<boolean>
   startBoxSelect: (e: MouseEvent) => void
@@ -11,7 +13,7 @@ export function useBoxSelect(): {
   const isBoxSelecting = ref(false)
 
   let currentMoveHandler: ((e: MouseEvent) => void) | null = null
-  let currentUpHandler: (() => void) | null = null
+  let currentUpHandler: ((e: MouseEvent) => void) | null = null
 
   const cleanupEventListeners = (): void => {
     if (currentMoveHandler) {
@@ -42,6 +44,8 @@ export function useBoxSelect(): {
 
     if (viewportStore.zoom === 0) return
 
+    const startClientX = e.clientX
+    const startClientY = e.clientY
     const canvasX = (e.clientX - viewportStore.offset.x) / viewportStore.zoom
     const canvasY = (e.clientY - viewportStore.offset.y) / viewportStore.zoom
 
@@ -65,8 +69,17 @@ export function useBoxSelect(): {
       )
     }
 
-    currentUpHandler = (): void => {
-      selectionStore.endSelection()
+    currentUpHandler = (upEvent: MouseEvent): void => {
+      const deltaX = Math.abs(upEvent.clientX - startClientX)
+      const deltaY = Math.abs(upEvent.clientY - startClientY)
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+
+      if (distance < BOX_SELECT_THRESHOLD) {
+        selectionStore.cancelSelection()
+      } else {
+        selectionStore.endSelection()
+      }
+
       isBoxSelecting.value = false
       cleanupEventListeners()
     }

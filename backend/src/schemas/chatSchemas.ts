@@ -40,5 +40,12 @@ export const chatHistorySchema = z.object({
   podId: podIdSchema,
 });
 
+export const chatAbortSchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+  podId: podIdSchema,
+});
+
 export type ChatSendPayload = z.infer<typeof chatSendSchema>;
 export type ChatHistoryPayload = z.infer<typeof chatHistorySchema>;
+export type ChatAbortPayload = z.infer<typeof chatAbortSchema>;

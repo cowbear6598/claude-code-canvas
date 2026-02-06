@@ -96,6 +96,11 @@ export interface PodChatCompletePayload {
     fullContent: string
 }
 
+export interface PodChatAbortedPayload {
+    podId: string
+    messageId: string
+}
+
 export interface PodErrorPayload {
     requestId?: string
     podId?: string

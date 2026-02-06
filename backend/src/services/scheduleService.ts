@@ -261,7 +261,7 @@ class ScheduleService {
             break;
           }
         }
-      });
+      }, 'schedule');
 
       await messageStore.addMessage(canvasId, podId, 'user', '');
 

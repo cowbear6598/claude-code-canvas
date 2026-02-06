@@ -79,6 +79,12 @@ export interface PodChatHistoryPayload {
   podId: string
 }
 
+export interface PodChatAbortPayload {
+  requestId: string
+  canvasId: string
+  podId: string
+}
+
 export interface NoteCreatePayload {
   requestId: string
   canvasId: string

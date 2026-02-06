@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
-import { type Options, query } from '@anthropic-ai/claude-agent-sdk';
+import { type Options, type Query, query, AbortError } from '@anthropic-ai/claude-agent-sdk';
 import { podStore } from '../podStore.js';
 import { outputStyleService } from '../outputStyleService.js';
 import { Message, ToolUseInfo, ContentBlock } from '../../types';
@@ -234,6 +234,35 @@ function handleResultMessage(
 }
 
 class ClaudeQueryService {
+  private activeQueries = new Map<string, {
+    queryStream: Query;
+    abortController: AbortController;
+    connectionId: string;
+  }>();
+
+  public abortQuery(podId: string): boolean {
+    const entry = this.activeQueries.get(podId);
+    if (!entry) {
+      return false;
+    }
+
+    // 只呼叫 abort()，不呼叫 close()
+    // close() 會直接殺掉底層 CLI 進程，導致 for await 靜默結束而非拋出 AbortError
+    // 這會使 catch 區塊無法被觸發，前端收不到 POD_CHAT_ABORTED 事件
+    entry.abortController.abort();
+    this.activeQueries.delete(podId);
+
+    return true;
+  }
+
+  public isQueryActive(podId: string): boolean {
+    return this.activeQueries.has(podId);
+  }
+
+  public getQueryConnectionId(podId: string): string | undefined {
+    return this.activeQueries.get(podId)?.connectionId;
+  }
+
   private buildPrompt(
     message: string | ContentBlock[],
     commandId: string | null,
@@ -269,7 +298,8 @@ class ClaudeQueryService {
   async sendMessage(
     podId: string,
     message: string | ContentBlock[],
-    onStream: StreamCallback
+    onStream: StreamCallback,
+    connectionId: string
   ): Promise<Message> {
     const result = podStore.getByIdGlobal(podId);
     if (!result) {
@@ -286,12 +316,15 @@ class ClaudeQueryService {
         ? path.join(config.repositoriesRoot, pod.repositoryId)
         : pod.workspacePath;
 
+      const abortController = new AbortController();
+
       const queryOptions: Options = {
         cwd,
         settingSources: ['project'],
         allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Skill'],
         permissionMode: 'acceptEdits',
         includePartialMessages: true,
+        abortController,
       };
 
       if (pod.outputStyleId) {
@@ -314,8 +347,18 @@ class ClaudeQueryService {
         options: queryOptions,
       });
 
+      this.activeQueries.set(podId, { queryStream, abortController, connectionId });
+
       for await (const sdkMessage of queryStream) {
         this.processSDKMessage(sdkMessage, state, onStream);
+      }
+
+      // 防禦性檢查：若 abort signal 已觸發但未拋出 AbortError，手動拋出
+      // 這是為了處理 for await 迴圈靜默結束的邊緣情況
+      if (abortController.signal.aborted) {
+        const abortError = new Error('查詢已被中斷');
+        abortError.name = 'AbortError';
+        throw abortError;
       }
 
       if (state.sessionId && state.sessionId !== pod.claudeSessionId) {
@@ -331,6 +374,13 @@ class ClaudeQueryService {
         createdAt: new Date(),
       };
     } catch (error) {
+      const isAbortError = error instanceof AbortError || (error instanceof Error && error.name === 'AbortError');
+
+      if (isAbortError) {
+        // re-throw 讓外層 catch 處理，確保前端收到 POD_CHAT_ABORTED 事件
+        throw error;
+      }
+
       const errorMessage = error instanceof Error ? error.message : String(error);
       const isResumeError =
         errorMessage.includes('session') || errorMessage.includes('resume');
@@ -352,7 +402,10 @@ class ClaudeQueryService {
 
       podStore.setClaudeSessionId(canvasId, podId, '');
 
-      return this.sendMessage(podId, message, onStream);
+      return this.sendMessage(podId, message, onStream, connectionId);
+    } finally {
+      // 確保所有情況都清理 activeQueries entry，防止 Memory Leak
+      this.activeQueries.delete(podId);
     }
   }
 }

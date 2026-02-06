@@ -27,6 +27,10 @@ const handleSend = async (content: string, contentBlocks?: ContentBlock[]): Prom
   await chatStore.sendMessage(props.pod.id, content, contentBlocks)
 }
 
+const handleAbort = (): void => {
+  chatStore.abortChat(props.pod.id)
+}
+
 const handleClose = (): void => {
   emit('close')
 }
@@ -64,6 +68,7 @@ onUnmounted(() => {
         <ChatInput
           :is-typing="isTyping"
           @send="handleSend"
+          @abort="handleAbort"
         />
       </div>
     </div>

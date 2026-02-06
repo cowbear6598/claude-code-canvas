@@ -131,6 +131,17 @@ export const useSelectionStore = defineStore('selection', {
         },
 
         /**
+         * 取消框選（純點擊情況）
+         * 不設定 boxSelectJustEnded，讓 click 事件可以正常傳遞
+         */
+        cancelSelection(): void {
+            this.isSelecting = false
+            this.box = null
+            this.isCtrlMode = false
+            this.initialSelectedElements = []
+        },
+
+        /**
          * 清除選取狀態
          */
         clearSelection(): void {

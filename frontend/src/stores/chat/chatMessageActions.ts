@@ -2,6 +2,7 @@ import {generateRequestId} from '@/services/utils'
 import type {Message, SubMessage, ToolUseInfo, ToolUseStatus} from '@/types/chat'
 import type {
     PersistedMessage,
+    PodChatAbortedPayload,
     PodChatCompletePayload,
     PodChatMessagePayload,
     PodChatToolResultPayload,
@@ -167,7 +168,7 @@ function updateMainMessageState(
 export function createMessageActions(store: ChatStoreInstance): {
     addUserMessage: (podId: string, content: string) => Promise<void>
     handleChatMessage: (payload: PodChatMessagePayload) => void
-    addNewChatMessage: (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string) => void
+    addNewChatMessage: (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string) => Promise<void>
     updateExistingChatMessage: (podId: string, messages: Message[], messageIndex: number, content: string, isPartial: boolean, delta: string) => void
     handleChatToolUse: (payload: PodChatToolUsePayload) => void
     createMessageWithToolUse: (podId: string, messageId: string, toolUseId: string, toolName: string, input: Record<string, unknown>) => void
@@ -175,6 +176,7 @@ export function createMessageActions(store: ChatStoreInstance): {
     handleChatToolResult: (payload: PodChatToolResultPayload) => void
     updateToolUseResult: (podId: string, messages: Message[], messageIndex: number, toolUseId: string, output: string) => void
     handleChatComplete: (payload: PodChatCompletePayload) => void
+    handleChatAborted: (payload: PodChatAbortedPayload) => void
     finalizeStreaming: (podId: string, messageId: string) => void
     completeMessage: (podId: string, messages: Message[], messageIndex: number, fullContent: string, messageId: string) => void
     updatePodOutput: (podId: string) => Promise<void>
@@ -226,7 +228,7 @@ export function createMessageActions(store: ChatStoreInstance): {
         updateExistingChatMessage(podId, messages, messageIndex, content, isPartial, delta)
     }
 
-    const addNewChatMessage = (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string): void => {
+    const addNewChatMessage = async (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string): Promise<void> => {
         const messages = store.messagesByPodId.get(podId) || []
 
         const newMessage: Message = {
@@ -252,6 +254,26 @@ export function createMessageActions(store: ChatStoreInstance): {
 
         if (isPartial) {
             setTyping(podId, true)
+        }
+
+        // 防禦性更新：當收到 user role 訊息時更新 mini screen
+        if ((role || 'assistant') === 'user') {
+            const {usePodStore} = await import('../pod/podStore')
+            const podStore = usePodStore()
+            const pod = podStore.pods.find(p => p.id === podId)
+
+            if (!pod) return
+
+            const truncatedContent = `> ${truncateContent(content, CONTENT_PREVIEW_LENGTH)}`
+
+            // 避免重複追加：檢查最後一行是否已包含相同內容
+            const lastOutput = pod.output[pod.output.length - 1]
+            if (lastOutput === truncatedContent) return
+
+            podStore.updatePod({
+                ...pod,
+                output: [...pod.output, truncatedContent]
+            })
         }
     }
 
@@ -584,6 +606,23 @@ export function createMessageActions(store: ChatStoreInstance): {
         store.autoClearAnimationPodId = payload.sourcePodId
     }
 
+    const handleChatAborted = (payload: PodChatAbortedPayload): void => {
+        const {podId, messageId} = payload
+
+        store.accumulatedLengthByMessageId.delete(messageId)
+
+        const messages = store.messagesByPodId.get(podId) || []
+        const messageIndex = messages.findIndex(m => m.id === messageId)
+
+        if (messageIndex !== -1) {
+            completeMessage(podId, messages, messageIndex, messages[messageIndex]!.content, messageId)
+        } else {
+            finalizeStreaming(podId, messageId)
+        }
+
+        setTyping(podId, false)
+    }
+
     return {
         addUserMessage,
         handleChatMessage,
@@ -595,6 +634,7 @@ export function createMessageActions(store: ChatStoreInstance): {
         handleChatToolResult,
         updateToolUseResult,
         handleChatComplete,
+        handleChatAborted,
         finalizeStreaming,
         completeMessage,
         updatePodOutput,

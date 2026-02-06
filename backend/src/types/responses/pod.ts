@@ -106,6 +106,12 @@ export interface PodChatCompletePayload {
   fullContent: string;
 }
 
+export interface PodChatAbortedPayload {
+  canvasId: string;
+  podId: string;
+  messageId: string;
+}
+
 export interface PodChatHistoryResultPayload {
   requestId: string;
   success: boolean;

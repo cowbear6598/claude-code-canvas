@@ -26,6 +26,7 @@ export default [
         NodeJS: 'readonly',
         Bun: 'readonly',
         Response: 'readonly',
+        AbortController: 'readonly',
       },
     },
     plugins: {

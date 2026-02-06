@@ -360,30 +360,16 @@ class WorkflowExecutionService {
     const flushCurrentSubMessage = createSubMessageFlusher(assistantMessageId, subMessageState);
 
     try {
-      const userMessagePayload: PodChatMessagePayload = {
-        canvasId,
-        podId: targetPodId,
-        messageId: userMessageId,
-        content: messageToSend,
-        isPartial: false,
-        role: 'user',
-      };
       socketService.emitToCanvas(
         canvasId,
-        WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE,
-        userMessagePayload
-      );
-
-      const userCompletePayload: PodChatCompletePayload = {
-        canvasId,
-        podId: targetPodId,
-        messageId: userMessageId,
-        fullContent: messageToSend,
-      };
-      socketService.emitToCanvas(
-        canvasId,
-        WebSocketResponseEvents.POD_CHAT_COMPLETE,
-        userCompletePayload
+        WebSocketResponseEvents.POD_CHAT_USER_MESSAGE,
+        {
+          canvasId,
+          podId: targetPodId,
+          messageId: userMessageId,
+          content: messageToSend,
+          timestamp: new Date().toISOString(),
+        }
       );
 
       await messageStore.addMessage(canvasId, targetPodId, 'user', messageToSend);
@@ -475,7 +461,7 @@ class WorkflowExecutionService {
             break;
           }
         }
-      });
+      }, 'workflow');
 
       if (accumulatedContentRef.value || subMessageState.subMessages.length > 0) {
         await messageStore.addMessage(

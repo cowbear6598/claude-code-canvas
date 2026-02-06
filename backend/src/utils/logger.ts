@@ -80,7 +80,8 @@ export type LogAction =
   | 'Rename'
   | 'Switch'
   | 'Check'
-  | 'Reorder';
+  | 'Reorder'
+  | 'Abort';
 
 /**
  * 格式化 Category 為帶有顏色的字串

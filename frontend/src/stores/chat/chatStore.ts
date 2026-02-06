@@ -6,6 +6,8 @@ import type {
     ConnectionReadyPayload,
     ContentBlock,
     HeartbeatPingPayload,
+    PodChatAbortedPayload,
+    PodChatAbortPayload,
     PodChatCompletePayload,
     PodChatMessagePayload,
     PodChatSendPayload,
@@ -114,6 +116,7 @@ export const useChatStore = defineStore('chat', {
             websocketClient.on<PodChatToolUsePayload>(WebSocketResponseEvents.POD_CHAT_TOOL_USE, this.handleChatToolUse)
             websocketClient.on<PodChatToolResultPayload>(WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, this.handleChatToolResult)
             websocketClient.on<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)
+            websocketClient.on<PodChatAbortedPayload>(WebSocketResponseEvents.POD_CHAT_ABORTED, this.handleChatAborted)
             websocketClient.on<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
             websocketClient.on<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
             websocketClient.on<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
@@ -127,6 +130,7 @@ export const useChatStore = defineStore('chat', {
             websocketClient.off<PodChatToolUsePayload>(WebSocketResponseEvents.POD_CHAT_TOOL_USE, this.handleChatToolUse)
             websocketClient.off<PodChatToolResultPayload>(WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, this.handleChatToolResult)
             websocketClient.off<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)
+            websocketClient.off<PodChatAbortedPayload>(WebSocketResponseEvents.POD_CHAT_ABORTED, this.handleChatAborted)
             websocketClient.off<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
             websocketClient.off<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
             websocketClient.off<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
@@ -230,6 +234,26 @@ export const useChatStore = defineStore('chat', {
         handleChatComplete(payload: PodChatCompletePayload): void {
             const messageActions = this.getMessageActions()
             messageActions.handleChatComplete(payload)
+        },
+
+        async abortChat(podId: string): Promise<void> {
+            if (!this.isConnected) {
+                return
+            }
+
+            const {useCanvasStore} = await import('../canvasStore')
+            const canvasStore = useCanvasStore()
+
+            websocketClient.emit<PodChatAbortPayload>(WebSocketRequestEvents.POD_CHAT_ABORT, {
+                requestId: generateRequestId(),
+                canvasId: canvasStore.activeCanvasId!,
+                podId
+            })
+        },
+
+        handleChatAborted(payload: PodChatAbortedPayload): void {
+            const messageActions = this.getMessageActions()
+            messageActions.handleChatAborted(payload)
         },
 
         setTyping(podId: string, isTyping: boolean): void {
