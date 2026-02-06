@@ -56,7 +56,9 @@ class WorkflowExecutionService {
   ): Promise<{ content: string; isSummarized: boolean } | null> {
     try {
       podStore.setStatus(canvasId, sourcePodId, 'summarizing');
-      logger.log('Workflow', 'Create', `Generating customized summary for source POD ${sourcePodId} to target POD ${targetPodId}`);
+      const sourcePod = podStore.getById(canvasId, sourcePodId);
+      const targetPod = podStore.getById(canvasId, targetPodId);
+      logger.log('Workflow', 'Create', `Generating customized summary for source POD "${sourcePod?.name ?? sourcePodId}" to target POD "${targetPod?.name ?? targetPodId}"`);
       const summaryResult = await summaryService.generateSummaryForTarget(
         canvasId,
         sourcePodId,
@@ -224,7 +226,8 @@ class WorkflowExecutionService {
       return;
     }
 
-    logger.log('Workflow', 'Create', `Found ${autoTriggerConnections.length} auto-trigger connections for Pod ${sourcePodId}`);
+    const sourcePod = podStore.getById(canvasId, sourcePodId);
+    logger.log('Workflow', 'Create', `Found ${autoTriggerConnections.length} auto-trigger connections for Pod "${sourcePod?.name ?? sourcePodId}"`);
 
     autoClearService.initializeWorkflowTracking(canvasId, sourcePodId);
 
@@ -267,7 +270,7 @@ class WorkflowExecutionService {
     const transferredContent = result.content;
     const isSummarized = result.isSummarized;
 
-    logger.log('Workflow', 'Create', `Auto-triggering workflow from Pod ${sourcePodId} to Pod ${targetPodId} (summarized: ${isSummarized})`);
+    logger.log('Workflow', 'Create', `Auto-triggering workflow from Pod "${sourcePod.name}" to Pod "${targetPod.name}" (summarized: ${isSummarized})`);
 
     const autoTriggeredPayload: WorkflowAutoTriggeredPayload = {
       connectionId,
@@ -478,7 +481,7 @@ class WorkflowExecutionService {
 
       workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, true);
 
-      logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod ${targetPodId}`);
+      logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod "${targetPod?.name ?? targetPodId}"`);
 
       await autoClearService.onPodComplete(canvasId, targetPodId);
     } catch (error) {

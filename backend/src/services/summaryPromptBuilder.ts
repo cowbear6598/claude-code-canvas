@@ -5,6 +5,7 @@ interface SummaryPromptContext {
   sourcePodOutputStyle: string | null;
   targetPodName: string;
   targetPodOutputStyle: string | null;
+  targetPodCommand: string | null;
   conversationHistory: string;
 }
 
@@ -25,7 +26,25 @@ class SummaryPromptBuilder {
   }
 
   buildUserPrompt(context: SummaryPromptContext): string {
-    const { sourcePodName, targetPodName, targetPodOutputStyle, conversationHistory } = context;
+    // 優先級：targetPodCommand > targetPodOutputStyle > 預設摘要
+    const { sourcePodName, targetPodName, targetPodCommand, targetPodOutputStyle, conversationHistory } = context;
+
+    if (targetPodCommand && targetPodCommand.trim()) {
+      return `以下是來自「${sourcePodName}」的完整對話記錄：
+
+---
+${conversationHistory}
+---
+
+下一個處理者「${targetPodName}」的指令內容如下：
+
+---
+${targetPodCommand}
+---
+
+請根據此指令內容，從對話記錄中擷取相關資訊並進行精簡摘要。
+只輸出摘要內容，不要加上任何解釋或前綴。`;
+    }
 
     if (targetPodOutputStyle) {
       return `以下是來自「${sourcePodName}」的完整對話記錄：

@@ -3,6 +3,7 @@ import { summaryPromptBuilder } from './summaryPromptBuilder.js';
 import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { outputStyleService } from './outputStyleService.js';
+import { commandService } from './commandService.js';
 import { logger } from '../utils/logger.js';
 
 interface TargetSummaryResult {
@@ -54,6 +55,11 @@ class SummaryService {
       targetPodOutputStyle = await outputStyleService.getContent(targetPod.outputStyleId);
     }
 
+    let targetPodCommand: string | null = null;
+    if (targetPod.commandId) {
+      targetPodCommand = await commandService.getContent(targetPod.commandId);
+    }
+
     const conversationHistory = summaryPromptBuilder.formatConversationHistory(messages);
 
     const context = {
@@ -61,6 +67,7 @@ class SummaryService {
       sourcePodOutputStyle,
       targetPodName: targetPod.name,
       targetPodOutputStyle,
+      targetPodCommand,
       conversationHistory,
     };
 
