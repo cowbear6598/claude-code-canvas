@@ -36,9 +36,6 @@ export interface BindResourceConfig<TService> {
     };
 }
 
-/**
- * 檢查資源是否已綁定
- */
 function isResourceAlreadyBound(
     boundIds: string[] | string | null,
     resourceId: string,
@@ -68,7 +65,6 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
                 return;
             }
 
-            // 檢查資源是否存在
             const resourceExists = await config.service.exists(resourceId);
             if (!resourceExists) {
                 emitError(
@@ -82,7 +78,6 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
                 return;
             }
 
-            // 檢查是否已綁定
             const boundIds = config.getPodResourceIds(pod);
             if (isResourceAlreadyBound(boundIds, resourceId, config.isMultiBind)) {
                 const conflictMessage = config.isMultiBind
@@ -100,21 +95,16 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
                 return;
             }
 
-            // 複製資源到 Pod
             await config.copyResourceToPod(resourceId, podId, pod.workspacePath);
 
-            // 更新 Pod Store
             config.podStoreMethod.bind(canvasId, podId, resourceId);
 
-            // 同步 Repository
             if (pod.repositoryId) {
                 await repositorySyncService.syncRepositoryResources(pod.repositoryId);
             }
 
-            // 獲取更新後的 Pod
             const updatedPod = podStore.getById(canvasId, podId);
 
-            // 回應成功
             const response = {
                 requestId,
                 canvasId,
@@ -156,7 +146,6 @@ export function createUnbindHandler<TService>(
                 return;
             }
 
-            // 如果沒有綁定資源，直接返回成功
             const boundId = config.getPodResourceIds(pod);
             if (!boundId) {
                 const response = {
@@ -168,21 +157,16 @@ export function createUnbindHandler<TService>(
                 return;
             }
 
-            // 刪除資源
             await config.deleteResourceFromPath!(pod.workspacePath);
 
-            // 更新 Pod Store
             config.podStoreMethod.unbind!(canvasId, podId);
 
-            // 同步 Repository
             if (pod.repositoryId) {
                 await repositorySyncService.syncRepositoryResources(pod.repositoryId);
             }
 
-            // 獲取更新後的 Pod
             const updatedPod = podStore.getById(canvasId, podId);
 
-            // 回應成功
             const response = {
                 requestId,
                 canvasId,

@@ -1,5 +1,6 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { logger } from './logger.js';
 
 // 取得當前模組的目錄路徑（ESM 模式）
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -108,7 +109,7 @@ export async function serveStaticFile(request: Request): Promise<Response> {
 		// 如果連 index.html 都不存在，回傳 404
 		return new Response('Not Found', { status: 404 });
 	} catch (error) {
-		console.error('靜態檔案服務錯誤:', error);
+		logger.error('Startup', 'Error', '靜態檔案服務錯誤', error);
 		return new Response('Internal Server Error', { status: 500 });
 	}
 }

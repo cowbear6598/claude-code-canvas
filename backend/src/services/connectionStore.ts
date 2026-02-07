@@ -197,16 +197,11 @@ class ConnectionStore {
 
             const connectionsMap = new Map<string, Connection>();
             for (const persisted of persistedConnections) {
-                // 向後相容：從舊格式轉換
                 const persistedObj = persisted as Record<string, unknown>;
-                let triggerMode: TriggerMode = 'auto';
 
-                if ('triggerMode' in persistedObj && typeof persistedObj.triggerMode === 'string') {
-                    triggerMode = persistedObj.triggerMode as TriggerMode;
-                } else if ('autoTrigger' in persistedObj) {
-                    // 舊版的 autoTrigger 無論 true/false 都視為 'auto' 模式
-                    triggerMode = 'auto';
-                }
+                const triggerMode: TriggerMode = ('triggerMode' in persistedObj && typeof persistedObj.triggerMode === 'string')
+                    ? persistedObj.triggerMode as TriggerMode
+                    : 'auto';
 
                 const connection: Connection = {
                     id: persistedObj.id as string,

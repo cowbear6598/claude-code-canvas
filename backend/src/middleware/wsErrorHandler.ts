@@ -1,4 +1,5 @@
 import { socketService } from '../services/socketService.js';
+import { logger } from '../utils/logger.js';
 
 export class WebSocketError extends Error {
 	code: string;
@@ -47,5 +48,5 @@ export function handleWebSocketError(
 
 	socketService.emitToConnection(connectionId, event, errorPayload);
 
-	console.error(`[WebSocket Error] Event: ${event}, Code: ${errorCode}, Message: ${errorMessage}`);
+	logger.error('WebSocket', 'Error', `Event: ${event}, Code: ${errorCode}, Message: ${errorMessage}`);
 }
