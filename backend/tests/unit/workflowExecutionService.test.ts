@@ -99,16 +99,16 @@ mock.module('../../src/services/commandService.js', () => ({
 }));
 
 // Import after mocks
-import { workflowExecutionService } from '../../src/services/workflow/workflowExecutionService.js';
+import { workflowExecutionService } from '../../src/services/workflow';
 import { connectionStore } from '../../src/services/connectionStore.js';
 import { podStore } from '../../src/services/podStore.js';
 import { messageStore } from '../../src/services/messageStore.js';
 import { summaryService } from '../../src/services/summaryService.js';
-import { workflowStateService } from '../../src/services/workflow/workflowStateService.js';
-import { workflowEventEmitter } from '../../src/services/workflow/workflowEventEmitter.js';
-import { aiDecideService } from '../../src/services/workflow/aiDecideService.js';
+import { workflowStateService } from '../../src/services/workflow';
+import { workflowEventEmitter } from '../../src/services/workflow';
+import { aiDecideService } from '../../src/services/workflow';
 import { pendingTargetStore } from '../../src/services/pendingTargetStore.js';
-import { workflowQueueService } from '../../src/services/workflow/workflowQueueService.js';
+import { workflowQueueService } from '../../src/services/workflow';
 import type { Connection } from '../../src/types';
 
 describe('WorkflowExecutionService', () => {
@@ -149,6 +149,7 @@ describe('WorkflowExecutionService', () => {
     triggerMode: 'auto',
     decideStatus: 'none',
     decideReason: null,
+    connectionStatus: 'idle',
     createdAt: new Date(),
   };
 
@@ -161,6 +162,7 @@ describe('WorkflowExecutionService', () => {
     triggerMode: 'ai-decide',
     decideStatus: 'none',
     decideReason: null,
+    connectionStatus: 'idle',
     createdAt: new Date(),
   };
 
@@ -495,6 +497,7 @@ describe('WorkflowExecutionService', () => {
         triggerMode: 'auto',
         decideStatus: 'none',
         decideReason: null,
+        connectionStatus: 'idle',
         createdAt: new Date(),
       };
 
@@ -560,6 +563,7 @@ describe('WorkflowExecutionService', () => {
         triggerMode: 'ai-decide',
         decideStatus: 'none',
         decideReason: null,
+        connectionStatus: 'idle',
         createdAt: new Date(),
       };
 

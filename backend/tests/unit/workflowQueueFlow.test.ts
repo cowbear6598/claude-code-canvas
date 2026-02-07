@@ -55,6 +55,7 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
         triggerMode: 'auto',
         decideStatus: 'none',
         decideReason: null,
+        connectionStatus: 'idle',
         createdAt: new Date(),
     };
 
@@ -67,6 +68,7 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
         triggerMode: 'direct',
         decideStatus: 'none',
         decideReason: null,
+        connectionStatus: 'idle',
         createdAt: new Date(),
     };
 
@@ -341,6 +343,7 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 triggerMode: 'auto',
                 decideStatus: 'none',
                 decideReason: null,
+                connectionStatus: 'idle',
                 createdAt: new Date(),
             };
 
@@ -547,11 +550,11 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
             };
 
             // 驗證邏輯：direct 和 ai-decide 應該設定 skipAutoTriggeredEvent = true
-            expect(directItem.triggerMode === 'direct' || directItem.triggerMode === 'ai-decide').toBe(true);
-            expect(aiDecideItem.triggerMode === 'direct' || aiDecideItem.triggerMode === 'ai-decide').toBe(true);
+            expect((directItem.triggerMode as string) === 'direct' || (directItem.triggerMode as string) === 'ai-decide').toBe(true);
+            expect((aiDecideItem.triggerMode as string) === 'direct' || (aiDecideItem.triggerMode as string) === 'ai-decide').toBe(true);
 
             // 驗證邏輯：auto 應該設定 skipAutoTriggeredEvent = false
-            expect(autoItem.triggerMode === 'direct' || autoItem.triggerMode === 'ai-decide').toBe(false);
+            expect((autoItem.triggerMode as string) === 'direct' || (autoItem.triggerMode as string) === 'ai-decide').toBe(false);
         });
     });
 

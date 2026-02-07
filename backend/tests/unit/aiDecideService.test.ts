@@ -71,6 +71,7 @@ describe('AiDecideService', () => {
     triggerMode: 'ai-decide',
     decideStatus: 'none',
     decideReason: null,
+    connectionStatus: 'idle',
     createdAt: new Date(),
   };
 

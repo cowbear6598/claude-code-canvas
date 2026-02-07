@@ -10,7 +10,7 @@ import type {
 import { workflowClearService } from '../services/workflowClearService.js';
 import { podStore } from '../services/podStore.js';
 import { socketService } from '../services/socketService.js';
-import { workflowEventEmitter } from '../services/workflow/workflowEventEmitter.js';
+import { workflowEventEmitter } from '../services/workflow';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { withCanvasId } from '../utils/handlerHelpers.js';

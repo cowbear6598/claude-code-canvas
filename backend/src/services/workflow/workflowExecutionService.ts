@@ -23,7 +23,7 @@ import {directTriggerStore} from '../directTriggerStore.js';
 import {workflowStateService} from './workflowStateService.js';
 import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {workflowQueueService} from './workflowQueueService.js';
-import {autoClearService} from '../autoClear/index.js';
+import {autoClearService} from '../autoClear';
 import {logger} from '../../utils/logger.js';
 import {commandService} from '../commandService.js';
 import {aiDecideService} from './aiDecideService.js';

@@ -1,5 +1,5 @@
 
-import { WebSocketResponseEvents } from '../schemas/index.js';
+import { WebSocketResponseEvents } from '../schemas';
 import type {
   RepositoryListResultPayload,
   RepositoryCreatedPayload,
@@ -13,7 +13,7 @@ import type {
   RepositoryDirtyCheckResultPayload,
   RepositoryBranchCheckedOutPayload,
   RepositoryBranchDeletedPayload,
-} from '../types/index.js';
+} from '../types';
 import type {
   RepositoryListPayload,
   RepositoryCreatePayload,
@@ -27,7 +27,7 @@ import type {
   RepositoryCheckDirtyPayload,
   RepositoryCheckoutBranchPayload,
   RepositoryDeleteBranchPayload,
-} from '../schemas/index.js';
+} from '../schemas';
 import { repositoryService } from '../services/repositoryService.js';
 import { repositoryNoteStore } from '../services/noteStores.js';
 import { podStore } from '../services/podStore.js';
@@ -46,7 +46,7 @@ import { validateRepositoryExists, getValidatedGitRepository } from '../utils/va
 import { throttle } from '../utils/throttle.js';
 import { fileExists } from '../services/shared/fileResourceHelpers.js';
 import { isPathWithinDirectory } from '../utils/pathValidator.js';
-import { config } from '../config/index.js';
+import { config } from '../config';
 import path from 'path';
 
 const repositoryNoteHandlers = createNoteHandlers({

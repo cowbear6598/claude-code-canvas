@@ -303,7 +303,7 @@ describe('Direct Trigger Flow', () => {
         }
       });
 
-      const enqueueSpy = spyOn(workflowQueueService, 'enqueue').mockImplementation(() => {});
+      const enqueueSpy = spyOn(workflowQueueService, 'enqueue').mockImplementation(() => ({ position: 1, queueSize: 1 }));
       spies.push(enqueueSpy);
 
       // 執行
@@ -536,7 +536,7 @@ describe('Direct Trigger Flow', () => {
         }
       });
 
-      const enqueueSpy = spyOn(workflowQueueService, 'enqueue').mockImplementation(() => {});
+      const enqueueSpy = spyOn(workflowQueueService, 'enqueue').mockImplementation(() => ({ position: 1, queueSize: 1 }));
       spies.push(enqueueSpy);
 
       // 執行
