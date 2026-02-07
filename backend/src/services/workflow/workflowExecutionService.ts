@@ -59,32 +59,34 @@ class WorkflowExecutionService {
     sourcePodId: string,
     targetPodId: string
   ): Promise<{ content: string; isSummarized: boolean } | null> {
+    podStore.setStatus(canvasId, sourcePodId, 'summarizing');
+    const sourcePod = podStore.getById(canvasId, sourcePodId);
+    const targetPod = podStore.getById(canvasId, targetPodId);
+    logger.log('Workflow', 'Create', `Generating customized summary for source POD "${sourcePod?.name ?? sourcePodId}" to target POD "${targetPod?.name ?? targetPodId}"`);
+
+    let summaryResult: Awaited<ReturnType<typeof summaryService.generateSummaryForTarget>>;
     try {
-      podStore.setStatus(canvasId, sourcePodId, 'summarizing');
-      const sourcePod = podStore.getById(canvasId, sourcePodId);
-      const targetPod = podStore.getById(canvasId, targetPodId);
-      logger.log('Workflow', 'Create', `Generating customized summary for source POD "${sourcePod?.name ?? sourcePodId}" to target POD "${targetPod?.name ?? targetPodId}"`);
-      const summaryResult = await summaryService.generateSummaryForTarget(
+      summaryResult = await summaryService.generateSummaryForTarget(
         canvasId,
         sourcePodId,
         targetPodId
       );
-
-      if (summaryResult.success) {
-        podStore.setStatus(canvasId, sourcePodId, 'idle');
-        return { content: summaryResult.summary, isSummarized: true };
-      }
-
-      logger.error('Workflow', 'Error', `Failed to generate summary: ${summaryResult.error}`);
-      const fallback = this.getLastAssistantMessage(sourcePodId);
-      podStore.setStatus(canvasId, sourcePodId, 'idle');
-      return fallback ? { content: fallback, isSummarized: false } : null;
     } catch (error) {
       logger.error('Workflow', 'Error', 'Failed to generate summary', error);
       const fallback = this.getLastAssistantMessage(sourcePodId);
       podStore.setStatus(canvasId, sourcePodId, 'idle');
       return fallback ? { content: fallback, isSummarized: false } : null;
     }
+
+    if (summaryResult.success) {
+      podStore.setStatus(canvasId, sourcePodId, 'idle');
+      return { content: summaryResult.summary, isSummarized: true };
+    }
+
+    logger.error('Workflow', 'Error', `Failed to generate summary: ${summaryResult.error}`);
+    const fallback = this.getLastAssistantMessage(sourcePodId);
+    podStore.setStatus(canvasId, sourcePodId, 'idle');
+    return fallback ? { content: fallback, isSummarized: false } : null;
   }
 
   private async processAutoTriggerConnection(
@@ -283,121 +285,21 @@ class WorkflowExecutionService {
     sourcePodId: string,
     connections: Connection[]
   ): Promise<void> {
+    // 1. 發送 PENDING 事件
+    const connectionIds = connections.map(conn => conn.id);
+    workflowEventEmitter.emitAiDecidePending(canvasId, connectionIds, sourcePodId);
+
+    // 2. 更新所有 connections 狀態為 pending
+    for (const conn of connections) {
+      connectionStore.updateDecideStatus(canvasId, conn.id, 'pending', null);
+    }
+
+    // 3. 呼叫 AI Decide Service（只包裹第三方服務呼叫）
+    let batchResult: Awaited<ReturnType<typeof aiDecideService.decideConnections>>;
     try {
-      // 1. 發送 PENDING 事件
-      const connectionIds = connections.map(conn => conn.id);
-      workflowEventEmitter.emitAiDecidePending(canvasId, connectionIds, sourcePodId);
-
-      // 2. 更新所有 connections 狀態為 pending
-      for (const conn of connections) {
-        connectionStore.updateDecideStatus(canvasId, conn.id, 'pending', null);
-      }
-
-      // 3. 呼叫 AI Decide Service
-      const batchResult = await aiDecideService.decideConnections(canvasId, sourcePodId, connections);
-
-      // 4. 處理成功的判斷結果
-      for (const result of batchResult.results) {
-        const conn = connections.find(c => c.id === result.connectionId);
-        if (!conn) continue;
-
-        if (result.shouldTrigger) {
-          connectionStore.updateDecideStatus(canvasId, result.connectionId, 'approved', result.reason);
-
-          workflowEventEmitter.emitAiDecideResult(
-            canvasId,
-            result.connectionId,
-            sourcePodId,
-            conn.targetPodId,
-            true,
-            result.reason
-          );
-
-          logger.log('Workflow', 'Create', `AI Decide approved connection ${result.connectionId}: ${result.reason}`);
-
-          const { isMultiInput, requiredSourcePodIds } = workflowStateService.checkMultiInputScenario(
-            canvasId,
-            conn.targetPodId
-          );
-
-          if (isMultiInput) {
-            const summaryResult = await this.generateSummaryWithFallback(canvasId, sourcePodId, conn.targetPodId);
-            if (summaryResult) {
-              await this.handleMultiInputForConnection(
-                canvasId,
-                sourcePodId,
-                conn,
-                requiredSourcePodIds,
-                summaryResult.content,
-                'ai-decide'
-              );
-            }
-            continue;
-          }
-
-          const targetPod = podStore.getById(canvasId, conn.targetPodId);
-          if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
-            const summaryResult = await this.generateSummaryWithFallback(canvasId, sourcePodId, conn.targetPodId);
-            if (summaryResult) {
-              workflowQueueService.enqueue({
-                canvasId,
-                connectionId: conn.id,
-                sourcePodId,
-                targetPodId: conn.targetPodId,
-                summary: summaryResult.content,
-                isSummarized: summaryResult.isSummarized,
-                triggerMode: 'ai-decide',
-              });
-            }
-            continue;
-          }
-
-          this.triggerWorkflowInternal(canvasId, conn.id).catch((error) => {
-            logger.error('Workflow', 'Error', `Failed to trigger AI-decided workflow ${conn.id}`, error);
-          });
-        } else {
-          // Rejected - 不觸發
-          connectionStore.updateDecideStatus(canvasId, result.connectionId, 'rejected', result.reason);
-
-          workflowEventEmitter.emitAiDecideResult(
-            canvasId,
-            result.connectionId,
-            sourcePodId,
-            conn.targetPodId,
-            false,
-            result.reason
-          );
-
-          logger.log('Workflow', 'Update', `AI Decide rejected connection ${result.connectionId}: ${result.reason}`);
-
-          // 若 target Pod 在多輸入場景中，記錄 rejection
-          const { isMultiInput } = workflowStateService.checkMultiInputScenario(canvasId, conn.targetPodId);
-          if (isMultiInput && pendingTargetStore.hasPendingTarget(conn.targetPodId)) {
-            workflowStateService.recordSourceRejection(conn.targetPodId, sourcePodId, result.reason);
-            this.emitPendingStatus(canvasId, conn.targetPodId);
-          }
-        }
-      }
-
-      // 5. 處理錯誤結果
-      for (const errorResult of batchResult.errors) {
-        const conn = connections.find(c => c.id === errorResult.connectionId);
-        if (!conn) continue;
-
-        connectionStore.updateDecideStatus(canvasId, errorResult.connectionId, 'error', errorResult.error);
-
-        workflowEventEmitter.emitAiDecideError(
-          canvasId,
-          errorResult.connectionId,
-          sourcePodId,
-          conn.targetPodId,
-          errorResult.error
-        );
-
-        logger.error('Workflow', 'Error', `AI Decide error for connection ${errorResult.connectionId}: ${errorResult.error}`);
-      }
+      batchResult = await aiDecideService.decideConnections(canvasId, sourcePodId, connections);
     } catch (error) {
-      logger.error('Workflow', 'Error', '[processAiDecideConnections] Unexpected error', error);
+      logger.error('Workflow', 'Error', '[processAiDecideConnections] AI Decide Service failed', error);
 
       // 所有 connections 標記為 error
       for (const conn of connections) {
@@ -412,6 +314,108 @@ class WorkflowExecutionService {
           errorMessage
         );
       }
+      return;
+    }
+
+    // 4. 處理成功的判斷結果
+    for (const result of batchResult.results) {
+      const conn = connections.find(c => c.id === result.connectionId);
+      if (!conn) continue;
+
+      if (result.shouldTrigger) {
+        connectionStore.updateDecideStatus(canvasId, result.connectionId, 'approved', result.reason);
+
+        workflowEventEmitter.emitAiDecideResult(
+          canvasId,
+          result.connectionId,
+          sourcePodId,
+          conn.targetPodId,
+          true,
+          result.reason
+        );
+
+        logger.log('Workflow', 'Create', `AI Decide approved connection ${result.connectionId}: ${result.reason}`);
+
+        const { isMultiInput, requiredSourcePodIds } = workflowStateService.checkMultiInputScenario(
+          canvasId,
+          conn.targetPodId
+        );
+
+        if (isMultiInput) {
+          const summaryResult = await this.generateSummaryWithFallback(canvasId, sourcePodId, conn.targetPodId);
+          if (summaryResult) {
+            await this.handleMultiInputForConnection(
+              canvasId,
+              sourcePodId,
+              conn,
+              requiredSourcePodIds,
+              summaryResult.content,
+              'ai-decide'
+            );
+          }
+          continue;
+        }
+
+        const targetPod = podStore.getById(canvasId, conn.targetPodId);
+        if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
+          const summaryResult = await this.generateSummaryWithFallback(canvasId, sourcePodId, conn.targetPodId);
+          if (summaryResult) {
+            workflowQueueService.enqueue({
+              canvasId,
+              connectionId: conn.id,
+              sourcePodId,
+              targetPodId: conn.targetPodId,
+              summary: summaryResult.content,
+              isSummarized: summaryResult.isSummarized,
+              triggerMode: 'ai-decide',
+            });
+          }
+          continue;
+        }
+
+        this.triggerWorkflowInternal(canvasId, conn.id).catch((error) => {
+          logger.error('Workflow', 'Error', `Failed to trigger AI-decided workflow ${conn.id}`, error);
+        });
+      } else {
+        // Rejected - 不觸發
+        connectionStore.updateDecideStatus(canvasId, result.connectionId, 'rejected', result.reason);
+
+        workflowEventEmitter.emitAiDecideResult(
+          canvasId,
+          result.connectionId,
+          sourcePodId,
+          conn.targetPodId,
+          false,
+          result.reason
+        );
+
+        logger.log('Workflow', 'Update', `AI Decide rejected connection ${result.connectionId}: ${result.reason}`);
+
+        // 若 target Pod 在多輸入場景中，記錄 rejection
+        const { isMultiInput } = workflowStateService.checkMultiInputScenario(canvasId, conn.targetPodId);
+        if (isMultiInput && pendingTargetStore.hasPendingTarget(conn.targetPodId)) {
+          workflowStateService.recordSourceRejection(conn.targetPodId, sourcePodId, result.reason);
+          this.emitPendingStatus(canvasId, conn.targetPodId);
+        }
+      }
+    }
+
+    // 5. 處理錯誤結果
+    for (const errorResult of batchResult.errors) {
+      const conn = connections.find(c => c.id === errorResult.connectionId);
+      if (!conn) continue;
+
+      connectionStore.updateDecideStatus(canvasId, errorResult.connectionId, 'error', errorResult.error);
+
+      workflowEventEmitter.emitAiDecideError(
+        canvasId,
+        errorResult.connectionId,
+        sourcePodId,
+        conn.targetPodId,
+        errorResult.error
+      );
+
+      logger.error('Workflow', 'Error', `AI Decide error for connection ${errorResult.connectionId}: ${errorResult.error}`);
     }
   }
 

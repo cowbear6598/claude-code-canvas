@@ -32,115 +32,115 @@ class AiDecideService {
       return { results: [], errors: [] };
     }
 
-    try {
-      // 1. 生成 source Pod 的簡化摘要
-      const sourceSummary = await this.generateSourceSummary(canvasId, sourcePodId);
-      if (!sourceSummary) {
-        return {
-          results: [],
-          errors: connections.map(conn => ({
-            connectionId: conn.id,
-            error: 'Failed to generate source summary',
-          })),
-        };
-      }
-
-      // 2. 取得 source Pod 資訊
-      const sourcePod = podStore.getById(canvasId, sourcePodId);
-      if (!sourcePod) {
-        return {
-          results: [],
-          errors: connections.map(conn => ({
-            connectionId: conn.id,
-            error: 'Source Pod not found',
-          })),
-        };
-      }
-
-      // 3. 建構所有 target 的資訊
-      const targets: AiDecideTargetInfo[] = [];
-      for (const conn of connections) {
-        const targetPod = podStore.getById(canvasId, conn.targetPodId);
-        if (!targetPod) {
-          logger.log('Workflow', 'Update', `[AiDecideService] Target Pod ${conn.targetPodId} not found`);
-          continue;
-        }
-
-        let targetPodOutputStyle: string | null = null;
-        if (targetPod.outputStyleId) {
-          targetPodOutputStyle = await outputStyleService.getContent(targetPod.outputStyleId);
-        }
-
-        let targetPodCommand: string | null = null;
-        if (targetPod.commandId) {
-          targetPodCommand = await commandService.getContent(targetPod.commandId);
-        }
-
-        targets.push({
+    // 1. 生成 source Pod 的簡化摘要
+    const sourceSummary = await this.generateSourceSummary(canvasId, sourcePodId);
+    if (!sourceSummary) {
+      return {
+        results: [],
+        errors: connections.map(conn => ({
           connectionId: conn.id,
-          targetPodId: conn.targetPodId,
-          targetPodName: targetPod.name,
-          targetPodOutputStyle,
-          targetPodCommand,
-        });
+          error: 'Failed to generate source summary',
+        })),
+      };
+    }
+
+    // 2. 取得 source Pod 資訊
+    const sourcePod = podStore.getById(canvasId, sourcePodId);
+    if (!sourcePod) {
+      return {
+        results: [],
+        errors: connections.map(conn => ({
+          connectionId: conn.id,
+          error: 'Source Pod not found',
+        })),
+      };
+    }
+
+    // 3. 建構所有 target 的資訊
+    const targets: AiDecideTargetInfo[] = [];
+    for (const conn of connections) {
+      const targetPod = podStore.getById(canvasId, conn.targetPodId);
+      if (!targetPod) {
+        logger.log('Workflow', 'Update', `[AiDecideService] Target Pod ${conn.targetPodId} not found`);
+        continue;
       }
 
-      if (targets.length === 0) {
-        return {
-          results: [],
-          errors: connections.map(conn => ({
-            connectionId: conn.id,
-            error: 'No valid target pods found',
-          })),
-        };
+      let targetPodOutputStyle: string | null = null;
+      if (targetPod.outputStyleId) {
+        targetPodOutputStyle = await outputStyleService.getContent(targetPod.outputStyleId);
       }
 
-      // 4. 建構 prompt
-      const context = {
-        sourcePodName: sourcePod.name,
-        sourceSummary,
-        targets,
-      };
-      const systemPrompt = aiDecidePromptBuilder.buildSystemPrompt();
-      const userPrompt = aiDecidePromptBuilder.buildUserPrompt(context);
+      let targetPodCommand: string | null = null;
+      if (targetPod.commandId) {
+        targetPodCommand = await commandService.getContent(targetPod.commandId);
+      }
 
-      // 5. 定義 Custom Tool
-      const decideTriggersSchema = {
-        decisions: z.array(
-          z.object({
-            connectionId: z.string(),
-            shouldTrigger: z.boolean(),
-            reason: z.string(),
-          })
-        ),
-      };
-
-      type DecisionResults = {
-        decisions: Array<{
-          connectionId: string;
-          shouldTrigger: boolean;
-          reason: string;
-        }>;
-      };
-
-      let decisionResults: DecisionResults | null = null;
-
-      const decideTriggersTool = tool(
-        'decide_triggers',
-        '回傳 Workflow 觸發判斷結果',
-        decideTriggersSchema,
-        async (params: DecisionResults) => {
-          decisionResults = params;
-          return { success: true };
-        }
-      );
-
-      const customServer = createSdkMcpServer({
-        name: 'ai-decide',
-        tools: [decideTriggersTool],
+      targets.push({
+        connectionId: conn.id,
+        targetPodId: conn.targetPodId,
+        targetPodName: targetPod.name,
+        targetPodOutputStyle,
+        targetPodCommand,
       });
+    }
 
-      // 6. 使用 Claude Agent SDK 發送請求
+    if (targets.length === 0) {
+      return {
+        results: [],
+        errors: connections.map(conn => ({
+          connectionId: conn.id,
+          error: 'No valid target pods found',
+        })),
+      };
+    }
+
+    // 4. 建構 prompt
+    const context = {
+      sourcePodName: sourcePod.name,
+      sourceSummary,
+      targets,
+    };
+    const systemPrompt = aiDecidePromptBuilder.buildSystemPrompt();
+    const userPrompt = aiDecidePromptBuilder.buildUserPrompt(context);
+
+    // 5. 定義 Custom Tool
+    const decideTriggersSchema = {
+      decisions: z.array(
+        z.object({
+          connectionId: z.string(),
+          shouldTrigger: z.boolean(),
+          reason: z.string(),
+        })
+      ),
+    };
+
+    type DecisionResults = {
+      decisions: Array<{
+        connectionId: string;
+        shouldTrigger: boolean;
+        reason: string;
+      }>;
+    };
+
+    let decisionResults: DecisionResults | null = null;
+
+    const decideTriggersTool = tool(
+      'decide_triggers',
+      '回傳 Workflow 觸發判斷結果',
+      decideTriggersSchema,
+      async (params: DecisionResults) => {
+        decisionResults = params;
+        return { success: true };
+      }
+    );
+
+    const customServer = createSdkMcpServer({
+      name: 'ai-decide',
+      tools: [decideTriggersTool],
+    });
+
+    // 6. 使用 Claude Agent SDK 發送請求
+    try {
       const queryStream = query({
         prompt: userPrompt,
         options: {
@@ -157,54 +157,6 @@ class AiDecideService {
       for await (const _sdkMessage of queryStream) {
         // 只需等待 tool 被呼叫
       }
-
-      // 7. 處理 AI 的判斷結果
-      if (!decisionResults) {
-        logger.error('Workflow', 'Error', '[AiDecideService] Custom Tool handler was not called');
-        return {
-          results: [],
-          errors: connections.map(conn => ({
-            connectionId: conn.id,
-            error: 'AI decision tool was not executed',
-          })),
-        };
-      }
-
-      const typedResults = decisionResults as DecisionResults;
-      if (!typedResults.decisions || !Array.isArray(typedResults.decisions)) {
-        logger.error('Workflow', 'Error', '[AiDecideService] Invalid decision results format');
-        return {
-          results: [],
-          errors: connections.map(conn => ({
-            connectionId: conn.id,
-            error: 'Invalid AI decision format',
-          })),
-        };
-      }
-
-      // 8. 比對每條 connection 是否都有對應的判斷結果
-      const results: AiDecideResult[] = [];
-      const errors: Array<{ connectionId: string; error: string }> = [];
-
-      const decisions = typedResults.decisions;
-
-      for (const conn of connections) {
-        const decision = decisions.find((d: { connectionId: string; shouldTrigger: boolean; reason: string }) => d.connectionId === conn.id);
-        if (decision) {
-          results.push({
-            connectionId: conn.id,
-            shouldTrigger: decision.shouldTrigger,
-            reason: decision.reason,
-          });
-        } else {
-          errors.push({
-            connectionId: conn.id,
-            error: 'No decision returned for this connection',
-          });
-        }
-      }
-
-      return { results, errors };
     } catch (error) {
       logger.error('Workflow', 'Error', '[AiDecideService] Claude API request failed', error);
       return {
@@ -215,6 +167,54 @@ class AiDecideService {
         })),
       };
     }
+
+    // 7. 處理 AI 的判斷結果
+    if (!decisionResults) {
+      logger.error('Workflow', 'Error', '[AiDecideService] Custom Tool handler was not called');
+      return {
+        results: [],
+        errors: connections.map(conn => ({
+          connectionId: conn.id,
+          error: 'AI decision tool was not executed',
+        })),
+      };
+    }
+
+    const typedResults = decisionResults as DecisionResults;
+    if (!typedResults.decisions || !Array.isArray(typedResults.decisions)) {
+      logger.error('Workflow', 'Error', '[AiDecideService] Invalid decision results format');
+      return {
+        results: [],
+        errors: connections.map(conn => ({
+          connectionId: conn.id,
+          error: 'Invalid AI decision format',
+        })),
+      };
+    }
+
+    // 8. 比對每條 connection 是否都有對應的判斷結果
+    const results: AiDecideResult[] = [];
+    const errors: Array<{ connectionId: string; error: string }> = [];
+
+    const decisions = typedResults.decisions;
+
+    for (const conn of connections) {
+      const decision = decisions.find((d: { connectionId: string; shouldTrigger: boolean; reason: string }) => d.connectionId === conn.id);
+      if (decision) {
+        results.push({
+          connectionId: conn.id,
+          shouldTrigger: decision.shouldTrigger,
+          reason: decision.reason,
+        });
+      } else {
+        errors.push({
+          connectionId: conn.id,
+          error: 'No decision returned for this connection',
+        });
+      }
+    }
+
+    return { results, errors };
   }
 
   /**
