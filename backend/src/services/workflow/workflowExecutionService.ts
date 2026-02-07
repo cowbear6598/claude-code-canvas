@@ -90,8 +90,7 @@ class WorkflowExecutionService {
   private async processAutoTriggerConnection(
     canvasId: string,
     sourcePodId: string,
-    connection: Connection,
-    summaryContentRef: { value: string | null }
+    connection: Connection
   ): Promise<void> {
     const targetPod = podStore.getById(canvasId, connection.targetPodId);
     if (!targetPod) {
@@ -105,12 +104,17 @@ class WorkflowExecutionService {
     );
 
     if (isMultiInput) {
-      await this.handleMultiInputScenario(
+      const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, connection.targetPodId);
+      if (!result) {
+        return;
+      }
+      await this.handleMultiInputForConnection(
         canvasId,
         sourcePodId,
         connection,
         requiredSourcePodIds,
-        summaryContentRef
+        result.content,
+        'auto'
       );
       return;
     }
@@ -118,12 +122,9 @@ class WorkflowExecutionService {
     if (targetPod.status === 'chatting' || targetPod.status === 'summarizing') {
       logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is ${targetPod.status}, enqueuing auto-trigger`);
 
-      if (!summaryContentRef.value) {
-        const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, connection.targetPodId);
-        if (!result) {
-          return;
-        }
-        summaryContentRef.value = result.content;
+      const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, connection.targetPodId);
+      if (!result) {
+        return;
       }
 
       workflowQueueService.enqueue({
@@ -131,7 +132,7 @@ class WorkflowExecutionService {
         connectionId: connection.id,
         sourcePodId,
         targetPodId: connection.targetPodId,
-        summary: summaryContentRef.value,
+        summary: result.content,
         isSummarized: true,
         triggerMode: 'auto',
       });
@@ -141,75 +142,6 @@ class WorkflowExecutionService {
     this.triggerWorkflowInternal(canvasId, connection.id).catch((error) => {
       logger.error('Workflow', 'Error', `Failed to auto-trigger workflow ${connection.id}`, error);
     });
-  }
-
-  private async handleMultiInputScenario(
-    canvasId: string,
-    sourcePodId: string,
-    connection: Connection,
-    requiredSourcePodIds: string[],
-    summaryContentRef: { value: string | null }
-  ): Promise<void> {
-    if (!summaryContentRef.value) {
-      const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, connection.targetPodId);
-      if (!result) {
-        return;
-      }
-      summaryContentRef.value = result.content;
-    }
-
-    if (!pendingTargetStore.hasPendingTarget(connection.targetPodId)) {
-      workflowStateService.initializePendingTarget(connection.targetPodId, requiredSourcePodIds);
-    }
-
-    const { allSourcesResponded, hasRejection } = workflowStateService.recordSourceCompletion(
-      connection.targetPodId,
-      sourcePodId,
-      summaryContentRef.value
-    );
-
-    if (!allSourcesResponded) {
-      this.emitPendingStatus(canvasId, connection.targetPodId);
-      return;
-    }
-
-    // 如果有任何來源被 rejected，則永遠不觸發
-    if (hasRejection) {
-      logger.log('Workflow', 'Update', `Target ${connection.targetPodId} has rejected sources, not triggering`);
-      this.emitPendingStatus(canvasId, connection.targetPodId);
-      return;
-    }
-
-    const completedSummaries = workflowStateService.getCompletedSummaries(connection.targetPodId);
-    if (!completedSummaries) {
-      logger.error('Workflow', 'Error', 'Failed to get completed summaries');
-      return;
-    }
-
-    const mergedContent = formatMergedSummaries(
-      completedSummaries,
-      (podId) => podStore.getById(canvasId, podId)
-    );
-
-    const targetPod = podStore.getById(canvasId, connection.targetPodId);
-    if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
-      logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is ${targetPod.status}, enqueuing merged workflow`);
-
-      workflowQueueService.enqueue({
-        canvasId,
-        connectionId: connection.id,
-        sourcePodId: Array.from(completedSummaries.keys())[0],
-        targetPodId: connection.targetPodId,
-        summary: mergedContent,
-        isSummarized: true,
-        triggerMode: 'auto',
-      });
-
-      workflowStateService.clearPendingTarget(connection.targetPodId);
-      return;
-    }
-
-    this.triggerMergedWorkflow(canvasId, connection);
   }
 
   private emitPendingStatus(canvasId: string, targetPodId: string): void {
@@ -242,6 +174,67 @@ class WorkflowExecutionService {
     );
 
     logger.log('Workflow', 'Update', `Target ${targetPodId} waiting: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources complete`);
+  }
+
+  private async handleMultiInputForConnection(
+    canvasId: string,
+    sourcePodId: string,
+    connection: Connection,
+    requiredSourcePodIds: string[],
+    summary: string,
+    triggerMode: 'auto' | 'ai-decide'
+  ): Promise<void> {
+    if (!pendingTargetStore.hasPendingTarget(connection.targetPodId)) {
+      workflowStateService.initializePendingTarget(connection.targetPodId, requiredSourcePodIds);
+    }
+
+    const { allSourcesResponded, hasRejection } = workflowStateService.recordSourceCompletion(
+      connection.targetPodId,
+      sourcePodId,
+      summary
+    );
+
+    if (!allSourcesResponded) {
+      this.emitPendingStatus(canvasId, connection.targetPodId);
+      return;
+    }
+
+    if (hasRejection) {
+      logger.log('Workflow', 'Update', `Target ${connection.targetPodId} has rejected sources, not triggering`);
+      this.emitPendingStatus(canvasId, connection.targetPodId);
+      return;
+    }
+
+    const completedSummaries = workflowStateService.getCompletedSummaries(connection.targetPodId);
+    if (!completedSummaries) {
+      logger.error('Workflow', 'Error', 'Failed to get completed summaries');
+      return;
+    }
+
+    const mergedContent = formatMergedSummaries(
+      completedSummaries,
+      (podId) => podStore.getById(canvasId, podId)
+    );
+
+    const targetPod = podStore.getById(canvasId, connection.targetPodId);
+    if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
+      logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is ${targetPod.status}, enqueuing merged workflow`);
+
+      workflowQueueService.enqueue({
+        canvasId,
+        connectionId: connection.id,
+        sourcePodId: Array.from(completedSummaries.keys())[0],
+        targetPodId: connection.targetPodId,
+        summary: mergedContent,
+        isSummarized: true,
+        triggerMode,
+      });
+
+      workflowStateService.clearPendingTarget(connection.targetPodId);
+      return;
+    }
+
+    this.triggerMergedWorkflow(canvasId, connection);
   }
 
   private triggerMergedWorkflow(canvasId: string, connection: Connection): void {
@@ -327,82 +320,41 @@ class WorkflowExecutionService {
             conn.targetPodId
           );
 
-          if (!isMultiInput) {
-            const targetPod = podStore.getById(canvasId, conn.targetPodId);
-            if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
-              const summaryResult = await this.generateSummaryWithFallback(canvasId, sourcePodId, conn.targetPodId);
-              if (summaryResult) {
-                workflowQueueService.enqueue({
-                  canvasId,
-                  connectionId: conn.id,
-                  sourcePodId,
-                  targetPodId: conn.targetPodId,
-                  summary: summaryResult.content,
-                  isSummarized: summaryResult.isSummarized,
-                  triggerMode: 'ai-decide',
-                });
-              }
-            } else {
-              this.triggerWorkflowInternal(canvasId, conn.id).catch((error) => {
-                logger.error('Workflow', 'Error', `Failed to trigger AI-decided workflow ${conn.id}`, error);
-              });
-            }
-          } else {
+          if (isMultiInput) {
             const summaryResult = await this.generateSummaryWithFallback(canvasId, sourcePodId, conn.targetPodId);
             if (summaryResult) {
-              if (!pendingTargetStore.hasPendingTarget(conn.targetPodId)) {
-                workflowStateService.initializePendingTarget(conn.targetPodId, requiredSourcePodIds);
-              }
-
-              const { allSourcesResponded, hasRejection } = workflowStateService.recordSourceCompletion(
-                conn.targetPodId,
+              await this.handleMultiInputForConnection(
+                canvasId,
                 sourcePodId,
-                summaryResult.content
+                conn,
+                requiredSourcePodIds,
+                summaryResult.content,
+                'ai-decide'
               );
-
-              if (!allSourcesResponded) {
-                this.emitPendingStatus(canvasId, conn.targetPodId);
-                return;
-              }
-
-              if (hasRejection) {
-                logger.log('Workflow', 'Update', `Target ${conn.targetPodId} has rejected sources, not triggering`);
-                this.emitPendingStatus(canvasId, conn.targetPodId);
-                return;
-              }
-
-              const completedSummaries = workflowStateService.getCompletedSummaries(conn.targetPodId);
-              if (!completedSummaries) {
-                logger.error('Workflow', 'Error', 'Failed to get completed summaries');
-                return;
-              }
-
-              const mergedContent = formatMergedSummaries(
-                completedSummaries,
-                (podId) => podStore.getById(canvasId, podId)
-              );
-
-              const targetPod = podStore.getById(canvasId, conn.targetPodId);
-              if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
-                logger.log('Workflow', 'Update', `Target Pod ${conn.targetPodId} is ${targetPod.status}, enqueuing merged workflow (AI Decide)`);
-
-                workflowQueueService.enqueue({
-                  canvasId,
-                  connectionId: conn.id,
-                  sourcePodId: Array.from(completedSummaries.keys())[0],
-                  targetPodId: conn.targetPodId,
-                  summary: mergedContent,
-                  isSummarized: true,
-                  triggerMode: 'ai-decide',
-                });
-
-                workflowStateService.clearPendingTarget(conn.targetPodId);
-                return;
-              }
-
-              this.triggerMergedWorkflow(canvasId, conn);
             }
+            continue;
           }
+
+          const targetPod = podStore.getById(canvasId, conn.targetPodId);
+          if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
+            const summaryResult = await this.generateSummaryWithFallback(canvasId, sourcePodId, conn.targetPodId);
+            if (summaryResult) {
+              workflowQueueService.enqueue({
+                canvasId,
+                connectionId: conn.id,
+                sourcePodId,
+                targetPodId: conn.targetPodId,
+                summary: summaryResult.content,
+                isSummarized: summaryResult.isSummarized,
+                triggerMode: 'ai-decide',
+              });
+            }
+            continue;
+          }
+
+          this.triggerWorkflowInternal(canvasId, conn.id).catch((error) => {
+            logger.error('Workflow', 'Error', `Failed to trigger AI-decided workflow ${conn.id}`, error);
+          });
         } else {
           // Rejected - 不觸發
           connectionStore.updateDecideStatus(canvasId, result.connectionId, 'rejected', result.reason);
@@ -478,12 +430,10 @@ class WorkflowExecutionService {
 
     autoClearService.initializeWorkflowTracking(canvasId, sourcePodId);
 
-    const summaryContentRef = { value: null as string | null };
-
     await Promise.all([
       (async (): Promise<void> => {
         for (const connection of autoConnections) {
-          await this.processAutoTriggerConnection(canvasId, sourcePodId, connection, summaryContentRef);
+          await this.processAutoTriggerConnection(canvasId, sourcePodId, connection);
         }
       })(),
       aiDecideConnections.length > 0
@@ -687,49 +637,49 @@ class WorkflowExecutionService {
       }
     }
 
-    // 問題 2 修復：記錄所有參與合併的 connectionIds
     const allDirectConnectionIds = directConnections.map(conn => conn.id);
     const anyDirectConnection = directConnections[0];
 
-    if (anyDirectConnection) {
-      const targetPod = podStore.getById(canvasId, targetPodId);
-      if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
-        const isBusyWithDirect = directTriggerStore.hasDirectPending(targetPodId);
+    if (!anyDirectConnection) {
+      directTriggerStore.clearDirectPending(targetPodId);
+      return;
+    }
 
-        if (!isBusyWithDirect) {
-          workflowQueueService.enqueue({
-            canvasId,
-            connectionId: anyDirectConnection.id,
-            sourcePodId: sourcePodIds[0],
-            targetPodId,
-            summary: mergedContent,
-            isSummarized: true,
-            triggerMode: 'direct',
-          });
+    const targetPod = podStore.getById(canvasId, targetPodId);
+    if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
+      const isBusyWithDirect = directTriggerStore.hasDirectPending(targetPodId);
 
-          directTriggerStore.clearDirectPending(targetPodId);
-          return;
-        }
+      if (!isBusyWithDirect) {
+        workflowQueueService.enqueue({
+          canvasId,
+          connectionId: anyDirectConnection.id,
+          sourcePodId: sourcePodIds[0],
+          targetPodId,
+          summary: mergedContent,
+          isSummarized: true,
+          triggerMode: 'direct',
+        });
+
+        directTriggerStore.clearDirectPending(targetPodId);
+        return;
       }
+    }
 
-      // 問題 2 修復：觸發工作流並等待完成
-      await this.triggerWorkflowWithSummary(canvasId, anyDirectConnection.id, mergedContent, true, true);
+    await this.triggerWorkflowWithSummary(canvasId, anyDirectConnection.id, mergedContent, true, true);
 
-      // 問題 2 修復：為其他參與合併的 connections 發送 WORKFLOW_COMPLETE 事件
-      const otherConnectionIds = allDirectConnectionIds.filter(id => id !== anyDirectConnection.id);
-      for (const otherConnectionId of otherConnectionIds) {
-        const otherConnection = directConnections.find(conn => conn.id === otherConnectionId);
-        if (otherConnection) {
-          workflowEventEmitter.emitWorkflowComplete(
-            canvasId,
-            otherConnectionId,
-            otherConnection.sourcePodId,
-            targetPodId,
-            true,
-            undefined,
-            'direct'
-          );
-        }
+    const otherConnectionIds = allDirectConnectionIds.filter(id => id !== anyDirectConnection.id);
+    for (const otherConnectionId of otherConnectionIds) {
+      const otherConnection = directConnections.find(conn => conn.id === otherConnectionId);
+      if (otherConnection) {
+        workflowEventEmitter.emitWorkflowComplete(
+          canvasId,
+          otherConnectionId,
+          otherConnection.sourcePodId,
+          targetPodId,
+          true,
+          undefined,
+          'direct'
+        );
       }
     }
 
@@ -867,21 +817,21 @@ class WorkflowExecutionService {
     const subMessageState = createSubMessageState();
     const flushCurrentSubMessage = createSubMessageFlusher(assistantMessageId, subMessageState);
 
-    try {
-      socketService.emitToCanvas(
+    socketService.emitToCanvas(
+      canvasId,
+      WebSocketResponseEvents.POD_CHAT_USER_MESSAGE,
+      {
         canvasId,
-        WebSocketResponseEvents.POD_CHAT_USER_MESSAGE,
-        {
-          canvasId,
-          podId: targetPodId,
-          messageId: userMessageId,
-          content: messageToSend,
-          timestamp: new Date().toISOString(),
-        }
-      );
+        podId: targetPodId,
+        messageId: userMessageId,
+        content: messageToSend,
+        timestamp: new Date().toISOString(),
+      }
+    );
 
-      await messageStore.addMessage(canvasId, targetPodId, 'user', messageToSend);
+    await messageStore.addMessage(canvasId, targetPodId, 'user', messageToSend);
 
+    try {
       await claudeQueryService.sendMessage(targetPodId, messageToSend, (event) => {
         switch (event.type) {
           case 'text': {
@@ -970,30 +920,6 @@ class WorkflowExecutionService {
           }
         }
       }, 'workflow');
-
-      if (accumulatedContentRef.value || subMessageState.subMessages.length > 0) {
-        await messageStore.addMessage(
-          canvasId,
-          targetPodId,
-          'assistant',
-          accumulatedContentRef.value,
-          subMessageState.subMessages.length > 0 ? subMessageState.subMessages : undefined
-        );
-      }
-
-      podStore.setStatus(canvasId, targetPodId, 'idle');
-      podStore.updateLastActive(canvasId, targetPodId);
-
-      workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, true, undefined, triggerMode);
-
-      logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod "${targetPod?.name ?? targetPodId}"`);
-
-      await autoClearService.onPodComplete(canvasId, targetPodId);
-
-      // 不 await，避免遞迴鏈阻塞呼叫者（如 handleDirectTimerExpired 中 multi-direct 的 complete 事件）
-      workflowQueueService.processNextInQueue(canvasId, targetPodId).catch(error => {
-        logger.error('Workflow', 'Error', `處理佇列下一項時發生錯誤: ${error}`);
-      });
     } catch (error) {
       podStore.setStatus(canvasId, targetPodId, 'idle');
 
@@ -1010,13 +936,35 @@ class WorkflowExecutionService {
 
       logger.error('Workflow', 'Error', 'Failed to complete workflow', error);
 
-      // 不 await，避免遞迴鏈阻塞呼叫者（如 handleDirectTimerExpired 中 multi-direct 的 complete 事件）
       workflowQueueService.processNextInQueue(canvasId, targetPodId).catch(error => {
         logger.error('Workflow', 'Error', `處理佇列下一項時發生錯誤: ${error}`);
       });
 
       throw error;
     }
+
+    if (accumulatedContentRef.value || subMessageState.subMessages.length > 0) {
+      await messageStore.addMessage(
+        canvasId,
+        targetPodId,
+        'assistant',
+        accumulatedContentRef.value,
+        subMessageState.subMessages.length > 0 ? subMessageState.subMessages : undefined
+      );
+    }
+
+    podStore.setStatus(canvasId, targetPodId, 'idle');
+    podStore.updateLastActive(canvasId, targetPodId);
+
+    workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, true, undefined, triggerMode);
+
+    logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod "${targetPod?.name ?? targetPodId}"`);
+
+    await autoClearService.onPodComplete(canvasId, targetPodId);
+
+    workflowQueueService.processNextInQueue(canvasId, targetPodId).catch(error => {
+      logger.error('Workflow', 'Error', `處理佇列下一項時發生錯誤: ${error}`);
+    });
   }
 }
 
