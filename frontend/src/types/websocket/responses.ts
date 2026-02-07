@@ -177,7 +177,7 @@ export interface ConnectionCreatedPayload {
         targetPodId: string
         targetAnchor: AnchorPosition
         createdAt: string
-        triggerMode?: 'auto' | 'ai-decide'
+        triggerMode?: 'auto' | 'ai-decide' | 'direct'
         decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'
         decideReason?: string | null
     }
@@ -194,7 +194,7 @@ export interface ConnectionListResultPayload {
         targetPodId: string
         targetAnchor: AnchorPosition
         createdAt: string
-        triggerMode?: 'auto' | 'ai-decide'
+        triggerMode?: 'auto' | 'ai-decide' | 'direct'
         decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'
         decideReason?: string | null
     }>
@@ -222,6 +222,7 @@ export interface WorkflowCompletePayload {
     targetPodId: string
     success: boolean
     error?: string
+    triggerMode?: 'auto' | 'ai-decide' | 'direct'
 }
 
 export interface WorkflowGetDownstreamPodsResultPayload {
@@ -261,7 +262,7 @@ export interface CanvasPasteResultPayload {
         targetPodId: string
         targetAnchor: AnchorPosition
         createdAt: string
-        triggerMode?: 'auto' | 'ai-decide'
+        triggerMode?: 'auto' | 'ai-decide' | 'direct'
         decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'
         decideReason?: string | null
     }>
@@ -481,4 +482,39 @@ export interface WorkflowAiDecideErrorPayload {
 export interface WorkflowAiDecideClearPayload {
     canvasId: string
     connectionIds: string[]
+}
+
+export interface WorkflowDirectTriggeredPayload {
+    canvasId: string
+    connectionId: string
+    sourcePodId: string
+    targetPodId: string
+    transferredContent: string
+    isSummarized: boolean
+}
+
+export interface WorkflowDirectWaitingPayload {
+    canvasId: string
+    connectionId: string
+    sourcePodId: string
+    targetPodId: string
+}
+
+export interface WorkflowQueuedPayload {
+    canvasId: string
+    connectionId: string
+    sourcePodId: string
+    targetPodId: string
+    position: number
+    queueSize: number
+    triggerMode: 'auto' | 'ai-decide' | 'direct'
+}
+
+export interface WorkflowQueueProcessedPayload {
+    canvasId: string
+    connectionId: string
+    sourcePodId: string
+    targetPodId: string
+    remainingQueueSize: number
+    triggerMode: 'auto' | 'ai-decide' | 'direct'
 }

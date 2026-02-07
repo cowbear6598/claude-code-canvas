@@ -62,7 +62,7 @@ onUnmounted(() => {
       :connection="connection"
       :pods="podStore.pods"
       :is-selected="connection.id === connectionStore.selectedConnectionId"
-      :status="connection.status || 'inactive'"
+      :status="connection.status || 'idle'"
       :trigger-mode="connection.triggerMode || 'auto'"
       :decide-reason="connection.decideReason"
       @select="handleSelectConnection"

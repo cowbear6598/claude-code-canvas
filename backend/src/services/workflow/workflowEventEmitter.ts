@@ -9,6 +9,11 @@ import type {
   WorkflowAiDecideResultPayload,
   WorkflowAiDecideErrorPayload,
   WorkflowAiDecideClearPayload,
+  WorkflowDirectTriggeredPayload,
+  WorkflowDirectWaitingPayload,
+  WorkflowQueuedPayload,
+  WorkflowQueueProcessedPayload,
+  WorkflowDirectMergedPayload,
 } from '../../types';
 
 class WorkflowEventEmitter {
@@ -18,7 +23,8 @@ class WorkflowEventEmitter {
     _sourcePodId: string,
     targetPodId: string,
     success: boolean,
-    error?: string
+    error?: string,
+    triggerMode?: 'auto' | 'ai-decide' | 'direct'
   ): void {
     const payload = {
       canvasId,
@@ -27,6 +33,7 @@ class WorkflowEventEmitter {
       targetPodId,
       success,
       ...(error && { error }),
+      ...(triggerMode && { triggerMode }),
     };
 
     socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_COMPLETE, payload);
@@ -139,6 +146,36 @@ class WorkflowEventEmitter {
       connectionIds,
     };
     socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AI_DECIDE_CLEAR, payload);
+  }
+
+  emitDirectTriggered(canvasId: string, payload: WorkflowDirectTriggeredPayload): void {
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_DIRECT_TRIGGERED, payload);
+  }
+
+  emitDirectWaiting(canvasId: string, payload: WorkflowDirectWaitingPayload): void {
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_DIRECT_WAITING, payload);
+  }
+
+  emitWorkflowQueued(canvasId: string, payload: WorkflowQueuedPayload): void {
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_QUEUED, payload);
+  }
+
+  emitWorkflowQueueProcessed(canvasId: string, payload: WorkflowQueueProcessedPayload): void {
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_QUEUE_PROCESSED, payload);
+  }
+
+  emitDirectCountdown(canvasId: string, targetPodId: string, remainingSeconds: number, readySourcePodIds: string[]): void {
+    const payload = {
+      canvasId,
+      targetPodId,
+      remainingSeconds,
+      readySourcePodIds,
+    };
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_DIRECT_COUNTDOWN, payload);
+  }
+
+  emitDirectMerged(canvasId: string, payload: WorkflowDirectMergedPayload): void {
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_DIRECT_MERGED, payload);
   }
 }
 

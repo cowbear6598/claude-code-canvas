@@ -7,6 +7,7 @@ import type {
   PodScheduleSetPayload,
   Connection,
   Pod,
+  TriggerMode,
 } from '../types';
 import type {
   ConnectionCreatePayload,
@@ -208,7 +209,7 @@ export const handleConnectionUpdate = withCanvasId<ConnectionUpdatePayload>(
       WebSocketResponseEvents.CONNECTION_UPDATED,
       requestId,
       () => {
-        const updates: Partial<{ triggerMode: 'auto' | 'ai-decide' }> = {};
+        const updates: Partial<{ triggerMode: TriggerMode }> = {};
         if (triggerMode !== undefined) {
           updates.triggerMode = triggerMode;
         }

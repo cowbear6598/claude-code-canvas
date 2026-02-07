@@ -14,7 +14,7 @@ import {
 } from '../../src/types';
 
 interface CreateConnectionOptions extends Partial<ConnectionCreatePayload> {
-  triggerMode?: 'auto' | 'ai-decide';
+  triggerMode?: 'auto' | 'ai-decide' | 'direct';
 }
 
 export async function createConnection(

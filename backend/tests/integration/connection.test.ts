@@ -198,6 +198,22 @@ describe('Connection 管理', () => {
       expect(response.connection!.triggerMode).toBe('ai-decide');
     });
 
+    it('success_when_connection_updated_with_trigger_mode_direct', async () => {
+      const { podA, podB } = await createPodPair(client);
+      const conn = await createConnection(client, podA.id, podB.id);
+
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<ConnectionUpdatePayload, ConnectionUpdatedPayload>(
+        client,
+        WebSocketRequestEvents.CONNECTION_UPDATE,
+        WebSocketResponseEvents.CONNECTION_UPDATED,
+        { requestId: uuidv4(), canvasId, connectionId: conn.id, triggerMode: 'direct' }
+      );
+
+      expect(response.success).toBe(true);
+      expect(response.connection!.triggerMode).toBe('direct');
+    });
+
     it('failed_when_connection_update_with_nonexistent_id', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionUpdatePayload, ConnectionUpdatedPayload>(

@@ -21,7 +21,11 @@ import type {
     WorkflowAiDecidePendingPayload,
     WorkflowAiDecideResultPayload,
     WorkflowAiDecideErrorPayload,
-    WorkflowAiDecideClearPayload
+    WorkflowAiDecideClearPayload,
+    WorkflowDirectTriggeredPayload,
+    WorkflowDirectWaitingPayload,
+    WorkflowQueuedPayload,
+    WorkflowQueueProcessedPayload
 } from '@/types/websocket'
 
 interface ConnectionState {
@@ -72,6 +76,16 @@ export const useConnectionStore = defineStore('connection', {
         getAiDecideConnectionsBySourcePodId: (state) => (sourcePodId: string): Connection[] => {
             return state.connections.filter(
                 conn => conn.sourcePodId === sourcePodId && conn.triggerMode === 'ai-decide'
+            )
+        },
+
+        getDirectConnections: (state): Connection[] => {
+            return state.connections.filter(conn => conn.triggerMode === 'direct')
+        },
+
+        getDirectConnectionsBySourcePodId: (state) => (sourcePodId: string): Connection[] => {
+            return state.connections.filter(
+                conn => conn.sourcePodId === sourcePodId && conn.triggerMode === 'direct'
             )
         },
     },
@@ -224,7 +238,24 @@ export const useConnectionStore = defineStore('connection', {
             this.connections.forEach(conn => {
                 if (conn.targetPodId === targetPodId) {
                     // 跳過 AI Decide 連線且目前狀態為 ai-approved 的情況，只在要設成 active 時才跳過
-                    // 防止覆蓋掉經 AI 批准的連線狀態，但允許更新為 inactive
+                    // 防止覆蓋掉經 AI 批准的連線狀態，但允許更新為 idle
+                    if (conn.triggerMode === 'ai-decide' && conn.status === 'ai-approved' && status === 'active') {
+                        return
+                    }
+                    // queued -> active 是正常流程，允許覆蓋
+                    if (conn.status === 'queued' && status === 'active') {
+                        conn.status = status
+                        return
+                    }
+                    conn.status = status
+                }
+            })
+        },
+
+        updateAutoGroupStatus(targetPodId: string, status: ConnectionStatus): void {
+            this.connections.forEach(conn => {
+                if (conn.targetPodId === targetPodId &&
+                    (conn.triggerMode === 'auto' || conn.triggerMode === 'ai-decide')) {
                     if (conn.triggerMode === 'ai-decide' && conn.status === 'ai-approved' && status === 'active') {
                         return
                     }
@@ -270,6 +301,10 @@ export const useConnectionStore = defineStore('connection', {
             websocketClient.on<WorkflowAiDecideResultPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_RESULT, this.handleAiDecideResult)
             websocketClient.on<WorkflowAiDecideErrorPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_ERROR, this.handleAiDecideError)
             websocketClient.on<WorkflowAiDecideClearPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_CLEAR, this.handleAiDecideClear)
+            websocketClient.on<WorkflowDirectTriggeredPayload>(WebSocketResponseEvents.WORKFLOW_DIRECT_TRIGGERED, this.handleWorkflowDirectTriggered)
+            websocketClient.on<WorkflowDirectWaitingPayload>(WebSocketResponseEvents.WORKFLOW_DIRECT_WAITING, this.handleWorkflowDirectWaiting)
+            websocketClient.on<WorkflowQueuedPayload>(WebSocketResponseEvents.WORKFLOW_QUEUED, this.handleWorkflowQueued)
+            websocketClient.on<WorkflowQueueProcessedPayload>(WebSocketResponseEvents.WORKFLOW_QUEUE_PROCESSED, this.handleWorkflowQueueProcessed)
         },
 
         cleanupWorkflowListeners(): void {
@@ -279,14 +314,62 @@ export const useConnectionStore = defineStore('connection', {
             websocketClient.off<WorkflowAiDecideResultPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_RESULT, this.handleAiDecideResult)
             websocketClient.off<WorkflowAiDecideErrorPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_ERROR, this.handleAiDecideError)
             websocketClient.off<WorkflowAiDecideClearPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_CLEAR, this.handleAiDecideClear)
+            websocketClient.off<WorkflowDirectTriggeredPayload>(WebSocketResponseEvents.WORKFLOW_DIRECT_TRIGGERED, this.handleWorkflowDirectTriggered)
+            websocketClient.off<WorkflowDirectWaitingPayload>(WebSocketResponseEvents.WORKFLOW_DIRECT_WAITING, this.handleWorkflowDirectWaiting)
+            websocketClient.off<WorkflowQueuedPayload>(WebSocketResponseEvents.WORKFLOW_QUEUED, this.handleWorkflowQueued)
+            websocketClient.off<WorkflowQueueProcessedPayload>(WebSocketResponseEvents.WORKFLOW_QUEUE_PROCESSED, this.handleWorkflowQueueProcessed)
         },
 
         handleWorkflowAutoTriggered(payload: WorkflowAutoTriggeredPayload): void {
-            this.updateConnectionStatusByTargetPod(payload.targetPodId, 'active')
+            this.updateAutoGroupStatus(payload.targetPodId, 'active')
         },
 
         handleWorkflowComplete(payload: WorkflowCompletePayload): void {
-            this.updateConnectionStatusByTargetPod(payload.targetPodId, 'inactive')
+            const triggerMode = payload.triggerMode
+            if (triggerMode === 'auto' || triggerMode === 'ai-decide') {
+                this.updateAutoGroupStatus(payload.targetPodId, 'idle')
+            } else {
+                const connection = this.connections.find(c => c.id === payload.connectionId)
+                if (connection) {
+                    connection.status = 'idle'
+                }
+            }
+        },
+
+        handleWorkflowDirectTriggered(payload: WorkflowDirectTriggeredPayload): void {
+            const connection = this.connections.find(c => c.id === payload.connectionId)
+            if (connection) {
+                connection.status = 'active'
+            }
+        },
+
+        handleWorkflowDirectWaiting(payload: WorkflowDirectWaitingPayload): void {
+            const connection = this.connections.find(c => c.id === payload.connectionId)
+            if (connection) {
+                connection.status = 'waiting'
+            }
+        },
+
+        handleWorkflowQueued(payload: WorkflowQueuedPayload): void {
+            if (payload.triggerMode === 'auto' || payload.triggerMode === 'ai-decide') {
+                this.updateAutoGroupStatus(payload.targetPodId, 'queued')
+            } else {
+                const connection = this.connections.find(c => c.id === payload.connectionId)
+                if (connection) {
+                    connection.status = 'queued'
+                }
+            }
+        },
+
+        handleWorkflowQueueProcessed(payload: WorkflowQueueProcessedPayload): void {
+            if (payload.triggerMode === 'auto' || payload.triggerMode === 'ai-decide') {
+                this.updateAutoGroupStatus(payload.targetPodId, 'active')
+            } else {
+                const connection = this.connections.find(c => c.id === payload.connectionId)
+                if (connection) {
+                    connection.status = 'active'
+                }
+            }
         },
 
         handleAiDecidePending(payload: WorkflowAiDecidePendingPayload): void {
@@ -319,7 +402,7 @@ export const useConnectionStore = defineStore('connection', {
             payload.connectionIds.forEach(connectionId => {
                 const connection = this.connections.find(c => c.id === connectionId)
                 if (connection) {
-                    connection.status = 'inactive'
+                    connection.status = 'idle'
                     connection.decideReason = undefined
                 }
             })
@@ -329,19 +412,19 @@ export const useConnectionStore = defineStore('connection', {
             connectionIds.forEach(connectionId => {
                 const connection = this.connections.find(c => c.id === connectionId)
                 if (connection) {
-                    connection.status = 'inactive'
+                    connection.status = 'idle'
                     connection.decideReason = undefined
                 }
             })
         },
 
         mapDecideStatusToConnectionStatus(decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'): ConnectionStatus {
-            if (!decideStatus || decideStatus === 'none') return 'inactive'
+            if (!decideStatus || decideStatus === 'none') return 'idle'
             if (decideStatus === 'pending') return 'ai-deciding'
             if (decideStatus === 'approved') return 'ai-approved'
             if (decideStatus === 'rejected') return 'ai-rejected'
             if (decideStatus === 'error') return 'ai-error'
-            return 'inactive'
+            return 'idle'
         },
 
         addConnectionFromEvent(connection: Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }): void {
@@ -349,7 +432,7 @@ export const useConnectionStore = defineStore('connection', {
                 ...connection,
                 createdAt: new Date(connection.createdAt),
                 triggerMode: connection.triggerMode ?? 'auto',
-                status: 'inactive' as ConnectionStatus
+                status: 'idle' as ConnectionStatus
             }
 
             const exists = this.connections.some(c => c.id === enrichedConnection.id)
@@ -364,7 +447,7 @@ export const useConnectionStore = defineStore('connection', {
                 ...connection,
                 createdAt: new Date(connection.createdAt),
                 triggerMode: connection.triggerMode ?? 'auto',
-                status: existingConnection?.status ?? 'inactive' as ConnectionStatus,
+                status: existingConnection?.status ?? 'idle' as ConnectionStatus,
                 decideReason: connection.decideReason ?? existingConnection?.decideReason
             }
 

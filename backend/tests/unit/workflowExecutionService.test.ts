@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, mock, spyOn } from 'bun:test';
 
 // Mock dependencies
 mock.module('../../src/services/connectionStore.js', () => ({
@@ -6,6 +6,7 @@ mock.module('../../src/services/connectionStore.js', () => ({
     findBySourcePodId: mock(),
     getById: mock(),
     updateDecideStatus: mock(),
+    updateConnectionStatus: mock(),
   },
 }));
 
@@ -54,6 +55,7 @@ mock.module('../../src/services/workflow/workflowEventEmitter.js', () => ({
     emitAiDecidePending: mock(),
     emitAiDecideResult: mock(),
     emitAiDecideError: mock(),
+    emitWorkflowQueued: mock(),
   },
 }));
 
@@ -85,12 +87,14 @@ mock.module('../../src/services/socketService.js', () => ({
 mock.module('../../src/services/claude/queryService.js', () => ({
   claudeQueryService: {
     executeChatInPod: mock(),
+    sendMessage: mock(async () => {}),
   },
 }));
 
 mock.module('../../src/services/commandService.js', () => ({
   commandService: {
     getContent: mock(),
+    list: mock(async () => []),
   },
 }));
 
@@ -104,6 +108,7 @@ import { workflowStateService } from '../../src/services/workflow/workflowStateS
 import { workflowEventEmitter } from '../../src/services/workflow/workflowEventEmitter.js';
 import { aiDecideService } from '../../src/services/workflow/aiDecideService.js';
 import { pendingTargetStore } from '../../src/services/pendingTargetStore.js';
+import { workflowQueueService } from '../../src/services/workflow/workflowQueueService.js';
 import type { Connection } from '../../src/types';
 
 describe('WorkflowExecutionService', () => {
@@ -191,6 +196,8 @@ describe('WorkflowExecutionService', () => {
     (workflowStateService.initializePendingTarget as any).mockClear?.();
     (workflowStateService.recordSourceCompletion as any).mockClear?.();
     (workflowStateService.recordSourceRejection as any).mockClear?.();
+    (workflowStateService.getCompletedSummaries as any).mockClear?.();
+    (workflowStateService.clearPendingTarget as any).mockClear?.();
     (workflowEventEmitter.emitAiDecidePending as any).mockClear?.();
     (workflowEventEmitter.emitAiDecideResult as any).mockClear?.();
     (workflowEventEmitter.emitAiDecideError as any).mockClear?.();
@@ -200,7 +207,7 @@ describe('WorkflowExecutionService', () => {
     // Default mock returns
     (podStore.getById as any).mockImplementation((cId: string, podId: string) => {
       if (podId === sourcePodId) return mockSourcePod;
-      if (podId.startsWith('target-pod')) return { ...mockTargetPod, id: podId, name: `Target ${podId}` };
+      if (podId.startsWith('target-pod') || podId.startsWith('target-multi')) return { ...mockTargetPod, id: podId, name: `Target ${podId}` };
       return null;
     });
     (messageStore.getMessages as any).mockReturnValue(mockMessages);
@@ -470,6 +477,143 @@ describe('WorkflowExecutionService', () => {
         'target-pod-2',
         'AI decision failed'
       );
+    });
+  });
+
+  describe('多輸入 auto 場景在 target Pod busy 時進入 queue', () => {
+    it('所有來源都回應完畢且 target Pod 為 chatting 時，應 enqueue 而非直接觸發', async () => {
+      const source1PodId = 'source-pod-1';
+      const source2PodId = 'source-pod-2';
+      const multiInputTargetPodId = 'target-multi-input';
+
+      const conn1: Connection = {
+        id: 'conn-auto-1',
+        sourcePodId: source1PodId,
+        sourceAnchor: 'right',
+        targetPodId: multiInputTargetPodId,
+        targetAnchor: 'left',
+        triggerMode: 'auto',
+        decideStatus: 'none',
+        decideReason: null,
+        createdAt: new Date(),
+      };
+
+      (connectionStore.findBySourcePodId as any).mockReturnValue([conn1]);
+      (connectionStore.getById as any).mockReturnValue(conn1);
+
+      (podStore.getById as any).mockImplementation((cId: string, podId: string) => {
+        if (podId === multiInputTargetPodId) {
+          return { ...mockTargetPod, id: podId, status: 'chatting' };
+        }
+        return { ...mockSourcePod, id: podId };
+      });
+
+      (workflowStateService.checkMultiInputScenario as any).mockReturnValue({
+        isMultiInput: true,
+        requiredSourcePodIds: [source1PodId, source2PodId],
+      });
+
+      (pendingTargetStore.hasPendingTarget as any).mockReturnValue(false);
+
+      (workflowStateService.recordSourceCompletion as any).mockReturnValue({
+        allSourcesResponded: true,
+        hasRejection: false,
+      });
+
+      (workflowStateService.getCompletedSummaries as any).mockReturnValue(
+        new Map([
+          [source1PodId, 'Summary from source 1'],
+          [source2PodId, 'Summary from source 2'],
+        ])
+      );
+
+      const enqueueSpy = spyOn(workflowQueueService, 'enqueue');
+
+      await workflowExecutionService.checkAndTriggerWorkflows(canvasId, source1PodId);
+
+      expect(enqueueSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          canvasId,
+          connectionId: conn1.id,
+          targetPodId: multiInputTargetPodId,
+          isSummarized: true,
+          triggerMode: 'auto',
+        })
+      );
+
+      expect(workflowStateService.clearPendingTarget).toHaveBeenCalledWith(multiInputTargetPodId);
+    });
+  });
+
+  describe('多輸入 AI Decide 場景在 target Pod busy 時進入 queue', () => {
+    it('所有來源都回應完畢且 target Pod 為 chatting 時，應 enqueue 而非直接觸發', async () => {
+      const source1PodId = 'source-pod-1';
+      const source2PodId = 'source-pod-2';
+      const multiInputTargetPodId = 'target-multi-input';
+
+      const aiConn: Connection = {
+        id: 'conn-ai-1',
+        sourcePodId: source1PodId,
+        sourceAnchor: 'right',
+        targetPodId: multiInputTargetPodId,
+        targetAnchor: 'left',
+        triggerMode: 'ai-decide',
+        decideStatus: 'none',
+        decideReason: null,
+        createdAt: new Date(),
+      };
+
+      (connectionStore.findBySourcePodId as any).mockReturnValue([aiConn]);
+      (connectionStore.getById as any).mockReturnValue(aiConn);
+
+      (podStore.getById as any).mockImplementation((cId: string, podId: string) => {
+        if (podId === multiInputTargetPodId) {
+          return { ...mockTargetPod, id: podId, status: 'chatting' };
+        }
+        return { ...mockSourcePod, id: podId };
+      });
+
+      (workflowStateService.checkMultiInputScenario as any).mockReturnValue({
+        isMultiInput: true,
+        requiredSourcePodIds: [source1PodId, source2PodId],
+      });
+
+      (pendingTargetStore.hasPendingTarget as any).mockReturnValue(false);
+
+      (aiDecideService.decideConnections as any).mockResolvedValue({
+        results: [
+          { connectionId: aiConn.id, shouldTrigger: true, reason: '相關任務' },
+        ],
+        errors: [],
+      });
+
+      (workflowStateService.recordSourceCompletion as any).mockReturnValue({
+        allSourcesResponded: true,
+        hasRejection: false,
+      });
+
+      (workflowStateService.getCompletedSummaries as any).mockReturnValue(
+        new Map([
+          [source1PodId, 'Summary from source 1'],
+          [source2PodId, 'Summary from source 2'],
+        ])
+      );
+
+      const enqueueSpy = spyOn(workflowQueueService, 'enqueue');
+
+      await workflowExecutionService.checkAndTriggerWorkflows(canvasId, source1PodId);
+
+      expect(enqueueSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          canvasId,
+          connectionId: aiConn.id,
+          targetPodId: multiInputTargetPodId,
+          isSummarized: true,
+          triggerMode: 'ai-decide',
+        })
+      );
+
+      expect(workflowStateService.clearPendingTarget).toHaveBeenCalledWith(multiInputTargetPodId);
     });
   });
 });

@@ -54,8 +54,44 @@
   stroke-width: 4px;
 }
 
-.connection-line.inactive .line {
+.connection-line.idle .line {
   stroke-dasharray: none;
+}
+
+/* Queued Status Styles */
+.connection-line.queued .line {
+  stroke: oklch(0.7 0.12 230 / 0.8);
+  stroke-dasharray: 8, 4;
+  animation: queued-pulse 2s ease-in-out infinite;
+}
+
+.connection-line.queued .arrow {
+  fill: oklch(0.7 0.12 230 / 0.8);
+  animation: queued-pulse 2s ease-in-out infinite;
+}
+
+.connection-line.queued .connection-mid-label {
+  animation: queued-pulse 2s ease-in-out infinite;
+}
+
+/* Waiting Status Styles (multi-direct 10 秒等待) */
+.connection-line.waiting .line {
+  stroke: oklch(0.7 0.15 155 / 0.8);
+  stroke-dasharray: 8, 4;
+  animation: waiting-pulse 2s ease-in-out infinite;
+}
+
+.connection-line.waiting .arrow {
+  fill: oklch(0.7 0.15 155 / 0.8);
+  animation: waiting-pulse 2s ease-in-out infinite;
+}
+
+.connection-line.waiting .connection-mid-label {
+  animation: waiting-pulse 2s ease-in-out infinite;
+}
+
+.connection-line.waiting .connection-mid-label.direct-label {
+  background: oklch(0.7 0.15 155 / 0.8);
 }
 
 /* AI Decide Connection Styles */
@@ -121,6 +157,17 @@
   animation: spin 1s linear infinite;
 }
 
+.connection-mid-label.direct-label {
+  background: oklch(0.6 0.02 50 / 0.8);
+  color: white;
+  font-weight: bold;
+  font-size: 10px;
+}
+
+.connection-line.active .connection-mid-label.direct-label {
+  background: oklch(0.7 0.15 50);
+}
+
 /* Message Summary Badge */
 .message-summary-badge {
   display: inline-flex;
@@ -150,5 +197,35 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes queued-pulse {
+  0% {
+    opacity: 0.5;
+    stroke-width: 3px;
+  }
+  50% {
+    opacity: 1;
+    stroke-width: 4px;
+  }
+  100% {
+    opacity: 0.5;
+    stroke-width: 3px;
+  }
+}
+
+@keyframes waiting-pulse {
+  0% {
+    opacity: 0.5;
+    stroke-width: 3px;
+  }
+  50% {
+    opacity: 1;
+    stroke-width: 4px;
+  }
+  100% {
+    opacity: 0.5;
+    stroke-width: 3px;
   }
 }

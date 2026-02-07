@@ -18,7 +18,7 @@ import CreateRepositoryModal from './CreateRepositoryModal.vue'
 import CloneRepositoryModal from './CloneRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 import CreateEditModal from './CreateEditModal.vue'
-import type {Pod, PodTypeConfig, Position, Group} from '@/types'
+import type {Pod, PodTypeConfig, Position, Group, TriggerMode} from '@/types'
 import {
   POD_MENU_X_OFFSET,
   POD_MENU_Y_OFFSET,
@@ -86,7 +86,7 @@ const connectionContextMenu = ref<{
   visible: boolean
   position: { x: number; y: number }
   connectionId: string
-  triggerMode: 'auto' | 'ai-decide'
+  triggerMode: TriggerMode
 }>({
   visible: false,
   position: {x: 0, y: 0},

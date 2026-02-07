@@ -67,3 +67,46 @@ export interface WorkflowAiDecideClearPayload {
   canvasId: string;
   connectionIds: string[];
 }
+
+export interface WorkflowDirectTriggeredPayload {
+  canvasId: string;
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+  transferredContent: string;
+  isSummarized: boolean;
+}
+
+export interface WorkflowDirectWaitingPayload {
+  canvasId: string;
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+}
+
+export interface WorkflowQueuedPayload {
+  canvasId: string;
+  targetPodId: string;
+  connectionId: string;
+  sourcePodId: string;
+  position: number;
+  queueSize: number;
+  triggerMode: 'auto' | 'ai-decide' | 'direct';
+}
+
+export interface WorkflowQueueProcessedPayload {
+  canvasId: string;
+  targetPodId: string;
+  connectionId: string;
+  sourcePodId: string;
+  remainingQueueSize: number;
+  triggerMode: 'auto' | 'ai-decide' | 'direct';
+}
+
+export interface WorkflowDirectMergedPayload {
+  canvasId: string;
+  targetPodId: string;
+  sourcePodIds: string[];
+  mergedContentPreview: string;
+  countdownSeconds: number;
+}

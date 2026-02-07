@@ -17,7 +17,7 @@ const props = withDefaults(
     decideReason?: string
   }>(),
   {
-    status: 'inactive',
+    status: 'idle',
     triggerMode: 'auto',
     decideReason: undefined,
   }
@@ -82,22 +82,47 @@ const lineColor = computed(() => {
     if (props.status === 'ai-approved') {
       return 'oklch(0.7 0.15 50)' // 橘色（approved，與 auto 相同）
     }
-    // inactive 時使用更淡的紫色
+    // idle 時使用更淡的紫色
     return 'oklch(0.65 0.12 300 / 0.7)'
   }
 
+  // Queued 狀態（所有模式通用）
+  if (props.status === 'queued') {
+    return 'oklch(0.7 0.12 230 / 0.8)' // 淡藍色
+  }
+
+  // Waiting 狀態（multi-direct 10 秒等待合併期間）
+  if (props.status === 'waiting') {
+    return 'oklch(0.7 0.15 155 / 0.8)' // 淡綠色
+  }
+
+  // Direct 模式
+  if (props.triggerMode === 'direct') {
+    if (props.status === 'idle') {
+      return 'oklch(0.6 0.02 50 / 0.5)' // 灰色
+    }
+    return 'oklch(0.7 0.15 50)' // 橘色（active）
+  }
+
   // Auto 模式原有邏輯
-  if (props.status === 'inactive') {
+  if (props.status === 'idle') {
     return 'oklch(0.6 0.02 50 / 0.5)'
   }
   return 'oklch(0.7 0.15 50)'
 })
 
 const midLabel = computed(() => {
-  if (props.triggerMode !== 'ai-decide') {
+  // Auto 模式不顯示標籤
+  if (props.triggerMode === 'auto') {
     return null
   }
 
+  // Direct 模式顯示 D 標籤
+  if (props.triggerMode === 'direct') {
+    return { type: 'direct', text: 'D', class: 'direct-label' }
+  }
+
+  // AI Decide 模式
   if (props.status === 'ai-deciding') {
     return { type: 'deciding', text: '', class: 'deciding-label' }
   }
@@ -111,7 +136,7 @@ const midLabel = computed(() => {
     return { type: 'error', text: '!', class: 'error-label' }
   }
 
-  // inactive, ai-approved
+  // idle, ai-approved
   return { type: 'ai', text: 'AI', class: 'ai-label' }
 })
 
@@ -244,12 +269,15 @@ const handleContextMenu = (e: MouseEvent): void => {
       {
         selected: isSelected,
         active: status === 'active',
-        inactive: status === 'inactive',
+        idle: status === 'idle',
+        queued: status === 'queued',
+        waiting: status === 'waiting',
         'ai-decide': triggerMode === 'ai-decide',
         'ai-deciding': status === 'ai-deciding',
         'ai-approved': status === 'ai-approved',
         'ai-rejected': status === 'ai-rejected',
         'ai-error': status === 'ai-error',
+        direct: triggerMode === 'direct',
       },
     ]"
     @click="handleClick"
@@ -268,18 +296,18 @@ const handleContextMenu = (e: MouseEvent): void => {
     <!-- 實際可見的連線 -->
     <path
       ref="pathRef"
-      class="line"
+      :class="['line', { 'queued-pulse': status === 'queued', 'waiting-pulse': status === 'waiting' }]"
       :d="pathData.path"
       :stroke="lineColor"
       :style="{ color: lineColor }"
       fill="none"
     />
 
-    <!-- 靜態箭頭（inactive 狀態，包括 AI Decide 閒置時） -->
+    <!-- 靜態箭頭（idle 或 queued 或 waiting 狀態，包括 AI Decide 閒置時） -->
     <!-- 在 rejected 狀態時不顯示（useXMarker 此時為 true） -->
     <polygon
       v-for="(arrow, index) in arrowPositions"
-      v-show="status === 'inactive' && !useXMarker"
+      v-show="(status === 'idle' || status === 'queued' || status === 'waiting') && !useXMarker"
       :key="`static-${index}`"
       class="arrow"
       :points="`0,-5 10,0 0,5`"

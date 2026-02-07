@@ -1,7 +1,7 @@
 import {v4 as uuidv4} from 'uuid';
 import {promises as fs} from 'fs';
 import path from 'path';
-import type {Connection, AnchorPosition, TriggerMode, DecideStatus} from '../types';
+import type {Connection, AnchorPosition, TriggerMode, DecideStatus, ConnectionStatus} from '../types';
 import type {PersistedConnection} from '../types';
 import {Result, ok, err} from '../types';
 import {logger} from '../utils/logger.js';
@@ -39,6 +39,7 @@ class ConnectionStore {
             triggerMode: data.triggerMode ?? 'auto',
             decideStatus: 'none',
             decideReason: null,
+            connectionStatus: 'idle',
             createdAt: new Date(),
         };
 
@@ -116,12 +117,11 @@ class ConnectionStore {
             return undefined;
         }
 
-        // 當 triggerMode 從 ai-decide 切換為 auto 時，自動重設 decideStatus 和 decideReason
         if (updates.triggerMode !== undefined) {
             const oldMode = connection.triggerMode;
             connection.triggerMode = updates.triggerMode;
 
-            if (oldMode === 'ai-decide' && updates.triggerMode === 'auto') {
+            if (oldMode === 'ai-decide' && (updates.triggerMode === 'auto' || updates.triggerMode === 'direct')) {
                 connection.decideStatus = 'none';
                 connection.decideReason = null;
             }
@@ -137,6 +137,23 @@ class ConnectionStore {
 
         connectionsMap.set(id, connection);
         this.saveToDiskAsync(canvasId);
+
+        return connection;
+    }
+
+    updateConnectionStatus(canvasId: string, connectionId: string, status: ConnectionStatus): Connection | undefined {
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) {
+            return undefined;
+        }
+
+        const connection = connectionsMap.get(connectionId);
+        if (!connection) {
+            return undefined;
+        }
+
+        connection.connectionStatus = status;
+        connectionsMap.set(connectionId, connection);
 
         return connection;
     }
@@ -204,6 +221,7 @@ class ConnectionStore {
                     decideReason: ('decideReason' in persistedObj && persistedObj.decideReason !== undefined)
                         ? persistedObj.decideReason as string | null
                         : null,
+                    connectionStatus: 'idle',
                     createdAt: new Date(persistedObj.createdAt as string),
                 };
                 connectionsMap.set(connection.id, connection);

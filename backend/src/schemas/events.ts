@@ -200,4 +200,10 @@ export enum WebSocketResponseEvents {
   OUTPUT_STYLE_MOVED_TO_GROUP = 'output-style:moved-to-group',
   SUBAGENT_MOVED_TO_GROUP = 'subagent:moved-to-group',
   SKILL_IMPORTED = 'skill:imported',
+  WORKFLOW_DIRECT_TRIGGERED = 'workflow:direct-triggered',
+  WORKFLOW_DIRECT_WAITING = 'workflow:direct-waiting',
+  WORKFLOW_QUEUED = 'workflow:queued',
+  WORKFLOW_QUEUE_PROCESSED = 'workflow:queue-processed',
+  WORKFLOW_DIRECT_COUNTDOWN = 'workflow:direct-countdown',
+  WORKFLOW_DIRECT_MERGED = 'workflow:direct-merged',
 }

@@ -1,6 +1,7 @@
 import { connectionStore } from '../connectionStore.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
 import { podStore } from '../podStore.js';
+import { directTriggerStore } from '../directTriggerStore.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
 import {
   type WorkflowPendingPayload,
@@ -27,7 +28,6 @@ class WorkflowStateService {
 
   checkMultiInputScenario(canvasId: string, targetPodId: string): { isMultiInput: boolean; requiredSourcePodIds: string[] } {
     const incomingConnections = connectionStore.findByTargetPodId(canvasId, targetPodId);
-    // 所有觸發模式（auto 和 ai-decide）都參與多輸入判斷
     const triggerableConnections = incomingConnections.filter((conn) => conn.triggerMode === 'auto' || conn.triggerMode === 'ai-decide');
     const requiredSourcePodIds = triggerableConnections.map((conn) => conn.sourcePodId);
 
@@ -35,6 +35,11 @@ class WorkflowStateService {
       isMultiInput: triggerableConnections.length > 1,
       requiredSourcePodIds,
     };
+  }
+
+  getDirectConnectionCount(canvasId: string, targetPodId: string): number {
+    const incomingConnections = connectionStore.findByTargetPodId(canvasId, targetPodId);
+    return incomingConnections.filter((conn) => conn.triggerMode === 'direct').length;
   }
 
   initializePendingTarget(targetPodId: string, requiredSourcePodIds: string[]): void {
@@ -109,11 +114,23 @@ class WorkflowStateService {
 
   handleConnectionDeletion(canvasId: string, connectionId: string): void {
     const connection = connectionStore.getById(canvasId, connectionId);
-    if (!connection || (connection.triggerMode !== 'auto' && connection.triggerMode !== 'ai-decide')) {
+    if (!connection) {
       return;
     }
 
-    const { sourcePodId, targetPodId } = connection;
+    const { sourcePodId, targetPodId, triggerMode } = connection;
+
+    if (triggerMode === 'direct') {
+      if (directTriggerStore.hasDirectPending(targetPodId)) {
+        directTriggerStore.clearDirectPending(targetPodId);
+        logger.log('Workflow', 'Delete', `Cleared direct pending for target ${targetPodId} - connection deleted`);
+      }
+      return;
+    }
+
+    if (triggerMode !== 'auto' && triggerMode !== 'ai-decide') {
+      return;
+    }
 
     if (!pendingTargetStore.hasPendingTarget(targetPodId)) {
       return;
