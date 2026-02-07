@@ -1,139 +1,20 @@
-import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, spyOn, mock } from 'bun:test';
 
-// Mock dependencies
-mock.module('../../src/services/connectionStore.js', () => ({
-  connectionStore: {
-    findBySourcePodId: mock(),
-    findByTargetPodId: mock(),
-    getById: mock(),
-    updateDecideStatus: mock(),
-    updateConnectionStatus: mock(),
-  },
-}));
-
-mock.module('../../src/services/podStore.js', () => ({
-  podStore: {
-    getById: mock(),
-    setStatus: mock(),
-    updateLastActive: mock(),
-  },
-}));
-
-mock.module('../../src/services/messageStore.js', () => ({
-  messageStore: {
-    getMessages: mock(),
-    addMessage: mock(async () => {}),
-  },
-}));
-
-mock.module('../../src/services/summaryService.js', () => ({
-  summaryService: {
-    generateSummaryForTarget: mock(),
-  },
-}));
-
-mock.module('../../src/services/pendingTargetStore.js', () => ({
-  pendingTargetStore: {
-    hasPendingTarget: mock(),
-    getPendingTarget: mock(),
-    clearPendingTarget: mock(),
-  },
-}));
-
-mock.module('../../src/services/directTriggerStore.js', () => ({
-  directTriggerStore: {
-    hasDirectPending: mock(),
-    initializeDirectPending: mock(),
-    recordDirectReady: mock(),
-    clearDirectPending: mock(),
-    hasActiveTimer: mock(),
-    clearTimer: mock(),
-    setTimer: mock(),
-    getReadySummaries: mock(),
-  },
-}));
-
-mock.module('../../src/services/workflow/workflowStateService.js', () => ({
-  workflowStateService: {
-    checkMultiInputScenario: mock(),
-    getDirectConnectionCount: mock(),
-    initializePendingTarget: mock(),
-    recordSourceCompletion: mock(),
-    recordSourceRejection: mock(),
-    getCompletedSummaries: mock(),
-    clearPendingTarget: mock(),
-  },
-}));
-
-mock.module('../../src/services/workflow/workflowEventEmitter.js', () => ({
-  workflowEventEmitter: {
-    emitWorkflowAutoTriggered: mock(),
-    emitWorkflowTriggered: mock(),
-    emitWorkflowComplete: mock(),
-    emitAiDecidePending: mock(),
-    emitAiDecideResult: mock(),
-    emitAiDecideError: mock(),
-    emitWorkflowQueued: mock(),
-    emitWorkflowQueueProcessed: mock(),
-    emitDirectTriggered: mock(),
-    emitDirectWaiting: mock(),
-    emitDirectMerged: mock(),
-  },
-}));
-
-mock.module('../../src/services/workflow/aiDecideService.js', () => ({
-  aiDecideService: {
-    decideConnections: mock(),
-  },
-}));
-
-mock.module('../../src/services/autoClear/index.js', () => ({
-  autoClearService: {
-    initializeWorkflowTracking: mock(),
-    onPodComplete: mock(async () => {}),
-  },
-}));
-
-mock.module('../../src/utils/logger.js', () => ({
-  logger: {
-    log: mock(),
-    error: mock(),
-  },
-}));
-
-mock.module('../../src/services/socketService.js', () => ({
-  socketService: {
-    emitToCanvas: mock(),
-  },
-}));
-
-mock.module('../../src/services/claude/queryService.js', () => ({
-  claudeQueryService: {
-    executeChatInPod: mock(),
-    sendMessage: mock(async () => {}),
-  },
-}));
-
-mock.module('../../src/services/commandService.js', () => ({
-  commandService: {
-    getContent: mock(),
-    list: mock(async () => []),
-  },
-}));
-
-// Import after mocks
-import { workflowExecutionService } from '../../src/services/workflow/workflowExecutionService.js';
+// Import 真實模組
+import { workflowExecutionService } from '../../src/services/workflow';
 import { connectionStore } from '../../src/services/connectionStore.js';
 import { podStore } from '../../src/services/podStore.js';
 import { messageStore } from '../../src/services/messageStore.js';
 import { summaryService } from '../../src/services/summaryService.js';
 import { directTriggerStore } from '../../src/services/directTriggerStore.js';
-import { pendingTargetStore } from '../../src/services/pendingTargetStore.js';
-import { workflowStateService } from '../../src/services/workflow/workflowStateService.js';
-import { workflowEventEmitter } from '../../src/services/workflow/workflowEventEmitter.js';
-import { workflowQueueService } from '../../src/services/workflow/workflowQueueService.js';
+import { workflowStateService } from '../../src/services/workflow';
+import { workflowEventEmitter } from '../../src/services/workflow';
+import { workflowQueueService } from '../../src/services/workflow';
 import { claudeQueryService } from '../../src/services/claude/queryService.js';
-import { autoClearService } from '../../src/services/autoClear/index.js';
+import { autoClearService } from '../../src/services/autoClear';
+import { logger } from '../../src/utils/logger.js';
+import { socketService } from '../../src/services/socketService.js';
+import { commandService } from '../../src/services/commandService.js';
 import type { Connection } from '../../src/types';
 
 describe('Direct Trigger Flow', () => {
@@ -201,77 +82,159 @@ describe('Direct Trigger Flow', () => {
   const testSummary = 'Test summary content';
 
   // 追蹤所有在測試中創建的 spy，以便在 afterEach 中還原
-  const spies: Array<ReturnType<typeof spyOn>> = [];
+  let spies: Array<ReturnType<typeof spyOn>> = [];
+
+  /**
+   * 輔助函數：安全地 spy 或重置已存在的 mock
+   * 如果方法已經是 mock（由其他測試的 mock.module 建立），則重置它
+   * 否則建立新的 spy
+   */
+  const setupMock = <T extends object, K extends keyof T>(
+    obj: T,
+    method: K,
+    mockConfig: { returnValue?: any; implementation?: any; resolvedValue?: any }
+  ) => {
+    const target = obj[method];
+
+    // 如果目標不存在或是 undefined，說明被其他測試的 mock.module 污染但沒有正確初始化
+    // 我們需要創建一個新的 mock 函數
+    if (target === undefined || target === null) {
+      const newMock = mock();
+      (obj as any)[method] = newMock;
+
+      if ('returnValue' in mockConfig) {
+        newMock.mockReturnValue(mockConfig.returnValue);
+      } else if ('implementation' in mockConfig) {
+        newMock.mockImplementation(mockConfig.implementation);
+      } else if ('resolvedValue' in mockConfig) {
+        newMock.mockResolvedValue(mockConfig.resolvedValue);
+      }
+      return; // 不加入 spies，因為這是替換已污染的模組
+    }
+
+    // 檢查是否已經是 mock 函數（由其他測試的 mock.module 建立）
+    if (typeof target === 'function' && 'mockReturnValue' in target) {
+      // 已經是 mock，清空並重新設定
+      (target as any).mockClear?.();
+      if ('returnValue' in mockConfig) {
+        (target as any).mockReturnValue(mockConfig.returnValue);
+      } else if ('implementation' in mockConfig) {
+        (target as any).mockImplementation(mockConfig.implementation);
+      } else if ('resolvedValue' in mockConfig) {
+        (target as any).mockResolvedValue(mockConfig.resolvedValue);
+      }
+      return; // 不加入 spies，因為不是我們創建的
+    }
+
+    // 真實函數，使用 spyOn
+    const spy = spyOn(obj, method as any);
+    if ('returnValue' in mockConfig) {
+      spy.mockReturnValue(mockConfig.returnValue);
+    } else if ('implementation' in mockConfig) {
+      spy.mockImplementation(mockConfig.implementation);
+    } else if ('resolvedValue' in mockConfig) {
+      spy.mockResolvedValue(mockConfig.resolvedValue);
+    }
+    spies.push(spy);
+  };
 
   beforeEach(() => {
-    // Reset all mocks
-    (connectionStore.findBySourcePodId as any).mockClear?.();
-    (connectionStore.findByTargetPodId as any).mockClear?.();
-    (connectionStore.getById as any).mockClear?.();
-    (connectionStore.updateDecideStatus as any).mockClear?.();
-    (connectionStore.updateConnectionStatus as any).mockClear?.();
-    (podStore.getById as any).mockClear?.();
-    (podStore.setStatus as any).mockClear?.();
-    (podStore.updateLastActive as any).mockClear?.();
-    (messageStore.getMessages as any).mockClear?.();
-    (messageStore.addMessage as any).mockClear?.();
-    (summaryService.generateSummaryForTarget as any).mockClear?.();
-    (pendingTargetStore.hasPendingTarget as any).mockClear?.();
-    (pendingTargetStore.getPendingTarget as any).mockClear?.();
-    (pendingTargetStore.clearPendingTarget as any).mockClear?.();
-    (workflowStateService.checkMultiInputScenario as any).mockClear?.();
-    (workflowStateService.getDirectConnectionCount as any).mockClear?.();
-    (workflowStateService.initializePendingTarget as any).mockClear?.();
-    (workflowStateService.recordSourceCompletion as any).mockClear?.();
-    (workflowStateService.recordSourceRejection as any).mockClear?.();
-    (workflowStateService.getCompletedSummaries as any).mockClear?.();
-    (workflowStateService.clearPendingTarget as any).mockClear?.();
-    (workflowEventEmitter.emitWorkflowAutoTriggered as any).mockClear?.();
-    (workflowEventEmitter.emitWorkflowTriggered as any).mockClear?.();
-    (workflowEventEmitter.emitWorkflowComplete as any).mockClear?.();
-    (workflowEventEmitter.emitAiDecidePending as any).mockClear?.();
-    (workflowEventEmitter.emitAiDecideResult as any).mockClear?.();
-    (workflowEventEmitter.emitAiDecideError as any).mockClear?.();
-    (workflowEventEmitter.emitWorkflowQueued as any).mockClear?.();
-    (workflowEventEmitter.emitWorkflowQueueProcessed as any).mockClear?.();
-    (workflowEventEmitter.emitDirectTriggered as any).mockClear?.();
-    (workflowEventEmitter.emitDirectWaiting as any).mockClear?.();
-    (workflowEventEmitter.emitDirectMerged as any).mockClear?.();
-    (directTriggerStore.hasDirectPending as any).mockClear?.();
-    (directTriggerStore.initializeDirectPending as any).mockClear?.();
-    (directTriggerStore.recordDirectReady as any).mockClear?.();
-    (directTriggerStore.clearDirectPending as any).mockClear?.();
-    (directTriggerStore.hasActiveTimer as any).mockClear?.();
-    (directTriggerStore.clearTimer as any).mockClear?.();
-    (directTriggerStore.setTimer as any).mockClear?.();
-    (directTriggerStore.getReadySummaries as any).mockClear?.();
-    (claudeQueryService.sendMessage as any).mockClear?.();
-    (autoClearService.onPodComplete as any).mockClear?.();
+    // 清空 spy 陣列
+    spies = [];
 
-    // Default mock returns
-    (podStore.getById as any).mockImplementation((cId: string, podId: string) => {
-      if (podId === sourcePodId) return { ...mockSourcePod };
-      if (podId === targetPodId) return { ...mockTargetPod };
-      return null;
+    // connectionStore
+    setupMock(connectionStore, 'findBySourcePodId', { returnValue: [] });
+    setupMock(connectionStore, 'findByTargetPodId', { returnValue: [] });
+    setupMock(connectionStore, 'getById', { returnValue: mockDirectConnection });
+    setupMock(connectionStore, 'updateDecideStatus', { implementation: () => undefined });
+    setupMock(connectionStore, 'updateConnectionStatus', { implementation: () => undefined });
+
+    // podStore
+    setupMock(podStore, 'getById', {
+      implementation: (cId: string, podId: string) => {
+        if (podId === sourcePodId) return { ...mockSourcePod };
+        if (podId === targetPodId) return { ...mockTargetPod };
+        return undefined;
+      }
     });
-    (messageStore.getMessages as any).mockReturnValue(mockMessages);
-    (summaryService.generateSummaryForTarget as any).mockResolvedValue({
-      success: true,
-      summary: testSummary,
+    setupMock(podStore, 'setStatus', { implementation: () => {} });
+    setupMock(podStore, 'updateLastActive', { implementation: () => {} });
+
+    // messageStore
+    setupMock(messageStore, 'getMessages', { returnValue: mockMessages });
+    setupMock(messageStore, 'addMessage', { resolvedValue: undefined });
+
+    // summaryService
+    setupMock(summaryService, 'generateSummaryForTarget', {
+      resolvedValue: {
+        success: true,
+        summary: testSummary,
+      }
     });
-    (connectionStore.getById as any).mockReturnValue(mockDirectConnection);
-    (workflowStateService.checkMultiInputScenario as any).mockReturnValue({
-      isMultiInput: false,
-      requiredSourcePodIds: [],
+
+    // directTriggerStore
+    setupMock(directTriggerStore, 'hasDirectPending', { returnValue: false });
+    setupMock(directTriggerStore, 'initializeDirectPending', { implementation: () => {} });
+    setupMock(directTriggerStore, 'recordDirectReady', { returnValue: 1 });
+    setupMock(directTriggerStore, 'clearDirectPending', { implementation: () => {} });
+    setupMock(directTriggerStore, 'hasActiveTimer', { returnValue: false });
+    setupMock(directTriggerStore, 'clearTimer', { implementation: () => {} });
+    setupMock(directTriggerStore, 'setTimer', { implementation: () => {} });
+    setupMock(directTriggerStore, 'getReadySummaries', { returnValue: null });
+
+    // workflowStateService
+    setupMock(workflowStateService, 'checkMultiInputScenario', {
+      returnValue: {
+        isMultiInput: false,
+        requiredSourcePodIds: [],
+      }
     });
-    (workflowStateService.getDirectConnectionCount as any).mockReturnValue(1);
-    (pendingTargetStore.hasPendingTarget as any).mockReturnValue(false);
-    (directTriggerStore.hasDirectPending as any).mockReturnValue(false);
-    (directTriggerStore.hasActiveTimer as any).mockReturnValue(false);
-    (claudeQueryService.sendMessage as any).mockImplementation(async (podId: string, message: string, callback: any) => {
-      callback({ type: 'text', content: 'Claude response' });
-      callback({ type: 'complete' });
+    setupMock(workflowStateService, 'getDirectConnectionCount', { returnValue: 1 });
+    setupMock(workflowStateService, 'initializePendingTarget', { implementation: () => {} });
+    setupMock(workflowStateService, 'recordSourceCompletion', {
+      returnValue: {
+        allSourcesResponded: false,
+        hasRejection: false,
+      }
     });
+    setupMock(workflowStateService, 'recordSourceRejection', { implementation: () => {} });
+    setupMock(workflowStateService, 'getCompletedSummaries', { returnValue: null });
+    setupMock(workflowStateService, 'clearPendingTarget', { implementation: () => {} });
+
+    // workflowEventEmitter
+    setupMock(workflowEventEmitter, 'emitWorkflowAutoTriggered', { implementation: () => {} });
+    setupMock(workflowEventEmitter, 'emitWorkflowTriggered', { implementation: () => {} });
+    setupMock(workflowEventEmitter, 'emitWorkflowComplete', { implementation: () => {} });
+    setupMock(workflowEventEmitter, 'emitAiDecidePending', { implementation: () => {} });
+    setupMock(workflowEventEmitter, 'emitAiDecideResult', { implementation: () => {} });
+    setupMock(workflowEventEmitter, 'emitAiDecideError', { implementation: () => {} });
+    setupMock(workflowEventEmitter, 'emitWorkflowQueued', { implementation: () => {} });
+    setupMock(workflowEventEmitter, 'emitWorkflowQueueProcessed', { implementation: () => {} });
+    setupMock(workflowEventEmitter, 'emitDirectTriggered', { implementation: () => {} });
+    setupMock(workflowEventEmitter, 'emitDirectWaiting', { implementation: () => {} });
+    setupMock(workflowEventEmitter, 'emitDirectMerged', { implementation: () => {} });
+
+    // claudeQueryService
+    setupMock(claudeQueryService, 'sendMessage', {
+      implementation: async (podId: string, message: string, callback: any) => {
+        callback({ type: 'text', content: 'Claude response' });
+        callback({ type: 'complete' });
+      }
+    });
+
+    // autoClearService
+    setupMock(autoClearService, 'initializeWorkflowTracking', { implementation: () => {} });
+    setupMock(autoClearService, 'onPodComplete', { resolvedValue: undefined });
+
+    // logger
+    setupMock(logger, 'log', { implementation: () => {} });
+    setupMock(logger, 'error', { implementation: () => {} });
+
+    // socketService
+    setupMock(socketService, 'emitToCanvas', { implementation: () => {} });
+
+    // commandService
+    setupMock(commandService, 'list', { resolvedValue: [] });
   });
 
   afterEach(() => {
@@ -279,18 +242,20 @@ describe('Direct Trigger Flow', () => {
     spies.forEach((spy) => {
       spy.mockRestore();
     });
-    spies.length = 0; // 清空 spy 陣列
+    spies = [];
   });
 
   describe('A1: 單一 direct - target idle → 直接執行', () => {
     it('Target Pod 只有 1 條 direct 連線，target 狀態為 idle，應直接執行', async () => {
       // 準備
-      (connectionStore.findBySourcePodId as any).mockReturnValue([mockDirectConnection]);
-      (workflowStateService.getDirectConnectionCount as any).mockReturnValue(1);
-      (podStore.getById as any).mockImplementation((cId: string, podId: string) => {
-        if (podId === sourcePodId) return { ...mockSourcePod };
-        if (podId === targetPodId) return { ...mockTargetPod, status: 'idle' };
-        return null;
+      setupMock(connectionStore, 'findBySourcePodId', { returnValue: [mockDirectConnection] });
+      setupMock(workflowStateService, 'getDirectConnectionCount', { returnValue: 1 });
+      setupMock(podStore, 'getById', {
+        implementation: (cId: string, podId: string) => {
+          if (podId === sourcePodId) return { ...mockSourcePod };
+          if (podId === targetPodId) return { ...mockTargetPod, status: 'idle' };
+          return undefined;
+        }
       });
 
       // Mock triggerWorkflowWithSummary 避免執行完整工作流
@@ -328,15 +293,17 @@ describe('Direct Trigger Flow', () => {
   describe('A2: 單一 direct - target busy → 進 queue', () => {
     it('Target Pod 只有 1 條 direct 連線，target 狀態為 chatting，應進入 queue', async () => {
       // 準備
-      (connectionStore.findBySourcePodId as any).mockReturnValue([mockDirectConnection]);
-      (workflowStateService.getDirectConnectionCount as any).mockReturnValue(1);
-      (podStore.getById as any).mockImplementation((cId: string, podId: string) => {
-        if (podId === sourcePodId) return { ...mockSourcePod };
-        if (podId === targetPodId) return { ...mockTargetPod, status: 'chatting' };
-        return null;
+      setupMock(connectionStore, 'findBySourcePodId', { returnValue: [mockDirectConnection] });
+      setupMock(workflowStateService, 'getDirectConnectionCount', { returnValue: 1 });
+      setupMock(podStore, 'getById', {
+        implementation: (cId: string, podId: string) => {
+          if (podId === sourcePodId) return { ...mockSourcePod };
+          if (podId === targetPodId) return { ...mockTargetPod, status: 'chatting' };
+          return undefined;
+        }
       });
 
-      const enqueueSpy = spyOn(workflowQueueService, 'enqueue');
+      const enqueueSpy = spyOn(workflowQueueService, 'enqueue').mockImplementation(() => {});
       spies.push(enqueueSpy);
 
       // 執行
@@ -363,11 +330,11 @@ describe('Direct Trigger Flow', () => {
   describe('B1: Multi-direct - 第一個 source 到達 → 初始化等待', () => {
     it('Target Pod 有 2+ 條 direct 連線，第一個 source 完成，應初始化等待並設定 timer', async () => {
       // 準備
-      (connectionStore.findBySourcePodId as any).mockReturnValue([mockDirectConnection]);
-      (workflowStateService.getDirectConnectionCount as any).mockReturnValue(2);
-      (directTriggerStore.hasDirectPending as any).mockReturnValue(false); // 第一次，pending 不存在
+      setupMock(connectionStore, 'findBySourcePodId', { returnValue: [mockDirectConnection] });
+      setupMock(workflowStateService, 'getDirectConnectionCount', { returnValue: 2 });
+      setupMock(directTriggerStore, 'hasDirectPending', { returnValue: false }); // 第一次，pending 不存在
 
-      const setTimeoutSpy = spyOn(global, 'setTimeout');
+      const setTimeoutSpy = spyOn(global, 'setTimeout').mockReturnValue(123 as any);
       spies.push(setTimeoutSpy);
 
       // 執行
@@ -402,13 +369,13 @@ describe('Direct Trigger Flow', () => {
       };
 
       // 準備
-      (connectionStore.findBySourcePodId as any).mockReturnValue([connection2]);
-      (connectionStore.getById as any).mockReturnValue(connection2);
-      (workflowStateService.getDirectConnectionCount as any).mockReturnValue(2);
-      (directTriggerStore.hasDirectPending as any).mockReturnValue(true); // pending 已存在
-      (directTriggerStore.hasActiveTimer as any).mockReturnValue(true); // 有舊 timer
+      setupMock(connectionStore, 'findBySourcePodId', { returnValue: [connection2] });
+      setupMock(connectionStore, 'getById', { returnValue: connection2 });
+      setupMock(workflowStateService, 'getDirectConnectionCount', { returnValue: 2 });
+      setupMock(directTriggerStore, 'hasDirectPending', { returnValue: true }); // pending 已存在
+      setupMock(directTriggerStore, 'hasActiveTimer', { returnValue: true }); // 有舊 timer
 
-      const setTimeoutSpy = spyOn(global, 'setTimeout');
+      const setTimeoutSpy = spyOn(global, 'setTimeout').mockReturnValue(123 as any);
       spies.push(setTimeoutSpy);
 
       // 執行
@@ -427,12 +394,14 @@ describe('Direct Trigger Flow', () => {
     it('只有 1 個 source ready，timer 到期，target idle，應執行工作流', async () => {
       // 準備 - 模擬 timer 到期時的狀態
       const readySummaries = new Map([[sourcePodId, testSummary]]);
-      (directTriggerStore.getReadySummaries as any).mockReturnValue(readySummaries);
-      (connectionStore.findByTargetPodId as any).mockReturnValue([mockDirectConnection]);
-      (podStore.getById as any).mockImplementation((cId: string, podId: string) => {
-        if (podId === sourcePodId) return { ...mockSourcePod };
-        if (podId === targetPodId) return { ...mockTargetPod, status: 'idle' };
-        return null;
+      setupMock(directTriggerStore, 'getReadySummaries', { returnValue: readySummaries });
+      setupMock(connectionStore, 'findByTargetPodId', { returnValue: [mockDirectConnection] });
+      setupMock(podStore, 'getById', {
+        implementation: (cId: string, podId: string) => {
+          if (podId === sourcePodId) return { ...mockSourcePod };
+          if (podId === targetPodId) return { ...mockTargetPod, status: 'idle' };
+          return undefined;
+        }
       });
 
       // Mock triggerWorkflowWithSummary 避免執行完整工作流
@@ -486,15 +455,17 @@ describe('Direct Trigger Flow', () => {
       ]);
 
       // 準備
-      (directTriggerStore.getReadySummaries as any).mockReturnValue(readySummaries);
-      (connectionStore.findByTargetPodId as any).mockReturnValue([mockDirectConnection, connection2]);
-      (podStore.getById as any).mockImplementation((cId: string, podId: string) => {
-        if (podId === sourcePodId || podId === source2PodId) return { ...mockSourcePod, id: podId };
-        if (podId === targetPodId) return { ...mockTargetPod, status: 'idle' };
-        return null;
+      setupMock(directTriggerStore, 'getReadySummaries', { returnValue: readySummaries });
+      setupMock(connectionStore, 'findByTargetPodId', { returnValue: [mockDirectConnection, connection2] });
+      setupMock(podStore, 'getById', {
+        implementation: (cId: string, podId: string) => {
+          if (podId === sourcePodId || podId === source2PodId) return { ...mockSourcePod, id: podId };
+          if (podId === targetPodId) return { ...mockTargetPod, status: 'idle' };
+          return undefined;
+        }
       });
 
-      // Mock triggerWorkflowWithSummary 避免執行完整工作流（需要先清除之前測試的 spy）
+      // Mock triggerWorkflowWithSummary 避免執行完整工作流
       let triggerCallCount = 0;
       const triggerSpy = spyOn(workflowExecutionService, 'triggerWorkflowWithSummary').mockImplementation(async () => {
         triggerCallCount++;
@@ -519,10 +490,10 @@ describe('Direct Trigger Flow', () => {
       // 驗證 emitDirectTriggered 被呼叫 2 次（每條 direct 連線各一次）
       expect(workflowEventEmitter.emitDirectTriggered).toHaveBeenCalledTimes(2);
 
-      // 驗證 triggerWorkflowWithSummary 只呼叫 1 次（用合併內容，使用本地計數器而非 spy 的累積計數）
+      // 驗證 triggerWorkflowWithSummary 只呼叫 1 次（用合併內容）
       expect(triggerCallCount).toBe(1);
 
-      // 驗證 emitWorkflowComplete 為「非主要」連線被呼叫（triggerMode: 'direct'）
+      // 驗證 emitWorkflowComplete 為「非主要」連線被呼叫
       expect(workflowEventEmitter.emitWorkflowComplete).toHaveBeenCalledWith(
         canvasId,
         connection2.id,
@@ -554,16 +525,18 @@ describe('Direct Trigger Flow', () => {
       ]);
 
       // 準備
-      (directTriggerStore.getReadySummaries as any).mockReturnValue(readySummaries);
-      (connectionStore.findByTargetPodId as any).mockReturnValue([mockDirectConnection, connection2]);
-      (directTriggerStore.hasDirectPending as any).mockReturnValue(false); // target 不在 direct pending 狀態
-      (podStore.getById as any).mockImplementation((cId: string, podId: string) => {
-        if (podId === sourcePodId || podId === source2PodId) return { ...mockSourcePod, id: podId };
-        if (podId === targetPodId) return { ...mockTargetPod, status: 'chatting' }; // target busy
-        return null;
+      setupMock(directTriggerStore, 'getReadySummaries', { returnValue: readySummaries });
+      setupMock(connectionStore, 'findByTargetPodId', { returnValue: [mockDirectConnection, connection2] });
+      setupMock(directTriggerStore, 'hasDirectPending', { returnValue: false }); // target 不在 direct pending 狀態
+      setupMock(podStore, 'getById', {
+        implementation: (cId: string, podId: string) => {
+          if (podId === sourcePodId || podId === source2PodId) return { ...mockSourcePod, id: podId };
+          if (podId === targetPodId) return { ...mockTargetPod, status: 'chatting' }; // target busy
+          return undefined;
+        }
       });
 
-      const enqueueSpy = spyOn(workflowQueueService, 'enqueue');
+      const enqueueSpy = spyOn(workflowQueueService, 'enqueue').mockImplementation(() => {});
       spies.push(enqueueSpy);
 
       // 執行

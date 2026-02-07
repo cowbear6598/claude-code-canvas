@@ -1,68 +1,117 @@
-import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, spyOn, mock } from 'bun:test';
 import type { ContentBlock } from '../../src/types';
 
 // Mock query function
 let mockQueryGenerator: any;
 
-// Mock @anthropic-ai/claude-agent-sdk 必須在最前面
-mock.module('@anthropic-ai/claude-agent-sdk', () => ({
-  query: mock(() => mockQueryGenerator()),
-}));
-
-// Mock dependencies
-mock.module('../../src/services/podStore.js', () => ({
-  podStore: {
-    getByIdGlobal: mock(),
-    setClaudeSessionId: mock(),
-  },
-}));
-
-mock.module('../../src/services/outputStyleService.js', () => ({
-  outputStyleService: {
-    getContent: mock(),
-  },
-}));
-
-mock.module('../../src/config/index.js', () => ({
-  config: {
-    repositoriesRoot: '/test/repos',
-  },
-}));
-
-mock.module('../../src/utils/logger.js', () => ({
-  logger: {
-    log: mock(),
-  },
-}));
-
-// Import after mocks
+// Import 真實模組
 import { claudeQueryService, type StreamEvent } from '../../src/services/claude/queryService.js';
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import * as claudeAgentSdk from '@anthropic-ai/claude-agent-sdk';
+import { podStore } from '../../src/services/podStore.js';
+import { outputStyleService } from '../../src/services/outputStyleService.js';
+import { logger } from '../../src/utils/logger.js';
+import { config } from '../../src/config';
 
 describe('Claude QueryService', () => {
   let streamEvents: StreamEvent[];
 
-  beforeEach(async () => {
+  // 追蹤所有在測試中創建的 spy，以便在 afterEach 中還原
+  let spies: Array<ReturnType<typeof spyOn>> = [];
+
+  /**
+   * 輔助函數：安全地 spy 或重置已存在的 mock
+   * 如果方法已經是 mock（由其他測試的 mock.module 建立），則重置它
+   * 否則建立新的 spy
+   */
+  const setupMock = <T extends object, K extends keyof T>(
+    obj: T,
+    method: K,
+    mockConfig: { returnValue?: any; implementation?: any; resolvedValue?: any }
+  ) => {
+    const target = obj[method];
+
+    // 如果目標不存在或是 undefined，說明被其他測試的 mock.module 污染但沒有正確初始化
+    // 我們需要創建一個新的 mock 函數
+    if (target === undefined || target === null) {
+      const newMock = mock();
+      (obj as any)[method] = newMock;
+
+      if ('returnValue' in mockConfig) {
+        newMock.mockReturnValue(mockConfig.returnValue);
+      } else if ('implementation' in mockConfig) {
+        newMock.mockImplementation(mockConfig.implementation);
+      } else if ('resolvedValue' in mockConfig) {
+        newMock.mockResolvedValue(mockConfig.resolvedValue);
+      }
+      return; // 不加入 spies，因為這是替換已污染的模組
+    }
+
+    // 檢查是否已經是 mock 函數（由其他測試的 mock.module 建立）
+    if (typeof target === 'function' && 'mockReturnValue' in target) {
+      // 已經是 mock，清空並重新設定
+      (target as any).mockClear?.();
+      if ('returnValue' in mockConfig) {
+        (target as any).mockReturnValue(mockConfig.returnValue);
+      } else if ('implementation' in mockConfig) {
+        (target as any).mockImplementation(mockConfig.implementation);
+      } else if ('resolvedValue' in mockConfig) {
+        (target as any).mockResolvedValue(mockConfig.resolvedValue);
+      }
+      return; // 不加入 spies，因為不是我們創建的
+    }
+
+    // 真實函數，使用 spyOn
+    const spy = spyOn(obj, method as any);
+    if ('returnValue' in mockConfig) {
+      spy.mockReturnValue(mockConfig.returnValue);
+    } else if ('implementation' in mockConfig) {
+      spy.mockImplementation(mockConfig.implementation);
+    } else if ('resolvedValue' in mockConfig) {
+      spy.mockResolvedValue(mockConfig.resolvedValue);
+    }
+    spies.push(spy);
+  };
+
+  beforeEach(() => {
+    // 清空 spy 陣列
+    spies = [];
+
     streamEvents = [];
     mockQueryGenerator = null;
 
-    // 重置所有 mock 的調用歷史
-    const { podStore } = await import('../../src/services/podStore.js');
-    const { outputStyleService } = await import('../../src/services/outputStyleService.js');
+    // 保存原始 config.repositoriesRoot 並設定測試值
+    const originalRepositoriesRoot = config.repositoriesRoot;
+    (config as any).repositoriesRoot = '/test/repos';
 
-    if ((podStore.getByIdGlobal as any).mockClear) {
-      (podStore.getByIdGlobal as any).mockClear();
-    }
-    if ((podStore.setClaudeSessionId as any).mockClear) {
-      (podStore.setClaudeSessionId as any).mockClear();
-    }
-    if ((outputStyleService.getContent as any).mockClear) {
-      (outputStyleService.getContent as any).mockClear();
-    }
+    // 在 afterEach 恢復原始值時需要這個
+    spies.push({
+      mockRestore: () => {
+        (config as any).repositoriesRoot = originalRepositoriesRoot;
+      }
+    } as any);
+
+    // podStore
+    setupMock(podStore, 'getByIdGlobal', { returnValue: null });
+    setupMock(podStore, 'setClaudeSessionId', { implementation: () => {} });
+
+    // outputStyleService
+    setupMock(outputStyleService, 'getContent', { resolvedValue: null });
+
+    // logger
+    setupMock(logger, 'log', { implementation: () => {} });
+
+    // claudeAgentSdk.query
+    setupMock(claudeAgentSdk, 'query', {
+      implementation: () => mockQueryGenerator()
+    });
   });
 
   afterEach(() => {
-    // bun:test 會自動清理 mock
+    // 還原所有測試中創建的 spy，避免跨檔案污染
+    spies.forEach((spy) => {
+      spy.mockRestore();
+    });
+    spies = [];
   });
 
   const createMockPod = (overrides = {}) => ({
@@ -400,7 +449,7 @@ describe('Claude QueryService', () => {
       await claudeQueryService.sendMessage('test-pod-id', contentBlocks, onStreamCallback, 'test-connection-id');
 
       // 驗證 query 被呼叫
-      expect(query).toHaveBeenCalledWith(
+      expect(claudeAgentSdk.query).toHaveBeenCalledWith(
         expect.objectContaining({
           prompt: expect.any(Object), // AsyncIterable
           options: expect.objectContaining({
@@ -550,7 +599,7 @@ describe('Claude QueryService', () => {
       await claudeQueryService.sendMessage('test-pod-id', contentBlocks, onStreamCallback, 'test-connection-id');
 
       // 驗證使用了預設訊息
-      expect(query).toHaveBeenCalled();
+      expect(claudeAgentSdk.query).toHaveBeenCalled();
     });
   });
 
@@ -590,7 +639,7 @@ describe('Claude QueryService', () => {
       await claudeQueryService.sendMessage('test-pod-id', 'the code', onStreamCallback, 'test-connection-id');
 
       // 驗證 query 被呼叫時 prompt 包含 command 前綴
-      expect(query).toHaveBeenCalledWith(
+      expect(claudeAgentSdk.query).toHaveBeenCalledWith(
         expect.objectContaining({
           prompt: '/review the code',
         })
@@ -641,7 +690,7 @@ describe('Claude QueryService', () => {
       await claudeQueryService.sendMessage('test-pod-id', contentBlocks, onStreamCallback, 'test-connection-id');
 
       // 驗證 query 被呼叫
-      expect(query).toHaveBeenCalled();
+      expect(claudeAgentSdk.query).toHaveBeenCalled();
     });
 
     it('沒有 commandId 時不添加前綴', async () => {
@@ -679,7 +728,7 @@ describe('Claude QueryService', () => {
       await claudeQueryService.sendMessage('test-pod-id', 'normal message', onStreamCallback, 'test-connection-id');
 
       // 驗證 query 被呼叫時 prompt 不包含前綴
-      expect(query).toHaveBeenCalledWith(
+      expect(claudeAgentSdk.query).toHaveBeenCalledWith(
         expect.objectContaining({
           prompt: 'normal message',
         })
@@ -723,7 +772,7 @@ describe('Claude QueryService', () => {
       // 驗證空訊息加上 commandId 後的結果
       // 空字串加上 command 前綴變成 "/start "
       // trim 後是 "/start",長度不為 0,所以不會使用預設訊息
-      expect(query).toHaveBeenCalledWith(
+      expect(claudeAgentSdk.query).toHaveBeenCalledWith(
         expect.objectContaining({
           prompt: '/start ',
         })
@@ -767,7 +816,7 @@ describe('Claude QueryService', () => {
       await claudeQueryService.sendMessage('test-pod-id', 'test', onStreamCallback, 'test-connection-id');
 
       // 驗證 cwd 使用 repositoriesRoot + repositoryId
-      expect(query).toHaveBeenCalledWith(
+      expect(claudeAgentSdk.query).toHaveBeenCalledWith(
         expect.objectContaining({
           options: expect.objectContaining({
             cwd: '/test/repos/my-repo',
@@ -814,7 +863,7 @@ describe('Claude QueryService', () => {
       await claudeQueryService.sendMessage('test-pod-id', 'test', onStreamCallback, 'test-connection-id');
 
       // 驗證 systemPrompt 被設定
-      expect(query).toHaveBeenCalledWith(
+      expect(claudeAgentSdk.query).toHaveBeenCalledWith(
         expect.objectContaining({
           options: expect.objectContaining({
             systemPrompt: 'Custom system prompt',
@@ -858,7 +907,7 @@ describe('Claude QueryService', () => {
       await claudeQueryService.sendMessage('test-pod-id', 'test', onStreamCallback, 'test-connection-id');
 
       // 驗證 options 不包含 systemPrompt
-      const callArgs = (query as any).mock.calls[0][0];
+      const callArgs = (claudeAgentSdk.query as any).mock.calls[0][0];
       expect(callArgs.options).not.toHaveProperty('systemPrompt');
     });
 
@@ -897,7 +946,7 @@ describe('Claude QueryService', () => {
       await claudeQueryService.sendMessage('test-pod-id', 'continue', onStreamCallback, 'test-connection-id');
 
       // 驗證 resume 選項被設定
-      expect(query).toHaveBeenCalledWith(
+      expect(claudeAgentSdk.query).toHaveBeenCalledWith(
         expect.objectContaining({
           options: expect.objectContaining({
             resume: 'existing-session-123',

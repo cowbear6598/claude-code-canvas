@@ -1,63 +1,21 @@
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, spyOn, mock } from 'bun:test';
 
-// Mock dependencies
+// Mock @anthropic-ai/claude-agent-sdk（保留此模組的 mock，因為無法對導出的函數使用 spyOn）
 mock.module('@anthropic-ai/claude-agent-sdk', () => ({
   query: mock(),
   tool: mock(),
   createSdkMcpServer: mock(),
 }));
 
-mock.module('../../src/services/podStore.js', () => ({
-  podStore: {
-    getById: mock(),
-  },
-}));
-
-mock.module('../../src/services/messageStore.js', () => ({
-  messageStore: {
-    getMessages: mock(),
-  },
-}));
-
-mock.module('../../src/services/outputStyleService.js', () => ({
-  outputStyleService: {
-    getContent: mock(),
-  },
-}));
-
-mock.module('../../src/services/commandService.js', () => ({
-  commandService: {
-    getContent: mock(),
-  },
-}));
-
-mock.module('../../src/services/claude/disposableChatService.js', () => ({
-  disposableChatService: {
-    executeDisposableChat: mock(),
-  },
-}));
-
-mock.module('../../src/services/summaryPromptBuilder.js', () => ({
-  summaryPromptBuilder: {
-    formatConversationHistory: mock(() => '[User]: Hello\n\n[Assistant]: Hi'),
-  },
-}));
-
-mock.module('../../src/utils/logger.js', () => ({
-  logger: {
-    log: mock(),
-    error: mock(),
-  },
-}));
-
-// Import after mocks
-import { aiDecideService } from '../../src/services/workflow/aiDecideService.js';
+import { aiDecideService } from '../../src/services/workflow';
 import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { podStore } from '../../src/services/podStore.js';
 import { messageStore } from '../../src/services/messageStore.js';
 import { outputStyleService } from '../../src/services/outputStyleService.js';
 import { commandService } from '../../src/services/commandService.js';
 import { disposableChatService } from '../../src/services/claude/disposableChatService.js';
+import { summaryPromptBuilder } from '../../src/services/summaryPromptBuilder.js';
+import { logger } from '../../src/utils/logger.js';
 import type { Connection } from '../../src/types';
 
 describe('AiDecideService', () => {
@@ -116,38 +74,125 @@ describe('AiDecideService', () => {
     createdAt: new Date(),
   };
 
+  // 追蹤所有在測試中創建的 spy，以便在 afterEach 中還原
+  let spies: Array<ReturnType<typeof spyOn>> = [];
+
+  /**
+   * 輔助函數：安全地 spy 或重置已存在的 mock
+   * 如果方法已經是 mock（由其他測試的 mock.module 建立），則重置它
+   * 否則建立新的 spy
+   */
+  const setupMock = <T extends object, K extends keyof T>(
+    obj: T,
+    method: K,
+    mockConfig: { returnValue?: any; implementation?: any; resolvedValue?: any }
+  ) => {
+    const target = obj[method];
+
+    // 如果目標不存在或是 undefined，說明被其他測試的 mock.module 污染但沒有正確初始化
+    // 我們需要創建一個新的 mock 函數
+    if (target === undefined || target === null) {
+      const newMock = mock();
+      (obj as any)[method] = newMock;
+
+      if ('returnValue' in mockConfig) {
+        newMock.mockReturnValue(mockConfig.returnValue);
+      } else if ('implementation' in mockConfig) {
+        newMock.mockImplementation(mockConfig.implementation);
+      } else if ('resolvedValue' in mockConfig) {
+        newMock.mockResolvedValue(mockConfig.resolvedValue);
+      }
+      return; // 不加入 spies，因為這是替換已污染的模組
+    }
+
+    // 檢查是否已經是 mock 函數（由其他測試的 mock.module 建立）
+    if (typeof target === 'function' && 'mockReturnValue' in target) {
+      // 已經是 mock，清空並重新設定
+      (target as any).mockClear?.();
+      if ('returnValue' in mockConfig) {
+        (target as any).mockReturnValue(mockConfig.returnValue);
+      } else if ('implementation' in mockConfig) {
+        (target as any).mockImplementation(mockConfig.implementation);
+      } else if ('resolvedValue' in mockConfig) {
+        (target as any).mockResolvedValue(mockConfig.resolvedValue);
+      }
+      return; // 不加入 spies，因為不是我們創建的
+    }
+
+    // 真實函數，使用 spyOn
+    const spy = spyOn(obj, method as any);
+    if ('returnValue' in mockConfig) {
+      spy.mockReturnValue(mockConfig.returnValue);
+    } else if ('implementation' in mockConfig) {
+      spy.mockImplementation(mockConfig.implementation);
+    } else if ('resolvedValue' in mockConfig) {
+      spy.mockResolvedValue(mockConfig.resolvedValue);
+    }
+    spies.push(spy);
+  };
+
   beforeEach(() => {
-    // Reset all mocks
+    // 清空 spy 陣列
+    spies = [];
+
+    // podStore
+    setupMock(podStore, 'getById', {
+      implementation: (canvasId: string, podId: string) => {
+        if (podId === 'source-pod') return mockSourcePod;
+        if (podId === 'target-pod') return mockTargetPod;
+        return null;
+      }
+    });
+
+    // messageStore
+    setupMock(messageStore, 'getMessages', { returnValue: mockMessages });
+
+    // outputStyleService
+    setupMock(outputStyleService, 'getContent', { resolvedValue: null });
+
+    // commandService
+    setupMock(commandService, 'getContent', { resolvedValue: null });
+
+    // disposableChatService
+    setupMock(disposableChatService, 'executeDisposableChat', {
+      resolvedValue: {
+        success: true,
+        content: 'Summary: Analysis found 3 issues',
+      }
+    });
+
+    // summaryPromptBuilder
+    setupMock(summaryPromptBuilder, 'formatConversationHistory', {
+      returnValue: '[User]: Hello\n\n[Assistant]: Hi'
+    });
+
+    // logger
+    setupMock(logger, 'log', { implementation: () => {} });
+    setupMock(logger, 'error', { implementation: () => {} });
+
+    // @anthropic-ai/claude-agent-sdk 使用 mock.module，需要手動重置
     (query as any).mockClear?.();
     (tool as any).mockClear?.();
     (createSdkMcpServer as any).mockClear?.();
-    (podStore.getById as any).mockClear?.();
-    (messageStore.getMessages as any).mockClear?.();
-    (outputStyleService.getContent as any).mockClear?.();
-    (commandService.getContent as any).mockClear?.();
-    (disposableChatService.executeDisposableChat as any).mockClear?.();
 
-    // Default mock returns
-    (podStore.getById as any).mockImplementation((canvasId: string, podId: string) => {
-      if (podId === 'source-pod') return mockSourcePod;
-      if (podId === 'target-pod') return mockTargetPod;
-      return null;
-    });
-    (messageStore.getMessages as any).mockReturnValue(mockMessages);
-    (outputStyleService.getContent as any).mockResolvedValue(null);
-    (commandService.getContent as any).mockResolvedValue(null);
-    (disposableChatService.executeDisposableChat as any).mockResolvedValue({
-      success: true,
-      content: 'Summary: Analysis found 3 issues',
-    });
-
-    // Mock tool and createSdkMcpServer
+    // 設定預設行為
     (tool as any).mockImplementation((name: string, desc: string, schema: any, handler: any) => {
       return { name, desc, schema, handler };
     });
     (createSdkMcpServer as any).mockImplementation((config: any) => {
       return { name: config.name, tools: config.tools };
     });
+    (query as any).mockImplementation(async function* () {
+      yield { type: 'result', subtype: 'success' };
+    });
+  });
+
+  afterEach(() => {
+    // 還原所有測試中創建的 spy，避免跨檔案污染
+    spies.forEach((spy) => {
+      spy.mockRestore();
+    });
+    spies = [];
   });
 
   describe('AI Decide 單一 connection 判斷為觸發（shouldTrigger = true）', () => {
