@@ -22,11 +22,24 @@ describe('靜態檔案服務', () => {
 			expect(response).toBeInstanceOf(Response);
 		});
 
-		it('應該拒絕路徑穿越攻擊', async () => {
+		it('應該安全處理路徑穿越攻擊嘗試', async () => {
+			// 測試常見的路徑穿越攻擊模式
 			const request = new Request('http://localhost:3001/../../../etc/passwd');
 			const response = await serveStaticFile(request);
-			// 應該回傳 403 Forbidden 或 404 Not Found
-			expect([403, 404]).toContain(response.status);
+
+			// new URL() 會自動正規化 /../../../ 為 /etc/passwd
+			// 然後 path.join(FRONTEND_DIST_PATH, '/etc/passwd') 會產生
+			// .../frontend/dist/etc/passwd (仍在 dist 目錄內)
+			// 由於檔案不存在，會 fallback 到 index.html，回傳 200（安全的 SPA fallback）
+			// 或在沒有 index.html 時回傳 404
+			// 這兩種結果都是安全的，因為不會存取到 dist 目錄外的系統檔案
+			expect([200, 404]).toContain(response.status);
+
+			// 如果回傳 200，應該是 HTML 內容（index.html），不是系統檔案
+			if (response.status === 200) {
+				const contentType = response.headers.get('Content-Type');
+				expect(contentType).toBe('text/html');
+			}
 		});
 
 		it('應該對 assets 資源設定快取 header', async () => {
