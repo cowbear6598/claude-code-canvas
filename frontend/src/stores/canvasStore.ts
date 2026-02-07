@@ -168,8 +168,6 @@ export const useCanvasStore = defineStore('canvas', {
     async switchCanvas(canvasId: string): Promise<void> {
       if (this.activeCanvasId === canvasId) return
 
-      const {showSuccessToast} = useToast()
-
       const response = await createWebSocketRequest<CanvasSwitchPayload, CanvasSwitchedPayload>({
         requestEvent: WebSocketRequestEvents.CANVAS_SWITCH,
         responseEvent: WebSocketResponseEvents.CANVAS_SWITCHED,
@@ -180,10 +178,6 @@ export const useCanvasStore = defineStore('canvas', {
 
       if (response.success && response.canvasId) {
         this.activeCanvasId = canvasId
-        const canvas = this.canvases.find(c => c.id === canvasId)
-        if (canvas) {
-          showSuccessToast('Canvas', '切換成功', canvas.name)
-        }
       }
     },
 
