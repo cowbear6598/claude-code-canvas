@@ -404,6 +404,63 @@ describe('Claude QueryService', () => {
       const hasEmptyStringCall = calls.some((call: any[]) => call[2] === '');
       expect(hasEmptyStringCall).toBe(false);
     });
+
+    it('連續兩次 session error 時在第一次重試失敗後直接拋出', async () => {
+      const { podStore } = await import('../../src/services/podStore.js');
+      const { logger } = await import('../../src/utils/logger.js');
+      const mockPod = createMockPod({
+        claudeSessionId: 'old-invalid-session',
+      });
+
+      (podStore.getByIdGlobal as any).mockReturnValue({
+        canvasId: 'test-canvas',
+        pod: mockPod,
+      });
+
+      let callCount = 0;
+
+      // 兩次呼叫都失敗 (session error)
+      mockQueryGenerator = async function* () {
+        callCount++;
+
+        yield {
+          type: 'system',
+          subtype: 'init',
+          session_id: callCount === 1 ? 'old-invalid-session' : 'new-session',
+        };
+
+        yield {
+          type: 'result',
+          subtype: 'error',
+          errors: ['Invalid session ID or session expired'],
+        };
+      };
+
+      await expect(
+        claudeQueryService.sendMessage('test-pod-id', 'Test retry limit', onStreamCallback, 'test-connection-id')
+      ).rejects.toThrow('Invalid session ID or session expired');
+
+      // 驗證只重試了一次（總共呼叫兩次）
+      expect(callCount).toBe(2);
+
+      // 驗證第一次清除了 session ID
+      expect(podStore.setClaudeSessionId).toHaveBeenCalledWith('test-canvas', 'test-pod-id', '');
+
+      // 驗證記錄了重試日誌
+      expect(logger.log).toHaveBeenCalledWith(
+        'Chat',
+        'Update',
+        expect.stringContaining('Session resume failed')
+      );
+
+      // 驗證最後一次錯誤有發送到 stream
+      const errorEvents = streamEvents.filter((e) => e.type === 'error');
+      expect(errorEvents.length).toBeGreaterThan(0);
+      expect(errorEvents[errorEvents.length - 1]).toEqual({
+        type: 'error',
+        error: 'Invalid session ID or session expired',
+      });
+    });
   });
 
   describe('image content block 處理', () => {
