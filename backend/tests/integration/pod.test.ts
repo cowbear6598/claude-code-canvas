@@ -72,7 +72,6 @@ describe('Pod 管理', () => {
       expect(pod.workspacePath).toBeDefined();
       expect(pod.createdAt).toBeDefined();
       expect(pod.lastActiveAt).toBeDefined();
-      expect(pod.output).toEqual([]);
       expect(pod.skillIds).toEqual([]);
       expect(pod.subAgentIds).toEqual([]);
     });

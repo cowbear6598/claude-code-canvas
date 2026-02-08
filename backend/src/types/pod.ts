@@ -19,7 +19,6 @@ export interface Pod {
   x: number; // Canvas X position
   y: number; // Canvas Y position
   rotation: number; // Rotation angle
-  output: string[]; // Output lines for display
   // Claude session management
   claudeSessionId: string | null; // Claude SDK session ID for conversation resume
   outputStyleId: string | null; // Output style ID

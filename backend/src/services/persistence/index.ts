@@ -32,16 +32,35 @@ class PersistenceService {
   }
 
   async writeJson<T>(filePath: string, data: T): Promise<Result<void>> {
-    const directory = path.dirname(filePath);
-    const dirResult = await this.ensureDirectory(directory);
+    try {
+      const directory = path.dirname(filePath);
+      const dirResult = await this.ensureDirectory(directory);
 
-    if (!dirResult.success) {
-      return err(dirResult.error!);
+      if (!dirResult.success) {
+        return err(dirResult.error!);
+      }
+
+      const tempPath = `${filePath}.tmp.${Date.now()}`;
+      const jsonContent = JSON.stringify(data, null, 2);
+
+      try {
+        await fs.writeFile(tempPath, jsonContent, 'utf-8');
+        await fs.rename(tempPath, filePath);
+      } catch (error) {
+        // 清理 temp 檔案
+        try {
+          await fs.unlink(tempPath);
+        } catch {
+          // 忽略清理失敗
+        }
+        throw error;
+      }
+
+      return ok(undefined);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return err(`寫入檔案失敗: ${filePath} - ${message}`);
     }
-
-    const jsonContent = JSON.stringify(data, null, 2);
-    await fs.writeFile(filePath, jsonContent, 'utf-8');
-    return ok(undefined);
   }
 
   async ensureDirectory(dirPath: string): Promise<Result<void>> {

@@ -73,7 +73,7 @@ export const usePodStore = defineStore('pod', {
                 x: pod.x ?? 100,
                 y: pod.y ?? 150,
                 rotation: pod.rotation ?? (Math.random() * 2 - 1),
-                output: existingOutput ?? pod.output ?? [],
+                output: Array.isArray(existingOutput) ? existingOutput : (Array.isArray(pod.output) ? pod.output : []),
                 outputStyleId: pod.outputStyleId ?? null,
                 model: pod.model ?? 'opus',
                 autoClear: pod.autoClear ?? false,
@@ -87,6 +87,7 @@ export const usePodStore = defineStore('pod', {
             return (
                 validatePodName(pod.name) &&
                 Array.isArray(pod.output) &&
+                pod.output.every(item => typeof item === 'string') &&
                 pod.id.trim() !== '' &&
                 validColors.includes(pod.color) &&
                 isFinite(pod.x) &&
@@ -102,11 +103,20 @@ export const usePodStore = defineStore('pod', {
         },
 
         updatePod(pod: Pod): void {
-            if (!this.isValidPod(pod)) return
             const index = this.pods.findIndex((p) => p.id === pod.id)
-            if (index !== -1) {
-                this.pods.splice(index, 1, pod)
+            if (index === -1) return
+
+            const existing = this.pods[index]
+            const mergedPod = {
+                ...pod,
+                output: pod.output !== undefined ? pod.output : existing.output,
             }
+
+            if (!this.isValidPod(mergedPod)) {
+                console.warn('[PodStore] updatePod 驗證失敗，已忽略更新', { podId: pod.id })
+                return
+            }
+            this.pods.splice(index, 1, mergedPod)
         },
 
         async createPodWithBackend(pod: Omit<Pod, 'id'>): Promise<Pod | null> {
@@ -220,12 +230,11 @@ export const usePodStore = defineStore('pod', {
             const pod = this.pods.find((p) => p.id === id)
             if (!pod) return
 
-            if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
-                return
-            }
+            const safeX = Number.isFinite(x) ? Math.max(-MAX_COORD, Math.min(MAX_COORD, x)) : pod.x
+            const safeY = Number.isFinite(y) ? Math.max(-MAX_COORD, Math.min(MAX_COORD, y)) : pod.y
 
-            pod.x = Math.max(-MAX_COORD, Math.min(MAX_COORD, x))
-            pod.y = Math.max(-MAX_COORD, Math.min(MAX_COORD, y))
+            pod.x = safeX
+            pod.y = safeY
         },
 
         syncPodPosition(id: string): void {

@@ -62,7 +62,6 @@ describe('Paste Helpers', () => {
         schedule: undefined,
         gitUrl: null,
         lastActiveAt: new Date(),
-        output: [],
         claudeSessionId: null,
         needsForkSession: false,
         autoClear: false,
@@ -185,7 +184,6 @@ describe('Paste Helpers', () => {
         schedule: undefined,
         gitUrl: null,
         lastActiveAt: new Date(),
-        output: [],
         claudeSessionId: null,
         needsForkSession: false,
         autoClear: false,
@@ -275,7 +273,6 @@ describe('Paste Helpers', () => {
         schedule: undefined,
         gitUrl: null,
         lastActiveAt: new Date(),
-        output: [],
         claudeSessionId: null,
         needsForkSession: false,
         autoClear: false,
@@ -361,6 +358,7 @@ describe('Paste Helpers', () => {
         triggerMode: 'auto' as const,
         decideStatus: 'none' as const,
         decideReason: null,
+        connectionStatus: 'idle' as const,
         createdAt: new Date(),
       };
 
@@ -500,6 +498,7 @@ describe('Paste Helpers', () => {
         triggerMode: 'auto' as const,
         decideStatus: 'none' as const,
         decideReason: null,
+        connectionStatus: 'idle' as const,
         createdAt: new Date(),
       };
 
@@ -512,6 +511,7 @@ describe('Paste Helpers', () => {
         triggerMode: 'auto' as const,
         decideStatus: 'none' as const,
         decideReason: null,
+        connectionStatus: 'idle' as const,
         createdAt: new Date(),
       };
 
@@ -580,6 +580,7 @@ describe('Paste Helpers', () => {
         triggerMode: 'auto' as const,
         decideStatus: 'none' as const,
         decideReason: null,
+        connectionStatus: 'idle' as const,
         createdAt: new Date(),
       };
 

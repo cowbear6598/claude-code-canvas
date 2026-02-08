@@ -32,6 +32,7 @@ export interface Pod {
   x: number
   y: number
   color: PodColor
+  /** 僅存在於前端狀態，由 chatMessageActions 動態建構，後端不持久化此欄位 */
   output: string[]
   rotation: number
   status?: PodStatus

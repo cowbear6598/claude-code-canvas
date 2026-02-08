@@ -372,7 +372,6 @@ function createMockPod(name: string, autoClear: boolean = false): Pod {
     x: 0,
     y: 0,
     rotation: 0,
-    output: [],
     status: 'idle',
     workspacePath: '/tmp/test',
     gitUrl: null,
@@ -404,6 +403,7 @@ function createMockConnection(
     triggerMode,
     decideStatus: 'none',
     decideReason: null,
+    connectionStatus: 'idle',
     createdAt: new Date(),
   };
 }

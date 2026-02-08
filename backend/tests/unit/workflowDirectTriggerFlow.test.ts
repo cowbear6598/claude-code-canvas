@@ -163,6 +163,8 @@ describe('Direct Trigger Flow', () => {
     // messageStore
     setupMock(messageStore, 'getMessages', { returnValue: mockMessages });
     setupMock(messageStore, 'addMessage', { resolvedValue: undefined });
+    setupMock(messageStore, 'upsertMessage', { implementation: () => {} });
+    setupMock(messageStore, 'flushWrites', { resolvedValue: undefined });
 
     // summaryService
     setupMock(summaryService, 'generateSummaryForTarget', {

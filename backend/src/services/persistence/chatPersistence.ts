@@ -35,6 +35,41 @@ class ChatPersistenceService {
     return ok(undefined);
   }
 
+  async upsertMessage(canvasDir: string, podId: string, message: PersistedMessage): Promise<Result<void>> {
+    const filePath = this.getChatFilePath(canvasDir, podId);
+
+    const readResult = await persistenceService.readJson<ChatHistory>(filePath);
+    if (!readResult.success) {
+      return err(`Upsert 訊息失敗 (Pod ${podId})`);
+    }
+
+    let chatHistory = readResult.data;
+    if (!chatHistory) {
+      chatHistory = {
+        messages: [],
+        lastUpdated: new Date().toISOString(),
+      };
+    }
+
+    const existingIndex = chatHistory.messages.findIndex(msg => msg.id === message.id);
+    if (existingIndex >= 0) {
+      // 找到則整筆覆蓋
+      chatHistory.messages[existingIndex] = message;
+    } else {
+      // 沒找到則新增
+      chatHistory.messages.push(message);
+    }
+
+    chatHistory.lastUpdated = new Date().toISOString();
+
+    const writeResult = await persistenceService.writeJson(filePath, chatHistory);
+    if (!writeResult.success) {
+      return err(`Upsert 訊息失敗 (Pod ${podId})`);
+    }
+
+    return ok(undefined);
+  }
+
   async loadChatHistory(canvasDir: string, podId: string): Promise<ChatHistory | null> {
     const filePath = this.getChatFilePath(canvasDir, podId);
     const result = await persistenceService.readJson<ChatHistory>(filePath);

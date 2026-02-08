@@ -20,6 +20,8 @@ mock.module('../../src/services/podStore.js', () => ({
 mock.module('../../src/services/messageStore.js', () => ({
   messageStore: {
     getMessages: mock(),
+    upsertMessage: mock(),
+    flushWrites: mock(),
   },
 }));
 

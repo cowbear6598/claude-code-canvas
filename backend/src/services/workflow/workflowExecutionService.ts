@@ -33,6 +33,7 @@ import {
     processTextEvent,
     processToolUseEvent,
     processToolResultEvent,
+    buildPersistedMessage,
 } from '../claude/streamEventProcessor.js';
 import {
     formatMergedSummaries,
@@ -835,6 +836,11 @@ class WorkflowExecutionService {
 
     await messageStore.addMessage(canvasId, targetPodId, 'user', messageToSend);
 
+    const persistStreamingMessage = (): void => {
+      const persistedMsg = buildPersistedMessage(assistantMessageId, accumulatedContentRef.value, subMessageState);
+      messageStore.upsertMessage(canvasId, targetPodId, persistedMsg);
+    };
+
     try {
       await claudeQueryService.sendMessage(targetPodId, messageToSend, (event) => {
         switch (event.type) {
@@ -854,6 +860,8 @@ class WorkflowExecutionService {
               WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE,
               textPayload
             );
+
+            persistStreamingMessage();
             break;
           }
 
@@ -879,6 +887,8 @@ class WorkflowExecutionService {
               WebSocketResponseEvents.POD_CHAT_TOOL_USE,
               toolUsePayload
             );
+
+            persistStreamingMessage();
             break;
           }
 
@@ -898,6 +908,8 @@ class WorkflowExecutionService {
               WebSocketResponseEvents.POD_CHAT_TOOL_RESULT,
               toolResultPayload
             );
+
+            persistStreamingMessage();
             break;
           }
 
@@ -947,14 +959,10 @@ class WorkflowExecutionService {
       throw error;
     }
 
-    if (accumulatedContentRef.value || subMessageState.subMessages.length > 0) {
-      await messageStore.addMessage(
-        canvasId,
-        targetPodId,
-        'assistant',
-        accumulatedContentRef.value,
-        subMessageState.subMessages.length > 0 ? subMessageState.subMessages : undefined
-      );
+    const hasAssistantContent = accumulatedContentRef.value || subMessageState.subMessages.length > 0;
+    if (hasAssistantContent) {
+      persistStreamingMessage();
+      await messageStore.flushWrites(targetPodId);
     }
 
     podStore.setStatus(canvasId, targetPodId, 'idle');

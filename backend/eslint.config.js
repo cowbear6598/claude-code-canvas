@@ -27,6 +27,7 @@ export default [
         Bun: 'readonly',
         Response: 'readonly',
         AbortController: 'readonly',
+        structuredClone: 'readonly',
       },
     },
     plugins: {

@@ -176,6 +176,8 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
         // messageStore
         setupMock(messageStore, 'getMessages', {returnValue: mockMessages as any});
         setupMock(messageStore, 'addMessage', {resolvedValue: {success: true, data: undefined as any}});
+        setupMock(messageStore, 'upsertMessage', {implementation: () => {}});
+        setupMock(messageStore, 'flushWrites', {resolvedValue: undefined});
 
         // summaryService
         setupMock(summaryService, 'generateSummaryForTarget', {

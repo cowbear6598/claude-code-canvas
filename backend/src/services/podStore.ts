@@ -1,6 +1,6 @@
 import {v4 as uuidv4} from 'uuid';
 import {WebSocketResponseEvents} from '../schemas';
-import {Pod, PodStatus, CreatePodRequest, Result, ok, err, ScheduleConfig} from '../types';
+import {Pod, PodStatus, PodColor, CreatePodRequest, Result, ok, err, ScheduleConfig} from '../types';
 import type {PersistedPod} from '../types';
 import {podPersistenceService} from './persistence/podPersistence.js';
 import {socketService} from './socketService.js';
@@ -74,7 +74,6 @@ class PodStore {
             x: data.x,
             y: data.y,
             rotation: data.rotation,
-            output: [],
             claudeSessionId: null,
             outputStyleId: data.outputStyleId ?? null,
             skillIds: data.skillIds ?? [],
@@ -130,9 +129,15 @@ class PodStore {
             const {schedule, ...restUpdates} = updates;
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const {schedule: _, ...restPod} = pod;
-            updatedPod = {...restPod, ...restUpdates} as Pod;
+            // 從 updates 中排除不可變欄位
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const {id: _id, createdAt: _createdAt, workspacePath: _workspacePath, ...safeUpdates} = restUpdates as any;
+            updatedPod = {...restPod, ...safeUpdates} as Pod;
         } else {
-            updatedPod = {...pod, ...updates} as Pod;
+            // 從 updates 中排除不可變欄位
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const {id: _id, createdAt: _createdAt, workspacePath: _workspacePath, ...safeUpdates} = updates as any;
+            updatedPod = {...pod, ...safeUpdates} as Pod;
 
             // 如果 updates 包含 schedule 且有值，初始化 lastTriggeredAt
             if (updates.schedule && !updates.schedule.lastTriggeredAt) {
@@ -277,12 +282,51 @@ class PodStore {
         return result;
     }
 
-    private deserializePod(persistedPod: PersistedPod, canvasDir: string): Pod {
+    private deserializePod(persistedPod: PersistedPod, canvasDir: string): Pod | null {
+        // 防禦性驗證：驗證必要欄位的型別和範圍，避免磁碟檔案被竄改時注入惡意值
+        if (persistedPod.id.trim() === '') {
+            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod ID: ${persistedPod.id}`);
+            return null;
+        }
+
+        if (persistedPod.name.trim() === '') {
+            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 名稱: ${persistedPod.name}`);
+            return null;
+        }
+
+        const validColors: PodColor[] = ['blue', 'coral', 'pink', 'yellow', 'green'];
+        if (!validColors.includes(persistedPod.color)) {
+            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 顏色: ${persistedPod.color}`);
+            return null;
+        }
+
+        if (!Number.isFinite(persistedPod.x)) {
+            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod X 座標: ${persistedPod.x}`);
+            return null;
+        }
+
+        if (!Number.isFinite(persistedPod.y)) {
+            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod Y 座標: ${persistedPod.y}`);
+            return null;
+        }
+
+        if (!Number.isFinite(persistedPod.rotation)) {
+            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 旋轉角度: ${persistedPod.rotation}`);
+            return null;
+        }
+
+        const validStatuses: PodStatus[] = ['idle', 'chatting', 'summarizing', 'error'];
+        if (!validStatuses.includes(persistedPod.status)) {
+            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 狀態: ${persistedPod.status}`);
+            return null;
+        }
+
         const loadedStatus = persistedPod.status as string;
         const pod: Pod = {
             id: persistedPod.id,
             name: persistedPod.name,
             color: persistedPod.color,
+            // 載入時重置為 idle，避免程式重啟後保留舊的忙碌狀態
             status: loadedStatus === 'busy' ? 'idle' : persistedPod.status,
             workspacePath: `${canvasDir}/pod-${persistedPod.id}`,
             gitUrl: persistedPod.gitUrl,
@@ -291,7 +335,6 @@ class PodStore {
             x: persistedPod.x,
             y: persistedPod.y,
             rotation: persistedPod.rotation,
-            output: [],
             claudeSessionId: persistedPod.claudeSessionId,
             outputStyleId: persistedPod.outputStyleId ?? null,
             skillIds: persistedPod.skillIds ?? [],
@@ -331,6 +374,10 @@ class PodStore {
             }
 
             const pod = this.deserializePod(persistedPod, canvasDir);
+            if (!pod) {
+                logger.log('Pod', 'Load', `[PodStore] 跳過無效的 Pod: ${podId}`);
+                continue;
+            }
             pods.set(pod.id, pod);
         }
 
