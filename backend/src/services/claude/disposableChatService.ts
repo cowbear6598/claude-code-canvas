@@ -1,5 +1,6 @@
 import { query, type Options } from '@anthropic-ai/claude-agent-sdk';
 import { logger } from '../../utils/logger.js';
+import { getErrorMessage } from '../../utils/errorHelpers.js';
 
 export interface DisposableChatOptions {
   systemPrompt: string;
@@ -64,7 +65,7 @@ class DisposableChatService {
         success: true,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       logger.error('Chat', 'Error', `[DisposableChatService] Failed`, error);
 
       return {

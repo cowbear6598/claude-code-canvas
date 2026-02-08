@@ -1,7 +1,7 @@
 import {v4 as uuidv4} from 'uuid';
-import {AbortError} from '@anthropic-ai/claude-agent-sdk';
 
 import {WebSocketResponseEvents} from '../../schemas';
+import {isAbortError} from '../../utils/errorHelpers.js';
 import type {
     ContentBlock,
     PodChatCompletePayload,
@@ -201,9 +201,7 @@ export async function executeStreamingChat(
             aborted: false,
         };
     } catch (error) {
-        const isAbortError = error instanceof AbortError || (error instanceof Error && error.name === 'AbortError');
-
-        if (isAbortError && supportAbort) {
+        if (isAbortError(error) && supportAbort) {
             flushCurrentSubMessage();
 
             const hasAssistantContent = accumulatedContentRef.value || subMessageState.subMessages.length > 0;

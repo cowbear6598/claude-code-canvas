@@ -58,9 +58,8 @@ class SkillService {
         const srcDir = this.getSkillDirectoryPath(skillId);
         const destDir = path.join(podWorkspacePath, '.claude', 'skills', skillId);
 
-        try {
-            await fs.access(srcDir);
-        } catch {
+        const exists = await fileExists(srcDir);
+        if (!exists) {
             throw new Error(`找不到技能目錄: ${skillId}`);
         }
 
@@ -76,9 +75,8 @@ class SkillService {
         const srcDir = this.getSkillDirectoryPath(skillId);
         const destDir = path.join(repositoryPath, '.claude', 'skills', skillId);
 
-        try {
-            await fs.access(srcDir);
-        } catch {
+        const exists = await fileExists(srcDir);
+        if (!exists) {
             throw new Error(`找不到技能目錄: ${skillId}`);
         }
 

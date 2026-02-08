@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { Result, ok, err } from '../../types';
 import { logger } from '../../utils/logger.js';
+import { getErrorMessage, isFileNotFoundError } from '../../utils/errorHelpers.js';
 
 class PersistenceService {
   async readJson<T>(filePath: string): Promise<Result<T | null>> {
@@ -48,17 +49,13 @@ class PersistenceService {
         await fs.rename(tempPath, filePath);
       } catch (error) {
         // 清理 temp 檔案
-        try {
-          await fs.unlink(tempPath);
-        } catch {
-          // 忽略清理失敗
-        }
+        await fs.unlink(tempPath).catch(() => {});
         throw error;
       }
 
       return ok(undefined);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       return err(`寫入檔案失敗: ${filePath} - ${message}`);
     }
   }
@@ -82,10 +79,10 @@ class PersistenceService {
       await fs.unlink(filePath);
       return ok(undefined);
     } catch (error: unknown) {
-      if (error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
+      if (isFileNotFoundError(error)) {
         return ok(undefined);
       }
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       return err(`刪除檔案失敗: ${filePath} - ${message}`);
     }
   }

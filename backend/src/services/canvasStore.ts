@@ -6,6 +6,7 @@ import {Result, ok, err} from '../types';
 import {config} from '../config';
 import {logger} from '../utils/logger.js';
 import {fsOperation} from '../utils/operationHelpers.js';
+import {fileExists} from './shared/fileResourceHelpers.js';
 
 class CanvasStore {
     private canvases: Map<string, Canvas> = new Map();
@@ -240,9 +241,8 @@ class CanvasStore {
     private async loadSingleCanvas(dirName: string): Promise<Canvas | null> {
         const canvasJsonPath = path.join(config.canvasRoot, dirName, 'canvas.json');
 
-        try {
-            await fs.access(canvasJsonPath);
-        } catch {
+        const exists = await fileExists(canvasJsonPath);
+        if (!exists) {
             return null;
         }
 

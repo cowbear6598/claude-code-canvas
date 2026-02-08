@@ -5,6 +5,7 @@ import { chatPersistenceService } from './persistence/chatPersistence.js';
 import { claudeSessionManager } from './claude/sessionManager.js';
 import { canvasStore } from './canvasStore.js';
 import { logger } from '../utils/logger.js';
+import { getErrorMessage } from '../utils/errorHelpers.js';
 
 interface ClearResult {
   success: boolean;
@@ -84,12 +85,14 @@ class WorkflowClearService {
             logger.error('AutoClear', 'Error', `[WorkflowClear] Error clearing chat history for Pod ${podId}: ${clearResult.error}`);
           }
 
-          try {
-            await claudeSessionManager.destroySession(podId);
-            podStore.setClaudeSessionId(canvasId, podId, '');
-          } catch (error) {
-            logger.error('AutoClear', 'Error', `[WorkflowClear] Error destroying session for Pod ${podId}`, error);
-          }
+          await claudeSessionManager
+            .destroySession(podId)
+            .then(() => {
+              podStore.setClaudeSessionId(canvasId, podId, '');
+            })
+            .catch((error) => {
+              logger.error('AutoClear', 'Error', `[WorkflowClear] Error destroying session for Pod ${podId}`, error);
+            });
 
           // 清除該 Pod 所有出站 ai-decide connections 的 decideStatus
           const outgoingConnections = connectionStore.findBySourcePodId(canvasId, podId);
@@ -109,7 +112,7 @@ class WorkflowClearService {
         clearedConnectionIds,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       logger.error('AutoClear', 'Error', `[WorkflowClear] Failed to clear workflow: ${errorMessage}`);
 
       return {

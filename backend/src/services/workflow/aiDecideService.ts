@@ -9,6 +9,7 @@ import { disposableChatService } from '../claude/disposableChatService.js';
 import { summaryPromptBuilder } from '../summaryPromptBuilder.js';
 import type { Connection } from '../../types';
 import { logger } from '../../utils/logger.js';
+import { getErrorMessage } from '../../utils/errorHelpers.js';
 
 export interface AiDecideResult {
   connectionId: string;
@@ -57,32 +58,7 @@ class AiDecideService {
     }
 
     // 3. 建構所有 target 的資訊
-    const targets: AiDecideTargetInfo[] = [];
-    for (const conn of connections) {
-      const targetPod = podStore.getById(canvasId, conn.targetPodId);
-      if (!targetPod) {
-        logger.log('Workflow', 'Update', `[AiDecideService] Target Pod ${conn.targetPodId} not found`);
-        continue;
-      }
-
-      let targetPodOutputStyle: string | null = null;
-      if (targetPod.outputStyleId) {
-        targetPodOutputStyle = await outputStyleService.getContent(targetPod.outputStyleId);
-      }
-
-      let targetPodCommand: string | null = null;
-      if (targetPod.commandId) {
-        targetPodCommand = await commandService.getContent(targetPod.commandId);
-      }
-
-      targets.push({
-        connectionId: conn.id,
-        targetPodId: conn.targetPodId,
-        targetPodName: targetPod.name,
-        targetPodOutputStyle,
-        targetPodCommand,
-      });
-    }
+    const targets = await this.buildTargetInfos(canvasId, connections);
 
     if (targets.length === 0) {
       return {
@@ -163,7 +139,7 @@ class AiDecideService {
         results: [],
         errors: connections.map(conn => ({
           connectionId: conn.id,
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
         })),
       };
     }
@@ -215,6 +191,41 @@ class AiDecideService {
     }
 
     return { results, errors };
+  }
+
+  private async buildTargetInfos(
+    canvasId: string,
+    connections: Connection[]
+  ): Promise<AiDecideTargetInfo[]> {
+    const targets: AiDecideTargetInfo[] = [];
+
+    for (const conn of connections) {
+      const targetPod = podStore.getById(canvasId, conn.targetPodId);
+      if (!targetPod) {
+        logger.log('Workflow', 'Update', `[AiDecideService] Target Pod ${conn.targetPodId} not found`);
+        continue;
+      }
+
+      let targetPodOutputStyle: string | null = null;
+      if (targetPod.outputStyleId) {
+        targetPodOutputStyle = await outputStyleService.getContent(targetPod.outputStyleId);
+      }
+
+      let targetPodCommand: string | null = null;
+      if (targetPod.commandId) {
+        targetPodCommand = await commandService.getContent(targetPod.commandId);
+      }
+
+      targets.push({
+        connectionId: conn.id,
+        targetPodId: conn.targetPodId,
+        targetPodName: targetPod.name,
+        targetPodOutputStyle,
+        targetPodCommand,
+      });
+    }
+
+    return targets;
   }
 
   /**

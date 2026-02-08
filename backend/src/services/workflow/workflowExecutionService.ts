@@ -2,10 +2,6 @@ import {v4 as uuidv4} from 'uuid';
 import {WebSocketResponseEvents, SystemConnectionIds} from '../../schemas';
 import type {
     WorkflowAutoTriggeredPayload,
-    WorkflowPendingPayload,
-    WorkflowSourcesMergedPayload,
-    WorkflowDirectTriggeredPayload,
-    WorkflowDirectWaitingPayload,
     Connection,
 } from '../../types';
 import {connectionStore} from '../connectionStore.js';
@@ -14,7 +10,6 @@ import {messageStore} from '../messageStore.js';
 import {socketService} from '../socketService.js';
 import {summaryService} from '../summaryService.js';
 import {pendingTargetStore} from '../pendingTargetStore.js';
-import {directTriggerStore} from '../directTriggerStore.js';
 import {workflowStateService} from './workflowStateService.js';
 import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {workflowQueueService} from './workflowQueueService.js';
@@ -24,24 +19,15 @@ import {commandService} from '../commandService.js';
 import {aiDecideService} from './aiDecideService.js';
 import {executeStreamingChat} from '../claude/streamingChatExecutor.js';
 import {
-    formatMergedSummaries,
     buildTransferMessage,
     buildMessageWithCommand,
 } from './workflowHelpers.js';
+import {getErrorMessage} from '../../utils/errorHelpers.js';
+import {workflowAutoTriggerService} from './workflowAutoTriggerService.js';
+import {workflowMultiInputService} from './workflowMultiInputService.js';
+import {workflowDirectTriggerService} from './workflowDirectTriggerService.js';
 
 class WorkflowExecutionService {
-
-  private getLastAssistantMessage(sourcePodId: string): string | null {
-    const messages = messageStore.getMessages(sourcePodId);
-    const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
-
-    if (assistantMessages.length === 0) {
-      logger.error('Workflow', 'Error', 'No assistant messages available for fallback');
-      return null;
-    }
-
-    return assistantMessages[assistantMessages.length - 1].content;
-  }
 
   private async generateSummaryWithFallback(
     canvasId: string,
@@ -62,7 +48,7 @@ class WorkflowExecutionService {
       );
     } catch (error) {
       logger.error('Workflow', 'Error', 'Failed to generate summary', error);
-      const fallback = this.getLastAssistantMessage(sourcePodId);
+      const fallback = workflowAutoTriggerService.getLastAssistantMessage(sourcePodId);
       podStore.setStatus(canvasId, sourcePodId, 'idle');
       return fallback ? { content: fallback, isSummarized: false } : null;
     }
@@ -73,7 +59,7 @@ class WorkflowExecutionService {
     }
 
     logger.error('Workflow', 'Error', `Failed to generate summary: ${summaryResult.error}`);
-    const fallback = this.getLastAssistantMessage(sourcePodId);
+    const fallback = workflowAutoTriggerService.getLastAssistantMessage(sourcePodId);
     podStore.setStatus(canvasId, sourcePodId, 'idle');
     return fallback ? { content: fallback, isSummarized: false } : null;
   }
@@ -83,88 +69,18 @@ class WorkflowExecutionService {
     sourcePodId: string,
     connection: Connection
   ): Promise<void> {
-    const targetPod = podStore.getById(canvasId, connection.targetPodId);
-    if (!targetPod) {
-      logger.log('Workflow', 'Error', `Target Pod ${connection.targetPodId} not found, skipping auto-trigger`);
-      return;
-    }
-
-    const { isMultiInput, requiredSourcePodIds } = workflowStateService.checkMultiInputScenario(
+    await workflowAutoTriggerService.processAutoTriggerConnection(
       canvasId,
-      connection.targetPodId
+      sourcePodId,
+      connection,
+      this.generateSummaryWithFallback.bind(this),
+      this.handleMultiInputForConnection.bind(this),
+      this.triggerWorkflowInternal.bind(this)
     );
-
-    if (isMultiInput) {
-      const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, connection.targetPodId);
-      if (!result) {
-        return;
-      }
-      await this.handleMultiInputForConnection(
-        canvasId,
-        sourcePodId,
-        connection,
-        requiredSourcePodIds,
-        result.content,
-        'auto'
-      );
-      return;
-    }
-
-    if (targetPod.status === 'chatting' || targetPod.status === 'summarizing') {
-      logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is ${targetPod.status}, enqueuing auto-trigger`);
-
-      const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, connection.targetPodId);
-      if (!result) {
-        return;
-      }
-
-      workflowQueueService.enqueue({
-        canvasId,
-        connectionId: connection.id,
-        sourcePodId,
-        targetPodId: connection.targetPodId,
-        summary: result.content,
-        isSummarized: true,
-        triggerMode: 'auto',
-      });
-      return;
-    }
-
-    this.triggerWorkflowInternal(canvasId, connection.id).catch((error) => {
-      logger.error('Workflow', 'Error', `Failed to auto-trigger workflow ${connection.id}`, error);
-    });
   }
 
   private emitPendingStatus(canvasId: string, targetPodId: string): void {
-    const pending = pendingTargetStore.getPendingTarget(targetPodId);
-    if (!pending) {
-      return;
-    }
-
-    const completedSourcePodIds = Array.from(pending.completedSources.keys());
-    const rejectedSourcePodIds = Array.from(pending.rejectedSources.keys());
-    const pendingSourcePodIds = pending.requiredSourcePodIds.filter(
-      (id) => !completedSourcePodIds.includes(id) && !rejectedSourcePodIds.includes(id)
-    );
-
-    const pendingPayload: WorkflowPendingPayload = {
-      canvasId,
-      targetPodId,
-      completedSourcePodIds,
-      pendingSourcePodIds,
-      totalSources: pending.requiredSourcePodIds.length,
-      completedCount: pending.completedSources.size,
-      rejectedSourcePodIds,
-      hasRejectedSources: rejectedSourcePodIds.length > 0,
-    };
-
-    socketService.emitToCanvas(
-      canvasId,
-      WebSocketResponseEvents.WORKFLOW_PENDING,
-      pendingPayload
-    );
-
-    logger.log('Workflow', 'Update', `Target ${targetPodId} waiting: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources complete`);
+    workflowMultiInputService.emitPendingStatus(canvasId, targetPodId);
   }
 
   private async handleMultiInputForConnection(
@@ -175,95 +91,23 @@ class WorkflowExecutionService {
     summary: string,
     triggerMode: 'auto' | 'ai-decide'
   ): Promise<void> {
-    if (!pendingTargetStore.hasPendingTarget(connection.targetPodId)) {
-      workflowStateService.initializePendingTarget(connection.targetPodId, requiredSourcePodIds);
-    }
-
-    const { allSourcesResponded, hasRejection } = workflowStateService.recordSourceCompletion(
-      connection.targetPodId,
+    await workflowMultiInputService.handleMultiInputForConnection(
+      canvasId,
       sourcePodId,
-      summary
+      connection,
+      requiredSourcePodIds,
+      summary,
+      triggerMode,
+      this.triggerMergedWorkflow.bind(this)
     );
-
-    if (!allSourcesResponded) {
-      this.emitPendingStatus(canvasId, connection.targetPodId);
-      return;
-    }
-
-    if (hasRejection) {
-      logger.log('Workflow', 'Update', `Target ${connection.targetPodId} has rejected sources, not triggering`);
-      this.emitPendingStatus(canvasId, connection.targetPodId);
-      return;
-    }
-
-    const completedSummaries = workflowStateService.getCompletedSummaries(connection.targetPodId);
-    if (!completedSummaries) {
-      logger.error('Workflow', 'Error', 'Failed to get completed summaries');
-      return;
-    }
-
-    const mergedContent = formatMergedSummaries(
-      completedSummaries,
-      (podId) => podStore.getById(canvasId, podId)
-    );
-
-    const targetPod = podStore.getById(canvasId, connection.targetPodId);
-    if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
-      logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is ${targetPod.status}, enqueuing merged workflow`);
-
-      workflowQueueService.enqueue({
-        canvasId,
-        connectionId: connection.id,
-        sourcePodId: Array.from(completedSummaries.keys())[0],
-        targetPodId: connection.targetPodId,
-        summary: mergedContent,
-        isSummarized: true,
-        triggerMode,
-      });
-
-      workflowStateService.clearPendingTarget(connection.targetPodId);
-      return;
-    }
-
-    this.triggerMergedWorkflow(canvasId, connection);
   }
 
   private triggerMergedWorkflow(canvasId: string, connection: Connection): void {
-    logger.log('Workflow', 'Complete', `All sources complete for target ${connection.targetPodId}`);
-
-    const completedSummaries = workflowStateService.getCompletedSummaries(connection.targetPodId);
-    if (!completedSummaries) {
-      logger.error('Workflow', 'Error', 'Failed to get completed summaries');
-      return;
-    }
-
-    podStore.setStatus(canvasId, connection.targetPodId, 'chatting');
-
-    const mergedContent = formatMergedSummaries(
-      completedSummaries,
-      (podId) => podStore.getById(canvasId, podId)
-    );
-    const mergedPreview = mergedContent.substring(0, 200);
-
-    const sourcePodIds = Array.from(completedSummaries.keys());
-    const mergedPayload: WorkflowSourcesMergedPayload = {
+    workflowMultiInputService.triggerMergedWorkflow(
       canvasId,
-      targetPodId: connection.targetPodId,
-      sourcePodIds,
-      mergedContentPreview: mergedPreview,
-    };
-
-    socketService.emitToCanvas(
-      canvasId,
-      WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED,
-      mergedPayload
+      connection,
+      this.triggerWorkflowWithSummary.bind(this)
     );
-
-    this.triggerWorkflowWithSummary(canvasId, connection.id, mergedContent, true).catch((error) => {
-      logger.error('Workflow', 'Error', `Failed to trigger merged workflow ${connection.id}`, error);
-    });
-
-    workflowStateService.clearPendingTarget(connection.targetPodId);
   }
 
   /**
@@ -292,7 +136,7 @@ class WorkflowExecutionService {
 
       // 所有 connections 標記為 error
       for (const conn of connections) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage = getErrorMessage(error);
         connectionStore.updateDecideStatus(canvasId, conn.id, 'error', errorMessage);
 
         workflowEventEmitter.emitAiDecideError(
@@ -443,9 +287,12 @@ class WorkflowExecutionService {
     sourcePodId: string,
     connections: Connection[]
   ): Promise<void> {
-    for (const connection of connections) {
-      await this.processDirectTriggerConnection(canvasId, sourcePodId, connection);
-    }
+    await workflowDirectTriggerService.processDirectConnections(
+      canvasId,
+      sourcePodId,
+      connections,
+      this.processDirectTriggerConnection.bind(this)
+    );
   }
 
   private async processDirectTriggerConnection(
@@ -453,18 +300,14 @@ class WorkflowExecutionService {
     sourcePodId: string,
     connection: Connection
   ): Promise<void> {
-    const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, connection.targetPodId);
-    if (!result) {
-      return;
-    }
-
-    const directCount = workflowStateService.getDirectConnectionCount(canvasId, connection.targetPodId);
-
-    if (directCount === 1) {
-      await this.handleSingleDirectTrigger(canvasId, sourcePodId, connection, result.content, result.isSummarized);
-    } else {
-      await this.handleMultiDirectTrigger(canvasId, sourcePodId, connection, result.content, result.isSummarized);
-    }
+    await workflowDirectTriggerService.processDirectTriggerConnection(
+      canvasId,
+      sourcePodId,
+      connection,
+      this.generateSummaryWithFallback.bind(this),
+      this.handleSingleDirectTrigger.bind(this),
+      this.handleMultiDirectTrigger.bind(this)
+    );
   }
 
   private async handleSingleDirectTrigger(
@@ -474,40 +317,14 @@ class WorkflowExecutionService {
     summary: string,
     isSummarized: boolean
   ): Promise<void> {
-    const targetPod = podStore.getById(canvasId, connection.targetPodId);
-    if (!targetPod) {
-      return;
-    }
-
-    if (targetPod.status === 'chatting' || targetPod.status === 'summarizing') {
-      logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is busy, enqueuing direct trigger`);
-
-      workflowQueueService.enqueue({
-        canvasId,
-        connectionId: connection.id,
-        sourcePodId,
-        targetPodId: connection.targetPodId,
-        summary,
-        isSummarized,
-        triggerMode: 'direct',
-      });
-      return;
-    }
-
-    const payload: WorkflowDirectTriggeredPayload = {
+    await workflowDirectTriggerService.handleSingleDirectTrigger(
       canvasId,
-      connectionId: connection.id,
       sourcePodId,
-      targetPodId: connection.targetPodId,
-      transferredContent: summary,
+      connection,
+      summary,
       isSummarized,
-    };
-
-    workflowEventEmitter.emitDirectTriggered(canvasId, payload);
-
-    logger.log('Workflow', 'Create', `Direct trigger from Pod ${sourcePodId} to Pod ${connection.targetPodId}`);
-
-    await this.triggerWorkflowWithSummary(canvasId, connection.id, summary, isSummarized, true);
+      this.triggerWorkflowWithSummary.bind(this)
+    );
   }
 
   private async handleMultiDirectTrigger(
@@ -515,168 +332,24 @@ class WorkflowExecutionService {
     sourcePodId: string,
     connection: Connection,
     summary: string,
-    _isSummarized: boolean
+    isSummarized: boolean
   ): Promise<void> {
-    const targetPodId = connection.targetPodId;
-
-    if (!directTriggerStore.hasDirectPending(targetPodId)) {
-      directTriggerStore.initializeDirectPending(targetPodId);
-
-      const targetPod = podStore.getById(canvasId, targetPodId);
-      if (targetPod && targetPod.status === 'idle') {
-        podStore.setStatus(canvasId, targetPodId, 'chatting');
-      }
-    }
-
-    directTriggerStore.recordDirectReady(targetPodId, sourcePodId, summary);
-
-    // 發送 WORKFLOW_DIRECT_WAITING 事件，讓連線進入 waiting 狀態
-    const directWaitingPayload: WorkflowDirectWaitingPayload = {
+    await workflowDirectTriggerService.handleMultiDirectTrigger(
       canvasId,
-      connectionId: connection.id,
       sourcePodId,
-      targetPodId: connection.targetPodId,
-    };
-    workflowEventEmitter.emitDirectWaiting(canvasId, directWaitingPayload);
-
-    if (directTriggerStore.hasActiveTimer(targetPodId)) {
-      directTriggerStore.clearTimer(targetPodId);
-    }
-
-    const timer = setTimeout(() => {
-      this.handleDirectTimerExpired(canvasId, targetPodId).catch((error) => {
-        logger.error('Workflow', 'Error', `Failed to handle direct timer expired for ${targetPodId}`, error);
-      });
-    }, 10000);
-
-    directTriggerStore.setTimer(targetPodId, timer);
-
-    const readySummaries = directTriggerStore.getReadySummaries(targetPodId);
-    const readySourcePodIds = readySummaries ? Array.from(readySummaries.keys()) : [];
-
-    logger.log('Workflow', 'Update', `Multi-direct trigger: ${readySourcePodIds.length} sources ready for target ${targetPodId}, countdown started`);
+      connection,
+      summary,
+      isSummarized,
+      this.handleDirectTimerExpired.bind(this)
+    );
   }
 
   private async handleDirectTimerExpired(canvasId: string, targetPodId: string): Promise<void> {
-    const readySummaries = directTriggerStore.getReadySummaries(targetPodId);
-    if (!readySummaries || readySummaries.size === 0) {
-      directTriggerStore.clearDirectPending(targetPodId);
-      return;
-    }
-
-    const sourcePodIds = Array.from(readySummaries.keys());
-    const incomingConnections = connectionStore.findByTargetPodId(canvasId, targetPodId);
-
-    if (sourcePodIds.length === 1) {
-      const [singleSourcePodId] = sourcePodIds;
-      const singleSummary = readySummaries.get(singleSourcePodId)!;
-
-      const directConnection = incomingConnections.find(
-        (conn) => conn.triggerMode === 'direct' && conn.sourcePodId === singleSourcePodId
-      );
-
-      if (directConnection) {
-        // 發送 WORKFLOW_DIRECT_TRIGGERED 事件
-        const payload: WorkflowDirectTriggeredPayload = {
-          canvasId,
-          connectionId: directConnection.id,
-          sourcePodId: singleSourcePodId,
-          targetPodId,
-          transferredContent: singleSummary,
-          isSummarized: true,
-        };
-        workflowEventEmitter.emitDirectTriggered(canvasId, payload);
-
-        await this.triggerWorkflowWithSummary(canvasId, directConnection.id, singleSummary, true, true);
-      }
-
-      directTriggerStore.clearDirectPending(targetPodId);
-      return;
-    }
-
-    const mergedContent = formatMergedSummaries(
-      readySummaries,
-      (podId) => podStore.getById(canvasId, podId)
-    );
-
-    const mergedPayload = {
+    await workflowDirectTriggerService.handleDirectTimerExpired(
       canvasId,
       targetPodId,
-      sourcePodIds,
-      mergedContentPreview: mergedContent.substring(0, 200),
-      countdownSeconds: 0,
-    };
-
-    workflowEventEmitter.emitDirectMerged(canvasId, mergedPayload);
-
-    // 找出所有涉及的 direct connections
-    const directConnections = incomingConnections.filter(
-      (conn) => conn.triggerMode === 'direct' && sourcePodIds.includes(conn.sourcePodId)
+      this.triggerWorkflowWithSummary.bind(this)
     );
-
-    // 為所有參與合併的 direct connections 發送 WORKFLOW_DIRECT_TRIGGERED 事件
-    for (const conn of directConnections) {
-      const summary = readySummaries.get(conn.sourcePodId);
-      if (summary) {
-        const payload: WorkflowDirectTriggeredPayload = {
-          canvasId,
-          connectionId: conn.id,
-          sourcePodId: conn.sourcePodId,
-          targetPodId,
-          transferredContent: mergedContent,
-          isSummarized: true,
-        };
-        workflowEventEmitter.emitDirectTriggered(canvasId, payload);
-      }
-    }
-
-    const allDirectConnectionIds = directConnections.map(conn => conn.id);
-    const anyDirectConnection = directConnections[0];
-
-    if (!anyDirectConnection) {
-      directTriggerStore.clearDirectPending(targetPodId);
-      return;
-    }
-
-    const targetPod = podStore.getById(canvasId, targetPodId);
-    if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
-      const isBusyWithDirect = directTriggerStore.hasDirectPending(targetPodId);
-
-      if (!isBusyWithDirect) {
-        workflowQueueService.enqueue({
-          canvasId,
-          connectionId: anyDirectConnection.id,
-          sourcePodId: sourcePodIds[0],
-          targetPodId,
-          summary: mergedContent,
-          isSummarized: true,
-          triggerMode: 'direct',
-        });
-
-        directTriggerStore.clearDirectPending(targetPodId);
-        return;
-      }
-    }
-
-    await this.triggerWorkflowWithSummary(canvasId, anyDirectConnection.id, mergedContent, true, true);
-
-    const otherConnectionIds = allDirectConnectionIds.filter(id => id !== anyDirectConnection.id);
-    for (const otherConnectionId of otherConnectionIds) {
-      const otherConnection = directConnections.find(conn => conn.id === otherConnectionId);
-      if (otherConnection) {
-        workflowEventEmitter.emitWorkflowComplete(
-          canvasId,
-          otherConnectionId,
-          otherConnection.sourcePodId,
-          targetPodId,
-          true,
-          undefined,
-          'direct'
-        );
-      }
-    }
-
-    directTriggerStore.clearDirectPending(targetPodId);
   }
 
   async triggerWorkflowInternal(canvasId: string, connectionId: string): Promise<void> {

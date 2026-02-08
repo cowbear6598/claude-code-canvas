@@ -57,23 +57,20 @@ class RepositorySyncService {
         }
       }
 
-      try {
-        await commandService.deleteCommandFromPath(repositoryPath);
-      } catch (error) {
-        logger.error('Repository', 'Update', `Failed to delete commands from ${repositoryPath}`, error);
-      }
+      // 同組並行執行 delete 操作
+      const deleteResults = await Promise.allSettled([
+        commandService.deleteCommandFromPath(repositoryPath),
+        skillService.deleteSkillsFromPath(repositoryPath),
+        subAgentService.deleteSubAgentsFromPath(repositoryPath),
+      ]);
 
-      try {
-        await skillService.deleteSkillsFromPath(repositoryPath);
-      } catch (error) {
-        logger.error('Repository', 'Update', `Failed to delete skills from ${repositoryPath}`, error);
-      }
-
-      try {
-        await subAgentService.deleteSubAgentsFromPath(repositoryPath);
-      } catch (error) {
-        logger.error('Repository', 'Update', `Failed to delete subagents from ${repositoryPath}`, error);
-      }
+      // 統一記錄失敗的操作
+      const deleteNames = ['commands', 'skills', 'subagents'];
+      deleteResults.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          logger.error('Repository', 'Update', `Failed to delete ${deleteNames[index]} from ${repositoryPath}`, result.reason);
+        }
+      });
 
       for (const commandId of commandIds) {
         try {

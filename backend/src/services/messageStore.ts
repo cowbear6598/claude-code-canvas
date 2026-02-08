@@ -4,6 +4,7 @@ import {Result, ok, err} from '../types';
 import {chatPersistenceService} from './persistence/chatPersistence.js';
 import {logger} from '../utils/logger.js';
 import {canvasStore} from './canvasStore.js';
+import {getErrorMessage} from '../utils/errorHelpers.js';
 
 class MessageStore {
     private messagesByPodId: Map<string, PersistedMessage[]> = new Map();
@@ -122,7 +123,7 @@ class MessageStore {
         const nextWrite = previousWrite
             .then(() => writeFn())
             .catch((error: unknown) => {
-                const errorMsg = error instanceof Error ? error.message : String(error);
+                const errorMsg = getErrorMessage(error);
                 logger.error('Chat', 'Error', `[MessageStore] 寫入佇列執行失敗 (Pod ${podId}): ${errorMsg}`);
             });
         this.writeQueues.set(podId, nextWrite);

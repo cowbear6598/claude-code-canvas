@@ -27,6 +27,8 @@ import {
   handlePodBindRepository,
   handlePodUnbindRepository,
   handleRepositoryDelete,
+} from '../repositoryHandlers.js';
+import {
   handleRepositoryGitClone,
   handleRepositoryCheckGit,
   handleRepositoryWorktreeCreate,
@@ -34,7 +36,7 @@ import {
   handleRepositoryCheckDirty,
   handleRepositoryCheckoutBranch,
   handleRepositoryDeleteBranch,
-} from '../repositoryHandlers.js';
+} from '../repositoryGitHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
 
 export const repositoryHandlerGroup = createHandlerGroup({

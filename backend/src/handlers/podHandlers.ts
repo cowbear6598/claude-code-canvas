@@ -1,12 +1,11 @@
-// Socket 類型已由 connectionId 取代
-import {WebSocketResponseEvents} from '../schemas/index.js';
+import {WebSocketResponseEvents} from '../schemas';
 import type {
     PodCreatedPayload,
     PodListResultPayload,
     PodGetResultPayload,
     PodScheduleSetPayload,
     PodDeletedPayload,
-} from '../types/index.js';
+} from '../types';
 import type {
     PodCreatePayload,
     PodListPayload,
@@ -16,15 +15,15 @@ import type {
     PodSetModelPayload,
     PodSetSchedulePayload,
     PodDeletePayload,
-} from '../schemas/index.js';
-import type {Pod} from '../types/index.js';
+} from '../schemas';
+import type {Pod} from '../types';
 import {podStore} from '../services/podStore.js';
-import {workspaceService} from '../services/workspace/index.js';
+import {workspaceService} from '../services/workspace';
 import {claudeSessionManager} from '../services/claude/sessionManager.js';
 import {noteStore, skillNoteStore, repositoryNoteStore, commandNoteStore, subAgentNoteStore} from '../services/noteStores.js';
 import {connectionStore} from '../services/connectionStore.js';
 import {socketService} from '../services/socketService.js';
-import {workflowStateService} from '../services/workflow/index.js';
+import {workflowStateService} from '../services/workflow';
 import {repositorySyncService} from '../services/repositorySyncService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';

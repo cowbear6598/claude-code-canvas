@@ -1,7 +1,8 @@
 import {v4 as uuidv4} from 'uuid';
 import path from 'path';
-import {type Options, type Query, query, AbortError} from '@anthropic-ai/claude-agent-sdk';
+import {type Options, type Query, query} from '@anthropic-ai/claude-agent-sdk';
 import {podStore} from '../podStore.js';
+import {isAbortError, getErrorMessage} from '../../utils/errorHelpers.js';
 import {outputStyleService} from '../outputStyleService.js';
 import {Message, ToolUseInfo, ContentBlock} from '../../types';
 import {config} from '../../config';
@@ -380,14 +381,12 @@ class ClaudeQueryService {
                 createdAt: new Date(),
             };
         } catch (error) {
-            const isAbortError = error instanceof AbortError || (error instanceof Error && error.name === 'AbortError');
-
-            if (isAbortError) {
+            if (isAbortError(error)) {
                 // re-throw 讓外層 catch 處理，確保前端收到 POD_CHAT_ABORTED 事件
                 throw error;
             }
 
-            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorMessage = getErrorMessage(error);
             const isResumeError =
                 errorMessage.includes('session') || errorMessage.includes('resume');
 

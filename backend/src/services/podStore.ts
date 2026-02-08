@@ -121,34 +121,42 @@ class PodStore {
             return undefined;
         }
 
-        let updatedPod: Pod;
-
-        // 如果 updates 包含 schedule 且為 null，則刪除 schedule 屬性
-        if ('schedule' in updates && updates.schedule === null) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const {schedule, ...restUpdates} = updates;
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const {schedule: _, ...restPod} = pod;
-            // 從 updates 中排除不可變欄位
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const {id: _id, createdAt: _createdAt, workspacePath: _workspacePath, ...safeUpdates} = restUpdates as any;
-            updatedPod = {...restPod, ...safeUpdates} as Pod;
-        } else {
-            // 從 updates 中排除不可變欄位
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const {id: _id, createdAt: _createdAt, workspacePath: _workspacePath, ...safeUpdates} = updates as any;
-            updatedPod = {...pod, ...safeUpdates} as Pod;
-
-            // 如果 updates 包含 schedule 且有值，初始化 lastTriggeredAt
-            if (updates.schedule && !updates.schedule.lastTriggeredAt) {
-                updatedPod.schedule = {...updates.schedule, lastTriggeredAt: null};
-            }
-        }
+        type UpdatesWithSchedule = Partial<Omit<Pod, 'schedule'>> & { schedule?: ScheduleConfig | null };
+        const safeUpdates = this.buildSafeUpdates(updates);
+        const updatedPod = this.handleScheduleUpdate(pod, updates as UpdatesWithSchedule, safeUpdates);
 
         pods.set(id, updatedPod);
         this.persistPodAsync(canvasId, updatedPod);
 
         return updatedPod;
+    }
+
+    private buildSafeUpdates(updates: Partial<Omit<Pod, 'schedule'>> & { schedule?: ScheduleConfig | null }): Partial<Omit<Pod, 'schedule'>> {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+        const {id, createdAt, workspacePath, schedule, ...safeUpdates} = updates as any;
+        return safeUpdates;
+    }
+
+    private handleScheduleUpdate(
+        pod: Pod,
+        updates: Partial<Omit<Pod, 'schedule'>> & { schedule?: ScheduleConfig | null },
+        safeUpdates: Partial<Omit<Pod, 'schedule'>>
+    ): Pod {
+        if ('schedule' in updates && updates.schedule === null) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const {schedule, ...restPod} = pod;
+            return {...restPod, ...safeUpdates} as Pod;
+        }
+
+        const updatedPod = {...pod, ...safeUpdates};
+
+        if (updates.schedule) {
+            updatedPod.schedule = updates.schedule.lastTriggeredAt
+                ? updates.schedule
+                : {...updates.schedule, lastTriggeredAt: null};
+        }
+
+        return updatedPod as Pod;
     }
 
     delete(canvasId: string, id: string): boolean {

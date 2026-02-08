@@ -28,15 +28,7 @@ export function emitError(
 	});
 }
 
-export function getErrorMessage(error: unknown): string {
-	if (error instanceof Error) {
-		return error.message;
-	}
-	if (typeof error === 'string') {
-		return error;
-	}
-	return '發生未知錯誤';
-}
+export { getErrorMessage } from './errorHelpers.js';
 
 export function sendSuccessResponse<T>(
 	connectionId: string,

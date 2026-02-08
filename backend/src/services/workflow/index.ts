@@ -1,6 +1,9 @@
 export { workflowEventEmitter } from './workflowEventEmitter.js';
 export { workflowStateService } from './workflowStateService.js';
 export { workflowExecutionService } from './workflowExecutionService.js';
+export { workflowAutoTriggerService } from './workflowAutoTriggerService.js';
+export { workflowMultiInputService } from './workflowMultiInputService.js';
+export { workflowDirectTriggerService } from './workflowDirectTriggerService.js';
 export { aiDecideService } from './aiDecideService.js';
 export { aiDecidePromptBuilder } from './aiDecidePromptBuilder.js';
 export { workflowQueueService } from './workflowQueueService.js';
