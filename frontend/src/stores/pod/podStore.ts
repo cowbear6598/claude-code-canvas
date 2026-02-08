@@ -1,7 +1,6 @@
 import {defineStore} from 'pinia'
-import type {ModelType, Pod, PodColor, PodStatus, Position, Schedule, TypeMenuState} from '@/types'
+import type {ModelType, Pod, PodStatus, Position, Schedule, TypeMenuState} from '@/types'
 import {initialPods} from '@/data/initialPods'
-import {validatePodName} from '@/lib/sanitize'
 import {generateRequestId} from '@/services/utils'
 import {
     createWebSocketRequest,
@@ -28,6 +27,7 @@ import {useConnectionStore} from '@/stores/connectionStore'
 import {useCanvasStore} from '@/stores/canvasStore'
 import {useToast} from '@/composables/useToast'
 import {sanitizeErrorForUser} from '@/utils/errorSanitizer'
+import {isValidPod as isValidPodFn, enrichPod as enrichPodFn} from '@/lib/podValidation'
 
 const MAX_COORD = 100000
 
@@ -68,32 +68,11 @@ export const usePodStore = defineStore('pod', {
 
     actions: {
         enrichPod(pod: Pod, existingOutput?: string[]): Pod {
-            return {
-                ...pod,
-                x: pod.x ?? 100,
-                y: pod.y ?? 150,
-                rotation: pod.rotation ?? (Math.random() * 2 - 1),
-                output: Array.isArray(existingOutput) ? existingOutput : (Array.isArray(pod.output) ? pod.output : []),
-                outputStyleId: pod.outputStyleId ?? null,
-                model: pod.model ?? 'opus',
-                autoClear: pod.autoClear ?? false,
-                commandId: pod.commandId ?? null,
-                schedule: pod.schedule ?? null,
-            }
+            return enrichPodFn(pod, existingOutput)
         },
 
         isValidPod(pod: Pod): boolean {
-            const validColors: PodColor[] = ['blue', 'coral', 'pink', 'yellow', 'green']
-            return (
-                validatePodName(pod.name) &&
-                Array.isArray(pod.output) &&
-                pod.output.every(item => typeof item === 'string') &&
-                pod.id.trim() !== '' &&
-                validColors.includes(pod.color) &&
-                isFinite(pod.x) &&
-                isFinite(pod.y) &&
-                isFinite(pod.rotation)
-            )
+            return isValidPodFn(pod)
         },
 
         addPod(pod: Pod): void {

@@ -9,6 +9,7 @@ export default mergeConfig(
       globals: true,
       setupFiles: ['tests/setup.ts'],
       include: ['tests/**/*.test.ts'],
+      reporters: ['verbose'],
       coverage: {
         provider: 'v8',
         include: [
