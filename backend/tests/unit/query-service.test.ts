@@ -396,7 +396,7 @@ describe('Claude QueryService', () => {
       // 驗證 stream event 包含錯誤
       expect(streamEvents[0]).toEqual({
         type: 'error',
-        error: 'Network error occurred',
+        error: '與 Claude 通訊時發生錯誤，請稍後再試',
       });
 
       // 驗證沒有清除 session ID (檢查是否有用空字串呼叫)
@@ -458,7 +458,7 @@ describe('Claude QueryService', () => {
       expect(errorEvents.length).toBeGreaterThan(0);
       expect(errorEvents[errorEvents.length - 1]).toEqual({
         type: 'error',
-        error: 'Invalid session ID or session expired',
+        error: '與 Claude 通訊時發生錯誤，請稍後再試',
       });
     });
   });

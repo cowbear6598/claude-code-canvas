@@ -1,27 +1,15 @@
-import { v4 as uuidv4 } from 'uuid';
-import { WebSocketResponseEvents } from '../schemas';
+import { WebSocketResponseEvents, SystemConnectionIds } from '../schemas';
 import type {
-  PodChatMessagePayload,
-  PodChatToolUsePayload,
-  PodChatToolResultPayload,
-  PodChatCompletePayload,
   Pod,
   ScheduleConfig,
 } from '../types';
 import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
-import { claudeQueryService } from './claude/queryService.js';
 import { socketService } from './socketService.js';
 import { workflowExecutionService } from './workflow';
 import { autoClearService } from './autoClear';
 import { logger } from '../utils/logger.js';
-import {
-  createSubMessageState,
-  createSubMessageFlusher,
-  processTextEvent,
-  processToolUseEvent,
-  processToolResultEvent,
-} from './claude/streamEventProcessor.js';
+import { executeStreamingChat } from './claude/streamingChatExecutor.js';
 
 const TICK_INTERVAL_MS = 1000;
 const MS_PER_SECOND = 1000;
@@ -168,125 +156,21 @@ class ScheduleService {
   private async sendScheduleMessage(canvasId: string, podId: string): Promise<void> {
     podStore.setStatus(canvasId, podId, 'chatting');
 
-    const messageId = uuidv4();
-    const accumulatedContentRef = { value: '' };
-    const subMessageState = createSubMessageState();
-    const flushCurrentSubMessage = createSubMessageFlusher(messageId, subMessageState);
-
     try {
-      await claudeQueryService.sendMessage(podId, '', (event) => {
-        switch (event.type) {
-          case 'text': {
-            processTextEvent(event.content, accumulatedContentRef, subMessageState);
-
-            const textPayload: PodChatMessagePayload = {
-              canvasId,
-              podId,
-              messageId,
-              content: accumulatedContentRef.value,
-              isPartial: true,
-              role: 'assistant',
-            };
-            socketService.emitToCanvas(
-              canvasId,
-              WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE,
-              textPayload
-            );
-            break;
-          }
-
-          case 'tool_use': {
-            processToolUseEvent(
-              event.toolUseId,
-              event.toolName,
-              event.input,
-              subMessageState,
-              flushCurrentSubMessage
-            );
-
-            const toolUsePayload: PodChatToolUsePayload = {
-              canvasId,
-              podId,
-              messageId,
-              toolUseId: event.toolUseId,
-              toolName: event.toolName,
-              input: event.input,
-            };
-            socketService.emitToCanvas(
-              canvasId,
-              WebSocketResponseEvents.POD_CHAT_TOOL_USE,
-              toolUsePayload
-            );
-            break;
-          }
-
-          case 'tool_result': {
-            processToolResultEvent(event.toolUseId, event.output, subMessageState);
-
-            const toolResultPayload: PodChatToolResultPayload = {
-              canvasId,
-              podId,
-              messageId,
-              toolUseId: event.toolUseId,
-              toolName: event.toolName,
-              output: event.output,
-            };
-            socketService.emitToCanvas(
-              canvasId,
-              WebSocketResponseEvents.POD_CHAT_TOOL_RESULT,
-              toolResultPayload
-            );
-            break;
-          }
-
-          case 'complete': {
-            flushCurrentSubMessage();
-
-            const completePayload: PodChatCompletePayload = {
-              canvasId,
-              podId,
-              messageId,
-              fullContent: accumulatedContentRef.value,
-            };
-            socketService.emitToCanvas(
-              canvasId,
-              WebSocketResponseEvents.POD_CHAT_COMPLETE,
-              completePayload
-            );
-            break;
-          }
-
-          case 'error': {
-            logger.error('Schedule', 'Error', `Stream error for Pod ${podId}: ${event.error}`);
-            break;
-          }
-        }
-      }, 'schedule');
-
       await messageStore.addMessage(canvasId, podId, 'user', '');
 
-      if (accumulatedContentRef.value || subMessageState.subMessages.length > 0) {
-        await messageStore.addMessage(
-          canvasId,
-          podId,
-          'assistant',
-          accumulatedContentRef.value,
-          subMessageState.subMessages.length > 0 ? subMessageState.subMessages : undefined
-        );
-      }
-
-      podStore.setStatus(canvasId, podId, 'idle');
-      podStore.updateLastActive(canvasId, podId);
-
-      autoClearService.onPodComplete(canvasId, podId).catch((error) => {
-        logger.error('Schedule', 'Error', `Failed to check auto-clear for Pod ${podId}`, error);
-      });
-
-      workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch((error) => {
-        logger.error('Schedule', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error);
-      });
+      await executeStreamingChat(
+        { canvasId, podId, message: '', connectionId: SystemConnectionIds.SCHEDULE, supportAbort: false },
+        {
+          onComplete: async (canvasId, podId) => {
+            autoClearService.onPodComplete(canvasId, podId).catch(error =>
+              logger.error('Schedule', 'Error', `autoClear 處理失敗`, error));
+            workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch(error =>
+              logger.error('Schedule', 'Error', `workflow 觸發失敗`, error));
+          },
+        }
+      );
     } catch (error) {
-      podStore.setStatus(canvasId, podId, 'idle');
       logger.error('Schedule', 'Error', `Failed to execute schedule message for Pod ${podId}`, error);
       throw error;
     }

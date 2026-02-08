@@ -1,10 +1,6 @@
 import {v4 as uuidv4} from 'uuid';
 import {WebSocketResponseEvents} from '../schemas';
 import type {
-    PodChatMessagePayload,
-    PodChatToolUsePayload,
-    PodChatToolResultPayload,
-    PodChatCompletePayload,
     PodChatAbortedPayload,
     ContentBlock,
 } from '../types';
@@ -13,20 +9,12 @@ import {podStore} from '../services/podStore.js';
 import {messageStore} from '../services/messageStore.js';
 import {claudeQueryService} from '../services/claude/queryService.js';
 import {socketService} from '../services/socketService.js';
-import {workflowExecutionService} from '../services/workflow';
-import {autoClearService} from '../services/autoClear';
+import {workflowExecutionService} from '../services/workflow/index.js';
+import {autoClearService} from '../services/autoClear/index.js';
 import {emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';
-import {
-    createSubMessageState,
-    createSubMessageFlusher,
-    processTextEvent,
-    processToolUseEvent,
-    processToolResultEvent,
-    buildPersistedMessage,
-} from '../services/claude/streamEventProcessor.js';
-import {AbortError} from '@anthropic-ai/claude-agent-sdk';
+import {executeStreamingChat} from '../services/claude/streamingChatExecutor.js';
 
 function extractDisplayContent(message: string | ContentBlock[]): string {
     if (typeof message === 'string') return message;
@@ -58,11 +46,6 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
 
         podStore.setStatus(canvasId, podId, 'chatting');
 
-        const messageId = uuidv4();
-        const accumulatedContentRef = {value: ''};
-        const subMessageState = createSubMessageState();
-        const flushCurrentSubMessage = createSubMessageFlusher(messageId, subMessageState);
-
         const userDisplayContent = extractDisplayContent(message);
 
         await messageStore.addMessage(canvasId, podId, 'user', userDisplayContent);
@@ -79,155 +62,22 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
             }
         );
 
-        const persistStreamingMessage = (): void => {
-            const persistedMsg = buildPersistedMessage(messageId, accumulatedContentRef.value, subMessageState);
-            messageStore.upsertMessage(canvasId, podId, persistedMsg);
-        };
-
-        try {
-            await claudeQueryService.sendMessage(podId, message, (event) => {
-            switch (event.type) {
-                case 'text': {
-                    processTextEvent(event.content, accumulatedContentRef, subMessageState);
-
-                    const textPayload: PodChatMessagePayload = {
-                        canvasId,
-                        podId,
-                        messageId,
-                        content: accumulatedContentRef.value,
-                        isPartial: true,
-                        role: 'assistant',
-                    };
-                    socketService.emitToCanvas(
-                        canvasId,
-                        WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE,
-                        textPayload
-                    );
-
-                    persistStreamingMessage();
-                    break;
-                }
-
-                case 'tool_use': {
-                    processToolUseEvent(
-                        event.toolUseId,
-                        event.toolName,
-                        event.input,
-                        subMessageState,
-                        flushCurrentSubMessage
-                    );
-
-                    const toolUsePayload: PodChatToolUsePayload = {
-                        canvasId,
-                        podId,
-                        messageId,
-                        toolUseId: event.toolUseId,
-                        toolName: event.toolName,
-                        input: event.input,
-                    };
-                    socketService.emitToCanvas(
-                        canvasId,
-                        WebSocketResponseEvents.POD_CHAT_TOOL_USE,
-                        toolUsePayload
-                    );
-
-                    persistStreamingMessage();
-                    break;
-                }
-
-                case 'tool_result': {
-                    processToolResultEvent(event.toolUseId, event.output, subMessageState);
-
-                    const toolResultPayload: PodChatToolResultPayload = {
-                        canvasId,
-                        podId,
-                        messageId,
-                        toolUseId: event.toolUseId,
-                        toolName: event.toolName,
-                        output: event.output,
-                    };
-                    socketService.emitToCanvas(
-                        canvasId,
-                        WebSocketResponseEvents.POD_CHAT_TOOL_RESULT,
-                        toolResultPayload
-                    );
-
-                    persistStreamingMessage();
-                    break;
-                }
-
-                case 'complete': {
-                    flushCurrentSubMessage();
-
-                    const completePayload: PodChatCompletePayload = {
-                        canvasId,
-                        podId,
-                        messageId,
-                        fullContent: accumulatedContentRef.value,
-                    };
-                    socketService.emitToCanvas(
-                        canvasId,
-                        WebSocketResponseEvents.POD_CHAT_COMPLETE,
-                        completePayload
-                    );
-                    break;
-                }
-
-                case 'error': {
-                    logger.error('Chat', 'Error', `Stream error for Pod ${podId}: ${event.error}`);
-                    break;
-                }
+        await executeStreamingChat(
+            {canvasId, podId, message, connectionId, supportAbort: true},
+            {
+                onComplete: async (canvasId, podId) => {
+                    autoClearService.onPodComplete(canvasId, podId).catch(error =>
+                        logger.error('AutoClear', 'Error', `Failed to check auto-clear for Pod ${podId}`, error));
+                    workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch(error =>
+                        logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error));
+                },
+                onAborted: async (canvasId, podId, messageId) => {
+                    const abortedPayload: PodChatAbortedPayload = {canvasId, podId, messageId};
+                    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_CHAT_ABORTED, abortedPayload);
+                    logger.log('Chat', 'Abort', `Pod「${pod.name}」對話已中斷`);
+                },
             }
-            }, connectionId);
-
-            const hasAssistantContent = accumulatedContentRef.value || subMessageState.subMessages.length > 0;
-            if (hasAssistantContent) {
-                persistStreamingMessage();
-                await messageStore.flushWrites(podId);
-            }
-
-            podStore.setStatus(canvasId, podId, 'idle');
-            podStore.updateLastActive(canvasId, podId);
-
-            autoClearService.onPodComplete(canvasId, podId).catch((error) => {
-                logger.error('AutoClear', 'Error', `Failed to check auto-clear for Pod ${podId}`, error);
-            });
-
-            workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch((error) => {
-                logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error);
-            });
-        } catch (error) {
-            const isAbortError = error instanceof AbortError || (error instanceof Error && error.name === 'AbortError');
-
-            if (isAbortError) {
-                flushCurrentSubMessage();
-
-                const hasAssistantContent = accumulatedContentRef.value || subMessageState.subMessages.length > 0;
-                if (hasAssistantContent) {
-                    persistStreamingMessage()
-                    await messageStore.flushWrites(podId);
-                }
-
-                podStore.setStatus(canvasId, podId, 'idle');
-
-                const abortedPayload: PodChatAbortedPayload = {
-                    canvasId,
-                    podId,
-                    messageId,
-                };
-                socketService.emitToCanvas(
-                    canvasId,
-                    WebSocketResponseEvents.POD_CHAT_ABORTED,
-                    abortedPayload
-                );
-
-                logger.log('Chat', 'Abort', `Pod「${pod.name}」對話已中斷`);
-                return;
-            }
-
-            podStore.setStatus(canvasId, podId, 'idle');
-            throw error;
-        }
+        );
     }
 );
 
@@ -253,7 +103,19 @@ export const handleChatAbort = withCanvasId<ChatAbortPayload>(
 
         // 驗證請求者是否為對話發起者
         const queryConnectionId = claudeQueryService.getQueryConnectionId(podId);
-        if (queryConnectionId && queryConnectionId !== connectionId) {
+        if (!queryConnectionId) {
+            emitError(
+                connectionId,
+                WebSocketResponseEvents.POD_ERROR,
+                `找不到 Pod ${podId} 的活躍查詢`,
+                requestId,
+                podId,
+                'NO_ACTIVE_QUERY'
+            );
+            return;
+        }
+
+        if (queryConnectionId !== connectionId) {
             emitError(
                 connectionId,
                 WebSocketResponseEvents.POD_ERROR,

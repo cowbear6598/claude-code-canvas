@@ -229,7 +229,7 @@ function handleResultMessage(
             ? msg.errors.join(', ')
             : 'Unknown error';
 
-    onStream({type: 'error', error: errorMessage});
+    onStream({type: 'error', error: '與 Claude 通訊時發生錯誤，請稍後再試'});
     throw new Error(errorMessage);
 }
 
@@ -391,19 +391,24 @@ class ClaudeQueryService {
             const isResumeError =
                 errorMessage.includes('session') || errorMessage.includes('resume');
 
+            // 對前端隱藏內部錯誤細節，只顯示通用訊息
+            const sanitizedMessage = '與 Claude 通訊時發生錯誤，請稍後再試';
+
             if (!isResumeError || !pod.claudeSessionId) {
+                logger.error('Chat', 'Error', `Pod ${podId} 查詢失敗: ${errorMessage}`);
                 onStream({
                     type: 'error',
-                    error: errorMessage,
+                    error: sanitizedMessage,
                 });
 
                 throw error;
             }
 
             if (isRetry) {
+                logger.error('Chat', 'Error', `Pod ${podId} 重試查詢仍然失敗: ${errorMessage}`);
                 onStream({
                     type: 'error',
-                    error: errorMessage,
+                    error: sanitizedMessage,
                 });
 
                 throw error;
