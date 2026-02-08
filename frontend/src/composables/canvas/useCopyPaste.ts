@@ -598,7 +598,7 @@ export function useCopyPaste(): void {
 
     if (!response) return false
 
-    // 統一事件監聽器會處理 Store 更新，這裡只處理選取邏輯
+    // 統一事件監聽器會處理 Store 更新和 Toast 提示，這裡只處理選取邏輯
     const newSelectedElements: SelectableElement[] = [
       ...response.createdPods.map(pod => ({ type: 'pod' as const, id: pod.id })),
       ...response.createdOutputStyleNotes
@@ -619,7 +619,6 @@ export function useCopyPaste(): void {
     ]
 
     selectionStore.setSelectedElements(newSelectedElements)
-    showSuccessToast('Paste', '貼上成功')
 
     return true
   }

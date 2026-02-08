@@ -1,4 +1,4 @@
-import type {PersistedSubMessage, PersistedToolUseInfo} from '../../types';
+import type {PersistedSubMessage, PersistedToolUseInfo, PersistedMessage} from '../../types';
 
 export interface SubMessageState {
     subMessages: PersistedSubMessage[];
@@ -73,4 +73,38 @@ export function processToolResultEvent(
     if (currentTool) {
         currentTool.output = output;
     }
+}
+
+/**
+ * 從 streaming 累積狀態建構 PersistedMessage 快照
+ *
+ * 使用 structuredClone 深拷貝 subMessages，因為 enqueueWrite 的 fire-and-forget 設計
+ * 導致佇列中的寫入可能在後續 event 到達時才執行，必須保留呼叫當下的狀態快照
+ */
+export function buildPersistedMessage(
+    messageId: string,
+    accumulatedContent: string,
+    state: SubMessageState
+): PersistedMessage {
+    // 深拷貝已 flush 的 subMessages，避免影響原始 state
+    const subMessages: PersistedSubMessage[] = structuredClone(state.subMessages);
+
+    // 合併當前尚未 flush 的內容
+    if (state.currentSubContent || state.currentSubToolUse.length > 0) {
+        subMessages.push({
+            id: `${messageId}-sub-${state.subMessageCounter}`,
+            content: state.currentSubContent,
+            toolUse: state.currentSubToolUse.length > 0
+                ? structuredClone(state.currentSubToolUse)
+                : undefined,
+        });
+    }
+
+    return {
+        id: messageId,
+        role: 'assistant',
+        content: accumulatedContent,
+        timestamp: new Date().toISOString(),
+        ...(subMessages.length > 0 && { subMessages }),
+    };
 }

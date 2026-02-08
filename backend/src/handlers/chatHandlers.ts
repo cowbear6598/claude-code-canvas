@@ -24,6 +24,7 @@ import {
     processTextEvent,
     processToolUseEvent,
     processToolResultEvent,
+    buildPersistedMessage,
 } from '../services/claude/streamEventProcessor.js';
 import {AbortError} from '@anthropic-ai/claude-agent-sdk';
 
@@ -63,6 +64,9 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
         const flushCurrentSubMessage = createSubMessageFlusher(messageId, subMessageState);
 
         const userDisplayContent = extractDisplayContent(message);
+
+        await messageStore.addMessage(canvasId, podId, 'user', userDisplayContent);
+
         socketService.emitToCanvas(
             canvasId,
             WebSocketResponseEvents.POD_CHAT_USER_MESSAGE,
@@ -74,6 +78,11 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
                 timestamp: new Date().toISOString(),
             }
         );
+
+        const persistStreamingMessage = (): void => {
+            const persistedMsg = buildPersistedMessage(messageId, accumulatedContentRef.value, subMessageState);
+            messageStore.upsertMessage(canvasId, podId, persistedMsg);
+        };
 
         try {
             await claudeQueryService.sendMessage(podId, message, (event) => {
@@ -94,6 +103,8 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
                         WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE,
                         textPayload
                     );
+
+                    persistStreamingMessage();
                     break;
                 }
 
@@ -119,6 +130,8 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
                         WebSocketResponseEvents.POD_CHAT_TOOL_USE,
                         toolUsePayload
                     );
+
+                    persistStreamingMessage();
                     break;
                 }
 
@@ -138,6 +151,8 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
                         WebSocketResponseEvents.POD_CHAT_TOOL_RESULT,
                         toolResultPayload
                     );
+
+                    persistStreamingMessage();
                     break;
                 }
 
@@ -165,17 +180,10 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
             }
             }, connectionId);
 
-            const userMessageText = extractDisplayContent(message);
-            await messageStore.addMessage(canvasId, podId, 'user', userMessageText);
-
-            if (accumulatedContentRef.value || subMessageState.subMessages.length > 0) {
-                await messageStore.addMessage(
-                    canvasId,
-                    podId,
-                    'assistant',
-                    accumulatedContentRef.value,
-                    subMessageState.subMessages.length > 0 ? subMessageState.subMessages : undefined
-                );
+            const hasAssistantContent = accumulatedContentRef.value || subMessageState.subMessages.length > 0;
+            if (hasAssistantContent) {
+                persistStreamingMessage();
+                await messageStore.flushWrites(podId);
             }
 
             podStore.setStatus(canvasId, podId, 'idle');
@@ -194,17 +202,10 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
             if (isAbortError) {
                 flushCurrentSubMessage();
 
-                const userMessageText = extractDisplayContent(message);
-                await messageStore.addMessage(canvasId, podId, 'user', userMessageText);
-
-                if (accumulatedContentRef.value || subMessageState.subMessages.length > 0) {
-                    await messageStore.addMessage(
-                        canvasId,
-                        podId,
-                        'assistant',
-                        accumulatedContentRef.value,
-                        subMessageState.subMessages.length > 0 ? subMessageState.subMessages : undefined
-                    );
+                const hasAssistantContent = accumulatedContentRef.value || subMessageState.subMessages.length > 0;
+                if (hasAssistantContent) {
+                    persistStreamingMessage()
+                    await messageStore.flushWrites(podId);
                 }
 
                 podStore.setStatus(canvasId, podId, 'idle');

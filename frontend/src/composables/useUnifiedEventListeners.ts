@@ -546,7 +546,7 @@ const handleCanvasPasted = createUnifiedHandler<BasePayload & {
     const subAgentStore = useSubAgentStore()
     const commandStore = useCommandStore()
 
-    addCreatedItems(payload.createdPods, pod => podStore.addPod(pod))
+    addCreatedItems(payload.createdPods, pod => podStore.addPodFromEvent(pod))
     addCreatedItems(payload.createdOutputStyleNotes, note => outputStyleStore.addNoteFromEvent(note))
     addCreatedItems(payload.createdSkillNotes, note => skillStore.addNoteFromEvent(note))
     addCreatedItems(payload.createdRepositoryNotes, note => repositoryStore.addNoteFromEvent(note))
