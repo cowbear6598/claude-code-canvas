@@ -32,7 +32,8 @@
       "Bash(~/.bun/bin/bun test:*)",
       "Bash(bun test:*)",
       "Bash(bun run:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(bun add:*)"
     ]
   },
   "outputStyle": "conductor"

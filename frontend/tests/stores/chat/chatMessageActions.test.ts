@@ -1,0 +1,1468 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { setActivePinia } from 'pinia'
+import { setupTestPinia } from '../../helpers/mockStoreFactory'
+import { mockWebSocketModule, resetMockWebSocket } from '../../helpers/mockWebSocket'
+import { createMockPod, createMockMessage } from '../../helpers/factories'
+import { useChatStore } from '@/stores/chat/chatStore'
+import { usePodStore } from '@/stores/pod/podStore'
+import type {
+  PodChatMessagePayload,
+  PodChatToolUsePayload,
+  PodChatToolResultPayload,
+  PodChatCompletePayload,
+  PodChatAbortedPayload,
+  PodMessagesClearedPayload,
+  WorkflowAutoClearedPayload,
+  PersistedMessage
+} from '@/types/websocket'
+import type { Message, SubMessage, ToolUseInfo } from '@/types/chat'
+import { CONTENT_PREVIEW_LENGTH, RESPONSE_PREVIEW_LENGTH } from '@/lib/constants'
+
+// Mock WebSocket
+vi.mock('@/services/websocket', async () => {
+  const actual = await vi.importActual<typeof import('@/services/websocket')>('@/services/websocket')
+  return {
+    ...mockWebSocketModule(),
+    WebSocketRequestEvents: actual.WebSocketRequestEvents,
+    WebSocketResponseEvents: actual.WebSocketResponseEvents,
+  }
+})
+
+// Mock useToast
+vi.mock('@/composables/useToast', () => ({
+  useToast: () => ({
+    showSuccessToast: vi.fn(),
+    showErrorToast: vi.fn(),
+  }),
+}))
+
+describe('chatMessageActions', () => {
+  beforeEach(() => {
+    const pinia = setupTestPinia()
+    setActivePinia(pinia)
+    resetMockWebSocket()
+    vi.clearAllMocks()
+  })
+
+  describe('addUserMessage', () => {
+    it('應新增 user 訊息到 messagesByPodId', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', output: [] })
+      podStore.pods = [pod]
+
+      await chatStore.addUserMessage('pod-1', 'Hello World')
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages).toHaveLength(1)
+      expect(messages![0]).toMatchObject({
+        role: 'user',
+        content: 'Hello World',
+      })
+      expect(messages![0]!.id).toBeDefined()
+      expect(messages![0]!.timestamp).toBeDefined()
+    })
+
+    it('應更新 Pod 的 output（含截斷的內容預覽，30 字元 + "> " prefix）', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', output: [] })
+      podStore.pods = [pod]
+
+      const longContent = 'a'.repeat(50)
+      await chatStore.addUserMessage('pod-1', longContent)
+
+      const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+      expect(updatedPod!.output).toHaveLength(1)
+      expect(updatedPod!.output[0]).toBe(`> ${'a'.repeat(CONTENT_PREVIEW_LENGTH)}...`)
+    })
+
+    it('應追加訊息到現有 messages 陣列', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', output: [] })
+      podStore.pods = [pod]
+
+      await chatStore.addUserMessage('pod-1', 'First message')
+      await chatStore.addUserMessage('pod-1', 'Second message')
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages).toHaveLength(2)
+      expect(messages![0]!.content).toBe('First message')
+      expect(messages![1]!.content).toBe('Second message')
+    })
+
+    it('Pod 不存在時不應更新 output', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+
+      await chatStore.addUserMessage('non-existent', 'Hello')
+
+      const messages = chatStore.messagesByPodId.get('non-existent')
+      expect(messages).toHaveLength(1)
+      expect(podStore.pods).toHaveLength(0)
+    })
+
+    it('應保留 Pod 既有的 output', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', output: ['existing line'] })
+      podStore.pods = [pod]
+
+      await chatStore.addUserMessage('pod-1', 'New message')
+
+      const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+      expect(updatedPod!.output).toHaveLength(2)
+      expect(updatedPod!.output[0]).toBe('existing line')
+      expect(updatedPod!.output[1]).toMatch(/^> New message/)
+    })
+  })
+
+  describe('handleChatMessage - 新訊息', () => {
+    it('訊息不存在時應建立新 assistant 訊息', () => {
+      const chatStore = useChatStore()
+      const payload: PodChatMessagePayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Hello',
+        isPartial: true,
+      }
+
+      chatStore.handleChatMessage(payload)
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages).toHaveLength(1)
+      expect(messages![0]).toMatchObject({
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Hello',
+        isPartial: true,
+      })
+    })
+
+    it('應設定 currentStreamingMessageId', () => {
+      const chatStore = useChatStore()
+      const payload: PodChatMessagePayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Streaming...',
+        isPartial: true,
+      }
+
+      chatStore.handleChatMessage(payload)
+
+      expect(chatStore.currentStreamingMessageId).toBe('msg-1')
+    })
+
+    it('isPartial 為 true 時應設定 isTyping', () => {
+      const chatStore = useChatStore()
+      const payload: PodChatMessagePayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Typing...',
+        isPartial: true,
+      }
+
+      chatStore.handleChatMessage(payload)
+
+      expect(chatStore.isTypingByPodId.get('pod-1')).toBe(true)
+    })
+
+    it('應建立初始 subMessage', () => {
+      const chatStore = useChatStore()
+      const payload: PodChatMessagePayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Content',
+        isPartial: true,
+      }
+
+      chatStore.handleChatMessage(payload)
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.subMessages).toHaveLength(1)
+      expect(messages![0]!.subMessages![0]).toMatchObject({
+        id: 'msg-1-sub-0',
+        content: 'Content',
+        isPartial: true,
+      })
+    })
+
+    it('應設定 expectingNewBlock 為 true', () => {
+      const chatStore = useChatStore()
+      const payload: PodChatMessagePayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Content',
+        isPartial: true,
+      }
+
+      chatStore.handleChatMessage(payload)
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.expectingNewBlock).toBe(true)
+    })
+
+    it('應記錄 accumulatedLengthByMessageId', () => {
+      const chatStore = useChatStore()
+      const payload: PodChatMessagePayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Hello World',
+        isPartial: true,
+      }
+
+      chatStore.handleChatMessage(payload)
+
+      expect(chatStore.accumulatedLengthByMessageId.get('msg-1')).toBe(11)
+    })
+  })
+
+  describe('handleChatMessage - 更新訊息', () => {
+    it('應更新既有訊息的 content', () => {
+      const chatStore = useChatStore()
+
+      // 建立初始訊息
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Hello',
+        isPartial: true,
+      })
+
+      // 更新訊息
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Hello World',
+        isPartial: true,
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.content).toBe('Hello World')
+    })
+
+    it('應計算 delta（content 增量）', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Hello',
+        isPartial: true,
+      })
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Hello World',
+        isPartial: true,
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      const subMessages = messages![0]!.subMessages!
+
+      // 第一次更新時 expectingNewBlock 為 true，所以建立第二個 subMessage
+      expect(subMessages).toHaveLength(2)
+      expect(subMessages[0]!.content).toBe('Hello')
+      expect(subMessages[1]!.content).toBe(' World')
+    })
+
+    it('應更新 subMessage 的 content', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Part1',
+        isPartial: true,
+      })
+
+      // 第一次更新時會建立新 subMessage（expectingNewBlock = true）
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Part1Part2',
+        isPartial: true,
+      })
+
+      let messages = chatStore.messagesByPodId.get('pod-1')
+      let subMessages = messages![0]!.subMessages!
+
+      expect(subMessages).toHaveLength(2)
+      expect(subMessages[0]!.content).toBe('Part1')
+      expect(subMessages[1]!.content).toBe('Part2')
+
+      // 第二次更新時 expectingNewBlock 已經是 false，會更新最後一個 subMessage
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Part1Part2Part3',
+        isPartial: true,
+      })
+
+      messages = chatStore.messagesByPodId.get('pod-1')
+      subMessages = messages![0]!.subMessages!
+
+      expect(subMessages).toHaveLength(2)
+      expect(subMessages[0]!.content).toBe('Part1')
+      expect(subMessages[1]!.content).toBe('Part2Part3')
+      expect(subMessages[1]!.isPartial).toBe(true)
+    })
+
+    it('expectingNewBlock 為 true 時應建立新 subMessage', () => {
+      const chatStore = useChatStore()
+
+      // 建立初始訊息
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Block1',
+        isPartial: true,
+      })
+
+      // 模擬 expectingNewBlock = true 的情況（例如在 toolUse 之後）
+      const messages = chatStore.messagesByPodId.get('pod-1')!
+      messages[0]!.expectingNewBlock = true
+
+      // 更新訊息
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Block1Block2',
+        isPartial: true,
+      })
+
+      const updatedMessages = chatStore.messagesByPodId.get('pod-1')
+      const subMessages = updatedMessages![0]!.subMessages!
+
+      expect(subMessages).toHaveLength(2)
+      expect(subMessages[0]!.content).toBe('Block1')
+      expect(subMessages[1]!.content).toBe('Block2')
+      expect(updatedMessages![0]!.expectingNewBlock).toBe(false)
+    })
+
+    it('expectingNewBlock 為 false 時應更新最後一個 subMessage', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Hello',
+        isPartial: true,
+      })
+
+      // 第一次更新會建立第二個 subMessage
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Hello World',
+        isPartial: true,
+      })
+
+      // expectingNewBlock 現在是 false，第二次更新應該更新最後一個 subMessage
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Hello World!',
+        isPartial: true,
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      const subMessages = messages![0]!.subMessages!
+
+      expect(subMessages).toHaveLength(2)
+      expect(subMessages[0]!.content).toBe('Hello')
+      expect(subMessages[1]!.content).toBe(' World!')
+    })
+  })
+
+  describe('handleChatMessage - user role 訊息', () => {
+    it('role 為 user 時應更新 Pod output', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', output: [] })
+      podStore.pods = [pod]
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'User message',
+        isPartial: false,
+        role: 'user',
+      })
+
+      await vi.waitFor(() => {
+        const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+        expect(updatedPod!.output).toHaveLength(1)
+      })
+
+      const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+      expect(updatedPod!.output[0]).toBe('> User message')
+    })
+
+    it('應避免重複追加相同內容', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', output: ['> User message'] })
+      podStore.pods = [pod]
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'User message',
+        isPartial: false,
+        role: 'user',
+      })
+
+      await vi.waitFor(() => {
+        const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+        expect(updatedPod!.output).toHaveLength(1)
+      })
+
+      const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+      expect(updatedPod!.output).toHaveLength(1)
+      expect(updatedPod!.output[0]).toBe('> User message')
+    })
+  })
+
+  describe('handleChatToolUse - 新訊息', () => {
+    it('訊息不存在時應建立含 toolUse 的新訊息', () => {
+      const chatStore = useChatStore()
+      const payload: PodChatToolUsePayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: { command: 'ls' },
+      }
+
+      chatStore.handleChatToolUse(payload)
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages).toHaveLength(1)
+      expect(messages![0]).toMatchObject({
+        id: 'msg-1',
+        role: 'assistant',
+        content: '',
+        isPartial: true,
+      })
+      expect(messages![0]!.toolUse).toHaveLength(1)
+      expect(messages![0]!.toolUse![0]).toMatchObject({
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: { command: 'ls' },
+        status: 'running',
+      })
+    })
+
+    it('應同時建立包含 toolUse 的 subMessage', () => {
+      const chatStore = useChatStore()
+      const payload: PodChatToolUsePayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Read',
+        input: { file_path: '/test.ts' },
+      }
+
+      chatStore.handleChatToolUse(payload)
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.subMessages).toHaveLength(1)
+      expect(messages![0]!.subMessages![0]).toMatchObject({
+        id: 'msg-1-sub-0',
+        content: '',
+        isPartial: true,
+      })
+      expect(messages![0]!.subMessages![0]!.toolUse).toHaveLength(1)
+      expect(messages![0]!.subMessages![0]!.toolUse![0]).toMatchObject({
+        toolUseId: 'tool-1',
+        toolName: 'Read',
+        status: 'running',
+      })
+    })
+
+    it('應設定 expectingNewBlock 為 true', () => {
+      const chatStore = useChatStore()
+      const payload: PodChatToolUsePayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: {},
+      }
+
+      chatStore.handleChatToolUse(payload)
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.expectingNewBlock).toBe(true)
+    })
+
+    it('應設定 currentStreamingMessageId', () => {
+      const chatStore = useChatStore()
+      const payload: PodChatToolUsePayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: {},
+      }
+
+      chatStore.handleChatToolUse(payload)
+
+      expect(chatStore.currentStreamingMessageId).toBe('msg-1')
+    })
+  })
+
+  describe('handleChatToolUse - 更新訊息', () => {
+    it('訊息存在時應新增 toolUse 到陣列', () => {
+      const chatStore = useChatStore()
+
+      // 先建立訊息
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Thinking...',
+        isPartial: true,
+      })
+
+      // 新增第一個 tool
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Read',
+        input: { file_path: '/test.ts' },
+      })
+
+      // 新增第二個 tool
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-2',
+        toolName: 'Write',
+        input: { file_path: '/output.txt' },
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.toolUse).toHaveLength(2)
+      expect(messages![0]!.toolUse![0]!.toolUseId).toBe('tool-1')
+      expect(messages![0]!.toolUse![1]!.toolUseId).toBe('tool-2')
+    })
+
+    it('重複的 toolUseId 不應新增', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: '',
+        isPartial: true,
+      })
+
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: {},
+      })
+
+      // 再次新增相同的 toolUseId
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: {},
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.toolUse).toHaveLength(1)
+    })
+
+    it('應設定 expectingNewBlock 為 true', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Content',
+        isPartial: true,
+      })
+
+      // 清除 expectingNewBlock
+      const messages = chatStore.messagesByPodId.get('pod-1')!
+      messages[0]!.expectingNewBlock = false
+
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: {},
+      })
+
+      const updatedMessages = chatStore.messagesByPodId.get('pod-1')
+      expect(updatedMessages![0]!.expectingNewBlock).toBe(true)
+    })
+
+    it('應同時更新最後一個 subMessage 的 toolUse', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Content',
+        isPartial: true,
+      })
+
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Read',
+        input: { file_path: '/test.ts' },
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      const subMessages = messages![0]!.subMessages!
+
+      expect(subMessages[0]!.toolUse).toHaveLength(1)
+      expect(subMessages[0]!.toolUse![0]).toMatchObject({
+        toolUseId: 'tool-1',
+        toolName: 'Read',
+        status: 'running',
+      })
+    })
+  })
+
+  describe('handleChatToolResult', () => {
+    it('應更新 toolUse 的 output 和 status', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: { command: 'ls' },
+      })
+
+      const payload: PodChatToolResultPayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        output: 'file1.ts\nfile2.ts',
+      }
+
+      chatStore.handleChatToolResult(payload)
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.toolUse![0]).toMatchObject({
+        toolUseId: 'tool-1',
+        output: 'file1.ts\nfile2.ts',
+        status: 'completed',
+      })
+    })
+
+    it('訊息不存在時不應做任何事', () => {
+      const chatStore = useChatStore()
+
+      const payload: PodChatToolResultPayload = {
+        podId: 'pod-1',
+        messageId: 'non-existent',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        output: 'output',
+      }
+
+      expect(() => chatStore.handleChatToolResult(payload)).not.toThrow()
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages).toBeUndefined()
+    })
+
+    it('toolUseId 不存在時不應做任何事', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: {},
+      })
+
+      const payload: PodChatToolResultPayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'non-existent-tool',
+        toolName: 'Bash',
+        output: 'output',
+      }
+
+      chatStore.handleChatToolResult(payload)
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.toolUse![0]!.status).toBe('running')
+      expect(messages![0]!.toolUse![0]!.output).toBeUndefined()
+    })
+
+    it('應同時更新 subMessage 的 toolUse', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Read',
+        input: {},
+      })
+
+      chatStore.handleChatToolResult({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Read',
+        output: 'File content',
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      const subMessages = messages![0]!.subMessages!
+
+      expect(subMessages[0]!.toolUse![0]).toMatchObject({
+        toolUseId: 'tool-1',
+        output: 'File content',
+        status: 'completed',
+      })
+    })
+
+    it('所有 tool 完成後 subMessage 的 isPartial 應設為 false', () => {
+      const chatStore = useChatStore()
+
+      // 新增兩個 tool
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Read',
+        input: {},
+      })
+
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-2',
+        toolName: 'Write',
+        input: {},
+      })
+
+      // 完成第一個 tool
+      chatStore.handleChatToolResult({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Read',
+        output: 'output1',
+      })
+
+      let messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.subMessages![0]!.isPartial).toBe(true)
+
+      // 完成第二個 tool
+      chatStore.handleChatToolResult({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-2',
+        toolName: 'Write',
+        output: 'output2',
+      })
+
+      messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.subMessages![0]!.isPartial).toBe(false)
+    })
+  })
+
+  describe('handleChatComplete', () => {
+    it('應設定 isPartial 為 false', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Complete',
+        isPartial: true,
+      })
+
+      const payload: PodChatCompletePayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        fullContent: 'Complete message',
+      }
+
+      chatStore.handleChatComplete(payload)
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.isPartial).toBe(false)
+    })
+
+    it('應設定 isTyping 為 false', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Typing...',
+        isPartial: true,
+      })
+
+      chatStore.handleChatComplete({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        fullContent: 'Done',
+      })
+
+      expect(chatStore.isTypingByPodId.get('pod-1')).toBe(false)
+    })
+
+    it('應清除 currentStreamingMessageId', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Streaming',
+        isPartial: true,
+      })
+
+      chatStore.handleChatComplete({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        fullContent: 'Done',
+      })
+
+      expect(chatStore.currentStreamingMessageId).toBeNull()
+    })
+
+    it('應清除 accumulatedLengthByMessageId 中的記錄', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Content',
+        isPartial: true,
+      })
+
+      expect(chatStore.accumulatedLengthByMessageId.has('msg-1')).toBe(true)
+
+      chatStore.handleChatComplete({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        fullContent: 'Content',
+      })
+
+      expect(chatStore.accumulatedLengthByMessageId.has('msg-1')).toBe(false)
+    })
+
+    it('應更新 Pod output（assistant 訊息）', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', output: [] })
+      podStore.pods = [pod]
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Assistant response',
+        isPartial: true,
+      })
+
+      chatStore.handleChatComplete({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        fullContent: 'Assistant response',
+      })
+
+      await vi.waitFor(() => {
+        const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+        expect(updatedPod!.output.length).toBeGreaterThan(0)
+      })
+
+      const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+      expect(updatedPod!.output[0]).toBe('Assistant response')
+    })
+
+    it('應 finalize 所有 running 的 toolUse 為 completed', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: {},
+      })
+
+      chatStore.handleChatComplete({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        fullContent: '',
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.toolUse![0]!.status).toBe('completed')
+    })
+
+    it('應 finalize 所有 subMessage 的 isPartial', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Content',
+        isPartial: true,
+      })
+
+      chatStore.handleChatComplete({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        fullContent: 'Content',
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.subMessages![0]!.isPartial).toBe(false)
+    })
+
+    it('訊息不存在時應僅 finalizeStreaming', () => {
+      const chatStore = useChatStore()
+
+      chatStore.currentStreamingMessageId = 'msg-1'
+      chatStore.isTypingByPodId.set('pod-1', true)
+
+      chatStore.handleChatComplete({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        fullContent: 'Content',
+      })
+
+      expect(chatStore.currentStreamingMessageId).toBeNull()
+      expect(chatStore.isTypingByPodId.get('pod-1')).toBe(false)
+    })
+
+    it('應清除 expectingNewBlock', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Content',
+        isPartial: true,
+      })
+
+      chatStore.handleChatComplete({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        fullContent: 'Content',
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.expectingNewBlock).toBeUndefined()
+    })
+  })
+
+  describe('handleChatAborted', () => {
+    it('訊息存在時應完成現有訊息（保留部分內容）', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Partial content',
+        isPartial: true,
+      })
+
+      const payload: PodChatAbortedPayload = {
+        podId: 'pod-1',
+        messageId: 'msg-1',
+      }
+
+      chatStore.handleChatAborted(payload)
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages![0]!.content).toBe('Partial content')
+      expect(messages![0]!.isPartial).toBe(false)
+    })
+
+    it('訊息不存在時應僅 finalizeStreaming', () => {
+      const chatStore = useChatStore()
+
+      chatStore.currentStreamingMessageId = 'msg-1'
+      chatStore.isTypingByPodId.set('pod-1', true)
+
+      chatStore.handleChatAborted({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+      })
+
+      expect(chatStore.currentStreamingMessageId).toBeNull()
+      expect(chatStore.isTypingByPodId.get('pod-1')).toBe(false)
+    })
+
+    it('應設定 isTyping 為 false', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Content',
+        isPartial: true,
+      })
+
+      chatStore.handleChatAborted({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+      })
+
+      expect(chatStore.isTypingByPodId.get('pod-1')).toBe(false)
+    })
+
+    it('應清除 accumulatedLengthByMessageId', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Content',
+        isPartial: true,
+      })
+
+      expect(chatStore.accumulatedLengthByMessageId.has('msg-1')).toBe(true)
+
+      chatStore.handleChatAborted({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+      })
+
+      expect(chatStore.accumulatedLengthByMessageId.has('msg-1')).toBe(false)
+    })
+  })
+
+  describe('handleMessagesClearedEvent', () => {
+    it('應清除指定 podId 的訊息', async () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Message',
+        isPartial: false,
+      })
+
+      const payload: PodMessagesClearedPayload = {
+        podId: 'pod-1',
+      }
+
+      await chatStore.handleMessagesClearedEvent(payload)
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      expect(messages).toBeUndefined()
+    })
+
+    it('應清除 Pod 的 output', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', output: ['line1', 'line2'] })
+      podStore.pods = [pod]
+
+      const payload: PodMessagesClearedPayload = {
+        podId: 'pod-1',
+      }
+
+      await chatStore.handleMessagesClearedEvent(payload)
+
+      const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+      expect(updatedPod!.output).toEqual([])
+    })
+  })
+
+  describe('handleWorkflowAutoCleared', () => {
+    it('應批量清除 clearedPodIds 的訊息', async () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Message 1',
+        isPartial: false,
+      })
+
+      chatStore.handleChatMessage({
+        podId: 'pod-2',
+        messageId: 'msg-2',
+        content: 'Message 2',
+        isPartial: false,
+      })
+
+      const payload: WorkflowAutoClearedPayload = {
+        sourcePodId: 'pod-source',
+        clearedPodIds: ['pod-1', 'pod-2'],
+        clearedPodNames: ['Pod 1', 'Pod 2'],
+      }
+
+      await chatStore.handleWorkflowAutoCleared(payload)
+
+      expect(chatStore.messagesByPodId.get('pod-1')).toBeUndefined()
+      expect(chatStore.messagesByPodId.get('pod-2')).toBeUndefined()
+    })
+
+    it('應設定 autoClearAnimationPodId', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod1 = createMockPod({ id: 'pod-1', output: [] })
+      const pod2 = createMockPod({ id: 'pod-2', output: [] })
+      podStore.pods = [pod1, pod2]
+
+      const payload: WorkflowAutoClearedPayload = {
+        sourcePodId: 'pod-source',
+        clearedPodIds: ['pod-1', 'pod-2'],
+        clearedPodNames: ['Pod 1', 'Pod 2'],
+      }
+
+      await chatStore.handleWorkflowAutoCleared(payload)
+
+      expect(chatStore.autoClearAnimationPodId).toBe('pod-source')
+    })
+
+    it('應清除多個 Pod 的 output', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod1 = createMockPod({ id: 'pod-1', output: ['line1'] })
+      const pod2 = createMockPod({ id: 'pod-2', output: ['line2'] })
+      podStore.pods = [pod1, pod2]
+
+      const payload: WorkflowAutoClearedPayload = {
+        sourcePodId: 'pod-source',
+        clearedPodIds: ['pod-1', 'pod-2'],
+        clearedPodNames: ['Pod 1', 'Pod 2'],
+      }
+
+      await chatStore.handleWorkflowAutoCleared(payload)
+
+      const updatedPod1 = podStore.pods.find(p => p.id === 'pod-1')
+      const updatedPod2 = podStore.pods.find(p => p.id === 'pod-2')
+      expect(updatedPod1!.output).toEqual([])
+      expect(updatedPod2!.output).toEqual([])
+    })
+  })
+
+  describe('convertPersistedToMessage', () => {
+    it('user 訊息應轉換為 Message（無 subMessages）', () => {
+      const chatStore = useChatStore()
+      const messageActions = chatStore.getMessageActions()
+
+      const persistedMessage: PersistedMessage = {
+        id: 'msg-1',
+        role: 'user',
+        content: 'User message',
+        timestamp: '2024-01-01T00:00:00Z',
+      }
+
+      const result = messageActions.convertPersistedToMessage(persistedMessage)
+
+      expect(result).toMatchObject({
+        id: 'msg-1',
+        role: 'user',
+        content: 'User message',
+        timestamp: '2024-01-01T00:00:00Z',
+        isPartial: false,
+      })
+      expect(result.subMessages).toBeUndefined()
+    })
+
+    it('assistant 訊息應轉換為 Message（含 subMessages）', () => {
+      const chatStore = useChatStore()
+      const messageActions = chatStore.getMessageActions()
+
+      const persistedMessage: PersistedMessage = {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Assistant message',
+        timestamp: '2024-01-01T00:00:00Z',
+        subMessages: [
+          {
+            id: 'sub-1',
+            content: 'Sub content',
+          },
+        ],
+      }
+
+      const result = messageActions.convertPersistedToMessage(persistedMessage)
+
+      expect(result).toMatchObject({
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Assistant message',
+        timestamp: '2024-01-01T00:00:00Z',
+        isPartial: false,
+      })
+      expect(result.subMessages).toHaveLength(1)
+      expect(result.subMessages![0]).toMatchObject({
+        id: 'sub-1',
+        content: 'Sub content',
+        isPartial: false,
+      })
+    })
+
+    it('assistant 訊息應轉換 toolUse', () => {
+      const chatStore = useChatStore()
+      const messageActions = chatStore.getMessageActions()
+
+      const persistedMessage: PersistedMessage = {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Message with tool',
+        timestamp: '2024-01-01T00:00:00Z',
+        subMessages: [
+          {
+            id: 'sub-1',
+            content: 'Content',
+            toolUse: [
+              {
+                toolUseId: 'tool-1',
+                toolName: 'Bash',
+                input: { command: 'ls' },
+                output: 'file1.ts',
+                status: 'completed',
+              },
+            ],
+          },
+        ],
+      }
+
+      const result = messageActions.convertPersistedToMessage(persistedMessage)
+
+      expect(result.subMessages![0]!.toolUse).toHaveLength(1)
+      expect(result.subMessages![0]!.toolUse![0]).toMatchObject({
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: { command: 'ls' },
+        output: 'file1.ts',
+        status: 'completed',
+      })
+      expect(result.toolUse).toHaveLength(1)
+      expect(result.toolUse![0]).toMatchObject({
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+      })
+    })
+
+    it('assistant 無 subMessages 時應建立預設 subMessage', () => {
+      const chatStore = useChatStore()
+      const messageActions = chatStore.getMessageActions()
+
+      const persistedMessage: PersistedMessage = {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Content without subMessages',
+        timestamp: '2024-01-01T00:00:00Z',
+      }
+
+      const result = messageActions.convertPersistedToMessage(persistedMessage)
+
+      expect(result.subMessages).toHaveLength(1)
+      expect(result.subMessages![0]).toMatchObject({
+        id: 'msg-1-sub-0',
+        content: 'Content without subMessages',
+        isPartial: false,
+      })
+    })
+  })
+
+  describe('setTyping', () => {
+    it('應設定 isTypingByPodId', () => {
+      const chatStore = useChatStore()
+
+      chatStore.setTyping('pod-1', true)
+
+      expect(chatStore.isTypingByPodId.get('pod-1')).toBe(true)
+    })
+
+    it('應更新 typing 狀態', () => {
+      const chatStore = useChatStore()
+
+      chatStore.setTyping('pod-1', true)
+      expect(chatStore.isTypingByPodId.get('pod-1')).toBe(true)
+
+      chatStore.setTyping('pod-1', false)
+      expect(chatStore.isTypingByPodId.get('pod-1')).toBe(false)
+    })
+  })
+
+  describe('clearMessagesByPodIds', () => {
+    it('應清除多個 podId 的 messages', () => {
+      const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Message 1',
+        isPartial: false,
+      })
+
+      chatStore.handleChatMessage({
+        podId: 'pod-2',
+        messageId: 'msg-2',
+        content: 'Message 2',
+        isPartial: false,
+      })
+
+      chatStore.handleChatMessage({
+        podId: 'pod-3',
+        messageId: 'msg-3',
+        content: 'Message 3',
+        isPartial: false,
+      })
+
+      chatStore.clearMessagesByPodIds(['pod-1', 'pod-2'])
+
+      expect(chatStore.messagesByPodId.get('pod-1')).toBeUndefined()
+      expect(chatStore.messagesByPodId.get('pod-2')).toBeUndefined()
+      expect(chatStore.messagesByPodId.get('pod-3')).toHaveLength(1)
+    })
+
+    it('應清除多個 podId 的 typing', () => {
+      const chatStore = useChatStore()
+
+      chatStore.setTyping('pod-1', true)
+      chatStore.setTyping('pod-2', true)
+      chatStore.setTyping('pod-3', true)
+
+      chatStore.clearMessagesByPodIds(['pod-1', 'pod-2'])
+
+      expect(chatStore.isTypingByPodId.get('pod-1')).toBeUndefined()
+      expect(chatStore.isTypingByPodId.get('pod-2')).toBeUndefined()
+      expect(chatStore.isTypingByPodId.get('pod-3')).toBe(true)
+    })
+  })
+
+  describe('updatePodOutput 整合測試', () => {
+    it('應從多個 subMessages 中提取 output', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', output: [] })
+      podStore.pods = [pod]
+
+      // 建立含多個 subMessages 的訊息
+      const messages: Message[] = [
+        {
+          id: 'msg-1',
+          role: 'user',
+          content: 'User question',
+          timestamp: new Date().toISOString(),
+        },
+        {
+          id: 'msg-2',
+          role: 'assistant',
+          content: 'Block1Block2',
+          isPartial: false,
+          timestamp: new Date().toISOString(),
+          subMessages: [
+            {
+              id: 'msg-2-sub-0',
+              content: 'Block1',
+              isPartial: false,
+            },
+            {
+              id: 'msg-2-sub-1',
+              content: 'Block2',
+              isPartial: false,
+            },
+          ],
+        },
+      ]
+
+      chatStore.messagesByPodId.set('pod-1', messages)
+      const messageActions = chatStore.getMessageActions()
+      await messageActions.updatePodOutput('pod-1')
+
+      const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+      expect(updatedPod!.output).toHaveLength(3)
+      expect(updatedPod!.output[0]).toBe('> User question')
+      expect(updatedPod!.output[1]).toBe('Block1')
+      expect(updatedPod!.output[2]).toBe('Block2')
+    })
+
+    it('應截斷超長的 response content（40 字元）', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', output: [] })
+      podStore.pods = [pod]
+
+      const longContent = 'a'.repeat(60)
+      const messages: Message[] = [
+        {
+          id: 'msg-1',
+          role: 'assistant',
+          content: longContent,
+          isPartial: false,
+          timestamp: new Date().toISOString(),
+          subMessages: [
+            {
+              id: 'msg-1-sub-0',
+              content: longContent,
+              isPartial: false,
+            },
+          ],
+        },
+      ]
+
+      chatStore.messagesByPodId.set('pod-1', messages)
+      const messageActions = chatStore.getMessageActions()
+      await messageActions.updatePodOutput('pod-1')
+
+      const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+      expect(updatedPod!.output[0]).toBe(`${'a'.repeat(RESPONSE_PREVIEW_LENGTH)}...`)
+    })
+
+    it('空 subMessage content 不應加入 output', async () => {
+      const chatStore = useChatStore()
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', output: [] })
+      podStore.pods = [pod]
+
+      const messages: Message[] = [
+        {
+          id: 'msg-1',
+          role: 'assistant',
+          content: 'Content',
+          isPartial: false,
+          timestamp: new Date().toISOString(),
+          subMessages: [
+            {
+              id: 'msg-1-sub-0',
+              content: '',
+              isPartial: false,
+            },
+            {
+              id: 'msg-1-sub-1',
+              content: 'Valid content',
+              isPartial: false,
+            },
+          ],
+        },
+      ]
+
+      chatStore.messagesByPodId.set('pod-1', messages)
+      const messageActions = chatStore.getMessageActions()
+      await messageActions.updatePodOutput('pod-1')
+
+      const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
+      expect(updatedPod!.output).toHaveLength(1)
+      expect(updatedPod!.output[0]).toBe('Valid content')
+    })
+  })
+})
