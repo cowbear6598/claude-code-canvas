@@ -8,7 +8,16 @@ import {
     emitAndWaitResponse,
     type TestServerInstance, TestWebSocketClient,
 } from '../setup';
-import {createPod, createRepository, FAKE_REPO_ID, FAKE_UUID, getCanvasId} from '../helpers';
+import {
+    createPod,
+    createRepository,
+    createRepositoryNote,
+    FAKE_REPO_ID,
+    FAKE_UUID,
+    getCanvasId,
+    describeNoteCRUDTests,
+    describePodBindingTests,
+} from '../helpers';
 import {
     WebSocketRequestEvents,
     WebSocketResponseEvents,
@@ -18,9 +27,6 @@ import {
     type RepositoryDeletePayload,
     type RepositoryListPayload,
     type RepositoryNoteCreatePayload,
-    type RepositoryNoteDeletePayload,
-    type RepositoryNoteListPayload,
-    type RepositoryNoteUpdatePayload,
     type RepositoryCheckGitPayload,
     type RepositoryWorktreeCreatePayload,
 } from '../../src/schemas';
@@ -31,9 +37,6 @@ import {
     type RepositoryDeletedPayload,
     type RepositoryListResultPayload,
     type RepositoryNoteCreatedPayload,
-    type RepositoryNoteDeletedPayload,
-    type RepositoryNoteListResultPayload,
-    type RepositoryNoteUpdatedPayload,
     type RepositoryCheckGitResultPayload,
     type RepositoryWorktreeCreatedPayload,
 } from '../../src/types';
@@ -51,25 +54,6 @@ describe('Repository 管理', () => {
         if (client?.connected) await disconnectSocket(client);
         if (server) await closeTestServer(server);
     });
-
-    async function createRepoNote(repositoryId: string) {
-        const canvasId = await getCanvasId(client);
-        return await emitAndWaitResponse<RepositoryNoteCreatePayload, RepositoryNoteCreatedPayload>(
-            client,
-            WebSocketRequestEvents.REPOSITORY_NOTE_CREATE,
-            WebSocketResponseEvents.REPOSITORY_NOTE_CREATED,
-            {
-                requestId: uuidv4(),
-                canvasId,
-                repositoryId,
-                name: 'Repo Note',
-                x: 100,
-                y: 100,
-                boundToPodId: null,
-                originalPosition: null
-            }
-        );
-    }
 
     describe('Repository 建立', () => {
         it('success_when_repository_created', async () => {
@@ -116,15 +100,7 @@ describe('Repository 管理', () => {
         });
     });
 
-    describe('Repository Note CRUD', () => {
-        it('success_when_repository_note_created', async () => {
-            const repo = await createRepository(client, `rn-${uuidv4()}`);
-            const response = await createRepoNote(repo.id);
-
-            expect(response.success).toBe(true);
-            expect(response.note!.repositoryId).toBe(repo.id);
-        });
-
+    describe('Repository Note 特有測試', () => {
         it('failed_when_repository_note_create_with_nonexistent_repository', async () => {
             const canvasId = await getCanvasId(client);
             const response = await emitAndWaitResponse<RepositoryNoteCreatePayload, RepositoryNoteCreatedPayload>(
@@ -146,129 +122,8 @@ describe('Repository 管理', () => {
             expect(response.success).toBe(false);
             expect(response.error).toContain('找不到');
         });
-
-        it('success_when_repository_note_list_returns_all', async () => {
-            const repo = await createRepository(client, `rnl-${uuidv4()}`);
-            await createRepoNote(repo.id);
-
-            const canvasId = await getCanvasId(client);
-            const response = await emitAndWaitResponse<RepositoryNoteListPayload, RepositoryNoteListResultPayload>(
-                client,
-                WebSocketRequestEvents.REPOSITORY_NOTE_LIST,
-                WebSocketResponseEvents.REPOSITORY_NOTE_LIST_RESULT,
-                {requestId: uuidv4(), canvasId}
-            );
-
-            expect(response.success).toBe(true);
-            expect(response.notes!.length).toBeGreaterThanOrEqual(1);
-        });
-
-        it('success_when_repository_note_updated', async () => {
-            const repo = await createRepository(client, `rnu-${uuidv4()}`);
-            const {note} = await createRepoNote(repo.id);
-
-            const canvasId = await getCanvasId(client);
-            const response = await emitAndWaitResponse<RepositoryNoteUpdatePayload, RepositoryNoteUpdatedPayload>(
-                client,
-                WebSocketRequestEvents.REPOSITORY_NOTE_UPDATE,
-                WebSocketResponseEvents.REPOSITORY_NOTE_UPDATED,
-                {requestId: uuidv4(), canvasId, noteId: note!.id, x: 999}
-            );
-
-            expect(response.success).toBe(true);
-            expect(response.note!.x).toBe(999);
-        });
-
-        it('failed_when_repository_note_update_with_nonexistent_id', async () => {
-            const canvasId = await getCanvasId(client);
-            const response = await emitAndWaitResponse<RepositoryNoteUpdatePayload, RepositoryNoteUpdatedPayload>(
-                client,
-                WebSocketRequestEvents.REPOSITORY_NOTE_UPDATE,
-                WebSocketResponseEvents.REPOSITORY_NOTE_UPDATED,
-                {requestId: uuidv4(), canvasId, noteId: FAKE_UUID, x: 0}
-            );
-
-            expect(response.success).toBe(false);
-            expect(response.error).toContain('找不到');
-        });
-
-        it('success_when_repository_note_deleted', async () => {
-            const repo = await createRepository(client, `rnd-${uuidv4()}`);
-            const {note} = await createRepoNote(repo.id);
-
-            const canvasId = await getCanvasId(client);
-            const response = await emitAndWaitResponse<RepositoryNoteDeletePayload, RepositoryNoteDeletedPayload>(
-                client,
-                WebSocketRequestEvents.REPOSITORY_NOTE_DELETE,
-                WebSocketResponseEvents.REPOSITORY_NOTE_DELETED,
-                {requestId: uuidv4(), canvasId, noteId: note!.id}
-            );
-
-            expect(response.success).toBe(true);
-            expect(response.noteId).toBe(note!.id);
-        });
-
-        it('failed_when_repository_note_delete_with_nonexistent_id', async () => {
-            const canvasId = await getCanvasId(client);
-            const response = await emitAndWaitResponse<RepositoryNoteDeletePayload, RepositoryNoteDeletedPayload>(
-                client,
-                WebSocketRequestEvents.REPOSITORY_NOTE_DELETE,
-                WebSocketResponseEvents.REPOSITORY_NOTE_DELETED,
-                {requestId: uuidv4(), canvasId, noteId: FAKE_UUID}
-            );
-
-            expect(response.success).toBe(false);
-            expect(response.error).toContain('找不到');
-        });
     });
 
-    describe('Pod 綁定 Repository', () => {
-        it('success_when_repository_bound_to_pod', async () => {
-            const pod = await createPod(client);
-            const repo = await createRepository(client, `bind-repo-${uuidv4()}`);
-
-            const canvasId = await getCanvasId(client);
-            const response = await emitAndWaitResponse<PodBindRepositoryPayload, PodRepositoryBoundPayload>(
-                client,
-                WebSocketRequestEvents.POD_BIND_REPOSITORY,
-                WebSocketResponseEvents.POD_REPOSITORY_BOUND,
-                {requestId: uuidv4(), canvasId, podId: pod.id, repositoryId: repo.id}
-            );
-
-            expect(response.success).toBe(true);
-            expect(response.pod!.repositoryId).toBe(repo.id);
-        });
-
-        it('failed_when_bind_repository_with_nonexistent_pod', async () => {
-            const repo = await createRepository(client, `bind-np-${uuidv4()}`);
-
-            const canvasId = await getCanvasId(client);
-            const response = await emitAndWaitResponse<PodBindRepositoryPayload, PodRepositoryBoundPayload>(
-                client,
-                WebSocketRequestEvents.POD_BIND_REPOSITORY,
-                WebSocketResponseEvents.POD_REPOSITORY_BOUND,
-                {requestId: uuidv4(), canvasId, podId: FAKE_UUID, repositoryId: repo.id}
-            );
-
-            expect(response.success).toBe(false);
-            expect(response.error).toContain('找不到');
-        });
-
-        it('failed_when_bind_repository_with_nonexistent_repository', async () => {
-            const pod = await createPod(client);
-
-            const canvasId = await getCanvasId(client);
-            const response = await emitAndWaitResponse<PodBindRepositoryPayload, PodRepositoryBoundPayload>(
-                client,
-                WebSocketRequestEvents.POD_BIND_REPOSITORY,
-                WebSocketResponseEvents.POD_REPOSITORY_BOUND,
-                {requestId: uuidv4(), canvasId, podId: pod.id, repositoryId: FAKE_REPO_ID}
-            );
-
-            expect(response.success).toBe(false);
-            expect(response.error).toContain('找不到');
-        });
-    });
 
     describe('Pod 綁定 Repository 資源同步', () => {
         async function bindSkillToPod(podId: string, skillId: string) {
@@ -946,4 +801,55 @@ describe('Repository 管理', () => {
             expect(worktreeList).not.toContain(worktreeRepoId);
         });
     });
+
+    // 使用工廠函數產生 Note CRUD 測試
+    describeNoteCRUDTests(
+        {
+            resourceName: 'Repository',
+            createParentResource: async (client) => {
+                return await createRepository(client, `repo-${uuidv4()}`);
+            },
+            createNote: createRepositoryNote,
+            events: {
+                list: {
+                    request: WebSocketRequestEvents.REPOSITORY_NOTE_LIST,
+                    response: WebSocketResponseEvents.REPOSITORY_NOTE_LIST_RESULT,
+                },
+                update: {
+                    request: WebSocketRequestEvents.REPOSITORY_NOTE_UPDATE,
+                    response: WebSocketResponseEvents.REPOSITORY_NOTE_UPDATED,
+                },
+                delete: {
+                    request: WebSocketRequestEvents.REPOSITORY_NOTE_DELETE,
+                    response: WebSocketResponseEvents.REPOSITORY_NOTE_DELETED,
+                },
+            },
+            parentIdFieldName: 'repositoryId',
+        },
+        () => ({ client, server })
+    );
+
+    // 使用工廠函數產生 Pod Binding 測試
+    describePodBindingTests(
+        {
+            resourceName: 'Repository',
+            createResource: async (client) => {
+                return await createRepository(client, `repo-${uuidv4()}`);
+            },
+            fakeResourceId: FAKE_REPO_ID,
+            bindEvent: {
+                request: WebSocketRequestEvents.POD_BIND_REPOSITORY,
+                response: WebSocketResponseEvents.POD_REPOSITORY_BOUND,
+            },
+            buildBindPayload: (canvasId, podId, repositoryId) => ({
+                canvasId,
+                podId,
+                repositoryId,
+            }),
+            verifyBoundResponse: (response, repositoryId) => {
+                expect(response.pod.repositoryId).toBe(repositoryId);
+            },
+        },
+        () => ({ client, server })
+    );
 });

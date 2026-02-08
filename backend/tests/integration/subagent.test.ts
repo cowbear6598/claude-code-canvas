@@ -9,34 +9,26 @@ import {
   disconnectSocket,
   type TestServerInstance,
 } from '../setup';
-import { createPod, createSubAgent, createRepository, getCanvasId, FAKE_UUID, FAKE_SUBAGENT_ID } from '../helpers';
+import {
+  createPod,
+  createSubAgent,
+  createRepository,
+  getCanvasId,
+  FAKE_SUBAGENT_ID,
+  describeCRUDTests,
+  describeNoteCRUDTests,
+  describePodBindingTests,
+  createSubAgentNote,
+} from '../helpers';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
-  type SubAgentCreatePayload,
-  type SubAgentListPayload,
-  type SubAgentReadPayload,
-  type SubAgentUpdatePayload,
-  type SubAgentNoteCreatePayload,
-  type SubAgentNoteListPayload,
-  type SubAgentNoteUpdatePayload,
-  type SubAgentNoteDeletePayload,
   type PodBindSubAgentPayload,
   type PodBindRepositoryPayload,
-  type SubAgentDeletePayload,
 } from '../../src/schemas';
 import {
-  type SubAgentCreatedPayload,
-  type SubAgentListResultPayload,
-  type SubAgentReadResultPayload,
-  type SubAgentUpdatedPayload,
-  type SubAgentNoteCreatedPayload,
-  type SubAgentNoteListResultPayload,
-  type SubAgentNoteUpdatedPayload,
-  type SubAgentNoteDeletedPayload,
   type PodSubAgentBoundPayload,
   type PodRepositoryBoundPayload,
-  type SubAgentDeletedPayload,
 } from '../../src/types';
 
 describe('SubAgent 管理', () => {
@@ -53,299 +45,109 @@ describe('SubAgent 管理', () => {
     if (server) await closeTestServer(server);
   });
 
-  async function makeAgent(name?: string) {
+  async function makeAgent(client: TestWebSocketClient, name?: string) {
     return createSubAgent(client, name ?? `agent-${uuidv4()}`, '# Agent Content');
   }
 
-  async function createAgentNote(subAgentId: string) {
-    const canvasId = await getCanvasId(client);
-    const response = await emitAndWaitResponse<SubAgentNoteCreatePayload, SubAgentNoteCreatedPayload>(
-      client,
-      WebSocketRequestEvents.SUBAGENT_NOTE_CREATE,
-      WebSocketResponseEvents.SUBAGENT_NOTE_CREATED,
-      { requestId: uuidv4(), canvasId, subAgentId, name: 'Agent Note', x: 100, y: 100, boundToPodId: null, originalPosition: null }
-    );
-    return response.note!;
-  }
+  describeCRUDTests(
+    {
+      resourceName: 'SubAgent',
+      createResource: (client, name) => makeAgent(client, name),
+      fakeResourceId: FAKE_SUBAGENT_ID,
+      events: {
+        create: {
+          request: WebSocketRequestEvents.SUBAGENT_CREATE,
+          response: WebSocketResponseEvents.SUBAGENT_CREATED,
+        },
+        list: {
+          request: WebSocketRequestEvents.SUBAGENT_LIST,
+          response: WebSocketResponseEvents.SUBAGENT_LIST_RESULT,
+        },
+        read: {
+          request: WebSocketRequestEvents.SUBAGENT_READ,
+          response: WebSocketResponseEvents.SUBAGENT_READ_RESULT,
+        },
+        update: {
+          request: WebSocketRequestEvents.SUBAGENT_UPDATE,
+          response: WebSocketResponseEvents.SUBAGENT_UPDATED,
+        },
+        delete: {
+          request: WebSocketRequestEvents.SUBAGENT_DELETE,
+          response: WebSocketResponseEvents.SUBAGENT_DELETED,
+        },
+      },
+      payloadBuilders: {
+        create: (canvasId, name) => ({ canvasId, name, content: '# Agent Content' }),
+        list: (canvasId) => ({ canvasId }),
+        read: (canvasId, subAgentId) => ({ canvasId, subAgentId }),
+        update: (canvasId, subAgentId) => ({ canvasId, subAgentId, content: '# Updated' }),
+        delete: (canvasId, subAgentId) => ({ canvasId, subAgentId }),
+      },
+      responseFieldName: {
+        list: 'subAgents',
+        read: 'subAgent',
+      },
+      bindForDeleteTest: {
+        bindEvent: {
+          request: WebSocketRequestEvents.POD_BIND_SUBAGENT,
+          response: WebSocketResponseEvents.POD_SUBAGENT_BOUND,
+        },
+        buildPayload: (canvasId, podId, subAgentId) => ({ canvasId, podId, subAgentId }),
+      },
+      invalidNames: [
+        { name: '測試代理', desc: '中文名稱' },
+        { name: 'my agent!', desc: '特殊字元' },
+      ],
+      hasContentValidation: true,
+    },
+    () => ({ client, server })
+  );
 
-  describe('SubAgent 建立', () => {
-    it('success_when_subagent_created', async () => {
-      const name = `sa-${uuidv4()}`;
-      const agent = await makeAgent(name);
+  describeNoteCRUDTests(
+    {
+      resourceName: 'SubAgent',
+      createParentResource: (client) => makeAgent(client),
+      createNote: createSubAgentNote,
+      events: {
+        list: {
+          request: WebSocketRequestEvents.SUBAGENT_NOTE_LIST,
+          response: WebSocketResponseEvents.SUBAGENT_NOTE_LIST_RESULT,
+        },
+        update: {
+          request: WebSocketRequestEvents.SUBAGENT_NOTE_UPDATE,
+          response: WebSocketResponseEvents.SUBAGENT_NOTE_UPDATED,
+        },
+        delete: {
+          request: WebSocketRequestEvents.SUBAGENT_NOTE_DELETE,
+          response: WebSocketResponseEvents.SUBAGENT_NOTE_DELETED,
+        },
+      },
+      parentIdFieldName: 'subAgentId',
+    },
+    () => ({ client, server })
+  );
 
-      expect(agent.id).toBeDefined();
-      expect(agent.name).toBe(name);
-    });
-
-    it('failed_when_subagent_create_with_duplicate_name', async () => {
-      const name = `dup-sa-${uuidv4()}`;
-      await makeAgent(name);
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentCreatePayload, SubAgentCreatedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_CREATE,
-        WebSocketResponseEvents.SUBAGENT_CREATED,
-        { requestId: uuidv4(), canvasId, name, content: '# Dup' }
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error).toContain('已存在');
-    });
-
-    it.each([
-      { name: '測試代理', desc: '中文名稱' },
-      { name: 'my agent!', desc: '特殊字元' },
-    ])('建立 SubAgent 失敗 - 不合法名稱: $desc', async ({ name }) => {
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentCreatePayload, SubAgentCreatedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_CREATE,
-        WebSocketResponseEvents.SUBAGENT_CREATED,
-        { requestId: uuidv4(), canvasId, name, content: '# Content' }
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error).toContain('名稱只允許英文字母、數字、底線（_）、連字號（-）');
-    });
-  });
-
-  describe('SubAgent 列表', () => {
-    it('success_when_subagent_list_returns_all', async () => {
-      const agent = await makeAgent();
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentListPayload, SubAgentListResultPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_LIST,
-        WebSocketResponseEvents.SUBAGENT_LIST_RESULT,
-        { requestId: uuidv4(), canvasId }
-      );
-
-      expect(response.success).toBe(true);
-      const names = response.subAgents!.map((s) => s.name);
-      expect(names).toContain(agent.name);
-    });
-  });
-
-  describe('SubAgent 讀取', () => {
-    it('success_when_subagent_read_returns_content', async () => {
-      const agent = await makeAgent();
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentReadPayload, SubAgentReadResultPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_READ,
-        WebSocketResponseEvents.SUBAGENT_READ_RESULT,
-        { requestId: uuidv4(), canvasId, subAgentId: agent.id }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.subAgent!.content).toBe('# Agent Content');
-    });
-
-    it('failed_when_subagent_read_with_nonexistent_id', async () => {
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentReadPayload, SubAgentReadResultPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_READ,
-        WebSocketResponseEvents.SUBAGENT_READ_RESULT,
-        { requestId: uuidv4(), canvasId, subAgentId: FAKE_SUBAGENT_ID }
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
-    });
-  });
-
-  describe('SubAgent 更新', () => {
-    it('success_when_subagent_updated', async () => {
-      const agent = await makeAgent();
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentUpdatePayload, SubAgentUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_UPDATE,
-        WebSocketResponseEvents.SUBAGENT_UPDATED,
-        { requestId: uuidv4(), canvasId, subAgentId: agent.id, content: '# Updated' }
-      );
-
-      expect(response.success).toBe(true);
-    });
-
-    it('failed_when_subagent_update_with_nonexistent_id', async () => {
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentUpdatePayload, SubAgentUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_UPDATE,
-        WebSocketResponseEvents.SUBAGENT_UPDATED,
-        { requestId: uuidv4(), canvasId, subAgentId: FAKE_SUBAGENT_ID, content: '# Fail' }
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
-    });
-  });
-
-  describe('SubAgent Note CRUD', () => {
-    it('success_when_subagent_note_created', async () => {
-      const agent = await makeAgent();
-      const note = await createAgentNote(agent.id);
-
-      expect(note.id).toBeDefined();
-      expect(note.subAgentId).toBe(agent.id);
-    });
-
-    it('success_when_subagent_note_list_returns_all', async () => {
-      const agent = await makeAgent();
-      await createAgentNote(agent.id);
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentNoteListPayload, SubAgentNoteListResultPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_NOTE_LIST,
-        WebSocketResponseEvents.SUBAGENT_NOTE_LIST_RESULT,
-        { requestId: uuidv4(), canvasId }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.notes!.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('success_when_subagent_note_updated', async () => {
-      const agent = await makeAgent();
-      const note = await createAgentNote(agent.id);
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentNoteUpdatePayload, SubAgentNoteUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_NOTE_UPDATE,
-        WebSocketResponseEvents.SUBAGENT_NOTE_UPDATED,
-        { requestId: uuidv4(), canvasId, noteId: note.id, x: 777 }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.note!.x).toBe(777);
-    });
-
-    it('failed_when_subagent_note_update_with_nonexistent_id', async () => {
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentNoteUpdatePayload, SubAgentNoteUpdatedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_NOTE_UPDATE,
-        WebSocketResponseEvents.SUBAGENT_NOTE_UPDATED,
-        { requestId: uuidv4(), canvasId, noteId: FAKE_UUID, x: 0 }
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
-    });
-
-    it('success_when_subagent_note_deleted', async () => {
-      const agent = await makeAgent();
-      const note = await createAgentNote(agent.id);
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentNoteDeletePayload, SubAgentNoteDeletedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_NOTE_DELETE,
-        WebSocketResponseEvents.SUBAGENT_NOTE_DELETED,
-        { requestId: uuidv4(), canvasId, noteId: note.id }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.noteId).toBe(note.id);
-    });
-
-    it('failed_when_subagent_note_delete_with_nonexistent_id', async () => {
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentNoteDeletePayload, SubAgentNoteDeletedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_NOTE_DELETE,
-        WebSocketResponseEvents.SUBAGENT_NOTE_DELETED,
-        { requestId: uuidv4(), canvasId, noteId: FAKE_UUID }
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
-    });
-  });
+  describePodBindingTests(
+    {
+      resourceName: 'SubAgent',
+      createResource: (client) => makeAgent(client),
+      fakeResourceId: FAKE_SUBAGENT_ID,
+      bindEvent: {
+        request: WebSocketRequestEvents.POD_BIND_SUBAGENT,
+        response: WebSocketResponseEvents.POD_SUBAGENT_BOUND,
+      },
+      buildBindPayload: (canvasId, podId, subAgentId) => ({ canvasId, podId, subAgentId }),
+      verifyBoundResponse: (response, subAgentId) => {
+        expect(response.pod!.subAgentIds).toContain(subAgentId);
+      },
+    },
+    () => ({ client, server })
+  );
 
   describe('Pod 綁定 SubAgent', () => {
-    it('success_when_subagent_bound_to_pod', async () => {
-      const pod = await createPod(client);
-      const agent = await makeAgent();
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodBindSubAgentPayload, PodSubAgentBoundPayload>(
-        client,
-        WebSocketRequestEvents.POD_BIND_SUBAGENT,
-        WebSocketResponseEvents.POD_SUBAGENT_BOUND,
-        { requestId: uuidv4(), canvasId, podId: pod.id, subAgentId: agent.id }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.pod!.subAgentIds).toContain(agent.id);
-    });
-
-    it('success_when_subagent_bound_to_pod_with_repository', async () => {
-      const pod = await createPod(client);
-      const repo = await createRepository(client, `sa-repo-${uuidv4()}`);
-
-      const canvasId = await getCanvasId(client);
-      await emitAndWaitResponse<PodBindRepositoryPayload, PodRepositoryBoundPayload>(
-        client,
-        WebSocketRequestEvents.POD_BIND_REPOSITORY,
-        WebSocketResponseEvents.POD_REPOSITORY_BOUND,
-        { requestId: uuidv4(), canvasId, podId: pod.id, repositoryId: repo.id }
-      );
-
-      const agent = await makeAgent();
-
-      const response = await emitAndWaitResponse<PodBindSubAgentPayload, PodSubAgentBoundPayload>(
-        client,
-        WebSocketRequestEvents.POD_BIND_SUBAGENT,
-        WebSocketResponseEvents.POD_SUBAGENT_BOUND,
-        { requestId: uuidv4(), canvasId, podId: pod.id, subAgentId: agent.id }
-      );
-
-      expect(response.success).toBe(true);
-      expect(response.pod!.subAgentIds).toContain(agent.id);
-    });
-
-    it('failed_when_bind_subagent_with_nonexistent_pod', async () => {
-      const agent = await makeAgent();
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodBindSubAgentPayload, PodSubAgentBoundPayload>(
-        client,
-        WebSocketRequestEvents.POD_BIND_SUBAGENT,
-        WebSocketResponseEvents.POD_SUBAGENT_BOUND,
-        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, subAgentId: agent.id }
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
-    });
-
-    it('failed_when_bind_subagent_with_nonexistent_subagent', async () => {
-      const pod = await createPod(client);
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodBindSubAgentPayload, PodSubAgentBoundPayload>(
-        client,
-        WebSocketRequestEvents.POD_BIND_SUBAGENT,
-        WebSocketResponseEvents.POD_SUBAGENT_BOUND,
-        { requestId: uuidv4(), canvasId, podId: pod.id, subAgentId: FAKE_SUBAGENT_ID }
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
-    });
-
     it('failed_when_bind_subagent_already_bound', async () => {
       const pod = await createPod(client);
-      const agent = await makeAgent();
+      const agent = await makeAgent(client);
 
       const canvasId = await getCanvasId(client);
       await emitAndWaitResponse<PodBindSubAgentPayload, PodSubAgentBoundPayload>(
@@ -365,57 +167,30 @@ describe('SubAgent 管理', () => {
       expect(response.success).toBe(false);
       expect(response.error).toContain('已綁定');
     });
-  });
 
-  describe('SubAgent 刪除', () => {
-    it('success_when_subagent_deleted', async () => {
-      const agent = await makeAgent();
-
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentDeletePayload, SubAgentDeletedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_DELETE,
-        WebSocketResponseEvents.SUBAGENT_DELETED,
-        { requestId: uuidv4(), canvasId, subAgentId: agent.id }
-      );
-
-      expect(response.success).toBe(true);
-    });
-
-    it('failed_when_subagent_delete_with_nonexistent_id', async () => {
-      const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<SubAgentDeletePayload, SubAgentDeletedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_DELETE,
-        WebSocketResponseEvents.SUBAGENT_DELETED,
-        { requestId: uuidv4(), canvasId, subAgentId: FAKE_SUBAGENT_ID }
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
-    });
-
-    it('failed_when_subagent_delete_while_in_use', async () => {
+    it('success_when_subagent_bound_to_pod_with_repository', async () => {
       const pod = await createPod(client);
-      const agent = await makeAgent();
+      const repo = await createRepository(client, `sa-repo-${uuidv4()}`);
 
       const canvasId = await getCanvasId(client);
-      await emitAndWaitResponse<PodBindSubAgentPayload, PodSubAgentBoundPayload>(
+      await emitAndWaitResponse<PodBindRepositoryPayload, PodRepositoryBoundPayload>(
+        client,
+        WebSocketRequestEvents.POD_BIND_REPOSITORY,
+        WebSocketResponseEvents.POD_REPOSITORY_BOUND,
+        { requestId: uuidv4(), canvasId, podId: pod.id, repositoryId: repo.id }
+      );
+
+      const agent = await makeAgent(client);
+
+      const response = await emitAndWaitResponse<PodBindSubAgentPayload, PodSubAgentBoundPayload>(
         client,
         WebSocketRequestEvents.POD_BIND_SUBAGENT,
         WebSocketResponseEvents.POD_SUBAGENT_BOUND,
         { requestId: uuidv4(), canvasId, podId: pod.id, subAgentId: agent.id }
       );
 
-      const response = await emitAndWaitResponse<SubAgentDeletePayload, SubAgentDeletedPayload>(
-        client,
-        WebSocketRequestEvents.SUBAGENT_DELETE,
-        WebSocketResponseEvents.SUBAGENT_DELETED,
-        { requestId: uuidv4(), canvasId, subAgentId: agent.id }
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error).toContain('使用中');
+      expect(response.success).toBe(true);
+      expect(response.pod!.subAgentIds).toContain(agent.id);
     });
   });
 });

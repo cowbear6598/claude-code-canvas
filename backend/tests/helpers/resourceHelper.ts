@@ -22,7 +22,8 @@ import {
 export async function createOutputStyle(
   client: TestWebSocketClient,
   name: string,
-  content: string
+  content: string,
+  overrides?: Partial<OutputStyleCreatePayload>
 ): Promise<{ id: string; name: string }> {
   if (!client.id) {
     throw new Error('Socket not connected');
@@ -39,7 +40,7 @@ export async function createOutputStyle(
     client,
     WebSocketRequestEvents.OUTPUT_STYLE_CREATE,
     WebSocketResponseEvents.OUTPUT_STYLE_CREATED,
-    { requestId: uuidv4(), canvasId, name, content }
+    { requestId: uuidv4(), canvasId, name, content, ...overrides }
   );
 
   return response.outputStyle!;
@@ -57,7 +58,8 @@ export async function createSkillFile(
 
 export async function createRepository(
   client: TestWebSocketClient,
-  name: string
+  name: string,
+  overrides?: Partial<RepositoryCreatePayload>
 ): Promise<{ id: string; name: string }> {
   if (!client.id) {
     throw new Error('Socket not connected');
@@ -74,7 +76,7 @@ export async function createRepository(
     client,
     WebSocketRequestEvents.REPOSITORY_CREATE,
     WebSocketResponseEvents.REPOSITORY_CREATED,
-    { requestId: uuidv4(), canvasId, name }
+    { requestId: uuidv4(), canvasId, name, ...overrides }
   );
 
   return response.repository!;
@@ -83,7 +85,8 @@ export async function createRepository(
 export async function createSubAgent(
   client: TestWebSocketClient,
   name: string,
-  content: string
+  content: string,
+  overrides?: Partial<SubAgentCreatePayload>
 ): Promise<{ id: string; name: string }> {
   if (!client.id) {
     throw new Error('Socket not connected');
@@ -100,7 +103,7 @@ export async function createSubAgent(
     client,
     WebSocketRequestEvents.SUBAGENT_CREATE,
     WebSocketResponseEvents.SUBAGENT_CREATED,
-    { requestId: uuidv4(), canvasId, name, content }
+    { requestId: uuidv4(), canvasId, name, content, ...overrides }
   );
 
   return response.subAgent!;
@@ -109,7 +112,8 @@ export async function createSubAgent(
 export async function createCommand(
   client: TestWebSocketClient,
   name: string,
-  content: string
+  content: string,
+  overrides?: Partial<CommandCreatePayload>
 ): Promise<{ id: string; name: string }> {
   if (!client.id) {
     throw new Error('Socket not connected');
@@ -126,7 +130,7 @@ export async function createCommand(
     client,
     WebSocketRequestEvents.COMMAND_CREATE,
     WebSocketResponseEvents.COMMAND_CREATED,
-    { requestId: uuidv4(), canvasId, name, content }
+    { requestId: uuidv4(), canvasId, name, content, ...overrides }
   );
 
   return response.command!;
