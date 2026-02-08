@@ -5,7 +5,6 @@ import {
   disconnectSocket,
   waitForEvent,
   createSocketClientNoConnect,
-  waitForConnection,
   type TestServerInstance,
 } from '../setup';
 import { type ConnectionReadyPayload } from '../../src/types';
