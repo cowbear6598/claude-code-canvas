@@ -33,7 +33,8 @@
       "Bash(bun test:*)",
       "Bash(bun run:*)",
       "Bash(git push:*)",
-      "Bash(bun add:*)"
+      "Bash(bun add:*)",
+      "Bash(git status:*)"
     ]
   },
   "outputStyle": "conductor"
