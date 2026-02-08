@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'bun:test';
 import { validatePathSegment, sanitizePathSegment, validateGroupName } from '../../src/utils/pathValidator.js';
 
 describe('路徑驗證工具', () => {

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+// 取消 testConfig.ts 中的全域 logger mock，讓此測試使用真實 logger
+vi.unmock('../../src/utils/logger.js');
 
 // ANSI 顏色碼常數
 const ANSI_COLORS = {
@@ -34,7 +35,10 @@ describe('Logger 顏色輸出', () => {
   });
 
   async function getLogger() {
-    const module = await import(`../../src/utils/logger.js?t=${Date.now()}`);
+    // 使用 vi.resetModules() 清除模組快取，取代原本的動態 import 時間戳繞過方式
+    // （vitest 不支援帶 query string 的動態 import）
+    vi.resetModules();
+    const module = await import('../../src/utils/logger.js');
     return module.logger;
   }
 

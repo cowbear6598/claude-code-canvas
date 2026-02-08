@@ -1,6 +1,0 @@
-[test]
-# 在所有測試之前載入的設置檔案
-# 載入順序很重要：
-# 1. testConfig.ts - 設定 console mock 和環境配置
-# 2. globalSetup.ts - 執行全域 beforeAll/afterAll (建立/清理測試資料夾)
-preload = ["./tests/setup/testConfig.ts", "./tests/setup/globalSetup.ts"]

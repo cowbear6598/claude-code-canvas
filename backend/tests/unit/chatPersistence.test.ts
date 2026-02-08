@@ -1,9 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdir, rm } from 'fs/promises';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { chatPersistenceService } from '../../src/services/persistence/chatPersistence';
 import { persistenceService } from '../../src/services/persistence';
 import type { PersistedMessage, ChatHistory } from '../../src/types';
+
+// 相容 Node.js 和 Bun：import.meta.dir 是 Bun 專屬，Node.js 需要用 fileURLToPath
+const __dirname = import.meta.dir ?? dirname(fileURLToPath(import.meta.url));
 
 describe('ChatPersistenceService upsertMessage', () => {
   let tempDir: string;
@@ -11,7 +14,7 @@ describe('ChatPersistenceService upsertMessage', () => {
 
   beforeEach(async () => {
     // 建立臨時測試目錄
-    tempDir = join(import.meta.dir, `temp-test-${Date.now()}`);
+    tempDir = join(__dirname, `temp-test-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
   });
 

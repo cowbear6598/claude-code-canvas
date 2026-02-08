@@ -5,7 +5,8 @@
     "outDir": "../dist-tests",
     "declaration": false,
     "declarationMap": false,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["vitest/globals"]
   },
   "include": [
     "./**/*",

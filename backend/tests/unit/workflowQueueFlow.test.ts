@@ -1,4 +1,3 @@
-import {describe, it, expect, beforeEach, afterEach, spyOn, mock} from 'bun:test';
 import {workflowExecutionService} from '../../src/services/workflow';
 import {workflowQueueService} from '../../src/services/workflow';
 import {connectionStore} from '../../src/services/connectionStore.js';
@@ -18,9 +17,6 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
     const canvasId = 'canvas-1';
     const sourcePodId = 'source-pod';
     const targetPodId = 'target-pod';
-
-    // 追蹤所有在測試中創建的 spy，以便在 afterEach 中還原
-    let spies: Array<ReturnType<typeof spyOn>> = [];
 
     const mockSourcePod = {
         id: sourcePodId,
@@ -91,234 +87,92 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
         },
     ];
 
-    /**
-     * 輔助函數：安全地 spy 或重置已存在的 mock
-     * 如果方法已經是 mock（由其他測試的 mock.module 建立），則重置它
-     * 否則建立新的 spy
-     */
-    const setupMock = <T extends object, K extends keyof T>(
-        obj: T,
-        method: K,
-        mockConfig: { returnValue?: any; implementation?: any; resolvedValue?: any }
-    ) => {
-        const target = obj[method];
-
-        // 如果目標不存在或是 undefined，說明被其他測試的 mock.module 污染但沒有正確初始化
-        // 我們需要創建一個新的 mock 函數
-        if (target === undefined || target === null) {
-            const newMock = mock();
-            (obj as any)[method] = newMock;
-
-            if ('returnValue' in mockConfig) {
-                newMock.mockReturnValue(mockConfig.returnValue);
-            } else if ('implementation' in mockConfig) {
-                newMock.mockImplementation(mockConfig.implementation);
-            } else if ('resolvedValue' in mockConfig) {
-                newMock.mockResolvedValue(mockConfig.resolvedValue);
-            }
-            return; // 不加入 spies，因為這是替換已污染的模組
-        }
-
-        // 檢查是否已經是 mock 函數（由其他測試的 mock.module 建立）
-        if (typeof target === 'function' && 'mockReturnValue' in target) {
-            // 已經是 mock，清空並重新設定
-            (target as any).mockClear?.();
-            if ('returnValue' in mockConfig) {
-                (target as any).mockReturnValue(mockConfig.returnValue);
-            } else if ('implementation' in mockConfig) {
-                (target as any).mockImplementation(mockConfig.implementation);
-            } else if ('resolvedValue' in mockConfig) {
-                (target as any).mockResolvedValue(mockConfig.resolvedValue);
-            }
-            return; // 不加入 spies，因為不是我們創建的
-        }
-
-        // 真實函數，使用 spyOn
-        const spy = spyOn(obj, method as any);
-        if ('returnValue' in mockConfig) {
-            spy.mockReturnValue(mockConfig.returnValue);
-        } else if ('implementation' in mockConfig) {
-            spy.mockImplementation(mockConfig.implementation);
-        } else if ('resolvedValue' in mockConfig) {
-            spy.mockResolvedValue(mockConfig.resolvedValue);
-        }
-        spies.push(spy);
-    };
-
     beforeEach(() => {
-        // 清空 spy 陣列
-        spies = [];
-
         // connectionStore
-        setupMock(connectionStore, 'findBySourcePodId', {returnValue: []});
-        setupMock(connectionStore, 'findByTargetPodId', {returnValue: []});
-        setupMock(connectionStore, 'getById', {returnValue: undefined});
-        setupMock(connectionStore, 'updateDecideStatus', {implementation: () => undefined});
-        setupMock(connectionStore, 'updateConnectionStatus', {implementation: () => undefined});
+        vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+        vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]);
+        vi.spyOn(connectionStore, 'getById').mockReturnValue(undefined);
+        vi.spyOn(connectionStore, 'updateDecideStatus').mockImplementation(() => undefined);
+        vi.spyOn(connectionStore, 'updateConnectionStatus').mockImplementation(() => undefined);
 
         // podStore
-        setupMock(podStore, 'getById', {
-            implementation: (cId: string, podId: string) => {
-                if (podId === sourcePodId) return {...mockSourcePod};
-                if (podId.startsWith('target-pod')) return {...mockTargetPod, id: podId, name: `Target ${podId}`};
-                return undefined;
-            }
+        vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+            if (podId === sourcePodId) return {...mockSourcePod};
+            if (podId.startsWith('target-pod')) return {...mockTargetPod, id: podId, name: `Target ${podId}`};
+            return undefined;
         });
-        setupMock(podStore, 'setStatus', {
-            implementation: () => {
-            }
-        });
-        setupMock(podStore, 'updateLastActive', {
-            implementation: () => {
-            }
-        });
+        vi.spyOn(podStore, 'setStatus').mockImplementation(() => {});
+        vi.spyOn(podStore, 'updateLastActive').mockImplementation(() => {});
 
         // messageStore
-        setupMock(messageStore, 'getMessages', {returnValue: mockMessages as any});
-        setupMock(messageStore, 'addMessage', {resolvedValue: {success: true, data: undefined as any}});
-        setupMock(messageStore, 'upsertMessage', {implementation: () => {}});
-        setupMock(messageStore, 'flushWrites', {resolvedValue: undefined});
+        vi.spyOn(messageStore, 'getMessages').mockReturnValue(mockMessages as any);
+        vi.spyOn(messageStore, 'addMessage').mockResolvedValue({success: true, data: undefined as any});
+        vi.spyOn(messageStore, 'upsertMessage').mockImplementation(() => {});
+        vi.spyOn(messageStore, 'flushWrites').mockResolvedValue(undefined);
 
         // summaryService
-        setupMock(summaryService, 'generateSummaryForTarget', {
-            resolvedValue: {
-                targetPodId: '',
-                success: true,
-                summary: 'Test summary',
-            }
+        vi.spyOn(summaryService, 'generateSummaryForTarget').mockResolvedValue({
+            targetPodId: '',
+            success: true,
+            summary: 'Test summary',
         });
 
         // workflowStateService
-        setupMock(workflowStateService, 'checkMultiInputScenario', {
-            returnValue: {
-                isMultiInput: false,
-                requiredSourcePodIds: [],
-            }
+        vi.spyOn(workflowStateService, 'checkMultiInputScenario').mockReturnValue({
+            isMultiInput: false,
+            requiredSourcePodIds: [],
         });
-        setupMock(workflowStateService, 'getDirectConnectionCount', {returnValue: 1});
-        setupMock(workflowStateService, 'initializePendingTarget', {
-            implementation: () => {
-            }
+        vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(1);
+        vi.spyOn(workflowStateService, 'initializePendingTarget').mockImplementation(() => {});
+        vi.spyOn(workflowStateService, 'recordSourceCompletion').mockReturnValue({
+            allSourcesResponded: true,
+            hasRejection: false,
         });
-        setupMock(workflowStateService, 'recordSourceCompletion', {
-            returnValue: {
-                allSourcesResponded: true,
-                hasRejection: false,
-            }
-        });
-        setupMock(workflowStateService, 'recordSourceRejection', {
-            implementation: () => {
-            }
-        });
-        setupMock(workflowStateService, 'getCompletedSummaries', {returnValue: new Map()});
-        setupMock(workflowStateService, 'clearPendingTarget', {
-            implementation: () => {
-            }
-        });
+        vi.spyOn(workflowStateService, 'recordSourceRejection').mockImplementation(() => {});
+        vi.spyOn(workflowStateService, 'getCompletedSummaries').mockReturnValue(new Map());
+        vi.spyOn(workflowStateService, 'clearPendingTarget').mockImplementation(() => {});
 
         // workflowEventEmitter
-        setupMock(workflowEventEmitter, 'emitWorkflowAutoTriggered', {
-            implementation: () => {
-            }
-        });
-        setupMock(workflowEventEmitter, 'emitWorkflowTriggered', {
-            implementation: () => {
-            }
-        });
-        setupMock(workflowEventEmitter, 'emitWorkflowComplete', {
-            implementation: () => {
-            }
-        });
-        setupMock(workflowEventEmitter, 'emitAiDecidePending', {
-            implementation: () => {
-            }
-        });
-        setupMock(workflowEventEmitter, 'emitAiDecideResult', {
-            implementation: () => {
-            }
-        });
-        setupMock(workflowEventEmitter, 'emitAiDecideError', {
-            implementation: () => {
-            }
-        });
-        setupMock(workflowEventEmitter, 'emitWorkflowQueued', {
-            implementation: () => {
-            }
-        });
-        setupMock(workflowEventEmitter, 'emitWorkflowQueueProcessed', {
-            implementation: () => {
-            }
-        });
-        setupMock(workflowEventEmitter, 'emitDirectTriggered', {
-            implementation: () => {
-            }
-        });
-        setupMock(workflowEventEmitter, 'emitDirectWaiting', {
-            implementation: () => {
-            }
-        });
-        setupMock(workflowEventEmitter, 'emitDirectMerged', {
-            implementation: () => {
-            }
-        });
+        vi.spyOn(workflowEventEmitter, 'emitWorkflowAutoTriggered').mockImplementation(() => {});
+        vi.spyOn(workflowEventEmitter, 'emitWorkflowTriggered').mockImplementation(() => {});
+        vi.spyOn(workflowEventEmitter, 'emitWorkflowComplete').mockImplementation(() => {});
+        vi.spyOn(workflowEventEmitter, 'emitAiDecidePending').mockImplementation(() => {});
+        vi.spyOn(workflowEventEmitter, 'emitAiDecideResult').mockImplementation(() => {});
+        vi.spyOn(workflowEventEmitter, 'emitAiDecideError').mockImplementation(() => {});
+        vi.spyOn(workflowEventEmitter, 'emitWorkflowQueued').mockImplementation(() => {});
+        vi.spyOn(workflowEventEmitter, 'emitWorkflowQueueProcessed').mockImplementation(() => {});
+        vi.spyOn(workflowEventEmitter, 'emitDirectTriggered').mockImplementation(() => {});
+        vi.spyOn(workflowEventEmitter, 'emitDirectWaiting').mockImplementation(() => {});
+        vi.spyOn(workflowEventEmitter, 'emitDirectMerged').mockImplementation(() => {});
 
         // pendingTargetStore
-        setupMock(pendingTargetStore, 'hasPendingTarget', {returnValue: false});
-        setupMock(pendingTargetStore, 'getPendingTarget', {returnValue: undefined});
-        setupMock(pendingTargetStore, 'clearPendingTarget', {
-            implementation: () => {
-            }
-        });
+        vi.spyOn(pendingTargetStore, 'hasPendingTarget').mockReturnValue(false);
+        vi.spyOn(pendingTargetStore, 'getPendingTarget').mockReturnValue(undefined);
+        vi.spyOn(pendingTargetStore, 'clearPendingTarget').mockImplementation(() => {});
 
         // directTriggerStore
-        setupMock(directTriggerStore, 'hasDirectPending', {returnValue: false});
-        setupMock(directTriggerStore, 'initializeDirectPending', {
-            implementation: () => {
-            }
-        });
-        setupMock(directTriggerStore, 'recordDirectReady', {
-            implementation: () => {
-            }
-        });
-        setupMock(directTriggerStore, 'clearDirectPending', {
-            implementation: () => {
-            }
-        });
-        setupMock(directTriggerStore, 'hasActiveTimer', {returnValue: false});
-        setupMock(directTriggerStore, 'clearTimer', {
-            implementation: () => {
-            }
-        });
-        setupMock(directTriggerStore, 'setTimer', {
-            implementation: () => {
-            }
-        });
-        setupMock(directTriggerStore, 'getReadySummaries', {returnValue: new Map()});
+        vi.spyOn(directTriggerStore, 'hasDirectPending').mockReturnValue(false);
+        vi.spyOn(directTriggerStore, 'initializeDirectPending').mockImplementation(() => {});
+        vi.spyOn(directTriggerStore, 'recordDirectReady').mockImplementation(() => {});
+        vi.spyOn(directTriggerStore, 'clearDirectPending').mockImplementation(() => {});
+        vi.spyOn(directTriggerStore, 'hasActiveTimer').mockReturnValue(false);
+        vi.spyOn(directTriggerStore, 'clearTimer').mockImplementation(() => {});
+        vi.spyOn(directTriggerStore, 'setTimer').mockImplementation(() => {});
+        vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(new Map());
 
         // claudeQueryService
-        setupMock(claudeQueryService, 'sendMessage', {
-            implementation: async (_podId: string, _message: string, callback: any) => {
-                callback({type: 'text', content: 'Response text'});
-                callback({type: 'complete'});
-            }
+        vi.spyOn(claudeQueryService, 'sendMessage').mockImplementation(async (_podId: string, _message: string, callback: any) => {
+            callback({type: 'text', content: 'Response text'});
+            callback({type: 'complete'});
         });
 
         // autoClearService
-        setupMock(autoClearService, 'initializeWorkflowTracking', {
-            implementation: () => {
-            }
-        });
-        setupMock(autoClearService, 'onPodComplete', {resolvedValue: undefined});
+        vi.spyOn(autoClearService, 'initializeWorkflowTracking').mockImplementation(() => {});
+        vi.spyOn(autoClearService, 'onPodComplete').mockResolvedValue(undefined);
 
         // logger
-        setupMock(logger, 'log', {
-            implementation: () => {
-            }
-        });
-        setupMock(logger, 'error', {
-            implementation: () => {
-            }
-        });
+        vi.spyOn(logger, 'log').mockImplementation(() => {});
+        vi.spyOn(logger, 'error').mockImplementation(() => {});
 
         // 清空所有 queue
         workflowQueueService.clearQueue(targetPodId);
@@ -327,11 +181,7 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
     });
 
     afterEach(() => {
-        // 還原所有測試中創建的 spy，避免跨檔案污染
-        spies.forEach((spy) => {
-            spy.mockRestore();
-        });
-        spies = [];
+        vi.restoreAllMocks();
     });
 
     describe('C1: Queue - Workflow 完成後自動 dequeue 下一項', () => {
@@ -366,13 +216,11 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
             expect(workflowQueueService.getQueueSize(targetPodId)).toBe(1);
 
             // 設定此測試需要的 mock 行為
-            setupMock(connectionStore, 'getById', {returnValue: queuedConnection});
-            setupMock(connectionStore, 'findBySourcePodId', {returnValue: []});
-            setupMock(podStore, 'getById', {
-                implementation: (cId: string, podId: string) => {
-                    if (podId === targetPodId) return {...mockTargetPod, status: 'idle'};
-                    return {...mockSourcePod, id: podId};
-                }
+            vi.spyOn(connectionStore, 'getById').mockReturnValue(queuedConnection);
+            vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+            vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+                if (podId === targetPodId) return {...mockTargetPod, status: 'idle'};
+                return {...mockSourcePod, id: podId};
             });
 
             // 呼叫 processNextInQueue
@@ -405,24 +253,21 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
     describe('C2: processNextInQueue 是 fire-and-forget，不阻塞呼叫者', () => {
         it('executeClaudeQuery 完成後呼叫 processNextInQueue 不 await，不阻塞', async () => {
             // 準備一個 connection 和 target pod
-            setupMock(connectionStore, 'getById', {returnValue: mockAutoConnection});
-            setupMock(connectionStore, 'findBySourcePodId', {returnValue: []});
-            setupMock(podStore, 'getById', {
-                implementation: (cId: string, podId: string) => {
-                    if (podId === targetPodId) return {...mockTargetPod, status: 'idle'};
-                    if (podId === sourcePodId) return mockSourcePod;
-                    return undefined;
-                }
+            vi.spyOn(connectionStore, 'getById').mockReturnValue(mockAutoConnection);
+            vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+            vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+                if (podId === targetPodId) return {...mockTargetPod, status: 'idle'};
+                if (podId === sourcePodId) return mockSourcePod;
+                return undefined;
             });
 
             // Mock processNextInQueue 為一個會延遲的 Promise
             let processNextInQueueCalled = false;
-            const processNextInQueueSpy = spyOn(workflowQueueService, 'processNextInQueue').mockImplementation(async () => {
+            const processNextInQueueSpy = vi.spyOn(workflowQueueService, 'processNextInQueue').mockImplementation(async () => {
                 processNextInQueueCalled = true;
                 // 模擬一個需要時間的操作
                 await new Promise(resolve => setTimeout(resolve, 100));
             });
-            spies.push(processNextInQueueSpy);
 
             // 呼叫 triggerWorkflowWithSummary（內部會呼叫 executeClaudeQuery）
             const triggerPromise = workflowExecutionService.triggerWorkflowWithSummary(
@@ -463,17 +308,15 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 targetPodId: 'target-pod-direct',
             };
 
-            setupMock(connectionStore, 'getById', {returnValue: directConn});
-            setupMock(connectionStore, 'findBySourcePodId', {returnValue: []});
-            setupMock(podStore, 'getById', {
-                implementation: (cId: string, podId: string) => {
-                    if (podId === directConn.targetPodId) return {
-                        ...mockTargetPod,
-                        id: directConn.targetPodId,
-                        status: 'idle'
-                    };
-                    return {...mockSourcePod, id: podId};
-                }
+            vi.spyOn(connectionStore, 'getById').mockReturnValue(directConn);
+            vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+            vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+                if (podId === directConn.targetPodId) return {
+                    ...mockTargetPod,
+                    id: directConn.targetPodId,
+                    status: 'idle'
+                };
+                return {...mockSourcePod, id: podId};
             });
 
             // 直接呼叫 triggerWorkflowWithSummary 測試 skipAutoTriggeredEvent = true
@@ -498,17 +341,15 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 targetPodId: 'target-pod-auto',
             };
 
-            setupMock(connectionStore, 'getById', {returnValue: autoConn});
-            setupMock(connectionStore, 'findBySourcePodId', {returnValue: []});
-            setupMock(podStore, 'getById', {
-                implementation: (cId: string, podId: string) => {
-                    if (podId === autoConn.targetPodId) return {
-                        ...mockTargetPod,
-                        id: autoConn.targetPodId,
-                        status: 'idle'
-                    };
-                    return {...mockSourcePod, id: podId};
-                }
+            vi.spyOn(connectionStore, 'getById').mockReturnValue(autoConn);
+            vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+            vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+                if (podId === autoConn.targetPodId) return {
+                    ...mockTargetPod,
+                    id: autoConn.targetPodId,
+                    status: 'idle'
+                };
+                return {...mockSourcePod, id: podId};
             });
 
             // 直接呼叫 triggerWorkflowWithSummary 測試 skipAutoTriggeredEvent = false
@@ -634,30 +475,25 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 triggerMode: 'auto',
             });
 
-            setupMock(connectionStore, 'getById', {returnValue: conn});
-            setupMock(connectionStore, 'findBySourcePodId', {returnValue: []});
-            setupMock(podStore, 'getById', {
-                implementation: (cId: string, podId: string) => {
-                    if (podId === 'target-fail') return {...mockTargetPod, id: 'target-fail', status: 'idle'};
-                    if (podId === sourcePodId) return mockSourcePod;
-                    return undefined;
-                }
+            vi.spyOn(connectionStore, 'getById').mockReturnValue(conn);
+            vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+            vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+                if (podId === 'target-fail') return {...mockTargetPod, id: 'target-fail', status: 'idle'};
+                if (podId === sourcePodId) return mockSourcePod;
+                return undefined;
             });
 
             // Mock sendMessage 拋出錯誤
             const testError = new Error('Claude query failed');
-            setupMock(claudeQueryService, 'sendMessage', {
-                implementation: async () => {
-                    throw testError;
-                }
+            vi.spyOn(claudeQueryService, 'sendMessage').mockImplementation(async () => {
+                throw testError;
             });
 
             // Mock processNextInQueue spy
             let processNextInQueueCalled = false;
-            const processNextInQueueSpy = spyOn(workflowQueueService, 'processNextInQueue').mockImplementation(async () => {
+            const processNextInQueueSpy = vi.spyOn(workflowQueueService, 'processNextInQueue').mockImplementation(async () => {
                 processNextInQueueCalled = true;
             });
-            spies.push(processNextInQueueSpy);
 
             // 呼叫 triggerWorkflowWithSummary，預期拋出錯誤
             await expect(

@@ -1,7 +1,6 @@
 // 測試環境設定
 // 覆寫 config 物件，使用暫存目錄路徑
 
-import { mock } from 'bun:test';
 import path from 'path';
 import os from 'os';
 
@@ -31,7 +30,7 @@ console.debug = () => {};
 
 // Mock logger 模組 - 必須在任何可能使用 logger 的模組載入之前執行
 // 注意：這個 mock 必須完全覆蓋 Logger 類別的所有方法
-mock.module('../../src/utils/logger.js', () => {
+vi.mock('../../src/utils/logger.js', () => {
   // 建立一個完全靜默的 Logger 類別
   class MockLogger {
     log(): void {

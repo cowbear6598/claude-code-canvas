@@ -13,7 +13,8 @@
     "start": "bun dist/index.js",
     "prod": "cd ../frontend && bunx vite build && cd ../backend && NODE_ENV=production bun src/index.ts",
     "style": "tsc --noEmit && eslint src --ext .ts",
-    "test": "bun test"
+    "test": "bunx --bun vitest run",
+    "test:watch": "bunx --bun vitest"
   },
   "keywords": [],
   "author": "",
@@ -32,6 +33,7 @@
     "@typescript-eslint/parser": "^8.53.1",
     "bun-types": "^1.3.8",
     "eslint": "^9.39.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'bun:test';
 import { AbortError } from '@anthropic-ai/claude-agent-sdk';
 import { getErrorMessage, isAbortError, isFileNotFoundError } from '../../src/utils/errorHelpers.js';
 

@@ -1,7 +1,6 @@
 // Bun Test 全域 Setup/Teardown
 // 透過 preload 載入，使用 beforeAll/afterAll 來管理全域測試生命週期
 
-import { beforeAll, afterAll } from 'bun:test';
 import { mkdir, rm } from 'fs/promises';
 import { testConfig } from './testConfig.js';
 

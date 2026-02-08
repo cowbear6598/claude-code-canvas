@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'bun:test';
 import { isStaticFilesAvailable, serveStaticFile } from '../../src/utils/staticFileServer.js';
 
 describe('靜態檔案服務', () => {

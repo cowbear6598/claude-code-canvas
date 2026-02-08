@@ -1,4 +1,3 @@
-import {describe, it, expect, beforeEach, afterEach} from 'bun:test';
 import type {ScheduleConfig} from '../../src/types';
 
 // 測試用的內部 shouldFire 檢查函數

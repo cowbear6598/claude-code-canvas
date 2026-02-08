@@ -1,36 +1,36 @@
-import {describe, it, expect, beforeEach, mock, type Mock} from 'bun:test';
+import type { Mock } from 'vitest';
 
 // Mock 所有依賴模組（必須在 import 之前）
-mock.module('../../src/services/claude/queryService.js', () => ({
+vi.mock('../../src/services/claude/queryService.js', () => ({
     claudeQueryService: {
-        sendMessage: mock(() => Promise.resolve({})),
+        sendMessage: vi.fn(() => Promise.resolve({})),
     },
 }));
 
-mock.module('../../src/services/socketService.js', () => ({
+vi.mock('../../src/services/socketService.js', () => ({
     socketService: {
-        emitToCanvas: mock(() => {}),
+        emitToCanvas: vi.fn(() => {}),
     },
 }));
 
-mock.module('../../src/services/messageStore.js', () => ({
+vi.mock('../../src/services/messageStore.js', () => ({
     messageStore: {
-        upsertMessage: mock(() => {}),
-        flushWrites: mock(() => Promise.resolve()),
+        upsertMessage: vi.fn(() => {}),
+        flushWrites: vi.fn(() => Promise.resolve()),
     },
 }));
 
-mock.module('../../src/services/podStore.js', () => ({
+vi.mock('../../src/services/podStore.js', () => ({
     podStore: {
-        setStatus: mock(() => {}),
-        updateLastActive: mock(() => {}),
+        setStatus: vi.fn(() => {}),
+        updateLastActive: vi.fn(() => {}),
     },
 }));
 
-mock.module('../../src/utils/logger.js', () => ({
+vi.mock('../../src/utils/logger.js', () => ({
     logger: {
-        log: mock(() => {}),
-        error: mock(() => {}),
+        log: vi.fn(() => {}),
+        error: vi.fn(() => {}),
     },
 }));
 
@@ -330,7 +330,7 @@ describe('executeStreamingChat', () => {
                 {type: 'complete'},
             ]);
 
-            const onComplete = mock(() => {});
+            const onComplete = vi.fn(() => {});
 
             await executeStreamingChat(
                 {
@@ -382,7 +382,7 @@ describe('executeStreamingChat', () => {
                 {type: 'text', content: 'Hello'},
             ]);
 
-            const onAborted = mock(() => {});
+            const onAborted = vi.fn(() => {});
 
             const result = await executeStreamingChat(
                 {
@@ -420,7 +420,7 @@ describe('executeStreamingChat', () => {
         it('AbortError + supportAbort=false 時 re-throw', async () => {
             mockSendMessageWithAbort();
 
-            const onAborted = mock(() => {});
+            const onAborted = vi.fn(() => {});
 
             // 驗證函式 throw AbortError
             await expect(
@@ -454,7 +454,7 @@ describe('executeStreamingChat', () => {
                 }
             );
 
-            const onAborted = mock(() => {});
+            const onAborted = vi.fn(() => {});
 
             const result = await executeStreamingChat(
                 {
@@ -480,7 +480,7 @@ describe('executeStreamingChat', () => {
             const testError = new Error('Claude API 錯誤');
             mockSendMessageWithError(testError);
 
-            const onError = mock(() => {});
+            const onError = vi.fn(() => {});
 
             // 驗證函式 throw Error
             await expect(

@@ -1,5 +1,3 @@
-import {mock} from 'bun:test';
-
 interface MockSummaryResult {
     success: boolean;
     summary?: string;
@@ -8,7 +6,7 @@ interface MockSummaryResult {
 
 let mockResult: MockSummaryResult = {success: true, summary: 'Mock summary'};
 
-const mockGenerateSummaryForTarget = mock(
+const mockGenerateSummaryForTarget = vi.fn(
     async (
         _canvasId: string,
         _sourcePodId: string,
@@ -28,7 +26,7 @@ const mockGenerateSummaryForTarget = mock(
     }
 );
 
-mock.module('../../src/services/summaryService.js', () => ({
+vi.mock('../../src/services/summaryService.js', () => ({
     summaryService: {
         generateSummaryForTarget: mockGenerateSummaryForTarget,
     },

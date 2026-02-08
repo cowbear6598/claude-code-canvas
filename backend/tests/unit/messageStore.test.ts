@@ -1,10 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 import { mkdir, rm } from 'fs/promises';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { messageStore } from '../../src/services/messageStore';
 import { canvasStore } from '../../src/services/canvasStore';
 import { chatPersistenceService } from '../../src/services/persistence/chatPersistence';
 import type { PersistedMessage } from '../../src/types';
+
+// 相容 Node.js 和 Bun：import.meta.dir 是 Bun 專屬，Node.js 需要用 fileURLToPath
+const __dirname = import.meta.dir ?? dirname(fileURLToPath(import.meta.url));
 
 describe('MessageStore upsertMessage', () => {
   let tempDir: string;
@@ -14,11 +17,11 @@ describe('MessageStore upsertMessage', () => {
 
   beforeEach(async () => {
     // 建立臨時測試目錄
-    tempDir = join(import.meta.dir, `temp-test-${Date.now()}`);
+    tempDir = join(__dirname, `temp-test-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
 
     // Mock canvasStore.getCanvasDir 回傳測試目錄
-    getCanvasDirSpy = spyOn(canvasStore, 'getCanvasDir').mockReturnValue(tempDir);
+    getCanvasDirSpy = vi.spyOn(canvasStore, 'getCanvasDir').mockReturnValue(tempDir);
 
     // 清空記憶體中的訊息並等待之前的寫入佇列完成
     await messageStore.flushWrites(podId);
@@ -27,7 +30,7 @@ describe('MessageStore upsertMessage', () => {
 
   afterEach(async () => {
     // 清理
-    getCanvasDirSpy.mockRestore();
+    vi.restoreAllMocks();
     await rm(tempDir, { recursive: true, force: true });
   });
 
@@ -77,7 +80,7 @@ describe('MessageStore upsertMessage', () => {
     const callOrder: string[] = [];
     const originalUpsert = chatPersistenceService.upsertMessage.bind(chatPersistenceService);
 
-    chatPersistenceService.upsertMessage = mock(async (canvasDir: string, podId: string, message: PersistedMessage) => {
+    chatPersistenceService.upsertMessage = vi.fn(async (canvasDir: string, podId: string, message: PersistedMessage) => {
       callOrder.push(message.content);
       return originalUpsert(canvasDir, podId, message);
     });

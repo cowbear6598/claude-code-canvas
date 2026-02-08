@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import { v4 as uuidv4 } from 'uuid';
 import type { PastePodItem, PasteConnectionItem } from '../../src/schemas';
 import type { PasteError } from '../../src/types/index.js';
@@ -37,9 +36,9 @@ describe('Paste Helpers', () => {
       const newPodId = uuidv4();
 
       // Mock repository 存在
-      const existsSpy = spyOn(repositoryService, 'exists').mockResolvedValue(true);
+      const existsSpy = vi.spyOn(repositoryService, 'exists').mockResolvedValue(true);
       allSpies.push(existsSpy as any);
-      const pathSpy = spyOn(repositoryService, 'getRepositoryPath').mockReturnValue('/test/repo/path');
+      const pathSpy = vi.spyOn(repositoryService, 'getRepositoryPath').mockReturnValue('/test/repo/path');
       allSpies.push(pathSpy as any);
 
       // Mock podStore.create - 使用 prototype mock 方式
@@ -78,13 +77,13 @@ describe('Paste Helpers', () => {
         }
       });
 
-      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(undefined);
+      const getByIdSpy = vi.spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
       // Mock workspace and session
-      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
+      const createWorkspaceSpy = vi.spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
       allSpies.push(createWorkspaceSpy as any);
-      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
+      const createSessionSpy = vi.spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
       allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
@@ -119,7 +118,7 @@ describe('Paste Helpers', () => {
       const originalPodId = uuidv4();
 
       // Mock repository 不存在
-      const existsSpy = spyOn(repositoryService, 'exists').mockResolvedValue(false);
+      const existsSpy = vi.spyOn(repositoryService, 'exists').mockResolvedValue(false);
       allSpies.push(existsSpy as any);
 
       const pods: PastePodItem[] = [
@@ -161,7 +160,7 @@ describe('Paste Helpers', () => {
       const newPodId = uuidv4();
 
       // 確保 exists 不被呼叫，先 mock 一個回傳值（雖然不應該被呼叫）
-      const existsSpy = spyOn(repositoryService, 'exists').mockResolvedValue(true);
+      const existsSpy = vi.spyOn(repositoryService, 'exists').mockResolvedValue(true);
       allSpies.push(existsSpy as any);
 
       // Mock podStore.create
@@ -200,13 +199,13 @@ describe('Paste Helpers', () => {
         }
       });
 
-      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(undefined);
+      const getByIdSpy = vi.spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
       // Mock workspace and session
-      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
+      const createWorkspaceSpy = vi.spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
       allSpies.push(createWorkspaceSpy as any);
-      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
+      const createSessionSpy = vi.spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
       allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
@@ -245,12 +244,12 @@ describe('Paste Helpers', () => {
       const newPodId = uuidv4();
 
       // First pod 的 repository 不存在
-      const existsSpy = spyOn(repositoryService, 'exists')
+      const existsSpy = vi.spyOn(repositoryService, 'exists')
         .mockResolvedValueOnce(false) // First call for failing pod
         .mockResolvedValueOnce(true); // Second call for success pod
       allSpies.push(existsSpy as any);
 
-      const pathSpy = spyOn(repositoryService, 'getRepositoryPath').mockReturnValue('/test/repo/path');
+      const pathSpy = vi.spyOn(repositoryService, 'getRepositoryPath').mockReturnValue('/test/repo/path');
       allSpies.push(pathSpy as any);
 
       // Mock successful pod creation
@@ -289,13 +288,13 @@ describe('Paste Helpers', () => {
         }
       });
 
-      const getByIdSpy = spyOn(podStore, 'getById').mockReturnValue(undefined);
+      const getByIdSpy = vi.spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
       // Mock workspace and session
-      const createWorkspaceSpy = spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
+      const createWorkspaceSpy = vi.spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
       allSpies.push(createWorkspaceSpy as any);
-      const createSessionSpy = spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
+      const createSessionSpy = vi.spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
       allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
@@ -362,7 +361,7 @@ describe('Paste Helpers', () => {
         createdAt: new Date(),
       };
 
-      const createConnSpy = spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
+      const createConnSpy = vi.spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
       allSpies.push(createConnSpy as any);
 
       const connections: PasteConnectionItem[] = [
@@ -515,7 +514,7 @@ describe('Paste Helpers', () => {
         createdAt: new Date(),
       };
 
-      const createConnSpy = spyOn(connectionStore, 'create')
+      const createConnSpy = vi.spyOn(connectionStore, 'create')
         .mockReturnValueOnce(mockConnection1)
         .mockReturnValueOnce(mockConnection2);
       allSpies.push(createConnSpy as any);
@@ -584,7 +583,7 @@ describe('Paste Helpers', () => {
         createdAt: new Date(),
       };
 
-      const createConnSpy = spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
+      const createConnSpy = vi.spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
       allSpies.push(createConnSpy as any);
 
       // 沒有提供 triggerMode

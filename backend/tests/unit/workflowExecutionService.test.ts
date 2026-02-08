@@ -1,102 +1,100 @@
-import { describe, it, expect, beforeEach, mock, spyOn } from 'bun:test';
-
 // Mock dependencies
-mock.module('../../src/services/connectionStore.js', () => ({
+vi.mock('../../src/services/connectionStore.js', () => ({
   connectionStore: {
-    findBySourcePodId: mock(),
-    getById: mock(),
-    updateDecideStatus: mock(),
-    updateConnectionStatus: mock(),
+    findBySourcePodId: vi.fn(),
+    getById: vi.fn(),
+    updateDecideStatus: vi.fn(),
+    updateConnectionStatus: vi.fn(),
   },
 }));
 
-mock.module('../../src/services/podStore.js', () => ({
+vi.mock('../../src/services/podStore.js', () => ({
   podStore: {
-    getById: mock(),
-    setStatus: mock(),
+    getById: vi.fn(),
+    setStatus: vi.fn(),
   },
 }));
 
-mock.module('../../src/services/messageStore.js', () => ({
+vi.mock('../../src/services/messageStore.js', () => ({
   messageStore: {
-    getMessages: mock(),
-    upsertMessage: mock(),
-    flushWrites: mock(),
+    getMessages: vi.fn(),
+    upsertMessage: vi.fn(),
+    flushWrites: vi.fn(),
   },
 }));
 
-mock.module('../../src/services/summaryService.js', () => ({
+vi.mock('../../src/services/summaryService.js', () => ({
   summaryService: {
-    generateSummaryForTarget: mock(),
+    generateSummaryForTarget: vi.fn(),
   },
 }));
 
-mock.module('../../src/services/pendingTargetStore.js', () => ({
+vi.mock('../../src/services/pendingTargetStore.js', () => ({
   pendingTargetStore: {
-    hasPendingTarget: mock(),
-    getPendingTarget: mock(),
-    clearPendingTarget: mock(),
+    hasPendingTarget: vi.fn(),
+    getPendingTarget: vi.fn(),
+    clearPendingTarget: vi.fn(),
   },
 }));
 
-mock.module('../../src/services/workflow/workflowStateService.js', () => ({
+vi.mock('../../src/services/workflow/workflowStateService.js', () => ({
   workflowStateService: {
-    checkMultiInputScenario: mock(),
-    initializePendingTarget: mock(),
-    recordSourceCompletion: mock(),
-    recordSourceRejection: mock(),
-    getCompletedSummaries: mock(),
-    clearPendingTarget: mock(),
+    checkMultiInputScenario: vi.fn(),
+    initializePendingTarget: vi.fn(),
+    recordSourceCompletion: vi.fn(),
+    recordSourceRejection: vi.fn(),
+    getCompletedSummaries: vi.fn(),
+    clearPendingTarget: vi.fn(),
   },
 }));
 
-mock.module('../../src/services/workflow/workflowEventEmitter.js', () => ({
+vi.mock('../../src/services/workflow/workflowEventEmitter.js', () => ({
   workflowEventEmitter: {
-    emitWorkflowAutoTriggered: mock(),
-    emitWorkflowTriggered: mock(),
-    emitAiDecidePending: mock(),
-    emitAiDecideResult: mock(),
-    emitAiDecideError: mock(),
-    emitWorkflowQueued: mock(),
+    emitWorkflowAutoTriggered: vi.fn(),
+    emitWorkflowTriggered: vi.fn(),
+    emitAiDecidePending: vi.fn(),
+    emitAiDecideResult: vi.fn(),
+    emitAiDecideError: vi.fn(),
+    emitWorkflowQueued: vi.fn(),
   },
 }));
 
-mock.module('../../src/services/workflow/aiDecideService.js', () => ({
+vi.mock('../../src/services/workflow/aiDecideService.js', () => ({
   aiDecideService: {
-    decideConnections: mock(),
+    decideConnections: vi.fn(),
   },
 }));
 
-mock.module('../../src/services/autoClear/index.js', () => ({
+vi.mock('../../src/services/autoClear/index.js', () => ({
   autoClearService: {
-    initializeWorkflowTracking: mock(),
+    initializeWorkflowTracking: vi.fn(),
   },
 }));
 
-mock.module('../../src/utils/logger.js', () => ({
+vi.mock('../../src/utils/logger.js', () => ({
   logger: {
-    log: mock(),
-    error: mock(),
+    log: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
-mock.module('../../src/services/socketService.js', () => ({
+vi.mock('../../src/services/socketService.js', () => ({
   socketService: {
-    emitToCanvas: mock(),
+    emitToCanvas: vi.fn(),
   },
 }));
 
-mock.module('../../src/services/claude/queryService.js', () => ({
+vi.mock('../../src/services/claude/queryService.js', () => ({
   claudeQueryService: {
-    executeChatInPod: mock(),
-    sendMessage: mock(async () => {}),
+    executeChatInPod: vi.fn(),
+    sendMessage: vi.fn(async () => {}),
   },
 }));
 
-mock.module('../../src/services/commandService.js', () => ({
+vi.mock('../../src/services/commandService.js', () => ({
   commandService: {
-    getContent: mock(),
-    list: mock(async () => []),
+    getContent: vi.fn(),
+    list: vi.fn(async () => []),
   },
 }));
 
@@ -532,7 +530,7 @@ describe('WorkflowExecutionService', () => {
         ])
       );
 
-      const enqueueSpy = spyOn(workflowQueueService, 'enqueue');
+      const enqueueSpy = vi.spyOn(workflowQueueService, 'enqueue');
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, source1PodId);
 
@@ -605,7 +603,7 @@ describe('WorkflowExecutionService', () => {
         ])
       );
 
-      const enqueueSpy = spyOn(workflowQueueService, 'enqueue');
+      const enqueueSpy = vi.spyOn(workflowQueueService, 'enqueue');
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, source1PodId);
 

@@ -1,4 +1,3 @@
-import {describe, it, expect, beforeAll, afterAll} from 'bun:test';
 import {v4 as uuidv4} from 'uuid';
 import {
     createTestServer,
@@ -42,7 +41,7 @@ describe('Canvas 管理', () => {
     beforeAll(async () => {
         server = await createTestServer();
         client = await createSocketClient(server.baseUrl, server.canvasId);
-    }, 30000);
+    });
 
     afterAll(async () => {
         if (client?.connected) await disconnectSocket(client);

@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach } from 'bun:test';
 import { directTriggerStore } from '../../src/services/directTriggerStore.js';
 
 describe('DirectTriggerStore', () => {

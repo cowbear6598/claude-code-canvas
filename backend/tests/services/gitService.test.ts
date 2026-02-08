@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeAll, afterAll, mock } from 'bun:test';
 import {
   gitService,
   detectGitSource,

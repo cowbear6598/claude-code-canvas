@@ -1,10 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach, spyOn, mock } from 'bun:test';
 import type { ContentBlock } from '../../src/types';
 
 // Mock query function
 let mockQueryGenerator: any;
 
-// Import 真實模組
+// 使用 vi.mock() 來 mock @anthropic-ai/claude-agent-sdk 的 query export
+// ESM 模組的 namespace 是 readonly，無法用 vi.spyOn 修改
+vi.mock('@anthropic-ai/claude-agent-sdk', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@anthropic-ai/claude-agent-sdk')>();
+  return {
+    ...original,
+    query: vi.fn((...args: any[]) => mockQueryGenerator(...args)),
+  };
+});
+
+// Import 真實模組（必須在 vi.mock 之後）
 import { claudeQueryService, type StreamEvent } from '../../src/services/claude/queryService.js';
 import * as claudeAgentSdk from '@anthropic-ai/claude-agent-sdk';
 import { podStore } from '../../src/services/podStore.js';
@@ -14,104 +23,36 @@ import { config } from '../../src/config';
 
 describe('Claude QueryService', () => {
   let streamEvents: StreamEvent[];
-
-  // 追蹤所有在測試中創建的 spy，以便在 afterEach 中還原
-  let spies: Array<ReturnType<typeof spyOn>> = [];
-
-  /**
-   * 輔助函數：安全地 spy 或重置已存在的 mock
-   * 如果方法已經是 mock（由其他測試的 mock.module 建立），則重置它
-   * 否則建立新的 spy
-   */
-  const setupMock = <T extends object, K extends keyof T>(
-    obj: T,
-    method: K,
-    mockConfig: { returnValue?: any; implementation?: any; resolvedValue?: any }
-  ) => {
-    const target = obj[method];
-
-    // 如果目標不存在或是 undefined，說明被其他測試的 mock.module 污染但沒有正確初始化
-    // 我們需要創建一個新的 mock 函數
-    if (target === undefined || target === null) {
-      const newMock = mock();
-      (obj as any)[method] = newMock;
-
-      if ('returnValue' in mockConfig) {
-        newMock.mockReturnValue(mockConfig.returnValue);
-      } else if ('implementation' in mockConfig) {
-        newMock.mockImplementation(mockConfig.implementation);
-      } else if ('resolvedValue' in mockConfig) {
-        newMock.mockResolvedValue(mockConfig.resolvedValue);
-      }
-      return; // 不加入 spies，因為這是替換已污染的模組
-    }
-
-    // 檢查是否已經是 mock 函數（由其他測試的 mock.module 建立）
-    if (typeof target === 'function' && 'mockReturnValue' in target) {
-      // 已經是 mock，清空並重新設定
-      (target as any).mockClear?.();
-      if ('returnValue' in mockConfig) {
-        (target as any).mockReturnValue(mockConfig.returnValue);
-      } else if ('implementation' in mockConfig) {
-        (target as any).mockImplementation(mockConfig.implementation);
-      } else if ('resolvedValue' in mockConfig) {
-        (target as any).mockResolvedValue(mockConfig.resolvedValue);
-      }
-      return; // 不加入 spies，因為不是我們創建的
-    }
-
-    // 真實函數，使用 spyOn
-    const spy = spyOn(obj, method as any);
-    if ('returnValue' in mockConfig) {
-      spy.mockReturnValue(mockConfig.returnValue);
-    } else if ('implementation' in mockConfig) {
-      spy.mockImplementation(mockConfig.implementation);
-    } else if ('resolvedValue' in mockConfig) {
-      spy.mockResolvedValue(mockConfig.resolvedValue);
-    }
-    spies.push(spy);
-  };
+  let originalRepositoriesRoot: string;
 
   beforeEach(() => {
-    // 清空 spy 陣列
-    spies = [];
-
     streamEvents = [];
     mockQueryGenerator = null;
 
     // 保存原始 config.repositoriesRoot 並設定測試值
-    const originalRepositoriesRoot = config.repositoriesRoot;
+    originalRepositoriesRoot = config.repositoriesRoot;
     (config as any).repositoriesRoot = '/test/repos';
 
-    // 在 afterEach 恢復原始值時需要這個
-    spies.push({
-      mockRestore: () => {
-        (config as any).repositoriesRoot = originalRepositoriesRoot;
-      }
-    } as any);
-
     // podStore
-    setupMock(podStore, 'getByIdGlobal', { returnValue: null });
-    setupMock(podStore, 'setClaudeSessionId', { implementation: () => {} });
+    vi.spyOn(podStore, 'getByIdGlobal').mockReturnValue(null);
+    vi.spyOn(podStore, 'setClaudeSessionId').mockImplementation(() => {});
 
     // outputStyleService
-    setupMock(outputStyleService, 'getContent', { resolvedValue: null });
+    vi.spyOn(outputStyleService, 'getContent').mockResolvedValue(null);
 
     // logger
-    setupMock(logger, 'log', { implementation: () => {} });
+    vi.spyOn(logger, 'log').mockImplementation(() => {});
 
-    // claudeAgentSdk.query
-    setupMock(claudeAgentSdk, 'query', {
-      implementation: () => mockQueryGenerator()
-    });
+    // claudeAgentSdk.query 已透過頂層 vi.mock() 處理
+    // 每次測試前清除呼叫紀錄
+    (claudeAgentSdk.query as any).mockClear();
   });
 
   afterEach(() => {
-    // 還原所有測試中創建的 spy，避免跨檔案污染
-    spies.forEach((spy) => {
-      spy.mockRestore();
-    });
-    spies = [];
+    // 恢復原始 config 值
+    (config as any).repositoriesRoot = originalRepositoriesRoot;
+
+    vi.restoreAllMocks();
   });
 
   const createMockPod = (overrides = {}) => ({

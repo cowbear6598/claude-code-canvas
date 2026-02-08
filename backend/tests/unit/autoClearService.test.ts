@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, spyOn } from 'bun:test';
 import { autoClearService } from '../../src/services/autoClear';
 import { connectionStore } from '../../src/services/connectionStore.js';
 import { podStore } from '../../src/services/podStore.js';
@@ -21,7 +20,7 @@ describe('AutoClearService 單元測試', () => {
       const podC = createMockPod('C');
 
       // Mock connectionStore
-      spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [createMockConnection(podA.id, podB.id, 'auto')];
         }
@@ -47,7 +46,7 @@ describe('AutoClearService 單元測試', () => {
       const podC = createMockPod('C');
 
       // Mock connectionStore
-      spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [
             createMockConnection(podA.id, podB.id, 'auto'),
@@ -74,7 +73,7 @@ describe('AutoClearService 單元測試', () => {
       const podC = createMockPod('C');
 
       // Mock connectionStore - 創建循環
-      spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [createMockConnection(podA.id, podB.id, 'auto')];
         }
@@ -100,7 +99,7 @@ describe('AutoClearService 單元測試', () => {
       const podD = createMockPod('D');
 
       // A -> B (auto-trigger), A -> C (no auto-trigger), B -> D (auto-trigger)
-      spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [
             createMockConnection(podA.id, podB.id, 'auto'),
@@ -130,7 +129,7 @@ describe('AutoClearService 單元測試', () => {
       const podD = createMockPod('D');
       const podE = createMockPod('E');
 
-      spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [
             createMockConnection(podA.id, podB.id, 'auto'),
@@ -162,8 +161,8 @@ describe('AutoClearService 單元測試', () => {
     it('當 Pod 不存在時，不執行初始化', () => {
       const podId = uuidv4();
 
-      spyOn(podStore, 'getById').mockReturnValue(undefined);
-      spyOn(terminalPodTracker, 'initializeTracking');
+      vi.spyOn(podStore, 'getById').mockReturnValue(undefined);
+      vi.spyOn(terminalPodTracker, 'initializeTracking');
 
       autoClearService.initializeWorkflowTracking(canvasId, podId);
 
@@ -173,8 +172,8 @@ describe('AutoClearService 單元測試', () => {
     it('當 Pod 沒有 autoClear 時，不執行初始化', () => {
       const pod = createMockPod('A', false);
 
-      spyOn(podStore, 'getById').mockReturnValue(pod);
-      spyOn(terminalPodTracker, 'initializeTracking');
+      vi.spyOn(podStore, 'getById').mockReturnValue(pod);
+      vi.spyOn(terminalPodTracker, 'initializeTracking');
 
       autoClearService.initializeWorkflowTracking(canvasId, pod.id);
 
@@ -184,9 +183,9 @@ describe('AutoClearService 單元測試', () => {
     it('當 Pod 沒有 outgoing auto-trigger 時，不執行初始化', () => {
       const pod = createMockPod('A', true);
 
-      spyOn(podStore, 'getById').mockReturnValue(pod);
-      spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
-      spyOn(terminalPodTracker, 'initializeTracking');
+      vi.spyOn(podStore, 'getById').mockReturnValue(pod);
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+      vi.spyOn(terminalPodTracker, 'initializeTracking');
 
       autoClearService.initializeWorkflowTracking(canvasId, pod.id);
 
@@ -198,8 +197,8 @@ describe('AutoClearService 單元測試', () => {
       const podB = createMockPod('B', true);
 
       // A -> B -> A (循環)
-      spyOn(podStore, 'getById').mockReturnValue(podA);
-      spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+      vi.spyOn(podStore, 'getById').mockReturnValue(podA);
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [createMockConnection(podA.id, podB.id, 'auto')];
         }
@@ -208,7 +207,7 @@ describe('AutoClearService 單元測試', () => {
         }
         return [];
       });
-      spyOn(terminalPodTracker, 'initializeTracking');
+      vi.spyOn(terminalPodTracker, 'initializeTracking');
 
       autoClearService.initializeWorkflowTracking(canvasId, podA.id);
 
@@ -221,8 +220,8 @@ describe('AutoClearService 單元測試', () => {
       const podC = createMockPod('C', true);
 
       // A -> B, A -> C
-      spyOn(podStore, 'getById').mockReturnValue(podA);
-      spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+      vi.spyOn(podStore, 'getById').mockReturnValue(podA);
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [
             createMockConnection(podA.id, podB.id, 'auto'),
@@ -231,7 +230,7 @@ describe('AutoClearService 單元測試', () => {
         }
         return [];
       });
-      spyOn(terminalPodTracker, 'initializeTracking');
+      vi.spyOn(terminalPodTracker, 'initializeTracking');
 
       autoClearService.initializeWorkflowTracking(canvasId, podA.id);
 
@@ -246,8 +245,8 @@ describe('AutoClearService 單元測試', () => {
     it('Pod 不存在時，不執行任何操作', async () => {
       const podId = uuidv4();
 
-      spyOn(podStore, 'getById').mockReturnValue(undefined);
-      spyOn(autoClearService, 'executeAutoClear');
+      vi.spyOn(podStore, 'getById').mockReturnValue(undefined);
+      vi.spyOn(autoClearService, 'executeAutoClear');
 
       await autoClearService.onPodComplete(canvasId, podId);
 
@@ -257,13 +256,13 @@ describe('AutoClearService 單元測試', () => {
     it('Pod 沒有 autoClear 時，不執行清除', async () => {
       const pod = createMockPod('A', false);
 
-      spyOn(podStore, 'getById').mockReturnValue(pod);
-      spyOn(terminalPodTracker, 'recordCompletion').mockReturnValue({
+      vi.spyOn(podStore, 'getById').mockReturnValue(pod);
+      vi.spyOn(terminalPodTracker, 'recordCompletion').mockReturnValue({
         allComplete: false,
         sourcePodId: null,
       });
-      spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
-      spyOn(autoClearService, 'executeAutoClear');
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+      vi.spyOn(autoClearService, 'executeAutoClear');
 
       await autoClearService.onPodComplete(canvasId, pod.id);
 
@@ -274,15 +273,15 @@ describe('AutoClearService 單元測試', () => {
       const podA = createMockPod('A', true);
       const podB = createMockPod('B', true);
 
-      spyOn(podStore, 'getById').mockReturnValue(podA);
-      spyOn(terminalPodTracker, 'recordCompletion').mockReturnValue({
+      vi.spyOn(podStore, 'getById').mockReturnValue(podA);
+      vi.spyOn(terminalPodTracker, 'recordCompletion').mockReturnValue({
         allComplete: false,
         sourcePodId: null,
       });
-      spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([
         createMockConnection(podA.id, podB.id, 'auto'),
       ]);
-      spyOn(autoClearService, 'executeAutoClear');
+      vi.spyOn(autoClearService, 'executeAutoClear');
 
       await autoClearService.onPodComplete(canvasId, podA.id);
 
@@ -292,13 +291,13 @@ describe('AutoClearService 單元測試', () => {
     it('Pod 是獨立的 terminal 時，立即清除', async () => {
       const pod = createMockPod('A', true);
 
-      spyOn(podStore, 'getById').mockReturnValue(pod);
-      spyOn(terminalPodTracker, 'recordCompletion').mockReturnValue({
+      vi.spyOn(podStore, 'getById').mockReturnValue(pod);
+      vi.spyOn(terminalPodTracker, 'recordCompletion').mockReturnValue({
         allComplete: false,
         sourcePodId: null,
       });
-      spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
-      spyOn(autoClearService, 'executeAutoClear').mockResolvedValue();
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+      vi.spyOn(autoClearService, 'executeAutoClear').mockResolvedValue();
 
       await autoClearService.onPodComplete(canvasId, pod.id);
 
@@ -309,13 +308,13 @@ describe('AutoClearService 單元測試', () => {
       const podA = createMockPod('A', true);
       const sourcePodId = uuidv4();
 
-      spyOn(podStore, 'getById').mockReturnValue(podA);
-      spyOn(terminalPodTracker, 'recordCompletion').mockReturnValue({
+      vi.spyOn(podStore, 'getById').mockReturnValue(podA);
+      vi.spyOn(terminalPodTracker, 'recordCompletion').mockReturnValue({
         allComplete: true,
         sourcePodId: sourcePodId,
       });
-      spyOn(terminalPodTracker, 'clearTracking');
-      spyOn(autoClearService, 'executeAutoClear').mockResolvedValue();
+      vi.spyOn(terminalPodTracker, 'clearTracking');
+      vi.spyOn(autoClearService, 'executeAutoClear').mockResolvedValue();
 
       await autoClearService.onPodComplete(canvasId, podA.id);
 
@@ -328,7 +327,7 @@ describe('AutoClearService 單元測試', () => {
     it('當沒有 outgoing connections 時，返回 false', () => {
       const podId = uuidv4();
 
-      spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
 
       const result = autoClearService.hasOutgoingAutoTrigger(canvasId, podId);
 
@@ -339,7 +338,7 @@ describe('AutoClearService 單元測試', () => {
       const podA = createMockPod('A');
 
       // Mock 沒有任何 outgoing connections
-      spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
 
       const result = autoClearService.hasOutgoingAutoTrigger(canvasId, podA.id);
 
@@ -351,7 +350,7 @@ describe('AutoClearService 單元測試', () => {
       const podB = createMockPod('B');
       const podC = createMockPod('C');
 
-      spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([
         createMockConnection(podA.id, podB.id),
         createMockConnection(podA.id, podC.id, 'auto'),
       ]);

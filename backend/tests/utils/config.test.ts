@@ -1,5 +1,3 @@
-import { describe, it, expect } from 'bun:test';
-
 describe('Config - GitLab URL 驗證', () => {
   const originalEnv = process.env.GITLAB_URL;
 

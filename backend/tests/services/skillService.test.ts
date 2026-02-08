@@ -1,11 +1,10 @@
-import {describe, test, expect, beforeAll, afterAll} from 'bun:test';
 import {skillService} from '../../src/services/skillService';
 import fs from 'fs/promises';
 import path from 'path';
 import {config} from '../../src/config';
 import {zipSync} from 'fflate';
 
-const TEST_SKILLS_DIR = path.join(config.skillsPath, '__test_skill_security__');
+const TEST_SKILLS_DIR = path.join(config.skillsPath, '__it_skill_security__');
 
 beforeAll(async () => {
     await fs.mkdir(TEST_SKILLS_DIR, {recursive: true});
@@ -35,7 +34,7 @@ function createTestZip(files: Record<string, string | Uint8Array>): string {
 
 describe('Skill Service Security Tests', () => {
     describe('Zip Bomb 防護', () => {
-        test('應該拒絕超過 100 個檔案的 ZIP', async () => {
+        it('應該拒絕超過 100 個檔案的 ZIP', async () => {
             const files: Record<string, string> = {
                 'SKILL.md': '# Test Skill\n\nTest content',
             };
@@ -48,11 +47,11 @@ describe('Skill Service Security Tests', () => {
             const base64Data = createTestZip(files);
 
             await expect(
-                skillService.import('test-skill.zip', base64Data, base64Data.length)
+                skillService.import('it-skill.zip', base64Data, base64Data.length)
             ).rejects.toThrow('ZIP 檔案內容過多，最多允許 100 個檔案');
         });
 
-        test('應該拒絕單檔超過 1MB 的 ZIP', async () => {
+        it('應該拒絕單檔超過 1MB 的 ZIP', async () => {
             const largeContent = new Uint8Array(1.5 * 1024 * 1024); // 1.5MB
             largeContent.fill(65); // 填充 'A'
 
@@ -64,11 +63,11 @@ describe('Skill Service Security Tests', () => {
             const base64Data = createTestZip(files);
 
             await expect(
-                skillService.import('test-skill.zip', base64Data, base64Data.length)
+                skillService.import('it-skill.zip', base64Data, base64Data.length)
             ).rejects.toThrow('ZIP 內包含超過 1MB 的單一檔案');
         });
 
-        test('應該拒絕解壓後總大小超過 10MB 的 ZIP', async () => {
+        it('應該拒絕解壓後總大小超過 10MB 的 ZIP', async () => {
             const files: Record<string, Uint8Array> = {
                 'SKILL.md': new TextEncoder().encode('# Test Skill\n\nTest content'),
             };
@@ -83,11 +82,11 @@ describe('Skill Service Security Tests', () => {
             const base64Data = createTestZip(files);
 
             await expect(
-                skillService.import('test-skill.zip', base64Data, base64Data.length)
+                skillService.import('it-skill.zip', base64Data, base64Data.length)
             ).rejects.toThrow('解壓縮後檔案總大小超過 10MB 限制');
         });
 
-        test('應該接受符合大小限制的 ZIP', async () => {
+        it('應該接受符合大小限制的 ZIP', async () => {
             const files = {
                 'SKILL.md': '# Test Skill\n\nTest content',
                 'file1.txt': 'content 1',
@@ -95,19 +94,19 @@ describe('Skill Service Security Tests', () => {
             };
 
             const base64Data = createTestZip(files);
-            const fileName = 'valid-test-skill.zip';
+            const fileName = 'valid-it-skill.zip';
 
             const result = await skillService.import(fileName, base64Data, base64Data.length);
 
-            expect(result.skill.id).toBe('valid-test-skill');
+            expect(result.skill.id).toBe('valid-it-skill');
 
             // 清理
-            await skillService.delete('valid-test-skill');
+            await skillService.delete('valid-it-skill');
         });
     });
 
     describe('路徑遍歷防護', () => {
-        test('應該拒絕不安全的檔名（路徑遍歷）', async () => {
+        it('應該拒絕不安全的檔名（路徑遍歷）', async () => {
             const files = {
                 'SKILL.md': '# Test Skill',
             };
@@ -119,7 +118,7 @@ describe('Skill Service Security Tests', () => {
             ).rejects.toThrow('檔名格式不正確');
         });
 
-        test('應該拒絕包含特殊字元的檔名', async () => {
+        it('應該拒絕包含特殊字元的檔名', async () => {
             const files = {
                 'SKILL.md': '# Test Skill',
             };
@@ -131,7 +130,7 @@ describe('Skill Service Security Tests', () => {
             ).rejects.toThrow('檔名格式不正確');
         });
 
-        test('應該接受合法的檔名', async () => {
+        it('應該接受合法的檔名', async () => {
             const files = {
                 'SKILL.md': '# Valid Skill\n\nTest content',
             };
@@ -149,15 +148,15 @@ describe('Skill Service Security Tests', () => {
     });
 
     describe('檔案格式驗證', () => {
-        test('應該拒絕非 ZIP 檔案', async () => {
+        it('應該拒絕非 ZIP 檔案', async () => {
             const notZipData = Buffer.from('This is not a zip file').toString('base64');
 
             await expect(
-                skillService.import('test.zip', notZipData, notZipData.length)
+                skillService.import('it.zip', notZipData, notZipData.length)
             ).rejects.toThrow('解壓縮失敗，請確認 ZIP 檔案完整性');
         });
 
-        test('應該拒絕超過 5MB 的壓縮檔', async () => {
+        it('應該拒絕超過 5MB 的壓縮檔', async () => {
             const largeData = Buffer.alloc(6 * 1024 * 1024).toString('base64');
 
             await expect(
@@ -167,7 +166,7 @@ describe('Skill Service Security Tests', () => {
     });
 
     describe('ZIP 結構驗證', () => {
-        test('應該拒絕缺少 SKILL.md 的 ZIP', async () => {
+        it('應該拒絕缺少 SKILL.md 的 ZIP', async () => {
             const files = {
                 'readme.txt': 'No SKILL.md here',
             };
@@ -179,7 +178,7 @@ describe('Skill Service Security Tests', () => {
             ).rejects.toThrow('ZIP 檔案內找不到 SKILL.md');
         });
 
-        test('應該拒絕 SKILL.md 在子目錄的 ZIP', async () => {
+        it('應該拒絕 SKILL.md 在子目錄的 ZIP', async () => {
             const files = {
                 'subdir/SKILL.md': '# Nested Skill',
             };
