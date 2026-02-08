@@ -5,9 +5,10 @@ import type { Message, MessageRole, ToolUseInfo, ToolUseStatus } from '@/types/c
 import type { BaseNote } from '@/types/note'
 import type { OutputStyleNote } from '@/types/outputStyle'
 import type { SkillNote } from '@/types/skill'
-import type { RepositoryNote } from '@/types/repository'
-import type { SubAgentNote } from '@/types/subAgent'
+import type { Repository, RepositoryNote } from '@/types/repository'
+import type { SubAgentNote, SubAgent } from '@/types/subAgent'
 import type { CommandNote } from '@/types/command'
+import type { Group } from '@/types/group'
 
 // 計數器
 let canvasCounter = 0
@@ -16,6 +17,9 @@ let connectionCounter = 0
 let messageCounter = 0
 let noteCounter = 0
 let scheduleCounter = 0
+let repositoryCounter = 0
+let subAgentCounter = 0
+let groupCounter = 0
 
 /**
  * 建立 Mock Canvas
@@ -174,5 +178,57 @@ export function createMockNote(
         ...baseNote,
         commandId: `command-${noteCounter}`,
       } as CommandNote
+  }
+}
+
+/**
+ * 建立 Mock Repository
+ */
+export function createMockRepository(overrides?: Partial<Repository>): Repository {
+  const id = `repo-${++repositoryCounter}`
+  return {
+    id,
+    name: `Repository ${repositoryCounter}`,
+    isGit: false,
+    ...overrides,
+  }
+}
+
+/**
+ * 建立 Mock RepositoryNote
+ */
+export function createMockRepositoryNote(overrides?: Partial<RepositoryNote>): RepositoryNote {
+  return createMockNote('repository', overrides) as RepositoryNote
+}
+
+/**
+ * 建立 Mock SubAgent
+ */
+export function createMockSubAgent(overrides?: Partial<SubAgent>): SubAgent {
+  return {
+    id: `subagent-${++subAgentCounter}`,
+    name: `SubAgent ${subAgentCounter}`,
+    description: `Description for SubAgent ${subAgentCounter}`,
+    groupId: null,
+    ...overrides,
+  }
+}
+
+/**
+ * 建立 Mock SubAgentNote
+ */
+export function createMockSubAgentNote(overrides?: Partial<SubAgentNote>): SubAgentNote {
+  return createMockNote('subAgent', overrides) as SubAgentNote
+}
+
+/**
+ * 建立 Mock Group
+ */
+export function createMockGroup(overrides?: Partial<Group>): Group {
+  return {
+    id: `group-${++groupCounter}`,
+    name: `Group ${groupCounter}`,
+    type: 'subagent',
+    ...overrides,
   }
 }

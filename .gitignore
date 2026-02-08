@@ -1,0 +1,16 @@
+# Test coverage
+coverage/
+
+# Logs
+logs
+*.log
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
