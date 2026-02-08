@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Skill(vue)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "WebSearch",
+      "Bash(npm init:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run lint)",
+      "Bash(npm test)",
+      "Bash(npm run build:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm run dev:*)",
+      "Bash(xargs ls:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(tree:*)",
+      "Skill(nodejs)",
+      "Bash(node:*)",
+      "Bash(npx vue-tsc:*)",
+      "Bash(ls:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run:*)",
+      "Bash(find:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx eslint:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(~/.bun/bin/bun test:*)",
+      "Bash(bun test:*)",
+      "Bash(bun run:*)",
+      "Bash(git push:*)"
+    ]
+  },
+  "outputStyle": "conductor"
+}
