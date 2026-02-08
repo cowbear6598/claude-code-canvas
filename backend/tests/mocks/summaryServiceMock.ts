@@ -31,3 +31,6 @@ vi.mock('../../src/services/summaryService.js', () => ({
         generateSummaryForTarget: mockGenerateSummaryForTarget,
     },
 }));
+
+// 確保此檔案為有效的模組（匯出空物件）
+export {};

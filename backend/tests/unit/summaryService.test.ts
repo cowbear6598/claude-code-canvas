@@ -19,7 +19,7 @@ describe('SummaryService', () => {
     commandId: null,
     outputStyleId: null,
     status: 'idle' as const,
-  };
+  } as any;
 
   const mockTargetPod = {
     id: 'target-pod',
@@ -31,24 +31,20 @@ describe('SummaryService', () => {
     commandId: null,
     outputStyleId: null,
     status: 'idle' as const,
-  };
+  } as any;
 
-  const mockMessages = [
+  const mockMessages: any[] = [
     {
       id: 'msg-1',
-      podId: 'source-pod',
       role: 'user' as const,
       content: 'Hello',
-      timestamp: Date.now(),
-      toolUse: null,
+      timestamp: new Date().toISOString(),
     },
     {
       id: 'msg-2',
-      podId: 'source-pod',
       role: 'assistant' as const,
       content: 'Hi there!',
-      timestamp: Date.now(),
-      toolUse: null,
+      timestamp: new Date().toISOString(),
     },
   ];
 
@@ -60,10 +56,10 @@ describe('SummaryService', () => {
     vi.spyOn(outputStyleService, 'getContent').mockResolvedValue(null);
 
     // podStore
-    vi.spyOn(podStore, 'getById').mockImplementation((canvasId: string, podId: string) => {
+    vi.spyOn(podStore, 'getById').mockImplementation((_canvasId: string, podId: string) => {
       if (podId === 'source-pod') return mockSourcePod;
       if (podId === 'target-pod') return mockTargetPod;
-      return null;
+      return undefined;
     });
 
     // messageStore

@@ -18,11 +18,11 @@ describe('WorkflowQueueService', () => {
     workflowQueueService.clearQueue('target-pod-2');
 
     // podStore
-    vi.spyOn(podStore, 'getById').mockReturnValue({ id: targetPodId, status: 'idle' });
+    vi.spyOn(podStore, 'getById').mockReturnValue({ id: targetPodId, status: 'idle' } as any);
     vi.spyOn(podStore, 'setStatus').mockImplementation(() => {});
 
     // connectionStore
-    vi.spyOn(connectionStore, 'updateConnectionStatus').mockImplementation(() => {});
+    vi.spyOn(connectionStore, 'updateConnectionStatus').mockImplementation((() => {}) as any);
 
     // workflowEventEmitter
     vi.spyOn(workflowEventEmitter, 'emitWorkflowQueued').mockImplementation(() => {});

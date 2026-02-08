@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { PastePodItem, PasteConnectionItem } from '../../src/schemas';
-import type { PasteError } from '../../src/types/index.js';
+import type { PasteError } from '../../src/types';
 
 describe('Paste Helpers', () => {
   let canvasId: string;

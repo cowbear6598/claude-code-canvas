@@ -96,11 +96,11 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
         vi.spyOn(connectionStore, 'updateConnectionStatus').mockImplementation(() => undefined);
 
         // podStore
-        vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+        vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
             if (podId === sourcePodId) return {...mockSourcePod};
             if (podId.startsWith('target-pod')) return {...mockTargetPod, id: podId, name: `Target ${podId}`};
             return undefined;
-        });
+        }) as any);
         vi.spyOn(podStore, 'setStatus').mockImplementation(() => {});
         vi.spyOn(podStore, 'updateLastActive').mockImplementation(() => {});
 
@@ -153,7 +153,7 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
         // directTriggerStore
         vi.spyOn(directTriggerStore, 'hasDirectPending').mockReturnValue(false);
         vi.spyOn(directTriggerStore, 'initializeDirectPending').mockImplementation(() => {});
-        vi.spyOn(directTriggerStore, 'recordDirectReady').mockImplementation(() => {});
+        vi.spyOn(directTriggerStore, 'recordDirectReady').mockImplementation((() => {}) as any);
         vi.spyOn(directTriggerStore, 'clearDirectPending').mockImplementation(() => {});
         vi.spyOn(directTriggerStore, 'hasActiveTimer').mockReturnValue(false);
         vi.spyOn(directTriggerStore, 'clearTimer').mockImplementation(() => {});
@@ -161,7 +161,8 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
         vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(new Map());
 
         // claudeQueryService
-        vi.spyOn(claudeQueryService, 'sendMessage').mockImplementation(async (_podId: string, _message: string, callback: any) => {
+        (vi.spyOn(claudeQueryService, 'sendMessage') as any).mockImplementation(async (...args: any[]) => {
+            const callback = args[2] as any;
             callback({type: 'text', content: 'Response text'});
             callback({type: 'complete'});
         });
@@ -218,10 +219,10 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
             // 設定此測試需要的 mock 行為
             vi.spyOn(connectionStore, 'getById').mockReturnValue(queuedConnection);
             vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
-            vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+            vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
                 if (podId === targetPodId) return {...mockTargetPod, status: 'idle'};
                 return {...mockSourcePod, id: podId};
-            });
+            }) as any);
 
             // 呼叫 processNextInQueue
             await workflowQueueService.processNextInQueue(canvasId, targetPodId);
@@ -255,11 +256,11 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
             // 準備一個 connection 和 target pod
             vi.spyOn(connectionStore, 'getById').mockReturnValue(mockAutoConnection);
             vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
-            vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+            vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
                 if (podId === targetPodId) return {...mockTargetPod, status: 'idle'};
                 if (podId === sourcePodId) return mockSourcePod;
                 return undefined;
-            });
+            }) as any);
 
             // Mock processNextInQueue 為一個會延遲的 Promise
             let processNextInQueueCalled = false;
@@ -310,14 +311,14 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
 
             vi.spyOn(connectionStore, 'getById').mockReturnValue(directConn);
             vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
-            vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+            vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
                 if (podId === directConn.targetPodId) return {
                     ...mockTargetPod,
                     id: directConn.targetPodId,
                     status: 'idle'
                 };
                 return {...mockSourcePod, id: podId};
-            });
+            }) as any);
 
             // 直接呼叫 triggerWorkflowWithSummary 測試 skipAutoTriggeredEvent = true
             await workflowExecutionService.triggerWorkflowWithSummary(
@@ -343,14 +344,14 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
 
             vi.spyOn(connectionStore, 'getById').mockReturnValue(autoConn);
             vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
-            vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+            vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
                 if (podId === autoConn.targetPodId) return {
                     ...mockTargetPod,
                     id: autoConn.targetPodId,
                     status: 'idle'
                 };
                 return {...mockSourcePod, id: podId};
-            });
+            }) as any);
 
             // 直接呼叫 triggerWorkflowWithSummary 測試 skipAutoTriggeredEvent = false
             await workflowExecutionService.triggerWorkflowWithSummary(
@@ -477,11 +478,11 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
 
             vi.spyOn(connectionStore, 'getById').mockReturnValue(conn);
             vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
-            vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+            vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
                 if (podId === 'target-fail') return {...mockTargetPod, id: 'target-fail', status: 'idle'};
                 if (podId === sourcePodId) return mockSourcePod;
                 return undefined;
-            });
+            }) as any);
 
             // Mock sendMessage 拋出錯誤
             const testError = new Error('Claude query failed');

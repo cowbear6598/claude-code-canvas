@@ -41,7 +41,7 @@ describe('測試環境設定', () => {
     // 在連線之前設置監聽器
     const readyPromise = waitForEvent<ConnectionReadyPayload>(socket, 'connection:ready');
     socket.connect();
-    // 只等待 readyPromise，不要再次調用 waitForConnection（它內部也會等待 connection:ready）
+
     await socket.waitForOpen();
     const payload = await readyPromise;
     expect(payload.socketId).toBeDefined();

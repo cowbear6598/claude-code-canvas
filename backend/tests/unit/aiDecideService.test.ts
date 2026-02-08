@@ -26,7 +26,7 @@ describe('AiDecideService', () => {
     commandId: null,
     outputStyleId: null,
     status: 'idle' as const,
-  };
+  } as any;
 
   const mockTargetPod = {
     id: 'target-pod',
@@ -38,7 +38,7 @@ describe('AiDecideService', () => {
     commandId: null,
     outputStyleId: null,
     status: 'idle' as const,
-  };
+  } as any;
 
   const mockMessages = [
     {
@@ -46,7 +46,7 @@ describe('AiDecideService', () => {
       podId: 'source-pod',
       role: 'user' as const,
       content: 'Analyze this data',
-      timestamp: Date.now(),
+      timestamp: new Date().toISOString(),
       toolUse: null,
     },
     {
@@ -54,7 +54,7 @@ describe('AiDecideService', () => {
       podId: 'source-pod',
       role: 'assistant' as const,
       content: 'Analysis complete: found 3 issues',
-      timestamp: Date.now(),
+      timestamp: new Date().toISOString(),
       toolUse: null,
     },
   ];
@@ -77,7 +77,7 @@ describe('AiDecideService', () => {
     vi.spyOn(podStore, 'getById').mockImplementation((canvasId: string, podId: string) => {
       if (podId === 'source-pod') return mockSourcePod;
       if (podId === 'target-pod') return mockTargetPod;
-      return null;
+      return undefined;
     });
 
     // messageStore

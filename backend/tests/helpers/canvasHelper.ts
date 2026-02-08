@@ -1,18 +1,14 @@
-import type { TestWebSocketClient } from '../setup';
-import { v4 as uuidv4 } from 'uuid';
-import { emitAndWaitResponse } from '../setup';
+import type {TestWebSocketClient} from '../setup';
+import {emitAndWaitResponse} from '../setup';
+import {v4 as uuidv4} from 'uuid';
 import {
-  WebSocketRequestEvents,
-  WebSocketResponseEvents,
-  type CanvasCreatePayload,
-  type CanvasListPayload,
-  type CanvasReorderPayload,
+    type CanvasCreatePayload,
+    type CanvasListPayload,
+    type CanvasReorderPayload,
+    WebSocketRequestEvents,
+    WebSocketResponseEvents,
 } from '../../src/schemas';
-import {
-  type CanvasCreatedPayload,
-  type CanvasListResultPayload,
-  type CanvasReorderedPayload,
-} from '../../src/types';
+import {type CanvasCreatedPayload, type CanvasListResultPayload, type CanvasReorderedPayload,} from '../../src/types';
 
 export async function getCanvasId(client: TestWebSocketClient): Promise<string> {
   if (!client.id) {
@@ -86,12 +82,10 @@ export async function reorderCanvases(
     canvasIds,
   };
 
-  const response = await emitAndWaitResponse<CanvasReorderPayload, CanvasReorderedPayload>(
-    client,
-    WebSocketRequestEvents.CANVAS_REORDER,
-    WebSocketResponseEvents.CANVAS_REORDERED,
-    payload
+  return await emitAndWaitResponse<CanvasReorderPayload, CanvasReorderedPayload>(
+      client,
+      WebSocketRequestEvents.CANVAS_REORDER,
+      WebSocketResponseEvents.CANVAS_REORDERED,
+      payload
   );
-
-  return response;
 }

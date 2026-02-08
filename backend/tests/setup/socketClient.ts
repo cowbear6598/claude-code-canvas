@@ -41,7 +41,7 @@ export class TestWebSocketClient {
 
     this.ws.onmessage = (event) => {
       try {
-        const response: WebSocketResponse = deserialize(event.data);
+        const response: WebSocketResponse = deserialize(event.data) as WebSocketResponse;
 
         // 處理連線就緒事件，設定 socket ID
         if (response.type === 'connection:ready' && response.payload) {
@@ -230,41 +230,6 @@ export async function emitAndWaitResponse<TReq, TRes>(
   // 等待回應
   return responsePromise;
 }
-
-/**
- * 收集多個事件
- * 用於監聽會被多次觸發的事件（如 streaming）
- */
-export function collectEvents<T>(
-  socket: TestWebSocketClient,
-  eventName: string,
-  stopEvent: string,
-  timeout: number = 5000
-): Promise<T[]> {
-  return new Promise<T[]>((resolve, reject) => {
-    const events: T[] = [];
-    const timer = setTimeout(() => {
-      socket.off(eventName, eventHandler);
-      socket.off(stopEvent, stopHandler);
-      reject(new Error(`Timeout collecting events: ${eventName}`));
-    }, timeout);
-
-    const eventHandler = (data: T) => {
-      events.push(data);
-    };
-
-    const stopHandler = () => {
-      clearTimeout(timer);
-      socket.off(eventName, eventHandler);
-      socket.off(stopEvent, stopHandler);
-      resolve(events);
-    };
-
-    socket.on(eventName, eventHandler);
-    socket.on(stopEvent, stopHandler);
-  });
-}
-
 /**
  * 斷開 Socket 連線
  */
@@ -284,12 +249,4 @@ export function disconnectSocket(socket: TestWebSocketClient): Promise<void> {
 export function createSocketClientNoConnect(baseUrl: string): TestWebSocketClient {
   const wsUrl = baseUrl.replace(/^http/, 'ws');
   return new TestWebSocketClient(wsUrl, false);
-}
-
-/**
- * 等待 Socket 連線完成
- */
-export async function waitForConnection(socket: TestWebSocketClient, timeout: number = 5000): Promise<void> {
-  await socket.waitForOpen();
-  await waitForEvent(socket, 'connection:ready', timeout);
 }

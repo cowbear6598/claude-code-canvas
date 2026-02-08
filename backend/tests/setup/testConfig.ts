@@ -12,15 +12,6 @@ process.setMaxListeners(50);
 // Console Mock - 隱藏所有測試期間的 console 輸出
 // =============================================================================
 
-// 保存原始的 console 方法（如果需要在特定測試中恢復）
-export const originalConsole = {
-  log: console.log,
-  error: console.error,
-  warn: console.warn,
-  info: console.info,
-  debug: console.debug,
-};
-
 // Mock 所有 console 方法 - 必須在最早期就執行
 console.log = () => {};
 console.error = () => {};

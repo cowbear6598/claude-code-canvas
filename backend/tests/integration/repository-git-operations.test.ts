@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { $ } from 'bun';
 import fs from 'fs/promises';
-import type { TestWebSocketClient } from '../setup/socketClient.js';
+import type { TestWebSocketClient } from '../setup';
 import {
     closeTestServer,
     createSocketClient,
@@ -10,19 +10,19 @@ import {
     disconnectSocket,
     emitAndWaitResponse,
     type TestServerInstance,
-} from '../setup/index.js';
-import { createRepository, getCanvasId } from '../helpers/index.js';
-import { initGitRepo, cleanupRepo } from '../helpers/gitTestHelper.js';
+} from '../setup';
+import { createRepository, getCanvasId } from '../helpers';
+import { initGitRepo, cleanupRepo } from '../helpers';
 import {
     WebSocketRequestEvents,
     WebSocketResponseEvents,
     type RepositoryGetLocalBranchesPayload,
     type RepositoryWorktreeCreatePayload,
-} from '../../src/schemas/index.js';
+} from '../../src/schemas';
 import {
     type RepositoryLocalBranchesResultPayload,
     type RepositoryWorktreeCreatedPayload,
-} from '../../src/types/index.js';
+} from '../../src/types';
 
 describe('Repository Git 操作', () => {
     describe('智慧分支切換', () => {

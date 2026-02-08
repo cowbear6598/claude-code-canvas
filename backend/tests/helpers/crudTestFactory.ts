@@ -1,8 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
-import { emitAndWaitResponse } from '../setup/socketClient.js';
+import { emitAndWaitResponse } from '../setup';
 import { getCanvasId } from './canvasHelper.js';
 import { createPod } from './podHelper.js';
-import { FAKE_UUID } from './testConstants.js';
 
 export interface CRUDTestConfig {
   resourceName: string;

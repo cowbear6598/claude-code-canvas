@@ -1,10 +1,7 @@
 import type { ContentBlock } from '../../src/types';
 
-// Mock query function
 let mockQueryGenerator: any;
 
-// 使用 vi.mock() 來 mock @anthropic-ai/claude-agent-sdk 的 query export
-// ESM 模組的 namespace 是 readonly，無法用 vi.spyOn 修改
 vi.mock('@anthropic-ai/claude-agent-sdk', async (importOriginal) => {
   const original = await importOriginal<typeof import('@anthropic-ai/claude-agent-sdk')>();
   return {
@@ -34,7 +31,7 @@ describe('Claude QueryService', () => {
     (config as any).repositoriesRoot = '/test/repos';
 
     // podStore
-    vi.spyOn(podStore, 'getByIdGlobal').mockReturnValue(null);
+    vi.spyOn(podStore, 'getByIdGlobal').mockReturnValue(null as any);
     vi.spyOn(podStore, 'setClaudeSessionId').mockImplementation(() => {});
 
     // outputStyleService

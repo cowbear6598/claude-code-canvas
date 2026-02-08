@@ -58,7 +58,8 @@ describe('executeStreamingChat', () => {
     // Helper: 設定 sendMessage mock 來產生特定事件序列
     function mockSendMessageWithEvents(events: Array<{type: string; [key: string]: unknown}>) {
         asMock(claudeQueryService.sendMessage).mockImplementation(
-            async (_podId: string, _message: unknown, callback: (event: any) => void, _connectionId: string) => {
+            async (...args: any[]) => {
+                const callback = args[2] as (event: any) => void;
                 for (const event of events) {
                     callback(event);
                 }
@@ -70,7 +71,8 @@ describe('executeStreamingChat', () => {
     // Helper: 設定 sendMessage mock 拋出 AbortError
     function mockSendMessageWithAbort(eventsBeforeAbort: Array<{type: string; [key: string]: unknown}> = []) {
         asMock(claudeQueryService.sendMessage).mockImplementation(
-            async (_podId: string, _message: unknown, callback: (event: any) => void, _connectionId: string) => {
+            async (...args: any[]) => {
+                const callback = args[2] as (event: any) => void;
                 for (const event of eventsBeforeAbort) {
                     callback(event);
                 }
@@ -448,7 +450,8 @@ describe('executeStreamingChat', () => {
         it('SDK AbortError 實例也正確處理', async () => {
             // 使用真正的 AbortError 類別
             asMock(claudeQueryService.sendMessage).mockImplementation(
-                async (_podId: string, _message: unknown, callback: (event: any) => void, _connectionId: string) => {
+                async (...args: any[]) => {
+                    const callback = args[2] as (event: any) => void;
                     callback({type: 'text', content: 'Hello'});
                     throw new AbortError('SDK abort');
                 }

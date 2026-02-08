@@ -88,22 +88,23 @@ describe('Direct Trigger Flow', () => {
     vi.spyOn(connectionStore, 'updateConnectionStatus').mockImplementation(() => undefined);
 
     // podStore
-    vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+    vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
       if (podId === sourcePodId) return { ...mockSourcePod };
       if (podId === targetPodId) return { ...mockTargetPod };
       return undefined;
-    });
+    }) as any);
     vi.spyOn(podStore, 'setStatus').mockImplementation(() => {});
     vi.spyOn(podStore, 'updateLastActive').mockImplementation(() => {});
 
     // messageStore
-    vi.spyOn(messageStore, 'getMessages').mockReturnValue(mockMessages);
-    vi.spyOn(messageStore, 'addMessage').mockResolvedValue(undefined);
+    vi.spyOn(messageStore, 'getMessages').mockReturnValue(mockMessages as any);
+    vi.spyOn(messageStore, 'addMessage').mockResolvedValue(undefined as any);
     vi.spyOn(messageStore, 'upsertMessage').mockImplementation(() => {});
     vi.spyOn(messageStore, 'flushWrites').mockResolvedValue(undefined);
 
     // summaryService
     vi.spyOn(summaryService, 'generateSummaryForTarget').mockResolvedValue({
+      targetPodId: '',
       success: true,
       summary: testSummary,
     });
@@ -147,7 +148,8 @@ describe('Direct Trigger Flow', () => {
     vi.spyOn(workflowEventEmitter, 'emitDirectMerged').mockImplementation(() => {});
 
     // claudeQueryService
-    vi.spyOn(claudeQueryService, 'sendMessage').mockImplementation(async (podId: string, message: string, callback: any) => {
+    (vi.spyOn(claudeQueryService, 'sendMessage') as any).mockImplementation(async (...args: any[]) => {
+      const callback = args[2] as any;
       callback({ type: 'text', content: 'Claude response' });
       callback({ type: 'complete' });
     });
@@ -176,11 +178,11 @@ describe('Direct Trigger Flow', () => {
       // 準備
       vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([mockDirectConnection]);
       vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(1);
-      vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+      vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
         if (podId === sourcePodId) return { ...mockSourcePod };
         if (podId === targetPodId) return { ...mockTargetPod, status: 'idle' };
         return undefined;
-      });
+      }) as any);
 
       // Mock triggerWorkflowWithSummary 避免執行完整工作流
       const triggerSpy = vi.spyOn(workflowExecutionService, 'triggerWorkflowWithSummary').mockResolvedValue(undefined);
@@ -218,11 +220,11 @@ describe('Direct Trigger Flow', () => {
       // 準備
       vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([mockDirectConnection]);
       vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(1);
-      vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+      vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
         if (podId === sourcePodId) return { ...mockSourcePod };
         if (podId === targetPodId) return { ...mockTargetPod, status: 'chatting' };
         return undefined;
-      });
+      }) as any);
 
       const enqueueSpy = vi.spyOn(workflowQueueService, 'enqueue').mockImplementation(() => ({ position: 1, queueSize: 1 }));
 
@@ -314,11 +316,11 @@ describe('Direct Trigger Flow', () => {
       const readySummaries = new Map([[sourcePodId, testSummary]]);
       vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(readySummaries);
       vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([mockDirectConnection]);
-      vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+      vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
         if (podId === sourcePodId) return { ...mockSourcePod };
         if (podId === targetPodId) return { ...mockTargetPod, status: 'idle' };
         return undefined;
-      });
+      }) as any);
 
       // Mock triggerWorkflowWithSummary 避免執行完整工作流
       const triggerSpy = vi.spyOn(workflowExecutionService, 'triggerWorkflowWithSummary').mockResolvedValue(undefined);
@@ -372,11 +374,11 @@ describe('Direct Trigger Flow', () => {
       // 準備
       vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(readySummaries);
       vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([mockDirectConnection, connection2]);
-      vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+      vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
         if (podId === sourcePodId || podId === source2PodId) return { ...mockSourcePod, id: podId };
         if (podId === targetPodId) return { ...mockTargetPod, status: 'idle' };
         return undefined;
-      });
+      }) as any);
 
       // Mock triggerWorkflowWithSummary 避免執行完整工作流
       let triggerCallCount = 0;
@@ -440,11 +442,11 @@ describe('Direct Trigger Flow', () => {
       vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(readySummaries);
       vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([mockDirectConnection, connection2]);
       vi.spyOn(directTriggerStore, 'hasDirectPending').mockReturnValue(false); // target 不在 direct pending 狀態
-      vi.spyOn(podStore, 'getById').mockImplementation((cId: string, podId: string) => {
+      vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
         if (podId === sourcePodId || podId === source2PodId) return { ...mockSourcePod, id: podId };
         if (podId === targetPodId) return { ...mockTargetPod, status: 'chatting' }; // target busy
         return undefined;
-      });
+      }) as any);
 
       const enqueueSpy = vi.spyOn(workflowQueueService, 'enqueue').mockImplementation(() => ({ position: 1, queueSize: 1 }));
 

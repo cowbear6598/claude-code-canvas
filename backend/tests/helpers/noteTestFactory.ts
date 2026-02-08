@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { emitAndWaitResponse } from '../setup/socketClient.js';
+import { emitAndWaitResponse } from '../setup';
 import { getCanvasId } from './canvasHelper.js';
 import { FAKE_UUID } from './testConstants.js';
 

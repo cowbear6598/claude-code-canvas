@@ -131,29 +131,3 @@ export async function createRepositoryNote(
   );
   return response.note!;
 }
-
-/**
- * 建立 OutputStyle Note
- */
-export async function createOutputStyleNote(
-  client: TestWebSocketClient,
-  outputStyleId: string
-) {
-  const canvasId = await getCanvasId(client);
-  const response = await emitAndWaitResponse<any, NoteCreatedPayload>(
-    client,
-    WebSocketRequestEvents.NOTE_CREATE,
-    WebSocketResponseEvents.NOTE_CREATED,
-    {
-      requestId: uuidv4(),
-      canvasId,
-      outputStyleId,
-      name: 'Test Note',
-      x: 100,
-      y: 200,
-      boundToPodId: null,
-      originalPosition: null,
-    }
-  );
-  return response.note!;
-}

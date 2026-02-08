@@ -1,11 +1,8 @@
 import type { PersistedMessage } from '../../src/types';
 
-// 確保測試使用真實的 summaryPromptBuilder 實例，而非其他測試的 mock
 let summaryPromptBuilder: any;
 
 beforeAll(async () => {
-  // 使用 vi.resetModules() 清除模組快取，取代帶 query string 的動態 import
-  // （vitest 不支援帶 query string 的動態 import）
   vi.resetModules();
   const module = await import('../../src/services/summaryPromptBuilder.js');
   summaryPromptBuilder = module.summaryPromptBuilder;
@@ -15,19 +12,15 @@ describe('SummaryPromptBuilder', () => {
   const mockMessages: PersistedMessage[] = [
     {
       id: 'msg-1',
-      podId: 'pod-1',
       role: 'user',
       content: 'Hello',
-      timestamp: Date.now(),
-      toolUse: null,
+      timestamp: new Date().toISOString(),
     },
     {
       id: 'msg-2',
-      podId: 'pod-1',
       role: 'assistant',
       content: 'Hi there!',
-      timestamp: Date.now(),
-      toolUse: null,
+      timestamp: new Date().toISOString(),
     },
   ];
 
