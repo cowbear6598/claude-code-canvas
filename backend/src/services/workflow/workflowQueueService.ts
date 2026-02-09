@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { TriggerMode } from '../../types';
+import type { TriggerMode } from '../../types/index.js';
 import { podStore } from '../podStore.js';
 import { connectionStore } from '../connectionStore.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
@@ -17,8 +17,27 @@ export interface QueueItem {
   enqueuedAt: Date;
 }
 
+// 定義需要的 ExecutionService 方法介面（避免循環依賴）
+interface ExecutionServiceMethods {
+  triggerWorkflowWithSummary(
+    canvasId: string,
+    connectionId: string,
+    summary: string,
+    isSummarized: boolean,
+    skipAutoTriggeredEvent?: boolean
+  ): Promise<void>;
+}
+
 class WorkflowQueueService {
   private queues: Map<string, QueueItem[]> = new Map();
+  private executionService?: ExecutionServiceMethods;
+
+  /**
+   * 初始化依賴注入
+   */
+  init(dependencies: { executionService: ExecutionServiceMethods }): void {
+    this.executionService = dependencies.executionService;
+  }
 
   enqueue(item: Omit<QueueItem, 'id' | 'enqueuedAt'>): { position: number; queueSize: number } {
     const queueItem: QueueItem = {
@@ -84,6 +103,10 @@ class WorkflowQueueService {
   }
 
   async processNextInQueue(canvasId: string, targetPodId: string): Promise<void> {
+    if (!this.executionService) {
+      throw new Error('WorkflowQueueService 尚未初始化，請先呼叫 init()');
+    }
+
     const targetPod = podStore.getById(canvasId, targetPodId);
     if (!targetPod) {
       return;
@@ -113,9 +136,8 @@ class WorkflowQueueService {
 
     logger.log('Workflow', 'Update', `Processing queued workflow for target ${targetPodId}, ${remainingQueueSize} remaining`);
 
-    const { workflowExecutionService } = await import('./workflowExecutionService.js');
     const skipAutoTriggeredEvent = item.triggerMode === 'direct' || item.triggerMode === 'ai-decide';
-    await workflowExecutionService.triggerWorkflowWithSummary(
+    await this.executionService.triggerWorkflowWithSummary(
       canvasId,
       item.connectionId,
       item.summary,

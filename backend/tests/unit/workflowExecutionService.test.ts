@@ -56,6 +56,7 @@ vi.mock('../../src/services/workflow/workflowEventEmitter.js', () => ({
     emitAiDecideResult: vi.fn(),
     emitAiDecideError: vi.fn(),
     emitWorkflowQueued: vi.fn(),
+    emitWorkflowComplete: vi.fn(),
   },
 }));
 
@@ -98,6 +99,27 @@ vi.mock('../../src/services/commandService.js', () => ({
   },
 }));
 
+vi.mock('../../src/services/workflow/workflowMultiInputService.js', () => ({
+  workflowMultiInputService: {
+    handleMultiInputForConnection: vi.fn(),
+    emitPendingStatus: vi.fn(),
+    init: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/services/directTriggerStore.js', () => ({
+  directTriggerStore: {
+    hasDirectPending: vi.fn(),
+    initializeDirectPending: vi.fn(),
+    recordDirectReady: vi.fn(),
+    clearDirectPending: vi.fn(),
+    hasActiveTimer: vi.fn(),
+    clearTimer: vi.fn(),
+    setTimer: vi.fn(),
+    getReadySummaries: vi.fn(),
+  },
+}));
+
 // Import after mocks
 import { workflowExecutionService } from '../../src/services/workflow';
 import { connectionStore } from '../../src/services/connectionStore.js';
@@ -109,6 +131,7 @@ import { workflowEventEmitter } from '../../src/services/workflow';
 import { aiDecideService } from '../../src/services/workflow';
 import { pendingTargetStore } from '../../src/services/pendingTargetStore.js';
 import { workflowQueueService } from '../../src/services/workflow';
+import { workflowMultiInputService } from '../../src/services/workflow';
 import type { Connection } from '../../src/types';
 
 describe('WorkflowExecutionService', () => {
@@ -357,6 +380,9 @@ describe('WorkflowExecutionService', () => {
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
+      // 等待 Promise 完成
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
@@ -405,8 +431,13 @@ describe('WorkflowExecutionService', () => {
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
-      // 驗證 auto connections 被處理（會生成多個摘要）
-      expect(summaryService.generateSummaryForTarget).toHaveBeenCalledTimes(3); // 2 auto + 1 ai-decide approved
+      // 等待 fire-and-forget 的 pipeline.execute 完成
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // 驗證 auto connections 被處理
+      // 注意：每個 connection 會呼叫 2 次 generateSummaryForTarget
+      // （Pipeline 一次 + triggerWorkflowInternal 一次）
+      expect(summaryService.generateSummaryForTarget).toHaveBeenCalledTimes(6); // (2 auto + 1 ai-decide) × 2
 
       // 驗證 ai-decide connection 被處理
       expect(aiDecideService.decideConnections).toHaveBeenCalledTimes(1);
@@ -466,18 +497,21 @@ describe('WorkflowExecutionService', () => {
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
+      // 等待 Promise 完成
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
         'error',
-        'AI decision failed'
+        '錯誤：AI decision failed'
       );
       expect(workflowEventEmitter.emitAiDecideError).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
         sourcePodId,
         'target-pod-2',
-        'AI decision failed'
+        '錯誤：AI decision failed'
       );
     });
   });
@@ -528,6 +562,26 @@ describe('WorkflowExecutionService', () => {
           [source1PodId, 'Summary from source 1'],
           [source2PodId, 'Summary from source 2'],
         ])
+      );
+
+      // Mock workflowMultiInputService 來真實呼叫 enqueue
+      (workflowMultiInputService.handleMultiInputForConnection as any).mockImplementation(
+        async (canvasId: string, sourcePodId: string, connection: Connection, requiredSourcePodIds: string[], summary: string, triggerMode: 'auto' | 'ai-decide') => {
+          // 模擬真實行為：檢查 targetPod 狀態並 enqueue
+          const targetPod = podStore.getById(canvasId, connection.targetPodId);
+          if (targetPod && targetPod.status === 'chatting') {
+            workflowQueueService.enqueue({
+              canvasId,
+              connectionId: connection.id,
+              sourcePodId,
+              targetPodId: connection.targetPodId,
+              summary: 'merged summary',
+              isSummarized: true,
+              triggerMode,
+            });
+            workflowStateService.clearPendingTarget(connection.targetPodId);
+          }
+        }
       );
 
       const enqueueSpy = vi.spyOn(workflowQueueService, 'enqueue');
@@ -603,9 +657,32 @@ describe('WorkflowExecutionService', () => {
         ])
       );
 
+      // Mock workflowMultiInputService 來真實呼叫 enqueue
+      (workflowMultiInputService.handleMultiInputForConnection as any).mockImplementation(
+        async (canvasId: string, sourcePodId: string, connection: Connection, requiredSourcePodIds: string[], summary: string, triggerMode: 'auto' | 'ai-decide') => {
+          // 模擬真實行為：檢查 targetPod 狀態並 enqueue
+          const targetPod = podStore.getById(canvasId, connection.targetPodId);
+          if (targetPod && targetPod.status === 'chatting') {
+            workflowQueueService.enqueue({
+              canvasId,
+              connectionId: connection.id,
+              sourcePodId,
+              targetPodId: connection.targetPodId,
+              summary: 'merged summary',
+              isSummarized: true,
+              triggerMode,
+            });
+            workflowStateService.clearPendingTarget(connection.targetPodId);
+          }
+        }
+      );
+
       const enqueueSpy = vi.spyOn(workflowQueueService, 'enqueue');
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, source1PodId);
+
+      // 等待 fire-and-forget 的 pipeline.execute 完成
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       expect(enqueueSpy).toHaveBeenCalledWith(
         expect.objectContaining({

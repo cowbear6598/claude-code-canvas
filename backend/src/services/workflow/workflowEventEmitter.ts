@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { socketService } from '../socketService.js';
-import { WebSocketResponseEvents } from '../../schemas';
+import { WebSocketResponseEvents } from '../../schemas/index.js';
 import type {
   WorkflowAutoTriggeredPayload,
   WorkflowPendingPayload,
@@ -14,7 +14,7 @@ import type {
   WorkflowQueuedPayload,
   WorkflowQueueProcessedPayload,
   WorkflowDirectMergedPayload,
-} from '../../types';
+} from '../../types/index.js';
 
 class WorkflowEventEmitter {
   emitWorkflowComplete(

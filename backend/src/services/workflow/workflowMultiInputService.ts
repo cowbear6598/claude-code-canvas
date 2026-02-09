@@ -1,9 +1,10 @@
-import {WebSocketResponseEvents} from '../../schemas';
+import {WebSocketResponseEvents} from '../../schemas/index.js';
 import type {
   WorkflowPendingPayload,
   WorkflowSourcesMergedPayload,
   Connection,
-} from '../../types';
+} from '../../types/index.js';
+import type { ExecutionServiceMethods } from './types.js';
 import {podStore} from '../podStore.js';
 import {socketService} from '../socketService.js';
 import {pendingTargetStore} from '../pendingTargetStore.js';
@@ -13,6 +14,14 @@ import {logger} from '../../utils/logger.js';
 import {formatMergedSummaries} from './workflowHelpers.js';
 
 class WorkflowMultiInputService {
+  private executionService!: ExecutionServiceMethods;
+
+  /**
+   * 初始化依賴注入
+   */
+  init(dependencies: { executionService: ExecutionServiceMethods }): void {
+    this.executionService = dependencies.executionService;
+  }
 
   emitPendingStatus(canvasId: string, targetPodId: string): void {
     const pending = pendingTargetStore.getPendingTarget(targetPodId);
@@ -52,8 +61,7 @@ class WorkflowMultiInputService {
     connection: Connection,
     requiredSourcePodIds: string[],
     summary: string,
-    triggerMode: 'auto' | 'ai-decide',
-    triggerMerged: (canvasId: string, connection: Connection) => void
+    triggerMode: 'auto' | 'ai-decide'
   ): Promise<void> {
     if (!pendingTargetStore.hasPendingTarget(connection.targetPodId)) {
       workflowStateService.initializePendingTarget(connection.targetPodId, requiredSourcePodIds);
@@ -78,7 +86,7 @@ class WorkflowMultiInputService {
 
     const completedSummaries = workflowStateService.getCompletedSummaries(connection.targetPodId);
     if (!completedSummaries) {
-      logger.error('Workflow', 'Error', 'Failed to get completed summaries');
+      logger.error('Workflow', 'Error', '無法取得已完成的摘要');
       return;
     }
 
@@ -105,19 +113,18 @@ class WorkflowMultiInputService {
       return;
     }
 
-    triggerMerged(canvasId, connection);
+    this.triggerMergedWorkflow(canvasId, connection);
   }
 
   triggerMergedWorkflow(
     canvasId: string,
-    connection: Connection,
-    triggerWithSummary: (canvasId: string, connectionId: string, summary: string, isSummarized: boolean, skipAutoTriggeredEvent?: boolean) => Promise<void>
+    connection: Connection
   ): void {
     logger.log('Workflow', 'Complete', `All sources complete for target ${connection.targetPodId}`);
 
     const completedSummaries = workflowStateService.getCompletedSummaries(connection.targetPodId);
     if (!completedSummaries) {
-      logger.error('Workflow', 'Error', 'Failed to get completed summaries');
+      logger.error('Workflow', 'Error', '無法取得已完成的摘要');
       return;
     }
 
@@ -143,8 +150,10 @@ class WorkflowMultiInputService {
       mergedPayload
     );
 
-    triggerWithSummary(canvasId, connection.id, mergedContent, true).catch((error) => {
-      logger.error('Workflow', 'Error', `Failed to trigger merged workflow ${connection.id}`, error);
+    this.executionService.triggerWorkflowWithSummary(canvasId, connection.id, mergedContent, true).catch((error) => {
+      logger.error('Workflow', 'Error', `觸發合併工作流程失敗 ${connection.id}`, error);
+      // 恢復 Pod 狀態
+      podStore.setStatus(canvasId, connection.targetPodId, 'idle');
     });
 
     workflowStateService.clearPendingTarget(connection.targetPodId);

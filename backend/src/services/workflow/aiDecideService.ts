@@ -7,7 +7,7 @@ import { outputStyleService } from '../outputStyleService.js';
 import { commandService } from '../commandService.js';
 import { disposableChatService } from '../claude/disposableChatService.js';
 import { summaryPromptBuilder } from '../summaryPromptBuilder.js';
-import type { Connection } from '../../types';
+import type { Connection } from '../../types/index.js';
 import { logger } from '../../utils/logger.js';
 import { getErrorMessage } from '../../utils/errorHelpers.js';
 

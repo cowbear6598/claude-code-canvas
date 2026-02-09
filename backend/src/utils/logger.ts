@@ -81,7 +81,8 @@ export type LogAction =
   | 'Switch'
   | 'Check'
   | 'Reorder'
-  | 'Abort';
+  | 'Abort'
+  | 'Pipeline';
 
 /**
  * 格式化 Category 為帶有顏色的字串

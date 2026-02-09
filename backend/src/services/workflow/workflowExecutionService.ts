@@ -1,35 +1,54 @@
 import {v4 as uuidv4} from 'uuid';
-import {WebSocketResponseEvents, SystemConnectionIds} from '../../schemas';
+import {WebSocketResponseEvents, SystemConnectionIds} from '../../schemas/index.js';
 import type {
-    WorkflowAutoTriggeredPayload,
-    Connection,
-} from '../../types';
+    WorkflowAutoTriggeredPayload
+} from '../../types/index.js';
+import type {
+  PipelineContext,
+  PipelineMethods,
+  AiDecideMethods,
+  AutoTriggerMethods,
+  DirectTriggerMethods,
+} from './types.js';
 import {connectionStore} from '../connectionStore.js';
 import {podStore} from '../podStore.js';
 import {messageStore} from '../messageStore.js';
 import {socketService} from '../socketService.js';
 import {summaryService} from '../summaryService.js';
-import {pendingTargetStore} from '../pendingTargetStore.js';
-import {workflowStateService} from './workflowStateService.js';
 import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {workflowQueueService} from './workflowQueueService.js';
-import {autoClearService} from '../autoClear';
+import {autoClearService} from '../autoClear/index.js';
 import {logger} from '../../utils/logger.js';
 import {commandService} from '../commandService.js';
-import {aiDecideService} from './aiDecideService.js';
 import {executeStreamingChat} from '../claude/streamingChatExecutor.js';
 import {
     buildTransferMessage,
     buildMessageWithCommand,
 } from './workflowHelpers.js';
-import {getErrorMessage} from '../../utils/errorHelpers.js';
 import {workflowAutoTriggerService} from './workflowAutoTriggerService.js';
-import {workflowMultiInputService} from './workflowMultiInputService.js';
-import {workflowDirectTriggerService} from './workflowDirectTriggerService.js';
 
 class WorkflowExecutionService {
+  private pipeline?: PipelineMethods;
+  private aiDecideTriggerService?: AiDecideMethods;
+  private autoTriggerService?: AutoTriggerMethods;
+  private directTriggerService?: DirectTriggerMethods;
 
-  private async generateSummaryWithFallback(
+  /**
+   * 初始化依賴（延遲注入，避免循環依賴）
+   */
+  init(deps: {
+    pipeline: PipelineMethods;
+    aiDecideTriggerService: AiDecideMethods;
+    autoTriggerService: AutoTriggerMethods;
+    directTriggerService: DirectTriggerMethods;
+  }): void {
+    this.pipeline = deps.pipeline;
+    this.aiDecideTriggerService = deps.aiDecideTriggerService;
+    this.autoTriggerService = deps.autoTriggerService;
+    this.directTriggerService = deps.directTriggerService;
+  }
+
+  async generateSummaryWithFallback(
     canvasId: string,
     sourcePodId: string,
     targetPodId: string
@@ -64,195 +83,10 @@ class WorkflowExecutionService {
     return fallback ? { content: fallback, isSummarized: false } : null;
   }
 
-  private async processAutoTriggerConnection(
-    canvasId: string,
-    sourcePodId: string,
-    connection: Connection
-  ): Promise<void> {
-    await workflowAutoTriggerService.processAutoTriggerConnection(
-      canvasId,
-      sourcePodId,
-      connection,
-      this.generateSummaryWithFallback.bind(this),
-      this.handleMultiInputForConnection.bind(this),
-      this.triggerWorkflowInternal.bind(this)
-    );
-  }
-
-  private emitPendingStatus(canvasId: string, targetPodId: string): void {
-    workflowMultiInputService.emitPendingStatus(canvasId, targetPodId);
-  }
-
-  private async handleMultiInputForConnection(
-    canvasId: string,
-    sourcePodId: string,
-    connection: Connection,
-    requiredSourcePodIds: string[],
-    summary: string,
-    triggerMode: 'auto' | 'ai-decide'
-  ): Promise<void> {
-    await workflowMultiInputService.handleMultiInputForConnection(
-      canvasId,
-      sourcePodId,
-      connection,
-      requiredSourcePodIds,
-      summary,
-      triggerMode,
-      this.triggerMergedWorkflow.bind(this)
-    );
-  }
-
-  private triggerMergedWorkflow(canvasId: string, connection: Connection): void {
-    workflowMultiInputService.triggerMergedWorkflow(
-      canvasId,
-      connection,
-      this.triggerWorkflowWithSummary.bind(this)
-    );
-  }
-
-  /**
-   * 處理 AI Decide connections 的批次判斷和觸發
-   */
-  private async processAiDecideConnections(
-    canvasId: string,
-    sourcePodId: string,
-    connections: Connection[]
-  ): Promise<void> {
-    // 1. 發送 PENDING 事件
-    const connectionIds = connections.map(conn => conn.id);
-    workflowEventEmitter.emitAiDecidePending(canvasId, connectionIds, sourcePodId);
-
-    // 2. 更新所有 connections 狀態為 pending
-    for (const conn of connections) {
-      connectionStore.updateDecideStatus(canvasId, conn.id, 'pending', null);
-    }
-
-    // 3. 呼叫 AI Decide Service（只包裹第三方服務呼叫）
-    let batchResult: Awaited<ReturnType<typeof aiDecideService.decideConnections>>;
-    try {
-      batchResult = await aiDecideService.decideConnections(canvasId, sourcePodId, connections);
-    } catch (error) {
-      logger.error('Workflow', 'Error', '[processAiDecideConnections] AI Decide Service failed', error);
-
-      // 所有 connections 標記為 error
-      for (const conn of connections) {
-        const errorMessage = getErrorMessage(error);
-        connectionStore.updateDecideStatus(canvasId, conn.id, 'error', errorMessage);
-
-        workflowEventEmitter.emitAiDecideError(
-          canvasId,
-          conn.id,
-          sourcePodId,
-          conn.targetPodId,
-          errorMessage
-        );
-      }
-      return;
-    }
-
-    // 4. 處理成功的判斷結果
-    for (const result of batchResult.results) {
-      const conn = connections.find(c => c.id === result.connectionId);
-      if (!conn) continue;
-
-      if (result.shouldTrigger) {
-        connectionStore.updateDecideStatus(canvasId, result.connectionId, 'approved', result.reason);
-
-        workflowEventEmitter.emitAiDecideResult(
-          canvasId,
-          result.connectionId,
-          sourcePodId,
-          conn.targetPodId,
-          true,
-          result.reason
-        );
-
-        logger.log('Workflow', 'Create', `AI Decide approved connection ${result.connectionId}: ${result.reason}`);
-
-        const { isMultiInput, requiredSourcePodIds } = workflowStateService.checkMultiInputScenario(
-          canvasId,
-          conn.targetPodId
-        );
-
-        if (isMultiInput) {
-          const summaryResult = await this.generateSummaryWithFallback(canvasId, sourcePodId, conn.targetPodId);
-          if (summaryResult) {
-            await this.handleMultiInputForConnection(
-              canvasId,
-              sourcePodId,
-              conn,
-              requiredSourcePodIds,
-              summaryResult.content,
-              'ai-decide'
-            );
-          }
-          continue;
-        }
-
-        const targetPod = podStore.getById(canvasId, conn.targetPodId);
-        if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
-          const summaryResult = await this.generateSummaryWithFallback(canvasId, sourcePodId, conn.targetPodId);
-          if (summaryResult) {
-            workflowQueueService.enqueue({
-              canvasId,
-              connectionId: conn.id,
-              sourcePodId,
-              targetPodId: conn.targetPodId,
-              summary: summaryResult.content,
-              isSummarized: summaryResult.isSummarized,
-              triggerMode: 'ai-decide',
-            });
-          }
-          continue;
-        }
-
-        this.triggerWorkflowInternal(canvasId, conn.id).catch((error) => {
-          logger.error('Workflow', 'Error', `Failed to trigger AI-decided workflow ${conn.id}`, error);
-        });
-      } else {
-        // Rejected - 不觸發
-        connectionStore.updateDecideStatus(canvasId, result.connectionId, 'rejected', result.reason);
-
-        workflowEventEmitter.emitAiDecideResult(
-          canvasId,
-          result.connectionId,
-          sourcePodId,
-          conn.targetPodId,
-          false,
-          result.reason
-        );
-
-        logger.log('Workflow', 'Update', `AI Decide rejected connection ${result.connectionId}: ${result.reason}`);
-
-        // 若 target Pod 在多輸入場景中，記錄 rejection
-        const { isMultiInput } = workflowStateService.checkMultiInputScenario(canvasId, conn.targetPodId);
-        if (isMultiInput && pendingTargetStore.hasPendingTarget(conn.targetPodId)) {
-          workflowStateService.recordSourceRejection(conn.targetPodId, sourcePodId, result.reason);
-          this.emitPendingStatus(canvasId, conn.targetPodId);
-        }
-      }
-    }
-
-    // 5. 處理錯誤結果
-    for (const errorResult of batchResult.errors) {
-      const conn = connections.find(c => c.id === errorResult.connectionId);
-      if (!conn) continue;
-
-      connectionStore.updateDecideStatus(canvasId, errorResult.connectionId, 'error', errorResult.error);
-
-      workflowEventEmitter.emitAiDecideError(
-        canvasId,
-        errorResult.connectionId,
-        sourcePodId,
-        conn.targetPodId,
-        errorResult.error
-      );
-
-      logger.error('Workflow', 'Error', `AI Decide error for connection ${errorResult.connectionId}: ${errorResult.error}`);
-    }
-  }
-
   async checkAndTriggerWorkflows(canvasId: string, sourcePodId: string): Promise<void> {
+    if (!this.pipeline || !this.aiDecideTriggerService || !this.autoTriggerService || !this.directTriggerService) {
+      throw new Error('WorkflowExecutionService 尚未初始化，請先呼叫 init()');
+    }
     const connections = connectionStore.findBySourcePodId(canvasId, sourcePodId);
     const autoConnections = connections.filter((conn) => conn.triggerMode === 'auto');
     const aiDecideConnections = connections.filter((conn) => conn.triggerMode === 'ai-decide');
@@ -268,88 +102,30 @@ class WorkflowExecutionService {
     autoClearService.initializeWorkflowTracking(canvasId, sourcePodId);
 
     await Promise.all([
+      // Auto: 逐一呼叫
       (async (): Promise<void> => {
         for (const connection of autoConnections) {
-          await this.processAutoTriggerConnection(canvasId, sourcePodId, connection);
+          await this.autoTriggerService!.processAutoTriggerConnection(canvasId, sourcePodId, connection);
         }
       })(),
+      // AI-Decide: 批次處理
       aiDecideConnections.length > 0
-        ? this.processAiDecideConnections(canvasId, sourcePodId, aiDecideConnections)
+        ? this.aiDecideTriggerService!.processAiDecideConnections(canvasId, sourcePodId, aiDecideConnections)
         : Promise.resolve(),
-      directConnections.length > 0
-        ? this.processDirectConnections(canvasId, sourcePodId, directConnections)
-        : Promise.resolve(),
+      // Direct: 逐一走 Pipeline
+      (async (): Promise<void> => {
+        for (const connection of directConnections) {
+          const pipelineContext: PipelineContext = {
+            canvasId,
+            sourcePodId,
+            connection,
+            triggerMode: 'direct',
+            decideResult: { connectionId: connection.id, approved: true, reason: null },
+          };
+          await this.pipeline!.execute(pipelineContext, this.directTriggerService!);
+        }
+      })(),
     ]);
-  }
-
-  private async processDirectConnections(
-    canvasId: string,
-    sourcePodId: string,
-    connections: Connection[]
-  ): Promise<void> {
-    await workflowDirectTriggerService.processDirectConnections(
-      canvasId,
-      sourcePodId,
-      connections,
-      this.processDirectTriggerConnection.bind(this)
-    );
-  }
-
-  private async processDirectTriggerConnection(
-    canvasId: string,
-    sourcePodId: string,
-    connection: Connection
-  ): Promise<void> {
-    await workflowDirectTriggerService.processDirectTriggerConnection(
-      canvasId,
-      sourcePodId,
-      connection,
-      this.generateSummaryWithFallback.bind(this),
-      this.handleSingleDirectTrigger.bind(this),
-      this.handleMultiDirectTrigger.bind(this)
-    );
-  }
-
-  private async handleSingleDirectTrigger(
-    canvasId: string,
-    sourcePodId: string,
-    connection: Connection,
-    summary: string,
-    isSummarized: boolean
-  ): Promise<void> {
-    await workflowDirectTriggerService.handleSingleDirectTrigger(
-      canvasId,
-      sourcePodId,
-      connection,
-      summary,
-      isSummarized,
-      this.triggerWorkflowWithSummary.bind(this)
-    );
-  }
-
-  private async handleMultiDirectTrigger(
-    canvasId: string,
-    sourcePodId: string,
-    connection: Connection,
-    summary: string,
-    isSummarized: boolean
-  ): Promise<void> {
-    await workflowDirectTriggerService.handleMultiDirectTrigger(
-      canvasId,
-      sourcePodId,
-      connection,
-      summary,
-      isSummarized,
-      this.handleDirectTimerExpired.bind(this)
-    );
-  }
-
-  private async handleDirectTimerExpired(canvasId: string, targetPodId: string): Promise<void> {
-    await workflowDirectTriggerService.handleDirectTimerExpired(
-      canvasId,
-      targetPodId,
-      this.triggerWorkflowWithSummary.bind(this)
-    );
   }
 
   async triggerWorkflowInternal(canvasId: string, connectionId: string): Promise<void> {
@@ -460,6 +236,15 @@ class WorkflowExecutionService {
     });
   }
 
+  /**
+   * 排程下一個佇列項目（fire-and-forget）
+   */
+  private scheduleNextInQueue(canvasId: string, targetPodId: string): void {
+    workflowQueueService.processNextInQueue(canvasId, targetPodId).catch(error => {
+      logger.error('Workflow', 'Error', `處理佇列下一項時發生錯誤: ${error}`);
+    });
+  }
+
   private async executeClaudeQuery(
     canvasId: string,
     connectionId: string,
@@ -500,17 +285,13 @@ class WorkflowExecutionService {
           workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, true, undefined, triggerMode);
           logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod "${targetPod?.name ?? targetPodId}"`);
           await autoClearService.onPodComplete(canvasId, targetPodId);
-          workflowQueueService.processNextInQueue(canvasId, targetPodId).catch(error => {
-            logger.error('Workflow', 'Error', `處理佇列下一項時發生錯誤: ${error}`);
-          });
+          this.scheduleNextInQueue(canvasId, targetPodId);
         },
         onError: async (_canvasId, _podId, error) => {
           const errorMessage = error.message;
           workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, false, errorMessage, triggerMode);
           logger.error('Workflow', 'Error', 'Failed to complete workflow', error);
-          workflowQueueService.processNextInQueue(canvasId, targetPodId).catch(error => {
-            logger.error('Workflow', 'Error', `處理佇列下一項時發生錯誤: ${error}`);
-          });
+          this.scheduleNextInQueue(canvasId, targetPodId);
         },
       }
     );
