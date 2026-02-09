@@ -54,7 +54,7 @@ describe('Group 管理', () => {
     }
 
     describe('建立 Group', () => {
-        it('success_when_create_command_group', async () => {
+        it('成功建立 Command 群組', async () => {
             const response = await createGroup('command');
 
             expect(response.success).toBe(true);
@@ -62,7 +62,7 @@ describe('Group 管理', () => {
             expect(response.group!.type).toBe('command');
         });
 
-        it('success_when_create_output_style_group', async () => {
+        it('成功建立 Output Style 群組', async () => {
             const response = await createGroup('output-style');
 
             expect(response.success).toBe(true);
@@ -70,7 +70,7 @@ describe('Group 管理', () => {
             expect(response.group!.type).toBe('output-style');
         });
 
-        it('success_when_create_subagent_group', async () => {
+        it('成功建立 SubAgent 群組', async () => {
             const response = await createGroup('subagent');
 
             expect(response.success).toBe(true);
@@ -78,7 +78,7 @@ describe('Group 管理', () => {
             expect(response.group!.type).toBe('subagent');
         });
 
-        it('failed_when_create_group_with_duplicate_name', async () => {
+        it('重複名稱時建立群組失敗', async () => {
             const groupName = `dup-group-${uuidv4().slice(0, 8)}`;
             await createGroup('command', groupName);
 
@@ -88,7 +88,7 @@ describe('Group 管理', () => {
             expect(response.error).toContain('已存在');
         });
 
-        it('failed_when_create_group_with_path_traversal', async () => {
+        it('路徑穿越攻擊時建立群組失敗', async () => {
             const response = await emitAndWaitResponse<GroupCreatePayload, GroupCreatedResponse>(
                 client,
                 WebSocketRequestEvents.GROUP_CREATE,
@@ -99,7 +99,7 @@ describe('Group 管理', () => {
             expect(response.success).toBe(false);
         });
 
-        it('failed_when_create_group_with_slash', async () => {
+        it('包含斜線時建立群組失敗', async () => {
             const response = await emitAndWaitResponse<GroupCreatePayload, GroupCreatedResponse>(
                 client,
                 WebSocketRequestEvents.GROUP_CREATE,
@@ -110,7 +110,7 @@ describe('Group 管理', () => {
             expect(response.success).toBe(false);
         });
 
-        it('failed_when_create_group_with_special_chars', async () => {
+        it('包含特殊字元時建立群組失敗', async () => {
             const response = await emitAndWaitResponse<GroupCreatePayload, GroupCreatedResponse>(
                 client,
                 WebSocketRequestEvents.GROUP_CREATE,
@@ -121,7 +121,7 @@ describe('Group 管理', () => {
             expect(response.success).toBe(false);
         });
 
-        it('success_when_create_group_with_dash', async () => {
+        it('成功建立包含破折號的群組', async () => {
             const response = await emitAndWaitResponse<GroupCreatePayload, GroupCreatedResponse>(
                 client,
                 WebSocketRequestEvents.GROUP_CREATE,
@@ -135,7 +135,7 @@ describe('Group 管理', () => {
     });
 
     describe('列出 Groups', () => {
-        it('success_when_list_command_groups', async () => {
+        it('成功列出 Command 群組', async () => {
             const group = await createGroup('command');
 
             const response = await emitAndWaitResponse<GroupListPayload, GroupListResultResponse>(
@@ -151,7 +151,7 @@ describe('Group 管理', () => {
             expect(response.groups!.some((g: Group) => g.id === group.group!.id)).toBe(true);
         });
 
-        it('success_when_list_output_style_groups', async () => {
+        it('成功列出 Output Style 群組', async () => {
             const group = await createGroup('output-style');
 
             const response = await emitAndWaitResponse<GroupListPayload, GroupListResultResponse>(
@@ -166,7 +166,7 @@ describe('Group 管理', () => {
             expect(response.groups!.some((g: Group) => g.id === group.group!.id)).toBe(true);
         });
 
-        it('success_when_list_subagent_groups', async () => {
+        it('成功列出 SubAgent 群組', async () => {
             const group = await createGroup('subagent');
 
             const response = await emitAndWaitResponse<GroupListPayload, GroupListResultResponse>(
@@ -183,7 +183,7 @@ describe('Group 管理', () => {
     });
 
     describe('更新 Group', () => {
-        it('success_when_rename_group', async () => {
+        it('成功重新命名群組', async () => {
             const group = await createGroup('command');
             const newName = `renamed-${uuidv4().slice(0, 8)}`;
 
@@ -200,7 +200,7 @@ describe('Group 管理', () => {
             expect(response.group!.id).toBe(newName);
         });
 
-        it('failed_when_rename_nonexistent_group', async () => {
+        it('不存在的群組時重新命名失敗', async () => {
             const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedResponse>(
                 client,
                 WebSocketRequestEvents.GROUP_UPDATE,
@@ -212,7 +212,7 @@ describe('Group 管理', () => {
             expect(response.error).toContain('不存在');
         });
 
-        it('failed_when_rename_to_existing_name', async () => {
+        it('重新命名為已存在名稱時失敗', async () => {
             const group1 = await createGroup('command');
             const group2 = await createGroup('command');
 
@@ -227,7 +227,7 @@ describe('Group 管理', () => {
             expect(response.error).toContain('已存在');
         });
 
-        it('failed_when_rename_with_path_traversal', async () => {
+        it('路徑穿越攻擊時重新命名失敗', async () => {
             const group = await createGroup('command');
 
             const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedResponse>(
@@ -242,7 +242,7 @@ describe('Group 管理', () => {
     });
 
     describe('刪除 Group', () => {
-        it('success_when_delete_empty_group', async () => {
+        it('成功刪除空群組', async () => {
             const group = await createGroup('command');
 
             const response = await emitAndWaitResponse<GroupDeletePayload, GroupDeletedResponse>(
@@ -256,7 +256,7 @@ describe('Group 管理', () => {
             expect(response.groupId).toBe(group.group!.id);
         });
 
-        it('failed_when_delete_group_with_items', async () => {
+        it('群組內有項目時刪除失敗', async () => {
             const group = await createGroup('command');
             const command = await createCommand(client, `cmd-${uuidv4()}`, '# Content');
 
@@ -278,7 +278,7 @@ describe('Group 管理', () => {
             expect(response.error).toContain('還有項目');
         });
 
-        it('failed_when_delete_nonexistent_group', async () => {
+        it('不存在的群組時刪除失敗', async () => {
             const response = await emitAndWaitResponse<GroupDeletePayload, GroupDeletedResponse>(
                 client,
                 WebSocketRequestEvents.GROUP_DELETE,
@@ -292,7 +292,7 @@ describe('Group 管理', () => {
     });
 
     describe('Command 移動到 Group', () => {
-        it('success_when_move_command_to_group', async () => {
+        it('成功將 Command 移至群組', async () => {
             const group = await createGroup('command');
             const command = await createCommand(client, `cmd-${uuidv4()}`, '# Content');
 
@@ -308,7 +308,7 @@ describe('Group 管理', () => {
             expect(response.groupId).toBe(group.group!.id);
         });
 
-        it('success_when_move_command_from_group_to_root', async () => {
+        it('成功將 Command 從群組移至根目錄', async () => {
             const group = await createGroup('command');
             const command = await createCommand(client, `cmd-${uuidv4()}`, '# Content');
 
@@ -330,7 +330,7 @@ describe('Group 管理', () => {
             expect(response.groupId).toBeNull();
         });
 
-        it('success_when_move_command_between_groups', async () => {
+        it('成功在群組間移動 Command', async () => {
             const group1 = await createGroup('command');
             const group2 = await createGroup('command');
             const command = await createCommand(client, `cmd-${uuidv4()}`, '# Content');
@@ -355,7 +355,7 @@ describe('Group 管理', () => {
     });
 
     describe('Output Style 移動到 Group', () => {
-        it('success_when_move_output_style_to_group', async () => {
+        it('成功將 Output Style 移至群組', async () => {
             const group = await createGroup('output-style');
             const style = await createOutputStyle(client, `style-${uuidv4()}`, '# Style');
 
@@ -371,7 +371,7 @@ describe('Group 管理', () => {
             expect(response.groupId).toBe(group.group!.id);
         });
 
-        it('success_when_move_output_style_from_group_to_root', async () => {
+        it('成功將 Output Style 從群組移至根目錄', async () => {
             const group = await createGroup('output-style');
             const style = await createOutputStyle(client, `style-${uuidv4()}`, '# Style');
 
@@ -395,7 +395,7 @@ describe('Group 管理', () => {
     });
 
     describe('SubAgent 移動到 Group', () => {
-        it('success_when_move_subagent_to_group', async () => {
+        it('成功將 SubAgent 移至群組', async () => {
             const group = await createGroup('subagent');
             const agent = await createSubAgent(client, `agent-${uuidv4()}`, '# Agent');
 
@@ -411,7 +411,7 @@ describe('Group 管理', () => {
             expect(response.groupId).toBe(group.group!.id);
         });
 
-        it('success_when_move_subagent_from_group_to_root', async () => {
+        it('成功將 SubAgent 從群組移至根目錄', async () => {
             const group = await createGroup('subagent');
             const agent = await createSubAgent(client, `agent-${uuidv4()}`, '# Agent');
 

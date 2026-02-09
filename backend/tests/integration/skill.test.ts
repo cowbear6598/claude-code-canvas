@@ -51,7 +51,7 @@ describe('Skill 管理', () => {
   }
 
   describe('Skill 列表', () => {
-    it('success_when_skill_list_returns_all_skills', async () => {
+    it('成功回傳所有 Skill', async () => {
       const skill = await ensureSkill(client);
 
       const canvasId = await getCanvasId(client);
@@ -110,7 +110,7 @@ describe('Skill 管理', () => {
   );
 
   describe('Pod 綁定 Skill', () => {
-    it('failed_when_bind_skill_already_bound', async () => {
+    it('Skill 已綁定時綁定失敗', async () => {
       const pod = await createPod(client);
       const skill = await ensureSkill(client);
 
@@ -135,7 +135,7 @@ describe('Skill 管理', () => {
   });
 
   describe('Skill 刪除', () => {
-    it('success_when_skill_deleted', async () => {
+    it('成功刪除', async () => {
       const skill = await ensureSkill(client);
 
       const canvasId = await getCanvasId(client);
@@ -149,7 +149,7 @@ describe('Skill 管理', () => {
       expect(response.success).toBe(true);
     });
 
-    it('failed_when_skill_delete_with_nonexistent_id', async () => {
+    it('不存在的 ID 時刪除失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<SkillDeletePayload, SkillDeletedPayload>(
         client,
@@ -162,7 +162,7 @@ describe('Skill 管理', () => {
       expect(response.error).toContain('找不到');
     });
 
-    it('failed_when_skill_delete_while_in_use', async () => {
+    it('使用中時刪除失敗', async () => {
       const pod = await createPod(client);
       const skill = await ensureSkill(client);
 

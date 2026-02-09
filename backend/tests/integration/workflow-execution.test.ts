@@ -55,7 +55,7 @@ vi.mock('@anthropic-ai/claude-agent-sdk', async (importOriginal) => {
 
 import * as claudeSDK from '@anthropic-ai/claude-agent-sdk';
 
-describe('WorkflowExecution 服務測試', () => {
+describe('WorkflowExecution 服務', () => {
     let server: TestServerInstance;
     let client: TestWebSocketClient;
 
@@ -82,7 +82,7 @@ describe('WorkflowExecution 服務測試', () => {
     });
 
     describe('測試 checkAndTriggerWorkflows 的 auto-trigger 邏輯', () => {
-        it('success_when_auto_trigger_activates_target_pod', async () => {
+        it('自動觸發成功啟動目標 Pod', async () => {
             const canvasId = await getCanvasId(client);
 
             // 準備：建立 sourcePod、targetPod
@@ -140,7 +140,7 @@ describe('WorkflowExecution 服務測試', () => {
             expect(targetPodAfter?.status).toBe('idle');
         });
 
-        it('success_when_auto_trigger_skips_busy_target_pod', async () => {
+        it('目標 Pod 忙碌時跳過自動觸發', async () => {
             const canvasId = await getCanvasId(client);
 
             // 準備：建立 sourcePod、targetPod
@@ -174,7 +174,7 @@ describe('WorkflowExecution 服務測試', () => {
     });
 
     describe('測試 multi-input 情境（多個 source 連接到同一 target）', () => {
-        it('success_when_multi_input_waits_for_all_sources', async () => {
+        it('等待所有 source 完成後觸發', async () => {
             await getCanvasId(client);
 
             // 準備：建立 sourceA、sourceB、targetPod
@@ -241,7 +241,7 @@ describe('WorkflowExecution 服務測試', () => {
             expect(autoTriggeredEvent.isSummarized).toBe(true);
         });
 
-        it('success_when_multi_input_does_not_trigger_prematurely', async () => {
+        it('未完成時不會提前觸發', async () => {
             const canvasId = await getCanvasId(client);
 
             // 準備：建立 sourceA、sourceB、targetPod
@@ -282,7 +282,7 @@ describe('WorkflowExecution 服務測試', () => {
     });
 
     describe('測試 workflow 鏈式觸發（A -> B -> C）', () => {
-        it('success_when_workflow_chain_triggers_sequentially', async () => {
+        it('鏈式觸發依序執行', async () => {
             const canvasId = await getCanvasId(client);
 
             // 準備：建立三個 Pod 的鏈式連接
@@ -356,7 +356,7 @@ describe('WorkflowExecution 服務測試', () => {
             expect(podStore.getById(canvasId, podC.id)?.status).toBe('idle');
         }, 20000);
 
-        it('success_when_workflow_chain_with_multiple_branches', async () => {
+        it('多分支鏈式觸發成功執行', async () => {
             await getCanvasId(client);
 
             // 準備：建立分支結構 (A -> B, A -> C, B -> D)
@@ -407,7 +407,7 @@ describe('WorkflowExecution 服務測試', () => {
     });
 
     describe('測試 triggerWorkflowWithSummary 的 pre-generated summary 處理', () => {
-        it('success_when_pre_generated_summary_is_used', async () => {
+        it('使用預生成摘要成功觸發', async () => {
             const canvasId = await getCanvasId(client);
 
             // 準備：建立 connection，準備 mock summary
@@ -455,7 +455,7 @@ describe('WorkflowExecution 服務測試', () => {
             expect(userMessage?.content).toContain(preGeneratedSummary);
         });
 
-        it('success_when_pre_generated_summary_with_multi_sources', async () => {
+        it('多個 source 使用預生成摘要成功觸發', async () => {
             const canvasId = await getCanvasId(client);
 
             // 準備：建立多個 source 連接到同一 target

@@ -32,7 +32,7 @@ function createTestZip(files: Record<string, string | Uint8Array>): string {
     return Buffer.from(zipData).toString('base64');
 }
 
-describe('Skill Service Security Tests', () => {
+describe('技能服務安全性測試', () => {
     describe('Zip Bomb 防護', () => {
         it('應該拒絕超過 100 個檔案的 ZIP', async () => {
             const files: Record<string, string> = {

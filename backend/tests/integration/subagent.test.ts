@@ -144,7 +144,7 @@ describe('SubAgent 管理', () => {
   );
 
   describe('Pod 綁定 SubAgent', () => {
-    it('failed_when_bind_subagent_already_bound', async () => {
+    it('SubAgent 已綁定時綁定失敗', async () => {
       const pod = await createPod(client);
       const agent = await makeAgent(client);
 
@@ -167,7 +167,7 @@ describe('SubAgent 管理', () => {
       expect(response.error).toContain('已綁定');
     });
 
-    it('success_when_subagent_bound_to_pod_with_repository', async () => {
+    it('成功綁定 SubAgent 到已有 Repository 的 Pod', async () => {
       const pod = await createPod(client);
       const repo = await createRepository(client, `sa-repo-${uuidv4()}`);
 

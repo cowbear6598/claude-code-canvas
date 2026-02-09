@@ -87,7 +87,7 @@ describe('Chat 管理', () => {
   });
 
   describe('發送聊天訊息', () => {
-    it('failed_when_chat_send_with_nonexistent_pod', async () => {
+    it('Pod 不存在時發送失敗', async () => {
       const canvasId = await getCanvasId(client);
       const errorPromise = waitForEvent<PodErrorPayload>(
         client,
@@ -106,7 +106,7 @@ describe('Chat 管理', () => {
       expect(errorEvent.error).toContain('找不到');
     });
 
-    it('failed_when_chat_send_while_pod_is_summarizing', async () => {
+    it('Pod 總結中時發送失敗', async () => {
       const canvasId = await getCanvasId(client);
       const pod = await createPod(client, { name: 'Summarizing Pod' });
 
@@ -134,7 +134,7 @@ describe('Chat 管理', () => {
   });
 
   describe('取得聊天歷史', () => {
-    it('success_when_chat_history_returns_empty_for_new_pod', async () => {
+    it('新 Pod 回傳空陣列', async () => {
       const pod = await createPod(client);
 
       const canvasId = await getCanvasId(client);
@@ -149,7 +149,7 @@ describe('Chat 管理', () => {
       expect(response.messages).toEqual([]);
     });
 
-    it('failed_when_chat_history_with_nonexistent_pod', async () => {
+    it('Pod 不存在時取得歷史失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodChatHistoryPayload, PodChatHistoryResultPayload>(
         client,

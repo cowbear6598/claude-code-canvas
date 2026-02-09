@@ -93,7 +93,7 @@ describe('OutputStyle 管理', () => {
   );
 
   describe('Pod 解除綁定 OutputStyle - OutputStyle 特有測試', () => {
-    it('success_when_output_style_unbound_from_pod', async () => {
+    it('成功解除綁定 OutputStyle', async () => {
       const pod = await createPod(client);
       const style = await createOutputStyle(client, `unbind-style-${uuidv4()}`, '# UB');
 
@@ -116,7 +116,7 @@ describe('OutputStyle 管理', () => {
       expect(response.pod!.outputStyleId).toBeNull();
     });
 
-    it('failed_when_unbind_output_style_with_nonexistent_pod', async () => {
+    it('Pod 不存在時解除綁定失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodUnbindOutputStylePayload, PodOutputStyleUnboundPayload>(
         client,

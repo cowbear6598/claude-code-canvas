@@ -77,7 +77,7 @@ description: "測試技能描述"
     }
 
     describe('匯入成功', () => {
-        it('success_when_skill_imported_with_valid_zip', async () => {
+        it('有效 ZIP 檔案成功匯入', async () => {
             const fileName = 'test-valid-skill.zip';
             const fileData = createValidSkillZip('test-valid-skill');
             const fileSize = Buffer.from(fileData, 'base64').length;
@@ -103,7 +103,7 @@ description: "測試技能描述"
             expect(response.isOverwrite).toBe(false);
         });
 
-        it('success_when_skill_imported_with_overwrite', async () => {
+        it('覆蓋模式成功匯入', async () => {
             const fileName = 'test-overwrite-skill.zip';
             const fileData = createValidSkillZip('test-overwrite-skill');
             const fileSize = Buffer.from(fileData, 'base64').length;
@@ -146,7 +146,7 @@ description: "測試技能描述"
     });
 
     describe('匯入失敗', () => {
-        it('failed_when_file_size_exceeds_limit', async () => {
+        it('檔案大小超過限制時失敗', async () => {
             const fileName = 'large-skill.zip';
             const fileData = createValidSkillZip('large-skill');
             const fileSize = 6 * 1024 * 1024; // 6MB
@@ -168,7 +168,7 @@ description: "測試技能描述"
             expect(response.error).toContain('5MB');
         });
 
-        it('failed_when_zip_missing_skill_md', async () => {
+        it('缺少 SKILL.md 時失敗', async () => {
             const fileName = 'invalid-skill.zip';
             const fileData = createInvalidSkillZip();
             const fileSize = Buffer.from(fileData, 'base64').length;
@@ -190,7 +190,7 @@ description: "測試技能描述"
             expect(response.error).toContain('找不到 SKILL.md');
         });
 
-        it('failed_when_skill_md_not_in_root', async () => {
+        it('SKILL.md 不在根目錄時失敗', async () => {
             const fileName = 'nested-skill.zip';
             const fileData = createNestedSkillZip();
             const fileSize = Buffer.from(fileData, 'base64').length;
@@ -212,7 +212,7 @@ description: "測試技能描述"
             expect(response.error).toContain('根目錄');
         });
 
-        it('failed_when_invalid_zip_format', async () => {
+        it('無效 ZIP 格式時失敗', async () => {
             const fileName = 'invalid-format.zip';
             const fileData = Buffer.from('這不是一個有效的 ZIP 檔案').toString('base64');
             const fileSize = Buffer.from(fileData, 'base64').length;
@@ -234,7 +234,7 @@ description: "測試技能描述"
             expect(response.error).toContain('解壓縮失敗');
         });
 
-        it('failed_when_empty_base64_data', async () => {
+        it('空白 Base64 資料時失敗', async () => {
             const fileName = 'empty.zip';
             const fileData = '';
             const fileSize = 0;
@@ -256,7 +256,7 @@ description: "測試技能描述"
             expect(response.error).toBeDefined();
         });
 
-        it('failed_when_invalid_file_extension', async () => {
+        it('無效副檔名時失敗', async () => {
             const fileName = 'test-skill.txt';
             const fileData = createValidSkillZip('test-skill');
             const fileSize = Buffer.from(fileData, 'base64').length;

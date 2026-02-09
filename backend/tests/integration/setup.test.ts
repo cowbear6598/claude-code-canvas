@@ -22,7 +22,7 @@ describe('測試環境設定', () => {
     }
   });
 
-  it('success_when_test_server_starts', () => {
+  it('測試伺服器成功啟動', () => {
     expect(server).toBeDefined();
     expect(server.server).toBeDefined();
     expect(server.baseUrl).toBeDefined();
@@ -30,13 +30,13 @@ describe('測試環境設定', () => {
     expect(server.port).toBeGreaterThan(0);
   });
 
-  it('success_when_socket_client_connects', async () => {
+  it('Socket 客戶端成功連線', async () => {
     const client = await createSocketClient(server.baseUrl, server.canvasId);
     expect(client.connected).toBe(true);
     await disconnectSocket(client);
   });
 
-  it('success_when_connection_ready_event_received', async () => {
+  it('成功接收連線就緒事件', async () => {
     const socket = createSocketClientNoConnect(server.baseUrl);
     // 在連線之前設置監聽器
     const readyPromise = waitForEvent<ConnectionReadyPayload>(socket, 'connection:ready');
@@ -48,7 +48,7 @@ describe('測試環境設定', () => {
     await disconnectSocket(socket);
   });
 
-  it('success_when_socket_disconnects', async () => {
+  it('Socket 成功斷線', async () => {
     const client = await createSocketClient(server.baseUrl, server.canvasId);
     expect(client.connected).toBe(true);
     await disconnectSocket(client);

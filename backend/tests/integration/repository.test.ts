@@ -55,7 +55,7 @@ describe('Repository 管理', () => {
     });
 
     describe('Repository 建立', () => {
-        it('success_when_repository_created', async () => {
+        it('成功建立', async () => {
             const name = `repo-${uuidv4()}`;
             const repo = await createRepository(client, name);
 
@@ -63,7 +63,7 @@ describe('Repository 管理', () => {
             expect(repo.name).toBe(name);
         });
 
-        it('failed_when_repository_create_with_duplicate_name', async () => {
+        it('重複名稱時建立失敗', async () => {
             const name = `dup-repo-${uuidv4()}`;
             await createRepository(client, name);
 
@@ -81,7 +81,7 @@ describe('Repository 管理', () => {
     });
 
     describe('Repository 列表', () => {
-        it('success_when_repository_list_returns_all', async () => {
+        it('成功回傳所有 Repository', async () => {
             const name = `list-repo-${uuidv4()}`;
             await createRepository(client, name);
 
@@ -100,7 +100,7 @@ describe('Repository 管理', () => {
     });
 
     describe('Repository Note 特有測試', () => {
-        it('failed_when_repository_note_create_with_nonexistent_repository', async () => {
+        it('Repository 不存在時建立 Note 失敗', async () => {
             const canvasId = await getCanvasId(client);
             const response = await emitAndWaitResponse<RepositoryNoteCreatePayload, RepositoryNoteCreatedPayload>(
                 client,
@@ -158,7 +158,7 @@ describe('Repository 管理', () => {
             );
         }
 
-        it('success_when_pod_resources_deleted_after_bind_repository', async () => {
+        it('綁定 Repository 後 Pod 資源被刪除', async () => {
             const pod = await createPod(client);
             const repo = await createRepository(client, `sync-delete-${uuidv4()}`);
 
@@ -204,7 +204,7 @@ describe('Repository 管理', () => {
             expect(commandExistsAfter).toBe(false);
         });
 
-        it('success_when_repository_resources_synced_after_bind', async () => {
+        it('綁定後 Repository 資源同步成功', async () => {
             const pod = await createPod(client);
             const repo = await createRepository(client, `sync-add-${uuidv4()}`);
 
@@ -243,7 +243,7 @@ describe('Repository 管理', () => {
             expect(commandExists).toBe(true);
         });
 
-        it('success_when_old_repository_synced_after_rebind', async () => {
+        it('重新綁定後舊 Repository 同步成功', async () => {
             const pod = await createPod(client);
             const repo1 = await createRepository(client, `sync-old-${uuidv4()}`);
             const repo2 = await createRepository(client, `sync-new-${uuidv4()}`);
@@ -288,7 +288,7 @@ describe('Repository 管理', () => {
     });
 
     describe('Pod 解除綁定 Repository', () => {
-        it('success_when_repository_unbound_from_pod', async () => {
+        it('成功解除綁定 Repository', async () => {
             const pod = await createPod(client);
             const repo = await createRepository(client, `unbind-repo-${uuidv4()}`);
 
@@ -311,7 +311,7 @@ describe('Repository 管理', () => {
             expect(response.pod!.repositoryId).toBeNull();
         });
 
-        it('failed_when_unbind_repository_with_nonexistent_pod', async () => {
+        it('Pod 不存在時解除綁定失敗', async () => {
             const canvasId = await getCanvasId(client);
             const response = await emitAndWaitResponse<PodUnbindRepositoryPayload, PodRepositoryUnboundPayload>(
                 client,
@@ -359,7 +359,7 @@ describe('Repository 管理', () => {
             );
         }
 
-        it('success_when_resources_copied_to_pod_after_unbind', async () => {
+        it('解除綁定後資源複製到 Pod', async () => {
             const pod = await createPod(client);
             const repo = await createRepository(client, `unbind-copy-${uuidv4()}`);
 
@@ -408,7 +408,7 @@ describe('Repository 管理', () => {
             expect(commandExists).toBe(true);
         });
 
-        it('success_when_old_repository_cleaned_after_unbind', async () => {
+        it('解除綁定後舊 Repository 清理完成', async () => {
             const pod = await createPod(client);
             const repo = await createRepository(client, `unbind-clean-${uuidv4()}`);
 
@@ -447,7 +447,7 @@ describe('Repository 管理', () => {
     });
 
     describe('Repository 刪除', () => {
-        it('success_when_repository_deleted', async () => {
+        it('成功刪除', async () => {
             const repo = await createRepository(client, `del-repo-${uuidv4()}`);
 
             const canvasId = await getCanvasId(client);
@@ -461,7 +461,7 @@ describe('Repository 管理', () => {
             expect(response.success).toBe(true);
         });
 
-        it('failed_when_repository_delete_with_nonexistent_id', async () => {
+        it('不存在的 ID 時刪除失敗', async () => {
             const canvasId = await getCanvasId(client);
             const response = await emitAndWaitResponse<RepositoryDeletePayload, RepositoryDeletedPayload>(
                 client,
@@ -474,7 +474,7 @@ describe('Repository 管理', () => {
             expect(response.error).toContain('找不到');
         });
 
-        it('failed_when_repository_delete_while_in_use', async () => {
+        it('使用中時刪除失敗', async () => {
             const pod = await createPod(client);
             const repo = await createRepository(client, `inuse-repo-${uuidv4()}`);
 
@@ -499,7 +499,7 @@ describe('Repository 管理', () => {
     });
 
     describe('Repository Git 檢查', () => {
-        it('success_when_check_non_git_repository', async () => {
+        it('檢查非 Git Repository 成功', async () => {
             const repo = await createRepository(client, `check-repo-${uuidv4()}`);
 
             const canvasId = await getCanvasId(client);
@@ -514,7 +514,7 @@ describe('Repository 管理', () => {
             expect(response.isGit).toBe(false);
         });
 
-        it('failed_when_check_git_with_nonexistent_repository', async () => {
+        it('Repository 不存在時檢查失敗', async () => {
             const canvasId = await getCanvasId(client);
             const response = await emitAndWaitResponse<RepositoryCheckGitPayload, RepositoryCheckGitResultPayload>(
                 client,
@@ -529,7 +529,7 @@ describe('Repository 管理', () => {
     });
 
     describe('Repository Worktree 建立', () => {
-        it('failed_when_create_worktree_from_nonexistent_repository', async () => {
+        it('Repository 不存在時建立失敗', async () => {
             const canvasId = await getCanvasId(client);
             const response = await emitAndWaitResponse<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
                 client,
@@ -542,7 +542,7 @@ describe('Repository 管理', () => {
             expect(response.error).toContain('找不到 Repository');
         });
 
-        it('failed_when_create_worktree_from_non_git_repository', async () => {
+        it('非 Git Repository 時建立失敗', async () => {
             const repo = await createRepository(client, `worktree-non-git-${uuidv4()}`);
 
             const canvasId = await getCanvasId(client);
@@ -557,7 +557,7 @@ describe('Repository 管理', () => {
             expect(response.error).toContain('不是 Git Repository');
         });
 
-        it('failed_when_create_worktree_from_repository_without_commits', async () => {
+        it('無 commit 時建立失敗', async () => {
             const repo = await createRepository(client, `worktree-no-commit-${uuidv4()}`);
 
             const { config } = await import('../../src/config/index.js');
@@ -578,7 +578,7 @@ describe('Repository 管理', () => {
             expect(response.error).toContain('沒有任何 commit');
         });
 
-        it('failed_when_create_worktree_with_existing_branch_name', async () => {
+        it('分支已存在時建立失敗', async () => {
             const repo = await createRepository(client, `worktree-dup-branch-${uuidv4()}`);
 
             const { config } = await import('../../src/config/index.js');
@@ -606,7 +606,7 @@ describe('Repository 管理', () => {
             expect(response.error).toContain('分支已存在');
         });
 
-        it('success_when_worktree_created_with_parent_info', async () => {
+        it('成功建立並包含父 Repository 資訊', async () => {
             const repo = await createRepository(client, `worktree-parent-${uuidv4()}`);
 
             const { config } = await import('../../src/config/index.js');
@@ -637,7 +637,7 @@ describe('Repository 管理', () => {
     });
 
     describe('Repository Metadata 持久化', () => {
-        it('success_when_metadata_persisted_after_worktree_creation', async () => {
+        it('建立 Worktree 後 Metadata 持久化成功', async () => {
             const repo = await createRepository(client, `metadata-persist-${uuidv4()}`);
 
             const { config } = await import('../../src/config/index.js');
@@ -676,7 +676,7 @@ describe('Repository 管理', () => {
             expect(metadata[worktreeRepoId].branchName).toBe(worktreeName);
         });
 
-        it('success_when_metadata_loaded_after_restart', async () => {
+        it('重啟後 Metadata 載入成功', async () => {
             const repo = await createRepository(client, `metadata-restart-${uuidv4()}`);
 
             const { config } = await import('../../src/config/index.js');
@@ -712,7 +712,7 @@ describe('Repository 管理', () => {
             expect(metadata!.branchName).toBe(worktreeName);
         });
 
-        it('success_when_metadata_removed_after_repository_deletion', async () => {
+        it('刪除 Repository 後 Metadata 移除成功', async () => {
             const repo = await createRepository(client, `metadata-delete-${uuidv4()}`);
 
             const { config } = await import('../../src/config/index.js');
@@ -757,7 +757,7 @@ describe('Repository 管理', () => {
     });
 
     describe('Repository Worktree 刪除', () => {
-        it('success_when_worktree_repository_deleted_with_cleanup', async () => {
+        it('成功刪除並清理 Worktree', async () => {
             const repo = await createRepository(client, `worktree-cleanup-${uuidv4()}`);
 
             const { config } = await import('../../src/config/index.js');

@@ -36,7 +36,7 @@ describe('Workflow 管理', () => {
   });
 
   describe('取得下游 Pod', () => {
-    it('success_when_get_downstream_pods_returns_chain', async () => {
+    it('成功取得下游 Pod 鏈', async () => {
       const podA = await createPod(client, { name: 'Chain A' });
       const podB = await createPod(client, { name: 'Chain B' });
       const podC = await createPod(client, { name: 'Chain C' });
@@ -61,7 +61,7 @@ describe('Workflow 管理', () => {
       expect(ids).toContain(podC.id);
     });
 
-    it('success_when_get_downstream_pods_returns_empty_for_leaf', async () => {
+    it('葉節點 Pod 成功回傳空的下游列表', async () => {
       const pod = await createPod(client, { name: 'Leaf Pod' });
 
       const canvasId = await getCanvasId(client);
@@ -81,7 +81,7 @@ describe('Workflow 管理', () => {
       expect(ids).toHaveLength(0);
     });
 
-    it('failed_when_get_downstream_pods_with_nonexistent_pod', async () => {
+    it('Pod 不存在時取得下游 Pod 失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<
         WorkflowGetDownstreamPodsPayload,
@@ -99,7 +99,7 @@ describe('Workflow 管理', () => {
   });
 
   describe('清除下游 Pod', () => {
-    it('success_when_workflow_clear_clears_downstream_pods', async () => {
+    it('成功清除下游 Pod', async () => {
       const podA = await createPod(client, { name: 'Clear A' });
       const podB = await createPod(client, { name: 'Clear B' });
       const podC = await createPod(client, { name: 'Clear C' });
@@ -120,7 +120,7 @@ describe('Workflow 管理', () => {
       expect(response.clearedPodIds).toContain(podC.id);
     });
 
-    it('failed_when_workflow_clear_with_nonexistent_pod', async () => {
+    it('Pod 不存在時清除下游 Pod 失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<WorkflowClearPayload, WorkflowClearResultPayload>(
         client,

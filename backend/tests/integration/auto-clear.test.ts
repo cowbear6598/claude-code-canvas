@@ -31,7 +31,7 @@ describe('自動清除', () => {
   });
 
   describe('設定 Pod 自動清除', () => {
-    it('success_when_auto_clear_set_to_true', async () => {
+    it('成功設定為 true', async () => {
       const pod = await createPod(client);
 
       const canvasId = await getCanvasId(client);
@@ -46,7 +46,7 @@ describe('自動清除', () => {
       expect(response.pod!.autoClear).toBe(true);
     });
 
-    it('success_when_auto_clear_set_to_false', async () => {
+    it('成功設定為 false', async () => {
       const pod = await createPod(client);
 
       const canvasId = await getCanvasId(client);
@@ -68,7 +68,7 @@ describe('自動清除', () => {
       expect(response.pod!.autoClear).toBe(false);
     });
 
-    it('failed_when_set_auto_clear_with_nonexistent_pod', async () => {
+    it('Pod 不存在時設定失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodSetAutoClearPayload, PodAutoClearSetPayload>(
         client,

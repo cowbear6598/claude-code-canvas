@@ -53,7 +53,7 @@ describe('Pod 管理', () => {
   });
 
   describe('Pod 建立', () => {
-    it('success_when_pod_created_with_valid_payload', async () => {
+    it('成功建立 Pod', async () => {
       const pod = await createPod(client, {
         name: 'Created Pod',
         color: 'blue',
@@ -75,14 +75,14 @@ describe('Pod 管理', () => {
       expect(pod.subAgentIds).toEqual([]);
     });
 
-    it('success_when_pod_created_has_default_status_idle', async () => {
+    it('新建立的 Pod 預設狀態為 idle', async () => {
       const pod = await createPod(client);
       expect(pod.status).toBe('idle');
     });
   });
 
   describe('Pod 列表', () => {
-    it('success_when_pod_list_returns_all_pods', async () => {
+    it('成功取得所有 Pod 列表', async () => {
       await createPod(client, { name: 'List Pod 1' });
       await createPod(client, { name: 'List Pod 2' });
 
@@ -100,7 +100,7 @@ describe('Pod 管理', () => {
       expect(names).toContain('List Pod 2');
     });
 
-    it('success_when_pod_list_returns_array', async () => {
+    it('Pod 列表回傳陣列格式', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodListPayload, PodListResultPayload>(
         client,
@@ -115,7 +115,7 @@ describe('Pod 管理', () => {
   });
 
   describe('Pod 取得', () => {
-    it('success_when_pod_get_returns_existing_pod', async () => {
+    it('成功取得現有的 Pod', async () => {
       const pod = await createPod(client, { name: 'Get Pod' });
 
       const canvasId = await getCanvasId(client);
@@ -131,7 +131,7 @@ describe('Pod 管理', () => {
       expect(response.pod!.name).toBe('Get Pod');
     });
 
-    it('failed_when_pod_get_with_nonexistent_id', async () => {
+    it('取得不存在的 Pod 時失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodGetPayload, PodGetResultPayload>(
         client,
@@ -146,7 +146,7 @@ describe('Pod 管理', () => {
   });
 
   describe('Pod 移動', () => {
-    it('success_when_pod_moved_with_position', async () => {
+    it('成功移動 Pod 位置', async () => {
       const pod = await createPod(client);
       const updatedPod = await movePod(client, pod.id, 500, 600);
 
@@ -154,7 +154,7 @@ describe('Pod 管理', () => {
       expect(updatedPod.y).toBe(600);
     });
 
-    it('failed_when_pod_move_with_nonexistent_id', async () => {
+    it('移動不存在的 Pod 時失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodMovePayload, PodMovedPayload>(
         client,
@@ -169,14 +169,14 @@ describe('Pod 管理', () => {
   });
 
   describe('Pod 重命名', () => {
-    it('success_when_pod_renamed', async () => {
+    it('成功重命名 Pod', async () => {
       const pod = await createPod(client);
       const updatedPod = await renamePod(client, pod.id, 'New Name');
 
       expect(updatedPod.name).toBe('New Name');
     });
 
-    it('failed_when_pod_rename_with_nonexistent_id', async () => {
+    it('重命名不存在的 Pod 時失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodRenamePayload, PodRenamedPayload>(
         client,
@@ -191,28 +191,28 @@ describe('Pod 管理', () => {
   });
 
   describe('Pod 設定模型', () => {
-    it('success_when_pod_model_set_to_sonnet', async () => {
+    it('成功設定 Pod 模型為 Sonnet', async () => {
       const pod = await createPod(client);
       const updatedPod = await setPodModel(client, pod.id, 'sonnet');
 
       expect(updatedPod.model).toBe('sonnet');
     });
 
-    it('success_when_pod_model_set_to_haiku', async () => {
+    it('成功設定 Pod 模型為 Haiku', async () => {
       const pod = await createPod(client);
       const updatedPod = await setPodModel(client, pod.id, 'haiku');
 
       expect(updatedPod.model).toBe('haiku');
     });
 
-    it('success_when_pod_model_set_to_opus', async () => {
+    it('成功設定 Pod 模型為 Opus', async () => {
       const pod = await createPod(client);
       const updatedPod = await setPodModel(client, pod.id, 'opus');
 
       expect(updatedPod.model).toBe('opus');
     });
 
-    it('failed_when_pod_set_model_with_nonexistent_id', async () => {
+    it('設定不存在的 Pod 模型時失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodSetModelPayload, PodModelSetPayload>(
         client,
@@ -227,7 +227,7 @@ describe('Pod 管理', () => {
   });
 
   describe('Pod 刪除', () => {
-    it('success_when_pod_deleted', async () => {
+    it('成功刪除 Pod', async () => {
       const pod = await createPod(client, { name: 'To Delete' });
 
       const canvasId = await getCanvasId(client);
@@ -242,7 +242,7 @@ describe('Pod 管理', () => {
       expect(response.podId).toBe(pod.id);
     });
 
-    it('success_when_pod_delete_cleans_up_connections', async () => {
+    it('刪除 Pod 時清理相關連線', async () => {
       const { podA, podB } = await createPodPair(client);
       await createConnection(client, podA.id, podB.id);
 
@@ -267,7 +267,7 @@ describe('Pod 管理', () => {
       expect(related).toHaveLength(0);
     });
 
-    it('success_when_pod_delete_cleans_up_notes', async () => {
+    it('刪除 Pod 時清理相關筆記', async () => {
       const pod = await createPod(client);
       const style = await createOutputStyle(client, `style-${uuidv4()}`, '# Test');
 
@@ -306,7 +306,7 @@ describe('Pod 管理', () => {
       expect(bound).toHaveLength(0);
     });
 
-    it('failed_when_pod_delete_with_nonexistent_id', async () => {
+    it('刪除不存在的 Pod 時失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodDeletePayload, PodDeletedPayload>(
         client,
@@ -321,7 +321,7 @@ describe('Pod 管理', () => {
   });
 
   describe('Pod Schedule 管理', () => {
-    it('success_when_pod_schedule_set', async () => {
+    it('成功設定 Pod 排程', async () => {
       const pod = await createPod(client, { name: 'Schedule Pod' });
       const updatedPod = await setPodSchedule(client, pod.id, {
         frequency: 'every-day',
@@ -339,7 +339,7 @@ describe('Pod 管理', () => {
       expect(updatedPod.schedule!.enabled).toBe(true);
     });
 
-    it('success_when_pod_schedule_updated', async () => {
+    it('成功更新 Pod 排程', async () => {
       const pod = await createPod(client, { name: 'Update Schedule Pod' });
       const updatedPod = await setPodSchedule(client, pod.id, {
         frequency: 'every-x-minute',
@@ -357,7 +357,7 @@ describe('Pod 管理', () => {
       expect(updatedPod.schedule!.intervalMinute).toBe(30);
     });
 
-    it('success_when_pod_schedule_disabled', async () => {
+    it('成功停用 Pod 排程', async () => {
       const pod = await createPod(client, { name: 'Toggle Schedule Pod' });
 
       await setPodSchedule(client, pod.id, {
@@ -385,7 +385,7 @@ describe('Pod 管理', () => {
       expect(updatedPod.schedule!.enabled).toBe(false);
     });
 
-    it('success_when_pod_schedule_removed', async () => {
+    it('成功移除 Pod 排程', async () => {
       const pod = await createPod(client, { name: 'Remove Schedule Pod' });
 
       await setPodSchedule(client, pod.id, {
@@ -404,7 +404,7 @@ describe('Pod 管理', () => {
       expect(updatedPod.schedule).toBeUndefined();
     });
 
-    it('success_when_pod_schedule_enabled_has_lastTriggeredAt', async () => {
+    it('啟用 Pod 排程時設定 lastTriggeredAt', async () => {
       const pod = await createPod(client, { name: 'Schedule with lastTriggeredAt' });
       const updatedPod = await setPodSchedule(client, pod.id, {
         frequency: 'every-x-minute',
@@ -422,7 +422,7 @@ describe('Pod 管理', () => {
       expect(updatedPod.schedule!.lastTriggeredAt).toBeDefined();
     });
 
-    it('success_when_pod_schedule_re_enabled_updates_lastTriggeredAt', async () => {
+    it('重新啟用 Pod 排程時更新 lastTriggeredAt', async () => {
       const pod = await createPod(client, { name: 'Re-enable Schedule Pod' });
 
       const firstPod = await setPodSchedule(client, pod.id, {
@@ -468,7 +468,7 @@ describe('Pod 管理', () => {
       expect(secondLastTriggeredAt).not.toEqual(firstLastTriggeredAt);
     });
 
-    it('success_when_pod_schedule_updated_preserves_lastTriggeredAt', async () => {
+    it('更新 Pod 排程時保留 lastTriggeredAt', async () => {
       const pod = await createPod(client, { name: 'Update Schedule Preserve lastTriggeredAt' });
 
       const firstPod = await setPodSchedule(client, pod.id, {
@@ -499,7 +499,7 @@ describe('Pod 管理', () => {
       expect(updatedPod.schedule!.lastTriggeredAt).toEqual(firstLastTriggeredAt);
     });
 
-    it('failed_when_pod_set_schedule_with_nonexistent_id', async () => {
+    it('設定不存在的 Pod 排程時失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodSetSchedulePayload, PodScheduleSetPayload>(
         client,

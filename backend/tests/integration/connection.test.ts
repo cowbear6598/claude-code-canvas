@@ -40,7 +40,7 @@ describe('Connection 管理', () => {
   });
 
   describe('Connection 建立', () => {
-    it('success_when_connection_created_between_two_pods', async () => {
+    it('成功建立兩個 Pod 之間的連線', async () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
 
@@ -51,7 +51,7 @@ describe('Connection 管理', () => {
       expect(conn.targetAnchor).toBe('left');
     });
 
-    it('success_when_connection_created_and_target_pod_has_no_schedule', async () => {
+    it('目標 Pod 無排程時成功建立連線', async () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
 
@@ -60,7 +60,7 @@ describe('Connection 管理', () => {
       expect(conn.targetPodId).toBe(podB.id);
     });
 
-    it('success_when_connection_created_clears_target_pod_schedule', async () => {
+    it('建立連線時成功清除目標 Pod 的排程', async () => {
       const { podA, podB } = await createPodPair(client);
 
       const scheduleConfig = {
@@ -86,7 +86,7 @@ describe('Connection 管理', () => {
       expect(podAfterConnection?.schedule).toBeUndefined();
     });
 
-    it('failed_when_connection_create_with_nonexistent_source_pod', async () => {
+    it('來源 Pod 不存在時建立連線失敗', async () => {
       const pod = await createPod(client);
 
       const canvasId = await getCanvasId(client);
@@ -101,7 +101,7 @@ describe('Connection 管理', () => {
       expect(response.error).toContain('找不到');
     });
 
-    it('failed_when_connection_create_with_nonexistent_target_pod', async () => {
+    it('目標 Pod 不存在時建立連線失敗', async () => {
       const pod = await createPod(client);
 
       const canvasId = await getCanvasId(client);
@@ -118,7 +118,7 @@ describe('Connection 管理', () => {
   });
 
   describe('Connection 列表', () => {
-    it('success_when_connection_list_returns_all_connections', async () => {
+    it('成功取得所有連線列表', async () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
 
@@ -135,7 +135,7 @@ describe('Connection 管理', () => {
       expect(found).toBeDefined();
     });
 
-    it('success_when_connection_list_returns_array', async () => {
+    it('成功回傳連線陣列', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionListPayload, ConnectionListResultPayload>(
         client,
@@ -150,7 +150,7 @@ describe('Connection 管理', () => {
   });
 
   describe('Connection 刪除', () => {
-    it('success_when_connection_deleted', async () => {
+    it('成功刪除連線', async () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
 
@@ -166,7 +166,7 @@ describe('Connection 管理', () => {
       expect(response.connectionId).toBe(conn.id);
     });
 
-    it('failed_when_connection_delete_with_nonexistent_id', async () => {
+    it('連線 ID 不存在時刪除失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionDeletePayload, ConnectionDeletedPayload>(
         client,
@@ -181,7 +181,7 @@ describe('Connection 管理', () => {
   });
 
   describe('Connection 更新', () => {
-    it('success_when_connection_updated_with_trigger_mode', async () => {
+    it('成功更新連線的觸發模式', async () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
 
@@ -197,7 +197,7 @@ describe('Connection 管理', () => {
       expect(response.connection!.triggerMode).toBe('ai-decide');
     });
 
-    it('success_when_connection_updated_with_trigger_mode_direct', async () => {
+    it('成功更新連線的觸發模式為 direct', async () => {
       const { podA, podB } = await createPodPair(client);
       const conn = await createConnection(client, podA.id, podB.id);
 
@@ -213,7 +213,7 @@ describe('Connection 管理', () => {
       expect(response.connection!.triggerMode).toBe('direct');
     });
 
-    it('failed_when_connection_update_with_nonexistent_id', async () => {
+    it('連線 ID 不存在時更新失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<ConnectionUpdatePayload, ConnectionUpdatedPayload>(
         client,

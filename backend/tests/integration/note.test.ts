@@ -68,7 +68,7 @@ describe('Note 管理', () => {
   }
 
   describe('Note 建立', () => {
-    it('success_when_note_created', async () => {
+    it('成功建立', async () => {
       const note = await createTestNote();
 
       expect(note.id).toBeDefined();
@@ -78,7 +78,7 @@ describe('Note 管理', () => {
       expect(note.boundToPodId).toBeNull();
     });
 
-    it('success_when_note_created_with_pod_binding', async () => {
+    it('綁定 Pod 時成功建立', async () => {
       const pod = await createPod(client);
       const note = await createTestNote(pod.id);
 
@@ -87,7 +87,7 @@ describe('Note 管理', () => {
   });
 
   describe('Note 列表', () => {
-    it('success_when_note_list_returns_all_notes', async () => {
+    it('成功回傳所有 Note', async () => {
       await createTestNote();
       await createTestNote();
 
@@ -105,7 +105,7 @@ describe('Note 管理', () => {
   });
 
   describe('Note 更新', () => {
-    it('success_when_note_updated_with_position', async () => {
+    it('成功更新位置', async () => {
       const note = await createTestNote();
 
       const canvasId = await getCanvasId(client);
@@ -121,7 +121,7 @@ describe('Note 管理', () => {
       expect(response.note!.y).toBe(888);
     });
 
-    it('success_when_note_updated_with_binding', async () => {
+    it('成功更新綁定', async () => {
       const note = await createTestNote();
       const pod = await createPod(client);
 
@@ -137,7 +137,7 @@ describe('Note 管理', () => {
       expect(response.note!.boundToPodId).toBe(pod.id);
     });
 
-    it('failed_when_note_update_with_nonexistent_id', async () => {
+    it('不存在的 ID 時更新失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<NoteUpdatePayload, NoteUpdatedPayload>(
         client,
@@ -152,7 +152,7 @@ describe('Note 管理', () => {
   });
 
   describe('Note 刪除', () => {
-    it('success_when_note_deleted', async () => {
+    it('成功刪除', async () => {
       const note = await createTestNote();
 
       const canvasId = await getCanvasId(client);
@@ -167,7 +167,7 @@ describe('Note 管理', () => {
       expect(response.noteId).toBe(note.id);
     });
 
-    it('failed_when_note_delete_with_nonexistent_id', async () => {
+    it('不存在的 ID 時刪除失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<NoteDeletePayload, NoteDeletedPayload>(
         client,
@@ -182,7 +182,7 @@ describe('Note 管理', () => {
   });
 
   describe('OutputStyle Note 邊界測試', () => {
-    it('建立 Note - OutputStyle 不存在時失敗', async () => {
+    it('OutputStyle 不存在時建立失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<NoteCreatePayload, NoteCreatedPayload>(
         client,
@@ -204,7 +204,7 @@ describe('Note 管理', () => {
       expect(response.error).toContain('找不到');
     });
 
-    it('更新 Note - 已刪除後再更新失敗', async () => {
+    it('已刪除後再更新失敗', async () => {
       const note = await createTestNote();
       const canvasId = await getCanvasId(client);
 
@@ -231,7 +231,7 @@ describe('Note 管理', () => {
       expect(updateResponse.error).toContain('找不到');
     });
 
-    it('刪除 Note - 重複刪除失敗', async () => {
+    it('重複刪除失敗', async () => {
       const note = await createTestNote();
       const canvasId = await getCanvasId(client);
 
@@ -253,7 +253,7 @@ describe('Note 管理', () => {
       expect(deleteResponse.error).toContain('找不到');
     });
 
-    it('更新 Note - 部分欄位只更新提供的', async () => {
+    it('部分欄位只更新提供的', async () => {
       const style = await createOutputStyle(client, `style-${uuidv4()}`, '# Test');
       const canvasId = await getCanvasId(client);
       const createResponse = await emitAndWaitResponse<NoteCreatePayload, NoteCreatedPayload>(
@@ -294,7 +294,7 @@ describe('Note 管理', () => {
   });
 
   describe('Skill Note 邊界測試', () => {
-    it('建立 Skill Note - 無驗證函數時成功', async () => {
+    it('無驗證函數時成功建立', async () => {
       const skillId = await createSkillFile(`skill-${uuidv4()}`, '# Test');
       const canvasId = await getCanvasId(client);
 
@@ -318,7 +318,7 @@ describe('Note 管理', () => {
       expect(response.note).toBeDefined();
     });
 
-    it('更新 Skill Note - 不存在 ID 失敗', async () => {
+    it('不存在的 ID 時更新失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<SkillNoteUpdatePayload, SkillNoteUpdatedPayload>(
         client,
@@ -336,7 +336,7 @@ describe('Note 管理', () => {
       expect(response.error).toContain('找不到');
     });
 
-    it('刪除 Skill Note - 不存在 ID 失敗', async () => {
+    it('不存在的 ID 時刪除失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<SkillNoteDeletePayload, SkillNoteDeletedPayload>(
         client,
@@ -349,7 +349,7 @@ describe('Note 管理', () => {
       expect(response.error).toContain('找不到');
     });
 
-    it('更新 Skill Note - 部分欄位只更新提供的', async () => {
+    it('部分欄位只更新提供的', async () => {
       const skillId = await createSkillFile(`skill-${uuidv4()}`, '# Test');
       const canvasId = await getCanvasId(client);
       const createResponse = await emitAndWaitResponse<SkillNoteCreatePayload, SkillNoteCreatedPayload>(

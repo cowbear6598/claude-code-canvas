@@ -49,7 +49,7 @@ describe('Canvas 管理', () => {
     });
 
     describe('Canvas 建立', () => {
-        it('success_when_canvas_created_with_valid_name', async () => {
+        it('使用有效名稱成功建立', async () => {
             const canvas = await createCanvas(client, 'Test Canvas');
 
             expect(canvas.id).toBeDefined();
@@ -57,7 +57,7 @@ describe('Canvas 管理', () => {
             expect(canvas.createdAt).toBeDefined();
         });
 
-        it('failed_when_canvas_create_with_empty_name', async () => {
+        it('空白名稱時建立失敗', async () => {
             const response = await emitAndWaitResponse<CanvasCreatePayload, CanvasCreatedPayload>(
                 client,
                 WebSocketRequestEvents.CANVAS_CREATE,
@@ -69,7 +69,7 @@ describe('Canvas 管理', () => {
             expect(response.error).toBeDefined();
         });
 
-        it('failed_when_canvas_create_with_invalid_name', async () => {
+        it('無效名稱時建立失敗', async () => {
             const response = await emitAndWaitResponse<CanvasCreatePayload, CanvasCreatedPayload>(
                 client,
                 WebSocketRequestEvents.CANVAS_CREATE,
@@ -83,7 +83,7 @@ describe('Canvas 管理', () => {
     });
 
     describe('Canvas 列表', () => {
-        it('success_when_canvas_list_returns_all_canvases', async () => {
+        it('成功回傳所有 Canvas', async () => {
             await createCanvas(client, 'List Canvas 1');
             await createCanvas(client, 'List Canvas 2');
 
@@ -100,7 +100,7 @@ describe('Canvas 管理', () => {
             expect(names).toContain('List Canvas 2');
         });
 
-        it('success_when_canvas_list_returns_array', async () => {
+        it('成功回傳陣列格式', async () => {
             const response = await emitAndWaitResponse<CanvasListPayload, CanvasListResultPayload>(
                 client,
                 WebSocketRequestEvents.CANVAS_LIST,
@@ -114,7 +114,7 @@ describe('Canvas 管理', () => {
     });
 
     describe('Canvas 重命名', () => {
-        it('success_when_canvas_renamed', async () => {
+        it('成功重命名', async () => {
             const canvas = await createCanvas(client, 'Original Name');
 
             const response = await emitAndWaitResponse<CanvasRenamePayload, CanvasRenamedPayload>(
@@ -129,7 +129,7 @@ describe('Canvas 管理', () => {
             expect(response.canvas!.name).toBe('Renamed Canvas');
         });
 
-        it('failed_when_canvas_rename_with_nonexistent_id', async () => {
+        it('不存在的 ID 時重命名失敗', async () => {
             const response = await emitAndWaitResponse<CanvasRenamePayload, CanvasRenamedPayload>(
                 client,
                 WebSocketRequestEvents.CANVAS_RENAME,
@@ -141,7 +141,7 @@ describe('Canvas 管理', () => {
             expect(response.error).toContain('找不到');
         });
 
-        it('failed_when_canvas_rename_with_empty_name', async () => {
+        it('空白名稱時重命名失敗', async () => {
             const canvas = await createCanvas(client, 'Valid Name');
 
             const response = await emitAndWaitResponse<CanvasRenamePayload, CanvasRenamedPayload>(
@@ -155,7 +155,7 @@ describe('Canvas 管理', () => {
             expect(response.error).toBeDefined();
         });
 
-        it('failed_when_canvas_rename_with_invalid_name', async () => {
+        it('無效名稱時重命名失敗', async () => {
             const createResponse = await emitAndWaitResponse<CanvasCreatePayload, CanvasCreatedPayload>(
                 client,
                 WebSocketRequestEvents.CANVAS_CREATE,
@@ -177,7 +177,7 @@ describe('Canvas 管理', () => {
             expect(response.error).toBeDefined();
         });
 
-        it('failed_when_canvas_rename_to_existing_name', async () => {
+        it('重複名稱時重命名失敗', async () => {
             // 建立兩個 Canvas
             await createCanvas(client, 'Canvas_One');
             const canvas2 = await createCanvas(client, 'Canvas_Two');
@@ -196,7 +196,7 @@ describe('Canvas 管理', () => {
     });
 
     describe('Canvas 刪除', () => {
-        it('success_when_canvas_deleted', async () => {
+        it('成功刪除', async () => {
             const canvas = await createCanvas(client, 'To Delete');
 
             const response = await emitAndWaitResponse<CanvasDeletePayload, CanvasDeletedPayload>(
@@ -210,7 +210,7 @@ describe('Canvas 管理', () => {
             expect(response.canvasId).toBe(canvas.id);
         });
 
-        it('failed_when_canvas_delete_with_nonexistent_id', async () => {
+        it('不存在的 ID 時刪除失敗', async () => {
             const response = await emitAndWaitResponse<CanvasDeletePayload, CanvasDeletedPayload>(
                 client,
                 WebSocketRequestEvents.CANVAS_DELETE,
@@ -222,7 +222,7 @@ describe('Canvas 管理', () => {
             expect(response.error).toContain('找不到');
         });
 
-        it('failed_when_canvas_delete_while_in_use', async () => {
+        it('使用中時刪除失敗', async () => {
             const activeCanvasId = await getCanvasId(client);
 
             const response = await emitAndWaitResponse<CanvasDeletePayload, CanvasDeletedPayload>(
@@ -238,7 +238,7 @@ describe('Canvas 管理', () => {
     });
 
     describe('Canvas 切換', () => {
-        it('success_when_canvas_switched', async () => {
+        it('成功切換', async () => {
             const canvas = await createCanvas(client, 'Switch Target');
 
             const response = await emitAndWaitResponse<CanvasSwitchPayload, CanvasSwitchedPayload>(
@@ -252,7 +252,7 @@ describe('Canvas 管理', () => {
             expect(response.canvasId).toBe(canvas.id);
         });
 
-        it('failed_when_canvas_switch_with_nonexistent_id', async () => {
+        it('不存在的 ID 時切換失敗', async () => {
             const response = await emitAndWaitResponse<CanvasSwitchPayload, CanvasSwitchedPayload>(
                 client,
                 WebSocketRequestEvents.CANVAS_SWITCH,
@@ -266,7 +266,7 @@ describe('Canvas 管理', () => {
     });
 
     describe('Canvas 排序', () => {
-        it('success_when_canvas_reordered', async () => {
+        it('成功重新排序', async () => {
             // 取得目前所有 Canvas（包括 default）
             await listCanvases(client);
 
@@ -294,7 +294,7 @@ describe('Canvas 管理', () => {
             expect(ids.indexOf(canvasA.id)).toBeLessThan(ids.indexOf(canvasB.id));
         });
 
-        it('success_when_canvas_list_returns_sorted_order', async () => {
+        it('列表回傳排序後的順序', async () => {
             // 建立多個 Canvas
             const canvas1 = await createCanvas(client, 'Canvas 1');
             const canvas2 = await createCanvas(client, 'Canvas 2');
@@ -320,7 +320,7 @@ describe('Canvas 管理', () => {
             }
         });
 
-        it('success_when_new_canvas_added_to_end', async () => {
+        it('新 Canvas 新增到最後', async () => {
             // 建立 2 個 Canvas
             const canvas1 = await createCanvas(client, 'Canvas X');
             const canvas2 = await createCanvas(client, 'Canvas Y');
@@ -349,7 +349,7 @@ describe('Canvas 管理', () => {
             expect(canvases[canvases.length - 1].id).toBe(newCanvas.id);
         });
 
-        it('failed_when_canvas_reorder_with_invalid_ids', async () => {
+        it('無效 ID 時排序失敗', async () => {
             // 建立 1 個 Canvas
             const canvas = await createCanvas(client, 'Valid Canvas');
 
@@ -365,7 +365,7 @@ describe('Canvas 管理', () => {
             expect(response.error).toBeDefined();
         });
 
-        it('failed_when_canvas_reorder_with_empty_array', async () => {
+        it('空陣列時排序失敗', async () => {
             // 嘗試用空陣列排序
             const response = await emitAndWaitResponse<CanvasReorderPayload, CanvasReorderedPayload>(
                 client,
@@ -377,7 +377,7 @@ describe('Canvas 管理', () => {
             expect(response.success).toBe(false);
         });
 
-        it('success_when_canvas_reorder_with_partial_ids', async () => {
+        it('部分 ID 時成功排序', async () => {
             // 建立 3 個 Canvas
             const canvasP1 = await createCanvas(client, 'Partial_1');
             const canvasP2 = await createCanvas(client, 'Partial_2');
@@ -404,7 +404,7 @@ describe('Canvas 管理', () => {
             expect(ids.indexOf(canvasP1.id)).toBeLessThan(ids.indexOf(canvasP3.id));
         });
 
-        it('failed_when_canvas_reorder_with_duplicate_ids', async () => {
+        it('重複 ID 時排序失敗', async () => {
             // 建立 1 個 Canvas
             const canvas = await createCanvas(client, 'Duplicate_Test');
 

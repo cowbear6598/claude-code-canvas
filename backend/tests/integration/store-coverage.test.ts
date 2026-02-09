@@ -46,7 +46,7 @@ describe('Store 覆蓋率測試', () => {
   });
 
   describe('PodStore', () => {
-    it('success_when_canvas_pods_lazy_initialized', async () => {
+    it('Canvas Pods 延遲初始化成功', async () => {
       const canvasId = 'new-canvas-' + uuidv4();
       const pods = podStore.getAll(canvasId);
 
@@ -54,7 +54,7 @@ describe('Store 覆蓋率測試', () => {
       expect(pods).toHaveLength(0);
     });
 
-    it('success_when_status_same_skips_update', async () => {
+    it('相同狀態時跳過更新', async () => {
       const pod = await createPod(client);
       const canvasId = server.canvasId;
 
@@ -74,7 +74,7 @@ describe('Store 覆蓋率測試', () => {
       client.off(WebSocketResponseEvents.POD_STATUS_CHANGED, listener);
     });
 
-    it('success_when_status_different_emits_event', async () => {
+    it('不同狀態時觸發事件', async () => {
       const pod = await createPod(client);
       const canvasId = server.canvasId;
 
@@ -97,7 +97,7 @@ describe('Store 覆蓋率測試', () => {
       client.off(WebSocketResponseEvents.POD_STATUS_CHANGED, listener);
     });
 
-    it('success_when_skill_not_in_list_adds', async () => {
+    it('Skill 不在列表時新增成功', async () => {
       const pod = await createPod(client);
       const skillId = await createSkillFile(`skill-${uuidv4()}`, '# Test');
 
@@ -113,7 +113,7 @@ describe('Store 覆蓋率測試', () => {
       expect(response.pod!.skillIds).toContain(skillId);
     });
 
-    it('success_when_skill_already_in_list_skips', async () => {
+    it('Skill 已在列表時跳過', async () => {
       const pod = await createPod(client);
       const skillId = await createSkillFile(`skill-${uuidv4()}`, '# Test');
       const canvasId = await getCanvasId(client);
@@ -134,7 +134,7 @@ describe('Store 覆蓋率測試', () => {
       expect(beforeLength).toBe(afterLength);
     });
 
-    it('success_when_subagent_not_in_list_adds', async () => {
+    it('SubAgent 不在列表時新增成功', async () => {
       const pod = await createPod(client);
       const subAgent = await createSubAgent(client, `subagent-${uuidv4()}`, '# Test');
 
@@ -150,7 +150,7 @@ describe('Store 覆蓋率測試', () => {
       expect(response.pod!.subAgentIds).toContain(subAgent.id);
     });
 
-    it('success_when_subagent_already_in_list_skips', async () => {
+    it('SubAgent 已在列表時跳過', async () => {
       const pod = await createPod(client);
       const subAgent = await createSubAgent(client, `subagent-${uuidv4()}`, '# Test');
       const canvasId = await getCanvasId(client);
@@ -171,7 +171,7 @@ describe('Store 覆蓋率測試', () => {
       expect(beforeLength).toBe(afterLength);
     });
 
-    it('failed_when_canvas_not_found_throws', () => {
+    it('Canvas 找不到時拋出錯誤', () => {
       const fakeCanvasId = 'nonexistent-canvas';
 
       expect(() => {
@@ -187,7 +187,7 @@ describe('Store 覆蓋率測試', () => {
   });
 
   describe('ConnectionStore', () => {
-    it('success_when_canvas_map_lazy_initialized', () => {
+    it('Canvas Map 延遲初始化成功', () => {
       const canvasId = 'new-canvas-' + uuidv4();
       const connections = connectionStore.list(canvasId);
 
@@ -195,7 +195,7 @@ describe('Store 覆蓋率測試', () => {
       expect(connections).toHaveLength(0);
     });
 
-    it('success_when_delete_saves_to_disk', async () => {
+    it('刪除時儲存到磁碟', async () => {
       const podA = await createPod(client, { name: 'Pod A' });
       const podB = await createPod(client, { name: 'Pod B' });
 
@@ -226,7 +226,7 @@ describe('Store 覆蓋率測試', () => {
       expect(connections.find((c) => c.id === connectionId)).toBeUndefined();
     });
 
-    it('success_when_delete_fails_skips_save', () => {
+    it('刪除失敗時跳過儲存', () => {
       const canvasId = server.canvasId;
 
       const deleted = connectionStore.delete(canvasId, FAKE_UUID);
@@ -234,7 +234,7 @@ describe('Store 覆蓋率測試', () => {
       expect(deleted).toBe(false);
     });
 
-    it('success_when_find_by_pod_returns_empty_if_no_map', () => {
+    it('無 Map 時依 Pod 查詢回傳空陣列', () => {
       const canvasId = 'nonexistent-canvas-' + uuidv4();
 
       const connections = connectionStore.findByPodId(canvasId, FAKE_UUID);

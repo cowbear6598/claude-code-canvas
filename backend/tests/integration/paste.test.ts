@@ -59,7 +59,7 @@ describe('貼上功能', () => {
     }
 
     describe('Canvas 貼上', () => {
-        it('success_when_paste_creates_pods_and_connections', async () => {
+        it('成功貼上並建立 Pod 和連線', async () => {
             const podId1 = uuidv4();
             const podId2 = uuidv4();
 
@@ -93,7 +93,7 @@ describe('貼上功能', () => {
             expect(Object.keys(response.podIdMapping)).toHaveLength(2);
         });
 
-        it('success_when_paste_creates_notes_with_pod_binding', async () => {
+        it('成功貼上並建立綁定 Pod 的註記', async () => {
             const style = await createOutputStyle(client, `paste-style-${uuidv4()}`, '# Style');
             const podId = uuidv4();
 
@@ -128,7 +128,7 @@ describe('貼上功能', () => {
             expect(response.createdOutputStyleNotes[0].boundToPodId).toBe(newPodId);
         });
 
-        it('success_when_paste_with_empty_payload', async () => {
+        it('成功貼上空內容', async () => {
             const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
                 client,
                 WebSocketRequestEvents.CANVAS_PASTE,
@@ -140,7 +140,7 @@ describe('貼上功能', () => {
             expect(response.createdConnections).toHaveLength(0);
         });
 
-        it('success_when_paste_reports_errors_for_invalid_items', async () => {
+        it('成功回報無效項目的錯誤', async () => {
             const validPodId = uuidv4();
             const pods: PastePodItem[] = [
                 {originalId: validPodId, name: 'Valid', color: 'blue', x: 0, y: 0, rotation: 0},
@@ -170,7 +170,7 @@ describe('貼上功能', () => {
             expect(response.createdConnections).toHaveLength(0);
         });
 
-        it('success_when_paste_creates_skill_notes', async () => {
+        it('成功貼上並建立技能註記', async () => {
             const skillId = await createSkillFile(`skill-${uuidv4()}`, '# Test Skill');
 
             const skillNotes: PasteSkillNoteItem[] = [
@@ -197,7 +197,7 @@ describe('貼上功能', () => {
             expect(response.createdSkillNotes[0].skillId).toBe(skillId);
         });
 
-        it('success_when_paste_creates_repository_notes', async () => {
+        it('成功貼上並建立儲存庫註記', async () => {
             const repository = await createRepository(client, `repo-${uuidv4()}`);
 
             const repositoryNotes: PasteRepositoryNoteItem[] = [
@@ -224,7 +224,7 @@ describe('貼上功能', () => {
             expect(response.createdRepositoryNotes[0].repositoryId).toBe(repository.id);
         });
 
-        it('success_when_paste_creates_subagent_notes', async () => {
+        it('成功貼上並建立子代理註記', async () => {
             const subAgent = await createSubAgent(client, `subagent-${uuidv4()}`, '# Test SubAgent');
 
             const subAgentNotes: PasteSubAgentNoteItem[] = [
@@ -251,7 +251,7 @@ describe('貼上功能', () => {
             expect(response.createdSubAgentNotes[0].subAgentId).toBe(subAgent.id);
         });
 
-        it('success_when_paste_creates_command_notes_and_binds_to_pods', async () => {
+        it('成功貼上並建立綁定 Pod 的指令註記', async () => {
             const command = await createCommand(client, `command-${uuidv4()}`, '# Test Command');
             const originalPodId = uuidv4();
 

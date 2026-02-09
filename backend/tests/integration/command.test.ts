@@ -115,7 +115,7 @@ describe('Command 管理', () => {
   );
 
   describe('Pod 綁定 Command - Command 特有測試', () => {
-    it('failed_when_bind_command_while_pod_already_has_command', async () => {
+    it('Pod 已有 Command 時綁定失敗', async () => {
       const pod = await createPod(client);
       const cmd1 = await makeCommand(client);
       const cmd2 = await makeCommand(client);
@@ -138,7 +138,7 @@ describe('Command 管理', () => {
       expect(response.success).toBe(false);
     });
 
-    it('success_when_command_bound_persists_after_reload', async () => {
+    it('綁定 Command 後重新載入仍保留', async () => {
       const pod = await createPod(client);
       const cmd = await makeCommand(client);
 
@@ -166,7 +166,7 @@ describe('Command 管理', () => {
   });
 
   describe('Pod 解除綁定 Command - Command 特有測試', () => {
-    it('success_when_command_unbound_from_pod', async () => {
+    it('成功解除綁定 Command', async () => {
       const pod = await createPod(client);
       const cmd = await makeCommand(client);
 
@@ -189,7 +189,7 @@ describe('Command 管理', () => {
       expect(response.pod!.commandId).toBeNull();
     });
 
-    it('success_when_unbind_command_from_pod_without_command', async () => {
+    it('Pod 無 Command 時解除綁定成功', async () => {
       const pod = await createPod(client);
 
       const canvasId = await getCanvasId(client);
@@ -203,7 +203,7 @@ describe('Command 管理', () => {
       expect(response.success).toBe(true);
     });
 
-    it('failed_when_unbind_command_with_nonexistent_pod', async () => {
+    it('Pod 不存在時解除綁定失敗', async () => {
       const canvasId = await getCanvasId(client);
       const response = await emitAndWaitResponse<PodUnbindCommandPayload, PodCommandUnboundPayload>(
         client,
