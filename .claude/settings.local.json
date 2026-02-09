@@ -34,7 +34,12 @@
       "Bash(bun run:*)",
       "Bash(git push:*)",
       "Bash(bun add:*)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(tsc:*)",
+      "Bash(bunx tsc:*)",
+      "Bash(bunx --bun vitest run:*)",
+      "Bash(bunx eslint:*)",
+      "Bash(bunx --bun tsc:*)"
     ]
   },
   "outputStyle": "conductor"
