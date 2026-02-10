@@ -144,8 +144,6 @@ class WorkflowQueueService {
       item.isSummarized,
       skipAutoTriggeredEvent
     );
-
-    connectionStore.updateConnectionStatus(canvasId, item.connectionId, 'idle');
   }
 }
 

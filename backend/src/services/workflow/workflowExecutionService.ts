@@ -101,30 +101,26 @@ class WorkflowExecutionService {
 
     autoClearService.initializeWorkflowTracking(canvasId, sourcePodId);
 
-    await Promise.all([
-      // Auto: 逐一呼叫
-      (async (): Promise<void> => {
-        for (const connection of autoConnections) {
-          await this.autoTriggerService!.processAutoTriggerConnection(canvasId, sourcePodId, connection);
-        }
-      })(),
+    await Promise.allSettled([
+      // Auto: 平行處理所有 auto connections
+      ...autoConnections.map(connection =>
+        this.autoTriggerService!.processAutoTriggerConnection(canvasId, sourcePodId, connection)
+      ),
       // AI-Decide: 批次處理
       aiDecideConnections.length > 0
         ? this.aiDecideTriggerService!.processAiDecideConnections(canvasId, sourcePodId, aiDecideConnections)
         : Promise.resolve(),
-      // Direct: 逐一走 Pipeline
-      (async (): Promise<void> => {
-        for (const connection of directConnections) {
-          const pipelineContext: PipelineContext = {
-            canvasId,
-            sourcePodId,
-            connection,
-            triggerMode: 'direct',
-            decideResult: { connectionId: connection.id, approved: true, reason: null },
-          };
-          await this.pipeline!.execute(pipelineContext, this.directTriggerService!);
-        }
-      })(),
+      // Direct: 平行處理所有 direct connections
+      ...directConnections.map(connection => {
+        const pipelineContext: PipelineContext = {
+          canvasId,
+          sourcePodId,
+          connection,
+          triggerMode: 'direct',
+          decideResult: { connectionId: connection.id, approved: true, reason: null },
+        };
+        return this.pipeline!.execute(pipelineContext, this.directTriggerService!);
+      }),
     ]);
   }
 
@@ -180,11 +176,10 @@ class WorkflowExecutionService {
       isSummarized
     );
 
-    await this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, transferredContent);
-
-    this.checkAndTriggerWorkflows(canvasId, targetPodId).catch((error) => {
-      logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${targetPodId}`, error);
-    });
+    podStore.setStatus(canvasId, targetPodId, 'chatting');
+    this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, transferredContent).catch(error =>
+      logger.error('Workflow', 'Error', `executeClaudeQuery 執行失敗 (connection: ${connectionId})`, error)
+    );
   }
 
   async triggerWorkflowWithSummary(
@@ -229,11 +224,10 @@ class WorkflowExecutionService {
       isSummarized
     );
 
-    await this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, summary);
-
-    this.checkAndTriggerWorkflows(canvasId, targetPodId).catch((error) => {
-      logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${targetPodId}`, error);
-    });
+    podStore.setStatus(canvasId, targetPodId, 'chatting');
+    this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, summary).catch(error =>
+      logger.error('Workflow', 'Error', `executeClaudeQuery 執行失敗 (connection: ${connectionId})`, error)
+    );
   }
 
   /**
@@ -252,8 +246,6 @@ class WorkflowExecutionService {
     targetPodId: string,
     content: string
   ): Promise<void> {
-    podStore.setStatus(canvasId, targetPodId, 'chatting');
-
     const connection = connectionStore.getById(canvasId, connectionId);
     const triggerMode = connection?.triggerMode ?? 'auto';
 
@@ -285,12 +277,18 @@ class WorkflowExecutionService {
           workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, true, undefined, triggerMode);
           logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod "${targetPod?.name ?? targetPodId}"`);
           await autoClearService.onPodComplete(canvasId, targetPodId);
+          connectionStore.updateConnectionStatus(canvasId, connectionId, 'idle');
+          this.checkAndTriggerWorkflows(canvasId, targetPodId).catch(error =>
+            logger.error('Workflow', 'Error', `下游 workflow 觸發失敗 (pod: ${targetPodId})`, error)
+          );
           this.scheduleNextInQueue(canvasId, targetPodId);
         },
         onError: async (_canvasId, _podId, error) => {
           const errorMessage = error.message;
           workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, false, errorMessage, triggerMode);
           logger.error('Workflow', 'Error', 'Failed to complete workflow', error);
+          podStore.setStatus(canvasId, targetPodId, 'idle');
+          connectionStore.updateConnectionStatus(canvasId, connectionId, 'idle');
           this.scheduleNextInQueue(canvasId, targetPodId);
         },
       }
