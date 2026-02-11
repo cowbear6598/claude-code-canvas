@@ -4,6 +4,7 @@ import { podStore } from '../podStore.js';
 import { connectionStore } from '../connectionStore.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
 import { logger } from '../../utils/logger.js';
+import { forEachDirectConnection } from './workflowHelpers.js';
 
 export interface QueueItem {
   id: string;
@@ -17,7 +18,6 @@ export interface QueueItem {
   enqueuedAt: Date;
 }
 
-// 定義需要的 ExecutionService 方法介面（避免循環依賴）
 interface ExecutionServiceMethods {
   triggerWorkflowWithSummary(
     canvasId: string,
@@ -32,9 +32,6 @@ class WorkflowQueueService {
   private queues: Map<string, QueueItem[]> = new Map();
   private executionService?: ExecutionServiceMethods;
 
-  /**
-   * 初始化依賴注入
-   */
   init(dependencies: { executionService: ExecutionServiceMethods }): void {
     this.executionService = dependencies.executionService;
   }
@@ -53,19 +50,39 @@ class WorkflowQueueService {
     const position = queue.length;
     const queueSize = queue.length;
 
-    connectionStore.updateConnectionStatus(item.canvasId, item.connectionId, 'queued');
+    if (item.triggerMode === 'direct') {
+      let directConnectionCount = 0;
+      forEachDirectConnection(item.canvasId, item.targetPodId, (directConn) => {
+        connectionStore.updateConnectionStatus(item.canvasId, directConn.id, 'queued');
 
-    workflowEventEmitter.emitWorkflowQueued(item.canvasId, {
-      canvasId: item.canvasId,
-      targetPodId: item.targetPodId,
-      connectionId: item.connectionId,
-      sourcePodId: item.sourcePodId,
-      position,
-      queueSize,
-      triggerMode: item.triggerMode,
-    });
+        workflowEventEmitter.emitWorkflowQueued(item.canvasId, {
+          canvasId: item.canvasId,
+          targetPodId: item.targetPodId,
+          connectionId: directConn.id,
+          sourcePodId: directConn.sourcePodId,
+          position,
+          queueSize,
+          triggerMode: item.triggerMode,
+        });
+        directConnectionCount++;
+      });
 
-    logger.log('Workflow', 'Create', `Enqueued workflow for target ${item.targetPodId}, position ${position}/${queueSize}`);
+      logger.log('Workflow', 'Create', `Enqueued ${directConnectionCount} direct connections for target ${item.targetPodId}, position ${position}/${queueSize}`);
+    } else {
+      connectionStore.updateConnectionStatus(item.canvasId, item.connectionId, 'queued');
+
+      workflowEventEmitter.emitWorkflowQueued(item.canvasId, {
+        canvasId: item.canvasId,
+        targetPodId: item.targetPodId,
+        connectionId: item.connectionId,
+        sourcePodId: item.sourcePodId,
+        position,
+        queueSize,
+        triggerMode: item.triggerMode,
+      });
+
+      logger.log('Workflow', 'Create', `Enqueued workflow for target ${item.targetPodId}, position ${position}/${queueSize}`);
+    }
 
     return { position, queueSize };
   }
@@ -123,18 +140,37 @@ class WorkflowQueueService {
 
     const remainingQueueSize = this.getQueueSize(targetPodId);
 
-    connectionStore.updateConnectionStatus(canvasId, item.connectionId, 'active');
+    if (item.triggerMode === 'direct') {
+      let directConnectionCount = 0;
+      forEachDirectConnection(canvasId, targetPodId, (directConn) => {
+        connectionStore.updateConnectionStatus(canvasId, directConn.id, 'active');
 
-    workflowEventEmitter.emitWorkflowQueueProcessed(canvasId, {
-      canvasId,
-      targetPodId,
-      connectionId: item.connectionId,
-      sourcePodId: item.sourcePodId,
-      remainingQueueSize,
-      triggerMode: item.triggerMode,
-    });
+        workflowEventEmitter.emitWorkflowQueueProcessed(canvasId, {
+          canvasId,
+          targetPodId,
+          connectionId: directConn.id,
+          sourcePodId: directConn.sourcePodId,
+          remainingQueueSize,
+          triggerMode: item.triggerMode,
+        });
+        directConnectionCount++;
+      });
 
-    logger.log('Workflow', 'Update', `Processing queued workflow for target ${targetPodId}, ${remainingQueueSize} remaining`);
+      logger.log('Workflow', 'Update', `Processing ${directConnectionCount} queued direct connections for target ${targetPodId}, ${remainingQueueSize} remaining`);
+    } else {
+      connectionStore.updateConnectionStatus(canvasId, item.connectionId, 'active');
+
+      workflowEventEmitter.emitWorkflowQueueProcessed(canvasId, {
+        canvasId,
+        targetPodId,
+        connectionId: item.connectionId,
+        sourcePodId: item.sourcePodId,
+        remainingQueueSize,
+        triggerMode: item.triggerMode,
+      });
+
+      logger.log('Workflow', 'Update', `Processing queued workflow for target ${targetPodId}, ${remainingQueueSize} remaining`);
+    }
 
     const skipAutoTriggeredEvent = item.triggerMode === 'direct' || item.triggerMode === 'ai-decide';
     await this.executionService.triggerWorkflowWithSummary(

@@ -24,6 +24,7 @@ import {executeStreamingChat} from '../claude/streamingChatExecutor.js';
 import {
     buildTransferMessage,
     buildMessageWithCommand,
+    forEachDirectConnection,
 } from './workflowHelpers.js';
 import {workflowAutoTriggerService} from './workflowAutoTriggerService.js';
 
@@ -33,9 +34,6 @@ class WorkflowExecutionService {
   private autoTriggerService?: AutoTriggerMethods;
   private directTriggerService?: DirectTriggerMethods;
 
-  /**
-   * 初始化依賴（延遲注入，避免循環依賴）
-   */
   init(deps: {
     pipeline: PipelineMethods;
     aiDecideTriggerService: AiDecideMethods;
@@ -102,15 +100,12 @@ class WorkflowExecutionService {
     autoClearService.initializeWorkflowTracking(canvasId, sourcePodId);
 
     await Promise.allSettled([
-      // Auto: 平行處理所有 auto connections
       ...autoConnections.map(connection =>
         this.autoTriggerService!.processAutoTriggerConnection(canvasId, sourcePodId, connection)
       ),
-      // AI-Decide: 批次處理
       aiDecideConnections.length > 0
         ? this.aiDecideTriggerService!.processAiDecideConnections(canvasId, sourcePodId, aiDecideConnections)
         : Promise.resolve(),
-      // Direct: 平行處理所有 direct connections
       ...directConnections.map(connection => {
         const pipelineContext: PipelineContext = {
           canvasId,
@@ -153,8 +148,7 @@ class WorkflowExecutionService {
       throw new Error('無可用的備用內容');
     }
 
-    const transferredContent = result.content;
-    const isSummarized = result.isSummarized;
+    const { content: transferredContent, isSummarized } = result;
 
     logger.log('Workflow', 'Create', `Auto-triggering workflow from Pod "${sourcePod.name}" to Pod "${targetPod.name}" (summarized: ${isSummarized})`);
 
@@ -167,6 +161,19 @@ class WorkflowExecutionService {
     };
 
     workflowEventEmitter.emitWorkflowAutoTriggered(canvasId, sourcePodId, targetPodId, autoTriggeredPayload);
+
+    if (connection.triggerMode === 'direct') {
+      const directTriggeredPayload = {
+        canvasId,
+        connectionId,
+        sourcePodId,
+        targetPodId,
+        transferredContent,
+        isSummarized,
+      };
+      workflowEventEmitter.emitDirectTriggered(canvasId, directTriggeredPayload);
+    }
+
     workflowEventEmitter.emitWorkflowTriggered(
       canvasId,
       connectionId,
@@ -213,6 +220,18 @@ class WorkflowExecutionService {
       };
 
       workflowEventEmitter.emitWorkflowAutoTriggered(canvasId, sourcePodId, targetPodId, autoTriggeredPayload);
+    } else if (connection.triggerMode === 'direct') {
+      forEachDirectConnection(canvasId, targetPodId, (directConn) => {
+        const directTriggeredPayload = {
+          canvasId,
+          connectionId: directConn.id,
+          sourcePodId: directConn.sourcePodId,
+          targetPodId,
+          transferredContent: summary,
+          isSummarized,
+        };
+        workflowEventEmitter.emitDirectTriggered(canvasId, directTriggeredPayload);
+      });
     }
 
     workflowEventEmitter.emitWorkflowTriggered(
@@ -230,12 +249,22 @@ class WorkflowExecutionService {
     );
   }
 
-  /**
-   * 排程下一個佇列項目（fire-and-forget）
-   */
   private scheduleNextInQueue(canvasId: string, targetPodId: string): void {
     workflowQueueService.processNextInQueue(canvasId, targetPodId).catch(error => {
       logger.error('Workflow', 'Error', `處理佇列下一項時發生錯誤: ${error}`);
+    });
+  }
+
+  private completeDirectConnections(
+    canvasId: string,
+    targetPodId: string,
+    success: boolean,
+    errorMessage: string | undefined,
+    triggerMode: 'auto' | 'ai-decide' | 'direct'
+  ): void {
+    forEachDirectConnection(canvasId, targetPodId, (directConn) => {
+      workflowEventEmitter.emitWorkflowComplete(canvasId, directConn.id, directConn.sourcePodId, targetPodId, success, errorMessage, triggerMode);
+      connectionStore.updateConnectionStatus(canvasId, directConn.id, 'idle');
     });
   }
 
@@ -274,10 +303,14 @@ class WorkflowExecutionService {
       { canvasId, podId: targetPodId, message: messageToSend, connectionId: SystemConnectionIds.WORKFLOW, supportAbort: false },
       {
         onComplete: async () => {
-          workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, true, undefined, triggerMode);
+          if (triggerMode === 'direct') {
+            this.completeDirectConnections(canvasId, targetPodId, true, undefined, triggerMode);
+          } else {
+            workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, true, undefined, triggerMode);
+            connectionStore.updateConnectionStatus(canvasId, connectionId, 'idle');
+          }
           logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod "${targetPod?.name ?? targetPodId}"`);
           await autoClearService.onPodComplete(canvasId, targetPodId);
-          connectionStore.updateConnectionStatus(canvasId, connectionId, 'idle');
           this.checkAndTriggerWorkflows(canvasId, targetPodId).catch(error =>
             logger.error('Workflow', 'Error', `下游 workflow 觸發失敗 (pod: ${targetPodId})`, error)
           );
@@ -285,10 +318,14 @@ class WorkflowExecutionService {
         },
         onError: async (_canvasId, _podId, error) => {
           const errorMessage = error.message;
-          workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, false, errorMessage, triggerMode);
+          if (triggerMode === 'direct') {
+            this.completeDirectConnections(canvasId, targetPodId, false, errorMessage, triggerMode);
+          } else {
+            workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, false, errorMessage, triggerMode);
+            connectionStore.updateConnectionStatus(canvasId, connectionId, 'idle');
+          }
           logger.error('Workflow', 'Error', 'Failed to complete workflow', error);
           podStore.setStatus(canvasId, targetPodId, 'idle');
-          connectionStore.updateConnectionStatus(canvasId, connectionId, 'idle');
           this.scheduleNextInQueue(canvasId, targetPodId);
         },
       }
