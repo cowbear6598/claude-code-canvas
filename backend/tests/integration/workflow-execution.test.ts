@@ -447,6 +447,9 @@ describe('WorkflowExecution 服務', () => {
             expect(autoTriggeredEvent.transferredContent).toBe(preGeneratedSummary);
             expect(autoTriggeredEvent.isSummarized).toBe(true);
 
+            // executeClaudeQuery 現在是 fire-and-forget，需要等待一段時間讓異步操作完成
+            await new Promise(resolve => setTimeout(resolve, 200));
+
             // 驗證：target pod 收到正確的內容
             const {messageStore} = await import('../../src/services/messageStore.js');
             const targetMessages = messageStore.getMessages(targetPod.id);

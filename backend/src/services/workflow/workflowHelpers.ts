@@ -1,4 +1,24 @@
-import type {Pod, Command} from '../../types/index.js';
+import type {Pod, Command, Connection} from '../../types/index.js';
+import {connectionStore} from '../connectionStore.js';
+
+export function getDirectConnectionsForTarget(
+    canvasId: string,
+    targetPodId: string
+): Connection[] {
+    const allIncomingConnections = connectionStore.findByTargetPodId(canvasId, targetPodId);
+    return allIncomingConnections.filter(conn => conn.triggerMode === 'direct');
+}
+
+export function forEachDirectConnection(
+    canvasId: string,
+    targetPodId: string,
+    callback: (conn: Connection) => void
+): void {
+    const directConnections = getDirectConnectionsForTarget(canvasId, targetPodId);
+    for (const conn of directConnections) {
+        callback(conn);
+    }
+}
 
 export function formatMergedSummaries(
     summaries: Map<string, string>,

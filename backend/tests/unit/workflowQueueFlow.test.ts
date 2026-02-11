@@ -246,7 +246,10 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 })
             );
 
-            // 驗證 triggerWorkflowWithSummary 被呼叫（透過 sendMessage）
+            // 驗證 triggerWorkflowWithSummary 被呼叫
+            // executeClaudeQuery 現在是 fire-and-forget，所以 sendMessage 會被呼叫
+            // 但需要等待一下讓 fire-and-forget 的 Promise 執行
+            await new Promise(resolve => setTimeout(resolve, 50));
             expect(claudeQueryService.sendMessage).toHaveBeenCalled();
         });
     });
@@ -496,19 +499,18 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 processNextInQueueCalled = true;
             });
 
-            // 呼叫 triggerWorkflowWithSummary，預期拋出錯誤
-            await expect(
-                workflowExecutionService.triggerWorkflowWithSummary(
-                    canvasId,
-                    conn.id,
-                    'Test summary',
-                    true,
-                    false
-                )
-            ).rejects.toThrow('Claude query failed');
+            // 呼叫 triggerWorkflowWithSummary
+            // executeClaudeQuery 現在是 fire-and-forget，所以 triggerWorkflowWithSummary 不會 reject
+            await workflowExecutionService.triggerWorkflowWithSummary(
+                canvasId,
+                conn.id,
+                'Test summary',
+                true,
+                false
+            );
 
-            // 等一點時間讓 fire-and-forget 的 processNextInQueue 被呼叫
-            await new Promise(resolve => setTimeout(resolve, 50));
+            // 等一點時間讓 fire-and-forget 的 executeClaudeQuery 執行並發生錯誤
+            await new Promise(resolve => setTimeout(resolve, 100));
 
             // 驗證 emitWorkflowComplete 被呼叫，success 為 false
             expect(workflowEventEmitter.emitWorkflowComplete).toHaveBeenCalledWith(
