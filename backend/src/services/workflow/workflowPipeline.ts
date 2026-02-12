@@ -1,4 +1,3 @@
-import type { TriggerMode } from '../../types/index.js';
 import type {
   PipelineContext,
   TriggerStrategy,
@@ -45,7 +44,7 @@ class WorkflowPipeline {
       throw new Error('Pipeline 尚未初始化，請先呼叫 init()');
     }
 
-    const { canvasId, sourcePodId, connection, triggerMode, decideResult } = context;
+    const { canvasId, sourcePodId, connection, triggerMode } = context;
     const { targetPodId, id: connectionId } = connection;
 
     logger.log('Workflow', 'Pipeline', `開始執行 Pipeline：${sourcePodId} → ${targetPodId} (${triggerMode})`);
@@ -137,22 +136,13 @@ class WorkflowPipeline {
     // ========== 4. trigger 階段 ==========
     logger.log('Workflow', 'Pipeline', `[trigger] 觸發工作流程`);
 
-    // 決定是否跳過 AUTO_TRIGGERED 事件
-    const skipAutoTriggeredEvent = triggerMode === 'ai-decide' || triggerMode === 'direct';
-
-    if (strategy.collectSources && finalSummary !== summaryResult.content) {
-      // 使用合併內容觸發
-      await this.executionService.triggerWorkflowWithSummary(
-        canvasId,
-        connectionId,
-        finalSummary,
-        finalIsSummarized,
-        skipAutoTriggeredEvent
-      );
-    } else {
-      // 使用標準觸發
-      await this.executionService.triggerWorkflowInternal(canvasId, connectionId);
-    }
+    await this.executionService.triggerWorkflowWithSummary(
+      canvasId,
+      connectionId,
+      finalSummary,
+      finalIsSummarized,
+      strategy
+    );
 
     logger.log('Workflow', 'Pipeline', `Pipeline 執行完成`);
   }

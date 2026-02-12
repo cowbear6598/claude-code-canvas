@@ -25,10 +25,59 @@ export interface CollectSourcesResult {
   isSummarized?: boolean;
 }
 
+export interface TriggerLifecycleContext {
+  canvasId: string;
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+  summary: string;
+  isSummarized: boolean;
+}
+
+export interface QueuedContext {
+  canvasId: string;
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+  position: number;
+  queueSize: number;
+  triggerMode: TriggerMode;
+}
+
+export interface QueueProcessedContext {
+  canvasId: string;
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+  remainingQueueSize: number;
+  triggerMode: TriggerMode;
+}
+
+export interface CompletionContext {
+  canvasId: string;
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+  triggerMode: TriggerMode;
+}
+
 export interface TriggerStrategy {
   mode: TriggerMode;
+
+  // 決策階段
   decide(context: TriggerDecideContext): Promise<TriggerDecideResult[]>;
+
+  // 來源收集階段（可選，Direct 模式用到）
   collectSources?(context: CollectSourcesContext): Promise<CollectSourcesResult>;
+
+  // 觸發生命週期
+  onTrigger(context: TriggerLifecycleContext): void;
+  onComplete(context: CompletionContext, success: boolean, error?: string): void;
+  onError(context: CompletionContext, errorMessage: string): void;
+
+  // 佇列生命週期
+  onQueued(context: QueuedContext): void;
+  onQueueProcessed(context: QueueProcessedContext): void;
 }
 
 export interface PipelineContext {
@@ -46,14 +95,12 @@ export interface ExecutionServiceMethods {
     targetPodId: string
   ): Promise<{ content: string; isSummarized: boolean } | null>;
 
-  triggerWorkflowInternal(canvasId: string, connectionId: string): Promise<void>;
-
   triggerWorkflowWithSummary(
     canvasId: string,
     connectionId: string,
     summary: string,
     isSummarized: boolean,
-    skipAutoTriggeredEvent?: boolean
+    strategy: TriggerStrategy
   ): Promise<void>;
 }
 
@@ -88,7 +135,7 @@ export interface QueueServiceMethods {
 }
 
 export interface PipelineMethods {
-  execute(context: PipelineContext, strategy: any): Promise<void>;
+  execute(context: PipelineContext, strategy: TriggerStrategy): Promise<void>;
 }
 
 export interface AiDecideMethods {
@@ -97,8 +144,4 @@ export interface AiDecideMethods {
 
 export interface AutoTriggerMethods {
   processAutoTriggerConnection(canvasId: string, sourcePodId: string, connection: Connection): Promise<void>;
-}
-
-export interface DirectTriggerMethods {
-  readonly mode: 'direct';
 }

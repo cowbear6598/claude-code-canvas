@@ -7,13 +7,18 @@ import type {
     TriggerDecideResult,
     CollectSourcesContext,
     CollectSourcesResult,
+    TriggerLifecycleContext,
+    CompletionContext,
+    QueuedContext,
+    QueueProcessedContext,
 } from './types.js';
 import {podStore} from '../podStore.js';
 import {directTriggerStore} from '../directTriggerStore.js';
 import {workflowStateService} from './workflowStateService.js';
 import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {logger} from '../../utils/logger.js';
-import {formatMergedSummaries} from './workflowHelpers.js';
+import {formatMergedSummaries, forEachDirectConnection} from './workflowHelpers.js';
+import {connectionStore} from '../connectionStore.js';
 
 class WorkflowDirectTriggerService implements TriggerStrategy {
     readonly mode = 'direct' as const;
@@ -144,6 +149,68 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
             this.pendingResolvers.delete(targetPodId);
             directTriggerStore.clearDirectPending(targetPodId);
         }
+    }
+
+    onTrigger(context: TriggerLifecycleContext): void {
+        forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
+            workflowEventEmitter.emitDirectTriggered(context.canvasId, {
+                canvasId: context.canvasId,
+                connectionId: directConn.id,
+                sourcePodId: directConn.sourcePodId,
+                targetPodId: context.targetPodId,
+                transferredContent: context.summary,
+                isSummarized: context.isSummarized,
+            });
+        });
+    }
+
+    onComplete(context: CompletionContext, success: boolean, error?: string): void {
+        forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
+            workflowEventEmitter.emitWorkflowComplete(
+                context.canvasId, directConn.id, directConn.sourcePodId,
+                context.targetPodId, success, error, context.triggerMode
+            );
+            connectionStore.updateConnectionStatus(context.canvasId, directConn.id, 'idle');
+        });
+    }
+
+    onError(context: CompletionContext, errorMessage: string): void {
+        forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
+            workflowEventEmitter.emitWorkflowComplete(
+                context.canvasId, directConn.id, directConn.sourcePodId,
+                context.targetPodId, false, errorMessage, context.triggerMode
+            );
+            connectionStore.updateConnectionStatus(context.canvasId, directConn.id, 'idle');
+        });
+    }
+
+    onQueued(context: QueuedContext): void {
+        forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
+            connectionStore.updateConnectionStatus(context.canvasId, directConn.id, 'queued');
+            workflowEventEmitter.emitWorkflowQueued(context.canvasId, {
+                canvasId: context.canvasId,
+                targetPodId: context.targetPodId,
+                connectionId: directConn.id,
+                sourcePodId: directConn.sourcePodId,
+                position: context.position,
+                queueSize: context.queueSize,
+                triggerMode: context.triggerMode,
+            });
+        });
+    }
+
+    onQueueProcessed(context: QueueProcessedContext): void {
+        forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
+            connectionStore.updateConnectionStatus(context.canvasId, directConn.id, 'active');
+            workflowEventEmitter.emitWorkflowQueueProcessed(context.canvasId, {
+                canvasId: context.canvasId,
+                targetPodId: context.targetPodId,
+                connectionId: directConn.id,
+                sourcePodId: directConn.sourcePodId,
+                remainingQueueSize: context.remainingQueueSize,
+                triggerMode: context.triggerMode,
+            });
+        });
     }
 }
 

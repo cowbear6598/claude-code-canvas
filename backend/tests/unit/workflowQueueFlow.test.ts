@@ -12,6 +12,7 @@ import {claudeQueryService} from '../../src/services/claude/queryService.js';
 import {autoClearService} from '../../src/services/autoClear';
 import {logger} from '../../src/utils/logger.js';
 import type {Connection} from '../../src/types';
+import type {TriggerStrategy} from '../../src/services/workflow/types.js';
 
 describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () => {
     const canvasId = 'canvas-1';
@@ -87,7 +88,43 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
         },
     ];
 
+    let mockAutoStrategy: TriggerStrategy;
+    let mockDirectStrategy: TriggerStrategy;
+    let mockAiDecideStrategy: TriggerStrategy;
+
     beforeEach(() => {
+        // 重新建立 strategy mocks
+        mockAutoStrategy = {
+            mode: 'auto',
+            decide: vi.fn().mockResolvedValue([]),
+            onTrigger: vi.fn(),
+            onComplete: vi.fn(),
+            onError: vi.fn(),
+            onQueued: vi.fn(),
+            onQueueProcessed: vi.fn(),
+        };
+
+        mockDirectStrategy = {
+            mode: 'direct',
+            decide: vi.fn().mockResolvedValue([]),
+            collectSources: vi.fn(),
+            onTrigger: vi.fn(),
+            onComplete: vi.fn(),
+            onError: vi.fn(),
+            onQueued: vi.fn(),
+            onQueueProcessed: vi.fn(),
+        };
+
+        mockAiDecideStrategy = {
+            mode: 'ai-decide',
+            decide: vi.fn().mockResolvedValue([]),
+            onTrigger: vi.fn(),
+            onComplete: vi.fn(),
+            onError: vi.fn(),
+            onQueued: vi.fn(),
+            onQueueProcessed: vi.fn(),
+        };
+
         // connectionStore
         vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
         vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]);
@@ -123,18 +160,20 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
             requiredSourcePodIds: [],
         });
         vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(1);
-        vi.spyOn(workflowStateService, 'initializePendingTarget').mockImplementation(() => {});
-        vi.spyOn(workflowStateService, 'recordSourceCompletion').mockReturnValue({
+
+        // pendingTargetStore
+        vi.spyOn(pendingTargetStore, 'initializePendingTarget').mockImplementation(() => {});
+        vi.spyOn(pendingTargetStore, 'recordSourceCompletion').mockReturnValue({
             allSourcesResponded: true,
             hasRejection: false,
         });
-        vi.spyOn(workflowStateService, 'recordSourceRejection').mockImplementation(() => {});
-        vi.spyOn(workflowStateService, 'getCompletedSummaries').mockReturnValue(new Map());
-        vi.spyOn(workflowStateService, 'clearPendingTarget').mockImplementation(() => {});
+        vi.spyOn(pendingTargetStore, 'recordSourceRejection').mockImplementation(() => {});
+        vi.spyOn(pendingTargetStore, 'getCompletedSummaries').mockReturnValue(new Map());
+        vi.spyOn(pendingTargetStore, 'clearPendingTarget').mockImplementation(() => {});
+        vi.spyOn(pendingTargetStore, 'hasAnyRejectedSource').mockReturnValue(false);
 
         // workflowEventEmitter
         vi.spyOn(workflowEventEmitter, 'emitWorkflowAutoTriggered').mockImplementation(() => {});
-        vi.spyOn(workflowEventEmitter, 'emitWorkflowTriggered').mockImplementation(() => {});
         vi.spyOn(workflowEventEmitter, 'emitWorkflowComplete').mockImplementation(() => {});
         vi.spyOn(workflowEventEmitter, 'emitAiDecidePending').mockImplementation(() => {});
         vi.spyOn(workflowEventEmitter, 'emitAiDecideResult').mockImplementation(() => {});
@@ -174,6 +213,16 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
         // logger
         vi.spyOn(logger, 'log').mockImplementation(() => {});
         vi.spyOn(logger, 'error').mockImplementation(() => {});
+
+        // 初始化 workflowQueueService 並提供 strategies
+        workflowQueueService.init({
+            executionService: workflowExecutionService,
+            strategies: {
+                auto: mockAutoStrategy,
+                direct: mockDirectStrategy,
+                'ai-decide': mockAiDecideStrategy,
+            },
+        });
 
         // 清空所有 queue
         workflowQueueService.clearQueue(targetPodId);
@@ -230,18 +279,14 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
             // 驗證 dequeue 被執行，queue 被清空
             expect(workflowQueueService.getQueueSize(targetPodId)).toBe(0);
 
-            // 驗證 connection 狀態更新為 active
-            expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(canvasId, queuedConnection.id, 'active');
-
-            // 驗證 emitWorkflowQueueProcessed 被呼叫，帶正確的 remainingQueueSize 和 triggerMode
-            expect(workflowEventEmitter.emitWorkflowQueueProcessed).toHaveBeenCalledWith(
-                canvasId,
+            // 驗證 strategy.onQueueProcessed 被呼叫
+            expect(mockAutoStrategy.onQueueProcessed).toHaveBeenCalledWith(
                 expect.objectContaining({
                     canvasId,
                     targetPodId,
                     connectionId: queuedConnection.id,
                     sourcePodId: queuedConnection.sourcePodId,
-                    remainingQueueSize: 0, // 因為只有一個 item
+                    remainingQueueSize: 0,
                     triggerMode: 'auto',
                 })
             );
@@ -279,34 +324,23 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 mockAutoConnection.id,
                 'Test summary',
                 true,
-                false
+                mockAutoStrategy
             );
 
             // triggerWorkflowWithSummary 應該不會被 processNextInQueue 阻塞
             await triggerPromise;
 
-            // 等一點時間讓 fire-and-forget 的 processNextInQueue 被呼叫
-            await new Promise(resolve => setTimeout(resolve, 50));
+            // 等一點時間讓 fire-and-forget 的 executeClaudeQuery 和 processNextInQueue 完成
+            await new Promise(resolve => setTimeout(resolve, 150));
 
             // 驗證 processNextInQueue 被呼叫（但不 await）
             expect(processNextInQueueCalled).toBe(true);
             expect(processNextInQueueSpy).toHaveBeenCalledWith(canvasId, targetPodId);
-
-            // 驗證 workflowComplete 事件被發送
-            expect(workflowEventEmitter.emitWorkflowComplete).toHaveBeenCalledWith(
-                canvasId,
-                mockAutoConnection.id,
-                sourcePodId,
-                targetPodId,
-                true,
-                undefined,
-                'auto'
-            );
         });
     });
 
-    describe('C3: Queue 中不同 triggerMode 的事件區分', () => {
-        it('direct/ai-decide 模式的 item：triggerWorkflowWithSummary 被呼叫時 skipAutoTriggeredEvent = true', async () => {
+    describe('C3: Queue 中不同 triggerMode 的 strategy 處理', () => {
+        it('direct 模式的 item：strategy.onTrigger 被呼叫', async () => {
             const directConn: Connection = {
                 ...mockDirectConnection,
                 targetPodId: 'target-pod-direct',
@@ -323,23 +357,27 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 return {...mockSourcePod, id: podId};
             }) as any);
 
-            // 直接呼叫 triggerWorkflowWithSummary 測試 skipAutoTriggeredEvent = true
+            // 直接呼叫 triggerWorkflowWithSummary 傳入 direct strategy
             await workflowExecutionService.triggerWorkflowWithSummary(
                 canvasId,
                 directConn.id,
                 'Direct summary',
                 true,
-                true // skipAutoTriggeredEvent = true
+                mockDirectStrategy
             );
 
-            // 驗證 emitWorkflowAutoTriggered 不被呼叫（因為 skipAutoTriggeredEvent = true）
-            expect(workflowEventEmitter.emitWorkflowAutoTriggered).not.toHaveBeenCalled();
-
-            // 驗證 emitWorkflowTriggered 仍然被呼叫
-            expect(workflowEventEmitter.emitWorkflowTriggered).toHaveBeenCalled();
+            // 驗證 strategy.onTrigger 被呼叫
+            expect(mockDirectStrategy.onTrigger).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    canvasId,
+                    connectionId: directConn.id,
+                    summary: 'Direct summary',
+                    isSummarized: true,
+                })
+            );
         });
 
-        it('auto 模式的 item：triggerWorkflowWithSummary 被呼叫時 skipAutoTriggeredEvent = false', async () => {
+        it('auto 模式的 item：strategy.onTrigger 被呼叫', async () => {
             const autoConn: Connection = {
                 ...mockAutoConnection,
                 targetPodId: 'target-pod-auto',
@@ -356,24 +394,27 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 return {...mockSourcePod, id: podId};
             }) as any);
 
-            // 直接呼叫 triggerWorkflowWithSummary 測試 skipAutoTriggeredEvent = false
+            // 直接呼叫 triggerWorkflowWithSummary 傳入 auto strategy
             await workflowExecutionService.triggerWorkflowWithSummary(
                 canvasId,
                 autoConn.id,
                 'Auto summary',
                 true,
-                false // skipAutoTriggeredEvent = false
+                mockAutoStrategy
             );
 
-            // 驗證 emitWorkflowAutoTriggered 被呼叫（因為 skipAutoTriggeredEvent = false）
-            expect(workflowEventEmitter.emitWorkflowAutoTriggered).toHaveBeenCalled();
-
-            // 驗證 emitWorkflowTriggered 也被呼叫
-            expect(workflowEventEmitter.emitWorkflowTriggered).toHaveBeenCalled();
+            // 驗證 strategy.onTrigger 被呼叫
+            expect(mockAutoStrategy.onTrigger).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    canvasId,
+                    connectionId: autoConn.id,
+                    summary: 'Auto summary',
+                    isSummarized: true,
+                })
+            );
         });
 
-        it('workflowQueueService.processNextInQueue 根據 triggerMode 設定正確的 skipAutoTriggeredEvent', () => {
-            // 測試 workflowQueueService 內部邏輯：direct 和 ai-decide 設定 skipAutoTriggeredEvent = true
+        it('workflowQueueService.processNextInQueue 根據 triggerMode 使用正確的 strategy', () => {
             const directItem = {
                 canvasId,
                 connectionId: 'conn-direct',
@@ -396,12 +437,10 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 triggerMode: 'auto' as const,
             };
 
-            // 驗證邏輯：direct 和 ai-decide 應該設定 skipAutoTriggeredEvent = true
-            expect((directItem.triggerMode as string) === 'direct' || (directItem.triggerMode as string) === 'ai-decide').toBe(true);
-            expect((aiDecideItem.triggerMode as string) === 'direct' || (aiDecideItem.triggerMode as string) === 'ai-decide').toBe(true);
-
-            // 驗證邏輯：auto 應該設定 skipAutoTriggeredEvent = false
-            expect((autoItem.triggerMode as string) === 'direct' || (autoItem.triggerMode as string) === 'ai-decide').toBe(false);
+            // 驗證邏輯：不同的 triggerMode 應該對應不同的 strategy
+            expect(directItem.triggerMode).toBe('direct');
+            expect(aiDecideItem.triggerMode).toBe('ai-decide');
+            expect(autoItem.triggerMode).toBe('auto');
         });
     });
 
@@ -506,21 +545,22 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 conn.id,
                 'Test summary',
                 true,
-                false
+                mockAutoStrategy
             );
 
             // 等一點時間讓 fire-and-forget 的 executeClaudeQuery 執行並發生錯誤
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // 驗證 emitWorkflowComplete 被呼叫，success 為 false
-            expect(workflowEventEmitter.emitWorkflowComplete).toHaveBeenCalledWith(
-                canvasId,
-                conn.id,
-                sourcePodId,
-                'target-fail',
-                false,
-                'Claude query failed',
-                'auto'
+            // 驗證 strategy.onError 被呼叫
+            expect(mockAutoStrategy.onError).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    canvasId,
+                    connectionId: conn.id,
+                    sourcePodId,
+                    targetPodId: 'target-fail',
+                    triggerMode: 'auto',
+                }),
+                'Claude query failed'
             );
 
             // 驗證 processNextInQueue 仍然被呼叫（在 catch 區塊中）

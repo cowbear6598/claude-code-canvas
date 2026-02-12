@@ -14,6 +14,7 @@ import {autoClearService} from '../../src/services/autoClear';
 import {logger} from '../../src/utils/logger.js';
 import {socketService} from '../../src/services/socketService.js';
 import {commandService} from '../../src/services/commandService.js';
+import {pendingTargetStore} from '../../src/services/pendingTargetStore.js';
 import type {Connection} from '../../src/types';
 
 describe('Direct Trigger Flow', () => {
@@ -133,22 +134,23 @@ describe('Direct Trigger Flow', () => {
             requiredSourcePodIds: [],
         });
         vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(1);
-        vi.spyOn(workflowStateService, 'initializePendingTarget').mockImplementation(() => {
+
+        // pendingTargetStore
+        vi.spyOn(pendingTargetStore, 'initializePendingTarget').mockImplementation(() => {
         });
-        vi.spyOn(workflowStateService, 'recordSourceCompletion').mockReturnValue({
+        vi.spyOn(pendingTargetStore, 'recordSourceCompletion').mockReturnValue({
             allSourcesResponded: false,
             hasRejection: false,
         });
-        vi.spyOn(workflowStateService, 'recordSourceRejection').mockImplementation(() => {
+        vi.spyOn(pendingTargetStore, 'recordSourceRejection').mockImplementation(() => {
         });
-        vi.spyOn(workflowStateService, 'getCompletedSummaries').mockReturnValue(null);
-        vi.spyOn(workflowStateService, 'clearPendingTarget').mockImplementation(() => {
+        vi.spyOn(pendingTargetStore, 'getCompletedSummaries').mockReturnValue(undefined);
+        vi.spyOn(pendingTargetStore, 'clearPendingTarget').mockImplementation(() => {
         });
+        vi.spyOn(pendingTargetStore, 'hasAnyRejectedSource').mockReturnValue(false);
 
         // workflowEventEmitter
         vi.spyOn(workflowEventEmitter, 'emitWorkflowAutoTriggered').mockImplementation(() => {
-        });
-        vi.spyOn(workflowEventEmitter, 'emitWorkflowTriggered').mockImplementation(() => {
         });
         vi.spyOn(workflowEventEmitter, 'emitWorkflowComplete').mockImplementation(() => {
         });
@@ -212,17 +214,20 @@ describe('Direct Trigger Flow', () => {
                 return undefined;
             }) as any);
 
-            // Mock triggerWorkflowInternal 避免執行完整工作流（單一來源會走這個方法）
-            const triggerSpy = vi.spyOn(workflowExecutionService, 'triggerWorkflowInternal').mockResolvedValue(undefined);
+            // Mock triggerWorkflowWithSummary 避免執行完整工作流
+            const triggerSpy = vi.spyOn(workflowExecutionService, 'triggerWorkflowWithSummary').mockResolvedValue(undefined);
 
             // 執行
             await workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
-            // 驗證：triggerWorkflowInternal 被呼叫（DIRECT_TRIGGERED 事件會在 triggerWorkflowInternal 中發送）
-            expect(triggerSpy).toHaveBeenCalledWith(
-                canvasId,
-                mockDirectConnection.id
-            );
+            // 驗證：triggerWorkflowWithSummary 被呼叫，strategy 會在 triggerWorkflowWithSummary 中處理 DIRECT_TRIGGERED 事件
+            expect(triggerSpy).toHaveBeenCalled();
+            const call = triggerSpy.mock.calls[0];
+            expect(call[0]).toBe(canvasId);
+            expect(call[1]).toBe(mockDirectConnection.id);
+            expect(call[2]).toBe(testSummary);
+            expect(call[3]).toBe(true);
+            expect(call[4]).toHaveProperty('mode', 'direct');
         });
     });
 

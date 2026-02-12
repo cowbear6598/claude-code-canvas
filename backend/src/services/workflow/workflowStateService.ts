@@ -3,6 +3,7 @@ import { pendingTargetStore } from '../pendingTargetStore.js';
 import { podStore } from '../podStore.js';
 import { directTriggerStore } from '../directTriggerStore.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
+import { formatMergedSummaries } from './workflowHelpers.js';
 import {
   type WorkflowPendingPayload,
   type WorkflowSourcesMergedPayload,
@@ -10,21 +11,6 @@ import {
 import { logger } from '../../utils/logger.js';
 
 class WorkflowStateService {
-  private formatMergedSummaries(canvasId: string, summaries: Map<string, string>): string {
-    const formatted: string[] = [];
-
-    for (const [sourcePodId, content] of summaries.entries()) {
-      const sourcePod = podStore.getById(canvasId, sourcePodId);
-      const podName = sourcePod?.name || sourcePodId;
-
-      formatted.push(`## Source: ${podName}\n${content}\n\n---`);
-    }
-
-    let result = formatted.join('\n\n');
-    result = result.replace(/\n\n---$/, '');
-
-    return result;
-  }
 
   checkMultiInputScenario(canvasId: string, targetPodId: string): { isMultiInput: boolean; requiredSourcePodIds: string[] } {
     const incomingConnections = connectionStore.findByTargetPodId(canvasId, targetPodId);
@@ -42,29 +28,32 @@ class WorkflowStateService {
     return incomingConnections.filter((conn) => conn.triggerMode === 'direct').length;
   }
 
-  initializePendingTarget(targetPodId: string, requiredSourcePodIds: string[]): void {
-    pendingTargetStore.initializePendingTarget(targetPodId, requiredSourcePodIds);
-    logger.log('Workflow', 'Create', `Initialized pending target ${targetPodId}, waiting for ${requiredSourcePodIds.length} sources`);
-  }
+  emitPendingStatus(canvasId: string, targetPodId: string): void {
+    const pending = pendingTargetStore.getPendingTarget(targetPodId);
+    if (!pending) {
+      return;
+    }
 
-  recordSourceCompletion(targetPodId: string, sourcePodId: string, summary: string): { allSourcesResponded: boolean; hasRejection: boolean } {
-    return pendingTargetStore.recordSourceCompletion(targetPodId, sourcePodId, summary);
-  }
+    const completedSourcePodIds = Array.from(pending.completedSources.keys());
+    const rejectedSourcePodIds = Array.from(pending.rejectedSources.keys());
+    const pendingSourcePodIds = pending.requiredSourcePodIds.filter(
+      (id) => !completedSourcePodIds.includes(id) && !rejectedSourcePodIds.includes(id)
+    );
 
-  recordSourceRejection(targetPodId: string, sourcePodId: string, reason: string): void {
-    pendingTargetStore.recordSourceRejection(targetPodId, sourcePodId, reason);
-  }
+    const pendingPayload: WorkflowPendingPayload = {
+      canvasId,
+      targetPodId,
+      completedSourcePodIds,
+      pendingSourcePodIds,
+      totalSources: pending.requiredSourcePodIds.length,
+      completedCount: pending.completedSources.size,
+      rejectedSourcePodIds,
+      hasRejectedSources: rejectedSourcePodIds.length > 0,
+    };
 
-  hasAnyRejectedSource(targetPodId: string): boolean {
-    return pendingTargetStore.hasAnyRejectedSource(targetPodId);
-  }
+    workflowEventEmitter.emitWorkflowPending(canvasId, targetPodId, pendingPayload);
 
-  getCompletedSummaries(targetPodId: string): Map<string, string> | null {
-    return pendingTargetStore.getCompletedSummaries(targetPodId) || null;
-  }
-
-  clearPendingTarget(targetPodId: string): void {
-    pendingTargetStore.clearPendingTarget(targetPodId);
+    logger.log('Workflow', 'Update', `Updated pending target ${targetPodId}: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources`);
   }
 
   handleSourceDeletion(canvasId: string, sourcePodId: string): string[] {
@@ -85,7 +74,7 @@ class WorkflowStateService {
       const allComplete = pending.completedSources.size >= pending.requiredSourcePodIds.length;
 
       if (!allComplete) {
-        this.emitPendingStatus(canvasId, targetPodId, pending);
+        this.emitPendingStatus(canvasId, targetPodId);
         continue;
       }
 
@@ -96,7 +85,7 @@ class WorkflowStateService {
         continue;
       }
 
-      const mergedContent = this.formatMergedSummaries(canvasId, completedSummaries);
+      const mergedContent = formatMergedSummaries(completedSummaries, (podId) => podStore.getById(canvasId, podId));
       const sourcePodIds = Array.from(completedSummaries.keys());
 
       const mergedPayload: WorkflowSourcesMergedPayload = {
@@ -152,7 +141,7 @@ class WorkflowStateService {
     const allComplete = pending.completedSources.size >= pending.requiredSourcePodIds.length;
 
     if (!allComplete) {
-      this.emitPendingStatus(canvasId, targetPodId, pending);
+      this.emitPendingStatus(canvasId, targetPodId);
       return;
     }
 
@@ -163,7 +152,7 @@ class WorkflowStateService {
       return;
     }
 
-    const mergedContent = this.formatMergedSummaries(canvasId, completedSummaries);
+    const mergedContent = formatMergedSummaries(completedSummaries, (podId) => podStore.getById(canvasId, podId));
     const sourcePodIds = Array.from(completedSummaries.keys());
 
     const mergedPayload: WorkflowSourcesMergedPayload = {
@@ -174,29 +163,6 @@ class WorkflowStateService {
     };
 
     workflowEventEmitter.emitWorkflowSourcesMerged(canvasId, targetPodId, sourcePodIds, mergedPayload);
-  }
-
-  private emitPendingStatus(canvasId: string, targetPodId: string, pending: { requiredSourcePodIds: string[]; completedSources: Map<string, string>; rejectedSources: Map<string, string> }): void {
-    const completedSourcePodIds = Array.from(pending.completedSources.keys());
-    const rejectedSourcePodIds = Array.from(pending.rejectedSources.keys());
-    const pendingSourcePodIds = pending.requiredSourcePodIds.filter(
-      (id) => !completedSourcePodIds.includes(id) && !rejectedSourcePodIds.includes(id)
-    );
-
-    const pendingPayload: WorkflowPendingPayload = {
-      canvasId,
-      targetPodId,
-      completedSourcePodIds,
-      pendingSourcePodIds,
-      totalSources: pending.requiredSourcePodIds.length,
-      completedCount: pending.completedSources.size,
-      rejectedSourcePodIds,
-      hasRejectedSources: rejectedSourcePodIds.length > 0,
-    };
-
-    workflowEventEmitter.emitWorkflowPending(canvasId, targetPodId, pendingPayload);
-
-    logger.log('Workflow', 'Update', `Updated pending target ${targetPodId}: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources`);
   }
 }
 

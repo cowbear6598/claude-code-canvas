@@ -4,6 +4,10 @@ import type {
   TriggerDecideContext,
   TriggerDecideResult,
   PipelineContext,
+  TriggerLifecycleContext,
+  CompletionContext,
+  QueuedContext,
+  QueueProcessedContext,
 } from './types.js';
 import { aiDecideService } from './aiDecideService.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
@@ -63,6 +67,71 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
     this.pendingTargetStore = pendingTargetStore;
     this.pipeline = pipeline;
     this.multiInputService = multiInputService;
+  }
+
+  /**
+   * 觸發生命週期 - onTrigger
+   * AI-Decide 的觸發事件已在 processAiDecideConnections 中處理（emitAiDecideResult）
+   */
+  onTrigger(_context: TriggerLifecycleContext): void {
+    // AI-Decide 的觸發事件已在 processAiDecideConnections 中處理（emitAiDecideResult）
+  }
+
+  /**
+   * 觸發生命週期 - onComplete
+   * Workflow 完成時的處理
+   */
+  onComplete(context: CompletionContext, success: boolean, error?: string): void {
+    this.eventEmitter!.emitWorkflowComplete(
+      context.canvasId, context.connectionId, context.sourcePodId,
+      context.targetPodId, success, error, context.triggerMode
+    );
+    this.connectionStore!.updateConnectionStatus(context.canvasId, context.connectionId, 'idle');
+  }
+
+  /**
+   * 觸發生命週期 - onError
+   * Workflow 錯誤時的處理
+   */
+  onError(context: CompletionContext, errorMessage: string): void {
+    this.eventEmitter!.emitWorkflowComplete(
+      context.canvasId, context.connectionId, context.sourcePodId,
+      context.targetPodId, false, errorMessage, context.triggerMode
+    );
+    this.connectionStore!.updateConnectionStatus(context.canvasId, context.connectionId, 'idle');
+  }
+
+  /**
+   * 佇列生命週期 - onQueued
+   * Workflow 進入佇列時的處理
+   */
+  onQueued(context: QueuedContext): void {
+    this.connectionStore!.updateConnectionStatus(context.canvasId, context.connectionId, 'queued');
+    this.eventEmitter!.emitWorkflowQueued(context.canvasId, {
+      canvasId: context.canvasId,
+      targetPodId: context.targetPodId,
+      connectionId: context.connectionId,
+      sourcePodId: context.sourcePodId,
+      position: context.position,
+      queueSize: context.queueSize,
+      triggerMode: context.triggerMode,
+    });
+  }
+
+  /**
+   * 佇列生命週期 - onQueueProcessed
+   * Workflow 從佇列中處理時的狀態
+   */
+  onQueueProcessed(context: QueueProcessedContext): void {
+    this.connectionStore!.updateConnectionStatus(context.canvasId, context.connectionId, 'active');
+    this.eventEmitter!.emitWorkflowQueueProcessed(context.canvasId, {
+      canvasId: context.canvasId,
+      targetPodId: context.targetPodId,
+      connectionId: context.connectionId,
+      sourcePodId: context.sourcePodId,
+      remainingQueueSize: context.remainingQueueSize,
+      triggerMode: context.triggerMode,
+    });
   }
 
   /**
@@ -216,8 +285,8 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
         // 若 target Pod 在多輸入場景中，記錄 rejection
         const { isMultiInput } = this.stateService.checkMultiInputScenario(canvasId, conn.targetPodId);
         if (isMultiInput && this.pendingTargetStore.hasPendingTarget(conn.targetPodId)) {
-          this.stateService.recordSourceRejection(conn.targetPodId, sourcePodId, decideResult.reason ?? '');
-          this.multiInputService.emitPendingStatus(canvasId, conn.targetPodId);
+          this.pendingTargetStore.recordSourceRejection(conn.targetPodId, sourcePodId, decideResult.reason ?? '');
+          this.stateService.emitPendingStatus(canvasId, conn.targetPodId);
         }
       }
     }

@@ -51,10 +51,24 @@ export function initWorkflowServices(): void {
   );
 
   // 4. MultiInput
-  workflowMultiInputService.init({ executionService: workflowExecutionService });
+  workflowMultiInputService.init({
+    executionService: workflowExecutionService,
+    strategies: {
+      auto: workflowAutoTriggerService,
+      direct: workflowDirectTriggerService,
+      'ai-decide': workflowAiDecideTriggerService,
+    },
+  });
 
   // 5. Queue
-  workflowQueueService.init({ executionService: workflowExecutionService });
+  workflowQueueService.init({
+    executionService: workflowExecutionService,
+    strategies: {
+      auto: workflowAutoTriggerService,
+      direct: workflowDirectTriggerService,
+      'ai-decide': workflowAiDecideTriggerService,
+    },
+  });
 
   // 6. ExecutionService（最後初始化，因為它依賴上面的 services）
   workflowExecutionService.init({

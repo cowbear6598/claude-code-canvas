@@ -39,28 +39,6 @@ class WorkflowEventEmitter {
     socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_COMPLETE, payload);
   }
 
-  emitWorkflowTriggered(
-    canvasId: string,
-    connectionId: string,
-    sourcePodId: string,
-    targetPodId: string,
-    transferredContent: string,
-    isSummarized: boolean
-  ): void {
-    const payload = {
-      canvasId,
-      requestId: uuidv4(),
-      success: true,
-      connectionId,
-      sourcePodId,
-      targetPodId,
-      transferredContent,
-      isSummarized,
-    };
-
-    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_TRIGGERED, payload);
-  }
-
   emitWorkflowAutoTriggered(
     canvasId: string,
     _sourcePodId: string,

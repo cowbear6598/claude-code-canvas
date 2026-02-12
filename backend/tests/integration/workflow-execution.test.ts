@@ -16,6 +16,7 @@ import type {
     WorkflowSourcesMergedPayload,
     PodChatCompletePayload,
 } from '../../src/types';
+import {workflowAutoTriggerService} from '../../src/services/workflow';
 
 // Mock Claude Agent SDK 的實作
 async function* mockQuery(): AsyncGenerator<any> {
@@ -437,7 +438,8 @@ describe('WorkflowExecution 服務', () => {
                 canvasId,
                 connection.id,
                 preGeneratedSummary,
-                true
+                true,
+                workflowAutoTriggerService
             );
 
             // 驗證：收到 auto-triggered 事件，並且 summary 正確傳遞
@@ -509,7 +511,8 @@ Content from Source B`;
                 canvasId,
                 connA.id,
                 mergedSummary,
-                true
+                true,
+                workflowAutoTriggerService
             );
 
             // 等待 target pod 完成

@@ -49,7 +49,6 @@ describe('WorkflowPipeline', () => {
 
   const mockExecutionService = {
     generateSummaryWithFallback: vi.fn(),
-    triggerWorkflowInternal: vi.fn(),
     triggerWorkflowWithSummary: vi.fn(),
   };
 
@@ -109,6 +108,11 @@ describe('WorkflowPipeline', () => {
         collectSources: vi.fn().mockResolvedValue({
           ready: true,
         }),
+        onTrigger: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onQueued: vi.fn(),
+        onQueueProcessed: vi.fn(),
       };
 
       await workflowPipeline.execute(baseContext, mockStrategy);
@@ -128,14 +132,14 @@ describe('WorkflowPipeline', () => {
         summary: '摘要',
       });
 
-      // 驗證 triggerWorkflowInternal 被呼叫（因為沒有 mergedContent，走標準觸發）
-      expect(mockExecutionService.triggerWorkflowInternal).toHaveBeenCalledWith(
+      // 驗證 triggerWorkflowWithSummary 被呼叫（沒有 mergedContent 時也走 triggerWorkflowWithSummary）
+      expect(mockExecutionService.triggerWorkflowWithSummary).toHaveBeenCalledWith(
         canvasId,
-        connectionId
+        connectionId,
+        '摘要',
+        true,
+        mockStrategy
       );
-
-      // 驗證 triggerWorkflowWithSummary 未被呼叫
-      expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
     });
   });
 
@@ -147,12 +151,14 @@ describe('WorkflowPipeline', () => {
         collectSources: vi.fn().mockResolvedValue({
           ready: false,
         }),
+        onTrigger: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onQueued: vi.fn(),
+        onQueueProcessed: vi.fn(),
       };
 
       await workflowPipeline.execute(baseContext, mockStrategy);
-
-      // 驗證 triggerWorkflowInternal 未被呼叫
-      expect(mockExecutionService.triggerWorkflowInternal).not.toHaveBeenCalled();
 
       // 驗證 triggerWorkflowWithSummary 未被呼叫
       expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
@@ -165,6 +171,11 @@ describe('WorkflowPipeline', () => {
       const mockStrategy: TriggerStrategy = {
         mode: 'auto',
         decide: vi.fn().mockResolvedValue([]),
+        onTrigger: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onQueued: vi.fn(),
+        onQueueProcessed: vi.fn(),
       };
 
       await workflowPipeline.execute(baseContext, mockStrategy);
@@ -175,10 +186,13 @@ describe('WorkflowPipeline', () => {
         targetPodId
       );
 
-      // 驗證 triggerWorkflowInternal 被呼叫
-      expect(mockExecutionService.triggerWorkflowInternal).toHaveBeenCalledWith(
+      // 驗證 triggerWorkflowWithSummary 被呼叫
+      expect(mockExecutionService.triggerWorkflowWithSummary).toHaveBeenCalledWith(
         canvasId,
-        connectionId
+        connectionId,
+        '摘要',
+        true,
+        mockStrategy
       );
     });
 
@@ -186,6 +200,11 @@ describe('WorkflowPipeline', () => {
       const mockStrategy: TriggerStrategy = {
         mode: 'auto',
         decide: vi.fn().mockResolvedValue([]),
+        onTrigger: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onQueued: vi.fn(),
+        onQueueProcessed: vi.fn(),
       };
 
       (mockStateService.checkMultiInputScenario as any).mockReturnValue({
@@ -205,8 +224,8 @@ describe('WorkflowPipeline', () => {
         'auto'
       );
 
-      // 驗證 triggerWorkflowInternal 未被呼叫（多輸入後 return）
-      expect(mockExecutionService.triggerWorkflowInternal).not.toHaveBeenCalled();
+      // 驗證 triggerWorkflowWithSummary 未被呼叫（多輸入後 return）
+      expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
     });
 
     it('collectSources 提供 mergedContent 時使用該內容', async () => {
@@ -218,25 +237,28 @@ describe('WorkflowPipeline', () => {
           mergedContent: '合併內容',
           isSummarized: true,
         }),
+        onTrigger: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onQueued: vi.fn(),
+        onQueueProcessed: vi.fn(),
       };
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 triggerWorkflowWithSummary 被呼叫（而非 triggerWorkflowInternal）
+      // 驗證 triggerWorkflowWithSummary 被呼叫，第五個參數是 strategy 物件
       expect(mockExecutionService.triggerWorkflowWithSummary).toHaveBeenCalledWith(
         canvasId,
         connectionId,
         '合併內容',
         true,
-        false // auto mode, skipAutoTriggeredEvent = false
+        mockStrategy
       );
 
       // 驗證傳入的 summary 是 '合併內容'
       const call = (mockExecutionService.triggerWorkflowWithSummary as any).mock.calls[0];
+      expect(call[2]).toBe('合併內容');
       expect(call[3]).toBe(true); // isSummarized
-
-      // 驗證 triggerWorkflowInternal 未被呼叫
-      expect(mockExecutionService.triggerWorkflowInternal).not.toHaveBeenCalled();
     });
   });
 
@@ -245,6 +267,11 @@ describe('WorkflowPipeline', () => {
       const mockStrategy: TriggerStrategy = {
         mode: 'auto',
         decide: vi.fn().mockResolvedValue([]),
+        onTrigger: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onQueued: vi.fn(),
+        onQueueProcessed: vi.fn(),
       };
 
       (podStore.getById as any).mockReturnValue({
@@ -265,8 +292,8 @@ describe('WorkflowPipeline', () => {
         triggerMode: 'auto',
       });
 
-      // 驗證 triggerWorkflowInternal 未被呼叫
-      expect(mockExecutionService.triggerWorkflowInternal).not.toHaveBeenCalled();
+      // 驗證 triggerWorkflowWithSummary 未被呼叫
+      expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
     });
   });
 
@@ -278,14 +305,19 @@ describe('WorkflowPipeline', () => {
         collectSources: vi.fn().mockResolvedValue({
           ready: true,
         }),
+        onTrigger: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onQueued: vi.fn(),
+        onQueueProcessed: vi.fn(),
       };
 
       (mockExecutionService.generateSummaryWithFallback as any).mockResolvedValue(null);
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 triggerWorkflowInternal 未被呼叫
-      expect(mockExecutionService.triggerWorkflowInternal).not.toHaveBeenCalled();
+      // 驗證 triggerWorkflowWithSummary 未被呼叫
+      expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
 
       // 驗證 collectSources 未被呼叫
       expect(mockStrategy.collectSources).not.toHaveBeenCalled();
@@ -301,6 +333,11 @@ describe('WorkflowPipeline', () => {
           ready: true,
           mergedContent: '合併內容但未指定 isSummarized',
         }),
+        onTrigger: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onQueued: vi.fn(),
+        onQueueProcessed: vi.fn(),
       };
 
       await workflowPipeline.execute(baseContext, mockStrategy);
@@ -311,13 +348,13 @@ describe('WorkflowPipeline', () => {
         connectionId,
         '合併內容但未指定 isSummarized',
         true, // isSummarized 預設為 true
-        false
+        mockStrategy
       );
     });
   });
 
-  describe('trigger 階段的 skipAutoTriggeredEvent 邏輯', () => {
-    it('ai-decide mode 時 skipAutoTriggeredEvent 為 true', async () => {
+  describe('trigger 階段傳遞 strategy', () => {
+    it('ai-decide mode 時傳遞 strategy 給 triggerWorkflowWithSummary', async () => {
       const aiDecideContext: PipelineContext = {
         ...baseContext,
         triggerMode: 'ai-decide',
@@ -335,21 +372,26 @@ describe('WorkflowPipeline', () => {
           mergedContent: '合併內容',
           isSummarized: true,
         }),
+        onTrigger: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onQueued: vi.fn(),
+        onQueueProcessed: vi.fn(),
       };
 
       await workflowPipeline.execute(aiDecideContext, mockStrategy);
 
-      // 驗證 triggerWorkflowWithSummary 被呼叫時 skipAutoTriggeredEvent = true
+      // 驗證 triggerWorkflowWithSummary 被呼叫時第五個參數是 strategy
       expect(mockExecutionService.triggerWorkflowWithSummary).toHaveBeenCalledWith(
         canvasId,
         connectionId,
         '合併內容',
         true,
-        true // ai-decide mode, skipAutoTriggeredEvent = true
+        mockStrategy
       );
     });
 
-    it('direct mode 時 skipAutoTriggeredEvent 為 true', async () => {
+    it('direct mode 時傳遞 strategy 給 triggerWorkflowWithSummary', async () => {
       const directContext: PipelineContext = {
         ...baseContext,
         triggerMode: 'direct',
@@ -367,17 +409,22 @@ describe('WorkflowPipeline', () => {
           mergedContent: '合併內容',
           isSummarized: true,
         }),
+        onTrigger: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onQueued: vi.fn(),
+        onQueueProcessed: vi.fn(),
       };
 
       await workflowPipeline.execute(directContext, mockStrategy);
 
-      // 驗證 triggerWorkflowWithSummary 被呼叫時 skipAutoTriggeredEvent = true
+      // 驗證 triggerWorkflowWithSummary 被呼叫時第五個參數是 strategy
       expect(mockExecutionService.triggerWorkflowWithSummary).toHaveBeenCalledWith(
         canvasId,
         connectionId,
         '合併內容',
         true,
-        true // direct mode, skipAutoTriggeredEvent = true
+        mockStrategy
       );
     });
   });
@@ -387,14 +434,19 @@ describe('WorkflowPipeline', () => {
       const mockStrategy: TriggerStrategy = {
         mode: 'auto',
         decide: vi.fn().mockResolvedValue([]),
+        onTrigger: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onQueued: vi.fn(),
+        onQueueProcessed: vi.fn(),
       };
 
       (podStore.getById as any).mockReturnValue(null);
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 triggerWorkflowInternal 未被呼叫
-      expect(mockExecutionService.triggerWorkflowInternal).not.toHaveBeenCalled();
+      // 驗證 triggerWorkflowWithSummary 未被呼叫
+      expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
 
       // 驗證 queueService.enqueue 未被呼叫
       expect(mockQueueService.enqueue).not.toHaveBeenCalled();

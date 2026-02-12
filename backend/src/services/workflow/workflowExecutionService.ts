@@ -1,21 +1,17 @@
 import {v4 as uuidv4} from 'uuid';
 import {WebSocketResponseEvents, SystemConnectionIds} from '../../schemas/index.js';
 import type {
-    WorkflowAutoTriggeredPayload
-} from '../../types/index.js';
-import type {
   PipelineContext,
   PipelineMethods,
   AiDecideMethods,
   AutoTriggerMethods,
-  DirectTriggerMethods,
+  TriggerStrategy,
 } from './types.js';
 import {connectionStore} from '../connectionStore.js';
 import {podStore} from '../podStore.js';
 import {messageStore} from '../messageStore.js';
 import {socketService} from '../socketService.js';
 import {summaryService} from '../summaryService.js';
-import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {workflowQueueService} from './workflowQueueService.js';
 import {autoClearService} from '../autoClear/index.js';
 import {logger} from '../../utils/logger.js';
@@ -24,7 +20,6 @@ import {executeStreamingChat} from '../claude/streamingChatExecutor.js';
 import {
     buildTransferMessage,
     buildMessageWithCommand,
-    forEachDirectConnection,
 } from './workflowHelpers.js';
 import {workflowAutoTriggerService} from './workflowAutoTriggerService.js';
 
@@ -32,13 +27,13 @@ class WorkflowExecutionService {
   private pipeline?: PipelineMethods;
   private aiDecideTriggerService?: AiDecideMethods;
   private autoTriggerService?: AutoTriggerMethods;
-  private directTriggerService?: DirectTriggerMethods;
+  private directTriggerService?: TriggerStrategy;
 
   init(deps: {
     pipeline: PipelineMethods;
     aiDecideTriggerService: AiDecideMethods;
     autoTriggerService: AutoTriggerMethods;
-    directTriggerService: DirectTriggerMethods;
+    directTriggerService: TriggerStrategy;
   }): void {
     this.pipeline = deps.pipeline;
     this.aiDecideTriggerService = deps.aiDecideTriggerService;
@@ -119,82 +114,12 @@ class WorkflowExecutionService {
     ]);
   }
 
-  async triggerWorkflowInternal(canvasId: string, connectionId: string): Promise<void> {
-    const connection = connectionStore.getById(canvasId, connectionId);
-    if (!connection) {
-      throw new Error(`Connection not found: ${connectionId}`);
-    }
-
-    const { sourcePodId, targetPodId } = connection;
-
-    const sourcePod = podStore.getById(canvasId, sourcePodId);
-    if (!sourcePod) {
-      throw new Error(`Pod not found: ${sourcePodId}`);
-    }
-
-    const targetPod = podStore.getById(canvasId, targetPodId);
-    if (!targetPod) {
-      throw new Error(`Pod not found: ${targetPodId}`);
-    }
-
-    const messages = messageStore.getMessages(sourcePodId);
-    const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
-    if (assistantMessages.length === 0) {
-      throw new Error(`Source Pod ${sourcePodId} has no assistant messages to transfer`);
-    }
-
-    const result = await this.generateSummaryWithFallback(canvasId, sourcePodId, targetPodId);
-    if (!result) {
-      throw new Error('無可用的備用內容');
-    }
-
-    const { content: transferredContent, isSummarized } = result;
-
-    logger.log('Workflow', 'Create', `Auto-triggering workflow from Pod "${sourcePod.name}" to Pod "${targetPod.name}" (summarized: ${isSummarized})`);
-
-    const autoTriggeredPayload: WorkflowAutoTriggeredPayload = {
-      connectionId,
-      sourcePodId,
-      targetPodId,
-      transferredContent,
-      isSummarized,
-    };
-
-    workflowEventEmitter.emitWorkflowAutoTriggered(canvasId, sourcePodId, targetPodId, autoTriggeredPayload);
-
-    if (connection.triggerMode === 'direct') {
-      const directTriggeredPayload = {
-        canvasId,
-        connectionId,
-        sourcePodId,
-        targetPodId,
-        transferredContent,
-        isSummarized,
-      };
-      workflowEventEmitter.emitDirectTriggered(canvasId, directTriggeredPayload);
-    }
-
-    workflowEventEmitter.emitWorkflowTriggered(
-      canvasId,
-      connectionId,
-      sourcePodId,
-      targetPodId,
-      transferredContent,
-      isSummarized
-    );
-
-    podStore.setStatus(canvasId, targetPodId, 'chatting');
-    this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, transferredContent).catch(error =>
-      logger.error('Workflow', 'Error', `executeClaudeQuery 執行失敗 (connection: ${connectionId})`, error)
-    );
-  }
-
   async triggerWorkflowWithSummary(
     canvasId: string,
     connectionId: string,
     summary: string,
     isSummarized: boolean,
-    skipAutoTriggeredEvent: boolean = false
+    strategy: TriggerStrategy
   ): Promise<void> {
     const connection = connectionStore.getById(canvasId, connectionId);
     if (!connection) {
@@ -208,43 +133,19 @@ class WorkflowExecutionService {
       throw new Error(`Pod not found: ${targetPodId}`);
     }
 
-    logger.log('Workflow', 'Create', `Triggering workflow with pre-generated summary from Pod ${sourcePodId} to Pod ${targetPodId}`);
+    logger.log('Workflow', 'Create', `觸發工作流程：Pod ${sourcePodId} → Pod ${targetPodId}`);
 
-    if (!skipAutoTriggeredEvent) {
-      const autoTriggeredPayload: WorkflowAutoTriggeredPayload = {
-        connectionId,
-        sourcePodId,
-        targetPodId,
-        transferredContent: summary,
-        isSummarized,
-      };
-
-      workflowEventEmitter.emitWorkflowAutoTriggered(canvasId, sourcePodId, targetPodId, autoTriggeredPayload);
-    } else if (connection.triggerMode === 'direct') {
-      forEachDirectConnection(canvasId, targetPodId, (directConn) => {
-        const directTriggeredPayload = {
-          canvasId,
-          connectionId: directConn.id,
-          sourcePodId: directConn.sourcePodId,
-          targetPodId,
-          transferredContent: summary,
-          isSummarized,
-        };
-        workflowEventEmitter.emitDirectTriggered(canvasId, directTriggeredPayload);
-      });
-    }
-
-    workflowEventEmitter.emitWorkflowTriggered(
+    strategy.onTrigger({
       canvasId,
       connectionId,
       sourcePodId,
       targetPodId,
       summary,
-      isSummarized
-    );
+      isSummarized,
+    });
 
     podStore.setStatus(canvasId, targetPodId, 'chatting');
-    this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, summary).catch(error =>
+    this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, summary, strategy).catch(error =>
       logger.error('Workflow', 'Error', `executeClaudeQuery 執行失敗 (connection: ${connectionId})`, error)
     );
   }
@@ -255,29 +156,14 @@ class WorkflowExecutionService {
     });
   }
 
-  private completeDirectConnections(
-    canvasId: string,
-    targetPodId: string,
-    success: boolean,
-    errorMessage: string | undefined,
-    triggerMode: 'auto' | 'ai-decide' | 'direct'
-  ): void {
-    forEachDirectConnection(canvasId, targetPodId, (directConn) => {
-      workflowEventEmitter.emitWorkflowComplete(canvasId, directConn.id, directConn.sourcePodId, targetPodId, success, errorMessage, triggerMode);
-      connectionStore.updateConnectionStatus(canvasId, directConn.id, 'idle');
-    });
-  }
-
   private async executeClaudeQuery(
     canvasId: string,
     connectionId: string,
     sourcePodId: string,
     targetPodId: string,
-    content: string
+    content: string,
+    strategy: TriggerStrategy
   ): Promise<void> {
-    const connection = connectionStore.getById(canvasId, connectionId);
-    const triggerMode = connection?.triggerMode ?? 'auto';
-
     const baseMessage = buildTransferMessage(content);
     const targetPod = podStore.getById(canvasId, targetPodId);
     const commands = await commandService.list();
@@ -303,12 +189,10 @@ class WorkflowExecutionService {
       { canvasId, podId: targetPodId, message: messageToSend, connectionId: SystemConnectionIds.WORKFLOW, supportAbort: false },
       {
         onComplete: async () => {
-          if (triggerMode === 'direct') {
-            this.completeDirectConnections(canvasId, targetPodId, true, undefined, triggerMode);
-          } else {
-            workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, true, undefined, triggerMode);
-            connectionStore.updateConnectionStatus(canvasId, connectionId, 'idle');
-          }
+          strategy.onComplete(
+            { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode },
+            true
+          );
           logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod "${targetPod?.name ?? targetPodId}"`);
           await autoClearService.onPodComplete(canvasId, targetPodId);
           this.checkAndTriggerWorkflows(canvasId, targetPodId).catch(error =>
@@ -318,12 +202,10 @@ class WorkflowExecutionService {
         },
         onError: async (_canvasId, _podId, error) => {
           const errorMessage = error.message;
-          if (triggerMode === 'direct') {
-            this.completeDirectConnections(canvasId, targetPodId, false, errorMessage, triggerMode);
-          } else {
-            workflowEventEmitter.emitWorkflowComplete(canvasId, connectionId, sourcePodId, targetPodId, false, errorMessage, triggerMode);
-            connectionStore.updateConnectionStatus(canvasId, connectionId, 'idle');
-          }
+          strategy.onError(
+            { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode },
+            errorMessage
+          );
           logger.error('Workflow', 'Error', 'Failed to complete workflow', error);
           podStore.setStatus(canvasId, targetPodId, 'idle');
           this.scheduleNextInQueue(canvasId, targetPodId);

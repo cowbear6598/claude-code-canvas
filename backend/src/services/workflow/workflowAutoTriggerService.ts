@@ -1,7 +1,18 @@
-import type { Connection } from '../../types/index.js';
-import type { TriggerStrategy, TriggerDecideContext, TriggerDecideResult, PipelineContext } from './types.js';
+import type { Connection, WorkflowAutoTriggeredPayload } from '../../types/index.js';
+import type {
+  TriggerStrategy,
+  TriggerDecideContext,
+  TriggerDecideResult,
+  PipelineContext,
+  TriggerLifecycleContext,
+  CompletionContext,
+  QueuedContext,
+  QueueProcessedContext,
+} from './types.js';
 import { podStore } from '../podStore.js';
 import { messageStore } from '../messageStore.js';
+import { connectionStore } from '../connectionStore.js';
+import { workflowEventEmitter } from './workflowEventEmitter.js';
 import { logger } from '../../utils/logger.js';
 
 // 定義 Pipeline 介面（避免循環依賴）
@@ -84,6 +95,83 @@ class WorkflowAutoTriggerService implements TriggerStrategy {
     } catch (error) {
       logger.error('Workflow', 'Error', `自動觸發工作流程 ${connection.id} 失敗`, error);
     }
+  }
+
+  /**
+   * 觸發時：發送 WORKFLOW_AUTO_TRIGGERED 事件
+   */
+  onTrigger(context: TriggerLifecycleContext): void {
+    const payload: WorkflowAutoTriggeredPayload = {
+      connectionId: context.connectionId,
+      sourcePodId: context.sourcePodId,
+      targetPodId: context.targetPodId,
+      transferredContent: context.summary,
+      isSummarized: context.isSummarized,
+    };
+    workflowEventEmitter.emitWorkflowAutoTriggered(context.canvasId, context.sourcePodId, context.targetPodId, payload);
+  }
+
+  /**
+   * 完成時：發送 WORKFLOW_COMPLETE 事件並更新 connection 狀態為 idle
+   */
+  onComplete(context: CompletionContext, success: boolean, error?: string): void {
+    workflowEventEmitter.emitWorkflowComplete(
+      context.canvasId,
+      context.connectionId,
+      context.sourcePodId,
+      context.targetPodId,
+      success,
+      error,
+      context.triggerMode
+    );
+    connectionStore.updateConnectionStatus(context.canvasId, context.connectionId, 'idle');
+  }
+
+  /**
+   * 錯誤時：發送 WORKFLOW_COMPLETE 事件（失敗）並更新 connection 狀態為 idle
+   */
+  onError(context: CompletionContext, errorMessage: string): void {
+    workflowEventEmitter.emitWorkflowComplete(
+      context.canvasId,
+      context.connectionId,
+      context.sourcePodId,
+      context.targetPodId,
+      false,
+      errorMessage,
+      context.triggerMode
+    );
+    connectionStore.updateConnectionStatus(context.canvasId, context.connectionId, 'idle');
+  }
+
+  /**
+   * 進入佇列時：更新 connection 狀態為 queued 並發送 WORKFLOW_QUEUED 事件
+   */
+  onQueued(context: QueuedContext): void {
+    connectionStore.updateConnectionStatus(context.canvasId, context.connectionId, 'queued');
+    workflowEventEmitter.emitWorkflowQueued(context.canvasId, {
+      canvasId: context.canvasId,
+      targetPodId: context.targetPodId,
+      connectionId: context.connectionId,
+      sourcePodId: context.sourcePodId,
+      position: context.position,
+      queueSize: context.queueSize,
+      triggerMode: context.triggerMode,
+    });
+  }
+
+  /**
+   * 佇列處理時：更新 connection 狀態為 active 並發送 WORKFLOW_QUEUE_PROCESSED 事件
+   */
+  onQueueProcessed(context: QueueProcessedContext): void {
+    connectionStore.updateConnectionStatus(context.canvasId, context.connectionId, 'active');
+    workflowEventEmitter.emitWorkflowQueueProcessed(context.canvasId, {
+      canvasId: context.canvasId,
+      targetPodId: context.targetPodId,
+      connectionId: context.connectionId,
+      sourcePodId: context.sourcePodId,
+      remainingQueueSize: context.remainingQueueSize,
+      triggerMode: context.triggerMode,
+    });
   }
 }
 

@@ -23,13 +23,14 @@ vi.mock('../../src/services/connectionStore.js', () => ({
 vi.mock('../../src/services/workflow/workflowStateService.js', () => ({
   workflowStateService: {
     checkMultiInputScenario: vi.fn(),
-    recordSourceRejection: vi.fn(),
+    emitPendingStatus: vi.fn(),
   },
 }));
 
 vi.mock('../../src/services/pendingTargetStore.js', () => ({
   pendingTargetStore: {
     hasPendingTarget: vi.fn(),
+    recordSourceRejection: vi.fn(),
   },
 }));
 
@@ -40,9 +41,7 @@ vi.mock('../../src/services/workflow/workflowPipeline.js', () => ({
 }));
 
 vi.mock('../../src/services/workflow/workflowMultiInputService.js', () => ({
-  workflowMultiInputService: {
-    emitPendingStatus: vi.fn(),
-  },
+  workflowMultiInputService: {},
 }));
 
 vi.mock('../../src/utils/logger.js', () => ({
@@ -432,14 +431,14 @@ describe('WorkflowAiDecideTriggerService', () => {
       );
 
       // 驗證記錄 rejection
-      expect(workflowStateService.recordSourceRejection).toHaveBeenCalledWith(
+      expect(pendingTargetStore.recordSourceRejection).toHaveBeenCalledWith(
         'target-pod',
         sourcePodId,
         '不相關'
       );
 
       // 驗證發送 pending 狀態
-      expect(workflowMultiInputService.emitPendingStatus).toHaveBeenCalledWith(
+      expect(workflowStateService.emitPendingStatus).toHaveBeenCalledWith(
         canvasId,
         'target-pod'
       );
@@ -465,8 +464,8 @@ describe('WorkflowAiDecideTriggerService', () => {
       );
 
       // 驗證不應記錄 rejection
-      expect(workflowStateService.recordSourceRejection).not.toHaveBeenCalled();
-      expect(workflowMultiInputService.emitPendingStatus).not.toHaveBeenCalled();
+      expect(pendingTargetStore.recordSourceRejection).not.toHaveBeenCalled();
+      expect(workflowStateService.emitPendingStatus).not.toHaveBeenCalled();
     });
 
     it('多個 connections 批次處理', async () => {
