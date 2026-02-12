@@ -1,10 +1,6 @@
-// Import 真實模組
 import { workflowQueueService } from '../../src/services/workflow';
-import { podStore } from '../../src/services/podStore.js';
-import { connectionStore } from '../../src/services/connectionStore.js';
-import { workflowEventEmitter } from '../../src/services/workflow';
-import { socketService } from '../../src/services/socketService.js';
-import { logger } from '../../src/utils/logger.js';
+import { setupAllSpies } from '../mocks/workflowSpySetup.js';
+import { createMockPod } from '../mocks/workflowTestFactories.js';
 
 describe('WorkflowQueueService', () => {
   const canvasId = 'canvas-1';
@@ -13,27 +9,14 @@ describe('WorkflowQueueService', () => {
   const connectionId = 'conn-1';
 
   beforeEach(() => {
+    const mockPod = createMockPod({ id: targetPodId, status: 'idle' });
+    const podLookup = new Map([[targetPodId, mockPod]]);
+
+    setupAllSpies({ podLookup });
+
     // 清空佇列
     workflowQueueService.clearQueue(targetPodId);
     workflowQueueService.clearQueue('target-pod-2');
-
-    // podStore
-    vi.spyOn(podStore, 'getById').mockReturnValue({ id: targetPodId, status: 'idle' } as any);
-    vi.spyOn(podStore, 'setStatus').mockImplementation(() => {});
-
-    // connectionStore
-    vi.spyOn(connectionStore, 'updateConnectionStatus').mockImplementation((() => {}) as any);
-
-    // workflowEventEmitter
-    vi.spyOn(workflowEventEmitter, 'emitWorkflowQueued').mockImplementation(() => {});
-    vi.spyOn(workflowEventEmitter, 'emitWorkflowQueueProcessed').mockImplementation(() => {});
-
-    // socketService
-    vi.spyOn(socketService, 'emitToCanvas').mockImplementation(() => {});
-
-    // logger
-    vi.spyOn(logger, 'log').mockImplementation(() => {});
-    vi.spyOn(logger, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {

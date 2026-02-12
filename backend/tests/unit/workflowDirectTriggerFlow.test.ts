@@ -1,200 +1,44 @@
-// Import 真實模組
-import {workflowExecutionService} from '../../src/services/workflow';
-import {workflowDirectTriggerService} from '../../src/services/workflow/workflowDirectTriggerService.js';
-import {connectionStore} from '../../src/services/connectionStore.js';
-import {podStore} from '../../src/services/podStore.js';
-import {messageStore} from '../../src/services/messageStore.js';
-import {summaryService} from '../../src/services/summaryService.js';
-import {directTriggerStore} from '../../src/services/directTriggerStore.js';
-import {workflowStateService} from '../../src/services/workflow';
-import {workflowEventEmitter} from '../../src/services/workflow';
-import {workflowQueueService} from '../../src/services/workflow';
-import {claudeQueryService} from '../../src/services/claude/queryService.js';
-import {autoClearService} from '../../src/services/autoClear';
-import {logger} from '../../src/utils/logger.js';
-import {socketService} from '../../src/services/socketService.js';
-import {commandService} from '../../src/services/commandService.js';
-import {pendingTargetStore} from '../../src/services/pendingTargetStore.js';
-import type {Connection} from '../../src/types';
+import { workflowExecutionService } from '../../src/services/workflow';
+import { workflowDirectTriggerService } from '../../src/services/workflow/workflowDirectTriggerService.js';
+import { connectionStore } from '../../src/services/connectionStore.js';
+import { podStore } from '../../src/services/podStore.js';
+import { directTriggerStore } from '../../src/services/directTriggerStore.js';
+import { workflowStateService } from '../../src/services/workflow';
+import { workflowEventEmitter } from '../../src/services/workflow';
+import { workflowQueueService } from '../../src/services/workflow';
+import { claudeQueryService } from '../../src/services/claude/queryService.js';
+import { summaryService } from '../../src/services/summaryService.js';
+import { setupAllSpies } from '../mocks/workflowSpySetup.js';
+import { createMockPod, createMockConnection, createMockMessages } from '../mocks/workflowTestFactories.js';
+import type { Connection } from '../../src/types';
 
 describe('Direct Trigger Flow', () => {
     const canvasId = 'canvas-1';
     const sourcePodId = 'source-pod';
     const targetPodId = 'target-pod';
     const connectionId = 'conn-direct-1';
-
-    const mockSourcePod = {
-        id: sourcePodId,
-        name: 'Source Pod',
-        model: 'claude-sonnet-4-5-20250929' as const,
-        claudeSessionId: null,
-        repositoryId: null,
-        workspacePath: '/test/workspace',
-        commandId: null,
-        outputStyleId: null,
-        status: 'idle' as const,
-    };
-
-    const mockTargetPod = {
-        id: targetPodId,
-        name: 'Target Pod',
-        model: 'claude-sonnet-4-5-20250929' as const,
-        claudeSessionId: null,
-        repositoryId: null,
-        workspacePath: '/test/workspace',
-        commandId: null,
-        outputStyleId: null,
-        status: 'idle' as const,
-    };
-
-    const mockDirectConnection: Connection = {
-        id: connectionId,
-        sourcePodId,
-        sourceAnchor: 'right',
-        targetPodId,
-        targetAnchor: 'left',
-        triggerMode: 'direct',
-        decideStatus: 'none',
-        decideReason: null,
-        connectionStatus: 'idle',
-        createdAt: new Date(),
-    };
-
-    const mockMessages = [
-        {
-            id: 'msg-1',
-            podId: sourcePodId,
-            role: 'user' as const,
-            content: 'Test message',
-            timestamp: Date.now(),
-            toolUse: null,
-        },
-        {
-            id: 'msg-2',
-            podId: sourcePodId,
-            role: 'assistant' as const,
-            content: 'Test response',
-            timestamp: Date.now(),
-            toolUse: null,
-        },
-    ];
-
     const testSummary = 'Test summary content';
 
+    let mockSourcePod: ReturnType<typeof createMockPod>;
+    let mockTargetPod: ReturnType<typeof createMockPod>;
+    let mockDirectConnection: Connection;
+    let mockMessages: ReturnType<typeof createMockMessages>;
+
     beforeEach(() => {
-        // connectionStore
-        vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
-        vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]);
-        vi.spyOn(connectionStore, 'getById').mockReturnValue(mockDirectConnection);
-        vi.spyOn(connectionStore, 'updateDecideStatus').mockImplementation(() => undefined);
-        vi.spyOn(connectionStore, 'updateConnectionStatus').mockImplementation(() => undefined);
+        mockSourcePod = createMockPod({ id: sourcePodId, name: 'Source Pod', status: 'idle' });
+        mockTargetPod = createMockPod({ id: targetPodId, name: 'Target Pod', status: 'idle' });
+        mockDirectConnection = createMockConnection({ id: connectionId, sourcePodId, targetPodId, triggerMode: 'direct' });
+        mockMessages = createMockMessages(sourcePodId);
 
-        // podStore
-        vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
-            if (podId === sourcePodId) return {...mockSourcePod};
-            if (podId === targetPodId) return {...mockTargetPod};
-            return undefined;
-        }) as any);
-        vi.spyOn(podStore, 'setStatus').mockImplementation(() => {
-        });
-        vi.spyOn(podStore, 'updateLastActive').mockImplementation(() => {
-        });
-
-        // messageStore
-        vi.spyOn(messageStore, 'getMessages').mockReturnValue(mockMessages as any);
-        vi.spyOn(messageStore, 'addMessage').mockResolvedValue(undefined as any);
-        vi.spyOn(messageStore, 'upsertMessage').mockImplementation(() => {
-        });
-        vi.spyOn(messageStore, 'flushWrites').mockResolvedValue(undefined);
-
-        // summaryService
-        vi.spyOn(summaryService, 'generateSummaryForTarget').mockResolvedValue({
-            targetPodId: '',
-            success: true,
-            summary: testSummary,
-        });
-
-        // directTriggerStore
-        vi.spyOn(directTriggerStore, 'hasDirectPending').mockReturnValue(false);
-        vi.spyOn(directTriggerStore, 'initializeDirectPending').mockImplementation(() => {
-        });
-        vi.spyOn(directTriggerStore, 'recordDirectReady').mockReturnValue(1);
-        vi.spyOn(directTriggerStore, 'clearDirectPending').mockImplementation(() => {
-        });
-        vi.spyOn(directTriggerStore, 'hasActiveTimer').mockReturnValue(false);
-        vi.spyOn(directTriggerStore, 'clearTimer').mockImplementation(() => {
-        });
-        vi.spyOn(directTriggerStore, 'setTimer').mockImplementation(() => {
-        });
-        vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(null);
-
-        // workflowStateService
-        vi.spyOn(workflowStateService, 'checkMultiInputScenario').mockReturnValue({
-            isMultiInput: false,
-            requiredSourcePodIds: [],
-        });
-        vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(1);
-
-        // pendingTargetStore
-        vi.spyOn(pendingTargetStore, 'initializePendingTarget').mockImplementation(() => {
-        });
-        vi.spyOn(pendingTargetStore, 'recordSourceCompletion').mockReturnValue({
-            allSourcesResponded: false,
-            hasRejection: false,
-        });
-        vi.spyOn(pendingTargetStore, 'recordSourceRejection').mockImplementation(() => {
-        });
-        vi.spyOn(pendingTargetStore, 'getCompletedSummaries').mockReturnValue(undefined);
-        vi.spyOn(pendingTargetStore, 'clearPendingTarget').mockImplementation(() => {
-        });
-        vi.spyOn(pendingTargetStore, 'hasAnyRejectedSource').mockReturnValue(false);
-
-        // workflowEventEmitter
-        vi.spyOn(workflowEventEmitter, 'emitWorkflowAutoTriggered').mockImplementation(() => {
-        });
-        vi.spyOn(workflowEventEmitter, 'emitWorkflowComplete').mockImplementation(() => {
-        });
-        vi.spyOn(workflowEventEmitter, 'emitAiDecidePending').mockImplementation(() => {
-        });
-        vi.spyOn(workflowEventEmitter, 'emitAiDecideResult').mockImplementation(() => {
-        });
-        vi.spyOn(workflowEventEmitter, 'emitAiDecideError').mockImplementation(() => {
-        });
-        vi.spyOn(workflowEventEmitter, 'emitWorkflowQueued').mockImplementation(() => {
-        });
-        vi.spyOn(workflowEventEmitter, 'emitWorkflowQueueProcessed').mockImplementation(() => {
-        });
-        vi.spyOn(workflowEventEmitter, 'emitDirectTriggered').mockImplementation(() => {
-        });
-        vi.spyOn(workflowEventEmitter, 'emitDirectWaiting').mockImplementation(() => {
-        });
-        vi.spyOn(workflowEventEmitter, 'emitDirectMerged').mockImplementation(() => {
-        });
-
-        // claudeQueryService
-        (vi.spyOn(claudeQueryService, 'sendMessage') as any).mockImplementation(async (...args: any[]) => {
+        const podLookup = new Map([[sourcePodId, mockSourcePod], [targetPodId, mockTargetPod]]);
+        const summary = { targetPodId: '', success: true, summary: testSummary };
+        const customClaudeQuery = async (...args: any[]) => {
             const callback = args[2] as any;
-            callback({type: 'text', content: 'Claude response'});
-            callback({type: 'complete'});
-        });
+            callback({ type: 'text', content: 'Claude response' });
+            callback({ type: 'complete' });
+        };
 
-        // autoClearService
-        vi.spyOn(autoClearService, 'initializeWorkflowTracking').mockImplementation(() => {
-        });
-        vi.spyOn(autoClearService, 'onPodComplete').mockResolvedValue(undefined);
-
-        // logger
-        vi.spyOn(logger, 'log').mockImplementation(() => {
-        });
-        vi.spyOn(logger, 'error').mockImplementation(() => {
-        });
-
-        // socketService
-        vi.spyOn(socketService, 'emitToCanvas').mockImplementation(() => {
-        });
-
-        // commandService
-        vi.spyOn(commandService, 'list').mockResolvedValue([]);
+        setupAllSpies({ podLookup, messages: mockMessages, connection: mockDirectConnection, directConnectionCount: 1, summary, customClaudeQuery });
     });
 
     afterEach(() => {

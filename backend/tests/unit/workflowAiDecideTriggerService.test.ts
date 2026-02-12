@@ -1,59 +1,33 @@
 // Mock dependencies
-vi.mock('../../src/services/workflow/aiDecideService.js', () => ({
-  aiDecideService: {
-    decideConnections: vi.fn(),
-  },
-}));
+import {
+  createWorkflowPipelineMock,
+  createErrorHelpersMock,
+  createAiDecideServiceMock,
+  createWorkflowEventEmitterMock,
+  createConnectionStoreMock,
+  createWorkflowStateServiceMock,
+  createPendingTargetStoreMock,
+  createWorkflowMultiInputServiceMock,
+  createLoggerMock,
+} from '../mocks/workflowModuleMocks.js';
 
-vi.mock('../../src/services/workflow/workflowEventEmitter.js', () => ({
-  workflowEventEmitter: {
-    emitAiDecidePending: vi.fn(),
-    emitAiDecideResult: vi.fn(),
-    emitAiDecideError: vi.fn(),
-    emitWorkflowComplete: vi.fn(),
-  },
-}));
+vi.mock('../../src/services/workflow/aiDecideService.js', () => createAiDecideServiceMock());
 
-vi.mock('../../src/services/connectionStore.js', () => ({
-  connectionStore: {
-    updateDecideStatus: vi.fn(),
-  },
-}));
+vi.mock('../../src/services/workflow/workflowEventEmitter.js', () => createWorkflowEventEmitterMock());
 
-vi.mock('../../src/services/workflow/workflowStateService.js', () => ({
-  workflowStateService: {
-    checkMultiInputScenario: vi.fn(),
-    emitPendingStatus: vi.fn(),
-  },
-}));
+vi.mock('../../src/services/connectionStore.js', () => createConnectionStoreMock());
 
-vi.mock('../../src/services/pendingTargetStore.js', () => ({
-  pendingTargetStore: {
-    hasPendingTarget: vi.fn(),
-    recordSourceRejection: vi.fn(),
-  },
-}));
+vi.mock('../../src/services/workflow/workflowStateService.js', () => createWorkflowStateServiceMock());
 
-vi.mock('../../src/services/workflow/workflowPipeline.js', () => ({
-  workflowPipeline: {
-    execute: vi.fn(),
-  },
-}));
+vi.mock('../../src/services/pendingTargetStore.js', () => createPendingTargetStoreMock());
 
-vi.mock('../../src/services/workflow/workflowMultiInputService.js', () => ({
-  workflowMultiInputService: {},
-}));
+vi.mock('../../src/services/workflow/workflowPipeline.js', () => createWorkflowPipelineMock());
 
-vi.mock('../../src/utils/logger.js', () => ({
-  logger: {
-    log: vi.fn(),
-    error: vi.fn(),
-  },
-}));
+vi.mock('../../src/services/workflow/workflowMultiInputService.js', () => createWorkflowMultiInputServiceMock());
 
-vi.mock('../../src/utils/errorHelpers.js', () => ({
-  getErrorMessage: vi.fn((e) => e?.message ?? String(e)),
-}));
+vi.mock('../../src/utils/logger.js', () => createLoggerMock());
+
+vi.mock('../../src/utils/errorHelpers.js', () => createErrorHelpersMock());
 
 // Import after mocks
 import { workflowAiDecideTriggerService } from '../../src/services/workflow/workflowAiDecideTriggerService.js';
@@ -66,23 +40,17 @@ import { workflowPipeline } from '../../src/services/workflow/workflowPipeline.j
 import { workflowMultiInputService } from '../../src/services/workflow/workflowMultiInputService.js';
 import { logger } from '../../src/utils/logger.js';
 import type { Connection } from '../../src/types';
+import { createMockConnection, TEST_IDS } from '../mocks/workflowTestFactories.js';
 
 describe('WorkflowAiDecideTriggerService', () => {
-  const canvasId = 'canvas-1';
-  const sourcePodId = 'source-pod';
+  const { canvasId, sourcePodId, targetPodId } = TEST_IDS;
 
-  const mockConnection: Connection = {
+  const mockConnection: Connection = createMockConnection({
     id: 'conn-ai-1',
     sourcePodId,
-    sourceAnchor: 'right',
-    targetPodId: 'target-pod',
-    targetAnchor: 'left',
+    targetPodId,
     triggerMode: 'ai-decide',
-    decideStatus: 'none',
-    decideReason: null,
-    connectionStatus: 'idle',
-    createdAt: new Date(),
-  };
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -223,7 +191,7 @@ describe('WorkflowAiDecideTriggerService', () => {
         canvasId,
         'conn-ai-1',
         sourcePodId,
-        'target-pod',
+        targetPodId,
         true,
         '相關任務'
       );
@@ -279,7 +247,7 @@ describe('WorkflowAiDecideTriggerService', () => {
         canvasId,
         'conn-ai-1',
         sourcePodId,
-        'target-pod',
+        targetPodId,
         false,
         '不相關'
       );
@@ -322,7 +290,7 @@ describe('WorkflowAiDecideTriggerService', () => {
         canvasId,
         'conn-ai-1',
         sourcePodId,
-        'target-pod',
+        targetPodId,
         '錯誤：AI 決策失敗'
       );
 
@@ -359,7 +327,7 @@ describe('WorkflowAiDecideTriggerService', () => {
         canvasId,
         'conn-ai-1',
         sourcePodId,
-        'target-pod',
+        targetPodId,
         '錯誤：網路錯誤'
       );
 
@@ -432,7 +400,7 @@ describe('WorkflowAiDecideTriggerService', () => {
 
       // 驗證記錄 rejection
       expect(pendingTargetStore.recordSourceRejection).toHaveBeenCalledWith(
-        'target-pod',
+        targetPodId,
         sourcePodId,
         '不相關'
       );
@@ -440,7 +408,7 @@ describe('WorkflowAiDecideTriggerService', () => {
       // 驗證發送 pending 狀態
       expect(workflowStateService.emitPendingStatus).toHaveBeenCalledWith(
         canvasId,
-        'target-pod'
+        targetPodId
       );
     });
 
@@ -469,17 +437,19 @@ describe('WorkflowAiDecideTriggerService', () => {
     });
 
     it('多個 connections 批次處理', async () => {
-      const conn2: Connection = {
-        ...mockConnection,
+      const conn2 = createMockConnection({
         id: 'conn-ai-2',
+        sourcePodId,
         targetPodId: 'target-pod-2',
-      };
+        triggerMode: 'ai-decide',
+      });
 
-      const conn3: Connection = {
-        ...mockConnection,
+      const conn3 = createMockConnection({
         id: 'conn-ai-3',
+        sourcePodId,
         targetPodId: 'target-pod-3',
-      };
+        triggerMode: 'ai-decide',
+      });
 
       (aiDecideService.decideConnections as any).mockResolvedValue({
         results: [
@@ -612,7 +582,7 @@ describe('WorkflowAiDecideTriggerService', () => {
         canvasId,
         'conn-ai-1',
         sourcePodId,
-        'target-pod',
+        targetPodId,
         false,
         'Pipeline 執行失敗',
         'ai-decide'

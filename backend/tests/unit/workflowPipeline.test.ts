@@ -19,25 +19,17 @@ import { workflowPipeline } from '../../src/services/workflow/workflowPipeline.j
 import { podStore } from '../../src/services/podStore.js';
 import type { PipelineContext, TriggerStrategy, CollectSourcesContext, TriggerDecideContext } from '../../src/services/workflow/types.js';
 import type { Connection } from '../../src/types/index.js';
+import { createMockPod, createMockConnection, createMockStrategy, TEST_IDS } from '../mocks/workflowTestFactories.js';
 
 describe('WorkflowPipeline', () => {
-  const canvasId = 'canvas-1';
-  const sourcePodId = 'source-pod';
-  const targetPodId = 'target-pod';
-  const connectionId = 'conn-1';
+  const { canvasId, sourcePodId, targetPodId, connectionId } = TEST_IDS;
 
-  const mockConnection: Connection = {
+  const mockConnection: Connection = createMockConnection({
     id: connectionId,
     sourcePodId,
-    sourceAnchor: 'right',
     targetPodId,
-    targetAnchor: 'left',
     triggerMode: 'auto',
-    decideStatus: 'none',
-    decideReason: null,
-    connectionStatus: 'idle',
-    createdAt: new Date(),
-  };
+  });
 
   const baseContext: PipelineContext = {
     canvasId,
@@ -64,17 +56,12 @@ describe('WorkflowPipeline', () => {
     enqueue: vi.fn(),
   };
 
-  const mockTargetPod = {
+  const mockTargetPod = createMockPod({
     id: targetPodId,
     name: 'Target Pod',
     model: 'claude-sonnet-4-5-20250929' as const,
-    claudeSessionId: null,
-    repositoryId: null,
-    workspacePath: '/test/workspace',
-    commandId: null,
-    outputStyleId: null,
     status: 'idle' as const,
-  };
+  });
 
   beforeEach(() => {
     // Reset all mocks
@@ -102,18 +89,11 @@ describe('WorkflowPipeline', () => {
 
   describe('Pipeline 完整流程', () => {
     it('有 collectSources 的 strategy 時，完整執行 pipeline', async () => {
-      const mockStrategy: TriggerStrategy = {
-        mode: 'auto',
-        decide: vi.fn().mockResolvedValue([]),
+      const mockStrategy = createMockStrategy('auto', {
         collectSources: vi.fn().mockResolvedValue({
           ready: true,
         }),
-        onTrigger: vi.fn(),
-        onComplete: vi.fn(),
-        onError: vi.fn(),
-        onQueued: vi.fn(),
-        onQueueProcessed: vi.fn(),
-      };
+      });
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
@@ -145,18 +125,11 @@ describe('WorkflowPipeline', () => {
 
   describe('collectSources 階段', () => {
     it('collectSources 回傳 ready=false 時暫停', async () => {
-      const mockStrategy: TriggerStrategy = {
-        mode: 'auto',
-        decide: vi.fn().mockResolvedValue([]),
+      const mockStrategy = createMockStrategy('auto', {
         collectSources: vi.fn().mockResolvedValue({
           ready: false,
         }),
-        onTrigger: vi.fn(),
-        onComplete: vi.fn(),
-        onError: vi.fn(),
-        onQueued: vi.fn(),
-        onQueueProcessed: vi.fn(),
-      };
+      });
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
@@ -168,15 +141,7 @@ describe('WorkflowPipeline', () => {
     });
 
     it('使用預設 collectSources 邏輯（strategy 沒有 collectSources）', async () => {
-      const mockStrategy: TriggerStrategy = {
-        mode: 'auto',
-        decide: vi.fn().mockResolvedValue([]),
-        onTrigger: vi.fn(),
-        onComplete: vi.fn(),
-        onError: vi.fn(),
-        onQueued: vi.fn(),
-        onQueueProcessed: vi.fn(),
-      };
+      const mockStrategy = createMockStrategy('auto');
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
@@ -197,15 +162,7 @@ describe('WorkflowPipeline', () => {
     });
 
     it('多輸入情境正確委派', async () => {
-      const mockStrategy: TriggerStrategy = {
-        mode: 'auto',
-        decide: vi.fn().mockResolvedValue([]),
-        onTrigger: vi.fn(),
-        onComplete: vi.fn(),
-        onError: vi.fn(),
-        onQueued: vi.fn(),
-        onQueueProcessed: vi.fn(),
-      };
+      const mockStrategy = createMockStrategy('auto');
 
       (mockStateService.checkMultiInputScenario as any).mockReturnValue({
         isMultiInput: true,
@@ -229,20 +186,13 @@ describe('WorkflowPipeline', () => {
     });
 
     it('collectSources 提供 mergedContent 時使用該內容', async () => {
-      const mockStrategy: TriggerStrategy = {
-        mode: 'auto',
-        decide: vi.fn().mockResolvedValue([]),
+      const mockStrategy = createMockStrategy('auto', {
         collectSources: vi.fn().mockResolvedValue({
           ready: true,
           mergedContent: '合併內容',
           isSummarized: true,
         }),
-        onTrigger: vi.fn(),
-        onComplete: vi.fn(),
-        onError: vi.fn(),
-        onQueued: vi.fn(),
-        onQueueProcessed: vi.fn(),
-      };
+      });
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
@@ -264,15 +214,7 @@ describe('WorkflowPipeline', () => {
 
   describe('checkQueue 階段', () => {
     it('目標 Pod 忙碌時加入佇列', async () => {
-      const mockStrategy: TriggerStrategy = {
-        mode: 'auto',
-        decide: vi.fn().mockResolvedValue([]),
-        onTrigger: vi.fn(),
-        onComplete: vi.fn(),
-        onError: vi.fn(),
-        onQueued: vi.fn(),
-        onQueueProcessed: vi.fn(),
-      };
+      const mockStrategy = createMockStrategy('auto');
 
       (podStore.getById as any).mockReturnValue({
         ...mockTargetPod,
@@ -299,18 +241,11 @@ describe('WorkflowPipeline', () => {
 
   describe('generateSummary 階段', () => {
     it('generateSummary 失敗時不繼續流程', async () => {
-      const mockStrategy: TriggerStrategy = {
-        mode: 'auto',
-        decide: vi.fn().mockResolvedValue([]),
+      const mockStrategy = createMockStrategy('auto', {
         collectSources: vi.fn().mockResolvedValue({
           ready: true,
         }),
-        onTrigger: vi.fn(),
-        onComplete: vi.fn(),
-        onError: vi.fn(),
-        onQueued: vi.fn(),
-        onQueueProcessed: vi.fn(),
-      };
+      });
 
       (mockExecutionService.generateSummaryWithFallback as any).mockResolvedValue(null);
 
@@ -326,19 +261,12 @@ describe('WorkflowPipeline', () => {
 
   describe('collectSources 與 mergedContent 的完整流程', () => {
     it('collectSources 回傳 mergedContent 且 isSummarized 未設定時預設為 true', async () => {
-      const mockStrategy: TriggerStrategy = {
-        mode: 'auto',
-        decide: vi.fn().mockResolvedValue([]),
+      const mockStrategy = createMockStrategy('auto', {
         collectSources: vi.fn().mockResolvedValue({
           ready: true,
           mergedContent: '合併內容但未指定 isSummarized',
         }),
-        onTrigger: vi.fn(),
-        onComplete: vi.fn(),
-        onError: vi.fn(),
-        onQueued: vi.fn(),
-        onQueueProcessed: vi.fn(),
-      };
+      });
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
@@ -358,26 +286,19 @@ describe('WorkflowPipeline', () => {
       const aiDecideContext: PipelineContext = {
         ...baseContext,
         triggerMode: 'ai-decide',
-        connection: {
+        connection: createMockConnection({
           ...mockConnection,
           triggerMode: 'ai-decide',
-        },
+        }),
       };
 
-      const mockStrategy: TriggerStrategy = {
-        mode: 'ai-decide',
-        decide: vi.fn().mockResolvedValue([]),
+      const mockStrategy = createMockStrategy('ai-decide', {
         collectSources: vi.fn().mockResolvedValue({
           ready: true,
           mergedContent: '合併內容',
           isSummarized: true,
         }),
-        onTrigger: vi.fn(),
-        onComplete: vi.fn(),
-        onError: vi.fn(),
-        onQueued: vi.fn(),
-        onQueueProcessed: vi.fn(),
-      };
+      });
 
       await workflowPipeline.execute(aiDecideContext, mockStrategy);
 
@@ -395,26 +316,19 @@ describe('WorkflowPipeline', () => {
       const directContext: PipelineContext = {
         ...baseContext,
         triggerMode: 'direct',
-        connection: {
+        connection: createMockConnection({
           ...mockConnection,
           triggerMode: 'direct',
-        },
+        }),
       };
 
-      const mockStrategy: TriggerStrategy = {
-        mode: 'direct',
-        decide: vi.fn().mockResolvedValue([]),
+      const mockStrategy = createMockStrategy('direct', {
         collectSources: vi.fn().mockResolvedValue({
           ready: true,
           mergedContent: '合併內容',
           isSummarized: true,
         }),
-        onTrigger: vi.fn(),
-        onComplete: vi.fn(),
-        onError: vi.fn(),
-        onQueued: vi.fn(),
-        onQueueProcessed: vi.fn(),
-      };
+      });
 
       await workflowPipeline.execute(directContext, mockStrategy);
 
@@ -431,15 +345,7 @@ describe('WorkflowPipeline', () => {
 
   describe('目標 Pod 不存在時的處理', () => {
     it('找不到目標 Pod 時不觸發 workflow', async () => {
-      const mockStrategy: TriggerStrategy = {
-        mode: 'auto',
-        decide: vi.fn().mockResolvedValue([]),
-        onTrigger: vi.fn(),
-        onComplete: vi.fn(),
-        onError: vi.fn(),
-        onQueued: vi.fn(),
-        onQueueProcessed: vi.fn(),
-      };
+      const mockStrategy = createMockStrategy('auto');
 
       (podStore.getById as any).mockReturnValue(null);
 

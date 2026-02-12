@@ -1,233 +1,56 @@
-import {workflowExecutionService} from '../../src/services/workflow';
-import {workflowQueueService} from '../../src/services/workflow';
-import {connectionStore} from '../../src/services/connectionStore.js';
-import {podStore} from '../../src/services/podStore.js';
-import {messageStore} from '../../src/services/messageStore.js';
-import {summaryService} from '../../src/services/summaryService.js';
-import {workflowStateService} from '../../src/services/workflow';
-import {workflowEventEmitter} from '../../src/services/workflow';
-import {pendingTargetStore} from '../../src/services/pendingTargetStore.js';
-import {directTriggerStore} from '../../src/services/directTriggerStore.js';
-import {claudeQueryService} from '../../src/services/claude/queryService.js';
-import {autoClearService} from '../../src/services/autoClear';
-import {logger} from '../../src/utils/logger.js';
-import type {Connection} from '../../src/types';
-import type {TriggerStrategy} from '../../src/services/workflow/types.js';
+import { workflowExecutionService } from '../../src/services/workflow';
+import { workflowQueueService } from '../../src/services/workflow';
+import { connectionStore } from '../../src/services/connectionStore.js';
+import { podStore } from '../../src/services/podStore.js';
+import { claudeQueryService } from '../../src/services/claude/queryService.js';
+import { setupAllSpies } from '../mocks/workflowSpySetup.js';
+import {
+  createMockPod,
+  createMockConnection,
+  createMockMessages,
+  createMockStrategy,
+  initializeQueueService,
+  clearAllQueues
+} from '../mocks/workflowTestFactories.js';
+import type { Connection } from '../../src/types';
+import type { TriggerStrategy } from '../../src/services/workflow/types.js';
 
 describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () => {
     const canvasId = 'canvas-1';
     const sourcePodId = 'source-pod';
     const targetPodId = 'target-pod';
 
-    const mockSourcePod = {
-        id: sourcePodId,
-        name: 'Source Pod',
-        model: 'claude-sonnet-4-5-20250929' as const,
-        claudeSessionId: null,
-        repositoryId: null,
-        workspacePath: '/test/workspace',
-        commandId: null,
-        outputStyleId: null,
-        status: 'idle' as const,
-    };
-
-    const mockTargetPod = {
-        id: targetPodId,
-        name: 'Target Pod',
-        model: 'claude-sonnet-4-5-20250929' as const,
-        claudeSessionId: null,
-        repositoryId: null,
-        workspacePath: '/test/workspace',
-        commandId: null,
-        outputStyleId: null,
-        status: 'idle' as const,
-    };
-
-    const mockAutoConnection: Connection = {
-        id: 'conn-auto-1',
-        sourcePodId,
-        sourceAnchor: 'right',
-        targetPodId,
-        targetAnchor: 'left',
-        triggerMode: 'auto',
-        decideStatus: 'none',
-        decideReason: null,
-        connectionStatus: 'idle',
-        createdAt: new Date(),
-    };
-
-    const mockDirectConnection: Connection = {
-        id: 'conn-direct-1',
-        sourcePodId,
-        sourceAnchor: 'right',
-        targetPodId: 'target-pod-3',
-        targetAnchor: 'left',
-        triggerMode: 'direct',
-        decideStatus: 'none',
-        decideReason: null,
-        connectionStatus: 'idle',
-        createdAt: new Date(),
-    };
-
-    const mockMessages = [
-        {
-            id: 'msg-1',
-            podId: sourcePodId,
-            role: 'user' as const,
-            content: 'Test message',
-            timestamp: Date.now(),
-            toolUse: null,
-        },
-        {
-            id: 'msg-2',
-            podId: sourcePodId,
-            role: 'assistant' as const,
-            content: 'Test response',
-            timestamp: Date.now(),
-            toolUse: null,
-        },
-    ];
-
+    let mockSourcePod: ReturnType<typeof createMockPod>;
+    let mockTargetPod: ReturnType<typeof createMockPod>;
+    let mockAutoConnection: Connection;
+    let mockDirectConnection: Connection;
+    let mockMessages: ReturnType<typeof createMockMessages>;
     let mockAutoStrategy: TriggerStrategy;
     let mockDirectStrategy: TriggerStrategy;
     let mockAiDecideStrategy: TriggerStrategy;
 
     beforeEach(() => {
-        // 重新建立 strategy mocks
-        mockAutoStrategy = {
-            mode: 'auto',
-            decide: vi.fn().mockResolvedValue([]),
-            onTrigger: vi.fn(),
-            onComplete: vi.fn(),
-            onError: vi.fn(),
-            onQueued: vi.fn(),
-            onQueueProcessed: vi.fn(),
-        };
+        mockSourcePod = createMockPod({ id: sourcePodId, name: 'Source Pod', status: 'idle' });
+        mockTargetPod = createMockPod({ id: targetPodId, name: 'Target Pod', status: 'idle' });
+        mockAutoConnection = createMockConnection({ id: 'conn-auto-1', sourcePodId, targetPodId, triggerMode: 'auto' });
+        mockDirectConnection = createMockConnection({ id: 'conn-direct-1', sourcePodId, targetPodId: 'target-pod-3', triggerMode: 'direct' });
+        mockMessages = createMockMessages(sourcePodId);
+        mockAutoStrategy = createMockStrategy('auto');
+        mockDirectStrategy = createMockStrategy('direct');
+        mockAiDecideStrategy = createMockStrategy('ai-decide');
 
-        mockDirectStrategy = {
-            mode: 'direct',
-            decide: vi.fn().mockResolvedValue([]),
-            collectSources: vi.fn(),
-            onTrigger: vi.fn(),
-            onComplete: vi.fn(),
-            onError: vi.fn(),
-            onQueued: vi.fn(),
-            onQueueProcessed: vi.fn(),
-        };
-
-        mockAiDecideStrategy = {
-            mode: 'ai-decide',
-            decide: vi.fn().mockResolvedValue([]),
-            onTrigger: vi.fn(),
-            onComplete: vi.fn(),
-            onError: vi.fn(),
-            onQueued: vi.fn(),
-            onQueueProcessed: vi.fn(),
-        };
-
-        // connectionStore
-        vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
-        vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]);
-        vi.spyOn(connectionStore, 'getById').mockReturnValue(undefined);
-        vi.spyOn(connectionStore, 'updateDecideStatus').mockImplementation(() => undefined);
-        vi.spyOn(connectionStore, 'updateConnectionStatus').mockImplementation(() => undefined);
-
-        // podStore
-        vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
-            if (podId === sourcePodId) return {...mockSourcePod};
-            if (podId.startsWith('target-pod')) return {...mockTargetPod, id: podId, name: `Target ${podId}`};
+        // 動態 Pod 查詢：支援 target-pod-* 模式
+        const customPodGetter = (cId: string, podId: string) => {
+            if (podId === sourcePodId) return { ...mockSourcePod };
+            if (podId.startsWith('target-pod')) return { ...mockTargetPod, id: podId, name: `Target ${podId}` };
             return undefined;
-        }) as any);
-        vi.spyOn(podStore, 'setStatus').mockImplementation(() => {});
-        vi.spyOn(podStore, 'updateLastActive').mockImplementation(() => {});
+        };
 
-        // messageStore
-        vi.spyOn(messageStore, 'getMessages').mockReturnValue(mockMessages as any);
-        vi.spyOn(messageStore, 'addMessage').mockResolvedValue({success: true, data: undefined as any});
-        vi.spyOn(messageStore, 'upsertMessage').mockImplementation(() => {});
-        vi.spyOn(messageStore, 'flushWrites').mockResolvedValue(undefined);
+        setupAllSpies({ messages: mockMessages, customPodGetter });
 
-        // summaryService
-        vi.spyOn(summaryService, 'generateSummaryForTarget').mockResolvedValue({
-            targetPodId: '',
-            success: true,
-            summary: 'Test summary',
-        });
-
-        // workflowStateService
-        vi.spyOn(workflowStateService, 'checkMultiInputScenario').mockReturnValue({
-            isMultiInput: false,
-            requiredSourcePodIds: [],
-        });
-        vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(1);
-
-        // pendingTargetStore
-        vi.spyOn(pendingTargetStore, 'initializePendingTarget').mockImplementation(() => {});
-        vi.spyOn(pendingTargetStore, 'recordSourceCompletion').mockReturnValue({
-            allSourcesResponded: true,
-            hasRejection: false,
-        });
-        vi.spyOn(pendingTargetStore, 'recordSourceRejection').mockImplementation(() => {});
-        vi.spyOn(pendingTargetStore, 'getCompletedSummaries').mockReturnValue(new Map());
-        vi.spyOn(pendingTargetStore, 'clearPendingTarget').mockImplementation(() => {});
-        vi.spyOn(pendingTargetStore, 'hasAnyRejectedSource').mockReturnValue(false);
-
-        // workflowEventEmitter
-        vi.spyOn(workflowEventEmitter, 'emitWorkflowAutoTriggered').mockImplementation(() => {});
-        vi.spyOn(workflowEventEmitter, 'emitWorkflowComplete').mockImplementation(() => {});
-        vi.spyOn(workflowEventEmitter, 'emitAiDecidePending').mockImplementation(() => {});
-        vi.spyOn(workflowEventEmitter, 'emitAiDecideResult').mockImplementation(() => {});
-        vi.spyOn(workflowEventEmitter, 'emitAiDecideError').mockImplementation(() => {});
-        vi.spyOn(workflowEventEmitter, 'emitWorkflowQueued').mockImplementation(() => {});
-        vi.spyOn(workflowEventEmitter, 'emitWorkflowQueueProcessed').mockImplementation(() => {});
-        vi.spyOn(workflowEventEmitter, 'emitDirectTriggered').mockImplementation(() => {});
-        vi.spyOn(workflowEventEmitter, 'emitDirectWaiting').mockImplementation(() => {});
-        vi.spyOn(workflowEventEmitter, 'emitDirectMerged').mockImplementation(() => {});
-
-        // pendingTargetStore
-        vi.spyOn(pendingTargetStore, 'hasPendingTarget').mockReturnValue(false);
-        vi.spyOn(pendingTargetStore, 'getPendingTarget').mockReturnValue(undefined);
-        vi.spyOn(pendingTargetStore, 'clearPendingTarget').mockImplementation(() => {});
-
-        // directTriggerStore
-        vi.spyOn(directTriggerStore, 'hasDirectPending').mockReturnValue(false);
-        vi.spyOn(directTriggerStore, 'initializeDirectPending').mockImplementation(() => {});
-        vi.spyOn(directTriggerStore, 'recordDirectReady').mockImplementation((() => {}) as any);
-        vi.spyOn(directTriggerStore, 'clearDirectPending').mockImplementation(() => {});
-        vi.spyOn(directTriggerStore, 'hasActiveTimer').mockReturnValue(false);
-        vi.spyOn(directTriggerStore, 'clearTimer').mockImplementation(() => {});
-        vi.spyOn(directTriggerStore, 'setTimer').mockImplementation(() => {});
-        vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(new Map());
-
-        // claudeQueryService
-        (vi.spyOn(claudeQueryService, 'sendMessage') as any).mockImplementation(async (...args: any[]) => {
-            const callback = args[2] as any;
-            callback({type: 'text', content: 'Response text'});
-            callback({type: 'complete'});
-        });
-
-        // autoClearService
-        vi.spyOn(autoClearService, 'initializeWorkflowTracking').mockImplementation(() => {});
-        vi.spyOn(autoClearService, 'onPodComplete').mockResolvedValue(undefined);
-
-        // logger
-        vi.spyOn(logger, 'log').mockImplementation(() => {});
-        vi.spyOn(logger, 'error').mockImplementation(() => {});
-
-        // 初始化 workflowQueueService 並提供 strategies
-        workflowQueueService.init({
-            executionService: workflowExecutionService,
-            strategies: {
-                auto: mockAutoStrategy,
-                direct: mockDirectStrategy,
-                'ai-decide': mockAiDecideStrategy,
-            },
-        });
-
-        // 清空所有 queue
-        workflowQueueService.clearQueue(targetPodId);
-        workflowQueueService.clearQueue('target-pod-2');
-        workflowQueueService.clearQueue('target-pod-3');
+        // 初始化並清空 queue
+        initializeQueueService({ auto: mockAutoStrategy, direct: mockDirectStrategy, 'ai-decide': mockAiDecideStrategy });
+        clearAllQueues([targetPodId, 'target-pod-2', 'target-pod-3']);
     });
 
     afterEach(() => {
