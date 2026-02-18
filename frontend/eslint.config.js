@@ -134,6 +134,7 @@ export default [
       'no-redeclare': 'off',
       '@typescript-eslint/no-redeclare': 'off',
       'vue/multi-word-component-names': 'off',
+      'vue/no-v-html': 'off',
     },
   },
   {

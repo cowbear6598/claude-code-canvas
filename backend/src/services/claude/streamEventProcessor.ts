@@ -46,13 +46,17 @@ export function processToolUseEvent(
     state: SubMessageState,
     flushFn: () => void
 ): void {
+    // 只有在有已累積的文字內容時才先 flush，避免產生空 content 的 subMessage
+    if (state.currentSubContent.trim().length > 0) {
+        flushFn();
+    }
+
     state.currentSubToolUse.push({
         toolUseId,
         toolName,
         input,
         status: 'completed',
     });
-    flushFn();
 }
 
 export function processToolResultEvent(

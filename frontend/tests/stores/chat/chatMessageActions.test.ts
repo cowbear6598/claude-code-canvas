@@ -1183,7 +1183,7 @@ describe('chatMessageActions', () => {
       expect(result.subMessages).toBeUndefined()
     })
 
-    it('assistant 訊息應轉換為 Message（含 subMessages）', () => {
+    it('assistant 訊息應轉換為 Message（保留原始 subMessages 結構）', () => {
       const chatStore = useChatStore()
       const messageActions = chatStore.getMessageActions()
 
@@ -1217,7 +1217,7 @@ describe('chatMessageActions', () => {
       })
     })
 
-    it('assistant 訊息應轉換 toolUse', () => {
+    it('assistant 訊息應轉換 toolUse（集中到第一個 subMessage）', () => {
       const chatStore = useChatStore()
       const messageActions = chatStore.getMessageActions()
 
@@ -1245,6 +1245,12 @@ describe('chatMessageActions', () => {
 
       const result = messageActions.convertPersistedToMessage(persistedMessage)
 
+      expect(result.subMessages).toHaveLength(1)
+      expect(result.subMessages![0]).toMatchObject({
+        id: 'sub-1',
+        content: 'Content',
+        isPartial: false,
+      })
       expect(result.subMessages![0]!.toolUse).toHaveLength(1)
       expect(result.subMessages![0]!.toolUse![0]).toMatchObject({
         toolUseId: 'tool-1',
@@ -1279,6 +1285,156 @@ describe('chatMessageActions', () => {
         content: 'Content without subMessages',
         isPartial: false,
       })
+    })
+
+    it('多個 subMessages 應保留各自的 content（不再合併）', () => {
+      const chatStore = useChatStore()
+      const messageActions = chatStore.getMessageActions()
+
+      const persistedMessage: PersistedMessage = {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Content1Content2',
+        timestamp: '2024-01-01T00:00:00Z',
+        subMessages: [
+          { id: 'sub-1', content: 'Content1' },
+          { id: 'sub-2', content: 'Content2' },
+        ],
+      }
+
+      const result = messageActions.convertPersistedToMessage(persistedMessage)
+
+      expect(result.subMessages).toHaveLength(2)
+      expect(result.subMessages![0]!.content).toBe('Content1')
+      expect(result.subMessages![1]!.content).toBe('Content2')
+    })
+
+    it('應將所有 toolUse 集中到第一個 subMessage', () => {
+      const chatStore = useChatStore()
+      const messageActions = chatStore.getMessageActions()
+
+      const persistedMessage: PersistedMessage = {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Hello World',
+        timestamp: '2024-01-01T00:00:00Z',
+        subMessages: [
+          { id: 'sub-0', content: 'Hello' },
+          {
+            id: 'sub-1',
+            content: ' World',
+            toolUse: [{
+              toolUseId: 'tool-1',
+              toolName: 'Bash',
+              input: { command: 'ls' },
+              output: 'file.ts',
+              status: 'completed' as const,
+            }],
+          },
+        ],
+      }
+
+      const result = messageActions.convertPersistedToMessage(persistedMessage)
+
+      // 保留多個 subMessages
+      expect(result.subMessages).toHaveLength(2)
+      expect(result.subMessages![0]!.content).toBe('Hello')
+      expect(result.subMessages![1]!.content).toBe(' World')
+
+      // toolUse 集中到第一個 subMessage
+      expect(result.subMessages![0]!.toolUse).toHaveLength(1)
+      expect(result.subMessages![1]!.toolUse).toBeUndefined()
+
+      // 頂層 toolUse 也有
+      expect(result.toolUse).toHaveLength(1)
+    })
+
+    it('多個 subMessages 各有 toolUse 時應全部集中到第一個', () => {
+      const chatStore = useChatStore()
+      const messageActions = chatStore.getMessageActions()
+
+      const persistedMessage: PersistedMessage = {
+        id: 'msg-1',
+        role: 'assistant' as const,
+        content: 'AB',
+        timestamp: '2024-01-01',
+        subMessages: [
+          { id: 'sub-0', content: 'A', toolUse: [{
+            toolUseId: 'tool-1', toolName: 'Bash', input: {}, output: 'out1', status: 'completed' as const
+          }]},
+          { id: 'sub-1', content: 'B', toolUse: [{
+            toolUseId: 'tool-2', toolName: 'Read', input: {}, output: 'out2', status: 'completed' as const
+          }]}
+        ]
+      }
+
+      const result = messageActions.convertPersistedToMessage(persistedMessage)
+
+      expect(result.subMessages).toHaveLength(2)
+      expect(result.subMessages![0]!.toolUse).toHaveLength(2)
+      expect(result.subMessages![1]!.toolUse).toBeUndefined()
+      expect(result.toolUse).toHaveLength(2)
+    })
+
+    it('subMessages 為空陣列時應建立預設 subMessage', () => {
+      const chatStore = useChatStore()
+      const messageActions = chatStore.getMessageActions()
+
+      const persistedMessage: PersistedMessage = {
+        id: 'msg-1',
+        role: 'assistant' as const,
+        content: 'Hello',
+        timestamp: '2024-01-01',
+        subMessages: []
+      }
+
+      const result = messageActions.convertPersistedToMessage(persistedMessage)
+
+      expect(result.subMessages).toHaveLength(1)
+      expect(result.subMessages![0]!.content).toBe('Hello')
+    })
+
+    it('status 為空字串時應 fallback 為 completed', () => {
+      const chatStore = useChatStore()
+      const messageActions = chatStore.getMessageActions()
+
+      const persistedMessage: PersistedMessage = {
+        id: 'msg-1',
+        role: 'assistant' as const,
+        content: 'Test',
+        timestamp: '2024-01-01',
+        subMessages: [{
+          id: 'sub-0', content: 'Test',
+          toolUse: [{
+            toolUseId: 'tool-1', toolName: 'Bash',
+            input: {}, output: '', status: ''
+          }]
+        }]
+      }
+
+      const result = messageActions.convertPersistedToMessage(persistedMessage)
+
+      expect(result.subMessages![0]!.toolUse![0]!.status).toBe('completed')
+    })
+
+    it('所有 subMessages 都沒有 toolUse 時不應設定頂層 toolUse', () => {
+      const chatStore = useChatStore()
+      const messageActions = chatStore.getMessageActions()
+
+      const persistedMessage: PersistedMessage = {
+        id: 'msg-1',
+        role: 'assistant' as const,
+        content: 'Hello World',
+        timestamp: '2024-01-01',
+        subMessages: [
+          { id: 'sub-0', content: 'Hello' },
+          { id: 'sub-1', content: ' World' }
+        ]
+      }
+
+      const result = messageActions.convertPersistedToMessage(persistedMessage)
+
+      expect(result.toolUse).toBeUndefined()
     })
   })
 

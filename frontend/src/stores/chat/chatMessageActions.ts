@@ -539,25 +539,31 @@ export function createMessageActions(store: ChatStoreInstance): {
 
         if (persistedMessage.role === 'assistant') {
             if (persistedMessage.subMessages && persistedMessage.subMessages.length > 0) {
-                message.subMessages = persistedMessage.subMessages.map(sub => ({
+                // 收集所有 subMessages 的 toolUse
+                const allToolUse: ToolUseInfo[] = []
+                for (const sub of persistedMessage.subMessages) {
+                    if (sub.toolUse) {
+                        for (const tool of sub.toolUse) {
+                            allToolUse.push({
+                                toolUseId: tool.toolUseId,
+                                toolName: tool.toolName,
+                                input: tool.input,
+                                output: tool.output,
+                                status: (tool.status as ToolUseStatus) || 'completed',
+                            })
+                        }
+                    }
+                }
+
+                // 保留多個 subMessages 的分段結構，但把所有 toolUse 集中到第一個
+                // 確保歷史載入後 tool 標籤位置與即時串流一致
+                message.subMessages = persistedMessage.subMessages.map((sub, index) => ({
                     id: sub.id,
                     content: sub.content,
                     isPartial: false,
-                    toolUse: sub.toolUse?.map(tool => ({
-                        toolUseId: tool.toolUseId,
-                        toolName: tool.toolName,
-                        input: tool.input,
-                        output: tool.output,
-                        status: (tool.status as ToolUseStatus) || 'completed',
-                    })),
+                    toolUse: index === 0 && allToolUse.length > 0 ? allToolUse : undefined,
                 }))
 
-                const allToolUse: ToolUseInfo[] = []
-                for (const sub of message.subMessages) {
-                    if (sub.toolUse) {
-                        allToolUse.push(...sub.toolUse)
-                    }
-                }
                 if (allToolUse.length > 0) {
                     message.toolUse = allToolUse
                 }
