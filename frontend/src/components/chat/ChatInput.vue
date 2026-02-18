@@ -68,7 +68,7 @@ const recognition = ref<ISpeechRecognition | null>(null)
 const isAborting = ref(false)
 const {toast} = useToast()
 
-const imageDataMap = new Map<HTMLElement, ImageAttachment>()
+const imageDataMap = new WeakMap<HTMLElement, ImageAttachment>()
 
 const moveCursorToEnd = (): void => {
   const element = editableRef.value
@@ -169,7 +169,6 @@ const insertNodeAtCursor = (node: Node): void => {
     range.deleteContents()
     range.insertNode(node)
 
-    // Place cursor right after the node, no extra characters
     range.setStartAfter(node)
     range.collapse(true)
     selection.removeAllRanges()
@@ -207,6 +206,11 @@ const insertImageAtCursor = (file: File): Promise<void> => {
       const result = e.target?.result
       if (typeof result !== 'string') {
         reject(new Error('Failed to read image'))
+        return
+      }
+
+      if (!/^data:image\/(jpeg|png|gif|webp);base64,/.test(result)) {
+        reject(new Error('Invalid DataURL format'))
         return
       }
 
@@ -273,7 +277,7 @@ const handleDrop = async (e: DragEvent): Promise<void> => {
   const files = e.dataTransfer?.files
   if (!files || files.length === 0) return
 
-  const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'))
+  const imageFiles = Array.from(files).filter(file => isValidImageType(file.type))
   for (const imageFile of imageFiles) {
     await insertImageAtCursor(imageFile).catch(() => {
     })
@@ -360,9 +364,8 @@ const extractTextFromBlocks = (blocks: ContentBlock[]): string => {
 
 const clearInput = (): void => {
   input.value = ''
-  imageDataMap.clear()
   if (editableRef.value) {
-    editableRef.value.innerHTML = ''
+    editableRef.value.textContent = ''
   }
 }
 
@@ -378,7 +381,7 @@ const handleAbort = (): void => {
 const handleSend = (): void => {
   if (input.value.length > MAX_MESSAGE_LENGTH) return
 
-  const hasContent = input.value.trim() || imageDataMap.size > 0
+  const hasContent = input.value.trim() || editableRef.value?.querySelector('[data-type="image"]') !== null
   if (!hasContent) return
 
   const blocks = buildContentBlocks()
@@ -411,8 +414,24 @@ const deleteImageAtom = (element: HTMLElement): void => {
 const handleKeyDown = (e: KeyboardEvent): void => {
   if (e.isComposing || e.keyCode === 229) return
 
-  // Ctrl+Enter 發送訊息
-  if (e.key === 'Enter' && e.ctrlKey) {
+  // Ctrl/Shift+Enter 保留多行輸入能力，避免誤觸送出
+  if (e.key === 'Enter') {
+    if (e.ctrlKey || e.shiftKey) {
+      e.preventDefault()
+      const selection = window.getSelection()
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0)
+        range.deleteContents()
+        const br = document.createElement('br')
+        range.insertNode(br)
+        range.setStartAfter(br)
+        range.collapse(true)
+        selection.removeAllRanges()
+        selection.addRange(range)
+        editableRef.value?.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+      return
+    }
     e.preventDefault()
     handleSend()
     return
@@ -428,7 +447,6 @@ const handleKeyDown = (e: KeyboardEvent): void => {
     const container = range.startContainer
     const offset = range.startOffset
 
-    // Case: cursor at element level, check node before cursor
     if (container.nodeType === Node.ELEMENT_NODE && offset > 0) {
       const nodeBefore = container.childNodes[offset - 1] as Node | undefined
 
@@ -439,7 +457,6 @@ const handleKeyDown = (e: KeyboardEvent): void => {
       }
     }
 
-    // Case: cursor at start of a text node, check previous sibling
     if (container.nodeType === Node.TEXT_NODE && offset === 0) {
       const prev = container.previousSibling
       if (isImageAtom(prev)) {
@@ -491,7 +508,7 @@ const initializeSpeechRecognition = (): void => {
 
   recognition.value.onerror = (event): void => {
     isListening.value = false
-    console.warn('Speech recognition error:', event.error)
+    console.warn('語音辨識錯誤：', event.error)
   }
 }
 
@@ -516,7 +533,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   cleanupSpeechRecognition()
-  imageDataMap.clear()
 })
 </script>
 
