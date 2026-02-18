@@ -1,4 +1,3 @@
-// Mock dependencies
 vi.mock('../../src/services/podStore.js', () => ({
   podStore: {
     getById: vi.fn(),
@@ -13,7 +12,6 @@ vi.mock('../../src/utils/logger.js', () => ({
   },
 }));
 
-// Import after mocks
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { workflowPipeline } from '../../src/services/workflow/workflowPipeline.js';
 import { podStore } from '../../src/services/podStore.js';
@@ -64,10 +62,8 @@ describe('WorkflowPipeline', () => {
   });
 
   beforeEach(() => {
-    // Reset all mocks
     vi.clearAllMocks();
 
-    // Initialize pipeline with mock services
     workflowPipeline.init(
       mockExecutionService,
       mockStateService,
@@ -75,7 +71,6 @@ describe('WorkflowPipeline', () => {
       mockQueueService
     );
 
-    // Default mock returns
     (mockExecutionService.generateSummaryWithFallback as any).mockResolvedValue({
       content: '摘要',
       isSummarized: true,
@@ -97,14 +92,12 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 generateSummaryWithFallback 被呼叫
       expect(mockExecutionService.generateSummaryWithFallback).toHaveBeenCalledWith(
         canvasId,
         sourcePodId,
         targetPodId
       );
 
-      // 驗證 strategy.collectSources 被呼叫
       expect(mockStrategy.collectSources).toHaveBeenCalledWith({
         canvasId,
         sourcePodId,
@@ -112,7 +105,6 @@ describe('WorkflowPipeline', () => {
         summary: '摘要',
       });
 
-      // 驗證 triggerWorkflowWithSummary 被呼叫（沒有 mergedContent 時也走 triggerWorkflowWithSummary）
       expect(mockExecutionService.triggerWorkflowWithSummary).toHaveBeenCalledWith(
         canvasId,
         connectionId,
@@ -133,10 +125,8 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 triggerWorkflowWithSummary 未被呼叫
       expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
 
-      // 驗證 queueService.enqueue 未被呼叫
       expect(mockQueueService.enqueue).not.toHaveBeenCalled();
     });
 
@@ -145,13 +135,11 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 stateService.checkMultiInputScenario 被呼叫
       expect(mockStateService.checkMultiInputScenario).toHaveBeenCalledWith(
         canvasId,
         targetPodId
       );
 
-      // 驗證 triggerWorkflowWithSummary 被呼叫
       expect(mockExecutionService.triggerWorkflowWithSummary).toHaveBeenCalledWith(
         canvasId,
         connectionId,
@@ -171,7 +159,6 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 multiInputService.handleMultiInputForConnection 被呼叫
       expect(mockMultiInputService.handleMultiInputForConnection).toHaveBeenCalledWith(
         canvasId,
         sourcePodId,
@@ -181,7 +168,6 @@ describe('WorkflowPipeline', () => {
         'auto'
       );
 
-      // 驗證 triggerWorkflowWithSummary 未被呼叫（多輸入後 return）
       expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
     });
 
@@ -196,7 +182,6 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 triggerWorkflowWithSummary 被呼叫，第五個參數是 strategy 物件
       expect(mockExecutionService.triggerWorkflowWithSummary).toHaveBeenCalledWith(
         canvasId,
         connectionId,
@@ -205,10 +190,9 @@ describe('WorkflowPipeline', () => {
         mockStrategy
       );
 
-      // 驗證傳入的 summary 是 '合併內容'
       const call = (mockExecutionService.triggerWorkflowWithSummary as any).mock.calls[0];
       expect(call[2]).toBe('合併內容');
-      expect(call[3]).toBe(true); // isSummarized
+      expect(call[3]).toBe(true);
     });
   });
 
@@ -223,7 +207,6 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 queueService.enqueue 被呼叫，傳入正確的 triggerMode
       expect(mockQueueService.enqueue).toHaveBeenCalledWith({
         canvasId,
         connectionId,
@@ -234,7 +217,6 @@ describe('WorkflowPipeline', () => {
         triggerMode: 'auto',
       });
 
-      // 驗證 triggerWorkflowWithSummary 未被呼叫
       expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
     });
   });
@@ -251,10 +233,8 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 triggerWorkflowWithSummary 未被呼叫
       expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
 
-      // 驗證 collectSources 未被呼叫
       expect(mockStrategy.collectSources).not.toHaveBeenCalled();
     });
   });
@@ -270,12 +250,11 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 triggerWorkflowWithSummary 被呼叫時 isSummarized 預設為 true
       expect(mockExecutionService.triggerWorkflowWithSummary).toHaveBeenCalledWith(
         canvasId,
         connectionId,
         '合併內容但未指定 isSummarized',
-        true, // isSummarized 預設為 true
+        true,
         mockStrategy
       );
     });
@@ -302,7 +281,6 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(aiDecideContext, mockStrategy);
 
-      // 驗證 triggerWorkflowWithSummary 被呼叫時第五個參數是 strategy
       expect(mockExecutionService.triggerWorkflowWithSummary).toHaveBeenCalledWith(
         canvasId,
         connectionId,
@@ -332,7 +310,6 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(directContext, mockStrategy);
 
-      // 驗證 triggerWorkflowWithSummary 被呼叫時第五個參數是 strategy
       expect(mockExecutionService.triggerWorkflowWithSummary).toHaveBeenCalledWith(
         canvasId,
         connectionId,
@@ -351,10 +328,8 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      // 驗證 triggerWorkflowWithSummary 未被呼叫
       expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
 
-      // 驗證 queueService.enqueue 未被呼叫
       expect(mockQueueService.enqueue).not.toHaveBeenCalled();
     });
   });

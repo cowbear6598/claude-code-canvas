@@ -1,4 +1,3 @@
-// Mock dependencies
 import {
   createWorkflowPipelineMock,
   createErrorHelpersMock,
@@ -28,8 +27,6 @@ vi.mock('../../src/services/workflow/workflowMultiInputService.js', () => create
 vi.mock('../../src/utils/logger.js', () => createLoggerMock());
 
 vi.mock('../../src/utils/errorHelpers.js', () => createErrorHelpersMock());
-
-// Import after mocks
 import { workflowAiDecideTriggerService } from '../../src/services/workflow/workflowAiDecideTriggerService.js';
 import { aiDecideService } from '../../src/services/workflow/aiDecideService.js';
 import { workflowEventEmitter } from '../../src/services/workflow/workflowEventEmitter.js';
@@ -55,7 +52,6 @@ describe('WorkflowAiDecideTriggerService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // 初始化 service
     workflowAiDecideTriggerService.init(
       aiDecideService,
       workflowEventEmitter,
@@ -66,7 +62,6 @@ describe('WorkflowAiDecideTriggerService', () => {
       workflowMultiInputService
     );
 
-    // 預設 mock 回傳值
     (workflowStateService.checkMultiInputScenario as any).mockReturnValue({
       isMultiInput: false,
       requiredSourcePodIds: [],
@@ -162,14 +157,12 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      // 驗證發送 PENDING 事件
       expect(workflowEventEmitter.emitAiDecidePending).toHaveBeenCalledWith(
         canvasId,
         ['conn-ai-1'],
         sourcePodId
       );
 
-      // 驗證狀態更新順序
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledTimes(2);
       expect(connectionStore.updateDecideStatus).toHaveBeenNthCalledWith(
         1,
@@ -186,7 +179,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         '相關任務'
       );
 
-      // 驗證發送決策結果事件
       expect(workflowEventEmitter.emitAiDecideResult).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
@@ -196,7 +188,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         '相關任務'
       );
 
-      // 驗證呼叫 pipeline.execute
       expect(workflowPipeline.execute).toHaveBeenCalledWith(
         expect.objectContaining({
           canvasId,
@@ -212,7 +203,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         workflowAiDecideTriggerService
       );
 
-      // 驗證 logger
       expect(logger.log).toHaveBeenCalledWith(
         'Workflow',
         'Create',
@@ -234,7 +224,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      // 驗證狀態更新為 rejected
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
@@ -242,7 +231,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         '不相關'
       );
 
-      // 驗證發送決策結果事件
       expect(workflowEventEmitter.emitAiDecideResult).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
@@ -252,10 +240,8 @@ describe('WorkflowAiDecideTriggerService', () => {
         '不相關'
       );
 
-      // 驗證不應呼叫 pipeline.execute
       expect(workflowPipeline.execute).not.toHaveBeenCalled();
 
-      // 驗證 logger
       expect(logger.log).toHaveBeenCalledWith(
         'Workflow',
         'Update',
@@ -277,7 +263,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      // 驗證狀態更新為 error
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
@@ -285,7 +270,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         '錯誤：AI 決策失敗'
       );
 
-      // 驗證發送錯誤事件
       expect(workflowEventEmitter.emitAiDecideError).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
@@ -294,10 +278,8 @@ describe('WorkflowAiDecideTriggerService', () => {
         '錯誤：AI 決策失敗'
       );
 
-      // 驗證不應呼叫 pipeline.execute
       expect(workflowPipeline.execute).not.toHaveBeenCalled();
 
-      // 驗證 logger
       expect(logger.error).toHaveBeenCalledWith(
         'Workflow',
         'Error',
@@ -314,7 +296,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      // 驗證狀態更新為 error
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
@@ -322,7 +303,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         '錯誤：網路錯誤'
       );
 
-      // 驗證發送錯誤事件
       expect(workflowEventEmitter.emitAiDecideError).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
@@ -331,7 +311,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         '錯誤：網路錯誤'
       );
 
-      // 驗證不應呼叫 pipeline.execute
       expect(workflowPipeline.execute).not.toHaveBeenCalled();
     });
 
@@ -368,7 +347,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      // 驗證呼叫順序
       expect(callOrder).toEqual([
         'emitAiDecidePending',
         'updateDecideStatus-pending',
@@ -398,14 +376,12 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      // 驗證記錄 rejection
       expect(pendingTargetStore.recordSourceRejection).toHaveBeenCalledWith(
         targetPodId,
         sourcePodId,
         '不相關'
       );
 
-      // 驗證發送 pending 狀態
       expect(workflowStateService.emitPendingStatus).toHaveBeenCalledWith(
         canvasId,
         targetPodId
@@ -431,7 +407,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      // 驗證不應記錄 rejection
       expect(pendingTargetStore.recordSourceRejection).not.toHaveBeenCalled();
       expect(workflowStateService.emitPendingStatus).not.toHaveBeenCalled();
     });
@@ -467,14 +442,12 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection, conn2, conn3]
       );
 
-      // 驗證 PENDING 事件包含所有 connections
       expect(workflowEventEmitter.emitAiDecidePending).toHaveBeenCalledWith(
         canvasId,
         ['conn-ai-1', 'conn-ai-2', 'conn-ai-3'],
         sourcePodId
       );
 
-      // 驗證 conn-ai-1 approved
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
@@ -489,7 +462,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         workflowAiDecideTriggerService
       );
 
-      // 驗證 conn-ai-2 rejected
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-2',
@@ -497,7 +469,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         '不相關任務 2'
       );
 
-      // 驗證 conn-ai-3 error
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-3',
@@ -516,7 +487,6 @@ describe('WorkflowAiDecideTriggerService', () => {
 
   describe('錯誤處理', () => {
     it('未初始化時呼叫 decide() 拋出錯誤', async () => {
-      // 建立新的未初始化 service 實例（透過直接訪問 class）
       const uninitializedService = Object.create(
         Object.getPrototypeOf(workflowAiDecideTriggerService)
       );
@@ -531,7 +501,6 @@ describe('WorkflowAiDecideTriggerService', () => {
     });
 
     it('未初始化時呼叫 processAiDecideConnections() 拋出錯誤', async () => {
-      // 建立新的未初始化 service 實例
       const uninitializedService = Object.create(
         Object.getPrototypeOf(workflowAiDecideTriggerService)
       );
@@ -558,10 +527,8 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      // 等待 Promise 完成
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      // 驗證仍正常更新狀態
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',
@@ -569,7 +536,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         '相關任務'
       );
 
-      // 驗證錯誤被記錄
       expect(logger.error).toHaveBeenCalledWith(
         'Workflow',
         'Error',
@@ -577,7 +543,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         pipelineError
       );
 
-      // 驗證錯誤事件被發送
       expect(workflowEventEmitter.emitWorkflowComplete).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-1',

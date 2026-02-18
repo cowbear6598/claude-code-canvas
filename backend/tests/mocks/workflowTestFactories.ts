@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { workflowQueueService } from '../../src/services/workflow/index.js';
 import { workflowExecutionService } from '../../src/services/workflow/index.js';
-import type { Pod, Connection, Message, TriggerMode } from '../../src/types/index.js';
+import type { Pod, Connection, TriggerMode, PersistedMessage } from '../../src/types/index.js';
 import type { TriggerStrategy } from '../../src/services/workflow/types.js';
 
 // 常用測試 ID
@@ -57,25 +57,21 @@ export function createMockConnection(overrides?: Partial<Connection>): Connectio
 }
 
 // Message Factory
-export function createMockMessages(podId: string = 'source-pod'): Message[] {
+export function createMockMessages(): PersistedMessage[] {
   return [
     {
       id: 'msg-1',
-      podId,
       role: 'user' as const,
       content: 'Test user message',
-      createdAt: new Date(),
-      toolUse: null,
+      timestamp: new Date().toISOString(),
     },
     {
       id: 'msg-2',
-      podId,
       role: 'assistant' as const,
       content: 'Test assistant response',
-      createdAt: new Date(),
-      toolUse: null,
+      timestamp: new Date().toISOString(),
     },
-  ] as Message[];
+  ] as PersistedMessage[];
 }
 
 // Strategy Factory

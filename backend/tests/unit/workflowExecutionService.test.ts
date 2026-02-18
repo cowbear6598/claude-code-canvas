@@ -16,7 +16,6 @@ import {
   createDirectTriggerStoreMock,
 } from '../mocks/workflowModuleMocks.js';
 
-// Mock dependencies
 vi.mock('../../src/services/connectionStore.js', () => createConnectionStoreMock());
 vi.mock('../../src/services/podStore.js', () => createPodStoreMock());
 vi.mock('../../src/services/messageStore.js', () => createMessageStoreMock());
@@ -33,7 +32,6 @@ vi.mock('../../src/services/commandService.js', () => createCommandServiceMock()
 vi.mock('../../src/services/workflow/workflowMultiInputService.js', () => createWorkflowMultiInputServiceMock());
 vi.mock('../../src/services/directTriggerStore.js', () => createDirectTriggerStoreMock());
 
-// Import after mocks
 import { workflowExecutionService } from '../../src/services/workflow';
 import { connectionStore } from '../../src/services/connectionStore.js';
 import { podStore } from '../../src/services/podStore.js';
@@ -49,7 +47,7 @@ import type { Connection, TriggerMode } from '../../src/types';
 import type { TriggerStrategy } from '../../src/services/workflow/types.js';
 import { createMockPod, createMockConnection, createMockMessages, createMockStrategy, TEST_IDS } from '../mocks/workflowTestFactories.js';
 
-// 提取 mockPipeline.execute 實作為獨立函數
+// 提取為獨立函數，因為 vi.clearAllMocks 後需要重新設定，避免 beforeEach 膨脹
 function createPipelineExecuteImpl(mockAutoStrategy: TriggerStrategy, mockAiDecideStrategy: TriggerStrategy) {
   return async (context: any, strategy: TriggerStrategy) => {
     const summaryResult = await summaryService.generateSummaryForTarget(
@@ -99,7 +97,6 @@ function createPipelineExecuteImpl(mockAutoStrategy: TriggerStrategy, mockAiDeci
   };
 }
 
-// 提取 mockAutoTriggerService.processAutoTriggerConnection 實作為獨立函數
 function createAutoTriggerProcessImpl(mockPipeline: any, mockAutoStrategy: TriggerStrategy) {
   return async (canvasId: string, sourcePodId: string, connection: Connection) => {
     const pipelineContext = {
@@ -113,7 +110,6 @@ function createAutoTriggerProcessImpl(mockPipeline: any, mockAutoStrategy: Trigg
   };
 }
 
-// 提取 mockAiDecideTriggerService.processAiDecideConnections 實作為獨立函數
 function createAiDecideProcessImpl(mockPipeline: any, mockAiDecideStrategy: TriggerStrategy) {
   return async (canvasId: string, sourcePodId: string, connections: Connection[]) => {
     workflowEventEmitter.emitAiDecidePending(
@@ -196,24 +192,20 @@ function createAiDecideProcessImpl(mockPipeline: any, mockAiDecideStrategy: Trig
 describe('WorkflowExecutionService', () => {
   const { canvasId, sourcePodId, targetPodId } = TEST_IDS;
 
-  // Strategy mocks
   const mockAutoStrategy = createMockStrategy('auto');
   const mockDirectStrategy = createMockStrategy('direct');
   const mockAiDecideStrategy = createMockStrategy('ai-decide');
 
-  // Mock Pipeline
   const mockPipeline = {
     execute: vi.fn(),
     init: vi.fn(),
   };
 
-  // Mock Auto Trigger Service
   const mockAutoTriggerService = {
     processAutoTriggerConnection: vi.fn(),
     init: vi.fn(),
   };
 
-  // Mock AI Decide Trigger Service
   const mockAiDecideTriggerService = {
     processAiDecideConnections: vi.fn(),
     init: vi.fn(),
@@ -222,7 +214,7 @@ describe('WorkflowExecutionService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // 重新設定 mock implementations
+    // vi.clearAllMocks 會清除 implementation，需重新設定
     (mockPipeline.execute as any).mockImplementation(createPipelineExecuteImpl(mockAutoStrategy, mockAiDecideStrategy));
     (mockAutoTriggerService.processAutoTriggerConnection as any).mockImplementation(createAutoTriggerProcessImpl(mockPipeline, mockAutoStrategy));
     (mockAiDecideTriggerService.processAiDecideConnections as any).mockImplementation(createAiDecideProcessImpl(mockPipeline, mockAiDecideStrategy));
@@ -234,10 +226,9 @@ describe('WorkflowExecutionService', () => {
       directTriggerService: mockDirectStrategy,
     });
 
-    // Default mock returns
     const mockSourcePod = createMockPod({ id: sourcePodId, name: 'Source Pod', status: 'idle' });
     const mockTargetPod = createMockPod({ id: targetPodId, name: 'Target Pod', status: 'idle' });
-    const mockMessages = createMockMessages(sourcePodId);
+    const mockMessages = createMockMessages();
 
     (podStore.getById as any).mockImplementation((cId: string, podId: string) => {
       if (podId === sourcePodId) return mockSourcePod;
@@ -278,7 +269,6 @@ describe('WorkflowExecutionService', () => {
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
-      // 驗證 ai-decide connection 的處理
       expect(workflowEventEmitter.emitAiDecidePending).toHaveBeenCalledWith(
         canvasId,
         ['conn-ai-1'],
@@ -290,7 +280,6 @@ describe('WorkflowExecutionService', () => {
         [mockAiDecideConnection]
       );
 
-      // 驗證至少有嘗試生成摘要（因為 auto 和 ai-decide approved 都會觸發）
       expect(summaryService.generateSummaryForTarget).toHaveBeenCalled();
     });
   });
@@ -393,7 +382,6 @@ describe('WorkflowExecutionService', () => {
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
-      // 等待 Promise 完成
       await new Promise(resolve => setTimeout(resolve, 50));
 
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(
@@ -410,7 +398,6 @@ describe('WorkflowExecutionService', () => {
         false,
         '上游產出與下游任務無關'
       );
-      // 不應該生成 summary（因為不觸發）
       expect(summaryService.generateSummaryForTarget).not.toHaveBeenCalled();
     });
   });
@@ -442,14 +429,10 @@ describe('WorkflowExecutionService', () => {
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
-      // 等待 fire-and-forget 的 pipeline.execute 完成
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // 驗證 auto connections 被處理
-      // 注意：重構後每個 connection 只呼叫 1 次 generateSummaryForTarget（在 Pipeline 中）
-      expect(summaryService.generateSummaryForTarget).toHaveBeenCalledTimes(3); // 2 auto + 1 ai-decide
+      expect(summaryService.generateSummaryForTarget).toHaveBeenCalledTimes(3);
 
-      // 驗證 ai-decide connection 被處理
       expect(aiDecideService.decideConnections).toHaveBeenCalledTimes(1);
       expect(workflowEventEmitter.emitAiDecideResult).toHaveBeenCalled();
     });
@@ -478,14 +461,12 @@ describe('WorkflowExecutionService', () => {
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
-      // 驗證 rejection 被記錄
       expect(pendingTargetStore.recordSourceRejection).toHaveBeenCalledWith(
         targetPodWithMultiInput,
         sourcePodId,
         '不相關'
       );
 
-      // 不應該觸發 summary 生成
       expect(summaryService.generateSummaryForTarget).not.toHaveBeenCalled();
     });
   });
@@ -505,7 +486,6 @@ describe('WorkflowExecutionService', () => {
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
-      // 等待 Promise 完成
       await new Promise(resolve => setTimeout(resolve, 50));
 
       expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(
@@ -572,10 +552,8 @@ describe('WorkflowExecutionService', () => {
         ])
       );
 
-      // Mock workflowMultiInputService 來真實呼叫 enqueue
       (workflowMultiInputService.handleMultiInputForConnection as any).mockImplementation(
         async (canvasId: string, sourcePodId: string, connection: Connection, requiredSourcePodIds: string[], summary: string, triggerMode: 'auto' | 'ai-decide') => {
-          // 模擬真實行為：檢查 targetPod 狀態並 enqueue
           const targetPod = podStore.getById(canvasId, connection.targetPodId);
           if (targetPod && targetPod.status === 'chatting') {
             workflowQueueService.enqueue({
@@ -665,10 +643,8 @@ describe('WorkflowExecutionService', () => {
         ])
       );
 
-      // Mock workflowMultiInputService 來真實呼叫 enqueue
       (workflowMultiInputService.handleMultiInputForConnection as any).mockImplementation(
         async (canvasId: string, sourcePodId: string, connection: Connection, requiredSourcePodIds: string[], summary: string, triggerMode: 'auto' | 'ai-decide') => {
-          // 模擬真實行為：檢查 targetPod 狀態並 enqueue
           const targetPod = podStore.getById(canvasId, connection.targetPodId);
           if (targetPod && targetPod.status === 'chatting') {
             workflowQueueService.enqueue({
@@ -689,7 +665,6 @@ describe('WorkflowExecutionService', () => {
 
       await workflowExecutionService.checkAndTriggerWorkflows(canvasId, source1PodId);
 
-      // 等待 fire-and-forget 的 pipeline.execute 完成
       await new Promise(resolve => setTimeout(resolve, 100));
 
       expect(enqueueSpy).toHaveBeenCalledWith(

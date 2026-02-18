@@ -14,7 +14,6 @@ describe('WorkflowQueueService', () => {
 
     setupAllSpies({ podLookup });
 
-    // 清空佇列
     workflowQueueService.clearQueue(targetPodId);
     workflowQueueService.clearQueue('target-pod-2');
   });

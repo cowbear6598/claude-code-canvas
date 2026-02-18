@@ -28,7 +28,6 @@ interface SetupAllSpiesOptions {
     customClaudeQuery?: (...args: any[]) => Promise<any>;
 }
 
-// connectionStore spy（5 個方法）
 export function setupConnectionStoreSpy(connection?: Connection) {
     return {
         findBySourcePodId: vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]),
@@ -39,7 +38,6 @@ export function setupConnectionStoreSpy(connection?: Connection) {
     };
 }
 
-// podStore spy（3 個方法）
 export function setupPodStoreSpy(
     podLookup?: Map<string, Pod>,
     customPodGetter?: (canvasId: string, podId: string) => Pod | undefined
@@ -61,7 +59,6 @@ export function setupPodStoreSpy(
     return spies;
 }
 
-// messageStore spy（4 個方法）
 export function setupMessageStoreSpy(messages?: PersistedMessage[]) {
     const spies = {
         getMessages: vi.spyOn(messageStore, 'getMessages').mockReturnValue(messages || []),
@@ -74,7 +71,6 @@ export function setupMessageStoreSpy(messages?: PersistedMessage[]) {
     return spies;
 }
 
-// workflowEventEmitter spy（所有方法）
 export function setupWorkflowEventEmitterSpy() {
     const spies = {
         emitWorkflowComplete: vi.spyOn(workflowEventEmitter, 'emitWorkflowComplete').mockImplementation(() => {
@@ -109,7 +105,6 @@ export function setupWorkflowEventEmitterSpy() {
     return spies;
 }
 
-// directTriggerStore spy（8 個方法）
 export function setupDirectTriggerStoreSpy() {
     const spies = {
         hasDirectPending: vi.spyOn(directTriggerStore, 'hasDirectPending').mockReturnValue(false),
@@ -128,7 +123,6 @@ export function setupDirectTriggerStoreSpy() {
     return spies;
 }
 
-// pendingTargetStore spy（8 個方法）
 export function setupPendingTargetStoreSpy() {
     const spies = {
         hasPendingTarget: vi.spyOn(pendingTargetStore, 'hasPendingTarget').mockReturnValue(false),
@@ -150,7 +144,6 @@ export function setupPendingTargetStoreSpy() {
     return spies;
 }
 
-// summaryService spy（1 個方法）
 export function setupSummaryServiceSpy(summary?: { targetPodId: string; success: boolean; summary: string }) {
     const spies = {
         generateSummaryForTarget: vi.spyOn(summaryService, 'generateSummaryForTarget').mockResolvedValue(
@@ -160,7 +153,6 @@ export function setupSummaryServiceSpy(summary?: { targetPodId: string; success:
     return spies;
 }
 
-// autoClearService spy（2 個方法）
 export function setupAutoClearServiceSpy() {
     const spies = {
         initializeWorkflowTracking: vi.spyOn(autoClearService, 'initializeWorkflowTracking').mockImplementation(() => {
@@ -170,7 +162,6 @@ export function setupAutoClearServiceSpy() {
     return spies;
 }
 
-// logger spy（2 個方法）
 export function setupLoggerSpy() {
     const spies = {
         log: vi.spyOn(logger, 'log').mockImplementation(() => {
@@ -181,7 +172,6 @@ export function setupLoggerSpy() {
     return spies;
 }
 
-// socketService spy（1 個方法）
 export function setupSocketServiceSpy() {
     const spies = {
         emitToCanvas: vi.spyOn(socketService, 'emitToCanvas').mockImplementation(() => {
@@ -190,7 +180,6 @@ export function setupSocketServiceSpy() {
     return spies;
 }
 
-// workflowStateService spy（2 個方法）
 export function setupWorkflowStateServiceSpy(directConnectionCount?: number) {
     const spies = {
         checkMultiInputScenario: vi.spyOn(workflowStateService, 'checkMultiInputScenario').mockReturnValue({
@@ -202,7 +191,6 @@ export function setupWorkflowStateServiceSpy(directConnectionCount?: number) {
     return spies;
 }
 
-// commandService spy（1 個方法）
 export function setupCommandServiceSpy() {
     const spies = {
         list: vi.spyOn(commandService, 'list').mockResolvedValue([]),
@@ -210,7 +198,6 @@ export function setupCommandServiceSpy() {
     return spies;
 }
 
-// claudeQueryService spy（1 個方法）
 export function setupClaudeQueryServiceSpy(customClaudeQuery?: (...args: any[]) => Promise<any>) {
     const defaultImplementation = async (...args: any[]) => {
         const callback = args[2] as any;
@@ -228,7 +215,6 @@ export function setupClaudeQueryServiceSpy(customClaudeQuery?: (...args: any[]) 
     return spies;
 }
 
-// 聚合函數：一次呼叫全部
 export function setupAllSpies(options?: SetupAllSpiesOptions) {
     return {
         connectionStore: setupConnectionStoreSpy(options?.connection),

@@ -28,7 +28,7 @@ describe('Direct Trigger Flow', () => {
         mockSourcePod = createMockPod({ id: sourcePodId, name: 'Source Pod', status: 'idle' });
         mockTargetPod = createMockPod({ id: targetPodId, name: 'Target Pod', status: 'idle' });
         mockDirectConnection = createMockConnection({ id: connectionId, sourcePodId, targetPodId, triggerMode: 'direct' });
-        mockMessages = createMockMessages(sourcePodId);
+        mockMessages = createMockMessages();
 
         const podLookup = new Map([[sourcePodId, mockSourcePod], [targetPodId, mockTargetPod]]);
         const summary = { targetPodId: '', success: true, summary: testSummary };
@@ -42,14 +42,12 @@ describe('Direct Trigger Flow', () => {
     });
 
     afterEach(() => {
-        // 清理 pendingResolvers
         (workflowDirectTriggerService as any).pendingResolvers.clear();
         vi.restoreAllMocks();
     });
 
     describe('A1: 單一 direct - target idle → 直接執行', () => {
         it('Target Pod 只有 1 條 direct 連線，target 狀態為 idle，應直接執行', async () => {
-            // 準備
             vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([mockDirectConnection]);
             vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(1);
             vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
@@ -58,13 +56,10 @@ describe('Direct Trigger Flow', () => {
                 return undefined;
             }) as any);
 
-            // Mock triggerWorkflowWithSummary 避免執行完整工作流
             const triggerSpy = vi.spyOn(workflowExecutionService, 'triggerWorkflowWithSummary').mockResolvedValue(undefined);
 
-            // 執行
             await workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
-            // 驗證：triggerWorkflowWithSummary 被呼叫，strategy 會在 triggerWorkflowWithSummary 中處理 DIRECT_TRIGGERED 事件
             expect(triggerSpy).toHaveBeenCalled();
             const call = triggerSpy.mock.calls[0];
             expect(call[0]).toBe(canvasId);
@@ -77,7 +72,6 @@ describe('Direct Trigger Flow', () => {
 
     describe('A2: 單一 direct - target busy → 進 queue', () => {
         it('Target Pod 只有 1 條 direct 連線，target 狀態為 chatting，應進入 queue', async () => {
-            // 準備
             vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([mockDirectConnection]);
             vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(1);
             vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
@@ -91,10 +85,8 @@ describe('Direct Trigger Flow', () => {
                 queueSize: 1
             }));
 
-            // 執行
             await workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
-            // 驗證
             expect(enqueueSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     canvasId,
@@ -107,30 +99,26 @@ describe('Direct Trigger Flow', () => {
                 })
             );
 
-            // 驗證 triggerWorkflowWithSummary 不被呼叫
             expect(claudeQueryService.sendMessage).not.toHaveBeenCalled();
         });
     });
 
     describe('B1: Multi-direct - 第一個 source 到達 → 初始化等待', () => {
         it('Target Pod 有 2+ 條 direct 連線，第一個 source 完成，應初始化等待並設定 timer', async () => {
-            // 準備
             vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([mockDirectConnection]);
             vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(2);
-            vi.spyOn(directTriggerStore, 'hasDirectPending').mockReturnValue(false); // 第一次，pending 不存在
+            vi.spyOn(directTriggerStore, 'hasDirectPending').mockReturnValue(false);
 
-            // 使用 fake timers 來控制 setTimeout
+            // fake timers 避免真實延遲
             vi.useFakeTimers();
 
-            // 執行（不 await，因為會卡在 Promise）
+            // 不 await：會在等待其他 source 時卡住
             workflowExecutionService.checkAndTriggerWorkflows(canvasId, sourcePodId);
 
-            // 使用 vi.runAllTimersAsync 讓所有同步代碼執行完畢（但不執行 setTimeout callback）
-            // 實際上我們只需要等待微任務執行
+            // 讓微任務執行完畢
             await Promise.resolve();
             await Promise.resolve();
 
-            // 驗證（此時已經執行到設定 timer 的步驟）
             expect(directTriggerStore.initializeDirectPending).toHaveBeenCalledWith(targetPodId);
             expect(directTriggerStore.recordDirectReady).toHaveBeenCalledWith(targetPodId, sourcePodId, testSummary);
             expect(workflowEventEmitter.emitDirectWaiting).toHaveBeenCalledWith(
@@ -143,10 +131,8 @@ describe('Direct Trigger Flow', () => {
                 })
             );
 
-            // 驗證 directTriggerStore.setTimer 被呼叫
             expect(directTriggerStore.setTimer).toHaveBeenCalled();
 
-            // 清理
             vi.useRealTimers();
         });
     });
@@ -160,7 +146,6 @@ describe('Direct Trigger Flow', () => {
                 sourcePodId: source2PodId,
             };
 
-            // 準備：先設定第一個 source 的 resolver（模擬已有 pending 狀態）
             let firstResolver: any;
             (workflowDirectTriggerService as any).pendingResolvers.set(targetPodId, (result: any) => {
                 firstResolver = result;
@@ -169,27 +154,25 @@ describe('Direct Trigger Flow', () => {
             vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([connection2]);
             vi.spyOn(connectionStore, 'getById').mockReturnValue(connection2);
             vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(2);
-            vi.spyOn(directTriggerStore, 'hasDirectPending').mockReturnValue(true); // pending 已存在
-            vi.spyOn(directTriggerStore, 'hasActiveTimer').mockReturnValue(true); // 有舊 timer
+            vi.spyOn(directTriggerStore, 'hasDirectPending').mockReturnValue(true);
+            vi.spyOn(directTriggerStore, 'hasActiveTimer').mockReturnValue(true);
 
-            // Mock setTimeout 讓它不要真的執行
+            // fake timers 避免真實延遲
             const setTimeoutSpy = vi.spyOn(global, 'setTimeout').mockImplementation(() => 123 as any);
 
-            // 執行（第二個 source 會回傳 { ready: false }，所以會立即完成）
+            // 第二個 source collectSources 回傳 ready:false，立即完成
             await workflowExecutionService.checkAndTriggerWorkflows(canvasId, source2PodId);
 
-            // 驗證
             expect(directTriggerStore.recordDirectReady).toHaveBeenCalledWith(targetPodId, source2PodId, testSummary);
-            expect(directTriggerStore.clearTimer).toHaveBeenCalledWith(targetPodId); // 舊 timer 被清除
-            expect(setTimeoutSpy).toHaveBeenCalled(); // 新 timer 被設定
+            expect(directTriggerStore.clearTimer).toHaveBeenCalledWith(targetPodId);
+            expect(setTimeoutSpy).toHaveBeenCalled();
             expect(directTriggerStore.setTimer).toHaveBeenCalled();
-            expect(workflowEventEmitter.emitDirectWaiting).toHaveBeenCalledTimes(1); // 發送 waiting 事件
+            expect(workflowEventEmitter.emitDirectWaiting).toHaveBeenCalledTimes(1);
         });
     });
 
     describe('B3: Timer 到期 - 單源, target idle → 執行', () => {
         it('只有 1 個 source ready，timer 到期，target idle，應執行工作流', async () => {
-            // 準備 - 模擬 timer 到期時的狀態
             const readySummaries = new Map([[sourcePodId, testSummary]]);
             vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(readySummaries);
             vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([mockDirectConnection]);
@@ -199,23 +182,19 @@ describe('Direct Trigger Flow', () => {
                 return undefined;
             }) as any);
 
-            // 手動設定 pendingResolvers
             let resolvedResult: any;
             (workflowDirectTriggerService as any).pendingResolvers.set(targetPodId, (result: any) => {
                 resolvedResult = result;
             });
 
-            // 直接呼叫 onTimerExpired（透過反射訪問私有方法）
+            // 透過反射測試私有方法 onTimerExpired
             (workflowDirectTriggerService as any).onTimerExpired(canvasId, targetPodId);
 
-            // 驗證 resolver 被呼叫且回傳 ready: true
             // onTimerExpired 不再發送 DIRECT_TRIGGERED 事件，這個事件會在 trigger 階段發送
             expect(resolvedResult).toEqual({ready: true});
 
-            // 驗證 clearDirectPending 被呼叫
             expect(directTriggerStore.clearDirectPending).toHaveBeenCalledWith(targetPodId);
 
-            // 驗證 emitDirectTriggered 不在 onTimerExpired 中被呼叫
             expect(workflowEventEmitter.emitDirectTriggered).not.toHaveBeenCalled();
         });
     });
@@ -235,7 +214,6 @@ describe('Direct Trigger Flow', () => {
                 [source2PodId, summary2],
             ]);
 
-            // 準備
             vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(readySummaries);
             vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([mockDirectConnection, connection2]);
             vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
@@ -244,16 +222,13 @@ describe('Direct Trigger Flow', () => {
                 return undefined;
             }) as any);
 
-            // 手動設定 pendingResolvers
             let resolvedResult: any;
             (workflowDirectTriggerService as any).pendingResolvers.set(targetPodId, (result: any) => {
                 resolvedResult = result;
             });
 
-            // 執行
             (workflowDirectTriggerService as any).onTimerExpired(canvasId, targetPodId);
 
-            // 驗證
             expect(workflowEventEmitter.emitDirectMerged).toHaveBeenCalledWith(
                 canvasId,
                 expect.objectContaining({
@@ -264,14 +239,12 @@ describe('Direct Trigger Flow', () => {
                 })
             );
 
-            // 驗證 resolver 被呼叫且回傳 ready: true 和 mergedContent
             expect(resolvedResult).toEqual({
                 ready: true,
                 mergedContent: expect.any(String),
                 isSummarized: true,
             });
 
-            // 驗證 clearDirectPending 被呼叫
             expect(directTriggerStore.clearDirectPending).toHaveBeenCalledWith(targetPodId);
 
             // onTimerExpired 不再發送 DIRECT_TRIGGERED 和 WORKFLOW_COMPLETE 事件
@@ -296,36 +269,29 @@ describe('Direct Trigger Flow', () => {
                 [source2PodId, summary2],
             ]);
 
-            // 準備
             vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(readySummaries);
             vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([mockDirectConnection, connection2]);
             vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
                 if (podId === sourcePodId || podId === source2PodId) return {...mockSourcePod, id: podId};
-                if (podId === targetPodId) return {...mockTargetPod, status: 'chatting'}; // target busy
+                if (podId === targetPodId) return {...mockTargetPod, status: 'chatting'};
                 return undefined;
             }) as any);
 
-            // 手動設定 pendingResolvers
             let resolvedResult: any;
             (workflowDirectTriggerService as any).pendingResolvers.set(targetPodId, (result: any) => {
                 resolvedResult = result;
             });
 
-            // 執行
             (workflowDirectTriggerService as any).onTimerExpired(canvasId, targetPodId);
 
-            // 驗證
             expect(workflowEventEmitter.emitDirectMerged).toHaveBeenCalled();
 
-            // 驗證 resolver 被呼叫且回傳 ready: true 和 mergedContent
-            // Pipeline 的後續 checkQueue 階段會根據 target Pod 狀態決定是否 enqueue
             expect(resolvedResult).toEqual({
                 ready: true,
                 mergedContent: expect.any(String),
                 isSummarized: true,
             });
 
-            // 驗證 clearDirectPending 被呼叫
             expect(directTriggerStore.clearDirectPending).toHaveBeenCalledWith(targetPodId);
 
             // onTimerExpired 不再發送 DIRECT_TRIGGERED 和 WORKFLOW_COMPLETE 事件

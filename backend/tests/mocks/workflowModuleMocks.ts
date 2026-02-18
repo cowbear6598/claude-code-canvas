@@ -1,6 +1,5 @@
 import { vi } from 'vitest';
 
-// podStore mock factory
 export function createPodStoreMock() {
   return {
     podStore: {
@@ -11,7 +10,6 @@ export function createPodStoreMock() {
   };
 }
 
-// connectionStore mock factory
 export function createConnectionStoreMock() {
   return {
     connectionStore: {
@@ -24,7 +22,6 @@ export function createConnectionStoreMock() {
   };
 }
 
-// messageStore mock factory
 export function createMessageStoreMock() {
   return {
     messageStore: {
@@ -36,7 +33,6 @@ export function createMessageStoreMock() {
   };
 }
 
-// summaryService mock factory
 export function createSummaryServiceMock() {
   return {
     summaryService: {
@@ -45,7 +41,6 @@ export function createSummaryServiceMock() {
   };
 }
 
-// pendingTargetStore mock factory
 export function createPendingTargetStoreMock() {
   return {
     pendingTargetStore: {
@@ -61,7 +56,6 @@ export function createPendingTargetStoreMock() {
   };
 }
 
-// workflowStateService mock factory
 export function createWorkflowStateServiceMock() {
   return {
     workflowStateService: {
@@ -72,7 +66,6 @@ export function createWorkflowStateServiceMock() {
   };
 }
 
-// workflowEventEmitter mock factory
 export function createWorkflowEventEmitterMock() {
   return {
     workflowEventEmitter: {
@@ -94,7 +87,6 @@ export function createWorkflowEventEmitterMock() {
   };
 }
 
-// aiDecideService mock factory
 export function createAiDecideServiceMock() {
   return {
     aiDecideService: {
@@ -103,7 +95,6 @@ export function createAiDecideServiceMock() {
   };
 }
 
-// autoClearService mock factory
 export function createAutoClearServiceMock() {
   return {
     autoClearService: {
@@ -113,7 +104,6 @@ export function createAutoClearServiceMock() {
   };
 }
 
-// logger mock factory
 export function createLoggerMock() {
   return {
     logger: {
@@ -123,7 +113,6 @@ export function createLoggerMock() {
   };
 }
 
-// socketService mock factory
 export function createSocketServiceMock() {
   return {
     socketService: {
@@ -132,7 +121,6 @@ export function createSocketServiceMock() {
   };
 }
 
-// claudeQueryService mock factory
 export function createClaudeQueryServiceMock() {
   return {
     claudeQueryService: {
@@ -142,7 +130,6 @@ export function createClaudeQueryServiceMock() {
   };
 }
 
-// commandService mock factory
 export function createCommandServiceMock() {
   return {
     commandService: {
@@ -152,7 +139,6 @@ export function createCommandServiceMock() {
   };
 }
 
-// workflowMultiInputService mock factory
 export function createWorkflowMultiInputServiceMock() {
   return {
     workflowMultiInputService: {
@@ -162,7 +148,6 @@ export function createWorkflowMultiInputServiceMock() {
   };
 }
 
-// directTriggerStore mock factory
 export function createDirectTriggerStoreMock() {
   return {
     directTriggerStore: {
@@ -178,7 +163,6 @@ export function createDirectTriggerStoreMock() {
   };
 }
 
-// workflowPipeline mock factory
 export function createWorkflowPipelineMock() {
   return {
     workflowPipeline: {
@@ -188,7 +172,6 @@ export function createWorkflowPipelineMock() {
   };
 }
 
-// errorHelpers mock factory
 export function createErrorHelpersMock() {
   return {
     getErrorMessage: vi.fn((e) => e?.message ?? String(e)),
