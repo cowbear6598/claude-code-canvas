@@ -238,6 +238,10 @@ export const useConnectionStore = defineStore('connection', {
         updateConnectionStatusByTargetPod(targetPodId: string, status: ConnectionStatus): void {
             this.connections.forEach(conn => {
                 if (conn.targetPodId === targetPodId) {
+                    // 防止 AI 判斷中的連線被強制設為 active（事件亂序保護）
+                    if (conn.status === 'ai-deciding' && status === 'active') {
+                        return
+                    }
                     conn.status = status
                 }
             })
@@ -247,6 +251,10 @@ export const useConnectionStore = defineStore('connection', {
             this.connections.forEach(conn => {
                 if (conn.targetPodId === targetPodId &&
                     (conn.triggerMode === 'auto' || conn.triggerMode === 'ai-decide')) {
+                    // 防止 AI 判斷中的連線被強制設為 active（事件亂序保護）
+                    if (conn.status === 'ai-deciding' && status === 'active') {
+                        return
+                    }
                     conn.status = status
                 }
             })

@@ -83,6 +83,7 @@ export function createWorkflowEventEmitterMock() {
       emitWorkflowQueueProcessed: vi.fn(),
       emitDirectCountdown: vi.fn(),
       emitDirectMerged: vi.fn(),
+      emitWorkflowAiDecideTriggered: vi.fn(),
     },
   };
 }
@@ -108,6 +109,7 @@ export function createLoggerMock() {
   return {
     logger: {
       log: vi.fn(),
+      warn: vi.fn(),
       error: vi.fn(),
     },
   };

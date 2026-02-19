@@ -17,7 +17,7 @@ import {directTriggerStore} from '../directTriggerStore.js';
 import {workflowStateService} from './workflowStateService.js';
 import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {logger} from '../../utils/logger.js';
-import {formatMergedSummaries, forEachDirectConnection} from './workflowHelpers.js';
+import {formatMergedSummaries, forEachDirectConnection, getDirectConnectionsForTarget} from './workflowHelpers.js';
 import {connectionStore} from '../connectionStore.js';
 
 class WorkflowDirectTriggerService implements TriggerStrategy {
@@ -28,11 +28,15 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
     // 防止 resolver 永久懸掛
     private readonly MAX_PENDING_TIME = 30000;
 
+    // multi-direct 合併等待視窗
+    private readonly MULTI_DIRECT_MERGE_WINDOW_MS = 10000;
+
     async decide(context: TriggerDecideContext): Promise<TriggerDecideResult[]> {
         return context.connections.map((connection) => ({
             connectionId: connection.id,
             approved: true,
             reason: null,
+            isError: false,
         }));
     }
 
@@ -79,12 +83,21 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
             this.startCountdownTimer(canvasId, targetPodId);
 
             setTimeout(() => {
-                if (this.pendingResolvers.has(targetPodId)) {
-                    logger.error('Workflow', 'Error', `Direct trigger 超時未完成，清理 ${targetPodId}`);
+                if (!this.pendingResolvers.has(targetPodId)) {
+                    return; // resolver 已被其他流程（10 秒 timer）處理，跳過
+                }
+                // 確認 targetPod 仍存在有效的 direct connections
+                const directConns = getDirectConnectionsForTarget(canvasId, targetPodId);
+                if (directConns.length === 0) {
+                    logger.warn('Workflow', 'Warn', `Direct trigger 30 秒超時：targetPod ${targetPodId} 已無 direct 連線，跳過`);
                     this.pendingResolvers.delete(targetPodId);
                     directTriggerStore.clearDirectPending(targetPodId);
-                    resolve({ready: false});
+                    return;
                 }
+                logger.error('Workflow', 'Error', `Direct trigger 超時未完成，清理 ${targetPodId}`);
+                this.pendingResolvers.delete(targetPodId);
+                directTriggerStore.clearDirectPending(targetPodId);
+                resolve({ready: false});
             }, this.MAX_PENDING_TIME);
         });
     }
@@ -96,7 +109,7 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
 
         const timer = setTimeout(() => {
             this.onTimerExpired(canvasId, targetPodId);
-        }, 10000);
+        }, this.MULTI_DIRECT_MERGE_WINDOW_MS);
 
         directTriggerStore.setTimer(targetPodId, timer);
     }
@@ -199,6 +212,10 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         });
     }
 
+    /**
+     * 僅發送 WORKFLOW_QUEUE_PROCESSED 事件，不設定 connection 為 active。
+     * active 狀態由 triggerWorkflowWithSummary 統一設定。
+     */
     onQueueProcessed(context: QueueProcessedContext): void {
         forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
             workflowEventEmitter.emitWorkflowQueueProcessed(context.canvasId, {

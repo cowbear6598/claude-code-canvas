@@ -40,6 +40,7 @@ class WorkflowAutoTriggerService implements TriggerStrategy {
       connectionId: conn.id,
       approved: true,
       reason: null,
+      isError: false,
     }));
   }
 
@@ -87,6 +88,7 @@ class WorkflowAutoTriggerService implements TriggerStrategy {
         connectionId: connection.id,
         approved: true,
         reason: null,
+        isError: false,
       },
     };
 
@@ -165,7 +167,8 @@ class WorkflowAutoTriggerService implements TriggerStrategy {
   }
 
   /**
-   * 佇列處理時：發送 WORKFLOW_QUEUE_PROCESSED 事件
+   * 僅發送 WORKFLOW_QUEUE_PROCESSED 事件，不設定 connection 為 active。
+   * active 狀態由 triggerWorkflowWithSummary 統一設定。
    */
   onQueueProcessed(context: QueueProcessedContext): void {
     workflowEventEmitter.emitWorkflowQueueProcessed(context.canvasId, {

@@ -10,6 +10,7 @@ export interface TriggerDecideResult {
   connectionId: string;
   approved: boolean;
   reason: string | null;
+  isError: boolean;
 }
 
 export interface CollectSourcesContext {

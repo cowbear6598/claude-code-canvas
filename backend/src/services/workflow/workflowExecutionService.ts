@@ -108,13 +108,18 @@ class WorkflowExecutionService {
           sourcePodId,
           connection,
           triggerMode: 'direct',
-          decideResult: { connectionId: connection.id, approved: true, reason: null },
+          decideResult: { connectionId: connection.id, approved: true, reason: null, isError: false },
         };
         return this.pipeline!.execute(pipelineContext, this.directTriggerService!);
       }),
     ]);
   }
 
+  /**
+   * 此方法為唯一負責設定 connection active 狀態的入口點。
+   * 所有觸發模式（auto、ai-decide、direct）皆透過此方法統一設定 active，
+   * 確保 summary 產生後才顯示 active，避免過早顯示。
+   */
   async triggerWorkflowWithSummary(
     canvasId: string,
     connectionId: string,
@@ -124,7 +129,8 @@ class WorkflowExecutionService {
   ): Promise<void> {
     const connection = connectionStore.getById(canvasId, connectionId);
     if (!connection) {
-      throw new Error(`Connection not found: ${connectionId}`);
+      logger.warn('Workflow', 'Warn', `triggerWorkflowWithSummary: Connection ${connectionId} 已不存在，跳過觸發`);
+      return;
     }
 
     const { sourcePodId, targetPodId } = connection;
@@ -138,7 +144,13 @@ class WorkflowExecutionService {
 
     const triggerMode = connection.triggerMode;
     if (triggerMode === 'auto' || triggerMode === 'ai-decide') {
+        logger.log('Workflow', 'Update', `設定同群連線為 active：targetPod ${targetPodId}`);
         forEachMultiInputGroupConnection(canvasId, targetPodId, (conn) => {
+            const stillExists = connectionStore.getById(canvasId, conn.id);
+            if (!stillExists) {
+                logger.warn('Workflow', 'Warn', `Connection ${conn.id} 已不存在，跳過 active 狀態設定`);
+                return;
+            }
             connectionStore.updateConnectionStatus(canvasId, conn.id, 'active');
         });
     } else {

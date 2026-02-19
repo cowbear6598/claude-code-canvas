@@ -90,6 +90,7 @@ describe('WorkflowAiDecideTriggerService', () => {
           connectionId: 'conn-ai-1',
           approved: true,
           reason: '相關任務',
+          isError: false,
         },
       ]);
     });
@@ -113,6 +114,7 @@ describe('WorkflowAiDecideTriggerService', () => {
           connectionId: 'conn-ai-1',
           approved: false,
           reason: '錯誤：AI 決策失敗',
+          isError: true,
         },
       ]);
     });
@@ -131,6 +133,7 @@ describe('WorkflowAiDecideTriggerService', () => {
           connectionId: 'conn-ai-1',
           approved: false,
           reason: '錯誤：網路錯誤',
+          isError: true,
         },
       ]);
       expect(logger.error).toHaveBeenCalledWith(
@@ -198,6 +201,7 @@ describe('WorkflowAiDecideTriggerService', () => {
             connectionId: 'conn-ai-1',
             approved: true,
             reason: '相關任務',
+            isError: false,
           },
         }),
         workflowAiDecideTriggerService
@@ -552,6 +556,43 @@ describe('WorkflowAiDecideTriggerService', () => {
         'Pipeline 執行失敗',
         'ai-decide'
       );
+    });
+  });
+
+  describe('onTrigger() - 觸發生命週期', () => {
+    it('onTrigger 應呼叫 emitWorkflowAiDecideTriggered', () => {
+      workflowAiDecideTriggerService.onTrigger({
+        canvasId,
+        connectionId: 'conn-ai-1',
+        sourcePodId,
+        targetPodId,
+        summary: 'Test summary',
+        isSummarized: true,
+      });
+
+      expect(workflowEventEmitter.emitWorkflowAiDecideTriggered).toHaveBeenCalledWith(
+        canvasId,
+        'conn-ai-1',
+        sourcePodId,
+        targetPodId
+      );
+    });
+
+    it('onTrigger 未初始化時應拋出錯誤', () => {
+      const uninitializedService = Object.create(
+        Object.getPrototypeOf(workflowAiDecideTriggerService)
+      );
+
+      expect(() =>
+        uninitializedService.onTrigger({
+          canvasId,
+          connectionId: 'conn-ai-1',
+          sourcePodId,
+          targetPodId,
+          summary: 'Test summary',
+          isSummarized: true,
+        })
+      ).toThrow('WorkflowAiDecideTriggerService 尚未初始化');
     });
   });
 

@@ -402,6 +402,75 @@ describe('WorkflowExecutionService', () => {
     });
   });
 
+  describe('triggerWorkflowWithSummary forEachMultiInputGroupConnection 群組 active 設定', () => {
+    it('auto 模式：應設定同群所有 auto/ai-decide 連線為 active', async () => {
+      const autoConn1 = createMockConnection({ id: 'conn-auto-1', sourcePodId, targetPodId, triggerMode: 'auto' });
+      const autoConn2 = createMockConnection({ id: 'conn-auto-2', sourcePodId: 'other-source', targetPodId, triggerMode: 'auto' });
+
+      (connectionStore.getById as any).mockReturnValue(autoConn1);
+      (connectionStore.findByTargetPodId as any).mockReturnValue([autoConn1, autoConn2]);
+
+      await workflowExecutionService.triggerWorkflowWithSummary(
+        canvasId,
+        autoConn1.id,
+        'Test summary',
+        true,
+        mockAutoStrategy
+      );
+
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(canvasId, 'conn-auto-1', 'active');
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(canvasId, 'conn-auto-2', 'active');
+      const activeCalls = (connectionStore.updateConnectionStatus as any).mock.calls.filter(
+        (call: any[]) => call[2] === 'active'
+      );
+      expect(activeCalls).toHaveLength(2);
+    });
+
+    it('ai-decide 模式：應設定同群所有 auto/ai-decide 連線為 active', async () => {
+      const aiConn1 = createMockConnection({ id: 'conn-ai-1', sourcePodId, targetPodId, triggerMode: 'ai-decide' });
+      const aiConn2 = createMockConnection({ id: 'conn-ai-2', sourcePodId: 'other-source', targetPodId, triggerMode: 'ai-decide' });
+
+      (connectionStore.getById as any).mockReturnValue(aiConn1);
+      (connectionStore.findByTargetPodId as any).mockReturnValue([aiConn1, aiConn2]);
+
+      await workflowExecutionService.triggerWorkflowWithSummary(
+        canvasId,
+        aiConn1.id,
+        'Test summary',
+        true,
+        mockAiDecideStrategy
+      );
+
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(canvasId, 'conn-ai-1', 'active');
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(canvasId, 'conn-ai-2', 'active');
+      const activeCalls = (connectionStore.updateConnectionStatus as any).mock.calls.filter(
+        (call: any[]) => call[2] === 'active'
+      );
+      expect(activeCalls).toHaveLength(2);
+    });
+
+    it('direct 模式：只設定當前連線為 active', async () => {
+      const directConn = createMockConnection({ id: 'conn-direct-1', sourcePodId, targetPodId, triggerMode: 'direct' });
+
+      (connectionStore.getById as any).mockReturnValue(directConn);
+      (connectionStore.findByTargetPodId as any).mockReturnValue([directConn]);
+
+      await workflowExecutionService.triggerWorkflowWithSummary(
+        canvasId,
+        directConn.id,
+        'Test summary',
+        true,
+        mockDirectStrategy
+      );
+
+      const activeCalls = (connectionStore.updateConnectionStatus as any).mock.calls.filter(
+        (call: any[]) => call[2] === 'active'
+      );
+      expect(activeCalls).toHaveLength(1);
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(canvasId, 'conn-direct-1', 'active');
+    });
+  });
+
   describe('triggerWorkflowWithSummary 在觸發前將 connection 設為 active', () => {
     it('呼叫 triggerWorkflowWithSummary 時，strategy.onTrigger 前應呼叫 updateConnectionStatus active', async () => {
       const mockAutoConnection = createMockConnection({ id: 'conn-auto-1', sourcePodId, targetPodId, triggerMode: 'auto' });

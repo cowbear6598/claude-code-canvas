@@ -72,10 +72,13 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
 
   /**
    * 觸發生命週期 - onTrigger
-   * 發送 WORKFLOW_AI_DECIDE_TRIGGERED 事件，讓前端更新同群連線為 active 狀態
+   * 發送 WORKFLOW_AI_DECIDE_TRIGGERED 事件，通知前端更新同群連線為 active 狀態。
    */
   onTrigger(context: TriggerLifecycleContext): void {
-    this.eventEmitter!.emitWorkflowAiDecideTriggered(
+    if (!this.eventEmitter) {
+      throw new Error('WorkflowAiDecideTriggerService 尚未初始化');
+    }
+    this.eventEmitter.emitWorkflowAiDecideTriggered(
       context.canvasId,
       context.connectionId,
       context.sourcePodId,
@@ -130,7 +133,8 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
 
   /**
    * 佇列生命週期 - onQueueProcessed
-   * Workflow 從佇列中處理時發送事件
+   * 僅發送 WORKFLOW_QUEUE_PROCESSED 事件，不設定 connection 為 active。
+   * active 狀態由 triggerWorkflowWithSummary 統一設定，確保 summary 產生後才顯示 active。
    */
   onQueueProcessed(context: QueueProcessedContext): void {
     this.eventEmitter!.emitWorkflowQueueProcessed(context.canvasId, {
@@ -169,6 +173,7 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
           connectionId: result.connectionId,
           approved: result.shouldTrigger,
           reason: result.reason,
+          isError: false,
         });
       }
 
@@ -178,6 +183,7 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
           connectionId: errorResult.connectionId,
           approved: false,
           reason: `錯誤：${errorResult.error}`,
+          isError: true,
         });
       }
 
@@ -190,6 +196,7 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
         connectionId: conn.id,
         approved: false,
         reason: `錯誤：${getErrorMessage(error)}`,
+        isError: true,
       }));
     }
   }
@@ -226,78 +233,94 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
       const conn = connections.find(c => c.id === decideResult.connectionId);
       if (!conn) continue;
 
-      // 檢查是否為錯誤結果（reason 包含「錯誤：」）
-      const isError = decideResult.reason?.startsWith('錯誤：') ?? false;
-
-      if (isError) {
-        // 處理錯誤結果
-        const errorMessage = decideResult.reason ?? '未知錯誤';
-        this.connectionStore.updateDecideStatus(canvasId, conn.id, 'error', errorMessage);
-        this.eventEmitter.emitAiDecideError(
-          canvasId,
-          conn.id,
-          sourcePodId,
-          conn.targetPodId,
-          errorMessage
-        );
-        logger.error('Workflow', 'Error', `AI Decide error for connection ${conn.id}: ${errorMessage}`);
-        continue;
-      }
-
-      if (decideResult.approved) {
-        // Approved - 透過 Pipeline 觸發
-        this.connectionStore.updateDecideStatus(canvasId, conn.id, 'approved', decideResult.reason);
-        this.eventEmitter.emitAiDecideResult(
-          canvasId,
-          conn.id,
-          sourcePodId,
-          conn.targetPodId,
-          true,
-          decideResult.reason ?? ''
-        );
-        logger.log('Workflow', 'Create', `AI Decide approved connection ${conn.id}: ${decideResult.reason}`);
-
-        // 透過統一 Pipeline 處理（包含多輸入、佇列、觸發）
-        const pipelineContext: PipelineContext = {
-          canvasId,
-          sourcePodId,
-          connection: conn,
-          triggerMode: 'ai-decide',
-          decideResult,
-        };
-
-        this.pipeline.execute(pipelineContext, this).catch((error: unknown) => {
-          logger.error('Workflow', 'Error', `Failed to execute AI-decided workflow ${conn.id}`, error);
-          this.eventEmitter?.emitWorkflowComplete(
-            canvasId,
-            conn.id,
-            sourcePodId,
-            conn.targetPodId,
-            false,
-            getErrorMessage(error),
-            'ai-decide'
-          );
-        });
+      if (decideResult.isError) {
+        this.handleErrorConnection(canvasId, sourcePodId, conn, decideResult);
+      } else if (decideResult.approved) {
+        this.handleApprovedConnection(canvasId, sourcePodId, conn, decideResult);
       } else {
-        // Rejected - 不觸發
-        this.connectionStore.updateDecideStatus(canvasId, conn.id, 'rejected', decideResult.reason);
-        this.eventEmitter.emitAiDecideResult(
-          canvasId,
-          conn.id,
-          sourcePodId,
-          conn.targetPodId,
-          false,
-          decideResult.reason ?? ''
-        );
-        logger.log('Workflow', 'Update', `AI Decide rejected connection ${conn.id}: ${decideResult.reason}`);
-
-        // 若 target Pod 在多輸入場景中，記錄 rejection
-        const { isMultiInput } = this.stateService.checkMultiInputScenario(canvasId, conn.targetPodId);
-        if (isMultiInput && this.pendingTargetStore.hasPendingTarget(conn.targetPodId)) {
-          this.pendingTargetStore.recordSourceRejection(conn.targetPodId, sourcePodId, decideResult.reason ?? '');
-          this.stateService.emitPendingStatus(canvasId, conn.targetPodId);
-        }
+        this.handleRejectedConnection(canvasId, sourcePodId, conn, decideResult);
       }
+    }
+  }
+
+  private handleErrorConnection(
+    canvasId: string,
+    sourcePodId: string,
+    conn: Connection,
+    decideResult: TriggerDecideResult
+  ): void {
+    const errorMessage = decideResult.reason ?? '未知錯誤';
+    this.connectionStore!.updateDecideStatus(canvasId, conn.id, 'error', errorMessage);
+    this.eventEmitter!.emitAiDecideError(
+      canvasId,
+      conn.id,
+      sourcePodId,
+      conn.targetPodId,
+      errorMessage
+    );
+    logger.error('Workflow', 'Error', `AI Decide error for connection ${conn.id}: ${errorMessage}`);
+  }
+
+  private handleApprovedConnection(
+    canvasId: string,
+    sourcePodId: string,
+    conn: Connection,
+    decideResult: TriggerDecideResult
+  ): void {
+    this.connectionStore!.updateDecideStatus(canvasId, conn.id, 'approved', decideResult.reason);
+    this.eventEmitter!.emitAiDecideResult(
+      canvasId,
+      conn.id,
+      sourcePodId,
+      conn.targetPodId,
+      true,
+      decideResult.reason ?? ''
+    );
+    logger.log('Workflow', 'Create', `AI Decide approved connection ${conn.id}: ${decideResult.reason}`);
+
+    const pipelineContext: PipelineContext = {
+      canvasId,
+      sourcePodId,
+      connection: conn,
+      triggerMode: 'ai-decide',
+      decideResult,
+    };
+
+    this.pipeline!.execute(pipelineContext, this).catch((error: unknown) => {
+      logger.error('Workflow', 'Error', `Failed to execute AI-decided workflow ${conn.id}`, error);
+      this.eventEmitter?.emitWorkflowComplete(
+        canvasId,
+        conn.id,
+        sourcePodId,
+        conn.targetPodId,
+        false,
+        getErrorMessage(error),
+        'ai-decide'
+      );
+    });
+  }
+
+  private handleRejectedConnection(
+    canvasId: string,
+    sourcePodId: string,
+    conn: Connection,
+    decideResult: TriggerDecideResult
+  ): void {
+    this.connectionStore!.updateDecideStatus(canvasId, conn.id, 'rejected', decideResult.reason);
+    this.eventEmitter!.emitAiDecideResult(
+      canvasId,
+      conn.id,
+      sourcePodId,
+      conn.targetPodId,
+      false,
+      decideResult.reason ?? ''
+    );
+    logger.log('Workflow', 'Update', `AI Decide rejected connection ${conn.id}: ${decideResult.reason}`);
+
+    const { isMultiInput } = this.stateService!.checkMultiInputScenario(canvasId, conn.targetPodId);
+    if (isMultiInput && this.pendingTargetStore!.hasPendingTarget(conn.targetPodId)) {
+      this.pendingTargetStore!.recordSourceRejection(conn.targetPodId, sourcePodId, decideResult.reason ?? '');
+      this.stateService!.emitPendingStatus(canvasId, conn.targetPodId);
     }
   }
 }

@@ -76,6 +76,7 @@ export type LogAction =
   | 'Load'
   | 'Save'
   | 'Error'
+  | 'Warn'
   | 'Complete'
   | 'Rename'
   | 'Switch'
@@ -153,6 +154,17 @@ class Logger {
   log(category: LogCategory, action: LogAction, message: string): void {
     const coloredCategory = formatCategory(category);
     console.log(`${coloredCategory} [${action}] ${message}`);
+  }
+
+  /**
+   * 記錄警告日誌
+   * @param category 日誌分類
+   * @param action 日誌動作
+   * @param message 日誌訊息
+   */
+  warn(category: LogCategory, action: LogAction, message: string): void {
+    const coloredCategory = formatCategory(category);
+    console.warn(`${ANSI_COLORS.YELLOW}${coloredCategory} [${action}] ${message}${ANSI_COLORS.RESET}`);
   }
 
   /**

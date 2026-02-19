@@ -1,5 +1,6 @@
 import type {Pod, Command, Connection} from '../../types/index.js';
 import {connectionStore} from '../connectionStore.js';
+import {logger} from '../../utils/logger.js';
 
 export function getMultiInputGroupConnections(
     canvasId: string,
@@ -17,6 +18,10 @@ export function forEachMultiInputGroupConnection(
     callback: (conn: Connection) => void
 ): void {
     const connections = getMultiInputGroupConnections(canvasId, targetPodId);
+    if (connections.length === 0) {
+        logger.warn('Workflow', 'Warn', `[forEachMultiInputGroupConnection] 未找到 targetPod ${targetPodId} 的 auto/ai-decide 連線`);
+        return;
+    }
     for (const conn of connections) {
         callback(conn);
     }

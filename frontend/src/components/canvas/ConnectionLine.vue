@@ -67,54 +67,33 @@ const pathData = computed(() => {
   )
 })
 
-const lineColor = computed(() => {
-  // AI Decide 模式顏色優先
-  if (props.triggerMode === 'ai-decide') {
-    if (props.status === 'ai-deciding') {
-      return 'oklch(0.65 0.14 300 / 0.8)' // 淡紫色（deciding）
-    }
-    if (props.status === 'ai-rejected') {
-      return 'oklch(0.65 0.15 20)' // 柔和的淡紅色（rejected）
-    }
-    if (props.status === 'ai-error') {
-      return 'oklch(0.7 0.15 60 / 0.8)'
-    }
-    if (props.status === 'ai-approved') {
-      return 'oklch(0.65 0.12 300 / 0.7)' // 淡紫色（approved，summarizing 期間看起來與 idle 相同）
-    }
-    if (props.status === 'active') {
-      return 'oklch(0.7 0.15 50)' // 橘色（active）
-    }
-    if (props.status === 'queued') {
-      return 'oklch(0.7 0.12 230 / 0.8)' // 淡藍色（queued）
-    }
-    // idle、waiting 狀態使用預設淡紫色
-    return 'oklch(0.65 0.12 300 / 0.7)'
-  }
+function getAiDecideColor(status: string): string {
+  if (status === 'ai-deciding') return 'oklch(0.65 0.14 300 / 0.8)'
+  if (status === 'ai-rejected') return 'oklch(0.65 0.15 20)'
+  if (status === 'ai-error') return 'oklch(0.7 0.15 60 / 0.8)'
+  if (status === 'ai-approved') return 'oklch(0.65 0.12 300 / 0.7)'
+  if (status === 'active') return 'oklch(0.7 0.15 50)'
+  if (status === 'queued') return 'oklch(0.7 0.12 230 / 0.8)'
+  // idle、waiting 狀態使用預設淡紫色
+  return 'oklch(0.65 0.12 300 / 0.7)'
+}
 
-  // Queued 狀態（所有模式通用）
-  if (props.status === 'queued') {
-    return 'oklch(0.7 0.12 230 / 0.8)' // 淡藍色
-  }
-
-  // Waiting 狀態（multi-direct 10 秒等待合併期間）
-  if (props.status === 'waiting') {
-    return 'oklch(0.7 0.15 155 / 0.8)' // 淡綠色
-  }
-
-  // Direct 模式
-  if (props.triggerMode === 'direct') {
-    if (props.status === 'idle') {
-      return 'oklch(0.6 0.02 50 / 0.5)' // 灰色
-    }
-    return 'oklch(0.7 0.15 50)' // 橘色（active）
-  }
-
-  // Auto 模式原有邏輯
-  if (props.status === 'idle') {
-    return 'oklch(0.6 0.02 50 / 0.5)'
-  }
+function getDirectColor(status: string): string {
+  if (status === 'idle') return 'oklch(0.6 0.02 50 / 0.5)'
   return 'oklch(0.7 0.15 50)'
+}
+
+function getAutoColor(status: string): string {
+  if (status === 'idle') return 'oklch(0.6 0.02 50 / 0.5)'
+  return 'oklch(0.7 0.15 50)'
+}
+
+const lineColor = computed(() => {
+  if (props.triggerMode === 'ai-decide') return getAiDecideColor(props.status)
+  if (props.status === 'queued') return 'oklch(0.7 0.12 230 / 0.8)'
+  if (props.status === 'waiting') return 'oklch(0.7 0.15 155 / 0.8)'
+  if (props.triggerMode === 'direct') return getDirectColor(props.status)
+  return getAutoColor(props.status)
 })
 
 const midLabel = computed(() => {

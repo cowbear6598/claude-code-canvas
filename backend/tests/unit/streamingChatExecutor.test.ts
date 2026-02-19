@@ -30,6 +30,7 @@ vi.mock('../../src/services/podStore.js', () => ({
 vi.mock('../../src/utils/logger.js', () => ({
     logger: {
         log: vi.fn(() => {}),
+        warn: vi.fn(() => {}),
         error: vi.fn(() => {}),
     },
 }));

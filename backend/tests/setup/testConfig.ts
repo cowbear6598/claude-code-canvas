@@ -27,6 +27,9 @@ vi.mock('../../src/utils/logger.js', () => {
     log(): void {
       // 不執行任何操作
     }
+    warn(): void {
+      // 不執行任何操作
+    }
     error(): void {
       // 不執行任何操作
     }
