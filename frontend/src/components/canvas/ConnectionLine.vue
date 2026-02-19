@@ -80,9 +80,15 @@ const lineColor = computed(() => {
       return 'oklch(0.7 0.15 60 / 0.8)'
     }
     if (props.status === 'ai-approved') {
-      return 'oklch(0.7 0.15 50)' // 橘色（approved，與 auto 相同）
+      return 'oklch(0.65 0.12 300 / 0.7)' // 淡紫色（approved，summarizing 期間看起來與 idle 相同）
     }
-    // idle 時使用更淡的紫色
+    if (props.status === 'active') {
+      return 'oklch(0.7 0.15 50)' // 橘色（active）
+    }
+    if (props.status === 'queued') {
+      return 'oklch(0.7 0.12 230 / 0.8)' // 淡藍色（queued）
+    }
+    // idle、waiting 狀態使用預設淡紫色
     return 'oklch(0.65 0.12 300 / 0.7)'
   }
 
@@ -303,11 +309,11 @@ const handleContextMenu = (e: MouseEvent): void => {
       fill="none"
     />
 
-    <!-- 靜態箭頭（idle 或 queued 或 waiting 狀態，包括 AI Decide 閒置時） -->
+    <!-- 靜態箭頭（idle、queued、waiting、ai-approved 狀態，包括 AI Decide 閒置時） -->
     <!-- 在 rejected 狀態時不顯示（useXMarker 此時為 true） -->
     <polygon
       v-for="(arrow, index) in arrowPositions"
-      v-show="(status === 'idle' || status === 'queued' || status === 'waiting') && !useXMarker"
+      v-show="(status === 'idle' || status === 'queued' || status === 'waiting' || status === 'ai-approved') && !useXMarker"
       :key="`static-${index}`"
       class="arrow"
       :points="`0,-5 10,0 0,5`"
@@ -315,8 +321,8 @@ const handleContextMenu = (e: MouseEvent): void => {
       :transform="`translate(${arrow.x}, ${arrow.y}) rotate(${arrow.angle})`"
     />
 
-    <!-- 動畫箭頭（active 或 ai-deciding 或 ai-approved 狀態） -->
-    <template v-if="(status === 'active' || status === 'ai-deciding' || status === 'ai-approved') && !useXMarker">
+    <!-- 動畫箭頭（active 或 ai-deciding 狀態） -->
+    <template v-if="(status === 'active' || status === 'ai-deciding') && !useXMarker">
       <polygon
         v-for="i in 3"
         :key="`animated-${i}`"

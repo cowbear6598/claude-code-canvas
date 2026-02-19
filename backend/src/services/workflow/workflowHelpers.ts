@@ -1,6 +1,27 @@
 import type {Pod, Command, Connection} from '../../types/index.js';
 import {connectionStore} from '../connectionStore.js';
 
+export function getMultiInputGroupConnections(
+    canvasId: string,
+    targetPodId: string
+): Connection[] {
+    const allIncomingConnections = connectionStore.findByTargetPodId(canvasId, targetPodId);
+    return allIncomingConnections.filter(conn =>
+        conn.triggerMode === 'auto' || conn.triggerMode === 'ai-decide'
+    );
+}
+
+export function forEachMultiInputGroupConnection(
+    canvasId: string,
+    targetPodId: string,
+    callback: (conn: Connection) => void
+): void {
+    const connections = getMultiInputGroupConnections(canvasId, targetPodId);
+    for (const conn of connections) {
+        callback(conn);
+    }
+}
+
 export function getDirectConnectionsForTarget(
     canvasId: string,
     targetPodId: string

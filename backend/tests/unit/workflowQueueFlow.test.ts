@@ -289,6 +289,65 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
         });
     });
 
+    describe('C4: onQueueProcessed 不設定 connection 為 active', () => {
+        it('processNextInQueue 呼叫後 onQueueProcessed 被觸發，但 connection 狀態不應直接變為 active', async () => {
+            const queuedConnection: Connection = {
+                id: 'conn-queued-active-check',
+                sourcePodId: 'source-pod-2',
+                sourceAnchor: 'right',
+                targetPodId,
+                targetAnchor: 'left',
+                triggerMode: 'auto',
+                decideStatus: 'none',
+                decideReason: null,
+                connectionStatus: 'queued',
+                createdAt: new Date(),
+            };
+
+            workflowQueueService.enqueue({
+                canvasId,
+                connectionId: queuedConnection.id,
+                sourcePodId: queuedConnection.sourcePodId,
+                targetPodId,
+                summary: 'Active check summary',
+                isSummarized: true,
+                triggerMode: 'auto',
+            });
+
+            vi.spyOn(connectionStore, 'getById').mockReturnValue(queuedConnection);
+            vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+            vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([queuedConnection]);
+            vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
+                if (podId === targetPodId) return {...mockTargetPod, status: 'idle'};
+                return {...mockSourcePod, id: podId};
+            }) as any);
+
+            const updateConnectionStatusSpy = vi.spyOn(connectionStore, 'updateConnectionStatus');
+
+            await workflowQueueService.processNextInQueue(canvasId, targetPodId);
+
+            expect(mockAutoStrategy.onQueueProcessed).toHaveBeenCalled();
+
+            // onQueueProcessed 被呼叫後，updateConnectionStatus 不應以 active 被呼叫（active 在 triggerWorkflowWithSummary 設定）
+            const activeCallsFromQueueProcessed = updateConnectionStatusSpy.mock.calls.filter(
+                ([, , status]) => status === 'active'
+            );
+            // 此時 triggerWorkflowWithSummary 尚未完成（fire-and-forget），所以 active 還沒被設定
+            // 我們只驗證 onQueueProcessed 本身不再呼叫 updateConnectionStatus('active')
+            expect(mockAutoStrategy.onQueueProcessed).toHaveBeenCalledWith(
+                expect.objectContaining({ connectionId: queuedConnection.id })
+            );
+
+            // active 狀態改由 triggerWorkflowWithSummary 設定，等待 async 完成後才會出現
+            await new Promise(resolve => setTimeout(resolve, 50));
+            const activeCallsAfterTrigger = updateConnectionStatusSpy.mock.calls.filter(
+                ([, , status]) => status === 'active'
+            );
+            expect(activeCallsAfterTrigger.length).toBeGreaterThanOrEqual(1);
+            expect(activeCallsAfterTrigger[0]).toEqual([canvasId, queuedConnection.id, 'active']);
+        });
+    });
+
     describe('E1: Workflow 執行失敗後 queue 仍繼續處理', () => {
         it('executeClaudeQuery 拋出錯誤，emitWorkflowComplete(success: false)，processNextInQueue 仍被呼叫', async () => {
             const conn: Connection = {

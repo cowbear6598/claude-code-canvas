@@ -9,6 +9,7 @@ import type {
   WorkflowAiDecideResultPayload,
   WorkflowAiDecideErrorPayload,
   WorkflowAiDecideClearPayload,
+  WorkflowAiDecideTriggeredPayload,
   WorkflowDirectTriggeredPayload,
   WorkflowDirectWaitingPayload,
   WorkflowQueuedPayload,
@@ -124,6 +125,21 @@ class WorkflowEventEmitter {
       connectionIds,
     };
     socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AI_DECIDE_CLEAR, payload);
+  }
+
+  emitWorkflowAiDecideTriggered(
+    canvasId: string,
+    connectionId: string,
+    sourcePodId: string,
+    targetPodId: string
+  ): void {
+    const payload: WorkflowAiDecideTriggeredPayload = {
+      canvasId,
+      connectionId,
+      sourcePodId,
+      targetPodId,
+    };
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AI_DECIDE_TRIGGERED, payload);
   }
 
   emitDirectTriggered(canvasId: string, payload: WorkflowDirectTriggeredPayload): void {

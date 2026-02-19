@@ -402,6 +402,42 @@ describe('WorkflowExecutionService', () => {
     });
   });
 
+  describe('triggerWorkflowWithSummary 在觸發前將 connection 設為 active', () => {
+    it('呼叫 triggerWorkflowWithSummary 時，strategy.onTrigger 前應呼叫 updateConnectionStatus active', async () => {
+      const mockAutoConnection = createMockConnection({ id: 'conn-auto-1', sourcePodId, targetPodId, triggerMode: 'auto' });
+
+      (connectionStore.getById as any).mockReturnValue(mockAutoConnection);
+      (connectionStore.findBySourcePodId as any).mockReturnValue([]);
+      (connectionStore.findByTargetPodId as any).mockReturnValue([mockAutoConnection]);
+
+      const callOrder: string[] = [];
+
+      (connectionStore.updateConnectionStatus as any).mockImplementation((_cId: string, _connId: string, status: string) => {
+        callOrder.push(`updateConnectionStatus:${status}`);
+      });
+
+      (mockAutoStrategy.onTrigger as any).mockImplementation(() => {
+        callOrder.push('onTrigger');
+      });
+
+      await workflowExecutionService.triggerWorkflowWithSummary(
+        canvasId,
+        mockAutoConnection.id,
+        'Test summary',
+        true,
+        mockAutoStrategy
+      );
+
+      const activeIndex = callOrder.indexOf('updateConnectionStatus:active');
+      const onTriggerIndex = callOrder.indexOf('onTrigger');
+
+      expect(activeIndex).toBeGreaterThanOrEqual(0);
+      expect(onTriggerIndex).toBeGreaterThanOrEqual(0);
+      // active 狀態必須在 onTrigger 之前設定
+      expect(activeIndex).toBeLessThan(onTriggerIndex);
+    });
+  });
+
   describe('混合情境中 auto 和 ai-decide 平行處理、互不等待', () => {
     it('auto 和 ai-decide 同時執行，互不阻塞', async () => {
       const mockAutoConnection = createMockConnection({ id: 'conn-auto-1', sourcePodId, targetPodId, triggerMode: 'auto' });

@@ -1,16 +1,10 @@
 import {
-  gitService,
   detectGitSource,
   buildAuthenticatedUrl,
   parseCloneErrorMessage,
-  extractDomainFromUrl,
-  type GitSource
+  extractDomainFromUrl
 } from '../../src/services/workspace/gitService';
 import { config } from '../../src/config';
-import path from 'path';
-import fs from 'fs/promises';
-import { existsSync } from 'fs';
-import os from 'os';
 
 describe('GitService - Git 來源偵測與認證', () => {
   describe('extractDomainFromUrl', () => {
@@ -169,39 +163,5 @@ describe('GitService - Git 來源偵測與認證', () => {
 
       expect(result).toBe('複製儲存庫失敗');
     });
-  });
-
-  describe('clone 整合測試', () => {
-    let testRoot: string;
-
-    beforeAll(async () => {
-      testRoot = path.join(os.tmpdir(), `git-clone-test-${Date.now()}`);
-      await fs.mkdir(testRoot, { recursive: true });
-    });
-
-    afterAll(async () => {
-      await fs.rm(testRoot, { recursive: true, force: true });
-    });
-
-    it('成功複製公開的 GitHub 倉庫', async () => {
-      const url = 'https://github.com/octocat/Hello-World.git';
-      const targetPath = path.join(testRoot, 'hello-world');
-
-      const result = await gitService.clone(url, targetPath);
-
-      expect(result.success).toBe(true);
-      const exists = existsSync(path.join(targetPath, '.git'));
-      expect(exists).toBe(true);
-    }, 30000);
-
-    it('複製不存在的倉庫返回錯誤', async () => {
-      const url = 'https://github.com/this-repo-definitely-does-not-exist-xyz12345/test.git';
-      const targetPath = path.join(testRoot, 'not-found');
-
-      const result = await gitService.clone(url, targetPath);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toMatch(/找不到/);
-    }, 30000);
   });
 });

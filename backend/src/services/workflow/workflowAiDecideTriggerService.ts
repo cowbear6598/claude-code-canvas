@@ -16,6 +16,7 @@ import { workflowStateService } from './workflowStateService.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
 import { workflowPipeline } from './workflowPipeline.js';
 import { workflowMultiInputService } from './workflowMultiInputService.js';
+import { forEachMultiInputGroupConnection } from './workflowHelpers.js';
 import { logger } from '../../utils/logger.js';
 import { getErrorMessage } from '../../utils/errorHelpers.js';
 
@@ -71,34 +72,43 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
 
   /**
    * 觸發生命週期 - onTrigger
-   * AI-Decide 的觸發事件已在 processAiDecideConnections 中處理（emitAiDecideResult）
+   * 發送 WORKFLOW_AI_DECIDE_TRIGGERED 事件，讓前端更新同群連線為 active 狀態
    */
-  onTrigger(_context: TriggerLifecycleContext): void {
-    // AI-Decide 的觸發事件已在 processAiDecideConnections 中處理（emitAiDecideResult）
+  onTrigger(context: TriggerLifecycleContext): void {
+    this.eventEmitter!.emitWorkflowAiDecideTriggered(
+      context.canvasId,
+      context.connectionId,
+      context.sourcePodId,
+      context.targetPodId
+    );
   }
 
   /**
    * 觸發生命週期 - onComplete
-   * Workflow 完成時的處理
+   * Workflow 完成時的處理，更新同群所有 connection 狀態
    */
   onComplete(context: CompletionContext, success: boolean, error?: string): void {
-    this.eventEmitter!.emitWorkflowComplete(
-      context.canvasId, context.connectionId, context.sourcePodId,
-      context.targetPodId, success, error, context.triggerMode
-    );
-    this.connectionStore!.updateConnectionStatus(context.canvasId, context.connectionId, 'idle');
+    forEachMultiInputGroupConnection(context.canvasId, context.targetPodId, (conn) => {
+      this.eventEmitter!.emitWorkflowComplete(
+        context.canvasId, conn.id, conn.sourcePodId,
+        context.targetPodId, success, error, context.triggerMode
+      );
+      this.connectionStore!.updateConnectionStatus(context.canvasId, conn.id, 'idle');
+    });
   }
 
   /**
    * 觸發生命週期 - onError
-   * Workflow 錯誤時的處理
+   * Workflow 錯誤時的處理，更新同群所有 connection 狀態
    */
   onError(context: CompletionContext, errorMessage: string): void {
-    this.eventEmitter!.emitWorkflowComplete(
-      context.canvasId, context.connectionId, context.sourcePodId,
-      context.targetPodId, false, errorMessage, context.triggerMode
-    );
-    this.connectionStore!.updateConnectionStatus(context.canvasId, context.connectionId, 'idle');
+    forEachMultiInputGroupConnection(context.canvasId, context.targetPodId, (conn) => {
+      this.eventEmitter!.emitWorkflowComplete(
+        context.canvasId, conn.id, conn.sourcePodId,
+        context.targetPodId, false, errorMessage, context.triggerMode
+      );
+      this.connectionStore!.updateConnectionStatus(context.canvasId, conn.id, 'idle');
+    });
   }
 
   /**
@@ -120,10 +130,9 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
 
   /**
    * 佇列生命週期 - onQueueProcessed
-   * Workflow 從佇列中處理時的狀態
+   * Workflow 從佇列中處理時發送事件
    */
   onQueueProcessed(context: QueueProcessedContext): void {
-    this.connectionStore!.updateConnectionStatus(context.canvasId, context.connectionId, 'active');
     this.eventEmitter!.emitWorkflowQueueProcessed(context.canvasId, {
       canvasId: context.canvasId,
       targetPodId: context.targetPodId,

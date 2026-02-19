@@ -20,6 +20,7 @@ import {executeStreamingChat} from '../claude/streamingChatExecutor.js';
 import {
     buildTransferMessage,
     buildMessageWithCommand,
+    forEachMultiInputGroupConnection,
 } from './workflowHelpers.js';
 import {workflowAutoTriggerService} from './workflowAutoTriggerService.js';
 
@@ -134,6 +135,15 @@ class WorkflowExecutionService {
     }
 
     logger.log('Workflow', 'Create', `觸發工作流程：Pod ${sourcePodId} → Pod ${targetPodId}`);
+
+    const triggerMode = connection.triggerMode;
+    if (triggerMode === 'auto' || triggerMode === 'ai-decide') {
+        forEachMultiInputGroupConnection(canvasId, targetPodId, (conn) => {
+            connectionStore.updateConnectionStatus(canvasId, conn.id, 'active');
+        });
+    } else {
+        connectionStore.updateConnectionStatus(canvasId, connectionId, 'active');
+    }
 
     strategy.onTrigger({
       canvasId,

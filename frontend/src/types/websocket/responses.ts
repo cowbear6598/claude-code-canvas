@@ -484,6 +484,13 @@ export interface WorkflowAiDecideClearPayload {
     connectionIds: string[]
 }
 
+export interface WorkflowAiDecideTriggeredPayload {
+    canvasId: string
+    connectionId: string
+    sourcePodId: string
+    targetPodId: string
+}
+
 export interface WorkflowDirectTriggeredPayload {
     canvasId: string
     connectionId: string

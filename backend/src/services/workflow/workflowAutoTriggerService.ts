@@ -13,6 +13,7 @@ import { podStore } from '../podStore.js';
 import { messageStore } from '../messageStore.js';
 import { connectionStore } from '../connectionStore.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
+import { forEachMultiInputGroupConnection } from './workflowHelpers.js';
 import { logger } from '../../utils/logger.js';
 
 // 定義 Pipeline 介面（避免循環依賴）
@@ -112,35 +113,39 @@ class WorkflowAutoTriggerService implements TriggerStrategy {
   }
 
   /**
-   * 完成時：發送 WORKFLOW_COMPLETE 事件並更新 connection 狀態為 idle
+   * 完成時：發送 WORKFLOW_COMPLETE 事件並更新同群所有 connection 狀態為 idle
    */
   onComplete(context: CompletionContext, success: boolean, error?: string): void {
-    workflowEventEmitter.emitWorkflowComplete(
-      context.canvasId,
-      context.connectionId,
-      context.sourcePodId,
-      context.targetPodId,
-      success,
-      error,
-      context.triggerMode
-    );
-    connectionStore.updateConnectionStatus(context.canvasId, context.connectionId, 'idle');
+    forEachMultiInputGroupConnection(context.canvasId, context.targetPodId, (conn) => {
+      workflowEventEmitter.emitWorkflowComplete(
+        context.canvasId,
+        conn.id,
+        conn.sourcePodId,
+        context.targetPodId,
+        success,
+        error,
+        context.triggerMode
+      );
+      connectionStore.updateConnectionStatus(context.canvasId, conn.id, 'idle');
+    });
   }
 
   /**
-   * 錯誤時：發送 WORKFLOW_COMPLETE 事件（失敗）並更新 connection 狀態為 idle
+   * 錯誤時：發送 WORKFLOW_COMPLETE 事件（失敗）並更新同群所有 connection 狀態為 idle
    */
   onError(context: CompletionContext, errorMessage: string): void {
-    workflowEventEmitter.emitWorkflowComplete(
-      context.canvasId,
-      context.connectionId,
-      context.sourcePodId,
-      context.targetPodId,
-      false,
-      errorMessage,
-      context.triggerMode
-    );
-    connectionStore.updateConnectionStatus(context.canvasId, context.connectionId, 'idle');
+    forEachMultiInputGroupConnection(context.canvasId, context.targetPodId, (conn) => {
+      workflowEventEmitter.emitWorkflowComplete(
+        context.canvasId,
+        conn.id,
+        conn.sourcePodId,
+        context.targetPodId,
+        false,
+        errorMessage,
+        context.triggerMode
+      );
+      connectionStore.updateConnectionStatus(context.canvasId, conn.id, 'idle');
+    });
   }
 
   /**
@@ -160,10 +165,9 @@ class WorkflowAutoTriggerService implements TriggerStrategy {
   }
 
   /**
-   * 佇列處理時：更新 connection 狀態為 active 並發送 WORKFLOW_QUEUE_PROCESSED 事件
+   * 佇列處理時：發送 WORKFLOW_QUEUE_PROCESSED 事件
    */
   onQueueProcessed(context: QueueProcessedContext): void {
-    connectionStore.updateConnectionStatus(context.canvasId, context.connectionId, 'active');
     workflowEventEmitter.emitWorkflowQueueProcessed(context.canvasId, {
       canvasId: context.canvasId,
       targetPodId: context.targetPodId,

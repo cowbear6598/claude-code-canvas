@@ -107,9 +107,10 @@
 }
 
 .connection-line.ai-approved .line {
-  stroke: oklch(0.7 0.15 50);
-  animation: ai-decide-flow 2s linear infinite;
-  stroke-width: 4px;
+  stroke: oklch(0.65 0.12 300 / 0.7);
+  animation: none;
+  stroke-width: 3px;
+  stroke-dashoffset: 0;
 }
 
 .connection-line.ai-rejected .line {

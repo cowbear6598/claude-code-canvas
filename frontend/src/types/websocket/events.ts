@@ -144,6 +144,7 @@ export const WebSocketResponseEvents = {
   WORKFLOW_AI_DECIDE_RESULT: 'workflow:ai-decide:result',
   WORKFLOW_AI_DECIDE_ERROR: 'workflow:ai-decide:error',
   WORKFLOW_AI_DECIDE_CLEAR: 'workflow:ai-decide:clear',
+  WORKFLOW_AI_DECIDE_TRIGGERED: 'workflow:ai-decide:triggered',
   WORKFLOW_DIRECT_TRIGGERED: 'workflow:direct-triggered',
   WORKFLOW_DIRECT_WAITING: 'workflow:direct-waiting',
   WORKFLOW_QUEUED: 'workflow:queued',

@@ -22,6 +22,7 @@ import type {
     WorkflowAiDecideResultPayload,
     WorkflowAiDecideErrorPayload,
     WorkflowAiDecideClearPayload,
+    WorkflowAiDecideTriggeredPayload,
     WorkflowDirectTriggeredPayload,
     WorkflowDirectWaitingPayload,
     WorkflowQueuedPayload,
@@ -237,16 +238,6 @@ export const useConnectionStore = defineStore('connection', {
         updateConnectionStatusByTargetPod(targetPodId: string, status: ConnectionStatus): void {
             this.connections.forEach(conn => {
                 if (conn.targetPodId === targetPodId) {
-                    // 跳過 AI Decide 連線且目前狀態為 ai-approved 的情況，只在要設成 active 時才跳過
-                    // 防止覆蓋掉經 AI 批准的連線狀態，但允許更新為 idle
-                    if (conn.triggerMode === 'ai-decide' && conn.status === 'ai-approved' && status === 'active') {
-                        return
-                    }
-                    // queued -> active 是正常流程，允許覆蓋
-                    if (conn.status === 'queued' && status === 'active') {
-                        conn.status = status
-                        return
-                    }
                     conn.status = status
                 }
             })
@@ -256,9 +247,6 @@ export const useConnectionStore = defineStore('connection', {
             this.connections.forEach(conn => {
                 if (conn.targetPodId === targetPodId &&
                     (conn.triggerMode === 'auto' || conn.triggerMode === 'ai-decide')) {
-                    if (conn.triggerMode === 'ai-decide' && conn.status === 'ai-approved' && status === 'active') {
-                        return
-                    }
                     conn.status = status
                 }
             })
@@ -301,6 +289,7 @@ export const useConnectionStore = defineStore('connection', {
             websocketClient.on<WorkflowAiDecideResultPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_RESULT, this.handleAiDecideResult)
             websocketClient.on<WorkflowAiDecideErrorPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_ERROR, this.handleAiDecideError)
             websocketClient.on<WorkflowAiDecideClearPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_CLEAR, this.handleAiDecideClear)
+            websocketClient.on<WorkflowAiDecideTriggeredPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_TRIGGERED, this.handleWorkflowAiDecideTriggered)
             websocketClient.on<WorkflowDirectTriggeredPayload>(WebSocketResponseEvents.WORKFLOW_DIRECT_TRIGGERED, this.handleWorkflowDirectTriggered)
             websocketClient.on<WorkflowDirectWaitingPayload>(WebSocketResponseEvents.WORKFLOW_DIRECT_WAITING, this.handleWorkflowDirectWaiting)
             websocketClient.on<WorkflowQueuedPayload>(WebSocketResponseEvents.WORKFLOW_QUEUED, this.handleWorkflowQueued)
@@ -314,6 +303,7 @@ export const useConnectionStore = defineStore('connection', {
             websocketClient.off<WorkflowAiDecideResultPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_RESULT, this.handleAiDecideResult)
             websocketClient.off<WorkflowAiDecideErrorPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_ERROR, this.handleAiDecideError)
             websocketClient.off<WorkflowAiDecideClearPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_CLEAR, this.handleAiDecideClear)
+            websocketClient.off<WorkflowAiDecideTriggeredPayload>(WebSocketResponseEvents.WORKFLOW_AI_DECIDE_TRIGGERED, this.handleWorkflowAiDecideTriggered)
             websocketClient.off<WorkflowDirectTriggeredPayload>(WebSocketResponseEvents.WORKFLOW_DIRECT_TRIGGERED, this.handleWorkflowDirectTriggered)
             websocketClient.off<WorkflowDirectWaitingPayload>(WebSocketResponseEvents.WORKFLOW_DIRECT_WAITING, this.handleWorkflowDirectWaiting)
             websocketClient.off<WorkflowQueuedPayload>(WebSocketResponseEvents.WORKFLOW_QUEUED, this.handleWorkflowQueued)
@@ -321,6 +311,10 @@ export const useConnectionStore = defineStore('connection', {
         },
 
         handleWorkflowAutoTriggered(payload: WorkflowAutoTriggeredPayload): void {
+            this.updateAutoGroupStatus(payload.targetPodId, 'active')
+        },
+
+        handleWorkflowAiDecideTriggered(payload: WorkflowAiDecideTriggeredPayload): void {
             this.updateAutoGroupStatus(payload.targetPodId, 'active')
         },
 

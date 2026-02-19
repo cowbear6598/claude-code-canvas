@@ -201,7 +201,6 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
 
     onQueueProcessed(context: QueueProcessedContext): void {
         forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
-            connectionStore.updateConnectionStatus(context.canvasId, directConn.id, 'active');
             workflowEventEmitter.emitWorkflowQueueProcessed(context.canvasId, {
                 canvasId: context.canvasId,
                 targetPodId: context.targetPodId,
