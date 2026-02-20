@@ -52,15 +52,15 @@ describe('WorkflowAiDecideTriggerService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    workflowAiDecideTriggerService.init(
+    workflowAiDecideTriggerService.init({
       aiDecideService,
-      workflowEventEmitter,
+      eventEmitter: workflowEventEmitter,
       connectionStore,
-      workflowStateService,
+      stateService: workflowStateService,
       pendingTargetStore,
-      workflowPipeline,
-      workflowMultiInputService
-    );
+      pipeline: workflowPipeline,
+      multiInputService: workflowMultiInputService,
+    });
 
     (workflowStateService.checkMultiInputScenario as any).mockReturnValue({
       isMultiInput: false,
@@ -113,7 +113,7 @@ describe('WorkflowAiDecideTriggerService', () => {
         {
           connectionId: 'conn-ai-1',
           approved: false,
-          reason: '錯誤：AI 決策失敗',
+          reason: 'AI 判斷服務發生錯誤',
           isError: true,
         },
       ]);
@@ -271,7 +271,7 @@ describe('WorkflowAiDecideTriggerService', () => {
         canvasId,
         'conn-ai-1',
         'error',
-        '錯誤：AI 決策失敗'
+        'AI 判斷服務發生錯誤'
       );
 
       expect(workflowEventEmitter.emitAiDecideError).toHaveBeenCalledWith(
@@ -279,7 +279,7 @@ describe('WorkflowAiDecideTriggerService', () => {
         'conn-ai-1',
         sourcePodId,
         targetPodId,
-        '錯誤：AI 決策失敗'
+        'AI 判斷服務發生錯誤'
       );
 
       expect(workflowPipeline.execute).not.toHaveBeenCalled();
@@ -477,14 +477,14 @@ describe('WorkflowAiDecideTriggerService', () => {
         canvasId,
         'conn-ai-3',
         'error',
-        '錯誤：AI 決策失敗'
+        'AI 判斷服務發生錯誤'
       );
       expect(workflowEventEmitter.emitAiDecideError).toHaveBeenCalledWith(
         canvasId,
         'conn-ai-3',
         sourcePodId,
         'target-pod-3',
-        '錯誤：AI 決策失敗'
+        'AI 判斷服務發生錯誤'
       );
     });
   });

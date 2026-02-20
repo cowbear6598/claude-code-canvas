@@ -154,7 +154,9 @@ class WorkflowAutoTriggerService implements TriggerStrategy {
    * 進入佇列時：更新 connection 狀態為 queued 並發送 WORKFLOW_QUEUED 事件
    */
   onQueued(context: QueuedContext): void {
-    connectionStore.updateConnectionStatus(context.canvasId, context.connectionId, 'queued');
+    forEachMultiInputGroupConnection(context.canvasId, context.targetPodId, (conn) => {
+      connectionStore.updateConnectionStatus(context.canvasId, conn.id, 'queued');
+    });
     workflowEventEmitter.emitWorkflowQueued(context.canvasId, {
       canvasId: context.canvasId,
       targetPodId: context.targetPodId,

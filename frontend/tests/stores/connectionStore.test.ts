@@ -363,6 +363,50 @@ describe('connectionStore', () => {
       expect(result).toBeNull()
     })
 
+    it('後端回傳 connectionStatus 時應直接使用', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useConnectionStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({
+        connection: {
+          id: 'conn-1',
+          sourcePodId: 'pod-a',
+          sourceAnchor: 'bottom',
+          targetPodId: 'pod-b',
+          targetAnchor: 'top',
+          createdAt: new Date().toISOString(),
+          triggerMode: 'ai-decide',
+          connectionStatus: 'ai-approved',
+        },
+      })
+
+      const result = await store.createConnection('pod-a', 'bottom', 'pod-b', 'top')
+
+      expect(result?.status).toBe('ai-approved')
+    })
+
+    it('後端未回傳 connectionStatus 時應 fallback 為 idle', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useConnectionStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({
+        connection: {
+          id: 'conn-1',
+          sourcePodId: 'pod-a',
+          sourceAnchor: 'bottom',
+          targetPodId: 'pod-b',
+          targetAnchor: 'top',
+          createdAt: new Date().toISOString(),
+        },
+      })
+
+      const result = await store.createConnection('pod-a', 'bottom', 'pod-b', 'top')
+
+      expect(result?.status).toBe('idle')
+    })
+
     it('sourcePodId 為 null 時不應設定在 payload 中', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -508,6 +552,52 @@ describe('connectionStore', () => {
 
       expect(result).toBeNull()
     })
+
+    it('後端回傳 connectionStatus 時應直接使用', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useConnectionStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({
+        connection: {
+          id: 'conn-1',
+          sourcePodId: 'pod-a',
+          sourceAnchor: 'bottom',
+          targetPodId: 'pod-b',
+          targetAnchor: 'top',
+          createdAt: new Date().toISOString(),
+          triggerMode: 'ai-decide',
+          connectionStatus: 'ai-rejected',
+          decideReason: '不符合條件',
+        },
+      })
+
+      const result = await store.updateConnectionTriggerMode('conn-1', 'ai-decide')
+
+      expect(result?.status).toBe('ai-rejected')
+    })
+
+    it('後端未回傳 connectionStatus 時應 fallback 為 idle', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useConnectionStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({
+        connection: {
+          id: 'conn-1',
+          sourcePodId: 'pod-a',
+          sourceAnchor: 'bottom',
+          targetPodId: 'pod-b',
+          targetAnchor: 'top',
+          createdAt: new Date().toISOString(),
+          triggerMode: 'direct',
+        },
+      })
+
+      const result = await store.updateConnectionTriggerMode('conn-1', 'direct')
+
+      expect(result?.status).toBe('idle')
+    })
   })
 
   describe('拖曳連線', () => {
@@ -603,7 +693,7 @@ describe('connectionStore', () => {
         expect(conn3.status).toBe('idle') // direct 不受影響
       })
 
-      it('不應覆蓋已 ai-approved 的 Connection', () => {
+      it('應將 ai-approved 的 Connection 更新為 active', () => {
         const store = useConnectionStore()
         const conn1 = createMockConnection({ id: 'conn-1', targetPodId: 'pod-target', triggerMode: 'ai-decide', status: 'ai-approved' })
         const conn2 = createMockConnection({ id: 'conn-2', targetPodId: 'pod-target', triggerMode: 'auto', status: 'idle' })
@@ -619,7 +709,7 @@ describe('connectionStore', () => {
 
         store.handleWorkflowAutoTriggered(payload)
 
-        expect(conn1.status).toBe('ai-approved') // 不變
+        expect(conn1.status).toBe('active')
         expect(conn2.status).toBe('active')
       })
     })
@@ -928,7 +1018,7 @@ describe('connectionStore', () => {
       expect(conn3.status).toBe('idle')
     })
 
-    it('應跳過 ai-decide + ai-approved 的 Connection（設為 active 時）', () => {
+    it('應將 ai-approved 的 Connection 更新為 active', () => {
       const store = useConnectionStore()
       const conn1 = createMockConnection({ id: 'conn-1', targetPodId: 'pod-target', triggerMode: 'ai-decide', status: 'ai-approved' })
       const conn2 = createMockConnection({ id: 'conn-2', targetPodId: 'pod-target', triggerMode: 'auto', status: 'idle' })
@@ -936,7 +1026,7 @@ describe('connectionStore', () => {
 
       store.updateConnectionStatusByTargetPod('pod-target', 'active')
 
-      expect(conn1.status).toBe('ai-approved') // 不變
+      expect(conn1.status).toBe('active')
       expect(conn2.status).toBe('active')
     })
 
@@ -961,38 +1051,6 @@ describe('connectionStore', () => {
     })
   })
 
-  describe('mapDecideStatusToConnectionStatus', () => {
-    it('none/undefined 應映射為 idle', () => {
-      const store = useConnectionStore()
-
-      expect(store.mapDecideStatusToConnectionStatus('none')).toBe('idle')
-      expect(store.mapDecideStatusToConnectionStatus(undefined)).toBe('idle')
-    })
-
-    it('pending 應映射為 ai-deciding', () => {
-      const store = useConnectionStore()
-
-      expect(store.mapDecideStatusToConnectionStatus('pending')).toBe('ai-deciding')
-    })
-
-    it('approved 應映射為 ai-approved', () => {
-      const store = useConnectionStore()
-
-      expect(store.mapDecideStatusToConnectionStatus('approved')).toBe('ai-approved')
-    })
-
-    it('rejected 應映射為 ai-rejected', () => {
-      const store = useConnectionStore()
-
-      expect(store.mapDecideStatusToConnectionStatus('rejected')).toBe('ai-rejected')
-    })
-
-    it('error 應映射為 ai-error', () => {
-      const store = useConnectionStore()
-
-      expect(store.mapDecideStatusToConnectionStatus('error')).toBe('ai-error')
-    })
-  })
 
   describe('事件處理', () => {
     describe('addConnectionFromEvent', () => {
@@ -1148,7 +1206,7 @@ describe('connectionStore', () => {
   })
 
   describe('loadConnectionsFromBackend', () => {
-    it('成功時應設定 connections、triggerMode 預設 auto、status 從 decideStatus 映射', async () => {
+    it('成功時應設定 connections、triggerMode 預設 auto、status 直接使用 connectionStatus', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useConnectionStore()
@@ -1163,7 +1221,7 @@ describe('connectionStore', () => {
             targetAnchor: 'top',
             createdAt: '2024-01-01T00:00:00.000Z',
             triggerMode: 'auto',
-            decideStatus: 'none',
+            connectionStatus: 'idle',
           },
           {
             id: 'conn-2',
@@ -1172,7 +1230,7 @@ describe('connectionStore', () => {
             targetPodId: 'pod-c',
             targetAnchor: 'top',
             createdAt: '2024-01-02T00:00:00.000Z',
-            decideStatus: 'approved',
+            connectionStatus: 'ai-approved',
           },
         ],
       })
@@ -1188,7 +1246,7 @@ describe('connectionStore', () => {
       expect(store.connections[1]).toMatchObject({
         id: 'conn-2',
         triggerMode: 'auto', // 預設
-        status: 'ai-approved', // 從 decideStatus 映射
+        status: 'ai-approved', // 直接使用後端回傳的 connectionStatus
       })
       expect(store.connections[0]?.createdAt).toBeInstanceOf(Date)
     })
@@ -1204,7 +1262,7 @@ describe('connectionStore', () => {
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
-    it('decideStatus 為 pending 時應映射為 ai-deciding', async () => {
+    it('後端未回傳 connectionStatus 時應 fallback 為 idle', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useConnectionStore()
@@ -1217,7 +1275,29 @@ describe('connectionStore', () => {
             targetPodId: 'pod-b',
             targetAnchor: 'top',
             createdAt: '2024-01-01T00:00:00.000Z',
-            decideStatus: 'pending',
+          },
+        ],
+      })
+
+      await store.loadConnectionsFromBackend()
+
+      expect(store.connections[0]?.status).toBe('idle')
+    })
+
+    it('connectionStatus 為 ai-deciding 時應正確設定', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useConnectionStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({
+        connections: [
+          {
+            id: 'conn-1',
+            sourceAnchor: 'bottom',
+            targetPodId: 'pod-b',
+            targetAnchor: 'top',
+            createdAt: '2024-01-01T00:00:00.000Z',
+            connectionStatus: 'ai-deciding',
           },
         ],
       })
@@ -1240,7 +1320,7 @@ describe('connectionStore', () => {
             targetPodId: 'pod-b',
             targetAnchor: 'top',
             createdAt: '2024-01-01T00:00:00.000Z',
-            decideStatus: 'rejected',
+            connectionStatus: 'ai-rejected',
             decideReason: 'Not relevant',
           },
         ],

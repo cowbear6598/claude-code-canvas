@@ -40,15 +40,15 @@ export function initWorkflowServices(): void {
   workflowAutoTriggerService.init({ pipeline: workflowPipeline });
 
   // 3. AI-Decide Strategy
-  workflowAiDecideTriggerService.init(
+  workflowAiDecideTriggerService.init({
     aiDecideService,
-    workflowEventEmitter,
+    eventEmitter: workflowEventEmitter,
     connectionStore,
-    workflowStateService,
+    stateService: workflowStateService,
     pendingTargetStore,
-    workflowPipeline,
-    workflowMultiInputService
-  );
+    pipeline: workflowPipeline,
+    multiInputService: workflowMultiInputService,
+  });
 
   // 4. MultiInput
   workflowMultiInputService.init({

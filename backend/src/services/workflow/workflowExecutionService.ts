@@ -1,5 +1,6 @@
 import {v4 as uuidv4} from 'uuid';
 import {WebSocketResponseEvents, SystemConnectionIds} from '../../schemas/index.js';
+import type { TriggerMode } from '../../types/index.js';
 import type {
   PipelineContext,
   PipelineMethods,
@@ -21,6 +22,7 @@ import {
     buildTransferMessage,
     buildMessageWithCommand,
     forEachMultiInputGroupConnection,
+    forEachDirectConnection,
 } from './workflowHelpers.js';
 import {workflowAutoTriggerService} from './workflowAutoTriggerService.js';
 
@@ -143,19 +145,7 @@ class WorkflowExecutionService {
     logger.log('Workflow', 'Create', `觸發工作流程：Pod ${sourcePodId} → Pod ${targetPodId}`);
 
     const triggerMode = connection.triggerMode;
-    if (triggerMode === 'auto' || triggerMode === 'ai-decide') {
-        logger.log('Workflow', 'Update', `設定同群連線為 active：targetPod ${targetPodId}`);
-        forEachMultiInputGroupConnection(canvasId, targetPodId, (conn) => {
-            const stillExists = connectionStore.getById(canvasId, conn.id);
-            if (!stillExists) {
-                logger.warn('Workflow', 'Warn', `Connection ${conn.id} 已不存在，跳過 active 狀態設定`);
-                return;
-            }
-            connectionStore.updateConnectionStatus(canvasId, conn.id, 'active');
-        });
-    } else {
-        connectionStore.updateConnectionStatus(canvasId, connectionId, 'active');
-    }
+    this.setConnectionsToActive(canvasId, targetPodId, triggerMode);
 
     strategy.onTrigger({
       canvasId,
@@ -170,6 +160,21 @@ class WorkflowExecutionService {
     this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, summary, strategy).catch(error =>
       logger.error('Workflow', 'Error', `executeClaudeQuery 執行失敗 (connection: ${connectionId})`, error)
     );
+  }
+
+  private setConnectionsToActive(canvasId: string, targetPodId: string, triggerMode: TriggerMode): void {
+    const forEachFn = (triggerMode === 'auto' || triggerMode === 'ai-decide')
+      ? forEachMultiInputGroupConnection
+      : forEachDirectConnection;
+
+    forEachFn(canvasId, targetPodId, (conn) => {
+      const stillExists = connectionStore.getById(canvasId, conn.id);
+      if (!stillExists) {
+        logger.warn('Workflow', 'Warn', `Connection ${conn.id} 已不存在，跳過 active 狀態設定`);
+        return;
+      }
+      connectionStore.updateConnectionStatus(canvasId, conn.id, 'active');
+    });
   }
 
   private scheduleNextInQueue(canvasId: string, targetPodId: string): void {

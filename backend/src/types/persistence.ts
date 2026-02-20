@@ -1,5 +1,5 @@
 import type { PodColor, PodStatus, ModelType } from './pod.js';
-import type { AnchorPosition } from './connection.js';
+import type { AnchorPosition, ConnectionStatus } from './connection.js';
 import type { PersistedScheduleConfig } from './schedule.js';
 
 export interface PersistedToolUseInfo {
@@ -75,5 +75,6 @@ export interface PersistedConnection {
   triggerMode: 'auto' | 'ai-decide' | 'direct';
   decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error';
   decideReason?: string | null;
+  connectionStatus?: ConnectionStatus;
   createdAt: string; // ISO 8601 format
 }

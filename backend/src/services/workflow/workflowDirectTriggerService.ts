@@ -1,5 +1,6 @@
 import type {
     WorkflowDirectWaitingPayload,
+    Connection,
 } from '../../types/index.js';
 import type {
     TriggerStrategy,
@@ -47,16 +48,31 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         const directCount = workflowStateService.getDirectConnectionCount(canvasId, targetPodId);
 
         if (directCount === 1) {
-            logger.log('Workflow', 'Create', `Direct trigger from Pod ${sourcePodId} to Pod ${targetPodId}`);
-
-            return {ready: true};
+            return this.handleSingleDirectTrigger(sourcePodId, targetPodId);
         }
 
+        return this.handleMultiDirectTrigger(canvasId, sourcePodId, targetPodId, connection, summary);
+    }
+
+    private handleSingleDirectTrigger(sourcePodId: string, targetPodId: string): CollectSourcesResult {
+        logger.log('Workflow', 'Create', `Direct trigger from Pod ${sourcePodId} to Pod ${targetPodId}`);
+        return {ready: true};
+    }
+
+    private handleMultiDirectTrigger(
+        canvasId: string,
+        sourcePodId: string,
+        targetPodId: string,
+        connection: Connection,
+        summary: string
+    ): Promise<CollectSourcesResult> {
         if (!directTriggerStore.hasDirectPending(targetPodId)) {
             directTriggerStore.initializeDirectPending(targetPodId);
         }
 
         directTriggerStore.recordDirectReady(targetPodId, sourcePodId, summary);
+
+        connectionStore.updateConnectionStatus(canvasId, connection.id, 'waiting');
 
         const directWaitingPayload: WorkflowDirectWaitingPayload = {
             canvasId,
@@ -71,35 +87,40 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
 
         logger.log('Workflow', 'Update', `Multi-direct trigger: ${readySourcePodIds.length} sources ready for target ${targetPodId}, countdown started`);
 
-        const existingResolver = this.pendingResolvers.has(targetPodId);
-
-        if (existingResolver) {
+        if (this.pendingResolvers.has(targetPodId)) {
             this.startCountdownTimer(canvasId, targetPodId);
-            return {ready: false};
+            return Promise.resolve({ready: false});
         }
 
         return new Promise<CollectSourcesResult>((resolve) => {
             this.pendingResolvers.set(targetPodId, resolve);
             this.startCountdownTimer(canvasId, targetPodId);
+            this.createTimeoutGuard(canvasId, targetPodId, resolve);
+        });
+    }
 
-            setTimeout(() => {
-                if (!this.pendingResolvers.has(targetPodId)) {
-                    return; // resolver 已被其他流程（10 秒 timer）處理，跳過
-                }
-                // 確認 targetPod 仍存在有效的 direct connections
-                const directConns = getDirectConnectionsForTarget(canvasId, targetPodId);
-                if (directConns.length === 0) {
-                    logger.warn('Workflow', 'Warn', `Direct trigger 30 秒超時：targetPod ${targetPodId} 已無 direct 連線，跳過`);
-                    this.pendingResolvers.delete(targetPodId);
-                    directTriggerStore.clearDirectPending(targetPodId);
-                    return;
-                }
-                logger.error('Workflow', 'Error', `Direct trigger 超時未完成，清理 ${targetPodId}`);
+    private createTimeoutGuard(
+        canvasId: string,
+        targetPodId: string,
+        resolve: (result: CollectSourcesResult) => void
+    ): void {
+        setTimeout(() => {
+            if (!this.pendingResolvers.has(targetPodId)) {
+                return; // resolver 已被其他流程（10 秒 timer）處理，跳過
+            }
+            // 確認 targetPod 仍存在有效的 direct connections
+            const directConns = getDirectConnectionsForTarget(canvasId, targetPodId);
+            if (directConns.length === 0) {
+                logger.warn('Workflow', 'Warn', `Direct trigger 30 秒超時：targetPod ${targetPodId} 已無 direct 連線，跳過`);
                 this.pendingResolvers.delete(targetPodId);
                 directTriggerStore.clearDirectPending(targetPodId);
-                resolve({ready: false});
-            }, this.MAX_PENDING_TIME);
-        });
+                return;
+            }
+            logger.error('Workflow', 'Error', `Direct trigger 超時未完成，清理 ${targetPodId}`);
+            this.pendingResolvers.delete(targetPodId);
+            directTriggerStore.clearDirectPending(targetPodId);
+            resolve({ready: false});
+        }, this.MAX_PENDING_TIME);
     }
 
     private startCountdownTimer(canvasId: string, targetPodId: string): void {
@@ -123,35 +144,8 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         let resolverCalled = false;
 
         try {
-            const readySummaries = directTriggerStore.getReadySummaries(targetPodId);
-            if (!readySummaries || readySummaries.size === 0) {
-                resolver({ready: false});
-                return;
-            }
-
-            const sourcePodIds = Array.from(readySummaries.keys());
-
-            if (sourcePodIds.length === 1) {
-                resolver({ready: true});
-                return;
-            }
-
-            const mergedContent = formatMergedSummaries(
-                readySummaries,
-                (podId) => podStore.getById(canvasId, podId)
-            );
-
-            const mergedPayload = {
-                canvasId,
-                targetPodId,
-                sourcePodIds,
-                mergedContentPreview: mergedContent.substring(0, 200),
-                countdownSeconds: 0,
-            };
-
-            workflowEventEmitter.emitDirectMerged(canvasId, mergedPayload);
-
-            resolver({ready: true, mergedContent, isSummarized: true});
+            const result = this.processTimerResult(canvasId, targetPodId);
+            resolver(result);
             resolverCalled = true;
         } catch (error) {
             logger.error('Workflow', 'Error', `Direct trigger timer 處理失敗: ${targetPodId}`, error);
@@ -162,6 +156,36 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
             this.pendingResolvers.delete(targetPodId);
             directTriggerStore.clearDirectPending(targetPodId);
         }
+    }
+
+    private processTimerResult(canvasId: string, targetPodId: string): CollectSourcesResult {
+        const readySummaries = directTriggerStore.getReadySummaries(targetPodId);
+        if (!readySummaries || readySummaries.size === 0) {
+            return {ready: false};
+        }
+
+        const sourcePodIds = Array.from(readySummaries.keys());
+
+        if (sourcePodIds.length === 1) {
+            return {ready: true};
+        }
+
+        const mergedContent = formatMergedSummaries(
+            readySummaries,
+            (podId) => podStore.getById(canvasId, podId)
+        );
+
+        const mergedPayload = {
+            canvasId,
+            targetPodId,
+            sourcePodIds,
+            mergedContentPreview: mergedContent.substring(0, 200),
+            countdownSeconds: 0,
+        };
+
+        workflowEventEmitter.emitDirectMerged(canvasId, mergedPayload);
+
+        return {ready: true, mergedContent, isSummarized: true};
     }
 
     onTrigger(context: TriggerLifecycleContext): void {

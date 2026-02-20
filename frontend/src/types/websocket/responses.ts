@@ -179,6 +179,7 @@ export interface ConnectionCreatedPayload {
         createdAt: string
         triggerMode?: 'auto' | 'ai-decide' | 'direct'
         decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'
+        connectionStatus?: 'idle' | 'active' | 'queued' | 'waiting' | 'ai-deciding' | 'ai-approved' | 'ai-rejected' | 'ai-error'
         decideReason?: string | null
     }
     error?: string
@@ -196,6 +197,7 @@ export interface ConnectionListResultPayload {
         createdAt: string
         triggerMode?: 'auto' | 'ai-decide' | 'direct'
         decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'
+        connectionStatus?: 'idle' | 'active' | 'queued' | 'waiting' | 'ai-deciding' | 'ai-approved' | 'ai-rejected' | 'ai-error'
         decideReason?: string | null
     }>
     error?: string

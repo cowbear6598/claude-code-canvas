@@ -1,6 +1,6 @@
-import {v4 as uuidv4} from 'uuid';
 import {promises as fs} from 'fs';
 import path from 'path';
+import {v4 as uuidv4} from 'uuid';
 import type {Connection, AnchorPosition, TriggerMode, DecideStatus, ConnectionStatus} from '../types';
 import type {PersistedConnection} from '../types';
 import {Result, ok, err} from '../types';
@@ -25,6 +25,61 @@ class ConnectionStore {
             this.connectionsByCanvas.set(canvasId, connectionsMap);
         }
         return connectionsMap;
+    }
+
+    private findByField(canvasId: string, field: 'sourcePodId' | 'targetPodId', value: string): Connection[] {
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) return [];
+        return Array.from(connectionsMap.values()).filter(conn => conn[field] === value);
+    }
+
+    private patchConnection(canvasId: string, connectionId: string, patchFn: (connection: Connection) => void): Connection | undefined {
+        const connectionsMap = this.connectionsByCanvas.get(canvasId);
+        if (!connectionsMap) return undefined;
+
+        const connection = connectionsMap.get(connectionId);
+        if (!connection) return undefined;
+
+        patchFn(connection);
+        connectionsMap.set(connectionId, connection);
+        this.saveToDiskAsync(canvasId);
+
+        return connection;
+    }
+
+    private parseStringField(obj: Record<string, unknown>, field: string, defaultValue: string): string {
+        return (field in obj && typeof obj[field] === 'string') ? obj[field] as string : defaultValue;
+    }
+
+    private parsePersistedConnection(persisted: unknown): Connection | null {
+        if (!persisted || typeof persisted !== 'object') return null;
+        const obj = persisted as Record<string, unknown>;
+
+        if (typeof obj.id !== 'string' || typeof obj.sourcePodId !== 'string' ||
+            typeof obj.targetPodId !== 'string' || typeof obj.sourceAnchor !== 'string' ||
+            typeof obj.targetAnchor !== 'string' || typeof obj.createdAt !== 'string') {
+            logger.warn('Connection', 'Load', '跳過無效的 connection 資料：缺少必要欄位');
+            return null;
+        }
+
+        const createdAt = new Date(obj.createdAt);
+        if (isNaN(createdAt.getTime())) {
+            logger.warn('Connection', 'Load', `跳過無效的 connection 資料：日期格式錯誤 (${obj.id})`);
+            return null;
+        }
+
+        return {
+            id: obj.id,
+            sourcePodId: obj.sourcePodId,
+            sourceAnchor: obj.sourceAnchor as AnchorPosition,
+            targetPodId: obj.targetPodId,
+            targetAnchor: obj.targetAnchor as AnchorPosition,
+            triggerMode: this.parseStringField(obj, 'triggerMode', 'auto') as TriggerMode,
+            decideStatus: this.parseStringField(obj, 'decideStatus', 'none') as DecideStatus,
+            decideReason: ('decideReason' in obj && obj.decideReason !== undefined) ? obj.decideReason as string | null : null,
+            connectionStatus: this.parseStringField(obj, 'connectionStatus', 'idle') as ConnectionStatus,
+            createdAt,
+        };
     }
 
     create(canvasId: string, data: CreateConnectionData): Connection {
@@ -85,77 +140,39 @@ class ConnectionStore {
     }
 
     findBySourcePodId(canvasId: string, sourcePodId: string): Connection[] {
-        const connectionsMap = this.connectionsByCanvas.get(canvasId);
-        if (!connectionsMap) {
-            return [];
-        }
-
-        return Array.from(connectionsMap.values()).filter(
-            (connection) => connection.sourcePodId === sourcePodId
-        );
+        return this.findByField(canvasId, 'sourcePodId', sourcePodId);
     }
 
     findByTargetPodId(canvasId: string, targetPodId: string): Connection[] {
-        const connectionsMap = this.connectionsByCanvas.get(canvasId);
-        if (!connectionsMap) {
-            return [];
-        }
-
-        return Array.from(connectionsMap.values()).filter(
-            (connection) => connection.targetPodId === targetPodId
-        );
+        return this.findByField(canvasId, 'targetPodId', targetPodId);
     }
 
     update(canvasId: string, id: string, updates: Partial<{ triggerMode: TriggerMode; decideStatus: DecideStatus; decideReason: string | null }>): Connection | undefined {
-        const connectionsMap = this.connectionsByCanvas.get(canvasId);
-        if (!connectionsMap) {
-            return undefined;
-        }
+        return this.patchConnection(canvasId, id, (connection) => {
+            if (updates.triggerMode !== undefined) {
+                const oldMode = connection.triggerMode;
+                connection.triggerMode = updates.triggerMode;
 
-        const connection = connectionsMap.get(id);
-        if (!connection) {
-            return undefined;
-        }
-
-        if (updates.triggerMode !== undefined) {
-            const oldMode = connection.triggerMode;
-            connection.triggerMode = updates.triggerMode;
-
-            if (oldMode === 'ai-decide' && (updates.triggerMode === 'auto' || updates.triggerMode === 'direct')) {
-                connection.decideStatus = 'none';
-                connection.decideReason = null;
+                if (oldMode === 'ai-decide' && (updates.triggerMode === 'auto' || updates.triggerMode === 'direct')) {
+                    connection.decideStatus = 'none';
+                    connection.decideReason = null;
+                }
             }
-        }
 
-        if (updates.decideStatus !== undefined) {
-            connection.decideStatus = updates.decideStatus;
-        }
+            if (updates.decideStatus !== undefined) {
+                connection.decideStatus = updates.decideStatus;
+            }
 
-        if (updates.decideReason !== undefined) {
-            connection.decideReason = updates.decideReason;
-        }
-
-        connectionsMap.set(id, connection);
-        this.saveToDiskAsync(canvasId);
-
-        return connection;
+            if (updates.decideReason !== undefined) {
+                connection.decideReason = updates.decideReason;
+            }
+        });
     }
 
     updateConnectionStatus(canvasId: string, connectionId: string, status: ConnectionStatus): Connection | undefined {
-        const connectionsMap = this.connectionsByCanvas.get(canvasId);
-        if (!connectionsMap) {
-            return undefined;
-        }
-
-        const connection = connectionsMap.get(connectionId);
-        if (!connection) {
-            return undefined;
-        }
-
-        connection.connectionStatus = status;
-        connectionsMap.set(connectionId, connection);
-
-        return connection;
+        return this.patchConnection(canvasId, connectionId, (conn) => {
+            conn.connectionStatus = status;
+        });
     }
 
     deleteByPodId(canvasId: string, podId: string): number {
@@ -177,7 +194,6 @@ class ConnectionStore {
         return connectionsToDelete.length;
     }
 
-
     async loadFromDisk(canvasId: string, canvasDataDir: string): Promise<Result<void>> {
         const connectionsFilePath = path.join(canvasDataDir, 'connections.json');
 
@@ -197,28 +213,8 @@ class ConnectionStore {
 
             const connectionsMap = new Map<string, Connection>();
             for (const persisted of persistedConnections) {
-                const persistedObj = persisted as Record<string, unknown>;
-
-                const triggerMode: TriggerMode = ('triggerMode' in persistedObj && typeof persistedObj.triggerMode === 'string')
-                    ? persistedObj.triggerMode as TriggerMode
-                    : 'auto';
-
-                const connection: Connection = {
-                    id: persistedObj.id as string,
-                    sourcePodId: persistedObj.sourcePodId as string,
-                    sourceAnchor: persistedObj.sourceAnchor as AnchorPosition,
-                    targetPodId: persistedObj.targetPodId as string,
-                    targetAnchor: persistedObj.targetAnchor as AnchorPosition,
-                    triggerMode,
-                    decideStatus: ('decideStatus' in persistedObj && typeof persistedObj.decideStatus === 'string')
-                        ? persistedObj.decideStatus as DecideStatus
-                        : 'none',
-                    decideReason: ('decideReason' in persistedObj && persistedObj.decideReason !== undefined)
-                        ? persistedObj.decideReason as string | null
-                        : null,
-                    connectionStatus: 'idle',
-                    createdAt: new Date(persistedObj.createdAt as string),
-                };
+                const connection = this.parsePersistedConnection(persisted);
+                if (!connection) continue;
                 connectionsMap.set(connection.id, connection);
             }
 
@@ -253,6 +249,7 @@ class ConnectionStore {
             triggerMode: connection.triggerMode,
             decideStatus: connection.decideStatus,
             decideReason: connection.decideReason,
+            connectionStatus: connection.connectionStatus,
             createdAt: connection.createdAt.toISOString(),
         }));
 
