@@ -4,7 +4,11 @@ import { useCanvasContext } from './useCanvasContext'
 // 最小拖曳距離閾值（像素）
 const MIN_PAN_DISTANCE = 3
 
-export function useCanvasPan(): {
+interface CanvasPanOptions {
+  onRightClick?: (e: MouseEvent) => void
+}
+
+export function useCanvasPan(options?: CanvasPanOptions): {
   isPanning: import('vue').Ref<boolean>
   hasPanned: import('vue').Ref<boolean>
   startPan: (e: MouseEvent) => void
@@ -18,6 +22,7 @@ export function useCanvasPan(): {
   let startY = 0
   let startOffsetX = 0
   let startOffsetY = 0
+  let panStartEvent: MouseEvent | null = null
 
   const startPan = (e: MouseEvent): void => {
     if (e.button !== 2) return
@@ -30,11 +35,12 @@ export function useCanvasPan(): {
       target.classList.contains('canvas-content')
     ) {
       isPanning.value = true
-      hasPanned.value = false // 重置拖曳狀態
+      hasPanned.value = false
       startX = e.clientX
       startY = e.clientY
       startOffsetX = viewportStore.offset.x
       startOffsetY = viewportStore.offset.y
+      panStartEvent = e
 
       document.addEventListener('mousemove', onPanMove)
       document.addEventListener('mouseup', stopPan)
@@ -47,7 +53,6 @@ export function useCanvasPan(): {
     const dx = e.clientX - startX
     const dy = e.clientY - startY
 
-    // 檢查滑鼠移動距離是否超過閾值
     if (!hasPanned.value && (Math.abs(dx) > MIN_PAN_DISTANCE || Math.abs(dy) > MIN_PAN_DISTANCE)) {
       hasPanned.value = true
     }
@@ -56,10 +61,19 @@ export function useCanvasPan(): {
   }
 
   const stopPan = (): void => {
+    const didPan = hasPanned.value
+    const event = panStartEvent
+
     isPanning.value = false
+    panStartEvent = null
     document.removeEventListener('mousemove', onPanMove)
     document.removeEventListener('mouseup', stopPan)
-    // 注意：不在這裡重置 hasPanned，讓 contextmenu 事件可以讀取
+
+    // Mac 上 contextmenu 事件可能早於 mouseup 觸發，
+    // 改在 mouseup 時判斷是否為單純右鍵點擊，才觸發選單
+    if (!didPan && options?.onRightClick && event) {
+      options.onRightClick(event)
+    }
   }
 
   const resetPanState = (): void => {

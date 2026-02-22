@@ -31,11 +31,15 @@ import {isValidPod as isValidPodFn, enrichPod as enrichPodFn} from '@/lib/podVal
 
 const MAX_COORD = 100000
 
+/** 選單關閉後的冷卻時間（毫秒），防止同一次滑鼠操作關閉後立刻重開 */
+const TYPE_MENU_COOLDOWN_MS = 300
+
 interface PodStoreState {
     pods: Pod[]
     selectedPodId: string | null
     activePodId: string | null
     typeMenu: TypeMenuState
+    typeMenuClosedAt: number
     scheduleFiredPodIds: Set<string>
 }
 
@@ -48,6 +52,7 @@ export const usePodStore = defineStore('pod', {
             visible: false,
             position: null,
         },
+        typeMenuClosedAt: 0,
         scheduleFiredPodIds: new Set(),
     }),
 
@@ -295,6 +300,9 @@ export const usePodStore = defineStore('pod', {
         },
 
         showTypeMenu(position: Position): void {
+            // 選單剛被關閉時（同一次滑鼠操作），不重新打開
+            if (Date.now() - this.typeMenuClosedAt < TYPE_MENU_COOLDOWN_MS) return
+
             this.typeMenu = {
                 visible: true,
                 position,
@@ -306,6 +314,7 @@ export const usePodStore = defineStore('pod', {
                 visible: false,
                 position: null,
             }
+            this.typeMenuClosedAt = Date.now()
         },
 
         updatePodOutputStyle(podId: string, outputStyleId: string | null): void {

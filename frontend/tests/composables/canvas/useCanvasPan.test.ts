@@ -363,7 +363,7 @@ describe('useCanvasPan', () => {
       expect(hasPanned.value).toBe(true)
     })
 
-    it('拖曳距離超過 3px 時 hasPanned 應為 true（對角線）', () => {
+    it('X 和 Y 各自未超過 3px（對角線）hasPanned 應保持 false', () => {
       const { startPan, hasPanned } = useCanvasPan()
 
       const startEvent = new MouseEvent('mousedown', {
@@ -380,14 +380,14 @@ describe('useCanvasPan', () => {
 
       startPan(startEvent)
 
-      // 移動 4px (X) + 0px (Y)，Math.abs(4) > 3，應該觸發
+      // X 移動 2px、Y 移動 2px，兩軸都未超過 3px 閾值，hasPanned 應為 false
       const moveEvent = new MouseEvent('mousemove', {
-        clientX: 104,
-        clientY: 200,
+        clientX: 102,
+        clientY: 202,
       })
       document.dispatchEvent(moveEvent)
 
-      expect(hasPanned.value).toBe(true)
+      expect(hasPanned.value).toBe(false)
     })
 
     it('拖曳距離未超過 3px 時 hasPanned 應保持 false', () => {
@@ -565,6 +565,143 @@ describe('useCanvasPan', () => {
       document.dispatchEvent(moveEvent)
 
       expect(mockViewportStore.setOffset).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('onRightClick 回呼', () => {
+    it('單純右鍵點擊（未拖曳）放開滑鼠後應觸發 onRightClick', () => {
+      const onRightClick = vi.fn()
+      const { startPan } = useCanvasPan({ onRightClick })
+
+      const startEvent = new MouseEvent('mousedown', {
+        button: 2,
+        clientX: 100,
+        clientY: 200,
+      })
+      Object.defineProperty(startEvent, 'target', {
+        value: document.createElement('div'),
+        configurable: true,
+      })
+      const targetElement = startEvent.target as HTMLElement
+      targetElement.id = 'canvas'
+
+      startPan(startEvent)
+
+      // 未移動，直接放開滑鼠
+      const upEvent = new MouseEvent('mouseup')
+      document.dispatchEvent(upEvent)
+
+      expect(onRightClick).toHaveBeenCalledTimes(1)
+      expect(onRightClick).toHaveBeenCalledWith(startEvent)
+    })
+
+    it('拖曳後放開滑鼠不應觸發 onRightClick', () => {
+      const onRightClick = vi.fn()
+      const { startPan } = useCanvasPan({ onRightClick })
+
+      const startEvent = new MouseEvent('mousedown', {
+        button: 2,
+        clientX: 100,
+        clientY: 200,
+      })
+      Object.defineProperty(startEvent, 'target', {
+        value: document.createElement('div'),
+        configurable: true,
+      })
+      const targetElement = startEvent.target as HTMLElement
+      targetElement.id = 'canvas'
+
+      startPan(startEvent)
+
+      // 拖曳超過閾值
+      const moveEvent = new MouseEvent('mousemove', {
+        clientX: 110,
+        clientY: 210,
+      })
+      document.dispatchEvent(moveEvent)
+
+      // 放開滑鼠
+      const upEvent = new MouseEvent('mouseup')
+      document.dispatchEvent(upEvent)
+
+      expect(onRightClick).not.toHaveBeenCalled()
+    })
+
+    it('未提供 onRightClick 選項時放開滑鼠不應報錯', () => {
+      const { startPan } = useCanvasPan()
+
+      const startEvent = new MouseEvent('mousedown', {
+        button: 2,
+        clientX: 100,
+        clientY: 200,
+      })
+      Object.defineProperty(startEvent, 'target', {
+        value: document.createElement('div'),
+        configurable: true,
+      })
+      const targetElement = startEvent.target as HTMLElement
+      targetElement.id = 'canvas'
+
+      startPan(startEvent)
+
+      expect(() => {
+        const upEvent = new MouseEvent('mouseup')
+        document.dispatchEvent(upEvent)
+      }).not.toThrow()
+    })
+
+    it('onRightClick 回呼只會在 mouseup 時觸發，不在 mousedown 時觸發', () => {
+      const onRightClick = vi.fn()
+      const { startPan } = useCanvasPan({ onRightClick })
+
+      const startEvent = new MouseEvent('mousedown', {
+        button: 2,
+        clientX: 100,
+        clientY: 200,
+      })
+      Object.defineProperty(startEvent, 'target', {
+        value: document.createElement('div'),
+        configurable: true,
+      })
+      const targetElement = startEvent.target as HTMLElement
+      targetElement.id = 'canvas'
+
+      startPan(startEvent)
+
+      // mousedown 之後，onRightClick 不應被呼叫
+      expect(onRightClick).not.toHaveBeenCalled()
+    })
+
+    it('拖曳距離未超過閾值時放開滑鼠應觸發 onRightClick', () => {
+      const onRightClick = vi.fn()
+      const { startPan } = useCanvasPan({ onRightClick })
+
+      const startEvent = new MouseEvent('mousedown', {
+        button: 2,
+        clientX: 100,
+        clientY: 200,
+      })
+      Object.defineProperty(startEvent, 'target', {
+        value: document.createElement('div'),
+        configurable: true,
+      })
+      const targetElement = startEvent.target as HTMLElement
+      targetElement.id = 'canvas'
+
+      startPan(startEvent)
+
+      // 移動距離未超過閾值（2px）
+      const moveEvent = new MouseEvent('mousemove', {
+        clientX: 102,
+        clientY: 200,
+      })
+      document.dispatchEvent(moveEvent)
+
+      // 放開滑鼠
+      const upEvent = new MouseEvent('mouseup')
+      document.dispatchEvent(upEvent)
+
+      expect(onRightClick).toHaveBeenCalledTimes(1)
     })
   })
 

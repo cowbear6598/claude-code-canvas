@@ -5,13 +5,18 @@ import { useCanvasPan, useCanvasZoom, useBoxSelect } from '@/composables/canvas'
 import { GRID_SIZE } from '@/lib/constants'
 
 const viewportStore = useViewportStore()
-const { startPan, hasPanned, resetPanState } = useCanvasPan()
-const { handleWheel } = useCanvasZoom()
-const { startBoxSelect } = useBoxSelect()
 
 const emit = defineEmits<{
   contextmenu: [e: MouseEvent]
 }>()
+
+const { startPan } = useCanvasPan({
+  onRightClick: (e: MouseEvent) => {
+    emit('contextmenu', e)
+  },
+})
+const { handleWheel } = useCanvasZoom()
+const { startBoxSelect } = useBoxSelect()
 
 const gridStyle = computed(() => {
   const { offset, zoom } = viewportStore
@@ -24,15 +29,7 @@ const gridStyle = computed(() => {
 })
 
 const handleContextMenu = (e: MouseEvent): void => {
-  e.preventDefault() // 防止瀏覽器預設右鍵選單
-
-  // 如果剛剛有拖曳過畫布，不顯示選單
-  if (hasPanned.value) {
-    resetPanState()
-    return
-  }
-
-  emit('contextmenu', e)
+  e.preventDefault() // 只阻止瀏覽器原生右鍵選單，自定義選單由 useCanvasPan 的回呼處理
 }
 
 const handleMouseDown = (e: MouseEvent): void => {

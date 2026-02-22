@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus, FilePlus, Import } from 'lucide-vue-next'
 import type { Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent } from '@/types'
 import { podTypes } from '@/data/podTypes'
@@ -47,10 +47,28 @@ const {
 
 const { importSkill, isImporting } = useSkillImport()
 
+const menuRef = ref<HTMLElement | null>(null)
 const openMenuType = ref<'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | null>(null)
 const hoveredItemId = ref<string | null>(null)
 
+const handleOutsideMouseDown = (e: MouseEvent): void => {
+  if (!e.target) return
+
+  const menuEl = menuRef.value
+  if (menuEl && !menuEl.contains(e.target as Node)) {
+    podStore.hideTypeMenu()
+
+    // 左鍵：阻止事件傳播，防止觸發畫布的框選等操作
+    // 右鍵：不阻止，讓事件穿透到畫布以啟動拖曳平移
+    if (e.button !== 2) {
+      e.stopPropagation()
+    }
+  }
+}
+
 onMounted(async () => {
+  document.addEventListener('mousedown', handleOutsideMouseDown, true)
+
   await Promise.all([
     outputStyleStore.loadOutputStyles(),
     outputStyleStore.loadOutputStyleGroups(),
@@ -61,6 +79,10 @@ onMounted(async () => {
     commandStore.loadCommands(),
     commandStore.loadCommandGroups()
   ])
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousedown', handleOutsideMouseDown, true)
 })
 
 const handleSelect = (config: PodTypeConfig): void => {
@@ -96,11 +118,6 @@ const handleCommandSelect = (command: { id: string; name: string }): void => {
   emit('create-command-note', command.id)
   emit('close')
 }
-
-const handleClose = (): void => {
-  emit('close')
-}
-
 
 const handleDeleteClick = (type: ItemType, id: string, name: string, event: Event): void => {
   event.stopPropagation()
@@ -186,297 +203,283 @@ const handleImportSkill = async (): Promise<void> => {
   emit('close')
 }
 
-// 在選單打開時處理右鍵點擊，更新選單位置
-const handleContextMenu = (e: MouseEvent): void => {
-  e.preventDefault()
-  podStore.showTypeMenu({ x: e.clientX, y: e.clientY })
-}
-
 const { menuStyle } = useMenuPosition({ position: computed(() => props.position) })
 </script>
 
 <template>
-  <!-- 阻止顯示瀏覽器預設右鍵選單，並允許在選單上右鍵點擊時更新位置 -->
-  <div @contextmenu="handleContextMenu">
-    <!-- 背景遮罩 -->
-    <div
-      class="fixed inset-0 z-40"
-      @click="handleClose"
-    />
-
-    <!-- 選單內容 -->
-    <div
-      class="fixed z-50 bg-card border-2 border-doodle-ink rounded-lg p-2 min-w-36"
-      :style="menuStyle"
+  <div
+    ref="menuRef"
+    class="fixed z-50 bg-card border-2 border-doodle-ink rounded-lg p-2 min-w-36"
+    :style="menuStyle"
+    @contextmenu.prevent
+  >
+    <!-- Pod 按鈕 -->
+    <button
+      v-if="podTypes[0]"
+      class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left mb-1"
+      @click="handleSelect(podTypes[0])"
     >
-      <!-- Pod 按鈕 -->
+      <span
+        class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+        :style="{ backgroundColor: `var(--doodle-${podTypes[0].color})` }"
+      >
+        <component
+          :is="podTypes[0].icon"
+          :size="16"
+          class="text-card"
+        />
+      </span>
+      <span class="font-mono text-sm text-foreground">Pod</span>
+    </button>
+
+    <!-- Output Styles 按鈕 -->
+    <div
+      class="relative"
+      @mouseenter="openMenuType = 'outputStyle'"
+      @mouseleave="openMenuType = null"
+    >
       <button
-        v-if="podTypes[0]"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left mb-1"
-        @click="handleSelect(podTypes[0])"
+        class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
       >
         <span
           class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
-          :style="{ backgroundColor: `var(--doodle-${podTypes[0].color})` }"
+          style="background-color: var(--doodle-pink)"
         >
-          <component
-            :is="podTypes[0].icon"
+          <Palette
             :size="16"
             class="text-card"
           />
         </span>
-        <span class="font-mono text-sm text-foreground">Pod</span>
+        <span class="font-mono text-sm text-foreground">Styles &gt;</span>
       </button>
 
-      <!-- Output Styles 按鈕 -->
-      <div
-        class="relative"
-        @mouseenter="openMenuType = 'outputStyle'"
-        @mouseleave="openMenuType = null"
+      <PodTypeMenuSubmenu
+        v-model:hovered-item-id="hoveredItemId"
+        :items="outputStyleStore.availableItems"
+        :visible="openMenuType === 'outputStyle'"
+        :groups="outputStyleStore.groups"
+        :expanded-group-ids="outputStyleStore.expandedGroupIds"
+        @item-select="handleOutputStyleSelect"
+        @item-edit="handleOutputStyleEdit"
+        @item-delete="(id, name, event) => handleDeleteClick('outputStyle', id, name, event)"
+        @toggle-group="(groupId) => outputStyleStore.toggleGroupExpand(groupId)"
+        @group-delete="(groupId, name, event) => handleGroupDelete('outputStyleGroup', groupId, name, event)"
+        @item-drop-to-group="handleOutputStyleDropToGroup"
       >
-        <button
-          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
-        >
-          <span
-            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
-            style="background-color: var(--doodle-pink)"
+        <template #footer>
+          <div class="border-t border-doodle-ink/30 my-1" />
+          <div
+            class="pod-menu-submenu-item flex items-center gap-2"
+            @click="handleNewOutputStyle"
           >
-            <Palette
-              :size="16"
-              class="text-card"
-            />
-          </span>
-          <span class="font-mono text-sm text-foreground">Styles &gt;</span>
-        </button>
+            <FilePlus :size="16" />
+            New File...
+          </div>
+          <div
+            class="pod-menu-submenu-item flex items-center gap-2"
+            @click="handleNewOutputStyleGroup"
+          >
+            <FolderPlus :size="16" />
+            New Group...
+          </div>
+        </template>
+      </PodTypeMenuSubmenu>
+    </div>
 
-        <PodTypeMenuSubmenu
-          v-model:hovered-item-id="hoveredItemId"
-          :items="outputStyleStore.availableItems"
-          :visible="openMenuType === 'outputStyle'"
-          :groups="outputStyleStore.groups"
-          :expanded-group-ids="outputStyleStore.expandedGroupIds"
-          @item-select="handleOutputStyleSelect"
-          @item-edit="handleOutputStyleEdit"
-          @item-delete="(id, name, event) => handleDeleteClick('outputStyle', id, name, event)"
-          @toggle-group="(groupId) => outputStyleStore.toggleGroupExpand(groupId)"
-          @group-delete="(groupId, name, event) => handleGroupDelete('outputStyleGroup', groupId, name, event)"
-          @item-drop-to-group="handleOutputStyleDropToGroup"
-        >
-          <template #footer>
-            <div class="border-t border-doodle-ink/30 my-1" />
-            <div
-              class="pod-menu-submenu-item flex items-center gap-2"
-              @click="handleNewOutputStyle"
-            >
-              <FilePlus :size="16" />
-              New File...
-            </div>
-            <div
-              class="pod-menu-submenu-item flex items-center gap-2"
-              @click="handleNewOutputStyleGroup"
-            >
-              <FolderPlus :size="16" />
-              New Group...
-            </div>
-          </template>
-        </PodTypeMenuSubmenu>
-      </div>
-
-      <!-- Command 按鈕 -->
-      <div
-        class="relative"
-        @mouseenter="openMenuType = 'command'"
-        @mouseleave="openMenuType = null"
+    <!-- Command 按鈕 -->
+    <div
+      class="relative"
+      @mouseenter="openMenuType = 'command'"
+      @mouseleave="openMenuType = null"
+    >
+      <button
+        class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
       >
-        <button
-          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
+        <span
+          class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+          style="background-color: var(--doodle-mint)"
         >
-          <span
-            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
-            style="background-color: var(--doodle-mint)"
-          >
-            <span class="text-xs text-card font-mono font-bold">/</span>
-          </span>
-          <span class="font-mono text-sm text-foreground">Commands &gt;</span>
-        </button>
+          <span class="text-xs text-card font-mono font-bold">/</span>
+        </span>
+        <span class="font-mono text-sm text-foreground">Commands &gt;</span>
+      </button>
 
-        <PodTypeMenuSubmenu
-          v-model:hovered-item-id="hoveredItemId"
-          :items="commandStore.availableItems"
-          :visible="openMenuType === 'command'"
-          :groups="commandStore.groups"
-          :expanded-group-ids="commandStore.expandedGroupIds"
-          @item-select="handleCommandSelect"
-          @item-edit="handleCommandEdit"
-          @item-delete="(id, name, event) => handleDeleteClick('command', id, name, event)"
-          @toggle-group="(groupId) => commandStore.toggleGroupExpand(groupId)"
-          @group-delete="(groupId, name, event) => handleGroupDelete('commandGroup', groupId, name, event)"
-          @item-drop-to-group="handleCommandDropToGroup"
-        >
-          <template #footer>
-            <div class="border-t border-doodle-ink/30 my-1" />
-            <div
-              class="pod-menu-submenu-item flex items-center gap-2"
-              @click="handleNewCommand"
-            >
-              <FilePlus :size="16" />
-              New File...
-            </div>
-            <div
-              class="pod-menu-submenu-item flex items-center gap-2"
-              @click="handleNewCommandGroup"
-            >
-              <FolderPlus :size="16" />
-              New Group...
-            </div>
-          </template>
-        </PodTypeMenuSubmenu>
-      </div>
-
-      <!-- Skills 按鈕 -->
-      <div
-        class="relative"
-        @mouseenter="openMenuType = 'skill'"
-        @mouseleave="openMenuType = null"
+      <PodTypeMenuSubmenu
+        v-model:hovered-item-id="hoveredItemId"
+        :items="commandStore.availableItems"
+        :visible="openMenuType === 'command'"
+        :groups="commandStore.groups"
+        :expanded-group-ids="commandStore.expandedGroupIds"
+        @item-select="handleCommandSelect"
+        @item-edit="handleCommandEdit"
+        @item-delete="(id, name, event) => handleDeleteClick('command', id, name, event)"
+        @toggle-group="(groupId) => commandStore.toggleGroupExpand(groupId)"
+        @group-delete="(groupId, name, event) => handleGroupDelete('commandGroup', groupId, name, event)"
+        @item-drop-to-group="handleCommandDropToGroup"
       >
-        <button
-          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
-        >
-          <span
-            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
-            style="background-color: var(--doodle-green)"
+        <template #footer>
+          <div class="border-t border-doodle-ink/30 my-1" />
+          <div
+            class="pod-menu-submenu-item flex items-center gap-2"
+            @click="handleNewCommand"
           >
-            <Wrench
-              :size="16"
-              class="text-card"
-            />
-          </span>
-          <span class="font-mono text-sm text-foreground">Skills &gt;</span>
-        </button>
+            <FilePlus :size="16" />
+            New File...
+          </div>
+          <div
+            class="pod-menu-submenu-item flex items-center gap-2"
+            @click="handleNewCommandGroup"
+          >
+            <FolderPlus :size="16" />
+            New Group...
+          </div>
+        </template>
+      </PodTypeMenuSubmenu>
+    </div>
 
-        <PodTypeMenuSubmenu
-          v-model:hovered-item-id="hoveredItemId"
-          :items="skillStore.availableItems"
-          :visible="openMenuType === 'skill'"
-          :editable="false"
-          @item-select="handleSkillSelect"
-          @item-delete="(id, name, event) => handleDeleteClick('skill', id, name, event)"
-        >
-          <template #footer>
-            <div class="border-t border-doodle-ink/30 my-1" />
-            <div
-              class="pod-menu-submenu-item flex items-center gap-2"
-              :class="{ 'opacity-50 cursor-not-allowed': isImporting }"
-              @click="handleImportSkill"
-            >
-              <Import :size="16" />
-              Import...
-            </div>
-          </template>
-        </PodTypeMenuSubmenu>
-      </div>
-
-      <!-- SubAgents 按鈕 -->
-      <div
-        class="relative"
-        @mouseenter="openMenuType = 'subAgent'"
-        @mouseleave="openMenuType = null"
+    <!-- Skills 按鈕 -->
+    <div
+      class="relative"
+      @mouseenter="openMenuType = 'skill'"
+      @mouseleave="openMenuType = null"
+    >
+      <button
+        class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
       >
-        <button
-          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
+        <span
+          class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+          style="background-color: var(--doodle-green)"
         >
-          <span
-            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
-            style="background-color: var(--doodle-sand)"
-          >
-            <Bot
-              :size="16"
-              class="text-card"
-            />
-          </span>
-          <span class="font-mono text-sm text-foreground">Agents &gt;</span>
-        </button>
+          <Wrench
+            :size="16"
+            class="text-card"
+          />
+        </span>
+        <span class="font-mono text-sm text-foreground">Skills &gt;</span>
+      </button>
 
-        <PodTypeMenuSubmenu
-          v-model:hovered-item-id="hoveredItemId"
-          :items="subAgentStore.availableItems"
-          :visible="openMenuType === 'subAgent'"
-          :groups="subAgentStore.groups"
-          :expanded-group-ids="subAgentStore.expandedGroupIds"
-          @item-select="handleSubAgentSelect"
-          @item-edit="handleSubAgentEdit"
-          @item-delete="(id, name, event) => handleDeleteClick('subAgent', id, name, event)"
-          @toggle-group="(groupId) => subAgentStore.toggleGroupExpand(groupId)"
-          @group-delete="(groupId, name, event) => handleGroupDelete('subAgentGroup', groupId, name, event)"
-          @item-drop-to-group="handleSubAgentDropToGroup"
-        >
-          <template #footer>
-            <div class="border-t border-doodle-ink/30 my-1" />
-            <div
-              class="pod-menu-submenu-item flex items-center gap-2"
-              @click="handleNewSubAgent"
-            >
-              <FilePlus :size="16" />
-              New File...
-            </div>
-            <div
-              class="pod-menu-submenu-item flex items-center gap-2"
-              @click="handleNewSubAgentGroup"
-            >
-              <FolderPlus :size="16" />
-              New Group...
-            </div>
-          </template>
-        </PodTypeMenuSubmenu>
-      </div>
-
-      <!-- Repository 按鈕 -->
-      <div
-        class="relative"
-        @mouseenter="openMenuType = 'repository'"
-        @mouseleave="openMenuType = null"
+      <PodTypeMenuSubmenu
+        v-model:hovered-item-id="hoveredItemId"
+        :items="skillStore.availableItems"
+        :visible="openMenuType === 'skill'"
+        :editable="false"
+        @item-select="handleSkillSelect"
+        @item-delete="(id, name, event) => handleDeleteClick('skill', id, name, event)"
       >
-        <button
-          class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
-        >
-          <span
-            class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
-            style="background-color: var(--doodle-orange)"
+        <template #footer>
+          <div class="border-t border-doodle-ink/30 my-1" />
+          <div
+            class="pod-menu-submenu-item flex items-center gap-2"
+            :class="{ 'opacity-50 cursor-not-allowed': isImporting }"
+            @click="handleImportSkill"
           >
-            <FolderOpen
-              :size="16"
-              class="text-card"
-            />
-          </span>
-          <span class="font-mono text-sm text-foreground">Repository &gt;</span>
-        </button>
+            <Import :size="16" />
+            Import...
+          </div>
+        </template>
+      </PodTypeMenuSubmenu>
+    </div>
 
-        <PodTypeMenuSubmenu
-          v-model:hovered-item-id="hoveredItemId"
-          :items="repositoryStore.availableItems"
-          :visible="openMenuType === 'repository'"
-          @item-select="handleRepositorySelect"
-          @item-delete="(id, name, event) => handleDeleteClick('repository', id, name, event)"
+    <!-- SubAgents 按鈕 -->
+    <div
+      class="relative"
+      @mouseenter="openMenuType = 'subAgent'"
+      @mouseleave="openMenuType = null"
+    >
+      <button
+        class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
+      >
+        <span
+          class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+          style="background-color: var(--doodle-sand)"
         >
-          <template #footer>
-            <div class="border-t border-doodle-ink/30 my-1" />
-            <div
-              class="pod-menu-submenu-item flex items-center gap-2"
-              @click="handleNewRepository"
-            >
-              <FolderPlus :size="16" />
-              New...
-            </div>
-            <div
-              class="pod-menu-submenu-item flex items-center gap-2"
-              @click="handleCloneRepository"
-            >
-              <Github :size="16" />
-              Clone
-            </div>
-          </template>
-        </PodTypeMenuSubmenu>
-      </div>
+          <Bot
+            :size="16"
+            class="text-card"
+          />
+        </span>
+        <span class="font-mono text-sm text-foreground">Agents &gt;</span>
+      </button>
+
+      <PodTypeMenuSubmenu
+        v-model:hovered-item-id="hoveredItemId"
+        :items="subAgentStore.availableItems"
+        :visible="openMenuType === 'subAgent'"
+        :groups="subAgentStore.groups"
+        :expanded-group-ids="subAgentStore.expandedGroupIds"
+        @item-select="handleSubAgentSelect"
+        @item-edit="handleSubAgentEdit"
+        @item-delete="(id, name, event) => handleDeleteClick('subAgent', id, name, event)"
+        @toggle-group="(groupId) => subAgentStore.toggleGroupExpand(groupId)"
+        @group-delete="(groupId, name, event) => handleGroupDelete('subAgentGroup', groupId, name, event)"
+        @item-drop-to-group="handleSubAgentDropToGroup"
+      >
+        <template #footer>
+          <div class="border-t border-doodle-ink/30 my-1" />
+          <div
+            class="pod-menu-submenu-item flex items-center gap-2"
+            @click="handleNewSubAgent"
+          >
+            <FilePlus :size="16" />
+            New File...
+          </div>
+          <div
+            class="pod-menu-submenu-item flex items-center gap-2"
+            @click="handleNewSubAgentGroup"
+          >
+            <FolderPlus :size="16" />
+            New Group...
+          </div>
+        </template>
+      </PodTypeMenuSubmenu>
+    </div>
+
+    <!-- Repository 按鈕 -->
+    <div
+      class="relative"
+      @mouseenter="openMenuType = 'repository'"
+      @mouseleave="openMenuType = null"
+    >
+      <button
+        class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
+      >
+        <span
+          class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+          style="background-color: var(--doodle-orange)"
+        >
+          <FolderOpen
+            :size="16"
+            class="text-card"
+          />
+        </span>
+        <span class="font-mono text-sm text-foreground">Repository &gt;</span>
+      </button>
+
+      <PodTypeMenuSubmenu
+        v-model:hovered-item-id="hoveredItemId"
+        :items="repositoryStore.availableItems"
+        :visible="openMenuType === 'repository'"
+        @item-select="handleRepositorySelect"
+        @item-delete="(id, name, event) => handleDeleteClick('repository', id, name, event)"
+      >
+        <template #footer>
+          <div class="border-t border-doodle-ink/30 my-1" />
+          <div
+            class="pod-menu-submenu-item flex items-center gap-2"
+            @click="handleNewRepository"
+          >
+            <FolderPlus :size="16" />
+            New...
+          </div>
+          <div
+            class="pod-menu-submenu-item flex items-center gap-2"
+            @click="handleCloneRepository"
+          >
+            <Github :size="16" />
+            Clone
+          </div>
+        </template>
+      </PodTypeMenuSubmenu>
     </div>
   </div>
 </template>

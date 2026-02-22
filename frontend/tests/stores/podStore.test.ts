@@ -1425,5 +1425,78 @@ describe('podStore', () => {
       expect(store.typeMenu.visible).toBe(false)
       expect(store.typeMenu.position).toBeNull()
     })
+
+    it('typeMenuClosedAt 初始值應為 0', () => {
+      const store = usePodStore()
+
+      expect(store.typeMenuClosedAt).toBe(0)
+    })
+
+    it('hideTypeMenu 應更新 typeMenuClosedAt 為接近目前時間', () => {
+      const store = usePodStore()
+      const before = Date.now()
+
+      store.hideTypeMenu()
+
+      const after = Date.now()
+      expect(store.typeMenuClosedAt).toBeGreaterThanOrEqual(before)
+      expect(store.typeMenuClosedAt).toBeLessThanOrEqual(after)
+    })
+
+    it('showTypeMenu 在 300ms 冷卻時間內不應重新開啟', () => {
+      const store = usePodStore()
+      // 模擬選單剛被關閉（200ms 前）
+      store.typeMenuClosedAt = Date.now() - 200
+
+      store.showTypeMenu({ x: 100, y: 200 })
+
+      expect(store.typeMenu.visible).toBe(false)
+    })
+
+    it('showTypeMenu 在 300ms 冷卻時間過後應能正常開啟', () => {
+      const store = usePodStore()
+      // 模擬選單在 400ms 前被關閉，已過冷卻時間
+      store.typeMenuClosedAt = Date.now() - 400
+
+      store.showTypeMenu({ x: 100, y: 200 })
+
+      expect(store.typeMenu.visible).toBe(true)
+      expect(store.typeMenu.position).toEqual({ x: 100, y: 200 })
+    })
+
+    it('showTypeMenu 在初始狀態（typeMenuClosedAt 為 0）應正常開啟', () => {
+      const store = usePodStore()
+
+      store.showTypeMenu({ x: 50, y: 150 })
+
+      expect(store.typeMenu.visible).toBe(true)
+      expect(store.typeMenu.position).toEqual({ x: 50, y: 150 })
+    })
+
+    it('showTypeMenu 在恰好冷卻時間時應能正常開啟（邊界值）', () => {
+      const store = usePodStore()
+
+      store.hideTypeMenu()
+      // 模擬恰好經過 300ms 冷卻時間（Date.now() - typeMenuClosedAt < 300 為 false）
+      store.typeMenuClosedAt = Date.now() - 300
+
+      store.showTypeMenu({ x: 100, y: 200 })
+
+      expect(store.typeMenu.visible).toBe(true)
+    })
+
+    it('選單關閉後立即嘗試重開應被冷卻機制攔截', () => {
+      const store = usePodStore()
+
+      store.showTypeMenu({ x: 100, y: 200 })
+      expect(store.typeMenu.visible).toBe(true)
+
+      store.hideTypeMenu()
+      expect(store.typeMenu.visible).toBe(false)
+
+      // 立即嘗試重開（同一次滑鼠操作，冷卻時間內）
+      store.showTypeMenu({ x: 300, y: 400 })
+      expect(store.typeMenu.visible).toBe(false) // 冷卻機制攔截
+    })
   })
 })
