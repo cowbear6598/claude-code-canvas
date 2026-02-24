@@ -32,6 +32,21 @@ cd backend && bun install && bun run dev
 
 Runs on port 3001.
 
+**Environment Variables (Optional)**
+
+To use Clone features for accessing private repositories, create a `.env` file in the `backend/` directory:
+
+```bash
+# GitHub Token for accessing private repositories
+GITHUB_TOKEN=ghp_xxxxx
+
+# GitLab Token for accessing private repositories (supports GitLab.com and self-hosted)
+GITLAB_TOKEN=glpat-xxxxx
+
+# Self-hosted GitLab URL (optional, defaults to gitlab.com)
+GITLAB_URL=https://gitlab.example.com
+```
+
 **Production**
 
 ```bash
