@@ -10,18 +10,20 @@ import {
     emitAndWaitResponse,
     type TestServerInstance,
 } from '../setup';
-import { createRepository, getCanvasId } from '../helpers';
+import { createRepository, getCanvasId, initGitRepo, initGitRepoWithRemote, cleanupRepo } from '../helpers';
 import {
     WebSocketRequestEvents,
     WebSocketResponseEvents,
     type RepositoryGetLocalBranchesPayload,
     type RepositoryWorktreeCreatePayload,
     type RepositoryPullLatestPayload,
+    type RepositoryCheckoutBranchPayload,
 } from '../../src/schemas';
 import {
     type RepositoryLocalBranchesResultPayload,
     type RepositoryWorktreeCreatedPayload,
     type RepositoryPullLatestResultPayload,
+    type RepositoryBranchCheckedOutPayload,
 } from '../../src/types';
 
 describe('Repository Git 操作', () => {
@@ -207,6 +209,123 @@ describe('Repository Git 操作', () => {
 
             expect(response.success).toBe(false);
             expect(response.error).toContain('不是 Git Repository');
+        });
+    });
+
+    describe('切換分支 (handleRepositoryCheckoutBranch)', () => {
+        let server: TestServerInstance;
+        let client: TestWebSocketClient;
+
+        beforeAll(async () => {
+            server = await createTestServer();
+            client = await createSocketClient(server.baseUrl, server.canvasId);
+        });
+
+        afterAll(async () => {
+            if (client?.connected) await disconnectSocket(client);
+            if (server) await closeTestServer(server);
+        });
+
+        async function getRepoPath(repoId: string): Promise<string> {
+            const { config } = await import('../../src/config/index.js');
+            return path.join(config.repositoriesRoot, repoId);
+        }
+
+        it('切換到已存在的本地分支成功，action 為 switched', async () => {
+            const repo = await createRepository(client, `checkout-local-${uuidv4()}`);
+            const repoPath = await getRepoPath(repo.id);
+
+            await initGitRepo(repoPath);
+            await $`git -C ${repoPath} branch feature-a`.quiet();
+
+            const canvasId = await getCanvasId(client);
+            const response = await emitAndWaitResponse<RepositoryCheckoutBranchPayload, RepositoryBranchCheckedOutPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
+                WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+                { requestId: uuidv4(), canvasId, repositoryId: repo.id, branchName: 'feature-a', force: false },
+                10000
+            );
+
+            expect(response.success).toBe(true);
+            expect(response.action).toBe('switched');
+            expect(response.branchName).toBe('feature-a');
+        });
+
+        it('切換到不存在的本地分支時建立新分支，action 為 created', async () => {
+            const repo = await createRepository(client, `checkout-create-${uuidv4()}`);
+            const repoPath = await getRepoPath(repo.id);
+
+            await initGitRepo(repoPath);
+
+            const canvasId = await getCanvasId(client);
+            const response = await emitAndWaitResponse<RepositoryCheckoutBranchPayload, RepositoryBranchCheckedOutPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
+                WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+                { requestId: uuidv4(), canvasId, repositoryId: repo.id, branchName: 'new-branch', force: false },
+                10000
+            );
+
+            expect(response.success).toBe(true);
+            expect(response.action).toBe('created');
+            expect(response.branchName).toBe('new-branch');
+        });
+
+        it('不存在的 repository 回傳失敗', async () => {
+            const canvasId = await getCanvasId(client);
+            const response = await emitAndWaitResponse<RepositoryCheckoutBranchPayload, RepositoryBranchCheckedOutPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
+                WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+                { requestId: uuidv4(), canvasId, repositoryId: 'fake-repo-id', branchName: 'main', force: false }
+            );
+
+            expect(response.success).toBe(false);
+            expect(response.error).toContain('找不到 Repository');
+        });
+
+        it('非 git repository 回傳失敗', async () => {
+            const repo = await createRepository(client, `checkout-non-git-${uuidv4()}`);
+
+            const canvasId = await getCanvasId(client);
+            const response = await emitAndWaitResponse<RepositoryCheckoutBranchPayload, RepositoryBranchCheckedOutPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
+                WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+                { requestId: uuidv4(), canvasId, repositoryId: repo.id, branchName: 'main', force: false }
+            );
+
+            expect(response.success).toBe(false);
+            expect(response.error).toContain('不是 Git Repository');
+        });
+
+        it('Worktree repository 無法切換分支', async () => {
+            const repo = await createRepository(client, `checkout-wt-${uuidv4()}`);
+            const repoPath = await getRepoPath(repo.id);
+            await initGitRepo(repoPath);
+
+            const canvasId = await getCanvasId(client);
+
+            const worktreeResponse = await emitAndWaitResponse<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+                WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+                { requestId: uuidv4(), canvasId, repositoryId: repo.id, worktreeName: 'wt-branch' }
+            );
+
+            expect(worktreeResponse.success).toBe(true);
+            const worktreeRepoId = worktreeResponse.repository!.id;
+
+            const response = await emitAndWaitResponse<RepositoryCheckoutBranchPayload, RepositoryBranchCheckedOutPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
+                WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+                { requestId: uuidv4(), canvasId, repositoryId: worktreeRepoId, branchName: 'main', force: false }
+            );
+
+            expect(response.success).toBe(false);
+            expect(response.error).toContain('Worktree 無法切換分支');
         });
     });
 });

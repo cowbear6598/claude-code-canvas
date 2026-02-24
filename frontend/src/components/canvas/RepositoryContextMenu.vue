@@ -135,12 +135,9 @@ const handleForceCheckout = async (): Promise<void> => {
 }
 
 const performCheckout = async (branchName: string, force: boolean): Promise<void> => {
-  const result = await repositoryStore.checkoutBranch(props.repositoryId, branchName, force)
-
-  if (result.success) {
-    emit('branch-switched')
-    emit('close')
-  }
+  await repositoryStore.checkoutBranch(props.repositoryId, branchName, force)
+  emit('branch-switched')
+  emit('close')
 }
 
 const handleBranchDelete = (branchName: string): void => {

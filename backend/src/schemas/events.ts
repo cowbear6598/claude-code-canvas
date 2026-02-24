@@ -192,6 +192,7 @@ export enum WebSocketResponseEvents {
   CANVAS_REORDERED = 'canvas:reordered',
   REPOSITORY_LOCAL_BRANCHES_RESULT = 'repository:local-branches:result',
   REPOSITORY_DIRTY_CHECK_RESULT = 'repository:dirty-check:result',
+  REPOSITORY_CHECKOUT_BRANCH_PROGRESS = 'repository:checkout-branch:progress',
   REPOSITORY_BRANCH_CHECKED_OUT = 'repository:branch:checked-out',
   REPOSITORY_BRANCH_DELETED = 'repository:branch:deleted',
   GROUP_CREATED = 'group:created',

@@ -1,10 +1,13 @@
+import { vi } from 'vitest';
 import {
   detectGitSource,
   buildAuthenticatedUrl,
   parseCloneErrorMessage,
   extractDomainFromUrl,
   getPullLatestError,
+  gitService,
 } from '../../src/services/workspace/gitService';
+import { ok, err } from '../../src/types';
 import { config } from '../../src/config';
 
 describe('GitService - Git 來源偵測與認證', () => {
@@ -184,5 +187,104 @@ describe('GitService - Git 來源偵測與認證', () => {
 
       expect(result).toBe('Pull 至最新版本失敗');
     });
+  });
+});
+
+describe('GitService - smartCheckoutBranch', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('本地分支存在時直接 checkout，回傳 switched', async () => {
+    vi.spyOn(gitService, 'branchExists').mockResolvedValue(ok(true));
+    vi.spyOn(gitService, 'checkoutBranch').mockResolvedValue(ok(undefined));
+
+    const progressCalls: Array<[number, string]> = [];
+    const result = await gitService.smartCheckoutBranch('/fake/path', 'feature-branch', {
+      onProgress: (progress, message) => progressCalls.push([progress, message]),
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBe('switched');
+    expect(progressCalls).toContainEqual([10, '檢查本地分支...']);
+    expect(progressCalls).toContainEqual([80, '切換分支...']);
+    expect(gitService.checkoutBranch).toHaveBeenCalledWith('/fake/path', 'feature-branch', undefined);
+  });
+
+  it('本地不存在、遠端存在時 fetch 後 checkout，回傳 fetched', async () => {
+    vi.spyOn(gitService, 'branchExists').mockResolvedValue(ok(false));
+    vi.spyOn(gitService, 'checkRemoteBranchExists').mockResolvedValue(ok(true));
+    vi.spyOn(gitService, 'fetchRemoteBranch').mockResolvedValue(ok(undefined));
+    vi.spyOn(gitService, 'checkoutBranch').mockResolvedValue(ok(undefined));
+
+    const progressCalls: Array<[number, string]> = [];
+    const result = await gitService.smartCheckoutBranch('/fake/path', 'feature-branch', {
+      onProgress: (progress, message) => progressCalls.push([progress, message]),
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBe('fetched');
+    expect(progressCalls).toContainEqual([20, '檢查遠端分支...']);
+    expect(progressCalls).toContainEqual([80, '切換分支...']);
+    expect(gitService.fetchRemoteBranch).toHaveBeenCalledWith('/fake/path', 'feature-branch', expect.any(Function));
+    expect(gitService.checkoutBranch).toHaveBeenCalledWith('/fake/path', 'feature-branch', undefined);
+  });
+
+  it('本地與遠端都不存在時建立新分支，回傳 created', async () => {
+    vi.spyOn(gitService, 'branchExists').mockResolvedValue(ok(false));
+    vi.spyOn(gitService, 'checkRemoteBranchExists').mockResolvedValue(ok(false));
+    vi.spyOn(gitService, 'createAndCheckoutBranch').mockResolvedValue(ok(undefined));
+
+    const progressCalls: Array<[number, string]> = [];
+    const result = await gitService.smartCheckoutBranch('/fake/path', 'new-branch', {
+      onProgress: (progress, message) => progressCalls.push([progress, message]),
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBe('created');
+    expect(progressCalls).toContainEqual([80, '建立並切換分支...']);
+    expect(gitService.createAndCheckoutBranch).toHaveBeenCalledWith('/fake/path', 'new-branch');
+  });
+
+  it('無效分支名稱回傳錯誤，不執行任何 git 操作', async () => {
+    const branchExistsSpy = vi.spyOn(gitService, 'branchExists');
+
+    const result = await gitService.smartCheckoutBranch('/fake/path', '../bad');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('無效的分支名稱格式');
+    expect(branchExistsSpy).not.toHaveBeenCalled();
+  });
+
+  it('checkout 失敗時回傳對應錯誤', async () => {
+    vi.spyOn(gitService, 'branchExists').mockResolvedValue(ok(true));
+    vi.spyOn(gitService, 'checkoutBranch').mockResolvedValue(err('切換分支失敗'));
+
+    const result = await gitService.smartCheckoutBranch('/fake/path', 'feature-branch');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('切換分支失敗');
+  });
+
+  it('branchExists 失敗時提早回傳錯誤', async () => {
+    vi.spyOn(gitService, 'branchExists').mockResolvedValue(err('檢查分支失敗'));
+    const checkRemoteSpy = vi.spyOn(gitService, 'checkRemoteBranchExists');
+
+    const result = await gitService.smartCheckoutBranch('/fake/path', 'feature-branch');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('檢查分支失敗');
+    expect(checkRemoteSpy).not.toHaveBeenCalled();
+  });
+
+  it('fetchRemoteBranch 失敗時回傳對應錯誤', async () => {
+    vi.spyOn(gitService, 'branchExists').mockResolvedValue(ok(false));
+    vi.spyOn(gitService, 'checkRemoteBranchExists').mockResolvedValue(ok(true));
+    vi.spyOn(gitService, 'fetchRemoteBranch').mockResolvedValue(err('從遠端 fetch 分支失敗'));
+
+    const result = await gitService.smartCheckoutBranch('/fake/path', 'feature-branch');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('從遠端 fetch 分支失敗');
   });
 });

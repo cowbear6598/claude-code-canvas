@@ -6,6 +6,7 @@ import type {
   RepositoryWorktreeCreatedPayload,
   RepositoryLocalBranchesResultPayload,
   RepositoryDirtyCheckResultPayload,
+  RepositoryCheckoutBranchProgressPayload,
   RepositoryBranchCheckedOutPayload,
   RepositoryBranchDeletedPayload,
   RepositoryPullLatestResultPayload,
@@ -504,8 +505,27 @@ export async function handleRepositoryCheckoutBranch(
     return;
   }
 
-  const checkoutResult = await gitService.smartCheckoutBranch(repositoryPath, branchName, force);
+  function emitCheckoutProgress(progress: number, message: string): void {
+    const progressPayload: RepositoryCheckoutBranchProgressPayload = {
+      requestId,
+      progress,
+      message,
+      branchName,
+    };
+    socketService.emitToConnection(connectionId, WebSocketResponseEvents.REPOSITORY_CHECKOUT_BRANCH_PROGRESS, progressPayload);
+  }
+
+  const throttledEmit = throttle(emitCheckoutProgress, 500);
+
+  emitCheckoutProgress(0, '準備切換分支...');
+
+  const checkoutResult = await gitService.smartCheckoutBranch(repositoryPath, branchName, {
+    force,
+    onProgress: (progress, message) => throttledEmit(progress, message),
+  });
+
   if (!checkoutResult.success) {
+    throttledEmit.cancel();
     emitError(
       connectionId,
       WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
@@ -517,7 +537,11 @@ export async function handleRepositoryCheckoutBranch(
     return;
   }
 
+  throttledEmit.flush();
+
   const action = checkoutResult.data;
+  const completionMessage = action === 'created' ? '分支建立完成' : '切換完成';
+  emitCheckoutProgress(100, completionMessage);
 
   await repositoryService.registerMetadata(repositoryId, {
     ...metadata,
@@ -532,7 +556,7 @@ export async function handleRepositoryCheckoutBranch(
     action,
   };
 
-  socketService.emitToAll(WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, response);
+  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, response);
 
   logger.log('Repository', 'Update', `Checked out branch ${branchName} for ${repositoryId} (${action})`);
 }

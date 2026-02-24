@@ -94,6 +94,13 @@ export interface RepositoryDirtyCheckResultPayload {
   error?: string;
 }
 
+export interface RepositoryCheckoutBranchProgressPayload {
+  requestId: string;
+  progress: number;
+  message: string;
+  branchName: string;
+}
+
 export interface RepositoryBranchCheckedOutPayload {
   requestId: string;
   success: boolean;

@@ -495,158 +495,60 @@ describe('repositoryStore', () => {
   })
 
   describe('checkoutBranch', () => {
-    it('成功切換分支時應更新 currentBranch 並顯示切換 Toast', async () => {
+    it('應透過 websocketClient.emit 發送 checkout 請求並回傳 requestId', async () => {
+      const { mockWebSocketClient: wsClient } = await import('../../helpers/mockWebSocket')
       const store = useRepositoryStore()
-      const repo = createMockRepository({ id: 'repo-1', currentBranch: 'main' })
-      store.availableItems = [repo]
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-        branchName: 'develop',
-        action: 'switched',
-      })
 
       const result = await store.checkoutBranch('repo-1', 'develop', false)
 
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'repository:checkout-branch',
-        responseEvent: 'repository:branch:checked-out',
-        payload: {
+      expect(wsClient.emit).toHaveBeenCalledWith(
+        'repository:checkout-branch',
+        expect.objectContaining({
           canvasId: 'canvas-1',
           repositoryId: 'repo-1',
           branchName: 'develop',
           force: false,
-        },
-      })
-      expect(store.availableItems[0]?.currentBranch).toBe('develop')
-      expect(mockShowSuccessToast).toHaveBeenCalledWith('Git', '切換分支成功', 'develop')
-      expect(result).toEqual({
-        success: true,
-        branchName: 'develop',
-        action: 'switched',
-        error: undefined,
-      })
+        })
+      )
+      expect(result).toHaveProperty('requestId')
+      expect(typeof result.requestId).toBe('string')
     })
 
-    it('action 為 fetched 時應顯示拉取 Toast', async () => {
+    it('force 參數應傳遞到 emit payload', async () => {
+      const { mockWebSocketClient: wsClient } = await import('../../helpers/mockWebSocket')
       const store = useRepositoryStore()
-      const repo = createMockRepository({ id: 'repo-1' })
-      store.availableItems = [repo]
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-        branchName: 'origin/feature',
-        action: 'fetched',
-      })
-
-      const result = await store.checkoutBranch('repo-1', 'origin/feature', false)
-
-      expect(mockShowSuccessToast).toHaveBeenCalledWith('Git', '拉取分支成功', 'origin/feature')
-      expect(result.action).toBe('fetched')
-    })
-
-    it('action 為 created 時應顯示建立 Toast', async () => {
-      const store = useRepositoryStore()
-      const repo = createMockRepository({ id: 'repo-1' })
-      store.availableItems = [repo]
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-        branchName: 'new-branch',
-        action: 'created',
-      })
-
-      const result = await store.checkoutBranch('repo-1', 'new-branch', false)
-
-      expect(mockShowSuccessToast).toHaveBeenCalledWith('Git', '建立分支成功', 'new-branch')
-      expect(result.action).toBe('created')
-    })
-
-    it('force 參數應傳遞到 payload', async () => {
-      const store = useRepositoryStore()
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-        branchName: 'develop',
-        action: 'switched',
-      })
 
       await store.checkoutBranch('repo-1', 'develop', true)
 
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'repository:checkout-branch',
-        responseEvent: 'repository:branch:checked-out',
-        payload: {
-          canvasId: 'canvas-1',
-          repositoryId: 'repo-1',
-          branchName: 'develop',
+      expect(wsClient.emit).toHaveBeenCalledWith(
+        'repository:checkout-branch',
+        expect.objectContaining({
           force: true,
-        },
-      })
+        })
+      )
     })
 
-    it('無 action 時應顯示預設切換 Toast', async () => {
+    it('不帶 force 參數時預設為 false', async () => {
+      const { mockWebSocketClient: wsClient } = await import('../../helpers/mockWebSocket')
       const store = useRepositoryStore()
-      const repo = createMockRepository({ id: 'repo-1' })
-      store.availableItems = [repo]
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-        branchName: 'develop',
-      })
+      await store.checkoutBranch('repo-1', 'develop')
 
-      await store.checkoutBranch('repo-1', 'develop', false)
-
-      expect(mockShowSuccessToast).toHaveBeenCalledWith('Git', '切換分支成功', 'develop')
+      expect(wsClient.emit).toHaveBeenCalledWith(
+        'repository:checkout-branch',
+        expect.objectContaining({
+          force: false,
+        })
+      )
     })
 
-    it('失敗時應顯示錯誤 Toast', async () => {
+    it('每次呼叫應回傳不同的 requestId', async () => {
       const store = useRepositoryStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: false,
-        error: '分支不存在',
-      })
+      const result1 = await store.checkoutBranch('repo-1', 'develop', false)
+      const result2 = await store.checkoutBranch('repo-1', 'main', false)
 
-      const result = await store.checkoutBranch('repo-1', 'non-existent', false)
-
-      expect(mockShowErrorToast).toHaveBeenCalledWith('Git', '切換分支失敗', '分支不存在')
-      expect(result).toEqual({
-        success: false,
-        branchName: undefined,
-        action: undefined,
-        error: '分支不存在',
-      })
-    })
-
-    it('回應為 null 時應顯示錯誤 Toast', async () => {
-      const store = useRepositoryStore()
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce(null)
-
-      const result = await store.checkoutBranch('repo-1', 'develop', false)
-
-      expect(mockShowErrorToast).toHaveBeenCalledWith('Git', '切換分支失敗')
-      expect(result).toEqual({
-        success: false,
-        error: '切換分支失敗',
-      })
-    })
-
-    it('repository 不存在時應正常執行', async () => {
-      const store = useRepositoryStore()
-      store.availableItems = []
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-        branchName: 'develop',
-        action: 'switched',
-      })
-
-      await store.checkoutBranch('non-existent', 'develop', false)
-
-      expect(mockShowSuccessToast).toHaveBeenCalledWith('Git', '切換分支成功', 'develop')
-      expect(store.availableItems).toHaveLength(0)
+      expect(result1.requestId).not.toBe(result2.requestId)
     })
   })
 

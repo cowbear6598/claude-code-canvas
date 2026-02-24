@@ -18,6 +18,13 @@ interface GitCloneOptions {
     onProgress?: (progress: GitCloneProgress) => void;
 }
 
+export type CheckoutProgressCallback = (progress: number, message: string) => void;
+
+export interface SmartCheckoutOptions {
+    force?: boolean;
+    onProgress?: CheckoutProgressCallback;
+}
+
 type GitSource = 'github' | 'gitlab' | 'other';
 
 const BRANCH_NAME_PATTERN = /^[a-zA-Z0-9_\-/]+$/;
@@ -35,6 +42,17 @@ function isValidBranchName(branchName: string): boolean {
 
 function parseGitErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+function getFetchStageMessage(stage: string): string {
+    const stageMessages: Record<string, string> = {
+        counting: '計算物件數量...',
+        compressing: '壓縮物件...',
+        receiving: '接收物件...',
+        resolving: '解析差異...',
+        writing: '寫入物件...',
+    };
+    return stageMessages[stage] || `處理中: ${stage}...`;
 }
 
 function getPullLatestError(errorMessage: string): string {
@@ -379,9 +397,20 @@ class GitService {
         return ok(result.data);
     }
 
-    async fetchRemoteBranch(workspacePath: string, branchName: string): Promise<Result<void>> {
+    async fetchRemoteBranch(
+        workspacePath: string,
+        branchName: string,
+        onProgress?: (progress: GitCloneProgress) => void
+    ): Promise<Result<void>> {
         return gitOperation(async () => {
-            const git = simpleGit(workspacePath);
+            const git = simpleGit({
+                baseDir: workspacePath,
+                progress: onProgress
+                    ? (event: SimpleGitProgressEvent): void => {
+                        onProgress({ stage: event.stage, progress: event.progress });
+                    }
+                    : undefined,
+            });
             await git.raw(['fetch', 'origin', `${branchName}:${branchName}`]);
         }, '從遠端 fetch 分支失敗');
     }
@@ -425,8 +454,10 @@ class GitService {
     async smartCheckoutBranch(
         workspacePath: string,
         branchName: string,
-        force?: boolean
+        options?: SmartCheckoutOptions
     ): Promise<Result<'switched' | 'fetched' | 'created'>> {
+        const { force, onProgress } = options ?? {};
+
         if (!isValidBranchName(branchName)) {
             return err('無效的分支名稱格式');
         }
@@ -436,7 +467,10 @@ class GitService {
             return err(localBranchExists.error!);
         }
 
+        onProgress?.(10, '檢查本地分支...');
+
         if (localBranchExists.data) {
+            onProgress?.(80, '切換分支...');
             const checkoutResult = await this.checkoutBranch(workspacePath, branchName, force);
             if (!checkoutResult.success) {
                 return err(checkoutResult.error!);
@@ -444,17 +478,23 @@ class GitService {
             return ok('switched');
         }
 
+        onProgress?.(20, '檢查遠端分支...');
         const remoteBranchExists = await this.checkRemoteBranchExists(workspacePath, branchName);
         if (!remoteBranchExists.success) {
             return err(remoteBranchExists.error!);
         }
 
         if (remoteBranchExists.data) {
-            const fetchResult = await this.fetchRemoteBranch(workspacePath, branchName);
+            const fetchResult = await this.fetchRemoteBranch(workspacePath, branchName, (progressData) => {
+                const mappedProgress = Math.floor(20 + progressData.progress * 0.6);
+                const stageMessage = getFetchStageMessage(progressData.stage);
+                onProgress?.(mappedProgress, stageMessage);
+            });
             if (!fetchResult.success) {
                 return err(fetchResult.error!);
             }
 
+            onProgress?.(80, '切換分支...');
             const checkoutResult = await this.checkoutBranch(workspacePath, branchName, force);
             if (!checkoutResult.success) {
                 return err(checkoutResult.error!);
@@ -462,6 +502,7 @@ class GitService {
             return ok('fetched');
         }
 
+        onProgress?.(80, '建立並切換分支...');
         const createResult = await this.createAndCheckoutBranch(workspacePath, branchName);
         if (!createResult.success) {
             return err(createResult.error!);

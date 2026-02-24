@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import {computed, onUnmounted, ref} from 'vue'
 import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
-import {useDeleteSelection, useGitCloneProgress, useNoteEventHandlers} from '@/composables/canvas'
+import {useDeleteSelection, useGitCloneProgress, useCheckoutProgress, useNoteEventHandlers} from '@/composables/canvas'
 import {isCtrlOrCmdPressed} from '@/utils/keyboardHelpers'
 import CanvasViewport from './CanvasViewport.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
 import GenericNote from './GenericNote.vue'
-import CloneProgressNote from './CloneProgressNote.vue'
+import ProgressNote from './ProgressNote.vue'
+import type { ProgressTask } from './ProgressNote.vue'
 import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
 import SelectionBox from './SelectionBox.vue'
@@ -63,6 +64,7 @@ const {
 useDeleteSelection()
 
 const gitCloneProgress = useGitCloneProgress()
+const checkoutProgress = useCheckoutProgress()
 
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
 
@@ -352,6 +354,17 @@ const handleCloneStarted = (payload: { requestId: string; repoName: string }): v
   gitCloneProgress.addTask(payload.requestId, payload.repoName)
 }
 
+const allProgressTasks = computed<Map<string, ProgressTask>>(() => {
+  const result = new Map<string, ProgressTask>()
+  for (const [key, task] of gitCloneProgress.progressTasks.value) {
+    result.set(key, task)
+  }
+  for (const [key, task] of checkoutProgress.progressTasks.value) {
+    result.set(key, task)
+  }
+  return result
+})
+
 const handleOpenCreateModal = (resourceType: ResourceType, title: string): void => {
   lastMenuPosition.value = podStore.typeMenu.position
   editModal.value = {
@@ -576,6 +589,7 @@ const handleNoteDoubleClick = (data: {
 
 onUnmounted(() => {
   gitCloneProgress.cleanupListeners()
+  checkoutProgress.cleanupListeners()
 })
 </script>
 
@@ -666,8 +680,8 @@ onUnmounted(() => {
     <EmptyState v-if="isCanvasEmpty" />
   </CanvasViewport>
 
-  <!-- Clone Progress Panel - Fixed at bottom-right corner -->
-  <CloneProgressNote :tasks="gitCloneProgress.cloneTasks.value" />
+  <!-- Progress Panel - Fixed at bottom-right corner -->
+  <ProgressNote :tasks="allProgressTasks" />
 
   <!-- Pod 類型選單 - 放在 transform 容器外面 -->
   <PodTypeMenu

@@ -1,9 +1,10 @@
 import type { Repository, RepositoryNote } from '@/types'
 import { createNoteStore } from './createNoteStore'
-import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
+import { websocketClient, WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useToast } from '@/composables/useToast'
+import { generateRequestId } from '@/services/utils'
 import type {
   RepositoryCreatePayload,
   RepositoryCreatedPayload,
@@ -16,18 +17,11 @@ import type {
   RepositoryCheckDirtyPayload,
   RepositoryDirtyCheckResultPayload,
   RepositoryCheckoutBranchPayload,
-  RepositoryBranchCheckedOutPayload,
   RepositoryDeleteBranchPayload,
   RepositoryBranchDeletedPayload,
   RepositoryPullLatestPayload,
   RepositoryPullLatestResultPayload
 } from '@/types/websocket'
-
-const CHECKOUT_ACTION_MAP: Record<'switched' | 'fetched' | 'created', string> = {
-  'switched': '切換',
-  'fetched': '拉取',
-  'created': '建立'
-}
 
 interface RepositoryStoreCustomActions {
   createRepository(name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }>
@@ -37,7 +31,7 @@ interface RepositoryStoreCustomActions {
   createWorktree(repositoryId: string, worktreeName: string, sourceNotePosition: { x: number; y: number }): Promise<{ success: boolean; error?: string }>
   getLocalBranches(repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; worktreeBranches?: string[]; error?: string }>
   checkDirty(repositoryId: string): Promise<{ success: boolean; isDirty?: boolean; error?: string }>
-  checkoutBranch(repositoryId: string, branchName: string, force?: boolean): Promise<{ success: boolean; branchName?: string; action?: 'switched' | 'fetched' | 'created'; error?: string }>
+  checkoutBranch(repositoryId: string, branchName: string, force?: boolean): Promise<{ requestId: string }>
   deleteBranch(repositoryId: string, branchName: string): Promise<{ success: boolean; branchName?: string; error?: string }>
   pullLatest(repositoryId: string): Promise<{ success: boolean; error?: string }>
   isWorktree(repositoryId: string): boolean
@@ -256,47 +250,22 @@ const store = createNoteStore<Repository, RepositoryNote>({
       }
     },
 
-    async checkoutBranch(this, repositoryId: string, branchName: string, force: boolean = false): Promise<{ success: boolean; branchName?: string; action?: 'switched' | 'fetched' | 'created'; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const { showSuccessToast, showErrorToast } = useToast()
+    async checkoutBranch(this, repositoryId: string, branchName: string, force: boolean = false): Promise<{ requestId: string }> {
       const canvasStore = useCanvasStore()
+      const requestId = generateRequestId()
 
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<RepositoryCheckoutBranchPayload, RepositoryBranchCheckedOutPayload>({
-          requestEvent: WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
-          responseEvent: WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
-          payload: {
-            canvasId: canvasStore.activeCanvasId!,
-            repositoryId,
-            branchName,
-            force
-          }
-        })
+      websocketClient.emit<RepositoryCheckoutBranchPayload>(
+        WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
+        {
+          requestId,
+          canvasId: canvasStore.activeCanvasId!,
+          repositoryId,
+          branchName,
+          force
+        }
       )
 
-      if (!response) {
-        showErrorToast('Git', '切換分支失敗')
-        return { success: false, error: '切換分支失敗' }
-      }
-
-      if (response.success && response.branchName) {
-        const existingRepository = this.availableItems.find((item: Repository) => item.id === repositoryId)
-        if (existingRepository) {
-          existingRepository.currentBranch = response.branchName
-        }
-
-        const actionText = response.action ? CHECKOUT_ACTION_MAP[response.action] : '切換'
-        showSuccessToast('Git', `${actionText}分支成功`, branchName)
-      } else if (!response.success && response.error) {
-        showErrorToast('Git', '切換分支失敗', response.error)
-      }
-
-      return {
-        success: response.success,
-        branchName: response.branchName,
-        action: response.action,
-        error: response.error
-      }
+      return { requestId }
     },
 
     async deleteBranch(this, repositoryId: string, branchName: string): Promise<{ success: boolean; branchName?: string; error?: string }> {
