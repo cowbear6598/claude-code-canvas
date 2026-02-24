@@ -19,12 +19,20 @@ vi.mock('@/services/websocket', async () => {
 })
 
 // Mock useToast
-vi.mock('@/composables/useToast', () => ({
-  useToast: () => ({
-    showSuccessToast: vi.fn(),
-    showErrorToast: vi.fn(),
-  }),
-}))
+vi.mock('@/composables/useToast', () => {
+  const mockShowSuccessToast = vi.fn()
+  const mockShowErrorToast = vi.fn()
+  return {
+    useToast: () => ({
+      showSuccessToast: mockShowSuccessToast,
+      showErrorToast: mockShowErrorToast,
+    }),
+    mockShowSuccessToast,
+    mockShowErrorToast,
+  }
+})
+
+const { mockShowSuccessToast, mockShowErrorToast } = await import('@/composables/useToast')
 
 describe('outputStyleStore 自訂 actions', () => {
   beforeEach(() => {
@@ -60,7 +68,7 @@ describe('outputStyleStore 自訂 actions', () => {
       })
       expect(store.availableItems).toHaveLength(1)
       expect(store.availableItems[0]).toEqual(newOutputStyle)
-      // expect(mockShowSuccessToast).toHaveBeenCalledWith('OutputStyle', '建立成功', 'New Style')
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('OutputStyle', '建立成功', 'New Style')
       expect(result).toEqual({
         success: true,
         outputStyle: newOutputStyle,
@@ -76,7 +84,7 @@ describe('outputStyleStore 自訂 actions', () => {
       const result = await store.createOutputStyle('New Style', 'content here')
 
       expect(store.availableItems).toHaveLength(0)
-      // expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '建立失敗', '建立 Output Style 失敗')
+      expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '建立失敗', '建立 Output Style 失敗')
       expect(result).toEqual({
         success: false,
         error: '建立 Output Style 失敗',
@@ -94,7 +102,7 @@ describe('outputStyleStore 自訂 actions', () => {
       const result = await store.createOutputStyle('Existing', 'content')
 
       expect(store.availableItems).toHaveLength(0)
-      // expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '建立失敗', '檔案已存在')
+      expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '建立失敗', '檔案已存在')
       expect(result).toEqual({
         success: false,
         error: '檔案已存在',
@@ -126,7 +134,7 @@ describe('outputStyleStore 自訂 actions', () => {
       })
       expect(store.availableItems).toHaveLength(1)
       expect(store.availableItems[0]).toEqual(updatedStyle)
-      // expect(mockShowSuccessToast).toHaveBeenCalledWith('OutputStyle', '更新成功', 'Updated Style')
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('OutputStyle', '更新成功', 'Updated Style')
       expect(result).toEqual({
         success: true,
         outputStyle: updatedStyle,
@@ -143,7 +151,7 @@ describe('outputStyleStore 自訂 actions', () => {
       const result = await store.updateOutputStyle('style-1', 'content')
 
       expect(store.availableItems[0]).toEqual(existingStyle)
-      // expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '更新失敗', '更新 Output Style 失敗')
+      expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '更新失敗', '更新 Output Style 失敗')
       expect(result).toEqual({
         success: false,
         error: '更新 Output Style 失敗',
@@ -160,7 +168,7 @@ describe('outputStyleStore 自訂 actions', () => {
 
       const result = await store.updateOutputStyle('style-1', 'content')
 
-      // expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '更新失敗', '檔案不存在')
+      expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '更新失敗', '檔案不存在')
       expect(result).toEqual({
         success: false,
         error: '檔案不存在',
@@ -378,7 +386,7 @@ describe('outputStyleStore 自訂 actions', () => {
   })
 
   describe('群組操作', () => {
-    describe('loadOutputStyleGroups', () => {
+    describe('loadGroups', () => {
       it('成功時應載入並設定 groups', async () => {
         const store = useOutputStyleStore()
         store.groups = []
@@ -390,7 +398,7 @@ describe('outputStyleStore 自訂 actions', () => {
 
         mockCreateWebSocketRequest.mockResolvedValueOnce({ groups })
 
-        await store.loadOutputStyleGroups()
+        await store.loadGroups()
 
         expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
           requestEvent: 'group:list',
@@ -409,25 +417,38 @@ describe('outputStyleStore 自訂 actions', () => {
 
         const store = useOutputStyleStore()
 
-        await store.loadOutputStyleGroups()
+        await store.loadGroups()
 
         expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
       })
 
-      it('回應為空時不應更新 groups', async () => {
+      it('回應為空時不應更新 groups 並顯示錯誤 Toast', async () => {
         const store = useOutputStyleStore()
         const originalGroups: Group[] = [{ id: 'group-1', name: 'Original', type: 'output-style' }]
         store.groups = [...originalGroups]
 
         mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-        await store.loadOutputStyleGroups()
+        await store.loadGroups()
+
+        expect(store.groups).toEqual(originalGroups)
+        expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '載入群組失敗')
+      })
+
+      it('回應有值但無 groups 欄位時不應更新 groups', async () => {
+        const store = useOutputStyleStore()
+        const originalGroups: Group[] = [{ id: 'group-1', name: 'Original', type: 'output-style' }]
+        store.groups = [...originalGroups]
+
+        mockCreateWebSocketRequest.mockResolvedValueOnce({})
+
+        await store.loadGroups()
 
         expect(store.groups).toEqual(originalGroups)
       })
     })
 
-    describe('createOutputStyleGroup', () => {
+    describe('createGroup', () => {
       it('成功時應建立並加入 groups', async () => {
         const store = useOutputStyleStore()
         store.groups = []
@@ -438,7 +459,7 @@ describe('outputStyleStore 自訂 actions', () => {
           group: newGroup,
         })
 
-        const result = await store.createOutputStyleGroup('New Group')
+        const result = await store.createGroup('New Group')
 
         expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
           requestEvent: 'group:create',
@@ -463,7 +484,7 @@ describe('outputStyleStore 自訂 actions', () => {
 
         const store = useOutputStyleStore()
 
-        const result = await store.createOutputStyleGroup('New Group')
+        const result = await store.createGroup('New Group')
 
         expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
         expect(result).toEqual({
@@ -472,21 +493,22 @@ describe('outputStyleStore 自訂 actions', () => {
         })
       })
 
-      it('回應為空時應回傳錯誤', async () => {
+      it('回應為空時應回傳錯誤並顯示錯誤 Toast', async () => {
         const store = useOutputStyleStore()
 
         mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-        const result = await store.createOutputStyleGroup('New Group')
+        const result = await store.createGroup('New Group')
 
         expect(result).toEqual({
           success: false,
           error: '建立群組失敗',
         })
+        expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '建立群組失敗')
       })
     })
 
-    describe('updateOutputStyleGroup', () => {
+    describe('updateGroup', () => {
       it('成功時應更新 groups', async () => {
         const store = useOutputStyleStore()
         const existingGroup: Group = { id: 'group-1', name: 'Original', type: 'output-style' }
@@ -498,7 +520,7 @@ describe('outputStyleStore 自訂 actions', () => {
           group: updatedGroup,
         })
 
-        const result = await store.updateOutputStyleGroup('group-1', 'Updated')
+        const result = await store.updateGroup('group-1', 'Updated')
 
         expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
           requestEvent: 'group:update',
@@ -522,7 +544,7 @@ describe('outputStyleStore 自訂 actions', () => {
 
         const store = useOutputStyleStore()
 
-        const result = await store.updateOutputStyleGroup('group-1', 'Updated')
+        const result = await store.updateGroup('group-1', 'Updated')
 
         expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
         expect(result).toEqual({
@@ -531,21 +553,22 @@ describe('outputStyleStore 自訂 actions', () => {
         })
       })
 
-      it('回應為空時應回傳錯誤', async () => {
+      it('回應為空時應回傳錯誤並顯示錯誤 Toast', async () => {
         const store = useOutputStyleStore()
 
         mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-        const result = await store.updateOutputStyleGroup('group-1', 'Updated')
+        const result = await store.updateGroup('group-1', 'Updated')
 
         expect(result).toEqual({
           success: false,
           error: '更新群組失敗',
         })
+        expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '更新群組失敗')
       })
     })
 
-    describe('deleteOutputStyleGroup', () => {
+    describe('deleteGroup', () => {
       it('成功時應從 groups 中刪除', async () => {
         const store = useOutputStyleStore()
         store.groups = [
@@ -558,7 +581,7 @@ describe('outputStyleStore 自訂 actions', () => {
           groupId: 'group-1',
         })
 
-        const result = await store.deleteOutputStyleGroup('group-1')
+        const result = await store.deleteGroup('group-1')
 
         expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
           requestEvent: 'group:delete',
@@ -579,7 +602,7 @@ describe('outputStyleStore 自訂 actions', () => {
 
         const store = useOutputStyleStore()
 
-        const result = await store.deleteOutputStyleGroup('group-1')
+        const result = await store.deleteGroup('group-1')
 
         expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
         expect(result).toEqual({
@@ -588,21 +611,22 @@ describe('outputStyleStore 自訂 actions', () => {
         })
       })
 
-      it('回應為空時應回傳錯誤', async () => {
+      it('回應為空時應回傳錯誤並顯示錯誤 Toast', async () => {
         const store = useOutputStyleStore()
 
         mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-        const result = await store.deleteOutputStyleGroup('group-1')
+        const result = await store.deleteGroup('group-1')
 
         expect(result).toEqual({
           success: false,
           error: '刪除群組失敗',
         })
+        expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '刪除群組失敗')
       })
     })
 
-    describe('moveOutputStyleToGroup', () => {
+    describe('moveItemToGroup', () => {
       it('成功時應更新 item 的 groupId', async () => {
         const store = useOutputStyleStore()
         store.availableItems = [
@@ -616,7 +640,7 @@ describe('outputStyleStore 自訂 actions', () => {
           groupId: 'group-1',
         })
 
-        const result = await store.moveOutputStyleToGroup('style-1', 'group-1')
+        const result = await store.moveItemToGroup('style-1', 'group-1')
 
         expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
           requestEvent: 'output-style:move-to-group',
@@ -643,7 +667,7 @@ describe('outputStyleStore 自訂 actions', () => {
           groupId: null,
         })
 
-        const result = await store.moveOutputStyleToGroup('style-1', null)
+        const result = await store.moveItemToGroup('style-1', null)
 
         expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
           requestEvent: 'output-style:move-to-group',
@@ -664,7 +688,7 @@ describe('outputStyleStore 自訂 actions', () => {
 
         const store = useOutputStyleStore()
 
-        const result = await store.moveOutputStyleToGroup('style-1', 'group-1')
+        const result = await store.moveItemToGroup('style-1', 'group-1')
 
         expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
         expect(result).toEqual({
@@ -673,17 +697,18 @@ describe('outputStyleStore 自訂 actions', () => {
         })
       })
 
-      it('回應為空時應回傳錯誤', async () => {
+      it('回應為空時應回傳錯誤並顯示錯誤 Toast', async () => {
         const store = useOutputStyleStore()
 
         mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-        const result = await store.moveOutputStyleToGroup('style-1', 'group-1')
+        const result = await store.moveItemToGroup('style-1', 'group-1')
 
         expect(result).toEqual({
           success: false,
           error: '移動失敗',
         })
+        expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '移動失敗')
       })
     })
   })

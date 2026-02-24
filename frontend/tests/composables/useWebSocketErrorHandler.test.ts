@@ -118,19 +118,14 @@ describe('useWebSocketErrorHandler', () => {
       expect(mockToast).not.toHaveBeenCalled()
     })
 
-    it('失敗時應呼叫 handleWebSocketError', async () => {
+    it('失敗時不顯示 toast，僅回傳 null', async () => {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
       const error = new Error('Request failed')
       const promise = Promise.reject(error)
 
       await wrapWebSocketRequest(promise)
 
-      expect(mockSanitizeErrorForUser).toHaveBeenCalledWith(error)
-      expect(mockToast).toHaveBeenCalledWith({
-        title: '操作失敗',
-        description: 'Request failed',
-        variant: 'destructive',
-      })
+      expect(mockToast).not.toHaveBeenCalled()
     })
 
     it('失敗時應回傳 null', async () => {
@@ -143,18 +138,14 @@ describe('useWebSocketErrorHandler', () => {
       expect(result).toBeNull()
     })
 
-    it('失敗時應允許自訂 errorTitle', async () => {
+    it('失敗時不顯示 toast（不論有無傳入參數）', async () => {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
       const error = new Error('Request failed')
       const promise = Promise.reject(error)
 
-      await wrapWebSocketRequest(promise, '自訂錯誤標題')
+      await wrapWebSocketRequest(promise)
 
-      expect(mockToast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: '自訂錯誤標題',
-        })
-      )
+      expect(mockToast).not.toHaveBeenCalled()
     })
 
     it('應支援泛型回傳型別（字串）', async () => {
@@ -213,7 +204,7 @@ describe('useWebSocketErrorHandler', () => {
       expect(result).toEqual({ result: 'async success' })
     })
 
-    it('應正確處理 async function 拋出的錯誤', async () => {
+    it('應正確處理 async function 拋出的錯誤（回傳 null，不顯示 toast）', async () => {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
       const asyncFunc = async () => {
         await new Promise((resolve) => setTimeout(resolve, 10))
@@ -223,11 +214,7 @@ describe('useWebSocketErrorHandler', () => {
       const result = await wrapWebSocketRequest(asyncFunc())
 
       expect(result).toBeNull()
-      expect(mockToast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          description: 'Async error',
-        })
-      )
+      expect(mockToast).not.toHaveBeenCalled()
     })
   })
 })

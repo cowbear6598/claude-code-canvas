@@ -2,6 +2,7 @@ import type { OutputStyleListItem, OutputStyleNote, Pod } from '@/types'
 import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
 import { createResourceCRUDActions } from './createResourceCRUDActions'
+import { createGroupCRUDActions } from './createGroupCRUDActions'
 import { useCanvasStore } from '@/stores/canvasStore'
 import type {
   NoteCreatePayload,
@@ -9,19 +10,8 @@ import type {
   OutputStyleCreatedPayload,
   OutputStyleUpdatedPayload,
   OutputStyleReadResultPayload,
-  GroupCreatePayload,
-  GroupCreatedPayload,
-  GroupListPayload,
-  GroupListResultPayload,
-  GroupUpdatePayload,
-  GroupUpdatedPayload,
-  GroupDeletePayload,
-  GroupDeletedPayload,
-  MoveToGroupPayload,
-  MovedToGroupPayload
 } from '@/types/websocket'
 import type { Group } from '@/types'
-import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 
 interface OutputStyleStoreCustomActions {
   rebuildNotesFromPods(pods: Pod[]): Promise<void>
@@ -30,12 +20,22 @@ interface OutputStyleStoreCustomActions {
   readOutputStyle(outputStyleId: string): Promise<{ id: string; name: string; content: string } | null>
   deleteOutputStyle(outputStyleId: string): Promise<void>
   loadOutputStyles(): Promise<void>
-  loadOutputStyleGroups(): Promise<void>
-  createOutputStyleGroup(name: string): Promise<{ success: boolean; group?: Group; error?: string }>
-  updateOutputStyleGroup(groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }>
-  deleteOutputStyleGroup(groupId: string): Promise<{ success: boolean; error?: string }>
-  moveOutputStyleToGroup(outputStyleId: string, groupId: string | null): Promise<{ success: boolean; error?: string }>
+  loadGroups(): Promise<void>
+  createGroup(name: string): Promise<{ success: boolean; group?: Group; error?: string }>
+  updateGroup(groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }>
+  deleteGroup(groupId: string): Promise<{ success: boolean; error?: string }>
+  moveItemToGroup(outputStyleId: string, groupId: string | null): Promise<{ success: boolean; error?: string }>
 }
+
+const outputStyleGroupCRUD = createGroupCRUDActions({
+  storeName: 'OutputStyleStore',
+  groupType: 'output-style',
+  toastCategory: 'OutputStyle',
+  moveItemToGroupEvents: {
+    request: WebSocketRequestEvents.OUTPUT_STYLE_MOVE_TO_GROUP,
+    response: WebSocketResponseEvents.OUTPUT_STYLE_MOVED_TO_GROUP,
+  },
+})
 
 const outputStyleCRUD = createResourceCRUDActions<OutputStyleListItem>(
   'Output Style',
@@ -204,172 +204,11 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
       return this.loadItems()
     },
 
-    async loadOutputStyleGroups(this): Promise<void> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        console.warn('[OutputStyleStore] Cannot load groups: no active canvas')
-        return
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupListPayload, GroupListResultPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_LIST,
-          responseEvent: WebSocketResponseEvents.GROUP_LIST_RESULT,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            type: 'output-style'
-          }
-        }),
-        '載入 Output Style 群組失敗'
-      )
-
-      if (response?.groups) {
-        this.groups = response.groups
-      }
-    },
-
-    async createOutputStyleGroup(this, name: string): Promise<{ success: boolean; group?: Group; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupCreatePayload, GroupCreatedPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_CREATE,
-          responseEvent: WebSocketResponseEvents.GROUP_CREATED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            name,
-            type: 'output-style'
-          }
-        }),
-        '建立 Output Style 群組失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '建立群組失敗' }
-      }
-
-      if (response.group) {
-        this.addGroupFromEvent(response.group)
-      }
-
-      return {
-        success: response.success,
-        group: response.group as Group,
-        error: response.error
-      }
-    },
-
-    async updateOutputStyleGroup(this, groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupUpdatePayload, GroupUpdatedPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_UPDATE,
-          responseEvent: WebSocketResponseEvents.GROUP_UPDATED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            groupId,
-            name
-          }
-        }),
-        '更新 Output Style 群組失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '更新群組失敗' }
-      }
-
-      if (response.group) {
-        this.updateGroupFromEvent(response.group)
-      }
-
-      return {
-        success: response.success,
-        group: response.group as Group,
-        error: response.error
-      }
-    },
-
-    async deleteOutputStyleGroup(this, groupId: string): Promise<{ success: boolean; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupDeletePayload, GroupDeletedPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_DELETE,
-          responseEvent: WebSocketResponseEvents.GROUP_DELETED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            groupId
-          }
-        }),
-        '刪除 Output Style 群組失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '刪除群組失敗' }
-      }
-
-      if (response.success && response.groupId) {
-        this.removeGroupFromEvent(response.groupId)
-      }
-
-      return {
-        success: response.success,
-        error: response.error
-      }
-    },
-
-    async moveOutputStyleToGroup(this, outputStyleId: string, groupId: string | null): Promise<{ success: boolean; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<MoveToGroupPayload, MovedToGroupPayload>({
-          requestEvent: WebSocketRequestEvents.OUTPUT_STYLE_MOVE_TO_GROUP,
-          responseEvent: WebSocketResponseEvents.OUTPUT_STYLE_MOVED_TO_GROUP,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            itemId: outputStyleId,
-            groupId
-          }
-        }),
-        '移動 Output Style 失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '移動失敗' }
-      }
-
-      if (response.success && response.itemId) {
-        this.updateItemGroupId(response.itemId, response.groupId ?? null)
-      }
-
-      return {
-        success: response.success,
-        error: response.error
-      }
-    },
+    loadGroups: outputStyleGroupCRUD.loadGroups,
+    createGroup: outputStyleGroupCRUD.createGroup,
+    updateGroup: outputStyleGroupCRUD.updateGroup,
+    deleteGroup: outputStyleGroupCRUD.deleteGroup,
+    moveItemToGroup: outputStyleGroupCRUD.moveItemToGroup,
   }
 })
 

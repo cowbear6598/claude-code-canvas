@@ -61,8 +61,7 @@ export function createHistoryActions(store: ChatStoreInstance, messageActions: M
                     podId
                 },
                 timeout: HISTORY_LOAD_TIMEOUT_MS
-            }),
-            '載入聊天歷史失敗'
+            })
         )
 
         if (!response) {

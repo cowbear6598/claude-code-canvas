@@ -38,7 +38,7 @@ interface RepositoryStoreCustomActions {
   getLocalBranches(repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; worktreeBranches?: string[]; error?: string }>
   checkDirty(repositoryId: string): Promise<{ success: boolean; isDirty?: boolean; error?: string }>
   checkoutBranch(repositoryId: string, branchName: string, force?: boolean): Promise<{ success: boolean; branchName?: string; action?: 'switched' | 'fetched' | 'created'; error?: string }>
-  deleteBranch(repositoryId: string, branchName: string, force?: boolean): Promise<{ success: boolean; branchName?: string; error?: string }>
+  deleteBranch(repositoryId: string, branchName: string): Promise<{ success: boolean; branchName?: string; error?: string }>
   pullLatest(repositoryId: string): Promise<{ success: boolean; error?: string }>
   isWorktree(repositoryId: string): boolean
 }
@@ -101,8 +101,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
             canvasId: canvasStore.activeCanvasId!,
             name
           }
-        }),
-        '建立資料夾失敗'
+        })
       )
 
       if (!response) {
@@ -141,8 +140,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
             canvasId: canvasStore.activeCanvasId!,
             repositoryId
           }
-        }),
-        '檢查 Git Repository 失敗'
+        })
       )
 
       if (!response || !response.success) {
@@ -171,8 +169,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
             repositoryId,
             worktreeName
           }
-        }),
-        '建立 Worktree 失敗'
+        })
       )
 
       if (!response) {
@@ -203,6 +200,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
 
     async getLocalBranches(this, repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; worktreeBranches?: string[]; error?: string }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const { showErrorToast } = useToast()
       const canvasStore = useCanvasStore()
 
       const response = await wrapWebSocketRequest(
@@ -213,11 +211,11 @@ const store = createNoteStore<Repository, RepositoryNote>({
             canvasId: canvasStore.activeCanvasId!,
             repositoryId
           }
-        }),
-        '取得分支列表失敗'
+        })
       )
 
       if (!response) {
+        showErrorToast('Git', '取得分支列表失敗')
         return { success: false, error: '取得分支列表失敗' }
       }
 
@@ -232,6 +230,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
 
     async checkDirty(this, repositoryId: string): Promise<{ success: boolean; isDirty?: boolean; error?: string }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const { showErrorToast } = useToast()
       const canvasStore = useCanvasStore()
 
       const response = await wrapWebSocketRequest(
@@ -242,11 +241,11 @@ const store = createNoteStore<Repository, RepositoryNote>({
             canvasId: canvasStore.activeCanvasId!,
             repositoryId
           }
-        }),
-        '檢查修改狀態失敗'
+        })
       )
 
       if (!response) {
+        showErrorToast('Git', '檢查修改狀態失敗')
         return { success: false, error: '檢查修改狀態失敗' }
       }
 
@@ -272,8 +271,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
             branchName,
             force
           }
-        }),
-        '切換分支失敗'
+        })
       )
 
       if (!response) {
@@ -301,7 +299,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
       }
     },
 
-    async deleteBranch(this, repositoryId: string, branchName: string, force: boolean = false): Promise<{ success: boolean; branchName?: string; error?: string }> {
+    async deleteBranch(this, repositoryId: string, branchName: string): Promise<{ success: boolean; branchName?: string; error?: string }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
       const { showSuccessToast, showErrorToast } = useToast()
       const canvasStore = useCanvasStore()
@@ -314,10 +312,9 @@ const store = createNoteStore<Repository, RepositoryNote>({
             canvasId: canvasStore.activeCanvasId!,
             repositoryId,
             branchName,
-            force
+            force: true
           }
-        }),
-        '刪除分支失敗'
+        })
       )
 
       if (!response) {
@@ -351,8 +348,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
             canvasId: canvasStore.activeCanvasId!,
             repositoryId
           }
-        }),
-        'Pull 失敗'
+        })
       )
 
       if (!response) {

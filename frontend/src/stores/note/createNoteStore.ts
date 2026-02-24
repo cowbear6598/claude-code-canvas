@@ -191,8 +191,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                         payload: {
                             canvasId: canvasStore.activeCanvasId
                         }
-                    }),
-                    '載入項目失敗'
+                    })
                 )
 
                 this.isLoading = false
@@ -227,8 +226,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                         payload: {
                             canvasId: canvasStore.activeCanvasId
                         }
-                    }),
-                    '載入筆記失敗'
+                    })
                 )
 
                 this.isLoading = false
@@ -301,8 +299,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                             x,
                             y,
                         }
-                    }),
-                    '更新位置失敗'
+                    })
                 )
 
                 if (!response) {
@@ -436,8 +433,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                             canvasId: canvasStore.activeCanvasId!,
                             noteId,
                         }
-                    }),
-                    '刪除筆記失敗'
+                    })
                 )
             },
 

@@ -651,7 +651,7 @@ describe('repositoryStore', () => {
   })
 
   describe('deleteBranch', () => {
-    it('成功時應顯示成功 Toast', async () => {
+    it('成功時應顯示成功 Toast，且 force 固定為 true', async () => {
       const store = useRepositoryStore()
 
       mockCreateWebSocketRequest.mockResolvedValueOnce({
@@ -659,35 +659,7 @@ describe('repositoryStore', () => {
         branchName: 'feature-1',
       })
 
-      const result = await store.deleteBranch('repo-1', 'feature-1', false)
-
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'repository:delete-branch',
-        responseEvent: 'repository:branch:deleted',
-        payload: {
-          canvasId: 'canvas-1',
-          repositoryId: 'repo-1',
-          branchName: 'feature-1',
-          force: false,
-        },
-      })
-      expect(mockShowSuccessToast).toHaveBeenCalledWith('Git', '刪除分支成功', 'feature-1')
-      expect(result).toEqual({
-        success: true,
-        branchName: 'feature-1',
-        error: undefined,
-      })
-    })
-
-    it('force 參數應傳遞到 payload', async () => {
-      const store = useRepositoryStore()
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-        branchName: 'feature-1',
-      })
-
-      await store.deleteBranch('repo-1', 'feature-1', true)
+      const result = await store.deleteBranch('repo-1', 'feature-1')
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'repository:delete-branch',
@@ -699,6 +671,12 @@ describe('repositoryStore', () => {
           force: true,
         },
       })
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('Git', '刪除分支成功', 'feature-1')
+      expect(result).toEqual({
+        success: true,
+        branchName: 'feature-1',
+        error: undefined,
+      })
     })
 
     it('失敗時應顯示錯誤 Toast', async () => {
@@ -709,7 +687,7 @@ describe('repositoryStore', () => {
         error: '分支尚未合併',
       })
 
-      const result = await store.deleteBranch('repo-1', 'feature-1', false)
+      const result = await store.deleteBranch('repo-1', 'feature-1')
 
       expect(mockShowErrorToast).toHaveBeenCalledWith('Git', '刪除分支失敗', '分支尚未合併')
       expect(result).toEqual({
@@ -724,7 +702,7 @@ describe('repositoryStore', () => {
 
       mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-      const result = await store.deleteBranch('repo-1', 'feature-1', false)
+      const result = await store.deleteBranch('repo-1', 'feature-1')
 
       expect(mockShowErrorToast).toHaveBeenCalledWith('Git', '刪除分支失敗')
       expect(result).toEqual({

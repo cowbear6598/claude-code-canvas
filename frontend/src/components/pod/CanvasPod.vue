@@ -397,8 +397,7 @@ const handleClearWorkflow = async (): Promise<void> => {
           canvasId: canvasStore.activeCanvasId,
           sourcePodId: props.pod.id
         }
-      }),
-      '取得下游 Pod 失敗'
+      })
   )
 
   isLoadingDownstream.value = false
@@ -426,8 +425,7 @@ const handleConfirmClear = async (): Promise<void> => {
           canvasId: canvasStore.activeCanvasId,
           sourcePodId: props.pod.id
         }
-      }),
-      '清理 Workflow 失敗'
+      })
   )
 
   isClearing.value = false
@@ -473,8 +471,7 @@ const handleModelChange = async (model: ModelType): Promise<void> => {
           podId: props.pod.id,
           model
         }
-      }),
-      '更新模型失敗'
+      })
   )
 
   if (!response) return

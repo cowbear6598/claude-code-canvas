@@ -964,7 +964,7 @@ describe('createNoteStore', () => {
       expect(mockShowSuccessToast).toHaveBeenCalledWith('Note', '刪除成功', 'Item 1')
     })
 
-    it('WebSocket 失敗時應由 wrapWebSocketRequest 處理錯誤（顯示 Toast）', async () => {
+    it('WebSocket 失敗時靜默失敗，不顯示 Toast，項目保持不變', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const config = createTestConfig()
@@ -977,11 +977,7 @@ describe('createNoteStore', () => {
 
       await store.deleteItem('item-1')
 
-      expect(mockToast).toHaveBeenCalledWith({
-        title: '刪除項目失敗',
-        description: 'Delete failed',
-        variant: 'destructive',
-      })
+      expect(mockToast).not.toHaveBeenCalled()
       expect(store.availableItems).toHaveLength(1)
     })
 

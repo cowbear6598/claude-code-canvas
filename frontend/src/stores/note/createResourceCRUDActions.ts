@@ -71,8 +71,7 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
             name,
             content
           }
-        }),
-        `建立 ${resourceType} 失敗`
+        })
       )
 
       if (!response) {
@@ -116,8 +115,7 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
             canvasId: canvasStore.activeCanvasId!,
             ...config.getUpdatePayload(itemId, content)
           }
-        }),
-        `更新 ${resourceType} 失敗`
+        })
       )
 
       if (!response) {
@@ -159,8 +157,7 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
             canvasId: canvasStore.activeCanvasId!,
             ...config.getReadPayload(itemId)
           }
-        }),
-        `讀取 ${resourceType} 失敗`
+        })
       )
 
       if (!response) {

@@ -2,6 +2,7 @@ import type { Command, CommandNote, Pod } from '@/types'
 import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
 import { createResourceCRUDActions } from './createResourceCRUDActions'
+import { createGroupCRUDActions } from './createGroupCRUDActions'
 import { useCanvasStore } from '@/stores/canvasStore'
 import type {
   CommandNoteCreatePayload,
@@ -9,19 +10,8 @@ import type {
   CommandCreatedPayload,
   CommandUpdatedPayload,
   CommandReadResultPayload,
-  GroupCreatePayload,
-  GroupCreatedPayload,
-  GroupListPayload,
-  GroupListResultPayload,
-  GroupUpdatePayload,
-  GroupUpdatedPayload,
-  GroupDeletePayload,
-  GroupDeletedPayload,
-  MoveToGroupPayload,
-  MovedToGroupPayload
 } from '@/types/websocket'
 import type { Group } from '@/types'
-import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 
 interface CommandStoreCustomActions {
   rebuildNotesFromPods(pods: Pod[]): Promise<void>
@@ -30,12 +20,22 @@ interface CommandStoreCustomActions {
   readCommand(commandId: string): Promise<{ id: string; name: string; content: string } | null>
   deleteCommand(commandId: string): Promise<void>
   loadCommands(): Promise<void>
-  loadCommandGroups(): Promise<void>
-  createCommandGroup(name: string): Promise<{ success: boolean; group?: Group; error?: string }>
-  updateCommandGroup(groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }>
-  deleteCommandGroup(groupId: string): Promise<{ success: boolean; error?: string }>
-  moveCommandToGroup(commandId: string, groupId: string | null): Promise<{ success: boolean; error?: string }>
+  loadGroups(): Promise<void>
+  createGroup(name: string): Promise<{ success: boolean; group?: Group; error?: string }>
+  updateGroup(groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }>
+  deleteGroup(groupId: string): Promise<{ success: boolean; error?: string }>
+  moveItemToGroup(commandId: string, groupId: string | null): Promise<{ success: boolean; error?: string }>
 }
+
+const commandGroupCRUD = createGroupCRUDActions({
+  storeName: 'CommandStore',
+  groupType: 'command',
+  toastCategory: 'Command',
+  moveItemToGroupEvents: {
+    request: WebSocketRequestEvents.COMMAND_MOVE_TO_GROUP,
+    response: WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
+  },
+})
 
 const commandCRUD = createResourceCRUDActions<Command>(
   'Command',
@@ -204,172 +204,11 @@ const store = createNoteStore<Command, CommandNote>({
       return this.loadItems()
     },
 
-    async loadCommandGroups(this): Promise<void> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        console.warn('[CommandStore] Cannot load groups: no active canvas')
-        return
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupListPayload, GroupListResultPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_LIST,
-          responseEvent: WebSocketResponseEvents.GROUP_LIST_RESULT,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            type: 'command'
-          }
-        }),
-        '載入 Command 群組失敗'
-      )
-
-      if (response?.groups) {
-        this.groups = response.groups
-      }
-    },
-
-    async createCommandGroup(this, name: string): Promise<{ success: boolean; group?: Group; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupCreatePayload, GroupCreatedPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_CREATE,
-          responseEvent: WebSocketResponseEvents.GROUP_CREATED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            name,
-            type: 'command'
-          }
-        }),
-        '建立 Command 群組失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '建立群組失敗' }
-      }
-
-      if (response.group) {
-        this.addGroupFromEvent(response.group)
-      }
-
-      return {
-        success: response.success,
-        group: response.group as Group,
-        error: response.error
-      }
-    },
-
-    async updateCommandGroup(this, groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupUpdatePayload, GroupUpdatedPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_UPDATE,
-          responseEvent: WebSocketResponseEvents.GROUP_UPDATED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            groupId,
-            name
-          }
-        }),
-        '更新 Command 群組失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '更新群組失敗' }
-      }
-
-      if (response.group) {
-        this.updateGroupFromEvent(response.group)
-      }
-
-      return {
-        success: response.success,
-        group: response.group as Group,
-        error: response.error
-      }
-    },
-
-    async deleteCommandGroup(this, groupId: string): Promise<{ success: boolean; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupDeletePayload, GroupDeletedPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_DELETE,
-          responseEvent: WebSocketResponseEvents.GROUP_DELETED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            groupId
-          }
-        }),
-        '刪除 Command 群組失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '刪除群組失敗' }
-      }
-
-      if (response.success && response.groupId) {
-        this.removeGroupFromEvent(response.groupId)
-      }
-
-      return {
-        success: response.success,
-        error: response.error
-      }
-    },
-
-    async moveCommandToGroup(this, commandId: string, groupId: string | null): Promise<{ success: boolean; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<MoveToGroupPayload, MovedToGroupPayload>({
-          requestEvent: WebSocketRequestEvents.COMMAND_MOVE_TO_GROUP,
-          responseEvent: WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            itemId: commandId,
-            groupId
-          }
-        }),
-        '移動 Command 失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '移動失敗' }
-      }
-
-      if (response.success && response.itemId) {
-        this.updateItemGroupId(response.itemId, response.groupId ?? null)
-      }
-
-      return {
-        success: response.success,
-        error: response.error
-      }
-    },
+    loadGroups: commandGroupCRUD.loadGroups,
+    createGroup: commandGroupCRUD.createGroup,
+    updateGroup: commandGroupCRUD.updateGroup,
+    deleteGroup: commandGroupCRUD.deleteGroup,
+    moveItemToGroup: commandGroupCRUD.moveItemToGroup,
   }
 })
 

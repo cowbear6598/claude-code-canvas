@@ -274,7 +274,7 @@ describe('subAgentStore', () => {
     })
   })
 
-  describe('loadSubAgentGroups', () => {
+  describe('loadGroups', () => {
     it('成功時應設定 groups', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -289,7 +289,7 @@ describe('subAgentStore', () => {
         groups,
       })
 
-      await store.loadSubAgentGroups()
+      await store.loadGroups()
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'group:list',
@@ -309,7 +309,7 @@ describe('subAgentStore', () => {
 
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      await store.loadSubAgentGroups()
+      await store.loadGroups()
 
       expect(warnSpy).toHaveBeenCalledWith('[SubAgentStore] Cannot load groups: no active canvas')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
@@ -326,13 +326,13 @@ describe('subAgentStore', () => {
 
       mockCreateWebSocketRequest.mockResolvedValueOnce({})
 
-      await store.loadSubAgentGroups()
+      await store.loadGroups()
 
       expect(store.groups).toHaveLength(1)
       expect(store.groups[0]?.id).toBe('existing-group')
     })
 
-    it('失敗時不應更新 groups', async () => {
+    it('失敗時不應更新 groups 並顯示錯誤 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useSubAgentStore()
@@ -341,14 +341,15 @@ describe('subAgentStore', () => {
 
       mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-      await store.loadSubAgentGroups()
+      await store.loadGroups()
 
       expect(store.groups).toHaveLength(1)
       expect(store.groups[0]?.id).toBe('existing-group')
+      expect(mockShowErrorToast).toHaveBeenCalledWith('SubAgent', '載入群組失敗')
     })
   })
 
-  describe('createSubAgentGroup', () => {
+  describe('createGroup', () => {
     it('成功時應回傳 success: true 並加入 groups', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -361,7 +362,7 @@ describe('subAgentStore', () => {
         group: newGroup,
       })
 
-      const result = await store.createSubAgentGroup('New Group')
+      const result = await store.createGroup('New Group')
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'group:create',
@@ -382,24 +383,25 @@ describe('subAgentStore', () => {
       canvasStore.activeCanvasId = null
       const store = useSubAgentStore()
 
-      const result = await store.createSubAgentGroup('New Group')
+      const result = await store.createGroup('New Group')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('No active canvas')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
-    it('回應為 null 時應回傳 success: false', async () => {
+    it('回應為 null 時應回傳 success: false 並顯示錯誤 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useSubAgentStore()
 
       mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-      const result = await store.createSubAgentGroup('New Group')
+      const result = await store.createGroup('New Group')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('建立群組失敗')
+      expect(mockShowErrorToast).toHaveBeenCalledWith('SubAgent', '建立群組失敗')
     })
 
     it('回應 success: false 時應回傳對應結果', async () => {
@@ -412,7 +414,7 @@ describe('subAgentStore', () => {
         error: '名稱重複',
       })
 
-      const result = await store.createSubAgentGroup('New Group')
+      const result = await store.createGroup('New Group')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('名稱重複')
@@ -427,14 +429,14 @@ describe('subAgentStore', () => {
         success: true,
       })
 
-      const result = await store.createSubAgentGroup('New Group')
+      const result = await store.createGroup('New Group')
 
       expect(result.success).toBe(true)
       expect(store.groups).toHaveLength(0)
     })
   })
 
-  describe('updateSubAgentGroup', () => {
+  describe('updateGroup', () => {
     it('成功時應回傳 success: true 並更新 groups', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -450,7 +452,7 @@ describe('subAgentStore', () => {
         group: updatedGroup,
       })
 
-      const result = await store.updateSubAgentGroup('group-1', 'Updated')
+      const result = await store.updateGroup('group-1', 'Updated')
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'group:update',
@@ -471,24 +473,25 @@ describe('subAgentStore', () => {
       canvasStore.activeCanvasId = null
       const store = useSubAgentStore()
 
-      const result = await store.updateSubAgentGroup('group-1', 'Updated')
+      const result = await store.updateGroup('group-1', 'Updated')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('No active canvas')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
-    it('回應為 null 時應回傳 success: false', async () => {
+    it('回應為 null 時應回傳 success: false 並顯示錯誤 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useSubAgentStore()
 
       mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-      const result = await store.updateSubAgentGroup('group-1', 'Updated')
+      const result = await store.updateGroup('group-1', 'Updated')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('更新群組失敗')
+      expect(mockShowErrorToast).toHaveBeenCalledWith('SubAgent', '更新群組失敗')
     })
 
     it('回應 success: false 時應回傳對應結果', async () => {
@@ -501,7 +504,7 @@ describe('subAgentStore', () => {
         error: '群組不存在',
       })
 
-      const result = await store.updateSubAgentGroup('group-1', 'Updated')
+      const result = await store.updateGroup('group-1', 'Updated')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('群組不存在')
@@ -519,14 +522,14 @@ describe('subAgentStore', () => {
         success: true,
       })
 
-      const result = await store.updateSubAgentGroup('group-1', 'Updated')
+      const result = await store.updateGroup('group-1', 'Updated')
 
       expect(result.success).toBe(true)
       expect(store.groups[0]).toEqual(originalGroup)
     })
   })
 
-  describe('deleteSubAgentGroup', () => {
+  describe('deleteGroup', () => {
     it('成功時應回傳 success: true 並從 groups 移除', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -541,7 +544,7 @@ describe('subAgentStore', () => {
         groupId: 'group-1',
       })
 
-      const result = await store.deleteSubAgentGroup('group-1')
+      const result = await store.deleteGroup('group-1')
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'group:delete',
@@ -561,24 +564,25 @@ describe('subAgentStore', () => {
       canvasStore.activeCanvasId = null
       const store = useSubAgentStore()
 
-      const result = await store.deleteSubAgentGroup('group-1')
+      const result = await store.deleteGroup('group-1')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('No active canvas')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
-    it('回應為 null 時應回傳 success: false', async () => {
+    it('回應為 null 時應回傳 success: false 並顯示錯誤 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useSubAgentStore()
 
       mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-      const result = await store.deleteSubAgentGroup('group-1')
+      const result = await store.deleteGroup('group-1')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('刪除群組失敗')
+      expect(mockShowErrorToast).toHaveBeenCalledWith('SubAgent', '刪除群組失敗')
     })
 
     it('回應 success: false 時應回傳對應結果', async () => {
@@ -591,7 +595,7 @@ describe('subAgentStore', () => {
         error: '群組內仍有項目',
       })
 
-      const result = await store.deleteSubAgentGroup('group-1')
+      const result = await store.deleteGroup('group-1')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('群組內仍有項目')
@@ -609,14 +613,14 @@ describe('subAgentStore', () => {
         success: true,
       })
 
-      const result = await store.deleteSubAgentGroup('group-1')
+      const result = await store.deleteGroup('group-1')
 
       expect(result.success).toBe(true)
       expect(store.groups).toHaveLength(1)
     })
   })
 
-  describe('moveSubAgentToGroup', () => {
+  describe('moveItemToGroup', () => {
     it('成功時應回傳 success: true 並更新 item 的 groupId', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -631,7 +635,7 @@ describe('subAgentStore', () => {
         groupId: 'group-1',
       })
 
-      const result = await store.moveSubAgentToGroup('subagent-1', 'group-1')
+      const result = await store.moveItemToGroup('subagent-1', 'group-1')
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'subagent:move-to-group',
@@ -660,7 +664,7 @@ describe('subAgentStore', () => {
         groupId: null,
       })
 
-      const result = await store.moveSubAgentToGroup('subagent-1', null)
+      const result = await store.moveItemToGroup('subagent-1', null)
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'subagent:move-to-group',
@@ -680,24 +684,25 @@ describe('subAgentStore', () => {
       canvasStore.activeCanvasId = null
       const store = useSubAgentStore()
 
-      const result = await store.moveSubAgentToGroup('subagent-1', 'group-1')
+      const result = await store.moveItemToGroup('subagent-1', 'group-1')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('No active canvas')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
-    it('回應為 null 時應回傳 success: false', async () => {
+    it('回應為 null 時應回傳 success: false 並顯示錯誤 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useSubAgentStore()
 
       mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-      const result = await store.moveSubAgentToGroup('subagent-1', 'group-1')
+      const result = await store.moveItemToGroup('subagent-1', 'group-1')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('移動失敗')
+      expect(mockShowErrorToast).toHaveBeenCalledWith('SubAgent', '移動失敗')
     })
 
     it('回應 success: false 時應回傳對應結果', async () => {
@@ -710,7 +715,7 @@ describe('subAgentStore', () => {
         error: '群組不存在',
       })
 
-      const result = await store.moveSubAgentToGroup('subagent-1', 'group-1')
+      const result = await store.moveItemToGroup('subagent-1', 'group-1')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('群組不存在')
@@ -728,7 +733,7 @@ describe('subAgentStore', () => {
         success: true,
       })
 
-      const result = await store.moveSubAgentToGroup('subagent-1', 'group-1')
+      const result = await store.moveItemToGroup('subagent-1', 'group-1')
 
       expect(result.success).toBe(true)
       expect(store.availableItems[0]?.groupId).toBeNull()

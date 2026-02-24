@@ -3,7 +3,7 @@ import { sanitizeErrorForUser } from '@/utils/errorSanitizer'
 
 export function useWebSocketErrorHandler(): {
   handleWebSocketError: (error: unknown, title?: string) => void
-  wrapWebSocketRequest: <T>(promise: Promise<T>, errorTitle?: string) => Promise<T | null>
+  wrapWebSocketRequest: <T>(promise: Promise<T>) => Promise<T | null>
 } {
   const { toast } = useToast()
 
@@ -17,13 +17,12 @@ export function useWebSocketErrorHandler(): {
   }
 
   const wrapWebSocketRequest = async <T>(
-    promise: Promise<T>,
-    errorTitle?: string
+    promise: Promise<T>
   ): Promise<T | null> => {
     try {
       return await promise
     } catch (error) {
-      handleWebSocketError(error, errorTitle)
+      console.error('[WebSocket] 請求失敗:', error)
       return null
     }
   }

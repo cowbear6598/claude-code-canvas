@@ -590,8 +590,7 @@ export function useCopyPaste(): void {
           connections,
         },
         timeout: PASTE_TIMEOUT_MS
-      }),
-      '貼上失敗'
+      })
     )
 
     if (!response) return false

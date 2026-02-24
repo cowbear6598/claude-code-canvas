@@ -432,9 +432,9 @@ const handleDeleteConfirm = async (): Promise<void> => {
     subAgent: (): Promise<void> => subAgentStore.deleteSubAgent(id),
     repository: (): Promise<void> => repositoryStore.deleteRepository(id),
     command: (): Promise<void> => commandStore.deleteCommand(id),
-    outputStyleGroup: () => outputStyleStore.deleteOutputStyleGroup(id),
-    subAgentGroup: () => subAgentStore.deleteSubAgentGroup(id),
-    commandGroup: () => commandStore.deleteCommandGroup(id),
+    outputStyleGroup: () => outputStyleStore.deleteGroup(id),
+    subAgentGroup: () => subAgentStore.deleteGroup(id),
+    commandGroup: () => commandStore.deleteGroup(id),
   }
 
   const result = await deleteActions[type]()
@@ -514,9 +514,9 @@ const handleCreateEditSubmit = async (payload: { name: string; content: string }
       (n, c) => commandStore.createCommand(n, c),
       'command'
     ),
-    outputStyleGroup: () => outputStyleStore.createOutputStyleGroup(name),
-    subAgentGroup: () => subAgentStore.createSubAgentGroup(name),
-    commandGroup: () => commandStore.createCommandGroup(name)
+    outputStyleGroup: () => outputStyleStore.createGroup(name),
+    subAgentGroup: () => subAgentStore.createGroup(name),
+    commandGroup: () => commandStore.createGroup(name)
   }
 
   await createActions[resourceType]()

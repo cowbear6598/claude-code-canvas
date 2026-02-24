@@ -71,13 +71,13 @@ onMounted(async () => {
 
   await Promise.all([
     outputStyleStore.loadOutputStyles(),
-    outputStyleStore.loadOutputStyleGroups(),
+    outputStyleStore.loadGroups(),
     skillStore.loadSkills(),
     subAgentStore.loadSubAgents(),
-    subAgentStore.loadSubAgentGroups(),
+    subAgentStore.loadGroups(),
     repositoryStore.loadRepositories(),
     commandStore.loadCommands(),
-    commandStore.loadCommandGroups()
+    commandStore.loadGroups()
   ])
 })
 
@@ -186,15 +186,15 @@ const handleGroupDelete = (groupType: GroupType, groupId: string, name: string, 
 }
 
 const handleOutputStyleDropToGroup = (itemId: string, groupId: string | null): void => {
-  outputStyleStore.moveOutputStyleToGroup(itemId, groupId)
+  outputStyleStore.moveItemToGroup(itemId, groupId)
 }
 
 const handleSubAgentDropToGroup = (itemId: string, groupId: string | null): void => {
-  subAgentStore.moveSubAgentToGroup(itemId, groupId)
+  subAgentStore.moveItemToGroup(itemId, groupId)
 }
 
 const handleCommandDropToGroup = (itemId: string, groupId: string | null): void => {
-  commandStore.moveCommandToGroup(itemId, groupId)
+  commandStore.moveItemToGroup(itemId, groupId)
 }
 
 const handleImportSkill = async (): Promise<void> => {

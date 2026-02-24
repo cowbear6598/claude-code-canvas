@@ -5,7 +5,7 @@ interface DeleteItemOptions<TPayload, TResponse> {
   requestEvent: string
   responseEvent: string
   payload: TPayload
-  errorMessage: string
+  errorMessage?: string
   onSuccess?: (response: TResponse) => void
 }
 
@@ -22,8 +22,7 @@ export function useDeleteItem(): {
         requestEvent: options.requestEvent,
         responseEvent: options.responseEvent,
         payload: options.payload as Omit<TPayload & { requestId: string }, 'requestId'>
-      }),
-      options.errorMessage
+      })
     )
 
     if (!response || !response.success) return null

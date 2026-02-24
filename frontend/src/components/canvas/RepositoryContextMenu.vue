@@ -2,12 +2,10 @@
 import { reactive, onMounted, watch } from 'vue'
 import { GitBranch, Download } from 'lucide-vue-next'
 import { useRepositoryStore } from '@/stores/note/repositoryStore'
-import { useToast } from '@/composables/useToast'
 import CreateWorktreeModal from './CreateWorktreeModal.vue'
 import BranchSelectModal from './BranchSelectModal.vue'
 import ForceCheckoutModal from './ForceCheckoutModal.vue'
 import DeleteBranchModal from './DeleteBranchModal.vue'
-import ForceDeleteBranchModal from './ForceDeleteBranchModal.vue'
 import PullLatestConfirmModal from './PullLatestConfirmModal.vue'
 
 interface Props {
@@ -27,7 +25,6 @@ const emit = defineEmits<{
 }>()
 
 const repositoryStore = useRepositoryStore()
-const { toast } = useToast()
 
 const uiState = reactive({
   isGit: false,
@@ -42,7 +39,6 @@ const modalState = reactive({
   showBranch: false,
   showForceCheckout: false,
   showDeleteBranch: false,
-  showForceDeleteBranch: false,
   showPullConfirm: false
 })
 
@@ -67,11 +63,10 @@ watch(
     modalState.showBranch,
     modalState.showForceCheckout,
     modalState.showDeleteBranch,
-    modalState.showForceDeleteBranch,
     modalState.showPullConfirm
   ],
-  ([worktree, branch, forceCheckout, deleteBranch, forceDelete, pullConfirm]) => {
-    const allModalsClosed = !worktree && !branch && !forceCheckout && !deleteBranch && !forceDelete && !pullConfirm
+  ([worktree, branch, forceCheckout, deleteBranch, pullConfirm]) => {
+    const allModalsClosed = !worktree && !branch && !forceCheckout && !deleteBranch && !pullConfirm
     if (!uiState.menuVisible && allModalsClosed) {
       emit('close')
     }
@@ -92,17 +87,8 @@ const handleWorktreeSubmit = async (worktreeName: string): Promise<void> => {
   )
 
   if (result.success) {
-    toast({
-      title: 'Worktree 建立成功',
-      description: `已建立 Worktree：${worktreeName}`
-    })
     emit('worktree-created')
     emit('close')
-  } else {
-    toast({
-      title: 'Worktree 建立失敗',
-      description: result.error || '未知錯誤'
-    })
   }
 }
 
@@ -115,10 +101,6 @@ const handleSwitchBranchClick = async (): Promise<void> => {
   uiState.isLoadingBranches = false
 
   if (!result.success || !result.branches) {
-    toast({
-      title: '取得分支列表失敗',
-      description: result.error || '未知錯誤'
-    })
     emit('close')
     return
   }
@@ -135,10 +117,6 @@ const handleBranchSelect = async (branchName: string): Promise<void> => {
   const dirtyResult = await repositoryStore.checkDirty(props.repositoryId)
 
   if (!dirtyResult.success) {
-    toast({
-      title: '檢查修改狀態失敗',
-      description: dirtyResult.error || '未知錯誤'
-    })
     return
   }
 
@@ -160,25 +138,8 @@ const performCheckout = async (branchName: string, force: boolean): Promise<void
   const result = await repositoryStore.checkoutBranch(props.repositoryId, branchName, force)
 
   if (result.success) {
-    let description = `已切換到分支：${branchName}`
-
-    if (result.action === 'fetched') {
-      description = `已從遠端取得並切換到分支：${branchName}`
-    } else if (result.action === 'created') {
-      description = `已建立並切換到新分支：${branchName}`
-    }
-
-    toast({
-      title: '切換分支成功',
-      description
-    })
     emit('branch-switched')
     emit('close')
-  } else {
-    toast({
-      title: '切換分支失敗',
-      description: result.error || '未知錯誤'
-    })
   }
 }
 
@@ -189,44 +150,12 @@ const handleBranchDelete = (branchName: string): void => {
 }
 
 const handleDeleteBranchConfirm = async (): Promise<void> => {
-  const result = await repositoryStore.deleteBranch(props.repositoryId, dataState.branchToDelete, false)
+  const result = await repositoryStore.deleteBranch(props.repositoryId, dataState.branchToDelete)
+
+  modalState.showDeleteBranch = false
 
   if (result.success) {
-    modalState.showDeleteBranch = false
-    toast({
-      title: '已刪除分支',
-      description: `已刪除分支：${dataState.branchToDelete}`
-    })
     await reloadBranchList()
-  } else {
-    modalState.showDeleteBranch = false
-    if (result.error?.includes('未合併') || result.error?.includes('not fully merged')) {
-      modalState.showForceDeleteBranch = true
-    } else {
-      toast({
-        title: '刪除分支失敗',
-        description: result.error || '未知錯誤'
-      })
-    }
-  }
-}
-
-const handleForceDeleteBranch = async (): Promise<void> => {
-  const result = await repositoryStore.deleteBranch(props.repositoryId, dataState.branchToDelete, true)
-
-  modalState.showForceDeleteBranch = false
-
-  if (result.success) {
-    toast({
-      title: '已強制刪除分支',
-      description: `已強制刪除分支：${dataState.branchToDelete}`
-    })
-    await reloadBranchList()
-  } else {
-    toast({
-      title: '刪除分支失敗',
-      description: result.error || '未知錯誤'
-    })
   }
 }
 
@@ -358,12 +287,6 @@ const handleBackgroundClick = (): void => {
       v-model:open="modalState.showDeleteBranch"
       :branch-name="dataState.branchToDelete"
       @confirm="handleDeleteBranchConfirm"
-    />
-
-    <ForceDeleteBranchModal
-      v-model:open="modalState.showForceDeleteBranch"
-      :branch-name="dataState.branchToDelete"
-      @force-delete="handleForceDeleteBranch"
     />
 
     <PullLatestConfirmModal

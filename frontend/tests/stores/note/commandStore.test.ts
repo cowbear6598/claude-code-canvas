@@ -568,7 +568,7 @@ describe('commandStore', () => {
     })
   })
 
-  describe('loadCommandGroups', () => {
+  describe('loadGroups', () => {
     it('成功時應設定 groups', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -583,7 +583,7 @@ describe('commandStore', () => {
         groups: mockGroups,
       })
 
-      await store.loadCommandGroups()
+      await store.loadGroups()
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'group:list',
@@ -603,7 +603,7 @@ describe('commandStore', () => {
 
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      await store.loadCommandGroups()
+      await store.loadGroups()
 
       expect(consoleSpy).toHaveBeenCalledWith('[CommandStore] Cannot load groups: no active canvas')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
@@ -611,20 +611,21 @@ describe('commandStore', () => {
       consoleSpy.mockRestore()
     })
 
-    it('失敗時不應更新 groups', async () => {
+    it('失敗時不應更新 groups 並顯示錯誤 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useCommandStore()
 
       mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-      await store.loadCommandGroups()
+      await store.loadGroups()
 
       expect(store.groups).toHaveLength(0)
+      expect(mockShowErrorToast).toHaveBeenCalledWith('Command', '載入群組失敗')
     })
   })
 
-  describe('createCommandGroup', () => {
+  describe('createGroup', () => {
     it('成功時應加入 groups 並回傳成功結果', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -641,7 +642,7 @@ describe('commandStore', () => {
         group: mockGroup,
       })
 
-      const result = await store.createCommandGroup('New Group')
+      const result = await store.createGroup('New Group')
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'group:create',
@@ -665,7 +666,7 @@ describe('commandStore', () => {
       canvasStore.activeCanvasId = null
       const store = useCommandStore()
 
-      const result = await store.createCommandGroup('New Group')
+      const result = await store.createGroup('New Group')
 
       expect(result).toEqual({
         success: false,
@@ -674,24 +675,25 @@ describe('commandStore', () => {
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
-    it('失敗時應回傳錯誤結果', async () => {
+    it('失敗時應回傳錯誤結果並顯示錯誤 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useCommandStore()
 
       mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-      const result = await store.createCommandGroup('New Group')
+      const result = await store.createGroup('New Group')
 
       expect(result).toEqual({
         success: false,
         error: '建立群組失敗',
       })
       expect(store.groups).toHaveLength(0)
+      expect(mockShowErrorToast).toHaveBeenCalledWith('Command', '建立群組失敗')
     })
   })
 
-  describe('updateCommandGroup', () => {
+  describe('updateGroup', () => {
     it('成功時應更新 groups 並回傳成功結果', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -715,7 +717,7 @@ describe('commandStore', () => {
         group: updatedGroup,
       })
 
-      const result = await store.updateCommandGroup('group-1', 'Updated Name')
+      const result = await store.updateGroup('group-1', 'Updated Name')
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'group:update',
@@ -739,7 +741,7 @@ describe('commandStore', () => {
       canvasStore.activeCanvasId = null
       const store = useCommandStore()
 
-      const result = await store.updateCommandGroup('group-1', 'Updated Name')
+      const result = await store.updateGroup('group-1', 'Updated Name')
 
       expect(result).toEqual({
         success: false,
@@ -748,23 +750,24 @@ describe('commandStore', () => {
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
-    it('失敗時應回傳錯誤結果', async () => {
+    it('失敗時應回傳錯誤結果並顯示錯誤 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useCommandStore()
 
       mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-      const result = await store.updateCommandGroup('group-1', 'Updated Name')
+      const result = await store.updateGroup('group-1', 'Updated Name')
 
       expect(result).toEqual({
         success: false,
         error: '更新群組失敗',
       })
+      expect(mockShowErrorToast).toHaveBeenCalledWith('Command', '更新群組失敗')
     })
   })
 
-  describe('deleteCommandGroup', () => {
+  describe('deleteGroup', () => {
     it('成功時應從 groups 中移除並回傳成功結果', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -782,7 +785,7 @@ describe('commandStore', () => {
         groupId: 'group-1',
       })
 
-      const result = await store.deleteCommandGroup('group-1')
+      const result = await store.deleteGroup('group-1')
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'group:delete',
@@ -804,7 +807,7 @@ describe('commandStore', () => {
       canvasStore.activeCanvasId = null
       const store = useCommandStore()
 
-      const result = await store.deleteCommandGroup('group-1')
+      const result = await store.deleteGroup('group-1')
 
       expect(result).toEqual({
         success: false,
@@ -813,23 +816,24 @@ describe('commandStore', () => {
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
-    it('失敗時應回傳錯誤結果', async () => {
+    it('失敗時應回傳錯誤結果並顯示錯誤 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useCommandStore()
 
       mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-      const result = await store.deleteCommandGroup('group-1')
+      const result = await store.deleteGroup('group-1')
 
       expect(result).toEqual({
         success: false,
         error: '刪除群組失敗',
       })
+      expect(mockShowErrorToast).toHaveBeenCalledWith('Command', '刪除群組失敗')
     })
   })
 
-  describe('moveCommandToGroup', () => {
+  describe('moveItemToGroup', () => {
     it('成功時應更新 item 的 groupId 並回傳成功結果', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -848,7 +852,7 @@ describe('commandStore', () => {
         groupId: 'group-1',
       })
 
-      const result = await store.moveCommandToGroup('cmd-1', 'group-1')
+      const result = await store.moveItemToGroup('cmd-1', 'group-1')
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'command:move-to-group',
@@ -884,7 +888,7 @@ describe('commandStore', () => {
         groupId: null,
       })
 
-      const result = await store.moveCommandToGroup('cmd-1', null)
+      const result = await store.moveItemToGroup('cmd-1', null)
 
       expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
         requestEvent: 'command:move-to-group',
@@ -907,7 +911,7 @@ describe('commandStore', () => {
       canvasStore.activeCanvasId = null
       const store = useCommandStore()
 
-      const result = await store.moveCommandToGroup('cmd-1', 'group-1')
+      const result = await store.moveItemToGroup('cmd-1', 'group-1')
 
       expect(result).toEqual({
         success: false,
@@ -916,18 +920,37 @@ describe('commandStore', () => {
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
-    it('失敗時應回傳錯誤結果', async () => {
+    it('失敗時應回傳錯誤結果並顯示錯誤 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useCommandStore()
 
       mockCreateWebSocketRequest.mockResolvedValueOnce(null)
 
-      const result = await store.moveCommandToGroup('cmd-1', 'group-1')
+      const result = await store.moveItemToGroup('cmd-1', 'group-1')
 
       expect(result).toEqual({
         success: false,
         error: '移動失敗',
+      })
+      expect(mockShowErrorToast).toHaveBeenCalledWith('Command', '移動失敗')
+    })
+
+    it('回應 success: false 時應回傳對應 error', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useCommandStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({
+        success: false,
+        error: '項目不存在',
+      })
+
+      const result = await store.moveItemToGroup('cmd-1', 'group-1')
+
+      expect(result).toEqual({
+        success: false,
+        error: '項目不存在',
       })
     })
   })

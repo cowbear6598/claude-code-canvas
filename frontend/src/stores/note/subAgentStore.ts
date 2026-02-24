@@ -2,25 +2,13 @@ import type { SubAgent, SubAgentNote } from '@/types'
 import { createNoteStore } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { createResourceCRUDActions } from './createResourceCRUDActions'
+import { createGroupCRUDActions } from './createGroupCRUDActions'
 import type {
   SubAgentCreatedPayload,
   SubAgentUpdatedPayload,
   SubAgentReadResultPayload,
-  GroupCreatePayload,
-  GroupCreatedPayload,
-  GroupListPayload,
-  GroupListResultPayload,
-  GroupUpdatePayload,
-  GroupUpdatedPayload,
-  GroupDeletePayload,
-  GroupDeletedPayload,
-  MoveToGroupPayload,
-  MovedToGroupPayload
 } from '@/types/websocket'
 import type { Group } from '@/types'
-import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
-import { useCanvasStore } from '@/stores/canvasStore'
-import { createWebSocketRequest } from '@/services/websocket'
 
 interface SubAgentStoreCustomActions {
   createSubAgent(name: string, content: string): Promise<{ success: boolean; subAgent?: { id: string; name: string }; error?: string }>
@@ -28,12 +16,22 @@ interface SubAgentStoreCustomActions {
   readSubAgent(subAgentId: string): Promise<{ id: string; name: string; content: string } | null>
   deleteSubAgent(subAgentId: string): Promise<void>
   loadSubAgents(): Promise<void>
-  loadSubAgentGroups(): Promise<void>
-  createSubAgentGroup(name: string): Promise<{ success: boolean; group?: Group; error?: string }>
-  updateSubAgentGroup(groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }>
-  deleteSubAgentGroup(groupId: string): Promise<{ success: boolean; error?: string }>
-  moveSubAgentToGroup(subAgentId: string, groupId: string | null): Promise<{ success: boolean; error?: string }>
+  loadGroups(): Promise<void>
+  createGroup(name: string): Promise<{ success: boolean; group?: Group; error?: string }>
+  updateGroup(groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }>
+  deleteGroup(groupId: string): Promise<{ success: boolean; error?: string }>
+  moveItemToGroup(subAgentId: string, groupId: string | null): Promise<{ success: boolean; error?: string }>
 }
+
+const subAgentGroupCRUD = createGroupCRUDActions({
+  storeName: 'SubAgentStore',
+  groupType: 'subagent',
+  toastCategory: 'SubAgent',
+  moveItemToGroupEvents: {
+    request: WebSocketRequestEvents.SUBAGENT_MOVE_TO_GROUP,
+    response: WebSocketResponseEvents.SUBAGENT_MOVED_TO_GROUP,
+  },
+})
 
 const subAgentCRUD = createResourceCRUDActions<SubAgent>(
   'SubAgent',
@@ -154,172 +152,11 @@ const store = createNoteStore<SubAgent, SubAgentNote>({
       return this.loadItems()
     },
 
-    async loadSubAgentGroups(this): Promise<void> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        console.warn('[SubAgentStore] Cannot load groups: no active canvas')
-        return
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupListPayload, GroupListResultPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_LIST,
-          responseEvent: WebSocketResponseEvents.GROUP_LIST_RESULT,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            type: 'subagent'
-          }
-        }),
-        '載入 SubAgent 群組失敗'
-      )
-
-      if (response?.groups) {
-        this.groups = response.groups
-      }
-    },
-
-    async createSubAgentGroup(this, name: string): Promise<{ success: boolean; group?: Group; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupCreatePayload, GroupCreatedPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_CREATE,
-          responseEvent: WebSocketResponseEvents.GROUP_CREATED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            name,
-            type: 'subagent'
-          }
-        }),
-        '建立 SubAgent 群組失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '建立群組失敗' }
-      }
-
-      if (response.group) {
-        this.addGroupFromEvent(response.group)
-      }
-
-      return {
-        success: response.success,
-        group: response.group as Group,
-        error: response.error
-      }
-    },
-
-    async updateSubAgentGroup(this, groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupUpdatePayload, GroupUpdatedPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_UPDATE,
-          responseEvent: WebSocketResponseEvents.GROUP_UPDATED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            groupId,
-            name
-          }
-        }),
-        '更新 SubAgent 群組失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '更新群組失敗' }
-      }
-
-      if (response.group) {
-        this.updateGroupFromEvent(response.group)
-      }
-
-      return {
-        success: response.success,
-        group: response.group as Group,
-        error: response.error
-      }
-    },
-
-    async deleteSubAgentGroup(this, groupId: string): Promise<{ success: boolean; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupDeletePayload, GroupDeletedPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_DELETE,
-          responseEvent: WebSocketResponseEvents.GROUP_DELETED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            groupId
-          }
-        }),
-        '刪除 SubAgent 群組失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '刪除群組失敗' }
-      }
-
-      if (response.success && response.groupId) {
-        this.removeGroupFromEvent(response.groupId)
-      }
-
-      return {
-        success: response.success,
-        error: response.error
-      }
-    },
-
-    async moveSubAgentToGroup(this, subAgentId: string, groupId: string | null): Promise<{ success: boolean; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<MoveToGroupPayload, MovedToGroupPayload>({
-          requestEvent: WebSocketRequestEvents.SUBAGENT_MOVE_TO_GROUP,
-          responseEvent: WebSocketResponseEvents.SUBAGENT_MOVED_TO_GROUP,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            itemId: subAgentId,
-            groupId
-          }
-        }),
-        '移動 SubAgent 失敗'
-      )
-
-      if (!response) {
-        return { success: false, error: '移動失敗' }
-      }
-
-      if (response.success && response.itemId) {
-        this.updateItemGroupId(response.itemId, response.groupId ?? null)
-      }
-
-      return {
-        success: response.success,
-        error: response.error
-      }
-    },
+    loadGroups: subAgentGroupCRUD.loadGroups,
+    createGroup: subAgentGroupCRUD.createGroup,
+    updateGroup: subAgentGroupCRUD.updateGroup,
+    deleteGroup: subAgentGroupCRUD.deleteGroup,
+    moveItemToGroup: subAgentGroupCRUD.moveItemToGroup,
   }
 })
 
