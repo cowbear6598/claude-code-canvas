@@ -1,4 +1,3 @@
-
 import { WebSocketResponseEvents } from '../schemas';
 import type {
   RepositoryGitCloneProgressPayload,
@@ -9,6 +8,7 @@ import type {
   RepositoryDirtyCheckResultPayload,
   RepositoryBranchCheckedOutPayload,
   RepositoryBranchDeletedPayload,
+  RepositoryPullLatestResultPayload,
 } from '../types';
 import type {
   RepositoryGitClonePayload,
@@ -18,6 +18,7 @@ import type {
   RepositoryCheckDirtyPayload,
   RepositoryCheckoutBranchPayload,
   RepositoryDeleteBranchPayload,
+  RepositoryPullLatestPayload,
 } from '../schemas';
 import { repositoryService } from '../services/repositoryService.js';
 import { socketService } from '../services/socketService.js';
@@ -575,4 +576,58 @@ export async function handleRepositoryDeleteBranch(
   emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED, response);
 
   logger.log('Repository', 'Update', `Deleted branch ${branchName} from ${repositoryId}`);
+}
+
+export async function handleRepositoryPullLatest(
+  connectionId: string,
+  payload: RepositoryPullLatestPayload,
+  requestId: string
+): Promise<void> {
+  const { repositoryId } = payload;
+
+  const repositoryPath = await validateRepositoryIsGit(
+    connectionId,
+    repositoryId,
+    WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+    requestId
+  );
+  if (!repositoryPath) {
+    return;
+  }
+
+  const metadata = repositoryService.getMetadata(repositoryId);
+  if (metadata?.parentRepoId) {
+    emitError(
+      connectionId,
+      WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+      'Worktree 無法執行 Pull',
+      requestId,
+      undefined,
+      'INVALID_STATE'
+    );
+    return;
+  }
+
+  const pullResult = await gitService.pullLatest(repositoryPath);
+  if (!pullResult.success) {
+    emitError(
+      connectionId,
+      WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+      pullResult.error!,
+      requestId,
+      undefined,
+      'INTERNAL_ERROR'
+    );
+    return;
+  }
+
+  const response: RepositoryPullLatestResultPayload = {
+    requestId,
+    success: true,
+    repositoryId,
+  };
+
+  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT, response);
+
+  logger.log('Repository', 'Update', `Pulled latest for ${repositoryId}`);
 }

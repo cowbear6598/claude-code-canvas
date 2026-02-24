@@ -2,7 +2,8 @@ import {
   detectGitSource,
   buildAuthenticatedUrl,
   parseCloneErrorMessage,
-  extractDomainFromUrl
+  extractDomainFromUrl,
+  getPullLatestError,
 } from '../../src/services/workspace/gitService';
 import { config } from '../../src/config';
 
@@ -162,6 +163,26 @@ describe('GitService - Git 來源偵測與認證', () => {
       const result = parseCloneErrorMessage('string error', 'github');
 
       expect(result).toBe('複製儲存庫失敗');
+    });
+  });
+
+  describe('getPullLatestError', () => {
+    it("包含 'Could not resolve host' 回傳無法連線訊息", () => {
+      const result = getPullLatestError('Could not resolve host: github.com');
+
+      expect(result).toBe('無法連線至遠端伺服器');
+    });
+
+    it("包含 \"couldn't find remote ref\" 回傳遠端分支不存在訊息", () => {
+      const result = getPullLatestError("couldn't find remote ref main");
+
+      expect(result).toBe('遠端分支不存在');
+    });
+
+    it('其他未知錯誤回傳預設失敗訊息', () => {
+      const result = getPullLatestError('Some unknown git error');
+
+      expect(result).toBe('Pull 至最新版本失敗');
     });
   });
 });

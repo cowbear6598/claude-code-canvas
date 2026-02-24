@@ -87,6 +87,7 @@ export enum WebSocketRequestEvents {
   OUTPUT_STYLE_MOVE_TO_GROUP = 'output-style:move-to-group',
   SUBAGENT_MOVE_TO_GROUP = 'subagent:move-to-group',
   SKILL_IMPORT = 'skill:import',
+  REPOSITORY_PULL_LATEST = 'repository:pull-latest',
 }
 
 export enum WebSocketResponseEvents {
@@ -207,4 +208,5 @@ export enum WebSocketResponseEvents {
   WORKFLOW_QUEUE_PROCESSED = 'workflow:queue-processed',
   WORKFLOW_DIRECT_COUNTDOWN = 'workflow:direct-countdown',
   WORKFLOW_DIRECT_MERGED = 'workflow:direct-merged',
+  REPOSITORY_PULL_LATEST_RESULT = 'repository:pull-latest:result',
 }

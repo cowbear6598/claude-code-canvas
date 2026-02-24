@@ -414,6 +414,12 @@ export interface RepositoryBranchDeletedPayload {
     error?: string
 }
 
+export interface RepositoryPullLatestResultPayload {
+    requestId: string
+    success: boolean
+    error?: string
+}
+
 export interface GroupCreatedPayload {
     requestId: string
     success: boolean

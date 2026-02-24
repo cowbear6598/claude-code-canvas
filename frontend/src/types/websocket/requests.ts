@@ -287,6 +287,12 @@ export interface RepositoryDeleteBranchPayload {
   force: boolean
 }
 
+export interface RepositoryPullLatestPayload {
+  requestId: string
+  canvasId: string
+  repositoryId: string
+}
+
 export interface GroupCreatePayload {
   requestId: string
   canvasId: string

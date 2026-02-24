@@ -18,7 +18,9 @@ import type {
   RepositoryCheckoutBranchPayload,
   RepositoryBranchCheckedOutPayload,
   RepositoryDeleteBranchPayload,
-  RepositoryBranchDeletedPayload
+  RepositoryBranchDeletedPayload,
+  RepositoryPullLatestPayload,
+  RepositoryPullLatestResultPayload
 } from '@/types/websocket'
 
 const CHECKOUT_ACTION_MAP: Record<'switched' | 'fetched' | 'created', string> = {
@@ -37,6 +39,7 @@ interface RepositoryStoreCustomActions {
   checkDirty(repositoryId: string): Promise<{ success: boolean; isDirty?: boolean; error?: string }>
   checkoutBranch(repositoryId: string, branchName: string, force?: boolean): Promise<{ success: boolean; branchName?: string; action?: 'switched' | 'fetched' | 'created'; error?: string }>
   deleteBranch(repositoryId: string, branchName: string, force?: boolean): Promise<{ success: boolean; branchName?: string; error?: string }>
+  pullLatest(repositoryId: string): Promise<{ success: boolean; error?: string }>
   isWorktree(repositoryId: string): boolean
 }
 
@@ -333,6 +336,37 @@ const store = createNoteStore<Repository, RepositoryNote>({
         branchName: response.branchName,
         error: response.error
       }
+    },
+
+    async pullLatest(this, repositoryId: string): Promise<{ success: boolean; error?: string }> {
+      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
+      const { showSuccessToast, showErrorToast } = useToast()
+      const canvasStore = useCanvasStore()
+
+      const response = await wrapWebSocketRequest(
+        createWebSocketRequest<RepositoryPullLatestPayload, RepositoryPullLatestResultPayload>({
+          requestEvent: WebSocketRequestEvents.REPOSITORY_PULL_LATEST,
+          responseEvent: WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+          payload: {
+            canvasId: canvasStore.activeCanvasId!,
+            repositoryId
+          }
+        }),
+        'Pull 失敗'
+      )
+
+      if (!response) {
+        showErrorToast('Git', 'Pull 失敗')
+        return { success: false, error: 'Pull 失敗' }
+      }
+
+      if (response.success) {
+        showSuccessToast('Git', 'Pull 成功')
+      } else {
+        showErrorToast('Git', 'Pull 失敗', response.error)
+      }
+
+      return { success: response.success, error: response.error }
     },
 
     isWorktree(this, repositoryId: string): boolean {

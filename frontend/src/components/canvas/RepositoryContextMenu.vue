@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, onMounted, watch } from 'vue'
-import { GitBranch } from 'lucide-vue-next'
+import { GitBranch, Download } from 'lucide-vue-next'
 import { useRepositoryStore } from '@/stores/note/repositoryStore'
 import { useToast } from '@/composables/useToast'
 import CreateWorktreeModal from './CreateWorktreeModal.vue'
@@ -8,6 +8,7 @@ import BranchSelectModal from './BranchSelectModal.vue'
 import ForceCheckoutModal from './ForceCheckoutModal.vue'
 import DeleteBranchModal from './DeleteBranchModal.vue'
 import ForceDeleteBranchModal from './ForceDeleteBranchModal.vue'
+import PullLatestConfirmModal from './PullLatestConfirmModal.vue'
 
 interface Props {
   position: { x: number; y: number }
@@ -32,7 +33,8 @@ const uiState = reactive({
   isGit: false,
   isCheckingGit: true,
   menuVisible: true,
-  isLoadingBranches: false
+  isLoadingBranches: false,
+  isPulling: false
 })
 
 const modalState = reactive({
@@ -40,7 +42,8 @@ const modalState = reactive({
   showBranch: false,
   showForceCheckout: false,
   showDeleteBranch: false,
-  showForceDeleteBranch: false
+  showForceDeleteBranch: false,
+  showPullConfirm: false
 })
 
 const dataState = reactive({
@@ -64,10 +67,11 @@ watch(
     modalState.showBranch,
     modalState.showForceCheckout,
     modalState.showDeleteBranch,
-    modalState.showForceDeleteBranch
+    modalState.showForceDeleteBranch,
+    modalState.showPullConfirm
   ],
-  ([worktree, branch, forceCheckout, deleteBranch, forceDelete]) => {
-    const allModalsClosed = !worktree && !branch && !forceCheckout && !deleteBranch && !forceDelete
+  ([worktree, branch, forceCheckout, deleteBranch, forceDelete, pullConfirm]) => {
+    const allModalsClosed = !worktree && !branch && !forceCheckout && !deleteBranch && !forceDelete && !pullConfirm
     if (!uiState.menuVisible && allModalsClosed) {
       emit('close')
     }
@@ -236,6 +240,20 @@ const reloadBranchList = async (): Promise<void> => {
   }
 }
 
+const handlePullLatestClick = (): void => {
+  if (!uiState.isGit) return
+  uiState.menuVisible = false
+  modalState.showPullConfirm = true
+}
+
+const handlePullLatestConfirm = async (): Promise<void> => {
+  uiState.isPulling = true
+  await repositoryStore.pullLatest(props.repositoryId)
+  uiState.isPulling = false
+  modalState.showPullConfirm = false
+  emit('close')
+}
+
 const handleBackgroundClick = (): void => {
   emit('close')
 }
@@ -287,6 +305,22 @@ const handleBackgroundClick = (): void => {
         <span class="font-mono text-foreground">切換分支</span>
       </button>
 
+      <button
+        v-if="!isWorktree"
+        :disabled="!uiState.isGit || uiState.isCheckingGit || uiState.isPulling"
+        :class="[
+          'w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs',
+          uiState.isGit && !uiState.isCheckingGit && !uiState.isPulling ? 'hover:bg-secondary' : 'opacity-50 cursor-not-allowed'
+        ]"
+        @click="handlePullLatestClick"
+      >
+        <Download
+          :size="14"
+          class="text-foreground"
+        />
+        <span class="font-mono text-foreground">Pull 至最新版本</span>
+      </button>
+
       <p
         v-if="!uiState.isGit && !uiState.isCheckingGit"
         class="text-xs text-muted-foreground mt-0.5 ml-6"
@@ -330,6 +364,12 @@ const handleBackgroundClick = (): void => {
       v-model:open="modalState.showForceDeleteBranch"
       :branch-name="dataState.branchToDelete"
       @force-delete="handleForceDeleteBranch"
+    />
+
+    <PullLatestConfirmModal
+      v-model:open="modalState.showPullConfirm"
+      :loading="uiState.isPulling"
+      @confirm="handlePullLatestConfirm"
     />
   </Teleport>
 </template>

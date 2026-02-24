@@ -16,6 +16,7 @@ import {
   repositoryCheckDirtySchema,
   repositoryCheckoutBranchSchema,
   repositoryDeleteBranchSchema,
+  repositoryPullLatestSchema,
 } from '../../schemas';
 import {
   handleRepositoryList,
@@ -36,6 +37,7 @@ import {
   handleRepositoryCheckDirty,
   handleRepositoryCheckoutBranch,
   handleRepositoryDeleteBranch,
+  handleRepositoryPullLatest,
 } from '../repositoryGitHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
 
@@ -137,6 +139,12 @@ export const repositoryHandlerGroup = createHandlerGroup({
       handler: handleRepositoryDeleteBranch,
       schema: repositoryDeleteBranchSchema,
       responseEvent: WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
+    },
+    {
+      event: WebSocketRequestEvents.REPOSITORY_PULL_LATEST,
+      handler: handleRepositoryPullLatest,
+      schema: repositoryPullLatestSchema,
+      responseEvent: WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
     },
   ],
 });

@@ -109,3 +109,10 @@ export interface RepositoryBranchDeletedPayload {
   branchName?: string;
   error?: string;
 }
+
+export interface RepositoryPullLatestResultPayload {
+  requestId: string;
+  success: boolean;
+  repositoryId?: string;
+  error?: string;
+}

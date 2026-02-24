@@ -3,6 +3,8 @@ import { requestIdSchema, positionSchema, canvasIdSchema } from './base.js';
 
 const RESERVED_NAMES = ['.git', 'HEAD', 'FETCH_HEAD', 'ORIG_HEAD', 'MERGE_HEAD', 'CHERRY_PICK_HEAD'];
 
+const repositoryIdSchema = z.string().regex(/^[a-zA-Z0-9_-]+$/, 'Repository ID 只能包含英文字母、數字、底線和連字號');
+
 function isValidGitUrl(url: string): boolean {
   const gitUrlPattern = /^(https?:\/\/|git@|git:\/\/).+/;
   return gitUrlPattern.test(url);
@@ -22,7 +24,7 @@ export const repositoryCreateSchema = z.object({
 export const repositoryNoteCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  repositoryId: z.string(),
+  repositoryId: repositoryIdSchema,
   name: z.string().min(1).max(100),
   x: z.number(),
   y: z.number(),
@@ -55,7 +57,7 @@ export const podBindRepositorySchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   podId: z.uuid(),
-  repositoryId: z.string(),
+  repositoryId: repositoryIdSchema,
 });
 
 export const podUnbindRepositorySchema = z.object({
@@ -67,7 +69,7 @@ export const podUnbindRepositorySchema = z.object({
 export const repositoryDeleteSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  repositoryId: z.string(),
+  repositoryId: repositoryIdSchema,
 });
 
 export const repositoryGitCloneSchema = z.object({
@@ -81,13 +83,13 @@ export const repositoryGitCloneSchema = z.object({
 export const repositoryCheckGitSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  repositoryId: z.string(),
+  repositoryId: repositoryIdSchema,
 });
 
 export const repositoryWorktreeCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  repositoryId: z.string(),
+  repositoryId: repositoryIdSchema,
   worktreeName: z
     .string()
     .min(1, 'Worktree 名稱不可為空')
@@ -102,19 +104,19 @@ export const repositoryWorktreeCreateSchema = z.object({
 export const repositoryGetLocalBranchesSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  repositoryId: z.string(),
+  repositoryId: repositoryIdSchema,
 });
 
 export const repositoryCheckDirtySchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  repositoryId: z.string(),
+  repositoryId: repositoryIdSchema,
 });
 
 export const repositoryCheckoutBranchSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  repositoryId: z.string(),
+  repositoryId: repositoryIdSchema,
   branchName: z.string().regex(/^[a-zA-Z0-9_\-/]+$/, '分支名稱只能包含英文字母、數字、底線、連字號和斜線'),
   force: z.boolean().default(false),
 });
@@ -122,9 +124,15 @@ export const repositoryCheckoutBranchSchema = z.object({
 export const repositoryDeleteBranchSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  repositoryId: z.string(),
+  repositoryId: repositoryIdSchema,
   branchName: z.string().regex(/^[a-zA-Z0-9_\-/]+$/, '分支名稱只能包含英文字母、數字、底線、連字號和斜線'),
   force: z.boolean().default(false),
+});
+
+export const repositoryPullLatestSchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+  repositoryId: repositoryIdSchema,
 });
 
 export type RepositoryListPayload = z.infer<typeof repositoryListSchema>;
@@ -143,3 +151,4 @@ export type RepositoryGetLocalBranchesPayload = z.infer<typeof repositoryGetLoca
 export type RepositoryCheckDirtyPayload = z.infer<typeof repositoryCheckDirtySchema>;
 export type RepositoryCheckoutBranchPayload = z.infer<typeof repositoryCheckoutBranchSchema>;
 export type RepositoryDeleteBranchPayload = z.infer<typeof repositoryDeleteBranchSchema>;
+export type RepositoryPullLatestPayload = z.infer<typeof repositoryPullLatestSchema>;

@@ -6,6 +6,7 @@ import {fileExists} from '../shared/fileResourceHelpers.js';
 import {isPathWithinDirectory} from '../../utils/pathValidator.js';
 import {gitOperation} from '../../utils/operationHelpers.js';
 import path from 'path';
+import fs from 'fs/promises';
 
 interface GitCloneProgress {
     stage: string;
@@ -36,6 +37,16 @@ function parseGitErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
+function getPullLatestError(errorMessage: string): string {
+    if (errorMessage.includes('Could not resolve host') || errorMessage.includes('Network') || errorMessage.includes('network')) {
+        return '無法連線至遠端伺服器';
+    }
+    if (errorMessage.includes("couldn't find remote ref")) {
+        return '遠端分支不存在';
+    }
+    return 'Pull 至最新版本失敗';
+}
+
 function getBranchDeletionError(errorMessage: string, branchName: string): string {
     if (errorMessage.includes('not fully merged')) {
         return `分支「${branchName}」尚未合併，是否要強制刪除？`;
@@ -44,7 +55,7 @@ function getBranchDeletionError(errorMessage: string, branchName: string): strin
 }
 
 function getCheckoutError(errorMessage: string, branchName: string): string {
-    if (errorMessage.includes('is already checked out at')) {
+    if (errorMessage.includes('is already checked out at') || errorMessage.includes('is already used by worktree at')) {
         return `無法切換到分支「${branchName}」，該分支已被 Worktree 使用`;
     }
     return '切換分支失敗';
@@ -306,14 +317,16 @@ class GitService {
 
             const worktreeBranches: string[] = [];
             const lines = worktreeList.trim().split('\n');
-            const normalizedWorkspacePath = path.normalize(workspacePath);
+
+            // macOS 上 /tmp 是 /private/tmp 的 symlink，需要解析真實路徑才能正確比較
+            const realWorkspacePath = await fs.realpath(workspacePath);
 
             for (const line of lines) {
                 const pathMatch = line.match(/^(.+?)\s+/);
                 if (!pathMatch) continue;
 
                 const worktreePath = path.normalize(pathMatch[1]);
-                if (worktreePath === normalizedWorkspacePath) continue;
+                if (worktreePath === realWorkspacePath) continue;
 
                 const branchMatch = line.match(/\[(.+?)]/);
                 if (branchMatch && branchMatch[1]) {
@@ -384,6 +397,31 @@ class GitService {
         }, '建立並切換分支失敗');
     }
 
+    async pullLatest(workspacePath: string): Promise<Result<void>> {
+        const currentBranchResult = await this.getCurrentBranch(workspacePath);
+        if (!currentBranchResult.success) {
+            return err('取得目前分支失敗');
+        }
+
+        const currentBranch = currentBranchResult.data!;
+
+        if (!currentBranch || !isValidBranchName(currentBranch)) {
+            return err('無效的分支名稱格式');
+        }
+
+        try {
+            const git = simpleGit(workspacePath);
+            await git.fetch('origin');
+            await git.reset(['--hard', `origin/${currentBranch}`]);
+            return ok(undefined);
+        } catch (error) {
+            const errorMessage = parseGitErrorMessage(error);
+            const errorText = getPullLatestError(errorMessage);
+            logger.error('Git', 'Error', `[Git] Failed to pull latest`, error);
+            return err(errorText);
+        }
+    }
+
     async smartCheckoutBranch(
         workspacePath: string,
         branchName: string,
@@ -439,5 +477,6 @@ export {
     buildAuthenticatedUrl,
     parseCloneErrorMessage,
     extractDomainFromUrl,
+    getPullLatestError,
     type GitSource
 };

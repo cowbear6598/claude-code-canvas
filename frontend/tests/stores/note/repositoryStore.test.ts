@@ -734,6 +734,65 @@ describe('repositoryStore', () => {
     })
   })
 
+  describe('pullLatest', () => {
+    it('成功時應顯示成功 Toast', async () => {
+      const store = useRepositoryStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({
+        success: true,
+      })
+
+      const result = await store.pullLatest('repo-1')
+
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('Git', 'Pull 成功')
+      expect(result).toEqual({ success: true, error: undefined })
+    })
+
+    it('應傳送正確的 WebSocket 事件與 payload', async () => {
+      const store = useRepositoryStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({
+        success: true,
+      })
+
+      await store.pullLatest('repo-1')
+
+      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
+        requestEvent: 'repository:pull-latest',
+        responseEvent: 'repository:pull-latest:result',
+        payload: {
+          canvasId: 'canvas-1',
+          repositoryId: 'repo-1',
+        },
+      })
+    })
+
+    it('回應為 null 時應顯示錯誤 Toast', async () => {
+      const store = useRepositoryStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce(null)
+
+      const result = await store.pullLatest('repo-1')
+
+      expect(mockShowErrorToast).toHaveBeenCalledWith('Git', 'Pull 失敗')
+      expect(result).toEqual({ success: false, error: 'Pull 失敗' })
+    })
+
+    it('失敗時應顯示錯誤 Toast 並帶上錯誤訊息', async () => {
+      const store = useRepositoryStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({
+        success: false,
+        error: '遠端連線失敗',
+      })
+
+      const result = await store.pullLatest('repo-1')
+
+      expect(mockShowErrorToast).toHaveBeenCalledWith('Git', 'Pull 失敗', '遠端連線失敗')
+      expect(result).toEqual({ success: false, error: '遠端連線失敗' })
+    })
+  })
+
   describe('isWorktree', () => {
     it('有 parentRepoId 時應回傳 true', () => {
       const store = useRepositoryStore()
