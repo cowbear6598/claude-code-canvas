@@ -1,6 +1,5 @@
 import { WebSocketResponseEvents } from '../schemas';
 import type {
-  RepositoryGitCloneProgressPayload,
   RepositoryGitCloneResultPayload,
   RepositoryCheckGitResultPayload,
   RepositoryWorktreeCreatedPayload,
@@ -32,6 +31,8 @@ import { fileExists } from '../services/shared/fileResourceHelpers.js';
 import { isPathWithinDirectory } from '../utils/pathValidator.js';
 import { config } from '../config';
 import path from 'path';
+
+const pullingRepositories = new Set<string>();
 
 async function validateRepositoryIsGit(
   connectionId: string,
@@ -72,14 +73,6 @@ function validateRepoUrl(repoUrl: string): { valid: boolean; error?: string } {
   return { valid: true };
 }
 
-function emitCloneProgress(connectionId: string, requestId: string, progress: number, message: string): void {
-  const payload: RepositoryGitCloneProgressPayload = {
-    requestId,
-    progress,
-    message,
-  };
-  socketService.emitToConnection(connectionId, WebSocketResponseEvents.REPOSITORY_GIT_CLONE_PROGRESS, payload);
-}
 
 function getStageMessage(stage: string): string {
   const stageMessages: Record<string, string> = {
@@ -90,7 +83,21 @@ function getStageMessage(stage: string): string {
     writing: '寫入物件...',
   };
 
-  return stageMessages[stage] || `處理中: ${stage}...`;
+  return stageMessages[stage] ?? '處理中...';
+}
+
+function createProgressEmitter(
+  connectionId: string,
+  requestId: string,
+  eventType: WebSocketResponseEvents
+): (progress: number, message: string) => void {
+  return (progress: number, message: string): void => {
+    socketService.emitToConnection(connectionId, eventType, {
+      requestId,
+      progress,
+      message,
+    });
+  };
 }
 
 /**
@@ -148,7 +155,13 @@ export async function handleRepositoryGitClone(
 
   const repoName = parseRepoName(repoUrl);
 
-  emitCloneProgress(connectionId, requestId, 0, '開始 Git clone...');
+  const emitCloneProgress = createProgressEmitter(
+    connectionId,
+    requestId,
+    WebSocketResponseEvents.REPOSITORY_GIT_CLONE_PROGRESS
+  );
+
+  emitCloneProgress(0, '開始 Git clone...');
 
   const exists = await repositoryService.exists(repoName);
   if (exists) {
@@ -165,13 +178,11 @@ export async function handleRepositoryGitClone(
 
   await repositoryService.create(repoName);
 
-  emitCloneProgress(connectionId, requestId, 5, 'Repository 已建立，開始 clone...');
+  emitCloneProgress(5, 'Repository 已建立，開始 clone...');
 
   const targetPath = repositoryService.getRepositoryPath(repoName);
 
-  const throttledEmit = throttle((progress: number, message: string) => {
-    emitCloneProgress(connectionId, requestId, progress, message);
-  }, 500);
+  const throttledEmit = throttle(emitCloneProgress, 500);
 
   const cloneResult = await gitService.clone(repoUrl, targetPath, {
     branch,
@@ -197,7 +208,7 @@ export async function handleRepositoryGitClone(
   }
 
   throttledEmit.flush();
-  emitCloneProgress(connectionId, requestId, 95, '完成中...');
+  emitCloneProgress(95, '完成中...');
 
   // Clone 成功後，取得目前分支名稱並儲存
   const currentBranchResult = await gitService.getCurrentBranch(targetPath);
@@ -207,7 +218,7 @@ export async function handleRepositoryGitClone(
     });
   }
 
-  emitCloneProgress(connectionId, requestId, 100, 'Clone 完成!');
+  emitCloneProgress(100, 'Clone 完成!');
 
   const response: RepositoryGitCloneResultPayload = {
     requestId,
@@ -632,26 +643,58 @@ export async function handleRepositoryPullLatest(
     return;
   }
 
-  const pullResult = await gitService.pullLatest(repositoryPath);
-  if (!pullResult.success) {
+  if (pullingRepositories.has(repositoryId)) {
     emitError(
       connectionId,
       WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
-      pullResult.error!,
+      '此 Repository 已有 Pull 操作進行中',
       requestId,
       undefined,
-      'INTERNAL_ERROR'
+      'CONFLICT'
     );
     return;
   }
 
-  const response: RepositoryPullLatestResultPayload = {
+  pullingRepositories.add(repositoryId);
+
+  const emitPullProgress = createProgressEmitter(
+    connectionId,
     requestId,
-    success: true,
-    repositoryId,
-  };
+    WebSocketResponseEvents.REPOSITORY_PULL_LATEST_PROGRESS
+  );
 
-  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT, response);
+  const throttledEmit = throttle(emitPullProgress, 500);
 
-  logger.log('Repository', 'Update', `Pulled latest for ${repositoryId}`);
+  emitPullProgress(0, '準備 Pull...');
+
+  try {
+    const pullResult = await gitService.pullLatest(repositoryPath, (progress, message) => throttledEmit(progress, message));
+    if (!pullResult.success) {
+      throttledEmit.cancel();
+      emitError(
+        connectionId,
+        WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+        pullResult.error!,
+        requestId,
+        undefined,
+        'INTERNAL_ERROR'
+      );
+      return;
+    }
+
+    throttledEmit.flush();
+    emitPullProgress(100, 'Pull 完成');
+
+    const response: RepositoryPullLatestResultPayload = {
+      requestId,
+      success: true,
+      repositoryId,
+    };
+
+    emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT, response);
+
+    logger.log('Repository', 'Update', `Pulled latest for ${repositoryId}`);
+  } finally {
+    pullingRepositories.delete(repositoryId);
+  }
 }

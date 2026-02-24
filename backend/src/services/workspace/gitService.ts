@@ -27,6 +27,7 @@ export interface SmartCheckoutOptions {
 
 type GitSource = 'github' | 'gitlab' | 'other';
 
+// 允許英數字、底線、連字號、斜線，但不允許 `..` 路徑穿越
 const BRANCH_NAME_PATTERN = /^[a-zA-Z0-9_\-/]+$/;
 
 function isValidBranchName(branchName: string): boolean {
@@ -34,6 +35,9 @@ function isValidBranchName(branchName: string): boolean {
         return false;
     }
     if (branchName.includes('//')) {
+        return false;
+    }
+    if (branchName.includes('..')) {
         return false;
     }
 
@@ -52,7 +56,7 @@ function getFetchStageMessage(stage: string): string {
         resolving: '解析差異...',
         writing: '寫入物件...',
     };
-    return stageMessages[stage] || `處理中: ${stage}...`;
+    return stageMessages[stage] ?? '處理中...';
 }
 
 function getPullLatestError(errorMessage: string): string {
@@ -426,7 +430,10 @@ class GitService {
         }, '建立並切換分支失敗');
     }
 
-    async pullLatest(workspacePath: string): Promise<Result<void>> {
+    async pullLatest(
+        workspacePath: string,
+        onProgress?: (progress: number, message: string) => void
+    ): Promise<Result<void>> {
         const currentBranchResult = await this.getCurrentBranch(workspacePath);
         if (!currentBranchResult.success) {
             return err('取得目前分支失敗');
@@ -438,9 +445,21 @@ class GitService {
             return err('無效的分支名稱格式');
         }
 
+        onProgress?.(5, '取得分支資訊...');
+
         try {
-            const git = simpleGit(workspacePath);
-            await git.fetch('origin');
+            const git = simpleGit({
+                baseDir: workspacePath,
+                progress: onProgress
+                    ? (event: SimpleGitProgressEvent): void => {
+                        const mappedProgress = Math.floor(10 + event.progress * 0.7);
+                        const stageMessage = getFetchStageMessage(event.stage);
+                        onProgress(mappedProgress, stageMessage);
+                    }
+                    : undefined,
+            });
+            await git.fetch(['origin', currentBranch]);
+            onProgress?.(85, '重設至最新版本...');
             await git.reset(['--hard', `origin/${currentBranch}`]);
             return ok(undefined);
         } catch (error) {

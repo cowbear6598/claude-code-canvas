@@ -117,6 +117,12 @@ export interface RepositoryBranchDeletedPayload {
   error?: string;
 }
 
+export interface RepositoryPullLatestProgressPayload {
+  requestId: string;
+  progress: number;
+  message: string;
+}
+
 export interface RepositoryPullLatestResultPayload {
   requestId: string;
   success: boolean;

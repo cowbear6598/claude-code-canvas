@@ -163,6 +163,7 @@ export const WebSocketResponseEvents = {
   REPOSITORY_CHECKOUT_BRANCH_PROGRESS: 'repository:checkout-branch:progress',
   REPOSITORY_BRANCH_CHECKED_OUT: 'repository:branch:checked-out',
   REPOSITORY_BRANCH_DELETED: 'repository:branch:deleted',
+  REPOSITORY_PULL_LATEST_PROGRESS: 'repository:pull-latest:progress',
   REPOSITORY_PULL_LATEST_RESULT: 'repository:pull-latest:result',
   REPOSITORY_NOTE_CREATED: 'repository-note:created',
   REPOSITORY_NOTE_LIST_RESULT: 'repository-note:list:result',

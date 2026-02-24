@@ -12,12 +12,9 @@ import { AlertTriangle } from 'lucide-vue-next'
 
 interface Props {
   open: boolean
-  loading?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
-  loading: false,
-})
+defineProps<Props>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
@@ -51,17 +48,15 @@ const emit = defineEmits<{
       <DialogFooter class="gap-2">
         <Button
           variant="outline"
-          :disabled="loading"
           @click="emit('update:open', false)"
         >
           取消
         </Button>
         <Button
           variant="destructive"
-          :disabled="loading"
           @click="emit('confirm')"
         >
-          {{ loading ? 'Pull 中...' : '確認 Pull' }}
+          確認 Pull
         </Button>
       </DialogFooter>
     </DialogContent>

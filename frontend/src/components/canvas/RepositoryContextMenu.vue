@@ -22,6 +22,7 @@ const emit = defineEmits<{
   'close': []
   'worktree-created': []
   'branch-switched': []
+  'pull-started': [payload: { requestId: string; repositoryName: string; repositoryId: string }]
 }>()
 
 const repositoryStore = useRepositoryStore()
@@ -30,8 +31,7 @@ const uiState = reactive({
   isGit: false,
   isCheckingGit: true,
   menuVisible: true,
-  isLoadingBranches: false,
-  isPulling: false
+  isLoadingBranches: false
 })
 
 const modalState = reactive({
@@ -173,11 +173,9 @@ const handlePullLatestClick = (): void => {
 }
 
 const handlePullLatestConfirm = async (): Promise<void> => {
-  uiState.isPulling = true
-  await repositoryStore.pullLatest(props.repositoryId)
-  uiState.isPulling = false
+  const { requestId } = await repositoryStore.pullLatest(props.repositoryId)
+  emit('pull-started', { requestId, repositoryName: props.repositoryName, repositoryId: props.repositoryId })
   modalState.showPullConfirm = false
-  emit('close')
 }
 
 const handleBackgroundClick = (): void => {
@@ -233,10 +231,10 @@ const handleBackgroundClick = (): void => {
 
       <button
         v-if="!isWorktree"
-        :disabled="!uiState.isGit || uiState.isCheckingGit || uiState.isPulling"
+        :disabled="!uiState.isGit || uiState.isCheckingGit"
         :class="[
           'w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs',
-          uiState.isGit && !uiState.isCheckingGit && !uiState.isPulling ? 'hover:bg-secondary' : 'opacity-50 cursor-not-allowed'
+          uiState.isGit && !uiState.isCheckingGit ? 'hover:bg-secondary' : 'opacity-50 cursor-not-allowed'
         ]"
         @click="handlePullLatestClick"
       >
@@ -288,7 +286,6 @@ const handleBackgroundClick = (): void => {
 
     <PullLatestConfirmModal
       v-model:open="modalState.showPullConfirm"
-      :loading="uiState.isPulling"
       @confirm="handlePullLatestConfirm"
     />
   </Teleport>

@@ -47,7 +47,7 @@ vi.mock('lucide-vue-next', () => ({
   },
 }))
 
-function mountModal(props: { open?: boolean; loading?: boolean } = {}) {
+function mountModal(props: { open?: boolean } = {}) {
   return mount(PullLatestConfirmModal, {
     props: {
       open: true,
@@ -61,6 +61,25 @@ describe('PullLatestConfirmModal', () => {
     const wrapper = mountModal()
 
     expect(wrapper.text()).toContain('此操作將丟棄所有本地修改')
+  })
+
+  it('Modal 應顯示標題「Pull 至最新版本」', () => {
+    const wrapper = mountModal()
+
+    expect(wrapper.text()).toContain('Pull 至最新版本')
+  })
+
+  it('Modal 應顯示技術說明文字（包含 git fetch + git reset --hard 相關）', () => {
+    const wrapper = mountModal()
+
+    expect(wrapper.text()).toContain('git fetch')
+    expect(wrapper.text()).toContain('git reset --hard')
+  })
+
+  it('open 為 false 時 Modal 不應渲染內容', () => {
+    const wrapper = mountModal({ open: false })
+
+    expect(wrapper.find('[data-testid="dialog"]').exists()).toBe(false)
   })
 
   it('點擊確認按鈕 emit confirm 事件', async () => {
@@ -89,30 +108,21 @@ describe('PullLatestConfirmModal', () => {
     expect(wrapper.emitted('update:open')![0]).toEqual([false])
   })
 
-  it('loading 為 true 時確認按鈕顯示「Pull 中...」且 disabled', () => {
-    const wrapper = mountModal({ loading: true })
-
-    const buttons = wrapper.findAll('button')
-    const loadingButton = buttons.find((btn) => btn.text().includes('Pull 中...'))
-    expect(loadingButton).toBeDefined()
-    expect(loadingButton!.element.disabled).toBe(true)
-  })
-
-  it('loading 為 true 時取消按鈕也 disabled', () => {
-    const wrapper = mountModal({ loading: true })
-
-    const buttons = wrapper.findAll('button')
-    const cancelButton = buttons.find((btn) => btn.text().includes('取消'))
-    expect(cancelButton).toBeDefined()
-    expect(cancelButton!.element.disabled).toBe(true)
-  })
-
-  it('loading 為 false 時確認按鈕顯示「確認 Pull」且可點擊', () => {
-    const wrapper = mountModal({ loading: false })
+  it('確認按鈕顯示「確認 Pull」且預設可點擊', () => {
+    const wrapper = mountModal()
 
     const buttons = wrapper.findAll('button')
     const confirmButton = buttons.find((btn) => btn.text().includes('確認 Pull'))
     expect(confirmButton).toBeDefined()
     expect(confirmButton!.element.disabled).toBe(false)
+  })
+
+  it('取消按鈕預設可點擊', () => {
+    const wrapper = mountModal()
+
+    const buttons = wrapper.findAll('button')
+    const cancelButton = buttons.find((btn) => btn.text().includes('取消'))
+    expect(cancelButton).toBeDefined()
+    expect(cancelButton!.element.disabled).toBe(false)
   })
 })

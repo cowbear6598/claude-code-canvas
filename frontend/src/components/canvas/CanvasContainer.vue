@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, onUnmounted, ref} from 'vue'
 import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
-import {useDeleteSelection, useGitCloneProgress, useCheckoutProgress, useNoteEventHandlers} from '@/composables/canvas'
+import {useDeleteSelection, useGitCloneProgress, useCheckoutProgress, usePullProgress, useNoteEventHandlers} from '@/composables/canvas'
 import {isCtrlOrCmdPressed} from '@/utils/keyboardHelpers'
 import CanvasViewport from './CanvasViewport.vue'
 import EmptyState from './EmptyState.vue'
@@ -65,6 +65,7 @@ useDeleteSelection()
 
 const gitCloneProgress = useGitCloneProgress()
 const checkoutProgress = useCheckoutProgress()
+const pullProgress = usePullProgress()
 
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
 
@@ -354,12 +355,19 @@ const handleCloneStarted = (payload: { requestId: string; repoName: string }): v
   gitCloneProgress.addTask(payload.requestId, payload.repoName)
 }
 
+const handlePullStarted = (payload: { requestId: string; repositoryName: string; repositoryId: string }): void => {
+  pullProgress.addTask(payload.requestId, payload.repositoryName, payload.repositoryId)
+}
+
 const allProgressTasks = computed<Map<string, ProgressTask>>(() => {
   const result = new Map<string, ProgressTask>()
   for (const [key, task] of gitCloneProgress.progressTasks.value) {
     result.set(key, task)
   }
   for (const [key, task] of checkoutProgress.progressTasks.value) {
+    result.set(key, task)
+  }
+  for (const [key, task] of pullProgress.progressTasks.value) {
     result.set(key, task)
   }
   return result
@@ -590,6 +598,7 @@ const handleNoteDoubleClick = (data: {
 onUnmounted(() => {
   gitCloneProgress.cleanupListeners()
   checkoutProgress.cleanupListeners()
+  pullProgress.cleanupListeners()
 })
 </script>
 
@@ -721,6 +730,7 @@ onUnmounted(() => {
     :is-worktree="repositoryContextMenu.isWorktree"
     @close="handleRepositoryContextMenuClose"
     @worktree-created="handleRepositoryContextMenuClose"
+    @pull-started="handlePullStarted"
   />
 
   <!-- Connection Context Menu -->

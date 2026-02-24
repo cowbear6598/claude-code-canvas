@@ -209,5 +209,6 @@ export enum WebSocketResponseEvents {
   WORKFLOW_QUEUE_PROCESSED = 'workflow:queue-processed',
   WORKFLOW_DIRECT_COUNTDOWN = 'workflow:direct-countdown',
   WORKFLOW_DIRECT_MERGED = 'workflow:direct-merged',
+  REPOSITORY_PULL_LATEST_PROGRESS = 'repository:pull-latest:progress',
   REPOSITORY_PULL_LATEST_RESULT = 'repository:pull-latest:result',
 }

@@ -23,6 +23,7 @@ import {
     type RepositoryLocalBranchesResultPayload,
     type RepositoryWorktreeCreatedPayload,
     type RepositoryPullLatestResultPayload,
+    type RepositoryPullLatestProgressPayload,
     type RepositoryBranchCheckedOutPayload,
 } from '../../src/types';
 
@@ -209,6 +210,89 @@ describe('Repository Git 操作', () => {
 
             expect(response.success).toBe(false);
             expect(response.error).toContain('不是 Git Repository');
+        });
+
+        it('Pull 成功時收到進度事件', async () => {
+            const { config } = await import('../../src/config/index.js');
+            const repo = await createRepository(client, `pull-progress-${uuidv4()}`);
+            const repoPath = path.join(config.repositoriesRoot, repo.id);
+            const remoteRepoPath = path.join(config.repositoriesRoot, `${repo.id}-remote`);
+
+            await initGitRepoWithRemote(repoPath, remoteRepoPath);
+
+            const canvasId = await getCanvasId(client);
+            const progressEvents: RepositoryPullLatestProgressPayload[] = [];
+
+            const progressHandler = (data: RepositoryPullLatestProgressPayload) => {
+                progressEvents.push(data);
+            };
+            client.on(WebSocketResponseEvents.REPOSITORY_PULL_LATEST_PROGRESS, progressHandler);
+
+            const response = await emitAndWaitResponse<RepositoryPullLatestPayload, RepositoryPullLatestResultPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_PULL_LATEST,
+                WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+                { requestId: uuidv4(), canvasId, repositoryId: repo.id },
+                15000
+            );
+
+            client.off(WebSocketResponseEvents.REPOSITORY_PULL_LATEST_PROGRESS, progressHandler);
+
+            expect(response.success).toBe(true);
+            expect(progressEvents.length).toBeGreaterThan(0);
+            expect(progressEvents[0].progress).toBe(0);
+            expect(progressEvents[0].message).toBe('準備 Pull...');
+            expect(progressEvents[progressEvents.length - 1].progress).toBe(100);
+
+            await cleanupRepo(remoteRepoPath);
+        });
+
+        it('有 git 但無 remote 時 Pull 回傳失敗', async () => {
+            const { config } = await import('../../src/config/index.js');
+            const repo = await createRepository(client, `pull-no-remote-${uuidv4()}`);
+            const repoPath = path.join(config.repositoriesRoot, repo.id);
+
+            await initGitRepo(repoPath);
+
+            const canvasId = await getCanvasId(client);
+            const response = await emitAndWaitResponse<RepositoryPullLatestPayload, RepositoryPullLatestResultPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_PULL_LATEST,
+                WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+                { requestId: uuidv4(), canvasId, repositoryId: repo.id },
+                10000
+            );
+
+            expect(response.success).toBe(false);
+        });
+
+        it('Worktree repository 無法 Pull', async () => {
+            const { config } = await import('../../src/config/index.js');
+            const repo = await createRepository(client, `pull-wt-${uuidv4()}`);
+            const repoPath = path.join(config.repositoriesRoot, repo.id);
+            await initGitRepo(repoPath);
+
+            const canvasId = await getCanvasId(client);
+
+            const worktreeResponse = await emitAndWaitResponse<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
+                WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
+                { requestId: uuidv4(), canvasId, repositoryId: repo.id, worktreeName: 'pull-wt-branch' }
+            );
+
+            expect(worktreeResponse.success).toBe(true);
+            const worktreeRepoId = worktreeResponse.repository!.id;
+
+            const response = await emitAndWaitResponse<RepositoryPullLatestPayload, RepositoryPullLatestResultPayload>(
+                client,
+                WebSocketRequestEvents.REPOSITORY_PULL_LATEST,
+                WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+                { requestId: uuidv4(), canvasId, repositoryId: worktreeRepoId }
+            );
+
+            expect(response.success).toBe(false);
+            expect(response.error).toContain('Worktree 無法執行 Pull');
         });
     });
 

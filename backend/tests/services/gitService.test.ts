@@ -176,6 +176,12 @@ describe('GitService - Git 來源偵測與認證', () => {
       expect(result).toBe('無法連線至遠端伺服器');
     });
 
+    it("包含 'Network error' 回傳無法連線訊息", () => {
+      const result = getPullLatestError('Network error occurred');
+
+      expect(result).toBe('無法連線至遠端伺服器');
+    });
+
     it("包含 \"couldn't find remote ref\" 回傳遠端分支不存在訊息", () => {
       const result = getPullLatestError("couldn't find remote ref main");
 

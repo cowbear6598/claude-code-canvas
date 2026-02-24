@@ -615,61 +615,61 @@ describe('repositoryStore', () => {
   })
 
   describe('pullLatest', () => {
-    it('成功時應顯示成功 Toast', async () => {
+    it('應透過 websocketClient.emit 發送 pull 請求並回傳 requestId', async () => {
+      const { mockWebSocketClient: wsClient } = await import('../../helpers/mockWebSocket')
       const store = useRepositoryStore()
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-      })
 
       const result = await store.pullLatest('repo-1')
 
-      expect(mockShowSuccessToast).toHaveBeenCalledWith('Git', 'Pull 成功')
-      expect(result).toEqual({ success: true, error: undefined })
+      expect(wsClient.emit).toHaveBeenCalledWith(
+        'repository:pull-latest',
+        expect.objectContaining({
+          canvasId: 'canvas-1',
+          repositoryId: 'repo-1',
+        })
+      )
+      expect(result).toHaveProperty('requestId')
+      expect(typeof result.requestId).toBe('string')
     })
 
-    it('應傳送正確的 WebSocket 事件與 payload', async () => {
+    it('emit payload 的 requestId 應與回傳值的 requestId 一致', async () => {
+      const { mockWebSocketClient: wsClient } = await import('../../helpers/mockWebSocket')
       const store = useRepositoryStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-      })
+      const result = await store.pullLatest('repo-1')
+
+      const emitCall = wsClient.emit.mock.calls.find(
+        (call: unknown[]) => call[0] === 'repository:pull-latest'
+      )
+      expect(emitCall).toBeDefined()
+      const emittedPayload = emitCall![1] as { requestId: string }
+      expect(emittedPayload.requestId).toBe(result.requestId)
+    })
+
+    it('每次呼叫應回傳不同的 requestId', async () => {
+      const store = useRepositoryStore()
+
+      const result1 = await store.pullLatest('repo-1')
+      const result2 = await store.pullLatest('repo-1')
+
+      expect(result1.requestId).not.toBe(result2.requestId)
+    })
+
+    it('不應呼叫 createWebSocketRequest（fire-and-forget 模式）', async () => {
+      const store = useRepositoryStore()
 
       await store.pullLatest('repo-1')
 
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'repository:pull-latest',
-        responseEvent: 'repository:pull-latest:result',
-        payload: {
-          canvasId: 'canvas-1',
-          repositoryId: 'repo-1',
-        },
-      })
+      expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
-    it('回應為 null 時應顯示錯誤 Toast', async () => {
+    it('不應呼叫 showSuccessToast 或 showErrorToast（由 progress composable 處理）', async () => {
       const store = useRepositoryStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce(null)
+      await store.pullLatest('repo-1')
 
-      const result = await store.pullLatest('repo-1')
-
-      expect(mockShowErrorToast).toHaveBeenCalledWith('Git', 'Pull 失敗')
-      expect(result).toEqual({ success: false, error: 'Pull 失敗' })
-    })
-
-    it('失敗時應顯示錯誤 Toast 並帶上錯誤訊息', async () => {
-      const store = useRepositoryStore()
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: false,
-        error: '遠端連線失敗',
-      })
-
-      const result = await store.pullLatest('repo-1')
-
-      expect(mockShowErrorToast).toHaveBeenCalledWith('Git', 'Pull 失敗', '遠端連線失敗')
-      expect(result).toEqual({ success: false, error: '遠端連線失敗' })
+      expect(mockShowSuccessToast).not.toHaveBeenCalled()
+      expect(mockShowErrorToast).not.toHaveBeenCalled()
     })
   })
 
