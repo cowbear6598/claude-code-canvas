@@ -39,7 +39,12 @@
       "Bash(bunx tsc:*)",
       "Bash(bunx --bun vitest run:*)",
       "Bash(bunx eslint:*)",
-      "Bash(bunx --bun tsc:*)"
+      "Bash(bunx --bun tsc:*)",
+      "Bash(/Users/cowbear6598/.bun/bin/bun run:*)",
+      "Bash(export PATH=\"$HOME/.bun/bin:$PATH\" && cd /Users/cowbear6598/Desktop/claude-code-canvas/frontend && bun run test:run -- tests/composables/canvas/useCanvasPan.test.ts 2>&1)",
+      "Bash(tail:*)",
+      "Bash(export PATH=\"$HOME/.bun/bin:$PATH\" && cd /Users/cowbear6598/Desktop/claude-code-canvas/frontend && bun run style 2>&1)",
+      "Bash(cd:*)"
     ]
   },
   "outputStyle": "conductor"
