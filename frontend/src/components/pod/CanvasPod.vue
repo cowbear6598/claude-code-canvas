@@ -589,6 +589,7 @@ const handleClearScheduleFiredAnimation = (): void => {
         :schedule-enabled="scheduleEnabled"
         :schedule-tooltip="scheduleTooltip"
         :is-schedule-fired-animating="isScheduleFiredAnimating"
+        :is-typing="chatStore.isTyping(pod.id)"
         @open-schedule-modal="handleOpenScheduleModal"
         @update:show-clear-dialog="showClearDialog = $event"
         @update:show-delete-dialog="showDeleteDialog = $event"

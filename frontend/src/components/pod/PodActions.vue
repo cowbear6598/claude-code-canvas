@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch } from 'vue'
+import { ref, computed, onUnmounted, watch } from 'vue'
 import { Eraser, Trash2, Timer } from 'lucide-vue-next'
 import { useChatStore } from '@/stores/chat'
 import {
@@ -21,6 +21,7 @@ const props = withDefaults(defineProps<{
   isAutoClearAnimating: boolean
   isLoadingDownstream: boolean
   isClearing: boolean
+  isTyping?: boolean
   downstreamPods: Array<{ id: string; name: string }>
   showClearDialog: boolean
   showDeleteDialog: boolean
@@ -29,7 +30,8 @@ const props = withDefaults(defineProps<{
   scheduleTooltip: string
   isScheduleFiredAnimating?: boolean
 }>(), {
-  isScheduleFiredAnimating: false
+  isScheduleFiredAnimating: false,
+  isTyping: false
 })
 
 const emit = defineEmits<{
@@ -58,6 +60,24 @@ const longPressProgress = ref(0)
 const mousePosition = ref({ x: 0, y: 0 })
 let progressAnimationFrame: number | null = null
 let longPressStartTime: number | null = null
+let autoClearAnimationTimer: ReturnType<typeof setTimeout> | null = null
+
+const isEraserDisabled = computed(() =>
+  props.isLoadingDownstream || props.isClearing || isToggling.value || props.isTyping
+)
+
+const cleanupLongPress = (): void => {
+  if (longPressTimer.value) {
+    clearTimeout(longPressTimer.value)
+    longPressTimer.value = null
+  }
+  isLongPressing.value = false
+  longPressProgress.value = 0
+  if (progressAnimationFrame) {
+    cancelAnimationFrame(progressAnimationFrame)
+    progressAnimationFrame = null
+  }
+}
 
 const handleEraserMouseDown = (e: MouseEvent): void => {
   e.stopPropagation()
@@ -84,37 +104,23 @@ const handleEraserMouseDown = (e: MouseEvent): void => {
     isLongPress.value = true
     isLongPressing.value = false
     longPressProgress.value = 0
+    isToggling.value = true
     emit('toggle-auto-clear')
+    setTimeout(() => {
+      isToggling.value = false
+    }, 5000)
   }, LONG_PRESS_DURATION)
 }
 
 const handleEraserMouseUp = (): void => {
-  if (longPressTimer.value) {
-    clearTimeout(longPressTimer.value)
-    longPressTimer.value = null
-  }
-  isLongPressing.value = false
-  longPressProgress.value = 0
-  if (progressAnimationFrame) {
-    cancelAnimationFrame(progressAnimationFrame)
-    progressAnimationFrame = null
-  }
+  cleanupLongPress()
   if (!isLongPress.value) {
     emit('clear-workflow')
   }
 }
 
 const handleEraserMouseLeave = (): void => {
-  if (longPressTimer.value) {
-    clearTimeout(longPressTimer.value)
-    longPressTimer.value = null
-  }
-  isLongPressing.value = false
-  longPressProgress.value = 0
-  if (progressAnimationFrame) {
-    cancelAnimationFrame(progressAnimationFrame)
-    progressAnimationFrame = null
-  }
+  cleanupLongPress()
 }
 
 const handleDelete = (): void => {
@@ -140,23 +146,26 @@ const cancelClear = (): void => {
 let scheduleFiredAnimationTimer: ReturnType<typeof setTimeout> | null = null
 
 onUnmounted(() => {
-  if (longPressTimer.value) {
-    clearTimeout(longPressTimer.value)
-    longPressTimer.value = null
-  }
-  if (progressAnimationFrame) {
-    cancelAnimationFrame(progressAnimationFrame)
-  }
+  cleanupLongPress()
   if (scheduleFiredAnimationTimer) {
     clearTimeout(scheduleFiredAnimationTimer)
     scheduleFiredAnimationTimer = null
   }
+  if (autoClearAnimationTimer) {
+    clearTimeout(autoClearAnimationTimer)
+    autoClearAnimationTimer = null
+  }
+})
+
+watch(() => props.isAutoClearEnabled, () => {
+  isToggling.value = false
 })
 
 watch(() => props.isAutoClearAnimating, (newValue) => {
   if (newValue) {
-    setTimeout(() => {
+    autoClearAnimationTimer = setTimeout(() => {
       chatStore.clearAutoClearAnimation()
+      autoClearAnimationTimer = null
     }, 600)
   }
 })
@@ -204,7 +213,7 @@ watch(() => props.isScheduleFiredAnimating, (newValue) => {
         'auto-clear-enabled': isAutoClearEnabled,
         'auto-clear-animating': isAutoClearAnimating
       }"
-      :disabled="isLoadingDownstream || isClearing || isToggling"
+      :disabled="isEraserDisabled"
       @mousedown="handleEraserMouseDown"
       @mouseup="handleEraserMouseUp"
       @mouseleave="handleEraserMouseLeave"
