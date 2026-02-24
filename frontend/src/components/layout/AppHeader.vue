@@ -10,7 +10,7 @@
           class="text-2xl font-bold tracking-tight"
           style="font-family: var(--font-handwriting)"
         >
-          Agent Canvas
+          Claude Code Canvas
         </h1>
       </div>
 
