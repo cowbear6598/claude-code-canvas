@@ -92,14 +92,13 @@ describe('chatMessageActions', () => {
       expect(messages![1]!.content).toBe('Second message')
     })
 
-    it('Pod 不存在時不應更新 output', async () => {
+    it('Pod 不存在時不應新增訊息也不應更新 output', async () => {
       const chatStore = useChatStore()
       const podStore = usePodStore()
 
       await chatStore.addUserMessage('non-existent', 'Hello')
 
-      const messages = chatStore.messagesByPodId.get('non-existent')
-      expect(messages).toHaveLength(1)
+      expect(chatStore.messagesByPodId.has('non-existent')).toBe(false)
       expect(podStore.pods).toHaveLength(0)
     })
 

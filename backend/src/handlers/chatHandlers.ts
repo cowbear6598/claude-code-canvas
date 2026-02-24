@@ -104,6 +104,8 @@ export const handleChatAbort = withCanvasId<ChatAbortPayload>(
         // 驗證請求者是否為對話發起者
         const queryConnectionId = claudeQueryService.getQueryConnectionId(podId);
         if (!queryConnectionId) {
+            // 找不到查詢但 pod 狀態是 chatting，重設為 idle 避免卡死
+            podStore.setStatus(canvasId, podId, 'idle');
             emitError(
                 connectionId,
                 WebSocketResponseEvents.POD_ERROR,
@@ -129,6 +131,8 @@ export const handleChatAbort = withCanvasId<ChatAbortPayload>(
 
         const aborted = claudeQueryService.abortQuery(podId);
         if (!aborted) {
+            // abort 失敗但 pod 狀態是 chatting，重設為 idle 避免卡死
+            podStore.setStatus(canvasId, podId, 'idle');
             emitError(
                 connectionId,
                 WebSocketResponseEvents.POD_ERROR,

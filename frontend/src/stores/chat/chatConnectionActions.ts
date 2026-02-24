@@ -3,6 +3,18 @@ import {useToast} from '@/composables/useToast'
 import type {ConnectionReadyPayload, HeartbeatPingPayload, PodErrorPayload} from '@/types/websocket'
 import type {ChatStoreInstance} from './chatStore'
 
+const DISCONNECT_REASON_MAP: Record<string, string> = {
+    'transport close': '連線已關閉',
+    'transport error': '連線傳輸錯誤',
+    'ping timeout': '心跳超時',
+    'io server disconnect': '伺服器主動斷開',
+    'io client disconnect': '客戶端主動斷開',
+}
+
+const getDisconnectMessage = (reason: string): string => {
+    return DISCONNECT_REASON_MAP[reason] || '未知原因'
+}
+
 const HEARTBEAT_CHECK_INTERVAL_MS = 5000
 const HEARTBEAT_TIMEOUT_MS = 20000
 
@@ -96,10 +108,13 @@ export function createConnectionActions(store: ChatStoreInstance): {
         stopHeartbeatCheck()
         resetConnectionState()
 
+        // 連線中斷時清除所有 Pod 的 typing 狀態，避免 UI 卡住
+        store.isTypingByPodId.clear()
+
         const {toast} = useToast()
         toast({
             title: '連線中斷',
-            description: `原因: ${reason}`,
+            description: getDisconnectMessage(reason),
         })
     }
 

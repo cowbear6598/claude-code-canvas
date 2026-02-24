@@ -241,6 +241,19 @@ class ClaudeQueryService {
         connectionId: string;
     }>();
 
+    /**
+     * 清理指定連線的所有活躍查詢
+     * 用於連線斷開時，避免 Pod 永遠卡在 chatting 狀態
+     */
+    public abortQueriesByConnectionId(connectionId: string): void {
+        for (const [podId, entry] of this.activeQueries.entries()) {
+            if (entry.connectionId === connectionId) {
+                entry.abortController.abort();
+                this.activeQueries.delete(podId);
+            }
+        }
+    }
+
     public abortQuery(podId: string): boolean {
         const entry = this.activeQueries.get(podId);
         if (!entry) {

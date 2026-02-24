@@ -304,6 +304,20 @@ describe('chatStore', () => {
       expect((emittedBlocks[0] as TextContentBlock).text).toBe('/analyze this file')
     })
 
+    it('activeCanvasId 為 null 時不應發送 WebSocket 事件', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = null
+      const podStore = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', commandId: null })
+      podStore.pods = [pod]
+      const store = useChatStore()
+      store.connectionStatus = 'connected'
+
+      await store.sendMessage('pod-1', 'Hello')
+
+      expect(mockWebSocketClient.emit).not.toHaveBeenCalled()
+    })
+
     it('空白訊息時不應發送', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
@@ -352,13 +366,167 @@ describe('chatStore', () => {
       })
     })
 
-    it('未連線時不應發送', async () => {
+    it('activeCanvasId 為 null 時不應發送 WebSocket 事件', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = null
+      const store = useChatStore()
+      store.connectionStatus = 'connected'
+
+      await store.abortChat('pod-1')
+
+      expect(mockWebSocketClient.emit).not.toHaveBeenCalled()
+    })
+
+    it('未連線時不應發送 WebSocket 事件', async () => {
       const store = useChatStore()
       store.connectionStatus = 'disconnected'
 
       await store.abortChat('pod-1')
 
       expect(mockWebSocketClient.emit).not.toHaveBeenCalled()
+    })
+
+    it('未連線時應立即重設 isTyping 狀態，避免卡在 chatting', async () => {
+      const store = useChatStore()
+      store.connectionStatus = 'disconnected'
+      store.isTypingByPodId.set('pod-1', true)
+
+      await store.abortChat('pod-1')
+
+      expect(store.isTypingByPodId.get('pod-1')).toBe(false)
+    })
+
+    it('已連線時若 10 秒後仍在 typing，應強制重設 isTyping', async () => {
+      vi.useFakeTimers()
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useChatStore()
+      store.connectionStatus = 'connected'
+      store.isTypingByPodId.set('pod-1', true)
+
+      await store.abortChat('pod-1')
+
+      // 尚未超時，isTyping 仍為 true
+      expect(store.isTypingByPodId.get('pod-1')).toBe(true)
+
+      // 觸發 10 秒超時
+      vi.advanceTimersByTime(10000)
+
+      expect(store.isTypingByPodId.get('pod-1')).toBe(false)
+
+      vi.useRealTimers()
+    })
+
+    it('已連線時若 10 秒內 isTyping 已被正常重設，安全超時不應重複觸發', async () => {
+      vi.useFakeTimers()
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useChatStore()
+      store.connectionStatus = 'connected'
+      store.isTypingByPodId.set('pod-1', true)
+
+      await store.abortChat('pod-1')
+
+      // 模擬正常收到 abort 回應後 isTyping 被重設
+      store.setTyping('pod-1', false)
+
+      vi.advanceTimersByTime(10000)
+
+      // isTyping 應維持 false（安全超時不應造成額外影響）
+      expect(store.isTypingByPodId.get('pod-1')).toBe(false)
+
+      vi.useRealTimers()
+    })
+
+    it('setTyping(false) 後安全超時 timer 應被清除，不再觸發', async () => {
+      vi.useFakeTimers()
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useChatStore()
+      store.connectionStatus = 'connected'
+      store.isTypingByPodId.set('pod-1', true)
+
+      await store.abortChat('pod-1')
+
+      // 模擬正常收到 abort 回應後 isTyping 被重設，timer 應被清除
+      store.setTyping('pod-1', false)
+
+      // 手動將 isTyping 再設回 true，模擬新的 chat 開始
+      store.isTypingByPodId.set('pod-1', true)
+
+      // 舊的 timer 應已被清除，不應干擾新的 chat
+      vi.advanceTimersByTime(10000)
+      expect(store.isTypingByPodId.get('pod-1')).toBe(true)
+
+      vi.useRealTimers()
+    })
+
+    it('連續兩次 abort 時，新的 abort 應覆蓋舊的 timer', async () => {
+      vi.useFakeTimers()
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useChatStore()
+      store.connectionStatus = 'connected'
+      store.isTypingByPodId.set('pod-1', true)
+
+      // 第一次 abort
+      await store.abortChat('pod-1')
+
+      // 推進 5 秒（舊 timer 尚未觸發）
+      vi.advanceTimersByTime(5000)
+      expect(store.isTypingByPodId.get('pod-1')).toBe(true)
+
+      // 第二次 abort，應清除舊 timer 並設置新的 10 秒 timer
+      await store.abortChat('pod-1')
+
+      // 再推進 5 秒（若舊 timer 未清除，應在此觸發；但新 timer 剩 10 秒）
+      vi.advanceTimersByTime(5000)
+      expect(store.isTypingByPodId.get('pod-1')).toBe(true)
+
+      // 再推進 5 秒，新 timer 觸發
+      vi.advanceTimersByTime(5000)
+      expect(store.isTypingByPodId.get('pod-1')).toBe(false)
+
+      vi.useRealTimers()
+    })
+  })
+
+  describe('handleChatAborted', () => {
+    it('收到 aborted 事件後 currentStreamingMessageId 應被清為 null', () => {
+      const store = useChatStore()
+      store.currentStreamingMessageId = 'msg-1'
+
+      store.handleChatAborted({ podId: 'pod-1', messageId: 'msg-1' })
+
+      expect(store.currentStreamingMessageId).toBeNull()
+    })
+
+    it('收到 aborted 事件且訊息存在時，訊息的 isPartial 應被設為 false', () => {
+      const store = useChatStore()
+      store.messagesByPodId.set('pod-1', [
+        {
+          id: 'msg-1',
+          role: 'assistant',
+          content: '部分回應...',
+          isPartial: true,
+          timestamp: '2024-01-01',
+        },
+      ])
+      store.currentStreamingMessageId = 'msg-1'
+
+      store.handleChatAborted({ podId: 'pod-1', messageId: 'msg-1' })
+
+      const messages = store.messagesByPodId.get('pod-1')
+      expect(messages?.[0]?.isPartial).toBe(false)
+    })
+
+    it('收到 aborted 事件且訊息不存在時（messageIndex === -1），isTyping 仍應被設為 false', () => {
+      const store = useChatStore()
+      store.isTypingByPodId.set('pod-1', true)
+
+      store.handleChatAborted({ podId: 'pod-1', messageId: 'non-existent-msg' })
+
+      expect(store.isTypingByPodId.get('pod-1')).toBe(false)
     })
   })
 

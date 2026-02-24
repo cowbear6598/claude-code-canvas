@@ -52,6 +52,7 @@ export default [
         MessageEvent: 'readonly',
         CloseEvent: 'readonly',
         SVGPathElement: 'readonly',
+        Range: 'readonly',
       },
     },
     plugins: {
@@ -117,6 +118,7 @@ export default [
         MessageEvent: 'readonly',
         CloseEvent: 'readonly',
         SVGPathElement: 'readonly',
+        Range: 'readonly',
       },
     },
     plugins: {

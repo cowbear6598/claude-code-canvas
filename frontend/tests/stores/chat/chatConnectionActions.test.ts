@@ -283,15 +283,58 @@ describe('chatConnectionActions', () => {
       expect(store.historyLoadingError.size).toBe(0)
     })
 
-    it('顯示斷線 Toast', () => {
+    it('顯示斷線 Toast（已知 reason 顯示友善訊息）', () => {
+      const store = useChatStore()
+
+      store.handleSocketDisconnect('transport close')
+
+      expect(mockToast).toHaveBeenCalledWith({
+        title: '連線中斷',
+        description: '連線已關閉',
+      })
+    })
+
+    it('顯示斷線 Toast（未知 reason 顯示未知原因）', () => {
       const store = useChatStore()
 
       store.handleSocketDisconnect('Network error')
 
       expect(mockToast).toHaveBeenCalledWith({
         title: '連線中斷',
-        description: '原因: Network error',
+        description: '未知原因',
       })
+    })
+
+    it('所有已知 reason 皆有對應友善訊息', () => {
+      const knownReasons: Record<string, string> = {
+        'transport close': '連線已關閉',
+        'transport error': '連線傳輸錯誤',
+        'ping timeout': '心跳超時',
+        'io server disconnect': '伺服器主動斷開',
+        'io client disconnect': '客戶端主動斷開',
+      }
+
+      for (const [reason, expectedMessage] of Object.entries(knownReasons)) {
+        vi.clearAllMocks()
+        const store = useChatStore()
+
+        store.handleSocketDisconnect(reason)
+
+        expect(mockToast).toHaveBeenCalledWith({
+          title: '連線中斷',
+          description: expectedMessage,
+        })
+      }
+    })
+
+    it('斷線時清除所有 Pod typing 狀態', () => {
+      const store = useChatStore()
+      store.isTypingByPodId.set('pod-1', true)
+      store.isTypingByPodId.set('pod-2', true)
+
+      store.handleSocketDisconnect('transport close')
+
+      expect(store.isTypingByPodId.size).toBe(0)
     })
 
     it('停止心跳檢查', () => {

@@ -9,6 +9,7 @@ import { eventRouter } from './services/eventRouter.js';
 import { deserialize } from './utils/messageSerializer.js';
 import { logger } from './utils/logger.js';
 import { WebSocketResponseEvents } from './schemas/index.js';
+import { claudeQueryService } from './services/claude/queryService.js';
 import { isStaticFilesAvailable, serveStaticFile } from './utils/staticFileServer.js';
 
 async function startServer(): Promise<void> {
@@ -109,6 +110,9 @@ async function startServer(): Promise<void> {
 			},
 			close(ws: ServerWebSocket<{ connectionId: string }>) {
 				const connectionId = ws.data.connectionId;
+
+				// 清理該連線的活躍查詢，避免 Pod 卡在 chatting 狀態
+				claudeQueryService.abortQueriesByConnectionId(connectionId);
 
 				// 斷線處理
 				socketService.cleanupSocket(connectionId);

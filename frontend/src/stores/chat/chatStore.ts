@@ -18,9 +18,30 @@ import type {
     TextContentBlock,
     WorkflowAutoClearedPayload
 } from '@/types/websocket'
+import type {Command} from '@/types/command'
 import {createMessageActions} from './chatMessageActions'
 import {createConnectionActions} from './chatConnectionActions'
+
+function buildMessagePayload(
+    content: string,
+    contentBlocks: ContentBlock[] | undefined,
+    command: Command | null | undefined
+): string | ContentBlock[] {
+    if (!contentBlocks || contentBlocks.length === 0) {
+        return command ? `/${command.name} ${content}` : content
+    }
+
+    const blocks = [...contentBlocks]
+    const firstTextBlock = blocks.find((block): block is TextContentBlock => block.type === 'text')
+
+    if (command && firstTextBlock) {
+        firstTextBlock.text = `/${command.name} ${firstTextBlock.text}`
+    }
+
+    return blocks
+}
 import {createHistoryActions} from './chatHistoryActions'
+import {abortSafetyTimers} from './abortSafetyTimers'
 
 export type ChatStoreInstance = ReturnType<typeof useChatStore>
 
@@ -176,34 +197,18 @@ export const useChatStore = defineStore('chat', {
 
             const hasContentBlocks = contentBlocks && contentBlocks.length > 0
             const hasTextContent = content.trim().length > 0
+            if (!hasContentBlocks && !hasTextContent) return
 
-            if (!hasContentBlocks && !hasTextContent) {
-                return
-            }
-
-            let messagePayload: string | ContentBlock[]
-
-            if (hasContentBlocks) {
-                const blocks = [...contentBlocks!]
-                const firstTextBlock = blocks.find((block): block is TextContentBlock => block.type === 'text')
-
-                if (command && firstTextBlock) {
-                    firstTextBlock.text = `/${command.name} ${firstTextBlock.text}`
-                }
-
-                messagePayload = blocks
-            } else {
-                messagePayload = command ? `/${command.name} ${content}` : content
-            }
-
-            // 統一事件監聽器會處理用戶訊息的添加，這裡不需要手動添加
+            const messagePayload = buildMessagePayload(content, contentBlocks, command)
 
             const {useCanvasStore} = await import('../canvasStore')
             const canvasStore = useCanvasStore()
 
+            if (!canvasStore.activeCanvasId) return
+
             websocketClient.emit<PodChatSendPayload>(WebSocketRequestEvents.POD_CHAT_SEND, {
                 requestId: generateRequestId(),
-                canvasId: canvasStore.activeCanvasId!,
+                canvasId: canvasStore.activeCanvasId,
                 podId,
                 message: messagePayload
             })
@@ -238,17 +243,36 @@ export const useChatStore = defineStore('chat', {
 
         async abortChat(podId: string): Promise<void> {
             if (!this.isConnected) {
+                // 未連線時直接重設狀態，避免卡在 chatting
+                this.setTyping(podId, false)
                 return
             }
 
             const {useCanvasStore} = await import('../canvasStore')
             const canvasStore = useCanvasStore()
 
+            if (!canvasStore.activeCanvasId) return
+
             websocketClient.emit<PodChatAbortPayload>(WebSocketRequestEvents.POD_CHAT_ABORT, {
                 requestId: generateRequestId(),
-                canvasId: canvasStore.activeCanvasId!,
+                canvasId: canvasStore.activeCanvasId,
                 podId
             })
+
+            // 清除舊的安全超時（新的 abort 請求覆蓋舊的）
+            const existingTimer = abortSafetyTimers.get(podId)
+            if (existingTimer) {
+                clearTimeout(existingTimer)
+            }
+
+            // 安全超時：若 10 秒後仍在 typing，強制重設避免卡死
+            const timer = setTimeout(() => {
+                abortSafetyTimers.delete(podId)
+                if (this.isTypingByPodId.get(podId)) {
+                    this.setTyping(podId, false)
+                }
+            }, 10000)
+            abortSafetyTimers.set(podId, timer)
         },
 
         handleChatAborted(payload: PodChatAbortedPayload): void {

@@ -1,4 +1,5 @@
 import {generateRequestId} from '@/services/utils'
+import {abortSafetyTimers} from './abortSafetyTimers'
 import type {Message, SubMessage, ToolUseInfo, ToolUseStatus} from '@/types/chat'
 import type {
     PersistedMessage,
@@ -15,6 +16,55 @@ import {truncateContent} from './chatUtils'
 import type {ChatStoreInstance} from './chatStore'
 
 // ===== Helper Functions =====
+
+/** 從 persisted subMessages 收集所有 toolUse */
+function collectToolUseFromSubMessages(subMessages: PersistedMessage['subMessages']): ToolUseInfo[] {
+    if (!subMessages) return []
+    return subMessages.flatMap(sub =>
+        (sub.toolUse ?? []).map(tool => ({
+            toolUseId: tool.toolUseId,
+            toolName: tool.toolName,
+            input: tool.input,
+            output: tool.output,
+            status: (tool.status as ToolUseStatus) || 'completed',
+        }))
+    )
+}
+
+/** 在最後一個 subMessage 中追加 toolUse */
+function appendToolUseToLastSub(subMessages: SubMessage[], toolUseInfo: ToolUseInfo): SubMessage[] {
+    const updated = [...subMessages]
+    const lastIndex = updated.length - 1
+    const lastSub = updated[lastIndex]
+    if (!lastSub) return updated
+
+    const subToolUse = lastSub.toolUse || []
+    const exists = subToolUse.some(t => t.toolUseId === toolUseInfo.toolUseId)
+
+    updated[lastIndex] = {
+        ...lastSub,
+        toolUse: exists ? subToolUse : [...subToolUse, toolUseInfo]
+    }
+
+    return updated
+}
+
+/** 防禦性更新 pod mini screen output（避免重複追加） */
+async function appendUserOutputToPod(podId: string, content: string): Promise<void> {
+    const {usePodStore} = await import('../pod/podStore')
+    const podStore = usePodStore()
+    const pod = podStore.pods.find(p => p.id === podId)
+    if (!pod) return
+
+    const truncatedContent = `> ${truncateContent(content, CONTENT_PREVIEW_LENGTH)}`
+    const lastOutput = pod.output[pod.output.length - 1]
+    if (lastOutput === truncatedContent) return
+
+    podStore.updatePod({
+        ...pod,
+        output: [...pod.output, truncatedContent]
+    })
+}
 
 /**
  * 更新 SubMessage 內容
@@ -188,6 +238,11 @@ export function createMessageActions(store: ChatStoreInstance): {
     handleWorkflowAutoCleared: (payload: WorkflowAutoClearedPayload) => Promise<void>
 } {
     const addUserMessage = async (podId: string, content: string): Promise<void> => {
+        const {usePodStore} = await import('../pod/podStore')
+        const podStore = usePodStore()
+        const pod = podStore.pods.find(p => p.id === podId)
+        if (!pod) return
+
         const userMessage: Message = {
             id: generateRequestId(),
             role: 'user',
@@ -198,17 +253,7 @@ export function createMessageActions(store: ChatStoreInstance): {
         const messages = store.messagesByPodId.get(podId) || []
         store.messagesByPodId.set(podId, [...messages, userMessage])
 
-        const {usePodStore} = await import('../pod/podStore')
-        const podStore = usePodStore()
-        const pod = podStore.pods.find(p => p.id === podId)
-
-        if (!pod) return
-
-        const truncatedContent = `> ${truncateContent(content, CONTENT_PREVIEW_LENGTH)}`
-        podStore.updatePod({
-            ...pod,
-            output: [...pod.output, truncatedContent]
-        })
+        await appendUserOutputToPod(podId, content)
     }
 
     const handleChatMessage = (payload: PodChatMessagePayload): void => {
@@ -230,16 +275,17 @@ export function createMessageActions(store: ChatStoreInstance): {
 
     const addNewChatMessage = async (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string): Promise<void> => {
         const messages = store.messagesByPodId.get(podId) || []
+        const effectiveRole = role ?? 'assistant'
 
         const newMessage: Message = {
             id: messageId,
-            role: role || 'assistant',
+            role: effectiveRole,
             content,
             isPartial,
             timestamp: new Date().toISOString()
         }
 
-        if ((role || 'assistant') === 'assistant') {
+        if (effectiveRole === 'assistant') {
             const firstSubMessage: SubMessage = {
                 id: `${messageId}-sub-0`,
                 content: delta || content,
@@ -257,23 +303,8 @@ export function createMessageActions(store: ChatStoreInstance): {
         }
 
         // 防禦性更新：當收到 user role 訊息時更新 mini screen
-        if ((role || 'assistant') === 'user') {
-            const {usePodStore} = await import('../pod/podStore')
-            const podStore = usePodStore()
-            const pod = podStore.pods.find(p => p.id === podId)
-
-            if (!pod) return
-
-            const truncatedContent = `> ${truncateContent(content, CONTENT_PREVIEW_LENGTH)}`
-
-            // 避免重複追加：檢查最後一行是否已包含相同內容
-            const lastOutput = pod.output[pod.output.length - 1]
-            if (lastOutput === truncatedContent) return
-
-            podStore.updatePod({
-                ...pod,
-                output: [...pod.output, truncatedContent]
-            })
+        if (effectiveRole === 'user') {
+            await appendUserOutputToPod(podId, content)
         }
     }
 
@@ -367,42 +398,16 @@ export function createMessageActions(store: ChatStoreInstance): {
 
         const toolUse = message.toolUse || []
         const toolIndex = toolUse.findIndex(t => t.toolUseId === toolUseId)
-        const toolUseInfo: ToolUseInfo = {
-            toolUseId,
-            toolName,
-            input,
-            status: 'running' as ToolUseStatus
-        }
-
-        const updatedToolUse = toolIndex === -1
-            ? [...toolUse, toolUseInfo]
-            : toolUse
+        const toolUseInfo: ToolUseInfo = {toolUseId, toolName, input, status: 'running' as ToolUseStatus}
+        const updatedToolUse = toolIndex === -1 ? [...toolUse, toolUseInfo] : toolUse
 
         updatedMessages[messageIndex] = {
             ...message,
             toolUse: updatedToolUse,
-            expectingNewBlock: true
-        }
-
-        if (message.subMessages && message.subMessages.length > 0) {
-            const subMessages = [...message.subMessages]
-            const lastSubIndex = subMessages.length - 1
-            const lastSub = subMessages[lastSubIndex]
-            if (!lastSub) return
-
-            const subToolUse = lastSub.toolUse || []
-            const subToolIndex = subToolUse.findIndex(t => t.toolUseId === toolUseId)
-
-            const updatedSubToolUse = subToolIndex === -1
-                ? [...subToolUse, toolUseInfo]
-                : subToolUse
-
-            subMessages[lastSubIndex] = {
-                ...lastSub,
-                toolUse: updatedSubToolUse
-            }
-
-            updatedMessages[messageIndex].subMessages = subMessages
+            expectingNewBlock: true,
+            ...(message.subMessages?.length && {
+                subMessages: appendToolUseToLastSub(message.subMessages, toolUseInfo)
+            })
         }
 
         store.messagesByPodId.set(podId, updatedMessages)
@@ -537,43 +542,29 @@ export function createMessageActions(store: ChatStoreInstance): {
             isPartial: false
         }
 
-        if (persistedMessage.role === 'assistant') {
-            if (persistedMessage.subMessages && persistedMessage.subMessages.length > 0) {
-                // 收集所有 subMessages 的 toolUse
-                const allToolUse: ToolUseInfo[] = []
-                for (const sub of persistedMessage.subMessages) {
-                    if (sub.toolUse) {
-                        for (const tool of sub.toolUse) {
-                            allToolUse.push({
-                                toolUseId: tool.toolUseId,
-                                toolName: tool.toolName,
-                                input: tool.input,
-                                output: tool.output,
-                                status: (tool.status as ToolUseStatus) || 'completed',
-                            })
-                        }
-                    }
-                }
+        if (persistedMessage.role !== 'assistant') return message
 
-                // 保留多個 subMessages 的分段結構，但把所有 toolUse 集中到第一個
-                // 確保歷史載入後 tool 標籤位置與即時串流一致
-                message.subMessages = persistedMessage.subMessages.map((sub, index) => ({
-                    id: sub.id,
-                    content: sub.content,
-                    isPartial: false,
-                    toolUse: index === 0 && allToolUse.length > 0 ? allToolUse : undefined,
-                }))
+        if (persistedMessage.subMessages && persistedMessage.subMessages.length > 0) {
+            const allToolUse = collectToolUseFromSubMessages(persistedMessage.subMessages)
 
-                if (allToolUse.length > 0) {
-                    message.toolUse = allToolUse
-                }
-            } else {
-                message.subMessages = [{
-                    id: `${persistedMessage.id}-sub-0`,
-                    content: persistedMessage.content,
-                    isPartial: false
-                }]
+            // 保留多個 subMessages 的分段結構，但把所有 toolUse 集中到第一個
+            // 確保歷史載入後 tool 標籤位置與即時串流一致
+            message.subMessages = persistedMessage.subMessages.map((sub, index) => ({
+                id: sub.id,
+                content: sub.content,
+                isPartial: false,
+                toolUse: index === 0 && allToolUse.length > 0 ? allToolUse : undefined,
+            }))
+
+            if (allToolUse.length > 0) {
+                message.toolUse = allToolUse
             }
+        } else {
+            message.subMessages = [{
+                id: `${persistedMessage.id}-sub-0`,
+                content: persistedMessage.content,
+                isPartial: false
+            }]
         }
 
         return message
@@ -585,6 +576,14 @@ export function createMessageActions(store: ChatStoreInstance): {
 
     const setTyping = (podId: string, isTyping: boolean): void => {
         store.isTypingByPodId.set(podId, isTyping)
+
+        if (!isTyping) {
+            const timer = abortSafetyTimers.get(podId)
+            if (timer) {
+                clearTimeout(timer)
+                abortSafetyTimers.delete(podId)
+            }
+        }
     }
 
     const clearMessagesByPodIds = (podIds: string[]): void => {
@@ -625,8 +624,6 @@ export function createMessageActions(store: ChatStoreInstance): {
         } else {
             finalizeStreaming(podId, messageId)
         }
-
-        setTyping(podId, false)
     }
 
     return {

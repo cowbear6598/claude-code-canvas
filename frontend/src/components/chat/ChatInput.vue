@@ -5,11 +5,14 @@ import {
   MAX_MESSAGE_LENGTH,
   TEXTAREA_MAX_HEIGHT,
   MAX_IMAGE_SIZE_BYTES,
-  SUPPORTED_IMAGE_MEDIA_TYPES
+  SUPPORTED_IMAGE_MEDIA_TYPES,
+  MAX_IMAGES_PER_DROP
 } from '@/lib/constants'
 import ScrollArea from '@/components/ui/scroll-area/ScrollArea.vue'
 import {useToast} from '@/composables/useToast'
 import type {ContentBlock, ImageMediaType} from '@/types/websocket/requests'
+import {walkDOM} from '@/utils/chatInputDOM'
+import type {DOMNodeHandlers} from '@/utils/chatInputDOM'
 
 interface SpeechRecognitionResult {
   readonly [index: number]: { transcript: string }
@@ -94,35 +97,14 @@ const updateText = (text: string): void => {
   moveCursorToEnd()
 }
 
-/**
- * 計算 contenteditable 元素中的文字長度
- *
- * 遞迴遍歷 DOM 樹計算實際文字長度：
- * - TEXT_NODE: 直接計算文字內容長度
- * - BR 元素: 算作 1 個字元（換行符）
- * - 圖片元素: 不計入長度（圖片有獨立的大小限制）
- * - 其他元素: 遞迴處理其子節點
- */
-const countTextLength = (node: Node): number => {
-  let length = 0
-
-  if (node.nodeType === Node.TEXT_NODE) {
-    length += node.textContent?.length || 0
-  } else if (node.nodeType === Node.ELEMENT_NODE) {
-    const element = node as HTMLElement
-    if (element.nodeName === 'BR') {
-      length += 1
-    } else if (element.dataset.type === 'image') {
-      return 0
-    } else {
-      for (const child of Array.from(node.childNodes)) {
-        length += countTextLength(child)
-      }
-    }
-  }
-
-  return length
+const textLengthHandlers: DOMNodeHandlers<number> = {
+  onText: (text) => text.length,
+  onBreak: () => 1,
+  onImage: () => 0,
+  combine: (results) => results.reduce((sum, n) => sum + n, 0),
 }
+
+const countTextLength = (node: Node): number => walkDOM(node, textLengthHandlers)
 
 const handleInput = (e: Event): void => {
   const target = e.target as HTMLDivElement
@@ -181,59 +163,56 @@ const insertNodeAtCursor = (node: Node): void => {
   element.dispatchEvent(new Event('input', {bubbles: true}))
 }
 
-const insertImageAtCursor = (file: File): Promise<void> => {
+/** 讀取檔案為 DataURL */
+const readFileAsDataURL = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
-    if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      toast({
-        title: '圖片大小超過 5MB 限制',
-      })
-      reject(new Error('Image size exceeds limit'))
-      return
-    }
-
-    if (!isValidImageType(file.type)) {
-      toast({
-        title: '不支援的圖片格式',
-        description: '僅支援 JPEG/PNG/GIF/WebP',
-      })
-      reject(new Error('Unsupported image type'))
-      return
-    }
-
     const reader = new FileReader()
-
     reader.onload = (e): void => {
       const result = e.target?.result
-      if (typeof result !== 'string') {
-        reject(new Error('Failed to read image'))
-        return
+      if (typeof result === 'string') {
+        resolve(result)
+      } else {
+        reject(new Error('讀取檔案失敗'))
       }
-
-      if (!/^data:image\/(jpeg|png|gif|webp);base64,/.test(result)) {
-        reject(new Error('Invalid DataURL format'))
-        return
-      }
-
-      const base64Data = result.split(',')[1]
-      if (!base64Data) {
-        reject(new Error('Invalid base64 data'))
-        return
-      }
-
-      const imageAtom = createImageAtom(file.type as ImageMediaType, base64Data)
-      insertNodeAtCursor(imageAtom)
-      resolve()
     }
-
-    reader.onerror = (): void => {
-      toast({
-        title: '圖片讀取失敗',
-      })
-      reject(new Error('FileReader error'))
-    }
-
+    reader.onerror = (): void => reject(new Error('FileReader 錯誤'))
     reader.readAsDataURL(file)
   })
+}
+
+const insertImageAtCursor = async (file: File): Promise<void> => {
+  if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    toast({title: '圖片大小超過 5MB 限制'})
+    throw new Error('Image size exceeds limit')
+  }
+
+  if (!isValidImageType(file.type)) {
+    toast({
+      title: '不支援的圖片格式',
+      description: '僅支援 JPEG/PNG/GIF/WebP',
+    })
+    throw new Error('Unsupported image type')
+  }
+
+  let result: string
+  try {
+    result = await readFileAsDataURL(file)
+  } catch {
+    toast({title: '圖片讀取失敗'})
+    throw new Error('FileReader error')
+  }
+
+  if (!/^data:image\/(jpeg|png|gif|webp);base64,/.test(result)) {
+    throw new Error('Invalid DataURL format')
+  }
+
+  const base64Data = result.split(',')[1]
+  if (!base64Data) {
+    throw new Error('Invalid base64 data')
+  }
+
+  const imageAtom = createImageAtom(file.type as ImageMediaType, base64Data)
+  insertNodeAtCursor(imageAtom)
 }
 
 const findImageFile = (files: FileList | null): File | undefined => {
@@ -246,8 +225,11 @@ const handlePaste = async (e: ClipboardEvent): Promise<void> => {
 
   if (imageFile) {
     e.preventDefault()
-    await insertImageAtCursor(imageFile).catch(() => {
-    })
+    try {
+      await insertImageAtCursor(imageFile)
+    } catch {
+      // insertImageAtCursor 內部已透過 toast 提示錯誤，此處無需額外處理
+    }
     return
   }
 
@@ -278,9 +260,19 @@ const handleDrop = async (e: DragEvent): Promise<void> => {
   if (!files || files.length === 0) return
 
   const imageFiles = Array.from(files).filter(file => isValidImageType(file.type))
-  for (const imageFile of imageFiles) {
-    await insertImageAtCursor(imageFile).catch(() => {
+  if (imageFiles.length > MAX_IMAGES_PER_DROP) {
+    toast({
+      title: '一次最多只能上傳 1 張圖片',
     })
+  }
+
+  const fileToInsert = imageFiles[0]
+  if (!fileToInsert) return
+
+  try {
+    await insertImageAtCursor(fileToInsert)
+  } catch {
+    // insertImageAtCursor 內部已透過 toast 提示錯誤，此處無需額外處理
   }
 }
 
@@ -294,35 +286,13 @@ const flushTextToBlocks = (blocks: ContentBlock[], currentText: string[]): void 
   currentText.length = 0
 }
 
-/**
- * 解析 contenteditable 的 DOM 結構，轉換成結構化的 ContentBlock 陣列
- *
- * 遞迴遍歷 DOM 樹，將內容分類為文字和圖片：
- * - TEXT_NODE: 收集文字內容到 currentText 陣列
- * - BR 元素: 加入換行符到 currentText
- * - 圖片元素: 先 flush 已收集的文字，再加入圖片 block
- * - 其他元素: 遞迴處理其子節點
- */
-const parseContentBlocks = (
-    node: Node,
+const makeContentBlockHandlers = (
     blocks: ContentBlock[],
     currentText: string[]
-): void => {
-  if (node.nodeType === Node.TEXT_NODE) {
-    const text = node.textContent || ''
-    if (text) {
-      currentText.push(text)
-    }
-    return
-  }
-
-  if (node.nodeType !== Node.ELEMENT_NODE) return
-
-  const element = node as HTMLElement
-
-  if (element.nodeName === 'BR') {
-    currentText.push('\n')
-  } else if (element.dataset.type === 'image') {
+): DOMNodeHandlers<void> => ({
+  onText: (text): void => { if (text) currentText.push(text) },
+  onBreak: (): void => { currentText.push('\n') },
+  onImage: (element): void => {
     const imageData = imageDataMap.get(element)
     if (imageData) {
       flushTextToBlocks(blocks, currentText)
@@ -332,12 +302,15 @@ const parseContentBlocks = (
         base64Data: imageData.base64Data
       })
     }
-  } else {
-    for (const child of Array.from(element.childNodes)) {
-      parseContentBlocks(child, blocks, currentText)
-    }
-  }
-}
+  },
+  combine: (): void => undefined,
+})
+
+const parseContentBlocks = (
+    node: Node,
+    blocks: ContentBlock[],
+    currentText: string[]
+): void => { walkDOM(node, makeContentBlockHandlers(blocks, currentText)) }
 
 const buildContentBlocks = (): ContentBlock[] => {
   const element = editableRef.value
@@ -365,6 +338,10 @@ const extractTextFromBlocks = (blocks: ContentBlock[]): string => {
 const clearInput = (): void => {
   input.value = ''
   if (editableRef.value) {
+    // 顯式釋放圖片資料，避免等待 GC
+    editableRef.value.querySelectorAll<HTMLElement>('[data-type="image"]').forEach(el => {
+      imageDataMap.delete(el)
+    })
     editableRef.value.textContent = ''
   }
 }
@@ -373,24 +350,18 @@ const handleAbort = (): void => {
   if (isAborting.value) return
   isAborting.value = true
   emit('abort')
-  setTimeout(() => {
-    isAborting.value = false
-  }, 1000)
+  // isAborting 由 watch(isTyping) 在 abort 完成後重設，不再使用 setTimeout
 }
 
 const handleSend = (): void => {
-  if (input.value.length > MAX_MESSAGE_LENGTH) return
-
-  const hasContent = input.value.trim() || editableRef.value?.querySelector('[data-type="image"]') !== null
-  if (!hasContent) return
-
   const blocks = buildContentBlocks()
   if (blocks.length === 0) return
 
-  const hasImages = blocks.some(block => block.type === 'image')
+  const textContent = extractTextFromBlocks(blocks)
+  if (textContent.length > MAX_MESSAGE_LENGTH) return
 
+  const hasImages = blocks.some(block => block.type === 'image')
   if (hasImages) {
-    const textContent = extractTextFromBlocks(blocks)
     emit('send', textContent, blocks)
   } else {
     emit('send', input.value)
@@ -411,65 +382,74 @@ const deleteImageAtom = (element: HTMLElement): void => {
   editableRef.value?.dispatchEvent(new Event('input', {bubbles: true}))
 }
 
-const handleKeyDown = (e: KeyboardEvent): void => {
-  if (e.isComposing || e.keyCode === 229) return
-
-  // Ctrl/Shift+Enter 保留多行輸入能力，避免誤觸送出
-  if (e.key === 'Enter') {
-    if (e.ctrlKey || e.shiftKey) {
-      e.preventDefault()
-      const selection = window.getSelection()
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0)
-        range.deleteContents()
-        const br = document.createElement('br')
-        range.insertNode(br)
-        range.setStartAfter(br)
-        range.collapse(true)
-        selection.removeAllRanges()
-        selection.addRange(range)
-        editableRef.value?.dispatchEvent(new Event('input', { bubbles: true }))
-      }
-      return
-    }
+// Ctrl/Shift+Enter 保留多行輸入能力，避免誤觸送出
+const handleEnterKey = (e: KeyboardEvent): void => {
+  if (e.ctrlKey || e.shiftKey) {
     e.preventDefault()
-    handleSend()
+    const selection = window.getSelection()
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0)
+      range.deleteContents()
+      const br = document.createElement('br')
+      range.insertNode(br)
+      range.setStartAfter(br)
+      range.collapse(true)
+      selection.removeAllRanges()
+      selection.addRange(range)
+      editableRef.value?.dispatchEvent(new Event('input', {bubbles: true}))
+    }
     return
   }
+  e.preventDefault()
+  // AI 回應中不允許 Enter 送出，避免誤觸暫停
+  if (props.isTyping) return
+  handleSend()
+}
 
-  if (e.key === 'Backspace') {
-    const selection = window.getSelection()
-    if (!selection || selection.rangeCount === 0) return
+/** 查找游標前方的圖片 atom 節點 */
+const findImageAtomBefore = (range: Range): HTMLElement | null => {
+  const {startContainer, startOffset} = range
 
-    const range = selection.getRangeAt(0)
-    if (!range.collapsed) return
+  if (startContainer.nodeType === Node.ELEMENT_NODE && startOffset > 0) {
+    const node = startContainer.childNodes[startOffset - 1]
+    return isImageAtom(node) ? node : null
+  }
 
-    const container = range.startContainer
-    const offset = range.startOffset
+  if (startContainer.nodeType === Node.TEXT_NODE && startOffset === 0) {
+    const prev = startContainer.previousSibling
+    return isImageAtom(prev) ? prev : null
+  }
 
-    if (container.nodeType === Node.ELEMENT_NODE && offset > 0) {
-      const nodeBefore = container.childNodes[offset - 1] as Node | undefined
+  return null
+}
 
-      if (nodeBefore && isImageAtom(nodeBefore)) {
-        e.preventDefault()
-        deleteImageAtom(nodeBefore)
-        return
-      }
-    }
+const handleBackspaceKey = (e: KeyboardEvent): void => {
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0) return
 
-    if (container.nodeType === Node.TEXT_NODE && offset === 0) {
-      const prev = container.previousSibling
-      if (isImageAtom(prev)) {
-        e.preventDefault()
-        deleteImageAtom(prev)
-        return
-      }
-    }
+  const range = selection.getRangeAt(0)
+  if (!range.collapsed) return
+
+  const imageAtom = findImageAtomBefore(range)
+  if (imageAtom) {
+    e.preventDefault()
+    deleteImageAtom(imageAtom)
   }
 }
 
+const handleKeyDown = (e: KeyboardEvent): void => {
+  if (e.isComposing || e.keyCode === 229) return
+  if (e.key === 'Enter') return handleEnterKey(e)
+  if (e.key === 'Backspace') return handleBackspaceKey(e)
+}
+
 const toggleListening = (): void => {
-  if (!recognition.value) return
+  if (!recognition.value) {
+    toast({
+      title: '此瀏覽器不支援語音輸入功能',
+    })
+    return
+  }
 
   if (isListening.value) {
     recognition.value.stop()
@@ -499,6 +479,16 @@ const initializeSpeechRecognition = (): void => {
     if (!lastResult) return
     const transcript = lastResult[0]?.transcript
     if (!transcript) return
+
+    if (input.value.length + transcript.length > MAX_MESSAGE_LENGTH) {
+      updateText((input.value + transcript).slice(0, MAX_MESSAGE_LENGTH))
+      recognition.value?.stop()
+      toast({
+        title: '已達到最大文字長度限制',
+      })
+      return
+    }
+
     updateText(input.value + transcript)
   }
 
@@ -508,7 +498,9 @@ const initializeSpeechRecognition = (): void => {
 
   recognition.value.onerror = (event): void => {
     isListening.value = false
-    console.warn('語音辨識錯誤：', event.error)
+    if (import.meta.env.DEV) {
+      console.warn('語音辨識錯誤：', event.error)
+    }
   }
 }
 
@@ -545,7 +537,7 @@ onUnmounted(() => {
       >
         <div
           ref="editableRef"
-          :contenteditable="!isTyping"
+          contenteditable="true"
           class="px-4 py-3 font-mono text-sm outline-none leading-5 chat-input-editable"
           @input="handleInput"
           @keydown="handleKeyDown"
@@ -557,8 +549,7 @@ onUnmounted(() => {
       <button
         v-if="isTyping"
         :disabled="isAborting"
-        class="px-4 py-3 bg-doodle-coral border-2 border-doodle-ink rounded-lg hover:translate-x-[-1px] hover:translate-y-[-1px] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0"
-        :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
+        class="doodle-action-btn bg-doodle-coral disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0"
         @click="handleAbort"
       >
         <Square
@@ -568,8 +559,7 @@ onUnmounted(() => {
       </button>
       <button
         v-else
-        class="px-4 py-3 bg-doodle-green border-2 border-doodle-ink rounded-lg hover:translate-x-[-1px] hover:translate-y-[-1px] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0"
-        :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
+        class="doodle-action-btn bg-doodle-green disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0"
         @click="handleSend"
       >
         <Send
@@ -578,9 +568,8 @@ onUnmounted(() => {
         />
       </button>
       <button
-        class="px-4 py-3 border-2 border-doodle-ink rounded-lg hover:translate-x-[-1px] hover:translate-y-[-1px] transition-transform"
+        class="doodle-action-btn"
         :class="isListening ? 'bg-red-500' : 'bg-doodle-coral'"
-        :style="{ boxShadow: '2px 2px 0 var(--doodle-ink)' }"
         @click="toggleListening"
       >
         <Mic
@@ -594,6 +583,20 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.doodle-action-btn {
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--doodle-ink);
+  border-radius: 0.5rem;
+  box-shadow: 2px 2px 0 var(--doodle-ink);
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.doodle-action-btn:hover {
+  transform: translate(-1px, -1px);
+}
+
 .chat-input-editable:empty::before {
   content: 'Type your message...';
   color: oklch(0.55 0.02 50);

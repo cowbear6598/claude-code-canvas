@@ -36,3 +36,4 @@ export const PASTE_TIMEOUT_MS = 10000
 // Image Upload Constants
 export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 export const SUPPORTED_IMAGE_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const
+export const MAX_IMAGES_PER_DROP = 1
