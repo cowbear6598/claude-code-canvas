@@ -212,4 +212,5 @@ export enum WebSocketResponseEvents {
   REPOSITORY_PULL_LATEST_RESULT = 'repository:pull-latest:result',
   CURSOR_MOVED = 'cursor:moved',
   CURSOR_LEFT = 'cursor:left',
+  REPOSITORY_BRANCH_CHANGED = 'repository:branch:changed',
 }

@@ -8,6 +8,7 @@ import {
     createTestServer,
     disconnectSocket,
     emitAndWaitResponse,
+    waitForEvent,
     type TestServerInstance,
 } from '../setup';
 import { createRepository, getCanvasId, initGitRepo, initGitRepoWithRemote, cleanupRepo } from '../helpers';
@@ -25,7 +26,29 @@ import {
     type RepositoryPullLatestResultPayload,
     type RepositoryPullLatestProgressPayload,
     type RepositoryBranchCheckedOutPayload,
+    type BroadcastRepositoryBranchChangedPayload,
 } from '../../src/types';
+
+function waitForEventWithTimeout<T>(
+    socket: TestWebSocketClient,
+    eventName: string,
+    ms: number = 500
+): Promise<T | null> {
+    return new Promise<T | null>((resolve) => {
+        const timer = setTimeout(() => {
+            socket.off(eventName, handler);
+            resolve(null);
+        }, ms);
+
+        const handler = (data: T) => {
+            clearTimeout(timer);
+            socket.off(eventName, handler);
+            resolve(data);
+        };
+
+        socket.on(eventName, handler);
+    });
+}
 
 describe('Repository Git 操作', () => {
     describe('取得本地分支', () => {
@@ -410,6 +433,56 @@ describe('Repository Git 操作', () => {
 
             expect(response.success).toBe(false);
             expect(response.error).toContain('Worktree 無法切換分支');
+        });
+
+        it('clientA 收到 REPOSITORY_BRANCH_CHECKED_OUT，clientB 收到 REPOSITORY_BRANCH_CHANGED，clientA 不收到廣播', async () => {
+            let clientA: TestWebSocketClient | null = null;
+            let clientB: TestWebSocketClient | null = null;
+
+            try {
+                clientA = await createSocketClient(server.baseUrl, server.canvasId);
+                clientB = await createSocketClient(server.baseUrl, server.canvasId);
+
+                const repo = await createRepository(clientA, `checkout-broadcast-${uuidv4()}`);
+                const repoPath = await getRepoPath(repo.id);
+                await initGitRepo(repoPath);
+
+                const canvasId = await getCanvasId(clientA);
+
+                const broadcastPromise = waitForEvent<BroadcastRepositoryBranchChangedPayload>(
+                    clientB,
+                    WebSocketResponseEvents.REPOSITORY_BRANCH_CHANGED,
+                    10000
+                );
+                const clientABroadcastPromise = waitForEventWithTimeout<BroadcastRepositoryBranchChangedPayload>(
+                    clientA,
+                    WebSocketResponseEvents.REPOSITORY_BRANCH_CHANGED,
+                    300
+                );
+
+                const checkoutResponse = await emitAndWaitResponse<RepositoryCheckoutBranchPayload, RepositoryBranchCheckedOutPayload>(
+                    clientA,
+                    WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
+                    WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+                    { requestId: uuidv4(), canvasId, repositoryId: repo.id, branchName: 'broadcast-branch', force: false },
+                    10000
+                );
+
+                expect(checkoutResponse.success).toBe(true);
+                expect(checkoutResponse.repositoryId).toBe(repo.id);
+                expect(checkoutResponse.branchName).toBe('broadcast-branch');
+
+                const broadcastPayload = await broadcastPromise;
+                expect(broadcastPayload.repositoryId).toBe(repo.id);
+                expect(broadcastPayload.branchName).toBe('broadcast-branch');
+                expect((broadcastPayload as Record<string, unknown>).requestId).toBeUndefined();
+
+                const clientABroadcast = await clientABroadcastPromise;
+                expect(clientABroadcast).toBeNull();
+            } finally {
+                if (clientA?.connected) await disconnectSocket(clientA);
+                if (clientB?.connected) await disconnectSocket(clientB);
+            }
         });
     });
 });

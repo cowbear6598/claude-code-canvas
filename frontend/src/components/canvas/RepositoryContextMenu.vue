@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { reactive, onMounted, watch } from 'vue'
+import { reactive, onMounted, onUnmounted, ref } from 'vue'
 import { GitBranch, Download } from 'lucide-vue-next'
 import { useRepositoryStore } from '@/stores/note/repositoryStore'
+import { useToast } from '@/composables/useToast'
 import CreateWorktreeModal from './CreateWorktreeModal.vue'
 import BranchSelectModal from './BranchSelectModal.vue'
 import ForceCheckoutModal from './ForceCheckoutModal.vue'
@@ -26,6 +27,7 @@ const emit = defineEmits<{
 }>()
 
 const repositoryStore = useRepositoryStore()
+const { showErrorToast } = useToast()
 
 const uiState = reactive({
   isGit: false,
@@ -50,28 +52,30 @@ const dataState = reactive({
   branchToDelete: ''
 })
 
+const isMounted = ref(true)
+
 onMounted(async () => {
   uiState.isCheckingGit = true
   uiState.isGit = await repositoryStore.checkIsGit(props.repositoryId)
   uiState.isCheckingGit = false
 })
 
-// 監聽所有 Modal 狀態，當選單已隱藏且所有 Modal 都關閉時，清理組件
-watch(
-  () => [
-    modalState.showWorktree,
-    modalState.showBranch,
-    modalState.showForceCheckout,
-    modalState.showDeleteBranch,
-    modalState.showPullConfirm
-  ],
-  ([worktree, branch, forceCheckout, deleteBranch, pullConfirm]) => {
-    const allModalsClosed = !worktree && !branch && !forceCheckout && !deleteBranch && !pullConfirm
-    if (!uiState.menuVisible && allModalsClosed) {
-      emit('close')
-    }
-  }
-)
+onUnmounted(() => {
+  isMounted.value = false
+})
+
+type ModalKey = keyof typeof modalState
+
+const createModalCloseHandler = (key: ModalKey) => (open: boolean): void => {
+  modalState[key] = open
+  if (!open) emit('close')
+}
+
+const handleWorktreeModalClose = createModalCloseHandler('showWorktree')
+const handleBranchModalClose = createModalCloseHandler('showBranch')
+const handleForceCheckoutModalClose = createModalCloseHandler('showForceCheckout')
+const handleDeleteBranchModalClose = createModalCloseHandler('showDeleteBranch')
+const handlePullConfirmModalClose = createModalCloseHandler('showPullConfirm')
 
 const handleCreateWorktreeClick = (): void => {
   if (!uiState.isGit) return
@@ -111,21 +115,28 @@ const handleSwitchBranchClick = async (): Promise<void> => {
   modalState.showBranch = true
 }
 
+// 不提前關閉 branch modal，等 checkDirty 結果再決定，避免 async gap 中的 race condition
 const handleBranchSelect = async (branchName: string): Promise<void> => {
-  modalState.showBranch = false
-
   const dirtyResult = await repositoryStore.checkDirty(props.repositoryId)
 
+  if (!isMounted.value) return
+
   if (!dirtyResult.success) {
+    modalState.showBranch = false
+    showErrorToast('Git', dirtyResult.error || '檢查修改狀態失敗')
+    emit('close')
     return
   }
 
   if (dirtyResult.isDirty) {
+    // 同一個 tick 關閉 branch modal + 開啟 forceCheckout modal，避免 watcher 誤觸
+    modalState.showBranch = false
     dataState.targetBranch = branchName
     modalState.showForceCheckout = true
     return
   }
 
+  modalState.showBranch = false
   await performCheckout(branchName, false)
 }
 
@@ -149,10 +160,14 @@ const handleBranchDelete = (branchName: string): void => {
 const handleDeleteBranchConfirm = async (): Promise<void> => {
   const result = await repositoryStore.deleteBranch(props.repositoryId, dataState.branchToDelete)
 
+  if (!isMounted.value) return
+
   modalState.showDeleteBranch = false
 
   if (result.success) {
     await reloadBranchList()
+  } else {
+    emit('close')
   }
 }
 
@@ -176,6 +191,7 @@ const handlePullLatestConfirm = async (): Promise<void> => {
   const { requestId } = await repositoryStore.pullLatest(props.repositoryId)
   emit('pull-started', { requestId, repositoryName: props.repositoryName, repositoryId: props.repositoryId })
   modalState.showPullConfirm = false
+  emit('close')
 }
 
 const handleBackgroundClick = (): void => {
@@ -257,35 +273,40 @@ const handleBackgroundClick = (): void => {
   <!-- 使用 Teleport 將 Modal 移到 body，避免父組件銷毀時 Modal 也消失 -->
   <Teleport to="body">
     <CreateWorktreeModal
-      v-model:open="modalState.showWorktree"
+      :open="modalState.showWorktree"
       :repository-name="repositoryName"
+      @update:open="handleWorktreeModalClose"
       @submit="handleWorktreeSubmit"
     />
 
     <BranchSelectModal
-      v-model:open="modalState.showBranch"
+      :open="modalState.showBranch"
       :branches="dataState.localBranches"
       :current-branch="dataState.currentBranch"
       :repository-name="repositoryName"
       :worktree-branches="dataState.worktreeBranches"
+      @update:open="handleBranchModalClose"
       @select="handleBranchSelect"
       @delete="handleBranchDelete"
     />
 
     <ForceCheckoutModal
-      v-model:open="modalState.showForceCheckout"
+      :open="modalState.showForceCheckout"
       :target-branch="dataState.targetBranch"
+      @update:open="handleForceCheckoutModalClose"
       @force-checkout="handleForceCheckout"
     />
 
     <DeleteBranchModal
-      v-model:open="modalState.showDeleteBranch"
+      :open="modalState.showDeleteBranch"
       :branch-name="dataState.branchToDelete"
+      @update:open="handleDeleteBranchModalClose"
       @confirm="handleDeleteBranchConfirm"
     />
 
     <PullLatestConfirmModal
-      v-model:open="modalState.showPullConfirm"
+      :open="modalState.showPullConfirm"
+      @update:open="handlePullConfirmModalClose"
       @confirm="handlePullLatestConfirm"
     />
   </Teleport>

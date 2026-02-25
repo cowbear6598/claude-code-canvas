@@ -31,8 +31,16 @@ class SocketService {
 	 * 發送訊息給所有連線
 	 */
 	emitToAll(event: string, payload: unknown): void {
+		this.emitToAllExcept('', event, payload);
+	}
+
+	/**
+	 * 發送訊息給所有連線，但排除特定連線
+	 */
+	emitToAllExcept(excludeConnectionId: string, event: string, payload: unknown): void {
 		const connections = connectionManager.getAll();
 		for (const connection of connections) {
+			if (connection.id === excludeConnectionId) continue;
 			this.emitToConnection(connection.id, event, payload);
 		}
 	}
@@ -96,12 +104,7 @@ class SocketService {
 	 * 發送訊息給指定 Canvas 的所有連線
 	 */
 	emitToCanvas(canvasId: string, event: string, payload: unknown): void {
-		const roomName = `canvas:${canvasId}`;
-		const members = roomManager.getMembers(roomName);
-
-		for (const connectionId of members) {
-			this.emitToConnection(connectionId, event, payload);
-		}
+		this.emitToCanvasExcept(canvasId, '', event, payload);
 	}
 
 	/**

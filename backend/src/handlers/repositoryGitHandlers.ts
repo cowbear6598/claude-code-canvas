@@ -9,6 +9,7 @@ import type {
   RepositoryBranchCheckedOutPayload,
   RepositoryBranchDeletedPayload,
   RepositoryPullLatestResultPayload,
+  BroadcastRepositoryBranchChangedPayload,
 } from '../types';
 import type {
   RepositoryGitClonePayload,
@@ -568,6 +569,12 @@ export async function handleRepositoryCheckoutBranch(
   };
 
   emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, response);
+
+  const broadcastPayload: BroadcastRepositoryBranchChangedPayload = {
+    repositoryId,
+    branchName,
+  };
+  socketService.emitToAllExcept(connectionId, WebSocketResponseEvents.REPOSITORY_BRANCH_CHANGED, broadcastPayload);
 
   logger.log('Repository', 'Update', `Checked out branch ${branchName} for ${repositoryId} (${action})`);
 }

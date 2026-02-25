@@ -141,7 +141,6 @@ export interface BroadcastWorkflowClearResultPayload {
 }
 
 export interface BroadcastRepositoryBranchChangedPayload {
-  canvasId: string;
   repositoryId: string;
   branchName: string;
 }

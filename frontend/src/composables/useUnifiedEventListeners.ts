@@ -279,14 +279,17 @@ const handleRepositoryDeleted = createUnifiedHandler<BasePayload & { repositoryI
   { toastMessage: 'Repository 已刪除' }
 )
 
-const handleRepositoryBranchChanged = createUnifiedHandler<BasePayload & { repositoryId: string; branchName: string; canvasId: string }>(
+const handleRepositoryBranchChanged = createUnifiedHandler<BasePayload & { repositoryId: string; branchName: string }>(
   (payload) => {
+    if (!payload.branchName || !/^[a-zA-Z0-9_\-/]+$/.test(payload.branchName)) return
+
     const repositoryStore = useRepositoryStore()
     const repository = repositoryStore.availableItems.find((item) => item.id === payload.repositoryId)
     if (repository) {
       repository.currentBranch = payload.branchName
     }
-  }
+  },
+  { skipCanvasCheck: true }
 )
 
 const handleRepositoryNoteCreated = createUnifiedHandler<BasePayload & { note?: RepositoryNote; canvasId: string }>(
@@ -506,7 +509,7 @@ const listeners = [
   { event: WebSocketResponseEvents.SKILL_DELETED, handler: handleSkillDeleted },
   { event: WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED, handler: handleRepositoryWorktreeCreated },
   { event: WebSocketResponseEvents.REPOSITORY_DELETED, handler: handleRepositoryDeleted },
-  { event: WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, handler: handleRepositoryBranchChanged },
+  { event: WebSocketResponseEvents.REPOSITORY_BRANCH_CHANGED, handler: handleRepositoryBranchChanged },
   { event: WebSocketResponseEvents.REPOSITORY_NOTE_CREATED, handler: handleRepositoryNoteCreated },
   { event: WebSocketResponseEvents.REPOSITORY_NOTE_UPDATED, handler: handleRepositoryNoteUpdated },
   { event: WebSocketResponseEvents.REPOSITORY_NOTE_DELETED, handler: handleRepositoryNoteDeleted },

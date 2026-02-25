@@ -645,21 +645,70 @@ describe('useUnifiedEventListeners', () => {
       expect(repositoryStore.notes.some(n => n.id === 'repo-note-1')).toBe(false)
     })
 
-    it('repository:branch:checked-out 應更新 currentBranch', () => {
+    it('repository:branch:changed 應更新 currentBranch', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const repositoryStore = useRepositoryStore()
       repositoryStore.availableItems = [{ id: 'repo-1', name: 'Test', isGit: true, currentBranch: 'main' }]
 
       registerUnifiedListeners()
 
-      simulateEvent('repository:branch:checked-out', {
-        canvasId: 'canvas-1',
+      simulateEvent('repository:branch:changed', {
         repositoryId: 'repo-1',
         branchName: 'feature',
       })
 
       const repo = repositoryStore.availableItems.find(r => r.id === 'repo-1')
       expect(repo?.currentBranch).toBe('feature')
+    })
+
+    it('repository:branch:changed 跨 canvas 應更新 currentBranch（skipCanvasCheck）', () => {
+      const { registerUnifiedListeners } = useUnifiedEventListeners()
+      const canvasStore = useCanvasStore()
+      const repositoryStore = useRepositoryStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      repositoryStore.availableItems = [{ id: 'repo-1', name: 'Test', isGit: true, currentBranch: 'main' }]
+
+      registerUnifiedListeners()
+
+      simulateEvent('repository:branch:changed', {
+        repositoryId: 'repo-1',
+        branchName: 'feature',
+      })
+
+      const repo = repositoryStore.availableItems.find(r => r.id === 'repo-1')
+      expect(repo?.currentBranch).toBe('feature')
+    })
+
+    it('repository:branch:changed 含 XSS 的 branchName 不應更新 store', () => {
+      const { registerUnifiedListeners } = useUnifiedEventListeners()
+      const repositoryStore = useRepositoryStore()
+      repositoryStore.availableItems = [{ id: 'repo-1', name: 'Test', isGit: true, currentBranch: 'main' }]
+
+      registerUnifiedListeners()
+
+      simulateEvent('repository:branch:changed', {
+        repositoryId: 'repo-1',
+        branchName: '<script>alert("xss")</script>',
+      })
+
+      const repo = repositoryStore.availableItems.find(r => r.id === 'repo-1')
+      expect(repo?.currentBranch).toBe('main')
+    })
+
+    it('repository:branch:changed 空字串 branchName 不應更新 store', () => {
+      const { registerUnifiedListeners } = useUnifiedEventListeners()
+      const repositoryStore = useRepositoryStore()
+      repositoryStore.availableItems = [{ id: 'repo-1', name: 'Test', isGit: true, currentBranch: 'main' }]
+
+      registerUnifiedListeners()
+
+      simulateEvent('repository:branch:changed', {
+        repositoryId: 'repo-1',
+        branchName: '',
+      })
+
+      const repo = repositoryStore.availableItems.find(r => r.id === 'repo-1')
+      expect(repo?.currentBranch).toBe('main')
     })
 
     it('repository-note:created 應新增 note', () => {
