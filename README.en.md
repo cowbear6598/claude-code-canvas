@@ -9,7 +9,7 @@
 
 - This project is currently in **Alpha**. Features and UI may change significantly.
 - Recommended for **local environment** use only, not recommended for cloud deployment (no user authentication is implemented).
-- Since it uses the **Claude Agent SDK**, make sure the service runs in an environment where **Claude is already logged in**. Otherwise, you will need to configure an API Key.
+- Since it uses the **Claude Agent SDK**, make sure the service runs in an environment where **Claude is already logged in**. Not supported API Key now.
 - Currently **only tested on macOS**. Other operating systems may have unknown issues.
 
 ## Installation & Getting Started
@@ -54,3 +54,4 @@ cd backend && bun run prod
 ```
 
 Builds the frontend and serves everything together from the backend.
+
