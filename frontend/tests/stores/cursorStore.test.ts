@@ -50,7 +50,7 @@ describe('cursorStore', () => {
 
       store.addOrUpdateCursor(makeCursorPayload({ color: 'not-a-color' }))
 
-      expect(store.cursors.get('conn-1')?.color).toBe('#999999')
+      expect(store.cursors.get('conn-1')?.color).toBe('#6B7280')
     })
 
     it('有效顏色格式應保留原值', () => {
@@ -102,6 +102,20 @@ describe('cursorStore', () => {
 
       store.clearAllCursors()
 
+      expect(store.cursors.size).toBe(0)
+    })
+  })
+
+  describe('Canvas 切換時清除游標', () => {
+    it('clearAllCursors 應清空所有遠端游標且 cursorCount 歸零', () => {
+      const store = useCursorStore()
+      store.addOrUpdateCursor({ connectionId: 'conn-1', x: 100, y: 200, color: '#E05252' })
+      store.addOrUpdateCursor({ connectionId: 'conn-2', x: 300, y: 400, color: '#2BA89E' })
+      expect(store.cursorCount).toBe(2)
+
+      store.clearAllCursors()
+
+      expect(store.cursorCount).toBe(0)
       expect(store.cursors.size).toBe(0)
     })
   })

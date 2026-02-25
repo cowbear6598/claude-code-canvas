@@ -20,6 +20,23 @@ const screenCursors = computed(() => {
     class="remote-cursor-layer"
     style="pointer-events: none"
   >
+    <svg
+      width="0"
+      height="0"
+      style="position: absolute"
+    >
+      <defs>
+        <filter id="cursor-shadow">
+          <feDropShadow
+            dx="0"
+            dy="0.5"
+            stdDeviation="0.5"
+            flood-opacity="0.3"
+          />
+        </filter>
+      </defs>
+    </svg>
+
     <div
       v-for="cursor in screenCursors"
       :key="cursor.connectionId"
@@ -40,6 +57,7 @@ const screenCursors = computed(() => {
           :fill="cursor.color"
           stroke="white"
           stroke-width="1"
+          filter="url(#cursor-shadow)"
         />
       </svg>
     </div>

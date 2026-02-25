@@ -17,6 +17,7 @@ import {
   OUTPUT_LINES_PREVIEW_COUNT,
 } from '@/lib/constants'
 import {truncateContent} from '@/stores/chat/chatUtils'
+import {useCursorStore} from '@/stores/cursorStore'
 
 const {
   podStore,
@@ -30,6 +31,8 @@ const {
   connectionStore,
   canvasStore
 } = useCanvasContext()
+
+const cursorStore = useCursorStore()
 
 const selectedPod = computed(() => podStore.selectedPod)
 
@@ -243,6 +246,8 @@ watch(
       if (!newCanvasId || newCanvasId === oldCanvasId || !isInitialized.value) {
         return
       }
+
+      cursorStore.clearAllCursors()
 
       podStore.pods = []
       podStore.selectedPodId = null

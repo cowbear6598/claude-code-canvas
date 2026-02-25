@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import type { CursorMovedPayload } from '@/types/websocket'
 
 const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/
-const DEFAULT_CURSOR_COLOR = '#999999'
+const DEFAULT_CURSOR_COLOR = '#6B7280'
 
 export interface RemoteCursor {
   connectionId: string

@@ -152,5 +152,6 @@ describe('RemoteCursorLayer', () => {
       const svgPath = wrapper.find('path')
       expect(svgPath.attributes('fill')).toBe('#abcdef')
     })
+
   })
 })

@@ -118,4 +118,65 @@ describe('CursorColorManager', () => {
       expect(color2).toBe(color1);
     });
   });
+
+  describe('顏色亮度保證', () => {
+    const parseRgbSum = (hex: string): number => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return r + g + b;
+    };
+
+    it('所有預定義顏色 RGB 總和不超過 450', () => {
+      for (let i = 0; i < 10; i++) {
+        const color = manager.assignColor('canvas-1', `conn-${i}`);
+        expect(parseRgbSum(color)).toBeLessThanOrEqual(450);
+      }
+    });
+
+    it('所有預定義顏色 RGB 總和不低於 150', () => {
+      for (let i = 0; i < 10; i++) {
+        const color = manager.assignColor('canvas-1', `conn-${i}`);
+        expect(parseRgbSum(color)).toBeGreaterThanOrEqual(150);
+      }
+    });
+
+    it('hashColor fallback 顏色 RGB 總和不超過 450', () => {
+      // 耗盡 10 個預定義顏色
+      for (let i = 0; i < 10; i++) {
+        manager.assignColor('canvas-1', `conn-${i}`);
+      }
+
+      for (let i = 10; i < 30; i++) {
+        const color = manager.assignColor('canvas-1', `conn-${i}`);
+        expect(parseRgbSum(color)).toBeLessThanOrEqual(450);
+      }
+    });
+
+    it('hashColor 極端輸入仍回傳合法 hex 且亮度受限', () => {
+      // 耗盡預定義池
+      for (let i = 0; i < 10; i++) {
+        manager.assignColor('canvas-1', `conn-${i}`);
+      }
+
+      const extremeIds = ['', '12345678', 'a'.repeat(1000)];
+      for (const id of extremeIds) {
+        const color = manager.assignColor('canvas-1', id);
+        expect(color).toMatch(/^#[0-9a-f]{6}$/);
+        expect(parseRgbSum(color)).toBeLessThanOrEqual(450);
+      }
+    });
+
+    it('hashColor fallback 顏色 RGB 總和不低於 150', () => {
+      // 耗盡 10 個預定義顏色
+      for (let i = 0; i < 10; i++) {
+        manager.assignColor('canvas-1', `conn-${i}`);
+      }
+
+      for (let i = 10; i < 30; i++) {
+        const color = manager.assignColor('canvas-1', `conn-${i}`);
+        expect(parseRgbSum(color)).toBeGreaterThanOrEqual(150);
+      }
+    });
+  });
 });
