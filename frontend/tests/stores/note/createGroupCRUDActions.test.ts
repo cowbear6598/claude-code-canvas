@@ -18,10 +18,11 @@ vi.mock('@/services/websocket', async () => {
 })
 
 // Mock useToast
+const mockShowSuccessToast = vi.fn()
 const mockShowErrorToast = vi.fn()
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
-    showSuccessToast: vi.fn(),
+    showSuccessToast: mockShowSuccessToast,
     showErrorToast: mockShowErrorToast,
   }),
 }))
@@ -39,7 +40,6 @@ function createMockContext(): GroupCRUDStoreContext & { groups: Array<{ id: stri
   return {
     groups: [],
     addGroupFromEvent: vi.fn(),
-    updateGroupFromEvent: vi.fn(),
     removeGroupFromEvent: vi.fn(),
     updateItemGroupId: vi.fn(),
   }
@@ -146,6 +146,7 @@ describe('createGroupCRUDActions', () => {
         },
       })
       expect(ctx.addGroupFromEvent).toHaveBeenCalledWith(mockGroup)
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('Command', '建立群組成功', 'New Group')
       expect(result.success).toBe(true)
       expect(result.group).toEqual(mockGroup)
     })
@@ -159,7 +160,7 @@ describe('createGroupCRUDActions', () => {
 
       const result = await actions.createGroup.call(ctx, 'New Group')
 
-      expect(result).toEqual({ success: false, error: 'No active canvas' })
+      expect(result).toEqual({ success: false, error: '無作用中的畫布' })
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
@@ -175,7 +176,7 @@ describe('createGroupCRUDActions', () => {
       expect(result).toEqual({ success: false, error: '建立群組失敗' })
     })
 
-    it('回應無 group 時不應呼叫 addGroupFromEvent', async () => {
+    it('回應無 group 時不應呼叫 addGroupFromEvent 且不顯示成功 Toast', async () => {
       const actions = createGroupCRUDActions(testConfig)
       const ctx = createMockContext()
 
@@ -187,6 +188,7 @@ describe('createGroupCRUDActions', () => {
       await actions.createGroup.call(ctx, 'New Group')
 
       expect(ctx.addGroupFromEvent).not.toHaveBeenCalled()
+      expect(mockShowSuccessToast).not.toHaveBeenCalled()
     })
 
     it('回應 success: false 時應回傳對應結果', async () => {
@@ -215,109 +217,6 @@ describe('createGroupCRUDActions', () => {
     })
   })
 
-  describe('updateGroup', () => {
-    it('成功時應回傳 group 並呼叫 updateGroupFromEvent', async () => {
-      const actions = createGroupCRUDActions(testConfig)
-      const ctx = createMockContext()
-
-      const mockGroup = { id: 'group-1', name: 'Updated Name', type: 'test' }
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-        group: mockGroup,
-      })
-
-      const result = await actions.updateGroup.call(ctx, 'group-1', 'Updated Name')
-
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'group:update',
-        responseEvent: 'group:updated',
-        payload: {
-          canvasId: 'canvas-1',
-          groupId: 'group-1',
-          name: 'Updated Name',
-        },
-      })
-      expect(ctx.updateGroupFromEvent).toHaveBeenCalledWith(mockGroup)
-      expect(result.success).toBe(true)
-      expect(result.group).toEqual(mockGroup)
-    })
-
-    it('無 activeCanvasId 時應回傳失敗', async () => {
-      const canvasStore = useCanvasStore()
-      canvasStore.activeCanvasId = null
-
-      const actions = createGroupCRUDActions(testConfig)
-      const ctx = createMockContext()
-
-      const result = await actions.updateGroup.call(ctx, 'group-1', 'Updated Name')
-
-      expect(result).toEqual({ success: false, error: 'No active canvas' })
-      expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
-    })
-
-    it('失敗時應顯示錯誤 Toast', async () => {
-      const actions = createGroupCRUDActions(testConfig)
-      const ctx = createMockContext()
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce(null)
-
-      const result = await actions.updateGroup.call(ctx, 'group-1', 'Updated Name')
-
-      expect(mockShowErrorToast).toHaveBeenCalledWith('Command', '更新群組失敗')
-      expect(result).toEqual({ success: false, error: '更新群組失敗' })
-    })
-
-    it('回應無 group 時不應呼叫 updateGroupFromEvent', async () => {
-      const actions = createGroupCRUDActions(testConfig)
-      const ctx = createMockContext()
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-        group: undefined,
-      })
-
-      await actions.updateGroup.call(ctx, 'group-1', 'Updated Name')
-
-      expect(ctx.updateGroupFromEvent).not.toHaveBeenCalled()
-    })
-
-    it('回應 success: false 時應回傳對應錯誤結果', async () => {
-      const actions = createGroupCRUDActions(testConfig)
-      const ctx = createMockContext()
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: false,
-        error: '群組名稱已存在',
-      })
-
-      const result = await actions.updateGroup.call(ctx, 'group-1', 'Updated Name')
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('群組名稱已存在')
-    })
-
-    it('groupId 為空字串時應回傳錯誤', async () => {
-      const actions = createGroupCRUDActions(testConfig)
-      const ctx = createMockContext()
-
-      const result = await actions.updateGroup.call(ctx, '', 'Updated Name')
-
-      expect(result).toEqual({ success: false, error: '無效的群組 ID' })
-      expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
-    })
-
-    it('name 為空字串時應回傳錯誤', async () => {
-      const actions = createGroupCRUDActions(testConfig)
-      const ctx = createMockContext()
-
-      const result = await actions.updateGroup.call(ctx, 'group-1', '')
-
-      expect(result).toEqual({ success: false, error: '群組名稱不能為空' })
-      expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
-    })
-  })
-
   describe('deleteGroup', () => {
     it('成功時應呼叫 removeGroupFromEvent', async () => {
       const actions = createGroupCRUDActions(testConfig)
@@ -339,6 +238,7 @@ describe('createGroupCRUDActions', () => {
         },
       })
       expect(ctx.removeGroupFromEvent).toHaveBeenCalledWith('group-1')
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('Command', '刪除群組成功')
       expect(result.success).toBe(true)
     })
 
@@ -351,7 +251,7 @@ describe('createGroupCRUDActions', () => {
 
       const result = await actions.deleteGroup.call(ctx, 'group-1')
 
-      expect(result).toEqual({ success: false, error: 'No active canvas' })
+      expect(result).toEqual({ success: false, error: '無作用中的畫布' })
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
@@ -367,7 +267,7 @@ describe('createGroupCRUDActions', () => {
       expect(result).toEqual({ success: false, error: '刪除群組失敗' })
     })
 
-    it('回應無 groupId 時不應呼叫 removeGroupFromEvent', async () => {
+    it('回應無 groupId 時不應呼叫 removeGroupFromEvent 且不顯示成功 Toast', async () => {
       const actions = createGroupCRUDActions(testConfig)
       const ctx = createMockContext()
 
@@ -379,6 +279,7 @@ describe('createGroupCRUDActions', () => {
       await actions.deleteGroup.call(ctx, 'group-1')
 
       expect(ctx.removeGroupFromEvent).not.toHaveBeenCalled()
+      expect(mockShowSuccessToast).not.toHaveBeenCalled()
     })
 
     it('groupId 為空字串時應回傳錯誤', async () => {
@@ -415,6 +316,7 @@ describe('createGroupCRUDActions', () => {
         },
       })
       expect(ctx.updateItemGroupId).toHaveBeenCalledWith('item-1', 'group-1')
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('Command', '移動成功')
       expect(result.success).toBe(true)
     })
 
@@ -440,6 +342,7 @@ describe('createGroupCRUDActions', () => {
         },
       })
       expect(ctx.updateItemGroupId).toHaveBeenCalledWith('item-1', null)
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('Command', '移動成功')
       expect(result.success).toBe(true)
     })
 
@@ -452,7 +355,7 @@ describe('createGroupCRUDActions', () => {
 
       const result = await actions.moveItemToGroup.call(ctx, 'item-1', 'group-1')
 
-      expect(result).toEqual({ success: false, error: 'No active canvas' })
+      expect(result).toEqual({ success: false, error: '無作用中的畫布' })
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 
@@ -468,7 +371,7 @@ describe('createGroupCRUDActions', () => {
       expect(result).toEqual({ success: false, error: '移動失敗' })
     })
 
-    it('回應無 itemId 時不應呼叫 updateItemGroupId', async () => {
+    it('回應無 itemId 時不應呼叫 updateItemGroupId 且不顯示成功 Toast', async () => {
       const actions = createGroupCRUDActions(testConfig)
       const ctx = createMockContext()
 
@@ -481,6 +384,7 @@ describe('createGroupCRUDActions', () => {
       await actions.moveItemToGroup.call(ctx, 'item-1', 'group-1')
 
       expect(ctx.updateItemGroupId).not.toHaveBeenCalled()
+      expect(mockShowSuccessToast).not.toHaveBeenCalled()
     })
 
     it('itemId 為空字串時應回傳錯誤', async () => {

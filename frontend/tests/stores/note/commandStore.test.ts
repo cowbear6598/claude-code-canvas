@@ -659,6 +659,7 @@ describe('commandStore', () => {
         error: undefined,
       })
       expect(store.groups).toContainEqual(mockGroup)
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('Command', '建立群組成功', 'New Group')
     })
 
     it('無 activeCanvasId 時應回傳失敗', async () => {
@@ -670,7 +671,7 @@ describe('commandStore', () => {
 
       expect(result).toEqual({
         success: false,
-        error: 'No active canvas',
+        error: '無作用中的畫布',
       })
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
@@ -690,80 +691,6 @@ describe('commandStore', () => {
       })
       expect(store.groups).toHaveLength(0)
       expect(mockShowErrorToast).toHaveBeenCalledWith('Command', '建立群組失敗')
-    })
-  })
-
-  describe('updateGroup', () => {
-    it('成功時應更新 groups 並回傳成功結果', async () => {
-      const canvasStore = useCanvasStore()
-      canvasStore.activeCanvasId = 'canvas-1'
-      const store = useCommandStore()
-
-      const originalGroup: Group = {
-        id: 'group-1',
-        name: 'Old Name',
-        type: 'command',
-      }
-      store.groups = [originalGroup]
-
-      const updatedGroup: Group = {
-        id: 'group-1',
-        name: 'Updated Name',
-        type: 'command',
-      }
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: true,
-        group: updatedGroup,
-      })
-
-      const result = await store.updateGroup('group-1', 'Updated Name')
-
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'group:update',
-        responseEvent: 'group:updated',
-        payload: {
-          canvasId: 'canvas-1',
-          groupId: 'group-1',
-          name: 'Updated Name',
-        },
-      })
-      expect(result).toEqual({
-        success: true,
-        group: updatedGroup,
-        error: undefined,
-      })
-      expect(store.groups[0]).toEqual(updatedGroup)
-    })
-
-    it('無 activeCanvasId 時應回傳失敗', async () => {
-      const canvasStore = useCanvasStore()
-      canvasStore.activeCanvasId = null
-      const store = useCommandStore()
-
-      const result = await store.updateGroup('group-1', 'Updated Name')
-
-      expect(result).toEqual({
-        success: false,
-        error: 'No active canvas',
-      })
-      expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
-    })
-
-    it('失敗時應回傳錯誤結果並顯示錯誤 Toast', async () => {
-      const canvasStore = useCanvasStore()
-      canvasStore.activeCanvasId = 'canvas-1'
-      const store = useCommandStore()
-
-      mockCreateWebSocketRequest.mockResolvedValueOnce(null)
-
-      const result = await store.updateGroup('group-1', 'Updated Name')
-
-      expect(result).toEqual({
-        success: false,
-        error: '更新群組失敗',
-      })
-      expect(mockShowErrorToast).toHaveBeenCalledWith('Command', '更新群組失敗')
     })
   })
 
@@ -800,6 +727,7 @@ describe('commandStore', () => {
         error: undefined,
       })
       expect(store.groups).toHaveLength(0)
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('Command', '刪除群組成功')
     })
 
     it('無 activeCanvasId 時應回傳失敗', async () => {
@@ -811,7 +739,7 @@ describe('commandStore', () => {
 
       expect(result).toEqual({
         success: false,
-        error: 'No active canvas',
+        error: '無作用中的畫布',
       })
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
@@ -868,6 +796,7 @@ describe('commandStore', () => {
         error: undefined,
       })
       expect(store.availableItems[0]?.groupId).toBe('group-1')
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('Command', '移動成功')
     })
 
     it('移出群組時應設定 groupId 為 null', async () => {
@@ -904,6 +833,7 @@ describe('commandStore', () => {
         error: undefined,
       })
       expect(store.availableItems[0]?.groupId).toBeNull()
+      expect(mockShowSuccessToast).toHaveBeenCalledWith('Command', '移動成功')
     })
 
     it('無 activeCanvasId 時應回傳失敗', async () => {
@@ -915,7 +845,7 @@ describe('commandStore', () => {
 
       expect(result).toEqual({
         success: false,
-        error: 'No active canvas',
+        error: '無作用中的畫布',
       })
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })

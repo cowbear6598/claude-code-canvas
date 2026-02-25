@@ -476,6 +476,7 @@ describe('outputStyleStore 自訂 actions', () => {
           success: true,
           group: newGroup,
         })
+        expect(mockShowSuccessToast).toHaveBeenCalledWith('OutputStyle', '建立群組成功', 'New Group')
       })
 
       it('無 activeCanvasId 時應回傳錯誤', async () => {
@@ -489,7 +490,7 @@ describe('outputStyleStore 自訂 actions', () => {
         expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
         expect(result).toEqual({
           success: false,
-          error: 'No active canvas',
+          error: '無作用中的畫布',
         })
       })
 
@@ -505,66 +506,6 @@ describe('outputStyleStore 自訂 actions', () => {
           error: '建立群組失敗',
         })
         expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '建立群組失敗')
-      })
-    })
-
-    describe('updateGroup', () => {
-      it('成功時應更新 groups', async () => {
-        const store = useOutputStyleStore()
-        const existingGroup: Group = { id: 'group-1', name: 'Original', type: 'output-style' }
-        store.groups = [existingGroup]
-
-        const updatedGroup: Group = { id: 'group-1', name: 'Updated', type: 'output-style' }
-        mockCreateWebSocketRequest.mockResolvedValueOnce({
-          success: true,
-          group: updatedGroup,
-        })
-
-        const result = await store.updateGroup('group-1', 'Updated')
-
-        expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-          requestEvent: 'group:update',
-          responseEvent: 'group:updated',
-          payload: {
-            canvasId: 'canvas-1',
-            groupId: 'group-1',
-            name: 'Updated',
-          },
-        })
-        expect(store.groups[0]).toEqual(updatedGroup)
-        expect(result).toEqual({
-          success: true,
-          group: updatedGroup,
-        })
-      })
-
-      it('無 activeCanvasId 時應回傳錯誤', async () => {
-        const canvasStore = useCanvasStore()
-        canvasStore.activeCanvasId = null
-
-        const store = useOutputStyleStore()
-
-        const result = await store.updateGroup('group-1', 'Updated')
-
-        expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
-        expect(result).toEqual({
-          success: false,
-          error: 'No active canvas',
-        })
-      })
-
-      it('回應為空時應回傳錯誤並顯示錯誤 Toast', async () => {
-        const store = useOutputStyleStore()
-
-        mockCreateWebSocketRequest.mockResolvedValueOnce(null)
-
-        const result = await store.updateGroup('group-1', 'Updated')
-
-        expect(result).toEqual({
-          success: false,
-          error: '更新群組失敗',
-        })
-        expect(mockShowErrorToast).toHaveBeenCalledWith('OutputStyle', '更新群組失敗')
       })
     })
 
@@ -594,6 +535,7 @@ describe('outputStyleStore 自訂 actions', () => {
         expect(store.groups).toHaveLength(1)
         expect(store.groups[0]?.id).toBe('group-2')
         expect(result).toEqual({ success: true })
+        expect(mockShowSuccessToast).toHaveBeenCalledWith('OutputStyle', '刪除群組成功')
       })
 
       it('無 activeCanvasId 時應回傳錯誤', async () => {
@@ -607,7 +549,7 @@ describe('outputStyleStore 自訂 actions', () => {
         expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
         expect(result).toEqual({
           success: false,
-          error: 'No active canvas',
+          error: '無作用中的畫布',
         })
       })
 
@@ -653,6 +595,7 @@ describe('outputStyleStore 自訂 actions', () => {
         })
         expect(store.availableItems[0]?.groupId).toBe('group-1')
         expect(result).toEqual({ success: true })
+        expect(mockShowSuccessToast).toHaveBeenCalledWith('OutputStyle', '移動成功')
       })
 
       it('成功時應可將 item 移出群組（groupId 設為 null）', async () => {
@@ -680,6 +623,7 @@ describe('outputStyleStore 自訂 actions', () => {
         })
         expect(store.availableItems[0]?.groupId).toBeNull()
         expect(result).toEqual({ success: true })
+        expect(mockShowSuccessToast).toHaveBeenCalledWith('OutputStyle', '移動成功')
       })
 
       it('無 activeCanvasId 時應回傳錯誤', async () => {
@@ -693,7 +637,7 @@ describe('outputStyleStore 自訂 actions', () => {
         expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
         expect(result).toEqual({
           success: false,
-          error: 'No active canvas',
+          error: '無作用中的畫布',
         })
       })
 

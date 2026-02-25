@@ -9,8 +9,6 @@ import type {
   GroupListResultPayload,
   GroupCreatePayload,
   GroupCreatedPayload,
-  GroupUpdatePayload,
-  GroupUpdatedPayload,
   GroupDeletePayload,
   GroupDeletedPayload,
   MoveToGroupPayload,
@@ -31,7 +29,6 @@ export interface GroupCRUDConfig {
 export interface GroupCRUDStoreContext {
   groups: Array<{ id: string; name: string; [key: string]: unknown }>
   addGroupFromEvent: (group: Record<string, unknown>) => void
-  updateGroupFromEvent: (group: Record<string, unknown>) => void
   removeGroupFromEvent: (groupId: string) => void
   updateItemGroupId: (itemId: string, groupId: string | null) => void
 }
@@ -39,14 +36,13 @@ export interface GroupCRUDStoreContext {
 export interface GroupCRUDActions {
   loadGroups(this: GroupCRUDStoreContext): Promise<void>
   createGroup(this: GroupCRUDStoreContext, name: string): Promise<{ success: boolean; group?: Group; error?: string }>
-  updateGroup(this: GroupCRUDStoreContext, groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }>
   deleteGroup(this: GroupCRUDStoreContext, groupId: string): Promise<{ success: boolean; error?: string }>
   moveItemToGroup(this: GroupCRUDStoreContext, itemId: string, groupId: string | null): Promise<{ success: boolean; error?: string }>
 }
 
 export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDActions {
   const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-  const { showErrorToast } = useToast()
+  const { showSuccessToast, showErrorToast } = useToast()
 
   return {
     async loadGroups(this: GroupCRUDStoreContext): Promise<void> {
@@ -86,7 +82,7 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
       const canvasStore = useCanvasStore()
 
       if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
+        return { success: false, error: '無作用中的畫布' }
       }
 
       const response = await wrapWebSocketRequest(
@@ -108,49 +104,7 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
 
       if (response.group) {
         this.addGroupFromEvent(response.group)
-      }
-
-      return {
-        success: response.success,
-        group: response.group as Group,
-        error: response.error
-      }
-    },
-
-    async updateGroup(this: GroupCRUDStoreContext, groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }> {
-      if (!groupId?.trim()) {
-        return { success: false, error: '無效的群組 ID' }
-      }
-
-      if (!name?.trim()) {
-        return { success: false, error: '群組名稱不能為空' }
-      }
-
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
-      }
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest<GroupUpdatePayload, GroupUpdatedPayload>({
-          requestEvent: WebSocketRequestEvents.GROUP_UPDATE,
-          responseEvent: WebSocketResponseEvents.GROUP_UPDATED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            groupId,
-            name
-          }
-        })
-      )
-
-      if (!response) {
-        showErrorToast(config.toastCategory, '更新群組失敗')
-        return { success: false, error: '更新群組失敗' }
-      }
-
-      if (response.group) {
-        this.updateGroupFromEvent(response.group)
+        showSuccessToast(config.toastCategory, '建立群組成功', name)
       }
 
       return {
@@ -168,7 +122,7 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
       const canvasStore = useCanvasStore()
 
       if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
+        return { success: false, error: '無作用中的畫布' }
       }
 
       const response = await wrapWebSocketRequest(
@@ -189,6 +143,7 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
 
       if (response.success && response.groupId) {
         this.removeGroupFromEvent(response.groupId)
+        showSuccessToast(config.toastCategory, '刪除群組成功')
       }
 
       return {
@@ -205,7 +160,7 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
       const canvasStore = useCanvasStore()
 
       if (!canvasStore.activeCanvasId) {
-        return { success: false, error: 'No active canvas' }
+        return { success: false, error: '無作用中的畫布' }
       }
 
       const response = await wrapWebSocketRequest(
@@ -227,6 +182,7 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
 
       if (response.success && response.itemId) {
         this.updateItemGroupId(response.itemId, response.groupId ?? null)
+        showSuccessToast(config.toastCategory, '移動成功')
       }
 
       return {

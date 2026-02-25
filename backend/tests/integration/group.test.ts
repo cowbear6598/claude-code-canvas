@@ -13,7 +13,6 @@ import {
     type GroupCreatePayload,
     type GroupDeletePayload,
     type GroupListPayload,
-    type GroupUpdatePayload,
     type OutputStyleMoveToGroupPayload,
     type SubAgentMoveToGroupPayload,
     WebSocketRequestEvents,
@@ -24,7 +23,6 @@ import {
     type GroupCreatedResponse,
     type GroupDeletedResponse,
     type GroupListResultResponse,
-    type GroupUpdatedResponse,
     type ItemMovedToGroupResponse,
 } from '../../src/types';
 
@@ -49,7 +47,7 @@ describe('Group 管理', () => {
             client,
             WebSocketRequestEvents.GROUP_CREATE,
             WebSocketResponseEvents.GROUP_CREATED,
-            {requestId: uuidv4(), name: groupName, type}
+            {requestId: uuidv4(), canvasId: server.canvasId, name: groupName, type}
         );
     }
 
@@ -93,7 +91,7 @@ describe('Group 管理', () => {
                 client,
                 WebSocketRequestEvents.GROUP_CREATE,
                 WebSocketResponseEvents.GROUP_CREATED,
-                {requestId: uuidv4(), name: '../malicious', type: 'command'}
+                {requestId: uuidv4(), canvasId: server.canvasId, name: '../malicious', type: 'command'}
             );
 
             expect(response.success).toBe(false);
@@ -104,7 +102,7 @@ describe('Group 管理', () => {
                 client,
                 WebSocketRequestEvents.GROUP_CREATE,
                 WebSocketResponseEvents.GROUP_CREATED,
-                {requestId: uuidv4(), name: 'test/path', type: 'command'}
+                {requestId: uuidv4(), canvasId: server.canvasId, name: 'test/path', type: 'command'}
             );
 
             expect(response.success).toBe(false);
@@ -115,7 +113,7 @@ describe('Group 管理', () => {
                 client,
                 WebSocketRequestEvents.GROUP_CREATE,
                 WebSocketResponseEvents.GROUP_CREATED,
-                {requestId: uuidv4(), name: 'test@group', type: 'command'}
+                {requestId: uuidv4(), canvasId: server.canvasId, name: 'test@group', type: 'command'}
             );
 
             expect(response.success).toBe(false);
@@ -126,7 +124,7 @@ describe('Group 管理', () => {
                 client,
                 WebSocketRequestEvents.GROUP_CREATE,
                 WebSocketResponseEvents.GROUP_CREATED,
-                {requestId: uuidv4(), name: 'test-group-123', type: 'command'}
+                {requestId: uuidv4(), canvasId: server.canvasId, name: 'test-group-123', type: 'command'}
             );
 
             expect(response.success).toBe(true);
@@ -142,7 +140,7 @@ describe('Group 管理', () => {
                 client,
                 WebSocketRequestEvents.GROUP_LIST,
                 WebSocketResponseEvents.GROUP_LIST_RESULT,
-                {requestId: uuidv4(), type: 'command'}
+                {requestId: uuidv4(), canvasId: server.canvasId, type: 'command'}
             );
 
             expect(response.success).toBe(true);
@@ -158,7 +156,7 @@ describe('Group 管理', () => {
                 client,
                 WebSocketRequestEvents.GROUP_LIST,
                 WebSocketResponseEvents.GROUP_LIST_RESULT,
-                {requestId: uuidv4(), type: 'output-style'}
+                {requestId: uuidv4(), canvasId: server.canvasId, type: 'output-style'}
             );
 
             expect(response.success).toBe(true);
@@ -173,71 +171,12 @@ describe('Group 管理', () => {
                 client,
                 WebSocketRequestEvents.GROUP_LIST,
                 WebSocketResponseEvents.GROUP_LIST_RESULT,
-                {requestId: uuidv4(), type: 'subagent'}
+                {requestId: uuidv4(), canvasId: server.canvasId, type: 'subagent'}
             );
 
             expect(response.success).toBe(true);
             expect(response.groups).toBeDefined();
             expect(response.groups!.some((g: Group) => g.id === group.group!.id)).toBe(true);
-        });
-    });
-
-    describe('更新 Group', () => {
-        it('成功重新命名群組', async () => {
-            const group = await createGroup('command');
-            const newName = `renamed-${uuidv4().slice(0, 8)}`;
-
-            const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedResponse>(
-                client,
-                WebSocketRequestEvents.GROUP_UPDATE,
-                WebSocketResponseEvents.GROUP_UPDATED,
-                {requestId: uuidv4(), groupId: group.group!.id, name: newName}
-            );
-
-            expect(response.success).toBe(true);
-            expect(response.group).toBeDefined();
-            expect(response.group!.name).toBe(newName);
-            expect(response.group!.id).toBe(newName);
-        });
-
-        it('不存在的群組時重新命名失敗', async () => {
-            const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedResponse>(
-                client,
-                WebSocketRequestEvents.GROUP_UPDATE,
-                WebSocketResponseEvents.GROUP_UPDATED,
-                {requestId: uuidv4(), groupId: 'nonexistent-group', name: 'new-name'}
-            );
-
-            expect(response.success).toBe(false);
-            expect(response.error).toContain('不存在');
-        });
-
-        it('重新命名為已存在名稱時失敗', async () => {
-            const group1 = await createGroup('command');
-            const group2 = await createGroup('command');
-
-            const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedResponse>(
-                client,
-                WebSocketRequestEvents.GROUP_UPDATE,
-                WebSocketResponseEvents.GROUP_UPDATED,
-                {requestId: uuidv4(), groupId: group1.group!.id, name: group2.group!.name}
-            );
-
-            expect(response.success).toBe(false);
-            expect(response.error).toContain('已存在');
-        });
-
-        it('路徑穿越攻擊時重新命名失敗', async () => {
-            const group = await createGroup('command');
-
-            const response = await emitAndWaitResponse<GroupUpdatePayload, GroupUpdatedResponse>(
-                client,
-                WebSocketRequestEvents.GROUP_UPDATE,
-                WebSocketResponseEvents.GROUP_UPDATED,
-                {requestId: uuidv4(), groupId: group.group!.id, name: '../evil'}
-            );
-
-            expect(response.success).toBe(false);
         });
     });
 
@@ -249,7 +188,7 @@ describe('Group 管理', () => {
                 client,
                 WebSocketRequestEvents.GROUP_DELETE,
                 WebSocketResponseEvents.GROUP_DELETED,
-                {requestId: uuidv4(), groupId: group.group!.id}
+                {requestId: uuidv4(), canvasId: server.canvasId, groupId: group.group!.id}
             );
 
             expect(response.success).toBe(true);
@@ -271,7 +210,7 @@ describe('Group 管理', () => {
                 client,
                 WebSocketRequestEvents.GROUP_DELETE,
                 WebSocketResponseEvents.GROUP_DELETED,
-                {requestId: uuidv4(), groupId: group.group!.id}
+                {requestId: uuidv4(), canvasId: server.canvasId, groupId: group.group!.id}
             );
 
             expect(response.success).toBe(false);
@@ -283,7 +222,7 @@ describe('Group 管理', () => {
                 client,
                 WebSocketRequestEvents.GROUP_DELETE,
                 WebSocketResponseEvents.GROUP_DELETED,
-                {requestId: uuidv4(), groupId: 'nonexistent-group'}
+                {requestId: uuidv4(), canvasId: server.canvasId, groupId: 'nonexistent-group'}
             );
 
             expect(response.success).toBe(false);

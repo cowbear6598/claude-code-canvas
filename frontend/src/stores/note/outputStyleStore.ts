@@ -1,12 +1,9 @@
 import type { OutputStyleListItem, OutputStyleNote, Pod } from '@/types'
-import { createNoteStore } from './createNoteStore'
-import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
+import { createNoteStore, rebuildNotesFromPods } from './createNoteStore'
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { createResourceCRUDActions } from './createResourceCRUDActions'
 import { createGroupCRUDActions } from './createGroupCRUDActions'
-import { useCanvasStore } from '@/stores/canvasStore'
 import type {
-  NoteCreatePayload,
-  NoteCreatedPayload,
   OutputStyleCreatedPayload,
   OutputStyleUpdatedPayload,
   OutputStyleReadResultPayload,
@@ -22,7 +19,6 @@ interface OutputStyleStoreCustomActions {
   loadOutputStyles(): Promise<void>
   loadGroups(): Promise<void>
   createGroup(name: string): Promise<{ success: boolean; group?: Group; error?: string }>
-  updateGroup(groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }>
   deleteGroup(groupId: string): Promise<{ success: boolean; error?: string }>
   moveItemToGroup(outputStyleId: string, groupId: string | null): Promise<{ success: boolean; error?: string }>
 }
@@ -111,22 +107,6 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
     response: WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
   },
   groupEvents: {
-    listGroups: {
-      request: WebSocketRequestEvents.GROUP_LIST,
-      response: WebSocketResponseEvents.GROUP_LIST_RESULT,
-    },
-    createGroup: {
-      request: WebSocketRequestEvents.GROUP_CREATE,
-      response: WebSocketResponseEvents.GROUP_CREATED,
-    },
-    updateGroup: {
-      request: WebSocketRequestEvents.GROUP_UPDATE,
-      response: WebSocketResponseEvents.GROUP_UPDATED,
-    },
-    deleteGroup: {
-      request: WebSocketRequestEvents.GROUP_DELETE,
-      response: WebSocketResponseEvents.GROUP_DELETED,
-    },
     moveItemToGroup: {
       request: WebSocketRequestEvents.OUTPUT_STYLE_MOVE_TO_GROUP,
       response: WebSocketResponseEvents.OUTPUT_STYLE_MOVED_TO_GROUP,
@@ -139,47 +119,14 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
   getItemName: (item: OutputStyleListItem) => item.name,
   customActions: {
     async rebuildNotesFromPods(this, pods: Pod[]): Promise<void> {
-      const canvasStore = useCanvasStore()
-      if (!canvasStore.activeCanvasId) {
-        console.warn('[OutputStyleStore] Cannot rebuild notes: no active canvas')
-        return
-      }
-
-      const promises: Promise<void>[] = []
-
-      for (const pod of pods) {
-        if (!pod.outputStyleId) continue
-
-        const existingNotes = this.getNotesByPodId(pod.id)
-        if (existingNotes.length > 0) continue
-
-        const style = this.availableItems.find((s: OutputStyleListItem) => s.id === pod.outputStyleId)
-        const styleName = style?.name || pod.outputStyleId
-
-        const promise = createWebSocketRequest<NoteCreatePayload, NoteCreatedPayload>({
-          requestEvent: WebSocketRequestEvents.NOTE_CREATE,
-          responseEvent: WebSocketResponseEvents.NOTE_CREATED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            outputStyleId: pod.outputStyleId,
-            name: styleName,
-            x: pod.x,
-            y: pod.y - 50,
-            boundToPodId: pod.id,
-            originalPosition: { x: pod.x, y: pod.y - 50 },
-          }
-        }).then(response => {
-          if (response.note) {
-            this.notes.push(response.note)
-          }
-        })
-
-        promises.push(promise)
-      }
-
-      if (promises.length > 0) {
-        await Promise.all(promises)
-      }
+      await rebuildNotesFromPods(this, pods, {
+        storeName: 'OutputStyleStore',
+        podIdField: 'outputStyleId',
+        itemIdField: 'outputStyleId',
+        yOffset: -50,
+        requestEvent: WebSocketRequestEvents.NOTE_CREATE,
+        responseEvent: WebSocketResponseEvents.NOTE_CREATED,
+      })
     },
 
     async createOutputStyle(this, name: string, content: string): Promise<{ success: boolean; outputStyle?: { id: string; name: string }; error?: string }> {
@@ -206,7 +153,6 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
 
     loadGroups: outputStyleGroupCRUD.loadGroups,
     createGroup: outputStyleGroupCRUD.createGroup,
-    updateGroup: outputStyleGroupCRUD.updateGroup,
     deleteGroup: outputStyleGroupCRUD.deleteGroup,
     moveItemToGroup: outputStyleGroupCRUD.moveItemToGroup,
   }

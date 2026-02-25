@@ -1,11 +1,11 @@
-import { WebSocketResponseEvents, GroupCreatePayload, GroupListPayload, GroupUpdatePayload, GroupDeletePayload } from '../schemas';
+import { WebSocketResponseEvents, GroupCreatePayload, GroupListPayload, GroupDeletePayload } from '../schemas';
 import { groupStore } from '../services/groupStore.js';
-import { GroupType } from '../types';
+import { GroupType, GROUP_TYPES } from '../types';
 import { emitError, sendSuccessResponse } from '../utils/websocketResponse.js';
 import { socketService } from '../services/socketService.js';
 
 export async function handleGroupCreate(connectionId: string, payload: GroupCreatePayload, requestId: string): Promise<void> {
-  const { name, type } = payload;
+  const { canvasId, name, type } = payload;
 
   const groupType = type as GroupType;
 
@@ -17,7 +17,7 @@ export async function handleGroupCreate(connectionId: string, payload: GroupCrea
 
   const group = await groupStore.create(name, groupType);
 
-  socketService.emitToAll(WebSocketResponseEvents.GROUP_CREATED, {
+  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.GROUP_CREATED, {
     requestId,
     success: true,
     group,
@@ -35,42 +35,8 @@ export async function handleGroupList(connectionId: string, payload: GroupListPa
   });
 }
 
-export async function handleGroupUpdate(connectionId: string, payload: GroupUpdatePayload, requestId: string): Promise<void> {
-  const { groupId, name } = payload;
-
-  const type = await findGroupType(groupId);
-  if (!type) {
-    emitError(connectionId, WebSocketResponseEvents.GROUP_UPDATED, 'Group 不存在', requestId, undefined, 'NOT_FOUND');
-    return;
-  }
-
-  const existsOldGroup = await groupStore.exists(groupId, type);
-  if (!existsOldGroup) {
-    emitError(connectionId, WebSocketResponseEvents.GROUP_UPDATED, 'Group 不存在', requestId, undefined, 'NOT_FOUND');
-    return;
-  }
-
-  const existsNewGroup = await groupStore.exists(name, type);
-  if (existsNewGroup && groupId !== name) {
-    emitError(connectionId, WebSocketResponseEvents.GROUP_UPDATED, 'Group 名稱已存在', requestId, undefined, 'ALREADY_EXISTS');
-    return;
-  }
-
-  const updatedGroup = await groupStore.update(groupId, name, type);
-  if (!updatedGroup) {
-    emitError(connectionId, WebSocketResponseEvents.GROUP_UPDATED, 'Group 不存在', requestId, undefined, 'NOT_FOUND');
-    return;
-  }
-
-  socketService.emitToAll(WebSocketResponseEvents.GROUP_UPDATED, {
-    requestId,
-    success: true,
-    group: updatedGroup,
-  });
-}
-
 export async function handleGroupDelete(connectionId: string, payload: GroupDeletePayload, requestId: string): Promise<void> {
-  const { groupId } = payload;
+  const { canvasId, groupId } = payload;
 
   const type = await findGroupType(groupId);
   if (!type) {
@@ -90,7 +56,7 @@ export async function handleGroupDelete(connectionId: string, payload: GroupDele
     return;
   }
 
-  socketService.emitToAll(WebSocketResponseEvents.GROUP_DELETED, {
+  socketService.emitToCanvas(canvasId, WebSocketResponseEvents.GROUP_DELETED, {
     requestId,
     success: true,
     groupId,
@@ -98,7 +64,7 @@ export async function handleGroupDelete(connectionId: string, payload: GroupDele
 }
 
 async function findGroupType(groupId: string): Promise<GroupType | null> {
-  for (const type of ['command', 'output-style', 'subagent'] as const) {
+  for (const type of Object.values(GROUP_TYPES)) {
     const exists = await groupStore.exists(groupId, type);
     if (exists) {
       return type;

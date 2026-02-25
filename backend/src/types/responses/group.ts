@@ -14,13 +14,6 @@ export interface GroupListResultResponse {
   error?: string;
 }
 
-export interface GroupUpdatedResponse {
-  requestId: string;
-  success: boolean;
-  group?: Group;
-  error?: string;
-}
-
 export interface GroupDeletedResponse {
   requestId: string;
   success: boolean;

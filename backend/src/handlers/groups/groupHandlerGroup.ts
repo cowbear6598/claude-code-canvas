@@ -2,13 +2,11 @@ import { WebSocketRequestEvents, WebSocketResponseEvents } from '../../schemas';
 import {
   groupCreateSchema,
   groupListSchema,
-  groupUpdateSchema,
   groupDeleteSchema,
 } from '../../schemas';
 import {
   handleGroupCreate,
   handleGroupList,
-  handleGroupUpdate,
   handleGroupDelete,
 } from '../groupHandlers.js';
 import { createHandlerGroup } from './createHandlerGroup.js';
@@ -27,12 +25,6 @@ export const groupHandlerGroup = createHandlerGroup({
       handler: handleGroupList,
       schema: groupListSchema,
       responseEvent: WebSocketResponseEvents.GROUP_LIST_RESULT,
-    },
-    {
-      event: WebSocketRequestEvents.GROUP_UPDATE,
-      handler: handleGroupUpdate,
-      schema: groupUpdateSchema,
-      responseEvent: WebSocketResponseEvents.GROUP_UPDATED,
     },
     {
       event: WebSocketRequestEvents.GROUP_DELETE,

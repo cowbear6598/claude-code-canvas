@@ -1,12 +1,9 @@
 import type { Command, CommandNote, Pod } from '@/types'
-import { createNoteStore } from './createNoteStore'
-import { WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
+import { createNoteStore, rebuildNotesFromPods } from './createNoteStore'
+import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { createResourceCRUDActions } from './createResourceCRUDActions'
 import { createGroupCRUDActions } from './createGroupCRUDActions'
-import { useCanvasStore } from '@/stores/canvasStore'
 import type {
-  CommandNoteCreatePayload,
-  CommandNoteCreatedPayload,
   CommandCreatedPayload,
   CommandUpdatedPayload,
   CommandReadResultPayload,
@@ -22,7 +19,6 @@ interface CommandStoreCustomActions {
   loadCommands(): Promise<void>
   loadGroups(): Promise<void>
   createGroup(name: string): Promise<{ success: boolean; group?: Group; error?: string }>
-  updateGroup(groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }>
   deleteGroup(groupId: string): Promise<{ success: boolean; error?: string }>
   moveItemToGroup(commandId: string, groupId: string | null): Promise<{ success: boolean; error?: string }>
 }
@@ -111,22 +107,6 @@ const store = createNoteStore<Command, CommandNote>({
     response: WebSocketResponseEvents.COMMAND_DELETED,
   },
   groupEvents: {
-    listGroups: {
-      request: WebSocketRequestEvents.GROUP_LIST,
-      response: WebSocketResponseEvents.GROUP_LIST_RESULT,
-    },
-    createGroup: {
-      request: WebSocketRequestEvents.GROUP_CREATE,
-      response: WebSocketResponseEvents.GROUP_CREATED,
-    },
-    updateGroup: {
-      request: WebSocketRequestEvents.GROUP_UPDATE,
-      response: WebSocketResponseEvents.GROUP_UPDATED,
-    },
-    deleteGroup: {
-      request: WebSocketRequestEvents.GROUP_DELETE,
-      response: WebSocketResponseEvents.GROUP_DELETED,
-    },
     moveItemToGroup: {
       request: WebSocketRequestEvents.COMMAND_MOVE_TO_GROUP,
       response: WebSocketResponseEvents.COMMAND_MOVED_TO_GROUP,
@@ -139,47 +119,14 @@ const store = createNoteStore<Command, CommandNote>({
   getItemName: (item: Command) => item.name,
   customActions: {
     async rebuildNotesFromPods(this, pods: Pod[]): Promise<void> {
-      const canvasStore = useCanvasStore()
-      if (!canvasStore.activeCanvasId) {
-        console.warn('[CommandStore] Cannot rebuild notes: no active canvas')
-        return
-      }
-
-      const promises: Promise<void>[] = []
-
-      for (const pod of pods) {
-        if (!pod.commandId) continue
-
-        const existingNotes = this.getNotesByPodId(pod.id)
-        if (existingNotes.length > 0) continue
-
-        const command = this.availableItems.find((c: Command) => c.id === pod.commandId)
-        const commandName = command?.name || pod.commandId
-
-        const promise = createWebSocketRequest<CommandNoteCreatePayload, CommandNoteCreatedPayload>({
-          requestEvent: WebSocketRequestEvents.COMMAND_NOTE_CREATE,
-          responseEvent: WebSocketResponseEvents.COMMAND_NOTE_CREATED,
-          payload: {
-            canvasId: canvasStore.activeCanvasId,
-            commandId: pod.commandId,
-            name: commandName,
-            x: pod.x,
-            y: pod.y - 100,
-            boundToPodId: pod.id,
-            originalPosition: { x: pod.x, y: pod.y - 100 },
-          }
-        }).then(response => {
-          if (response.note) {
-            this.notes.push(response.note)
-          }
-        })
-
-        promises.push(promise)
-      }
-
-      if (promises.length > 0) {
-        await Promise.all(promises)
-      }
+      await rebuildNotesFromPods(this, pods, {
+        storeName: 'CommandStore',
+        podIdField: 'commandId',
+        itemIdField: 'commandId',
+        yOffset: -100,
+        requestEvent: WebSocketRequestEvents.COMMAND_NOTE_CREATE,
+        responseEvent: WebSocketResponseEvents.COMMAND_NOTE_CREATED,
+      })
     },
 
     async createCommand(this, name: string, content: string): Promise<{ success: boolean; command?: { id: string; name: string }; error?: string }> {
@@ -206,7 +153,6 @@ const store = createNoteStore<Command, CommandNote>({
 
     loadGroups: commandGroupCRUD.loadGroups,
     createGroup: commandGroupCRUD.createGroup,
-    updateGroup: commandGroupCRUD.updateGroup,
     deleteGroup: commandGroupCRUD.deleteGroup,
     moveItemToGroup: commandGroupCRUD.moveItemToGroup,
   }

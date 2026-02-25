@@ -18,7 +18,6 @@ interface SubAgentStoreCustomActions {
   loadSubAgents(): Promise<void>
   loadGroups(): Promise<void>
   createGroup(name: string): Promise<{ success: boolean; group?: Group; error?: string }>
-  updateGroup(groupId: string, name: string): Promise<{ success: boolean; group?: Group; error?: string }>
   deleteGroup(groupId: string): Promise<{ success: boolean; error?: string }>
   moveItemToGroup(subAgentId: string, groupId: string | null): Promise<{ success: boolean; error?: string }>
 }
@@ -103,22 +102,6 @@ const store = createNoteStore<SubAgent, SubAgentNote>({
     response: WebSocketResponseEvents.SUBAGENT_DELETED,
   },
   groupEvents: {
-    listGroups: {
-      request: WebSocketRequestEvents.GROUP_LIST,
-      response: WebSocketResponseEvents.GROUP_LIST_RESULT,
-    },
-    createGroup: {
-      request: WebSocketRequestEvents.GROUP_CREATE,
-      response: WebSocketResponseEvents.GROUP_CREATED,
-    },
-    updateGroup: {
-      request: WebSocketRequestEvents.GROUP_UPDATE,
-      response: WebSocketResponseEvents.GROUP_UPDATED,
-    },
-    deleteGroup: {
-      request: WebSocketRequestEvents.GROUP_DELETE,
-      response: WebSocketResponseEvents.GROUP_DELETED,
-    },
     moveItemToGroup: {
       request: WebSocketRequestEvents.SUBAGENT_MOVE_TO_GROUP,
       response: WebSocketResponseEvents.SUBAGENT_MOVED_TO_GROUP,
@@ -154,7 +137,6 @@ const store = createNoteStore<SubAgent, SubAgentNote>({
 
     loadGroups: subAgentGroupCRUD.loadGroups,
     createGroup: subAgentGroupCRUD.createGroup,
-    updateGroup: subAgentGroupCRUD.updateGroup,
     deleteGroup: subAgentGroupCRUD.deleteGroup,
     moveItemToGroup: subAgentGroupCRUD.moveItemToGroup,
   }

@@ -448,13 +448,6 @@ export interface GroupListResultPayload {
     error?: string
 }
 
-export interface GroupUpdatedPayload {
-    requestId: string
-    success: boolean
-    group?: { id: string; name: string; type: 'command' | 'outputStyle' | 'subAgent' }
-    error?: string
-}
-
 export interface GroupDeletedPayload {
     requestId: string
     success: boolean

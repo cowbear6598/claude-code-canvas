@@ -67,7 +67,6 @@ function createTestConfig(overrides?: Partial<NoteStoreConfig<TestItem>>): NoteS
     groupEvents: {
       listGroups: { request: 'test:list-groups', response: 'test:groups-listed' },
       createGroup: { request: 'test:create-group', response: 'test:group-created' },
-      updateGroup: { request: 'test:update-group', response: 'test:group-updated' },
       deleteGroup: { request: 'test:delete-group', response: 'test:group-deleted' },
       moveItemToGroup: { request: 'test:move-to-group', response: 'test:moved-to-group' },
     },
@@ -1143,29 +1142,6 @@ describe('createNoteStore', () => {
         store.addGroupFromEvent(group)
 
         expect(store.groups).toHaveLength(1)
-      })
-    })
-
-    describe('updateGroupFromEvent', () => {
-      it('應替換既有 group', () => {
-        const config = createTestConfig()
-        const store = createNoteStore<TestItem, TestNote>(config)()
-        const originalGroup = { id: 'group-1', name: 'Original' }
-        store.groups = [originalGroup]
-
-        const updatedGroup = { id: 'group-1', name: 'Updated' }
-        store.updateGroupFromEvent(updatedGroup)
-
-        expect(store.groups).toHaveLength(1)
-        expect(store.groups[0]?.name).toBe('Updated')
-      })
-
-      it('group 不存在時不應報錯', () => {
-        const config = createTestConfig()
-        const store = createNoteStore<TestItem, TestNote>(config)()
-        const group = { id: 'non-existent', name: 'Group' }
-
-        expect(() => store.updateGroupFromEvent(group)).not.toThrow()
       })
     })
 

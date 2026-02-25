@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import type {BaseNote} from '@/types'
+import type {BaseNote, Pod} from '@/types'
 import {createWebSocketRequest} from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import {useDeleteItem} from '@/composables/useDeleteItem'
@@ -32,6 +32,20 @@ interface BaseResponse {
     [key: string]: unknown
 }
 
+interface GroupItem {
+    id: string
+    name: string
+    [key: string]: unknown
+}
+
+interface NoteItem {
+    id: string
+    boundToPodId: string | null
+    x: number
+    y: number
+    [key: string]: unknown
+}
+
 export interface NoteStoreConfig<TItem> {
     storeName: string
     relationship: 'one-to-one' | 'one-to-many'
@@ -57,10 +71,9 @@ export interface NoteStoreConfig<TItem> {
         response: string
     }
     groupEvents?: {
-        listGroups: { request: string; response: string }
-        createGroup: { request: string; response: string }
-        updateGroup: { request: string; response: string }
-        deleteGroup: { request: string; response: string }
+        listGroups?: { request: string; response: string }
+        createGroup?: { request: string; response: string }
+        deleteGroup?: { request: string; response: string }
         moveItemToGroup: { request: string; response: string }
     }
     createNotePayload: (item: TItem, x: number, y: number) => object
@@ -69,18 +82,71 @@ export interface NoteStoreConfig<TItem> {
     customActions?: Record<string, (...args: unknown[]) => unknown>
 }
 
-interface GroupItem {
-    id: string
-    name: string
-    [key: string]: unknown
+export interface RebuildNotesConfig {
+    storeName: string
+    podIdField: keyof Pod
+    itemIdField: string
+    yOffset: number
+    requestEvent: string
+    responseEvent: string
 }
 
-interface NoteItem {
-    id: string
-    boundToPodId: string | null
-    x: number
-    y: number
-    [key: string]: unknown
+interface RebuildNotesStoreContext {
+    notes: NoteItem[]
+    availableItems: unknown[]
+    getNotesByPodId: (podId: string) => NoteItem[]
+}
+
+export async function rebuildNotesFromPods(
+    context: RebuildNotesStoreContext,
+    pods: Pod[],
+    config: RebuildNotesConfig
+): Promise<void> {
+    const canvasStore = useCanvasStore()
+
+    if (!canvasStore.activeCanvasId) {
+        console.warn(`[${config.storeName}] Cannot rebuild notes: no active canvas`)
+        return
+    }
+
+    const promises: Promise<void>[] = []
+
+    for (const pod of pods) {
+        const itemId = pod[config.podIdField] as string | null | undefined
+        if (!itemId) continue
+
+        const existingNotes = context.getNotesByPodId(pod.id)
+        if (existingNotes.length > 0) continue
+
+        const item = context.availableItems.find(
+            (i) => (i as Record<string, unknown>).id === itemId
+        )
+        const itemName = (item as Record<string, unknown> | undefined)?.name as string | undefined ?? itemId
+
+        const promise = createWebSocketRequest<Record<string, unknown>, Record<string, unknown>>({
+            requestEvent: config.requestEvent,
+            responseEvent: config.responseEvent,
+            payload: {
+                canvasId: canvasStore.activeCanvasId,
+                [config.itemIdField]: itemId,
+                name: itemName,
+                x: pod.x,
+                y: pod.y + config.yOffset,
+                boundToPodId: pod.id,
+                originalPosition: { x: pod.x, y: pod.y + config.yOffset },
+            }
+        }).then(response => {
+            if (response.note) {
+                context.notes.push(response.note as NoteItem)
+            }
+        })
+
+        promises.push(promise)
+    }
+
+    if (promises.length > 0) {
+        await Promise.all(promises)
+    }
 }
 
 interface BaseNoteState {
@@ -523,13 +589,6 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 const exists = this.groups.some(g => g.id === group.id)
                 if (!exists) {
                     this.groups.push(group)
-                }
-            },
-
-            updateGroupFromEvent(group: Record<string, unknown>): void {
-                const index = this.groups.findIndex(g => g.id === group.id)
-                if (index !== -1) {
-                    this.groups.splice(index, 1, group)
                 }
             },
 

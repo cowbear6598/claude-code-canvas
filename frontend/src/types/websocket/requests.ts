@@ -306,13 +306,6 @@ export interface GroupListPayload {
   type: 'command' | 'outputStyle' | 'subAgent'
 }
 
-export interface GroupUpdatePayload {
-  requestId: string
-  canvasId: string
-  groupId: string
-  name: string
-}
-
 export interface GroupDeletePayload {
   requestId: string
   canvasId: string

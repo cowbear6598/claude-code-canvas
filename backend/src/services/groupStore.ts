@@ -56,27 +56,6 @@ class GroupStore {
     }
   }
 
-  async update(oldName: string, newName: string, type: GroupType): Promise<Group | undefined> {
-    const safeOldName = sanitizePathSegment(oldName);
-    const safeNewName = sanitizePathSegment(newName);
-    const oldPath = path.join(this.getBasePath(type), safeOldName);
-    const newPath = path.join(this.getBasePath(type), safeNewName);
-
-    try {
-      await fs.rename(oldPath, newPath);
-      logger.log('Note', 'Update', `[GroupStore] 重命名 Group: ${safeOldName} -> ${safeNewName}`);
-
-      return {
-        id: safeNewName,
-        name: safeNewName,
-        type,
-      };
-    } catch (error) {
-      logger.error('Note', 'Error', `[GroupStore] 重命名 Group 失敗: ${safeOldName}`, error);
-      return undefined;
-    }
-  }
-
   async delete(name: string, type: GroupType): Promise<boolean> {
     const safeName = sanitizePathSegment(name);
     const dirPath = path.join(this.getBasePath(type), safeName);
