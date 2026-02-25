@@ -150,71 +150,7 @@ const handlePodDeleted = createUnifiedHandler<BasePayload & {
   { toastMessage: 'Pod 已刪除' }
 )
 
-const handlePodOutputStyleBound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
-  (payload) => {
-    if (payload.pod) {
-      usePodStore().updatePod(payload.pod)
-    }
-  }
-)
-
-const handlePodOutputStyleUnbound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
-  (payload) => {
-    if (payload.pod) {
-      usePodStore().updatePod(payload.pod)
-    }
-  }
-)
-
-const handlePodSkillBound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
-  (payload) => {
-    if (payload.pod) {
-      usePodStore().updatePod(payload.pod)
-    }
-  }
-)
-
-const handlePodRepositoryBound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
-  (payload) => {
-    if (payload.pod) {
-      usePodStore().updatePod(payload.pod)
-    }
-  }
-)
-
-const handlePodRepositoryUnbound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
-  (payload) => {
-    if (payload.pod) {
-      usePodStore().updatePod(payload.pod)
-    }
-  }
-)
-
-const handlePodSubAgentBound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
-  (payload) => {
-    if (payload.pod) {
-      usePodStore().updatePod(payload.pod)
-    }
-  }
-)
-
-const handlePodCommandBound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
-  (payload) => {
-    if (payload.pod) {
-      usePodStore().updatePod(payload.pod)
-    }
-  }
-)
-
-const handlePodCommandUnbound = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
-  (payload) => {
-    if (payload.pod) {
-      usePodStore().updatePod(payload.pod)
-    }
-  }
-)
-
-const handlePodAutoClearSet = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
+const handlePodStateUpdated = createUnifiedHandler<BasePayload & { pod?: Pod; canvasId: string }>(
   (payload) => {
     if (payload.pod) {
       usePodStore().updatePod(payload.pod)
@@ -244,22 +180,6 @@ const handleConnectionDeleted = createUnifiedHandler<BasePayload & { connectionI
     useConnectionStore().removeConnectionFromEvent(payload.connectionId)
   },
   { toastMessage: '連線已刪除' }
-)
-
-const handleOutputStyleCreated = createUnifiedHandler<BasePayload & { outputStyle?: { id: string; name: string }; canvasId: string }>(
-  (payload) => {
-    if (payload.outputStyle) {
-      useOutputStyleStore().addItemFromEvent(payload.outputStyle)
-    }
-  },
-  { toastMessage: '輸出風格建立成功' }
-)
-
-const handleOutputStyleUpdated = createUnifiedHandler<BasePayload & { outputStyleId: string; canvasId: string }>(
-  () => {
-    useOutputStyleStore().loadItems()
-  },
-  { toastMessage: '輸出風格更新成功' }
 )
 
 const handleOutputStyleDeleted = createUnifiedHandler<BasePayload & { outputStyleId: string; deletedNoteIds?: string[]; canvasId: string }>(
@@ -320,37 +240,32 @@ const handleSkillDeleted = createUnifiedHandler<BasePayload & { skillId: string;
   { toastMessage: 'Skill 已刪除' }
 )
 
-const handleRepositoryCreated = createUnifiedHandler<BasePayload & { repository?: { id: string; name: string; path: string; currentBranch?: string }; canvasId: string }>(
+type RepositoryItem = { id: string; name: string; parentRepoId?: string; branchName?: string }
+
+const validateRepositoryItem = (repository: RepositoryItem): boolean => {
+  const { id, name } = repository
+
+  if (!id || typeof id !== 'string' || id.trim() === '') {
+    console.error('[Security] 無效的 repository.id:', id)
+    return false
+  }
+
+  if (!name || typeof name !== 'string' || name.trim() === '') {
+    console.error('[Security] 無效的 repository.name:', name)
+    return false
+  }
+
+  if (/<script|javascript:|on\w+=/i.test(name)) {
+    console.error('[Security] 潛在惡意的 repository.name:', name)
+    return false
+  }
+
+  return true
+}
+
+const handleRepositoryWorktreeCreated = createUnifiedHandler<BasePayload & { repository?: RepositoryItem; canvasId: string }>(
   (payload) => {
-    if (payload.repository) {
-      useRepositoryStore().addItemFromEvent(payload.repository)
-    }
-  },
-  { toastMessage: 'Repository 建立成功' }
-)
-
-const handleRepositoryWorktreeCreated = createUnifiedHandler<BasePayload & { repository?: { id: string; name: string; parentRepoId?: string; branchName?: string }; canvasId: string }>(
-  (payload) => {
-    if (payload.repository) {
-      const { id, name } = payload.repository
-
-      // 驗證必要屬性
-      if (!id || typeof id !== 'string' || id.trim() === '') {
-        console.error('[Security] 無效的 repository.id:', id)
-        return
-      }
-
-      if (!name || typeof name !== 'string' || name.trim() === '') {
-        console.error('[Security] 無效的 repository.name:', name)
-        return
-      }
-
-      // 防止 XSS：檢查名稱中是否包含危險字元
-      if (/<script|javascript:|on\w+=/i.test(name)) {
-        console.error('[Security] 潛在惡意的 repository.name:', name)
-        return
-      }
-
+    if (payload.repository && validateRepositoryItem(payload.repository)) {
       useRepositoryStore().addItemFromEvent(payload.repository)
     }
   },
@@ -396,22 +311,6 @@ const handleRepositoryNoteDeleted = createUnifiedHandler<BasePayload & { noteId:
   }
 )
 
-const handleSubAgentCreated = createUnifiedHandler<BasePayload & { subAgent?: { id: string; name: string }; canvasId: string }>(
-  (payload) => {
-    if (payload.subAgent) {
-      useSubAgentStore().addItemFromEvent(payload.subAgent)
-    }
-  },
-  { toastMessage: 'SubAgent 建立成功' }
-)
-
-const handleSubAgentUpdated = createUnifiedHandler<BasePayload & { subAgentId: string; canvasId: string }>(
-  () => {
-    useSubAgentStore().loadItems()
-  },
-  { toastMessage: 'SubAgent 更新成功' }
-)
-
 const handleSubAgentDeleted = createUnifiedHandler<BasePayload & { subAgentId: string; deletedNoteIds?: string[]; canvasId: string }>(
   (payload) => {
     useSubAgentStore().removeItemFromEvent(payload.subAgentId, payload.deletedNoteIds)
@@ -439,22 +338,6 @@ const handleSubAgentNoteDeleted = createUnifiedHandler<BasePayload & { noteId: s
   (payload) => {
     useSubAgentStore().removeNoteFromEvent(payload.noteId)
   }
-)
-
-const handleCommandCreated = createUnifiedHandler<BasePayload & { command?: { id: string; name: string }; canvasId: string }>(
-  (payload) => {
-    if (payload.command) {
-      useCommandStore().addItemFromEvent(payload.command)
-    }
-  },
-  { toastMessage: 'Command 建立成功' }
-)
-
-const handleCommandUpdated = createUnifiedHandler<BasePayload & { commandId: string; canvasId: string }>(
-  () => {
-    useCommandStore().loadItems()
-  },
-  { toastMessage: 'Command 更新成功' }
 )
 
 const handleCommandDeleted = createUnifiedHandler<BasePayload & { commandId: string; deletedNoteIds?: string[]; canvasId: string }>(
@@ -601,20 +484,18 @@ const listeners = [
   { event: WebSocketResponseEvents.POD_MODEL_SET, handler: handlePodModelSet },
   { event: WebSocketResponseEvents.POD_SCHEDULE_SET, handler: handlePodScheduleSet },
   { event: WebSocketResponseEvents.POD_DELETED, handler: handlePodDeleted },
-  { event: WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, handler: handlePodOutputStyleBound },
-  { event: WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, handler: handlePodOutputStyleUnbound },
-  { event: WebSocketResponseEvents.POD_SKILL_BOUND, handler: handlePodSkillBound },
-  { event: WebSocketResponseEvents.POD_REPOSITORY_BOUND, handler: handlePodRepositoryBound },
-  { event: WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, handler: handlePodRepositoryUnbound },
-  { event: WebSocketResponseEvents.POD_SUBAGENT_BOUND, handler: handlePodSubAgentBound },
-  { event: WebSocketResponseEvents.POD_COMMAND_BOUND, handler: handlePodCommandBound },
-  { event: WebSocketResponseEvents.POD_COMMAND_UNBOUND, handler: handlePodCommandUnbound },
-  { event: WebSocketResponseEvents.POD_AUTO_CLEAR_SET, handler: handlePodAutoClearSet },
+  { event: WebSocketResponseEvents.POD_OUTPUT_STYLE_BOUND, handler: handlePodStateUpdated },
+  { event: WebSocketResponseEvents.POD_OUTPUT_STYLE_UNBOUND, handler: handlePodStateUpdated },
+  { event: WebSocketResponseEvents.POD_SKILL_BOUND, handler: handlePodStateUpdated },
+  { event: WebSocketResponseEvents.POD_REPOSITORY_BOUND, handler: handlePodStateUpdated },
+  { event: WebSocketResponseEvents.POD_REPOSITORY_UNBOUND, handler: handlePodStateUpdated },
+  { event: WebSocketResponseEvents.POD_SUBAGENT_BOUND, handler: handlePodStateUpdated },
+  { event: WebSocketResponseEvents.POD_COMMAND_BOUND, handler: handlePodStateUpdated },
+  { event: WebSocketResponseEvents.POD_COMMAND_UNBOUND, handler: handlePodStateUpdated },
+  { event: WebSocketResponseEvents.POD_AUTO_CLEAR_SET, handler: handlePodStateUpdated },
   { event: WebSocketResponseEvents.CONNECTION_CREATED, handler: handleConnectionCreated },
   { event: WebSocketResponseEvents.CONNECTION_UPDATED, handler: handleConnectionUpdated },
   { event: WebSocketResponseEvents.CONNECTION_DELETED, handler: handleConnectionDeleted },
-  { event: WebSocketResponseEvents.OUTPUT_STYLE_CREATED, handler: handleOutputStyleCreated },
-  { event: WebSocketResponseEvents.OUTPUT_STYLE_UPDATED, handler: handleOutputStyleUpdated },
   { event: WebSocketResponseEvents.OUTPUT_STYLE_DELETED, handler: handleOutputStyleDeleted },
   { event: WebSocketResponseEvents.NOTE_CREATED, handler: handleNoteCreated },
   { event: WebSocketResponseEvents.NOTE_UPDATED, handler: handleNoteUpdated },
@@ -623,21 +504,16 @@ const listeners = [
   { event: WebSocketResponseEvents.SKILL_NOTE_UPDATED, handler: handleSkillNoteUpdated },
   { event: WebSocketResponseEvents.SKILL_NOTE_DELETED, handler: handleSkillNoteDeleted },
   { event: WebSocketResponseEvents.SKILL_DELETED, handler: handleSkillDeleted },
-  { event: WebSocketResponseEvents.REPOSITORY_CREATED, handler: handleRepositoryCreated },
   { event: WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED, handler: handleRepositoryWorktreeCreated },
   { event: WebSocketResponseEvents.REPOSITORY_DELETED, handler: handleRepositoryDeleted },
   { event: WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, handler: handleRepositoryBranchChanged },
   { event: WebSocketResponseEvents.REPOSITORY_NOTE_CREATED, handler: handleRepositoryNoteCreated },
   { event: WebSocketResponseEvents.REPOSITORY_NOTE_UPDATED, handler: handleRepositoryNoteUpdated },
   { event: WebSocketResponseEvents.REPOSITORY_NOTE_DELETED, handler: handleRepositoryNoteDeleted },
-  { event: WebSocketResponseEvents.SUBAGENT_CREATED, handler: handleSubAgentCreated },
-  { event: WebSocketResponseEvents.SUBAGENT_UPDATED, handler: handleSubAgentUpdated },
   { event: WebSocketResponseEvents.SUBAGENT_DELETED, handler: handleSubAgentDeleted },
   { event: WebSocketResponseEvents.SUBAGENT_NOTE_CREATED, handler: handleSubAgentNoteCreated },
   { event: WebSocketResponseEvents.SUBAGENT_NOTE_UPDATED, handler: handleSubAgentNoteUpdated },
   { event: WebSocketResponseEvents.SUBAGENT_NOTE_DELETED, handler: handleSubAgentNoteDeleted },
-  { event: WebSocketResponseEvents.COMMAND_CREATED, handler: handleCommandCreated },
-  { event: WebSocketResponseEvents.COMMAND_UPDATED, handler: handleCommandUpdated },
   { event: WebSocketResponseEvents.COMMAND_DELETED, handler: handleCommandDeleted },
   { event: WebSocketResponseEvents.COMMAND_NOTE_CREATED, handler: handleCommandNoteCreated },
   { event: WebSocketResponseEvents.COMMAND_NOTE_UPDATED, handler: handleCommandNoteUpdated },

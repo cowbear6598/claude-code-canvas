@@ -72,7 +72,8 @@ describe('useUnifiedEventListeners', () => {
 
       expect(mockWebSocketClient.on).toHaveBeenCalled()
       const callCount = mockWebSocketClient.on.mock.calls.length
-      expect(callCount).toBeGreaterThan(40)
+      // listeners 陣列有 46 個事件，加上單獨註冊的 pod:chat:user-message，共 47 個
+      expect(callCount).toBe(47)
     })
 
     it('重複註冊應被防止', () => {
@@ -95,7 +96,8 @@ describe('useUnifiedEventListeners', () => {
 
       expect(mockWebSocketClient.off).toHaveBeenCalled()
       const callCount = mockWebSocketClient.off.mock.calls.length
-      expect(callCount).toBeGreaterThan(40)
+      // listeners 陣列有 46 個事件，加上單獨取消的 pod:chat:user-message，共 47 個
+      expect(callCount).toBe(47)
     })
 
     it('未註冊時取消註冊應被防止', () => {
@@ -392,7 +394,7 @@ describe('useUnifiedEventListeners', () => {
   })
 
   describe('OutputStyle Note 事件處理', () => {
-    it('output-style:created 應新增 item', () => {
+    it('output-style:created 不再被監聽（後端改為 emitToConnection）', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const outputStyleStore = useOutputStyleStore()
 
@@ -403,7 +405,7 @@ describe('useUnifiedEventListeners', () => {
         outputStyle: { id: 'style-1', name: 'Test Style' },
       })
 
-      expect(outputStyleStore.availableItems.some(i => i.id === 'style-1')).toBe(true)
+      expect(outputStyleStore.availableItems.some(i => i.id === 'style-1')).toBe(false)
     })
 
     it('output-style:deleted 應移除 item 和相關 notes', () => {
@@ -545,7 +547,7 @@ describe('useUnifiedEventListeners', () => {
   })
 
   describe('Repository Note 事件處理', () => {
-    it('repository:created 應新增 repository', () => {
+    it('repository:created 不再被監聽（後端改為 emitToConnection）', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const repositoryStore = useRepositoryStore()
 
@@ -556,7 +558,7 @@ describe('useUnifiedEventListeners', () => {
         repository: { id: 'repo-1', name: 'Test Repo', path: '/test', currentBranch: 'main' },
       })
 
-      expect(repositoryStore.availableItems.some(r => r.id === 'repo-1')).toBe(true)
+      expect(repositoryStore.availableItems.some(r => r.id === 'repo-1')).toBe(false)
     })
 
     it('repository:worktree:created 應新增 worktree（通過安全檢查）', () => {
@@ -710,7 +712,7 @@ describe('useUnifiedEventListeners', () => {
   })
 
   describe('SubAgent Note 事件處理', () => {
-    it('subagent:created 應新增 subAgent', () => {
+    it('subagent:created 不再被監聽（後端改為 emitToConnection）', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const subAgentStore = useSubAgentStore()
 
@@ -721,7 +723,7 @@ describe('useUnifiedEventListeners', () => {
         subAgent: { id: 'subagent-1', name: 'Test SubAgent' },
       })
 
-      expect(subAgentStore.availableItems.some(s => s.id === 'subagent-1')).toBe(true)
+      expect(subAgentStore.availableItems.some(s => s.id === 'subagent-1')).toBe(false)
     })
 
     it('subagent:deleted 應移除 subAgent 和相關 notes', () => {
@@ -793,7 +795,7 @@ describe('useUnifiedEventListeners', () => {
   })
 
   describe('Command Note 事件處理', () => {
-    it('command:created 應新增 command', () => {
+    it('command:created 不再被監聽（後端改為 emitToConnection）', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const commandStore = useCommandStore()
 
@@ -804,7 +806,7 @@ describe('useUnifiedEventListeners', () => {
         command: { id: 'cmd-1', name: 'Test Command' },
       })
 
-      expect(commandStore.availableItems.some(c => c.id === 'cmd-1')).toBe(true)
+      expect(commandStore.availableItems.some(c => c.id === 'cmd-1')).toBe(false)
     })
 
     it('command:deleted 應移除 command 和相關 notes', () => {

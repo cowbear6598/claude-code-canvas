@@ -77,7 +77,7 @@ export function createResourceHandlers<T extends { id: string; name: string }>(c
       [responseKey]: resource,
     };
 
-    socketService.emitToAll(events.created, response);
+    socketService.emitToConnection(connectionId, events.created, response);
 
     logger.log(resourceName, 'Create', `Created ${resourceName.toLowerCase()} ${resource.id}`);
   }
@@ -114,7 +114,7 @@ export function createResourceHandlers<T extends { id: string; name: string }>(c
       },
     };
 
-    socketService.emitToAll(events.updated, response);
+    socketService.emitToConnection(connectionId, events.updated, response);
 
     logger.log(resourceName, 'Update', `Updated ${resourceName.toLowerCase()} ${resourceId}`);
   }

@@ -91,7 +91,7 @@ export async function handleRepositoryCreate(
     repository,
   };
 
-  socketService.emitToAll(WebSocketResponseEvents.REPOSITORY_CREATED, response);
+  socketService.emitToConnection(connectionId, WebSocketResponseEvents.REPOSITORY_CREATED, response);
 
   logger.log('Repository', 'Create', `Created repository ${repository.id}`);
 }

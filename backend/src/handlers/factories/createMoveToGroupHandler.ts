@@ -38,7 +38,7 @@ export function createMoveToGroupHandler(config: MoveToGroupConfig) {
 
     await config.service.setGroupId(resourceId, groupId);
 
-    socketService.emitToAll(config.events.moved, {
+    socketService.emitToConnection(connectionId, config.events.moved, {
       requestId,
       success: true,
       [config.idField]: resourceId,
