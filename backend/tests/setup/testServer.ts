@@ -31,6 +31,7 @@ export async function createTestServer(): Promise<TestServerInstance> {
   const { canvasStore } = await import('../../src/services/canvasStore.js');
   const { registerAllHandlers } = await import('../../src/handlers/index.js');
   const { connectionManager } = await import('../../src/services/connectionManager.js');
+  const { cursorColorManager } = await import('../../src/services/cursorColorManager.js');
   const { eventRouter } = await import('../../src/services/eventRouter.js');
   const { deserialize } = await import('../../src/utils/messageSerializer.js');
   const { logger } = await import('../../src/utils/logger.js');
@@ -125,6 +126,13 @@ export async function createTestServer(): Promise<TestServerInstance> {
       },
       close(ws: ServerWebSocket<{ connectionId: string }>) {
         const connectionId = ws.data.connectionId;
+
+        // 廣播游標離開事件（必須在 cleanupSocket 前執行，否則 room 資訊已被清除）
+        const canvasId = connectionManager.getCanvasId(connectionId);
+        if (canvasId) {
+          socketService.emitToCanvasExcept(canvasId, connectionId, WebSocketResponseEvents.CURSOR_LEFT, { connectionId });
+          cursorColorManager.releaseColor(canvasId, connectionId);
+        }
 
         // 斷線處理
         socketService.cleanupSocket(connectionId);

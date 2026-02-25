@@ -540,3 +540,14 @@ export interface WorkflowQueueProcessedPayload {
     remainingQueueSize: number
     triggerMode: 'auto' | 'ai-decide' | 'direct'
 }
+
+export interface CursorMovedPayload {
+    connectionId: string
+    x: number
+    y: number
+    color: string
+}
+
+export interface CursorLeftPayload {
+    connectionId: string
+}

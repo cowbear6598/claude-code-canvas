@@ -6,6 +6,7 @@ import { startupService } from './services/startupService.js';
 import { registerAllHandlers } from './handlers/index.js';
 import { connectionManager } from './services/connectionManager.js';
 import { eventRouter } from './services/eventRouter.js';
+import { broadcastCursorLeft } from './handlers/cursorHandlers.js';
 import { deserialize } from './utils/messageSerializer.js';
 import { logger } from './utils/logger.js';
 import { WebSocketResponseEvents } from './schemas/index.js';
@@ -113,6 +114,9 @@ async function startServer(): Promise<void> {
 
 				// 清理該連線的活躍查詢，避免 Pod 卡在 chatting 狀態
 				claudeQueryService.abortQueriesByConnectionId(connectionId);
+
+				// 廣播游標離開事件（必須在 cleanupSocket 前執行，否則 room 資訊已被清除）
+				broadcastCursorLeft(connectionId);
 
 				// 斷線處理
 				socketService.cleanupSocket(connectionId);

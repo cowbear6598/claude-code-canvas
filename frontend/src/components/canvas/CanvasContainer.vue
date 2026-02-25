@@ -2,8 +2,11 @@
 import {computed, onUnmounted, ref} from 'vue'
 import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
 import {useDeleteSelection, useGitCloneProgress, useCheckoutProgress, usePullProgress, useNoteEventHandlers} from '@/composables/canvas'
+import {useRemoteCursors} from '@/composables/canvas/useRemoteCursors'
+import {useCursorTracker} from '@/composables/canvas/useCursorTracker'
 import {isCtrlOrCmdPressed} from '@/utils/keyboardHelpers'
 import CanvasViewport from './CanvasViewport.vue'
+import RemoteCursorLayer from './RemoteCursorLayer.vue'
 import EmptyState from './EmptyState.vue'
 import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
@@ -62,6 +65,11 @@ const {
 } = useCanvasContext()
 
 useDeleteSelection()
+useRemoteCursors()
+
+const viewportRef = ref<InstanceType<typeof CanvasViewport> | null>(null)
+const viewportContainerRef = computed(() => viewportRef.value?.el ?? null)
+useCursorTracker(viewportContainerRef)
 
 const gitCloneProgress = useGitCloneProgress()
 const checkoutProgress = useCheckoutProgress()
@@ -604,6 +612,7 @@ onUnmounted(() => {
 
 <template>
   <CanvasViewport
+    ref="viewportRef"
     @contextmenu="handleContextMenu"
     @click="handleCanvasClick"
   >
@@ -688,6 +697,9 @@ onUnmounted(() => {
     <!-- 空狀態 - 在畫布座標中央 -->
     <EmptyState v-if="isCanvasEmpty" />
   </CanvasViewport>
+
+  <!-- Remote Cursor Layer - Fixed overlay, pointer-events: none -->
+  <RemoteCursorLayer />
 
   <!-- Progress Panel - Fixed at bottom-right corner -->
   <ProgressNote :tasks="allProgressTasks" />

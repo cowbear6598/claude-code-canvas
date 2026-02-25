@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useViewportStore } from '@/stores/pod'
 import { useCanvasPan, useCanvasZoom, useBoxSelect } from '@/composables/canvas'
 import { GRID_SIZE } from '@/lib/constants'
 
 const viewportStore = useViewportStore()
+
+const viewportEl = ref<HTMLElement | null>(null)
+
+defineExpose({ el: viewportEl })
 
 const emit = defineEmits<{
   contextmenu: [e: MouseEvent]
@@ -46,6 +50,7 @@ const handleMouseDown = (e: MouseEvent): void => {
 
 <template>
   <div
+    ref="viewportEl"
     class="viewport h-full canvas-grid"
     :style="gridStyle"
     @wheel="handleWheel"

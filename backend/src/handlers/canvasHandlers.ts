@@ -13,7 +13,9 @@ import type {
 } from '../schemas';
 import { canvasStore } from '../services/canvasStore.js';
 import { socketService } from '../services/socketService.js';
+import { cursorColorManager } from '../services/cursorColorManager.js';
 import { logger } from '../utils/logger.js';
+import { broadcastCursorLeft } from './cursorHandlers.js';
 
 function handleCanvasResult<T, R extends { requestId: string; success: boolean }>(
   connectionId: string,
@@ -161,6 +163,7 @@ export async function handleCanvasDelete(
 
   if (!success) return;
 
+  cursorColorManager.removeCanvas(payload.canvasId);
   logger.log('Canvas', 'Delete', `Canvas deleted: ${payload.canvasId}`);
 }
 
@@ -178,8 +181,12 @@ export async function handleCanvasSwitch(
     return;
   }
 
+  broadcastCursorLeft(connectionId);
+
   canvasStore.setActiveCanvas(connectionId, payload.canvasId);
   socketService.joinCanvasRoom(connectionId, payload.canvasId);
+
+  cursorColorManager.assignColor(payload.canvasId, connectionId);
 
   socketService.emitToConnection(connectionId, WebSocketResponseEvents.CANVAS_SWITCHED, {
     requestId: payload.requestId,

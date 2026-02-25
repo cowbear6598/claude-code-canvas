@@ -105,6 +105,19 @@ class SocketService {
 	}
 
 	/**
+	 * 發送訊息給指定 Canvas 的所有連線，但排除特定連線
+	 */
+	emitToCanvasExcept(canvasId: string, excludeConnectionId: string, event: string, payload: unknown): void {
+		const roomName = `canvas:${canvasId}`;
+		const members = roomManager.getMembers(roomName);
+
+		for (const connectionId of members) {
+			if (connectionId === excludeConnectionId) continue;
+			this.emitToConnection(connectionId, event, payload);
+		}
+	}
+
+	/**
 	 * 清理連線
 	 */
 	cleanupSocket(connectionId: string): void {

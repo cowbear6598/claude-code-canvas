@@ -87,6 +87,7 @@ export const WebSocketRequestEvents = {
   COMMAND_MOVE_TO_GROUP: 'command:move-to-group',
   OUTPUT_STYLE_MOVE_TO_GROUP: 'output-style:move-to-group',
   SUBAGENT_MOVE_TO_GROUP: 'subagent:move-to-group',
+  CURSOR_MOVE: 'cursor:move',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -208,6 +209,8 @@ export const WebSocketResponseEvents = {
   OUTPUT_STYLE_MOVED_TO_GROUP: 'output-style:moved-to-group',
   SUBAGENT_MOVED_TO_GROUP: 'subagent:moved-to-group',
   HEARTBEAT_PING: 'heartbeat:ping',
+  CURSOR_MOVED: 'cursor:moved',
+  CURSOR_LEFT: 'cursor:left',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]

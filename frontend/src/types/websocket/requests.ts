@@ -326,3 +326,8 @@ export interface SkillImportPayload {
   fileData: string
   fileSize: number
 }
+
+export interface CursorMovePayload {
+  x: number
+  y: number
+}
