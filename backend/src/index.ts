@@ -12,6 +12,7 @@ import { logger } from './utils/logger.js';
 import { WebSocketResponseEvents } from './schemas/index.js';
 import { claudeQueryService } from './services/claude/queryService.js';
 import { isStaticFilesAvailable, serveStaticFile } from './utils/staticFileServer.js';
+import { handleApiRequest } from './api/apiRouter.js';
 
 async function startServer(): Promise<void> {
 	const result = await startupService.initialize();
@@ -35,11 +36,17 @@ async function startServer(): Promise<void> {
 	Bun.serve<{ connectionId: string }>({
 		port: PORT,
 		hostname: '0.0.0.0',
-		fetch(req, server) {
+		async fetch(req, server) {
 			// 檢查 CORS Origin
 			const origin = req.headers.get('origin');
 			if (origin && !config.corsOrigin(origin)) {
 				return new Response('Forbidden', { status: 403 });
+			}
+
+			// 處理 REST API 請求
+			const apiResponse = await handleApiRequest(req);
+			if (apiResponse !== null) {
+				return apiResponse;
 			}
 
 			// 檢查是否為 WebSocket upgrade 請求

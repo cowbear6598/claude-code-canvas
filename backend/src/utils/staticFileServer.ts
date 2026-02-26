@@ -52,10 +52,8 @@ export async function isStaticFilesAvailable(): Promise<boolean> {
  * @param request HTTP 請求
  * @returns Response 回應
  */
-// eslint-disable-next-line no-undef
 export async function serveStaticFile(request: Request): Promise<Response> {
 	try {
-		// eslint-disable-next-line no-undef
 		const url = new URL(request.url);
 		let pathname = url.pathname;
 

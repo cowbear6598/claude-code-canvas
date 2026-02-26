@@ -26,14 +26,9 @@
 - Bun 原生 WebSocket
 - Claude Agent SDK
 
-## WebSocket 架構
+## 後端 API 文件
 
-- 使用 Bun 原生 WebSocket 替代 Socket.io
-- 自定義訊息協議 (type, requestId, payload)
-- 連線管理器 (connectionManager)
-- Room 管理器 (roomManager)
-- 事件路由器 (eventRouter)
-- 心跳機制 (15 秒間隔，10 秒超時，最多遺失 2 次)
+- 如果有 新增/更新/刪除 API Router 的話要同步更新專案底下的 skill，WebSocket 不需要更新
 
 # 特別注意
 
@@ -42,4 +37,3 @@
 - `bun run style` 可以確認 eslint 以及 type
 - 如果你有改動到任何後端程式碼，請告訴我要重啟
 - 錯誤訊息/註解內容，都使用 zh-TW 撰寫
-- 後端已從 Node.js + Socket.io 遷移到 Bun + 原生 WebSocket

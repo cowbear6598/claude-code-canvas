@@ -18,7 +18,6 @@ function validateGitLabUrl(url: string | undefined): void {
 
   // 驗證 URL 格式
   try {
-    // eslint-disable-next-line no-undef
     const urlObj = new URL(url);
 
     // 驗證 hostname 格式合法（不包含非法字元）

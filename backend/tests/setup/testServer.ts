@@ -34,6 +34,7 @@ export async function createTestServer(): Promise<TestServerInstance> {
   const { cursorColorManager } = await import('../../src/services/cursorColorManager.js');
   const { eventRouter } = await import('../../src/services/eventRouter.js');
   const { deserialize } = await import('../../src/utils/messageSerializer.js');
+  const { handleApiRequest } = await import('../../src/api/apiRouter.js');
   const { logger } = await import('../../src/utils/logger.js');
   const { WebSocketResponseEvents } = await import('../../src/schemas/index.js');
 
@@ -59,11 +60,17 @@ export async function createTestServer(): Promise<TestServerInstance> {
   const server = Bun.serve<{ connectionId: string }>({
     port: 0,
     hostname: '0.0.0.0',
-    fetch(req, server) {
+    async fetch(req, server) {
       // 檢查 CORS Origin
       const origin = req.headers.get('origin');
       if (origin && origin !== testConfig.corsOrigin) {
         return new Response('Forbidden', { status: 403 });
+      }
+
+      // 處理 REST API 請求
+      const apiResponse = await handleApiRequest(req);
+      if (apiResponse !== null) {
+        return apiResponse;
       }
 
       // 嘗試升級為 WebSocket
