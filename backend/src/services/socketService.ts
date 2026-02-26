@@ -53,7 +53,7 @@ class SocketService {
 		};
 
 		try {
-			connection.ws.send(serialize(response));
+			connection.webSocket.send(serialize(response));
 		} catch (error) {
 			logger.log('Connection', 'Error', `Failed to send message to ${connectionId}: ${error}`);
 		}
@@ -144,7 +144,7 @@ class SocketService {
 		};
 
 		try {
-			connection.ws.send(serialize(response));
+			connection.webSocket.send(serialize(response));
 		} catch (error) {
 			logger.log('Connection', 'Error', `Failed to send heartbeat to ${connectionId}: ${error}`);
 			return;
@@ -164,7 +164,7 @@ class SocketService {
 			if (missed >= this.MAX_MISSED_HEARTBEATS) {
 				logger.log('Connection', 'Delete', `Connection ${connectionId} disconnected due to heartbeat timeout`);
 				this.clearHeartbeatTimeout(connectionId);
-				conn.ws.close(1000, 'Heartbeat timeout');
+				conn.webSocket.close(1000, 'Heartbeat timeout');
 			}
 		}, this.HEARTBEAT_TIMEOUT);
 

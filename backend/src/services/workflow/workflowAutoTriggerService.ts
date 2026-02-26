@@ -49,7 +49,7 @@ class WorkflowAutoTriggerService implements TriggerStrategy {
    */
   getLastAssistantMessage(sourcePodId: string): string | null {
     const messages = messageStore.getMessages(sourcePodId);
-    const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
+    const assistantMessages = messages.filter((message) => message.role === 'assistant');
 
     if (assistantMessages.length === 0) {
       logger.error('Workflow', 'Error', '找不到 assistant 訊息作為備用內容');

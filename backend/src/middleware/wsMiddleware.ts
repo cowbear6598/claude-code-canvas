@@ -16,19 +16,19 @@ export function createValidatedHandler<T>(
 		const result = schema.safeParse(payload);
 
 		if (!result.success) {
-			handleWebSocketError(
+			handleWebSocketError({
 				connectionId,
 				responseEvent,
-				new WebSocketError('VALIDATION_ERROR', result.error.message),
-				requestId
-			);
+				error: new WebSocketError('VALIDATION_ERROR', result.error.message),
+				requestId,
+			});
 			return;
 		}
 
 		try {
 			await handler(connectionId, result.data, requestId);
 		} catch (error) {
-			handleWebSocketError(connectionId, responseEvent, error, requestId);
+			handleWebSocketError({ connectionId, responseEvent, error, requestId });
 		}
 	};
 }

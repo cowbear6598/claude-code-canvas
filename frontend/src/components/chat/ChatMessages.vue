@@ -62,41 +62,41 @@ watch(
       <!-- 訊息列表 -->
       <template v-else>
         <template
-          v-for="msg in messages"
-          :key="msg.id"
+          v-for="message in messages"
+          :key="message.id"
         >
           <!-- 使用者訊息：直接渲染 -->
           <ChatMessageBubble
-            v-if="msg.role === 'user'"
-            :content="msg.content"
-            :role="msg.role"
-            :is-partial="msg.isPartial"
-            :is-summarized="msg.isSummarized"
+            v-if="message.role === 'user'"
+            :content="message.content"
+            :role="message.role"
+            :is-partial="message.isPartial"
+            :is-summarized="message.isSummarized"
           />
 
           <!-- Assistant 訊息：渲染 subMessages -->
-          <template v-else-if="msg.role === 'assistant'">
+          <template v-else-if="message.role === 'assistant'">
             <!-- 如果有 subMessages，逐個渲染 -->
-            <template v-if="msg.subMessages && msg.subMessages.length > 0">
+            <template v-if="message.subMessages && message.subMessages.length > 0">
               <ChatMessageBubble
-                v-for="sub in msg.subMessages"
+                v-for="sub in message.subMessages"
                 :key="sub.id"
                 :content="sub.content"
-                :role="msg.role"
+                :role="message.role"
                 :is-partial="sub.isPartial"
                 :tool-use="sub.toolUse"
-                :is-summarized="msg.isSummarized"
+                :is-summarized="message.isSummarized"
               />
             </template>
 
             <!-- Fallback: 直接渲染整個 message -->
             <ChatMessageBubble
               v-else
-              :content="msg.content"
-              :role="msg.role"
-              :is-partial="msg.isPartial"
-              :tool-use="msg.toolUse"
-              :is-summarized="msg.isSummarized"
+              :content="message.content"
+              :role="message.role"
+              :is-partial="message.isPartial"
+              :tool-use="message.toolUse"
+              :is-summarized="message.isSummarized"
             />
           </template>
         </template>

@@ -41,7 +41,7 @@ export interface ClientConnection {
 	/** 連線 ID (使用 uuid) */
 	id: string;
 	/** Bun 的 WebSocket 物件 */
-	ws: ServerWebSocket<{ connectionId: string }>;
+	webSocket: ServerWebSocket<{ connectionId: string }>;
 	/** 目前所在的 Canvas ID */
 	canvasId: string | null;
 	/** 最後心跳時間戳 */

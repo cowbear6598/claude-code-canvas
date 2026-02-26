@@ -47,7 +47,7 @@ async function buildSummaryContext(sourcePod: Pod, targetPod: Pod, messages: Per
 }
 
 function getFallbackContent(messages: PersistedMessage[]): string | null {
-  const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
+  const assistantMessages = messages.filter((message) => message.role === 'assistant');
   if (assistantMessages.length === 0) {
     return null;
   }

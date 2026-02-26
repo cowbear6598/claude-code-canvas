@@ -15,15 +15,19 @@ export class WebSocketError extends Error {
 	}
 }
 
-export function handleWebSocketError(
-	connectionId: string,
-	event: string,
-	error: unknown,
-	requestId?: string,
-	podId?: string
-): void {
+export interface WebSocketErrorContext {
+	connectionId: string;
+	responseEvent: string;
+	error: unknown;
+	requestId?: string;
+	podId?: string;
+}
+
+export function handleWebSocketError(context: WebSocketErrorContext): void {
 	let errorMessage: string;
 	let errorCode: string;
+	let { requestId, podId } = context;
+	const { connectionId, responseEvent, error } = context;
 
 	if (error instanceof WebSocketError) {
 		errorMessage = error.message;
@@ -46,7 +50,7 @@ export function handleWebSocketError(
 		...(podId && { podId }),
 	};
 
-	socketService.emitToConnection(connectionId, event, errorPayload);
+	socketService.emitToConnection(connectionId, responseEvent, errorPayload);
 
-	logger.error('WebSocket', 'Error', `Event: ${event}, Code: ${errorCode}, Message: ${errorMessage}`);
+	logger.error('WebSocket', 'Error', `Event: ${responseEvent}, Code: ${errorCode}, Message: ${errorMessage}`);
 }

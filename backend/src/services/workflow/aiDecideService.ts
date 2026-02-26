@@ -219,7 +219,7 @@ class AiDecideService {
 
   private getFallbackSummary(sourcePodId: string): string | null {
     const messages = messageStore.getMessages(sourcePodId);
-    const assistantMessages = messages.filter(msg => msg.role === 'assistant');
+    const assistantMessages = messages.filter(message => message.role === 'assistant');
     return assistantMessages.length > 0
       ? assistantMessages[assistantMessages.length - 1].content
       : null;

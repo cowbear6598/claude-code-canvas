@@ -76,9 +76,9 @@ ${conversationHistory}
 
   formatConversationHistory(messages: PersistedMessage[]): string {
     return messages
-      .map((msg) => {
-        const role = msg.role === 'user' ? 'User' : 'Assistant';
-        return `[${role}]: ${msg.content}`;
+      .map((message) => {
+        const role = message.role === 'user' ? 'User' : 'Assistant';
+        return `[${role}]: ${message.content}`;
       })
       .join('\n\n');
   }

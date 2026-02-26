@@ -42,12 +42,12 @@ export function createMessageCompletionActions(store: ChatStoreInstance): {
         const messages = store.messagesByPodId.get(podId) || []
         const outputLines: string[] = []
 
-        for (const msg of messages) {
-            if (msg.role === 'user') {
-                const userContent = msg.content
+        for (const message of messages) {
+            if (message.role === 'user') {
+                const userContent = message.content
                 outputLines.push(`> ${truncateContent(userContent, RESPONSE_PREVIEW_LENGTH)}`)
-            } else if (msg.role === 'assistant') {
-                outputLines.push(...extractSubMessageLines(msg.subMessages))
+            } else if (message.role === 'assistant') {
+                outputLines.push(...extractSubMessageLines(message.subMessages))
             }
         }
 

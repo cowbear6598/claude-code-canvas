@@ -32,26 +32,26 @@ function createQueryState(): QueryState {
     };
 }
 
-function handleSystemInitMessage(msg: Record<string, unknown>, state: QueryState): void {
-    if (msg.type !== 'system' || msg.subtype !== 'init' || !('session_id' in msg)) {
+function handleSystemInitMessage(sdkMessage: Record<string, unknown>, state: QueryState): void {
+    if (sdkMessage.type !== 'system' || sdkMessage.subtype !== 'init' || !('session_id' in sdkMessage)) {
         return;
     }
-    state.sessionId = msg.session_id as string;
+    state.sessionId = sdkMessage.session_id as string;
 }
 
 function handleAssistantMessage(
-    msg: Record<string, unknown>,
+    sdkMessage: Record<string, unknown>,
     state: QueryState,
     onStream: StreamCallback
 ): void {
-    if (msg.type !== 'assistant' || !('message' in msg)) {
+    if (sdkMessage.type !== 'assistant' || !('message' in sdkMessage)) {
         return;
     }
 
-    const assistantMsg = msg.message as { content?: unknown[] };
-    if (!assistantMsg.content) return;
+    const assistantMessage = sdkMessage.message as { content?: unknown[] };
+    if (!assistantMessage.content) return;
 
-    for (const block of assistantMsg.content) {
+    for (const block of assistantMessage.content) {
         const contentBlock = block as Record<string, unknown>;
 
         if ('text' in contentBlock && contentBlock.text) {
@@ -116,41 +116,41 @@ function handleToolResultBlock(
 }
 
 function handleUserMessage(
-    msg: Record<string, unknown>,
+    sdkMessage: Record<string, unknown>,
     state: QueryState,
     onStream: StreamCallback
 ): void {
-    if (msg.type !== 'user' || !('message' in msg)) {
+    if (sdkMessage.type !== 'user' || !('message' in sdkMessage)) {
         return;
     }
 
-    const userMsg = msg.message as { content?: unknown[] };
-    if (!userMsg.content) return;
+    const userMessage = sdkMessage.message as { content?: unknown[] };
+    if (!userMessage.content) return;
 
-    for (const block of userMsg.content) {
+    for (const block of userMessage.content) {
         handleToolResultBlock(block as Record<string, unknown>, state, onStream);
     }
 }
 
 function handleToolProgressMessage(
-    msg: Record<string, unknown>,
+    sdkMessage: Record<string, unknown>,
     state: QueryState,
     onStream: StreamCallback
 ): void {
-    if (msg.type !== 'tool_progress') {
+    if (sdkMessage.type !== 'tool_progress') {
         return;
     }
 
-    const toolProgressMsg = msg as {
+    const toolProgressMessage = sdkMessage as {
         output?: string;
         result?: string;
         tool_use_id?: string;
     };
 
-    const outputText = toolProgressMsg.output || toolProgressMsg.result;
+    const outputText = toolProgressMessage.output || toolProgressMessage.result;
     if (!outputText) return;
 
-    const toolUseId = toolProgressMsg.tool_use_id;
+    const toolUseId = toolProgressMessage.tool_use_id;
     const toolInfo = toolUseId ? state.activeTools.get(toolUseId) : null;
 
     if (toolInfo && toolUseId) {
@@ -180,17 +180,17 @@ function handleToolProgressMessage(
 }
 
 function handleResultMessage(
-    msg: Record<string, unknown>,
+    sdkMessage: Record<string, unknown>,
     state: QueryState,
     onStream: StreamCallback
 ): void {
-    if (msg.type !== 'result') {
+    if (sdkMessage.type !== 'result') {
         return;
     }
 
-    if (msg.subtype === 'success') {
-        if (!state.fullContent && 'result' in msg && msg.result) {
-            state.fullContent = String(msg.result);
+    if (sdkMessage.subtype === 'success') {
+        if (!state.fullContent && 'result' in sdkMessage && sdkMessage.result) {
+            state.fullContent = String(sdkMessage.result);
         }
 
         onStream({type: 'complete'});
@@ -198,8 +198,8 @@ function handleResultMessage(
     }
 
     const errorMessage =
-        'errors' in msg && Array.isArray(msg.errors)
-            ? msg.errors.join(', ')
+        'errors' in sdkMessage && Array.isArray(sdkMessage.errors)
+            ? sdkMessage.errors.join(', ')
             : 'Unknown error';
 
     onStream({type: 'error', error: '與 Claude 通訊時發生錯誤，請稍後再試'});
@@ -274,13 +274,13 @@ class ClaudeQueryService {
         state: QueryState,
         onStream: StreamCallback
     ): void {
-        const msg = sdkMessage as Record<string, unknown>;
+        const message = sdkMessage as Record<string, unknown>;
 
-        handleSystemInitMessage(msg, state);
-        handleAssistantMessage(msg, state, onStream);
-        handleUserMessage(msg, state, onStream);
-        handleToolProgressMessage(msg, state, onStream);
-        handleResultMessage(msg, state, onStream);
+        handleSystemInitMessage(message, state);
+        handleAssistantMessage(message, state, onStream);
+        handleUserMessage(message, state, onStream);
+        handleToolProgressMessage(message, state, onStream);
+        handleResultMessage(message, state, onStream);
     }
 
     private async buildQueryOptions(

@@ -21,6 +21,10 @@ import type {
 import type {Command} from '@/types/command'
 import {createMessageActions} from './chatMessageActions'
 import {createConnectionActions} from './chatConnectionActions'
+import {createHistoryActions} from './chatHistoryActions'
+import {abortSafetyTimers} from './abortSafetyTimers'
+
+const ABORT_SAFETY_TIMEOUT_MS = 10_000
 
 function buildMessagePayload(
     content: string,
@@ -40,8 +44,6 @@ function buildMessagePayload(
 
     return blocks
 }
-import {createHistoryActions} from './chatHistoryActions'
-import {abortSafetyTimers} from './abortSafetyTimers'
 
 export type ChatStoreInstance = ReturnType<typeof useChatStore>
 
@@ -267,7 +269,7 @@ export const useChatStore = defineStore('chat', {
                 if (this.isTypingByPodId.get(podId)) {
                     this.setTyping(podId, false)
                 }
-            }, 10000)
+            }, ABORT_SAFETY_TIMEOUT_MS)
             abortSafetyTimers.set(podId, timer)
         },
 

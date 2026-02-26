@@ -12,11 +12,11 @@ class ConnectionManager {
 	 * 新增連線
 	 * @returns 連線 ID
 	 */
-	add(ws: ServerWebSocket<{ connectionId: string }>): string {
+	add(webSocket: ServerWebSocket<{ connectionId: string }>): string {
 		const id = uuidv4();
 		const connection: ClientConnection = {
 			id,
-			ws,
+			webSocket,
 			canvasId: null,
 			lastHeartbeat: Date.now(),
 			missedHeartbeats: 0,

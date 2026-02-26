@@ -61,16 +61,16 @@ async function startServer(): Promise<void> {
 			return new Response('Not Found', { status: 404 });
 		},
 		websocket: {
-			open(ws: ServerWebSocket<{ connectionId: string }>) {
-				const connectionId = connectionManager.add(ws);
-				ws.data = { connectionId };
+			open(webSocket: ServerWebSocket<{ connectionId: string }>) {
+				const connectionId = connectionManager.add(webSocket);
+				webSocket.data = { connectionId };
 
 				socketService.emitConnectionReady(connectionId, { socketId: connectionId });
 
 				logger.log('Connection', 'Create', `New connection: ${connectionId}`);
 			},
-			message(ws: ServerWebSocket<{ connectionId: string }>, message: string | Buffer) {
-				const connectionId = ws.data.connectionId;
+			message(webSocket: ServerWebSocket<{ connectionId: string }>, message: string | Buffer) {
+				const connectionId = webSocket.data.connectionId;
 
 				try {
 					const parsedMessage = deserialize(message);
@@ -104,8 +104,8 @@ async function startServer(): Promise<void> {
 					});
 				}
 			},
-			close(ws: ServerWebSocket<{ connectionId: string }>) {
-				const connectionId = ws.data.connectionId;
+			close(webSocket: ServerWebSocket<{ connectionId: string }>) {
+				const connectionId = webSocket.data.connectionId;
 
 				// 清理該連線的活躍查詢，避免 Pod 卡在 chatting 狀態
 				claudeQueryService.abortQueriesByConnectionId(connectionId);

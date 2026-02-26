@@ -163,7 +163,7 @@ class WorkflowExecutionService {
 
     podStore.setStatus(canvasId, targetPodId, 'chatting');
     fireAndForget(
-      this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, summary, strategy),
+      this.executeClaudeQuery({ canvasId, connectionId, sourcePodId, targetPodId, content: summary, strategy }),
       'Workflow',
       `executeClaudeQuery 執行失敗 (connection: ${connectionId})`
     );
@@ -192,14 +192,15 @@ class WorkflowExecutionService {
     );
   }
 
-  private async executeClaudeQuery(
-    canvasId: string,
-    connectionId: string,
-    sourcePodId: string,
-    targetPodId: string,
-    content: string,
-    strategy: TriggerStrategy
-  ): Promise<void> {
+  private async executeClaudeQuery(params: {
+    canvasId: string;
+    connectionId: string;
+    sourcePodId: string;
+    targetPodId: string;
+    content: string;
+    strategy: TriggerStrategy;
+  }): Promise<void> {
+    const { canvasId, connectionId, sourcePodId, targetPodId, content, strategy } = params;
     const baseMessage = buildTransferMessage(content);
     const targetPod = podStore.getById(canvasId, targetPodId);
     const commands = await commandService.list();

@@ -9,7 +9,7 @@ export interface WebSocketRequestConfig<TPayload, TResult> {
     matchResponse?: (response: TResult, requestId: string) => boolean
 }
 
-const DEFAULT_TIMEOUT = 10000
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000
 
 interface WebSocketResponse {
     requestId?: string
@@ -46,7 +46,7 @@ export async function createWebSocketRequest<TPayload extends { requestId: strin
         requestEvent,
         responseEvent,
         payload,
-        timeout = DEFAULT_TIMEOUT,
+        timeout = DEFAULT_REQUEST_TIMEOUT_MS,
         matchResponse
     } = config
 

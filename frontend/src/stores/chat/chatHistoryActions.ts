@@ -69,8 +69,8 @@ export function createHistoryActions(store: ChatStoreInstance, messageActions: M
             return
         }
 
-        const messages = (response.messages || []).map(msg =>
-            messageActions.convertPersistedToMessage(msg)
+        const messages = (response.messages || []).map(message =>
+            messageActions.convertPersistedToMessage(message)
         )
         messageActions.setPodMessages(podId, messages)
         setHistoryLoadingStatus(podId, 'loaded')
