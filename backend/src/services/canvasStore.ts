@@ -54,6 +54,13 @@ class CanvasStore {
         const canvasDataPath = config.getCanvasDataPath(canvas.name);
         const canvasJsonPath = path.join(canvasPath, 'canvas.json');
 
+        const resolvedPath = path.resolve(canvasPath);
+        const resolvedRoot = path.resolve(config.canvasRoot);
+        if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
+            logger.error('Canvas', 'Error', `Attempted path traversal: ${canvasPath}`);
+            return err('無效的 Canvas 路徑');
+        }
+
         return fsOperation(async () => {
             await fs.mkdir(canvasPath, {recursive: true});
             await fs.mkdir(canvasDataPath, {recursive: true});
@@ -123,6 +130,17 @@ class CanvasStore {
 
         const oldPath = config.getCanvasPath(canvas.name);
         const newPath = config.getCanvasPath(trimmedName);
+
+        const resolvedRoot = path.resolve(config.canvasRoot);
+        const resolvedOldPath = path.resolve(oldPath);
+        const resolvedNewPath = path.resolve(newPath);
+        if (
+            !resolvedOldPath.startsWith(resolvedRoot + path.sep) ||
+            !resolvedNewPath.startsWith(resolvedRoot + path.sep)
+        ) {
+            logger.error('Canvas', 'Error', `Attempted path traversal: ${oldPath} -> ${newPath}`);
+            return err('無效的 Canvas 路徑');
+        }
 
         const targetExistsResult = await fsOperation(
             async () => {

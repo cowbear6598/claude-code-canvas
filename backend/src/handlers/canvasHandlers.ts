@@ -16,6 +16,7 @@ import { socketService } from '../services/socketService.js';
 import { cursorColorManager } from '../services/cursorColorManager.js';
 import { logger } from '../utils/logger.js';
 import { broadcastCursorLeft } from './cursorHandlers.js';
+import { toCanvasDto } from '../utils/canvasDto.js';
 
 function handleCanvasResult<T, R extends { requestId: string; success: boolean }>(
   connectionId: string,
@@ -57,12 +58,7 @@ export async function handleCanvasCreate(
     (canvas) => ({
       requestId: payload.requestId,
       success: true,
-      canvas: {
-        id: canvas.id,
-        name: canvas.name,
-        createdAt: canvas.createdAt.toISOString(),
-        sortIndex: canvas.sortIndex,
-      },
+      canvas: toCanvasDto(canvas),
     }),
     true
   );
@@ -81,12 +77,7 @@ export async function handleCanvasList(
   const response: CanvasListResultPayload = {
     requestId: payload.requestId,
     success: true,
-    canvases: canvases.map((canvas) => ({
-      id: canvas.id,
-      name: canvas.name,
-      createdAt: canvas.createdAt.toISOString(),
-      sortIndex: canvas.sortIndex,
-    })),
+    canvases: canvases.map(toCanvasDto),
   };
 
   socketService.emitToConnection(connectionId, WebSocketResponseEvents.CANVAS_LIST_RESULT, response);
