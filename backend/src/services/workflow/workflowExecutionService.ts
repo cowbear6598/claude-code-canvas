@@ -162,6 +162,8 @@ class WorkflowExecutionService {
     });
 
     podStore.setStatus(canvasId, targetPodId, 'chatting');
+    // 刻意不 await：Claude 查詢是長時間操作，結果透過 WebSocket 事件通知前端。
+    // 若改為 await，呼叫方的 Promise.allSettled 會等到查詢完成才繼續，喪失多 connection 並行觸發的能力。
     fireAndForget(
       this.executeClaudeQuery({ canvasId, connectionId, sourcePodId, targetPodId, content: summary, strategy }),
       'Workflow',
@@ -185,6 +187,7 @@ class WorkflowExecutionService {
   }
 
   private scheduleNextInQueue(canvasId: string, targetPodId: string): void {
+    // 刻意不 await：佇列處理獨立於當前 workflow，避免阻塞完成/錯誤回調
     fireAndForget(
       workflowQueueService.processNextInQueue(canvasId, targetPodId),
       'Workflow',
@@ -232,6 +235,7 @@ class WorkflowExecutionService {
           );
           logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod "${targetPod?.name ?? targetPodId}"`);
           await autoClearService.onPodComplete(canvasId, targetPodId);
+          // 刻意不 await：下游 workflow 觸發獨立於當前查詢完成流程
           fireAndForget(
             this.checkAndTriggerWorkflows(canvasId, targetPodId),
             'Workflow',

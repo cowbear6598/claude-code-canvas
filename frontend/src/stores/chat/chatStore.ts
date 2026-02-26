@@ -23,6 +23,9 @@ import {createMessageActions} from './chatMessageActions'
 import {createConnectionActions} from './chatConnectionActions'
 import {createHistoryActions} from './chatHistoryActions'
 import {abortSafetyTimers} from './abortSafetyTimers'
+import {usePodStore} from '../pod/podStore'
+import {useCommandStore} from '../note/commandStore'
+import {getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
 
 const ABORT_SAFETY_TIMEOUT_MS = 10_000
 
@@ -185,8 +188,6 @@ export const useChatStore = defineStore('chat', {
                 throw new Error('WebSocket not connected')
             }
 
-            const {usePodStore} = await import('../pod/podStore')
-            const {useCommandStore} = await import('../note/commandStore')
             const podStore = usePodStore()
             const commandStore = useCommandStore()
 
@@ -201,7 +202,6 @@ export const useChatStore = defineStore('chat', {
 
             const messagePayload = buildMessagePayload(content, contentBlocks, command)
 
-            const {getActiveCanvasIdOrWarn} = await import('@/utils/canvasGuard')
             const canvasId = getActiveCanvasIdOrWarn('ChatStore')
             if (!canvasId) return
 
@@ -247,7 +247,6 @@ export const useChatStore = defineStore('chat', {
                 return
             }
 
-            const {getActiveCanvasIdOrWarn} = await import('@/utils/canvasGuard')
             const canvasId = getActiveCanvasIdOrWarn('ChatStore')
             if (!canvasId) return
 

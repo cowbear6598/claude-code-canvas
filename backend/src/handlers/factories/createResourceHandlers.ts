@@ -52,6 +52,8 @@ export function createListHandler<T>(config: {
   return async function (connectionId: string, _: unknown, requestId: string): Promise<void> {
     const items = await config.service.list();
 
+    // [key: string]: unknown — computed property key（config.responseKey）的 TypeScript 限制，
+    // 無法用字面量型別約束。response 物件僅用於序列化傳送，不再讀取。
     const response: BaseResponse & { [key: string]: unknown } = {
       requestId,
       success: true,

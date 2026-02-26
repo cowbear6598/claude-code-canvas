@@ -1,6 +1,7 @@
 import {v4 as uuidv4} from 'uuid';
 import path from 'path';
 import {type Options, type Query, query} from '@anthropic-ai/claude-agent-sdk';
+import type {SDKMessage, SDKSystemMessage, SDKAssistantMessage, SDKResultMessage, SDKUserMessage as SDKUserMessageType} from '@anthropic-ai/claude-agent-sdk';
 import {podStore} from '../podStore.js';
 import {isAbortError, getErrorMessage} from '../../utils/errorHelpers.js';
 import {outputStyleService} from '../outputStyleService.js';
@@ -15,6 +16,14 @@ import {
 import type {StreamCallback} from './types.js';
 
 export type {StreamEvent, StreamCallback} from './types.js';
+
+// SDK 的 SDKToolProgressMessage 不含 output/result 欄位，此為我們實際接收到的訊息結構
+type SDKToolProgressWithOutput = {
+    type: 'tool_progress';
+    output?: string;
+    result?: string;
+    tool_use_id?: string;
+};
 
 interface QueryState {
     sessionId: string | null;
@@ -32,23 +41,16 @@ function createQueryState(): QueryState {
     };
 }
 
-function handleSystemInitMessage(sdkMessage: Record<string, unknown>, state: QueryState): void {
-    if (sdkMessage.type !== 'system' || sdkMessage.subtype !== 'init' || !('session_id' in sdkMessage)) {
-        return;
-    }
-    state.sessionId = sdkMessage.session_id as string;
+function handleSystemInitMessage(sdkMessage: SDKSystemMessage, state: QueryState): void {
+    state.sessionId = sdkMessage.session_id;
 }
 
 function handleAssistantMessage(
-    sdkMessage: Record<string, unknown>,
+    sdkMessage: SDKAssistantMessage,
     state: QueryState,
     onStream: StreamCallback
 ): void {
-    if (sdkMessage.type !== 'assistant' || !('message' in sdkMessage)) {
-        return;
-    }
-
-    const assistantMessage = sdkMessage.message as { content?: unknown[] };
+    const assistantMessage = sdkMessage.message;
     if (!assistantMessage.content) return;
 
     for (const block of assistantMessage.content) {
@@ -116,16 +118,12 @@ function handleToolResultBlock(
 }
 
 function handleUserMessage(
-    sdkMessage: Record<string, unknown>,
+    sdkMessage: SDKUserMessageType,
     state: QueryState,
     onStream: StreamCallback
 ): void {
-    if (sdkMessage.type !== 'user' || !('message' in sdkMessage)) {
-        return;
-    }
-
-    const userMessage = sdkMessage.message as { content?: unknown[] };
-    if (!userMessage.content) return;
+    const userMessage = sdkMessage.message;
+    if (!userMessage.content || !Array.isArray(userMessage.content)) return;
 
     for (const block of userMessage.content) {
         handleToolResultBlock(block as Record<string, unknown>, state, onStream);
@@ -133,24 +131,14 @@ function handleUserMessage(
 }
 
 function handleToolProgressMessage(
-    sdkMessage: Record<string, unknown>,
+    sdkMessage: SDKToolProgressWithOutput,
     state: QueryState,
     onStream: StreamCallback
 ): void {
-    if (sdkMessage.type !== 'tool_progress') {
-        return;
-    }
-
-    const toolProgressMessage = sdkMessage as {
-        output?: string;
-        result?: string;
-        tool_use_id?: string;
-    };
-
-    const outputText = toolProgressMessage.output || toolProgressMessage.result;
+    const outputText = sdkMessage.output || sdkMessage.result;
     if (!outputText) return;
 
-    const toolUseId = toolProgressMessage.tool_use_id;
+    const toolUseId = sdkMessage.tool_use_id;
     const toolInfo = toolUseId ? state.activeTools.get(toolUseId) : null;
 
     if (toolInfo && toolUseId) {
@@ -180,27 +168,20 @@ function handleToolProgressMessage(
 }
 
 function handleResultMessage(
-    sdkMessage: Record<string, unknown>,
+    sdkMessage: SDKResultMessage,
     state: QueryState,
     onStream: StreamCallback
 ): void {
-    if (sdkMessage.type !== 'result') {
-        return;
-    }
-
     if (sdkMessage.subtype === 'success') {
-        if (!state.fullContent && 'result' in sdkMessage && sdkMessage.result) {
-            state.fullContent = String(sdkMessage.result);
+        if (!state.fullContent && sdkMessage.result) {
+            state.fullContent = sdkMessage.result;
         }
 
         onStream({type: 'complete'});
         return;
     }
 
-    const errorMessage =
-        'errors' in sdkMessage && Array.isArray(sdkMessage.errors)
-            ? sdkMessage.errors.join(', ')
-            : 'Unknown error';
+    const errorMessage = sdkMessage.errors.length > 0 ? sdkMessage.errors.join(', ') : 'Unknown error';
 
     onStream({type: 'error', error: '與 Claude 通訊時發生錯誤，請稍後再試'});
     throw new Error(errorMessage);
@@ -270,17 +251,21 @@ class ClaudeQueryService {
     }
 
     private processSDKMessage(
-        sdkMessage: unknown,
+        sdkMessage: SDKMessage,
         state: QueryState,
         onStream: StreamCallback
     ): void {
-        const message = sdkMessage as Record<string, unknown>;
-
-        handleSystemInitMessage(message, state);
-        handleAssistantMessage(message, state, onStream);
-        handleUserMessage(message, state, onStream);
-        handleToolProgressMessage(message, state, onStream);
-        handleResultMessage(message, state, onStream);
+        if (sdkMessage.type === 'system' && sdkMessage.subtype === 'init') {
+            handleSystemInitMessage(sdkMessage, state);
+        } else if (sdkMessage.type === 'assistant') {
+            handleAssistantMessage(sdkMessage, state, onStream);
+        } else if (sdkMessage.type === 'user') {
+            handleUserMessage(sdkMessage, state, onStream);
+        } else if (sdkMessage.type === 'tool_progress') {
+            handleToolProgressMessage(sdkMessage as SDKToolProgressWithOutput, state, onStream);
+        } else if (sdkMessage.type === 'result') {
+            handleResultMessage(sdkMessage, state, onStream);
+        }
     }
 
     private async buildQueryOptions(

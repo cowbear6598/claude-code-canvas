@@ -88,36 +88,27 @@ export function useSkillImport(): UseSkillImportReturn {
   const isImporting = ref(false)
 
   const importSkill = async (): Promise<void> => {
-    if (isImporting.value) {
+    if (isImporting.value) return
+
+    const file = await openFilePicker()
+    if (!file) return
+
+    const validation = validateFile(file)
+    if (!validation.valid) {
+      showErrorToast('Skill', '匯入失敗', validation.error)
       return
     }
 
+    isImporting.value = true
+
     try {
-      const file = await openFilePicker()
-      if (!file) {
-        return
-      }
-
-      const validation = validateFile(file)
-      if (!validation.valid) {
-        showErrorToast('Skill', '匯入失敗', validation.error)
-        return
-      }
-
-      isImporting.value = true
-
       const fileData = await convertToBase64(file)
-
       const result = await skillStore.importSkill(file.name, fileData, file.size)
 
       if (result.success) {
         const skillName = result.skill?.name || file.name
-
-        if (result.isOverwrite) {
-          showSuccessToast('Skill', '匯入成功（已覆蓋）', skillName)
-        } else {
-          showSuccessToast('Skill', '匯入成功', skillName)
-        }
+        const toastMsg = result.isOverwrite ? '匯入成功（已覆蓋）' : '匯入成功'
+        showSuccessToast('Skill', toastMsg, skillName)
       } else {
         showErrorToast('Skill', '匯入失敗', result.error || '未知錯誤')
       }

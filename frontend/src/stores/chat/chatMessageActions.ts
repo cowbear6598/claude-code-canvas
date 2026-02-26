@@ -1,5 +1,6 @@
 import {generateRequestId} from '@/services/utils'
 import {abortSafetyTimers} from './abortSafetyTimers'
+import {usePodStore} from '../pod/podStore'
 import type {Message, SubMessage, ToolUseInfo, ToolUseStatus} from '@/types/chat'
 import type {
     PersistedMessage,
@@ -36,7 +37,6 @@ function collectToolUseFromSubMessages(subMessages: PersistedMessage['subMessage
 
 /** 防禦性更新 pod mini screen output（避免重複追加） */
 async function appendUserOutputToPod(podId: string, content: string): Promise<void> {
-    const {usePodStore} = await import('../pod/podStore')
     const podStore = usePodStore()
     const pod = podStore.pods.find(p => p.id === podId)
     if (!pod) return
@@ -89,7 +89,6 @@ export function createMessageActions(store: ChatStoreInstance): {
     }
 
     const addUserMessage = async (podId: string, content: string): Promise<void> => {
-        const {usePodStore} = await import('../pod/podStore')
         const podStore = usePodStore()
         const pod = podStore.pods.find(p => p.id === podId)
         if (!pod) return
@@ -240,7 +239,6 @@ export function createMessageActions(store: ChatStoreInstance): {
     const handleMessagesClearedEvent = async (payload: PodMessagesClearedPayload): Promise<void> => {
         clearMessagesByPodIds([payload.podId])
 
-        const {usePodStore} = await import('../pod/podStore')
         const podStore = usePodStore()
         podStore.clearPodOutputsByIds([payload.podId])
     }
@@ -248,7 +246,6 @@ export function createMessageActions(store: ChatStoreInstance): {
     const handleWorkflowAutoCleared = async (payload: WorkflowAutoClearedPayload): Promise<void> => {
         clearMessagesByPodIds(payload.clearedPodIds)
 
-        const {usePodStore} = await import('../pod/podStore')
         const podStore = usePodStore()
         podStore.clearPodOutputsByIds(payload.clearedPodIds)
 

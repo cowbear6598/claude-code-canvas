@@ -20,6 +20,8 @@ const STORE_TO_CATEGORY_MAP: Record<string, string> = {
 interface BasePayload {
     requestId: string
 
+    // 允許各 store 傳入不同 payload 欄位（如 canvasId、noteId 等）。
+    // 型別安全由各呼叫端的 createWebSocketRequest<TReq, TRes> 泛型參數保障。
     [key: string]: unknown
 }
 
@@ -77,6 +79,8 @@ export interface NoteStoreConfig<TItem> {
     createNotePayload: (item: TItem, x: number, y: number) => object
     getItemId: (item: TItem) => string
     getItemName: (item: TItem) => string
+    // 各 store 的 customActions 方法簽名各不相同，此處使用最寬型別。
+    // 型別安全由各 store 匯出的精確 interface（如 SkillStoreCustomActions）保障。
     customActions?: Record<string, (...args: unknown[]) => unknown>
 }
 
@@ -144,6 +148,8 @@ export async function rebuildNotesFromPods(
 }
 
 interface BaseNoteState {
+    // Pinia state 不支援泛型參數，使用 unknown[] 作為型別擦除邊界。
+    // 型別安全由 getter typedAvailableItems（回傳 TItem[]）保障。
     availableItems: unknown[]
     notes: NoteItem[]
     isLoading: boolean

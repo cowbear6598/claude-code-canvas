@@ -16,17 +16,17 @@ export async function handleApiRequest(req: Request): Promise<Response | null> {
 		return null;
 	}
 
+	const routeKey = `${req.method} ${url.pathname}`;
+	const handler = ROUTES[routeKey];
+
+	if (!handler) {
+		return new Response(JSON.stringify({ error: '找不到 API 路徑' }), {
+			status: 404,
+			headers: JSON_HEADERS,
+		});
+	}
+
 	try {
-		const routeKey = `${req.method} ${url.pathname}`;
-		const handler = ROUTES[routeKey];
-
-		if (!handler) {
-			return new Response(JSON.stringify({ error: '找不到 API 路徑' }), {
-				status: 404,
-				headers: JSON_HEADERS,
-			});
-		}
-
 		return await handler(req);
 	} catch (error) {
 		logger.error('Canvas', 'Error', '處理 API 請求時發生錯誤', error);
