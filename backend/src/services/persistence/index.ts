@@ -2,29 +2,38 @@ import fs from 'fs/promises';
 import path from 'path';
 import { Result, ok, err } from '../../types';
 import { logger } from '../../utils/logger.js';
-import { getErrorMessage, isFileNotFoundError } from '../../utils/errorHelpers.js';
+import { fsOperation } from '../../utils/operationHelpers.js';
+import { fileExists } from '../shared/fileResourceHelpers.js';
 
 class PersistenceService {
   async readJson<T>(filePath: string): Promise<Result<T | null>> {
-    const exists = await this.fileExists(filePath);
+    const exists = await fileExists(filePath);
     if (!exists) {
       return ok(null);
     }
 
-    const fileContent = await fs.readFile(filePath, 'utf-8');
+    const readResult = await fsOperation(
+      () => fs.readFile(filePath, 'utf-8'),
+      `讀取檔案失敗: ${filePath}`
+    );
+
+    if (!readResult.success) {
+      return err(readResult.error ?? `讀取檔案失敗: ${filePath}`);
+    }
 
     try {
-      const data = JSON.parse(fileContent);
+      const data = JSON.parse(readResult.data as string);
       return ok(data as T);
     } catch (error) {
       if (error instanceof SyntaxError) {
         logger.error('Startup', 'Error', `[Persistence] 無效的 JSON 檔案 ${filePath}: ${error.message}`);
         const backupPath = `${filePath}.corrupted.${Date.now()}`;
-        try {
-          await fs.copyFile(filePath, backupPath);
+        const backupResult = await fsOperation(
+          () => fs.copyFile(filePath, backupPath),
+          `[Persistence] 備份損壞檔案失敗`
+        );
+        if (backupResult.success) {
           logger.log('Startup', 'Save', `[Persistence] 已備份損壞的檔案至 ${backupPath}`);
-        } catch (backupError) {
-          logger.error('Startup', 'Error', `[Persistence] 備份損壞檔案失敗`, backupError);
         }
         return err(`JSON 檔案格式錯誤: ${filePath}`);
       }
@@ -33,14 +42,14 @@ class PersistenceService {
   }
 
   async writeJson<T>(filePath: string, data: T): Promise<Result<void>> {
-    try {
-      const directory = path.dirname(filePath);
-      const dirResult = await this.ensureDirectory(directory);
+    const directory = path.dirname(filePath);
+    const dirResult = await this.ensureDirectory(directory);
 
-      if (!dirResult.success) {
-        return err(dirResult.error!);
-      }
+    if (!dirResult.success) {
+      return err(dirResult.error!);
+    }
 
+    return fsOperation(async () => {
       const tempPath = `${filePath}.tmp.${Date.now()}`;
       const jsonContent = JSON.stringify(data, null, 2);
 
@@ -48,43 +57,29 @@ class PersistenceService {
         await fs.writeFile(tempPath, jsonContent, 'utf-8');
         await fs.rename(tempPath, filePath);
       } catch (error) {
-        // 清理 temp 檔案
         await fs.unlink(tempPath).catch(() => {});
         throw error;
       }
-
-      return ok(undefined);
-    } catch (error) {
-      const message = getErrorMessage(error);
-      return err(`寫入檔案失敗: ${filePath} - ${message}`);
-    }
+    }, `寫入檔案失敗: ${filePath}`);
   }
 
   async ensureDirectory(dirPath: string): Promise<Result<void>> {
-    await fs.mkdir(dirPath, { recursive: true });
-    return ok(undefined);
-  }
-
-  async fileExists(filePath: string): Promise<boolean> {
-    try {
-      await fs.access(filePath);
-      return true;
-    } catch {
-      return false;
-    }
+    return fsOperation(
+      () => fs.mkdir(dirPath, { recursive: true }).then(() => undefined),
+      `建立目錄失敗: ${dirPath}`
+    );
   }
 
   async deleteFile(filePath: string): Promise<Result<void>> {
-    try {
-      await fs.unlink(filePath);
+    const exists = await fileExists(filePath);
+    if (!exists) {
       return ok(undefined);
-    } catch (error: unknown) {
-      if (isFileNotFoundError(error)) {
-        return ok(undefined);
-      }
-      const message = getErrorMessage(error);
-      return err(`刪除檔案失敗: ${filePath} - ${message}`);
     }
+
+    return fsOperation(
+      () => fs.unlink(filePath),
+      `刪除檔案失敗: ${filePath}`
+    );
   }
 }
 

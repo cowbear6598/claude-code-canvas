@@ -95,17 +95,14 @@ class SkillService {
     }
 
     async import(fileName: string, fileData: string, fileSize: number): Promise<{skill: Skill; isOverwrite: boolean}> {
-        // 驗證檔案大小
         if (fileSize > MAX_FILE_SIZE) {
             throw new Error('檔案大小超過 5MB 限制');
         }
 
-        // 驗證檔名是否以 .zip 結尾
         if (!fileName.toLowerCase().endsWith('.zip')) {
             throw new Error('檔案格式錯誤，僅支援 ZIP 檔案');
         }
 
-        // 將 Base64 解碼為 Buffer
         let buffer: Buffer;
         try {
             buffer = Buffer.from(fileData, 'base64');
@@ -113,7 +110,6 @@ class SkillService {
             throw new Error('解壓縮失敗，請確認 ZIP 檔案完整性');
         }
 
-        // 解析 ZIP 檔案結構
         let entries: Record<string, Uint8Array>;
         try {
             entries = unzipSync(new Uint8Array(buffer));
@@ -121,32 +117,24 @@ class SkillService {
             throw new Error('解壓縮失敗，請確認 ZIP 檔案完整性');
         }
 
-        // 驗證 ZIP 結構
         this.validateZipStructure(entries);
 
-        // 從檔名提取 Skill ID
         const skillId = fileName.slice(0, -4); // 移除 .zip 副檔名
 
-        // 立即驗證 skillId
         if (!validateSkillId(skillId)) {
             throw new Error('檔名格式不正確');
         }
 
-        // 檢查同名 Skill 是否存在
         const isOverwrite = await this.exists(skillId);
 
-        // 建立目標目錄路徑
         const destDir = this.getSkillDirectoryPath(skillId);
 
-        // 若目錄存在，先刪除
         if (isOverwrite) {
             await fs.rm(destDir, {recursive: true, force: true});
         }
 
-        // 建立目錄並解壓縮所有檔案
         await this.extractZipToDirectory(entries, destDir);
 
-        // 讀取 SKILL.md 取得 description
         const skillFilePath = path.join(destDir, SKILL_FILE_NAME);
         const content = await fs.readFile(skillFilePath, 'utf-8');
         const description = parseFrontmatterDescription(content);
@@ -209,16 +197,13 @@ class SkillService {
     }
 
     private validateZipStructure(entries: Record<string, Uint8Array>): void {
-        // 檢查是否有根目錄的 SKILL.md
         let hasRootSkillMd = false;
         let hasNestedSkillMd = false;
 
         for (const entryName of Object.keys(entries)) {
-            // 檢查是否為根目錄的 SKILL.md
             if (entryName === SKILL_FILE_NAME) {
                 hasRootSkillMd = true;
             }
-            // 檢查是否有嵌套的 SKILL.md
             if (entryName.endsWith(`/${SKILL_FILE_NAME}`) || entryName.endsWith(`\\${SKILL_FILE_NAME}`)) {
                 hasNestedSkillMd = true;
             }
@@ -234,13 +219,11 @@ class SkillService {
     }
 
     private async extractZipToDirectory(entries: Record<string, Uint8Array>, destDir: string): Promise<void> {
-        // 檢查檔案數量限制
         const entryCount = Object.keys(entries).length;
         if (entryCount > MAX_ENTRIES) {
             throw new Error(`ZIP 檔案內容過多，最多允許 ${MAX_ENTRIES} 個檔案`);
         }
 
-        // 檢查解壓後總大小和單檔大小
         let totalSize = 0;
         for (const data of Object.values(entries)) {
             if (data.length > MAX_INDIVIDUAL_FILE_SIZE) {
@@ -255,27 +238,21 @@ class SkillService {
         await fs.mkdir(destDir, {recursive: true});
 
         for (const [entryName, data] of Object.entries(entries)) {
-            // 標準化路徑並移除 null bytes
             let normalizedPath = path.normalize(entryName.replace(/\\/g, '/'));
             normalizedPath = normalizedPath.replace(/\0/g, '');
 
-            // 建構目標路徑
             const destPath = path.join(destDir, normalizedPath);
 
-            // 檢查路徑安全性
             if (!isPathWithinDirectory(destPath, destDir)) {
                 throw new Error('偵測到不安全的檔案路徑');
             }
 
-            // 如果是目錄（以 / 結尾），建立目錄
             if (normalizedPath.endsWith('/')) {
                 await fs.mkdir(destPath, {recursive: true});
             } else {
-                // 確保父目錄存在
                 const parentDir = path.dirname(destPath);
                 await fs.mkdir(parentDir, {recursive: true});
 
-                // 寫入檔案
                 await fs.writeFile(destPath, data);
             }
         }

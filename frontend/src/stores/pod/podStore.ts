@@ -28,6 +28,7 @@ import {useCanvasStore} from '@/stores/canvasStore'
 import {useToast} from '@/composables/useToast'
 import {sanitizeErrorForUser} from '@/utils/errorSanitizer'
 import {isValidPod as isValidPodFn, enrichPod as enrichPodFn} from '@/lib/podValidation'
+import {requireActiveCanvas, getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
 
 const MAX_COORD = 100000
 
@@ -104,19 +105,15 @@ export const usePodStore = defineStore('pod', {
         },
 
         async createPodWithBackend(pod: Omit<Pod, 'id'>): Promise<Pod | null> {
-            const canvasStore = useCanvasStore()
+            const canvasId = requireActiveCanvas()
             const { showSuccessToast, showErrorToast } = useToast()
-
-            if (!canvasStore.activeCanvasId) {
-                throw new Error('Cannot create pod: no active canvas')
-            }
 
             try {
                 const response = await createWebSocketRequest<PodCreatePayload, PodCreatedPayload>({
                     requestEvent: WebSocketRequestEvents.POD_CREATE,
                     responseEvent: WebSocketResponseEvents.POD_CREATED,
                     payload: {
-                        canvasId: canvasStore.activeCanvasId,
+                        canvasId,
                         name: pod.name,
                         color: pod.color,
                         x: pod.x,
@@ -183,18 +180,14 @@ export const usePodStore = defineStore('pod', {
         },
 
         async loadPodsFromBackend(): Promise<void> {
-            const canvasStore = useCanvasStore()
-
-            if (!canvasStore.activeCanvasId) {
-                console.warn('[PodStore] Cannot load pods: no active canvas')
-                return
-            }
+            const canvasId = getActiveCanvasIdOrWarn('PodStore')
+            if (!canvasId) return
 
             const response = await createWebSocketRequest<PodListPayload, PodListResultPayload>({
                 requestEvent: WebSocketRequestEvents.POD_LIST,
                 responseEvent: WebSocketResponseEvents.POD_LIST_RESULT,
                 payload: {
-                    canvasId: canvasStore.activeCanvasId
+                    canvasId
                 }
             })
 
@@ -225,12 +218,12 @@ export const usePodStore = defineStore('pod', {
             const pod = this.pods.find((p) => p.id === id)
             if (!pod) return
 
-            const canvasStore = useCanvasStore()
-            if (!canvasStore.activeCanvasId) return
+            const canvasId = getActiveCanvasIdOrWarn('PodStore')
+            if (!canvasId) return
 
             websocketClient.emit<PodMovePayload>(WebSocketRequestEvents.POD_MOVE, {
                 requestId: generateRequestId(),
-                canvasId: canvasStore.activeCanvasId,
+                canvasId,
                 podId: id,
                 x: pod.x,
                 y: pod.y
@@ -238,19 +231,15 @@ export const usePodStore = defineStore('pod', {
         },
 
         async renamePodWithBackend(podId: string, name: string): Promise<void> {
-            const canvasStore = useCanvasStore()
+            const canvasId = requireActiveCanvas()
             const { showSuccessToast, showErrorToast } = useToast()
-
-            if (!canvasStore.activeCanvasId) {
-                throw new Error('無法重命名 Pod：沒有啟用的畫布')
-            }
 
             try {
                 await createWebSocketRequest<PodRenamePayload, PodRenamedPayload>({
                     requestEvent: WebSocketRequestEvents.POD_RENAME,
                     responseEvent: WebSocketResponseEvents.POD_RENAMED,
                     payload: {
-                        canvasId: canvasStore.activeCanvasId,
+                        canvasId,
                         podId,
                         name
                     }
@@ -265,18 +254,14 @@ export const usePodStore = defineStore('pod', {
         },
 
         async setScheduleWithBackend(podId: string, schedule: Schedule | null): Promise<Pod | null> {
-            const canvasStore = useCanvasStore()
+            const canvasId = requireActiveCanvas()
             const { showSuccessToast } = useToast()
-
-            if (!canvasStore.activeCanvasId) {
-                throw new Error('無法設定排程：沒有啟用的畫布')
-            }
 
             const response = await createWebSocketRequest<PodSetSchedulePayload, PodScheduleSetPayload>({
                 requestEvent: WebSocketRequestEvents.POD_SET_SCHEDULE,
                 responseEvent: WebSocketResponseEvents.POD_SCHEDULE_SET,
                 payload: {
-                    canvasId: canvasStore.activeCanvasId,
+                    canvasId,
                     podId,
                     schedule
                 }
@@ -355,14 +340,14 @@ export const usePodStore = defineStore('pod', {
         },
 
         async setAutoClearWithBackend(podId: string, autoClear: boolean): Promise<Pod | null> {
-            const canvasStore = useCanvasStore()
+            const canvasId = requireActiveCanvas()
             const { showSuccessToast } = useToast()
 
             const response = await createWebSocketRequest<PodSetAutoClearPayload, PodAutoClearSetPayload>({
                 requestEvent: WebSocketRequestEvents.POD_SET_AUTO_CLEAR,
                 responseEvent: WebSocketResponseEvents.POD_AUTO_CLEAR_SET,
                 payload: {
-                    canvasId: canvasStore.activeCanvasId!,
+                    canvasId,
                     podId,
                     autoClear
                 }

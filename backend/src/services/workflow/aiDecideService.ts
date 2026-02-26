@@ -22,55 +22,33 @@ export interface AiDecideBatchResult {
   errors: Array<{ connectionId: string; error: string }>;
 }
 
+type DecisionResults = {
+  decisions: Array<{
+    connectionId: string;
+    shouldTrigger: boolean;
+    reason: string;
+  }>;
+};
+
 class AiDecideService {
-  async decideConnections(
-    canvasId: string,
-    sourcePodId: string,
-    connections: Connection[]
-  ): Promise<AiDecideBatchResult> {
-    // 空陣列直接回傳
-    if (connections.length === 0) {
-      return { results: [], errors: [] };
-    }
+  private buildDecisionErrors(
+    connections: Connection[],
+    error: string
+  ): AiDecideBatchResult {
+    return {
+      results: [],
+      errors: connections.map(conn => ({
+        connectionId: conn.id,
+        error,
+      })),
+    };
+  }
 
-    // 1. 生成 source Pod 的簡化摘要
-    const sourceSummary = await this.generateSourceSummary(canvasId, sourcePodId);
-    if (!sourceSummary) {
-      return {
-        results: [],
-        errors: connections.map(conn => ({
-          connectionId: conn.id,
-          error: 'Failed to generate source summary',
-        })),
-      };
-    }
-
-    // 2. 取得 source Pod 資訊
-    const sourcePod = podStore.getById(canvasId, sourcePodId);
-    if (!sourcePod) {
-      return {
-        results: [],
-        errors: connections.map(conn => ({
-          connectionId: conn.id,
-          error: 'Source Pod not found',
-        })),
-      };
-    }
-
-    // 3. 建構所有 target 的資訊
-    const targets = await this.buildTargetInfos(canvasId, connections);
-
-    if (targets.length === 0) {
-      return {
-        results: [],
-        errors: connections.map(conn => ({
-          connectionId: conn.id,
-          error: 'No valid target pods found',
-        })),
-      };
-    }
-
-    // 4. 建構 prompt
+  private async executeDecision(
+    sourcePod: NonNullable<ReturnType<typeof podStore.getById>>,
+    sourceSummary: string,
+    targets: AiDecideTargetInfo[]
+  ): Promise<DecisionResults | null> {
     const context = {
       sourcePodName: sourcePod.name,
       sourceSummary,
@@ -79,7 +57,6 @@ class AiDecideService {
     const systemPrompt = aiDecidePromptBuilder.buildSystemPrompt();
     const userPrompt = aiDecidePromptBuilder.buildUserPrompt(context);
 
-    // 5. 定義 Custom Tool
     const decideTriggersSchema = {
       decisions: z.array(
         z.object({
@@ -88,14 +65,6 @@ class AiDecideService {
           reason: z.string(),
         })
       ),
-    };
-
-    type DecisionResults = {
-      decisions: Array<{
-        connectionId: string;
-        shouldTrigger: boolean;
-        reason: string;
-      }>;
     };
 
     let decisionResults: DecisionResults | null = null;
@@ -115,67 +84,36 @@ class AiDecideService {
       tools: [decideTriggersTool],
     });
 
-    // 6. 使用 Claude Agent SDK 發送請求
-    try {
-      const queryStream = query({
-        prompt: userPrompt,
-        options: {
-          systemPrompt,
-          mcpServers: { 'ai-decide': customServer },
-          allowedTools: ['mcp__ai-decide__decide_triggers'],
-          model: 'sonnet',
-          cwd: sourcePod.workspacePath,
-        },
-      });
+    const queryStream = query({
+      prompt: userPrompt,
+      options: {
+        systemPrompt,
+        mcpServers: { 'ai-decide': customServer },
+        allowedTools: ['mcp__ai-decide__decide_triggers'],
+        model: 'sonnet',
+        cwd: sourcePod.workspacePath,
+      },
+    });
 
-      // 消耗 stream
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for await (const _sdkMessage of queryStream) {
-        // 只需等待 tool 被呼叫
-      }
-    } catch (error) {
-      logger.error('Workflow', 'Error', '[AiDecideService] Claude API request failed', error);
-      return {
-        results: [],
-        errors: connections.map(conn => ({
-          connectionId: conn.id,
-          error: getErrorMessage(error),
-        })),
-      };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const _sdkMessage of queryStream) {
+      // 只需等待 tool 被呼叫
     }
 
-    // 7. 處理 AI 的判斷結果
-    if (!decisionResults) {
-      logger.error('Workflow', 'Error', '[AiDecideService] Custom Tool handler was not called');
-      return {
-        results: [],
-        errors: connections.map(conn => ({
-          connectionId: conn.id,
-          error: 'AI decision tool was not executed',
-        })),
-      };
-    }
+    return decisionResults;
+  }
 
-    const typedResults = decisionResults as DecisionResults;
-    if (!typedResults.decisions || !Array.isArray(typedResults.decisions)) {
-      logger.error('Workflow', 'Error', '[AiDecideService] Invalid decision results format');
-      return {
-        results: [],
-        errors: connections.map(conn => ({
-          connectionId: conn.id,
-          error: 'Invalid AI decision format',
-        })),
-      };
-    }
-
-    // 8. 比對每條 connection 是否都有對應的判斷結果
+  private mapDecisionResults(
+    connections: Connection[],
+    decisionResults: DecisionResults
+  ): AiDecideBatchResult {
     const results: AiDecideResult[] = [];
     const errors: Array<{ connectionId: string; error: string }> = [];
 
-    const decisions = typedResults.decisions;
-
     for (const conn of connections) {
-      const decision = decisions.find((d: { connectionId: string; shouldTrigger: boolean; reason: string }) => d.connectionId === conn.id);
+      const decision = decisionResults.decisions.find(
+        (d: { connectionId: string; shouldTrigger: boolean; reason: string }) => d.connectionId === conn.id
+      );
       if (decision) {
         results.push({
           connectionId: conn.id,
@@ -193,6 +131,73 @@ class AiDecideService {
     return { results, errors };
   }
 
+  async decideConnections(
+    canvasId: string,
+    sourcePodId: string,
+    connections: Connection[]
+  ): Promise<AiDecideBatchResult> {
+    if (connections.length === 0) {
+      return { results: [], errors: [] };
+    }
+
+    const sourceSummary = await this.generateSourceSummary(canvasId, sourcePodId);
+    if (!sourceSummary) {
+      return this.buildDecisionErrors(connections, 'Failed to generate source summary');
+    }
+
+    const sourcePod = podStore.getById(canvasId, sourcePodId);
+    if (!sourcePod) {
+      return this.buildDecisionErrors(connections, 'Source Pod not found');
+    }
+
+    const targets = await this.buildTargetInfos(canvasId, connections);
+
+    if (targets.length === 0) {
+      return this.buildDecisionErrors(connections, 'No valid target pods found');
+    }
+
+    let decisionResults: DecisionResults | null = null;
+    try {
+      decisionResults = await this.executeDecision(sourcePod, sourceSummary, targets);
+    } catch (error) {
+      logger.error('Workflow', 'Error', '[AiDecideService] Claude API request failed', error);
+      return this.buildDecisionErrors(connections, getErrorMessage(error));
+    }
+
+    if (!decisionResults) {
+      logger.error('Workflow', 'Error', '[AiDecideService] Custom Tool handler was not called');
+      return this.buildDecisionErrors(connections, 'AI decision tool was not executed');
+    }
+
+    if (!decisionResults.decisions || !Array.isArray(decisionResults.decisions)) {
+      logger.error('Workflow', 'Error', '[AiDecideService] Invalid decision results format');
+      return this.buildDecisionErrors(connections, 'Invalid AI decision format');
+    }
+
+    return this.mapDecisionResults(connections, decisionResults);
+  }
+
+  private async resolveTargetPodResources(
+    targetPod: NonNullable<ReturnType<typeof podStore.getById>>,
+    conn: Connection
+  ): Promise<AiDecideTargetInfo> {
+    const targetPodOutputStyle = targetPod.outputStyleId
+      ? await outputStyleService.getContent(targetPod.outputStyleId)
+      : null;
+
+    const targetPodCommand = targetPod.commandId
+      ? await commandService.getContent(targetPod.commandId)
+      : null;
+
+    return {
+      connectionId: conn.id,
+      targetPodId: conn.targetPodId,
+      targetPodName: targetPod.name,
+      targetPodOutputStyle,
+      targetPodCommand,
+    };
+  }
+
   private async buildTargetInfos(
     canvasId: string,
     connections: Connection[]
@@ -206,51 +211,32 @@ class AiDecideService {
         continue;
       }
 
-      let targetPodOutputStyle: string | null = null;
-      if (targetPod.outputStyleId) {
-        targetPodOutputStyle = await outputStyleService.getContent(targetPod.outputStyleId);
-      }
-
-      let targetPodCommand: string | null = null;
-      if (targetPod.commandId) {
-        targetPodCommand = await commandService.getContent(targetPod.commandId);
-      }
-
-      targets.push({
-        connectionId: conn.id,
-        targetPodId: conn.targetPodId,
-        targetPodName: targetPod.name,
-        targetPodOutputStyle,
-        targetPodCommand,
-      });
+      targets.push(await this.resolveTargetPodResources(targetPod, conn));
     }
 
     return targets;
   }
 
-  /**
-   * 生成 source Pod 的簡化摘要
-   */
+  private getFallbackSummary(sourcePodId: string): string | null {
+    const messages = messageStore.getMessages(sourcePodId);
+    const assistantMessages = messages.filter(msg => msg.role === 'assistant');
+    return assistantMessages.length > 0
+      ? assistantMessages[assistantMessages.length - 1].content
+      : null;
+  }
+
   private async generateSourceSummary(canvasId: string, sourcePodId: string): Promise<string | null> {
     const sourcePod = podStore.getById(canvasId, sourcePodId);
-    if (!sourcePod) {
-      return null;
-    }
+    if (!sourcePod) return null;
 
     const messages = messageStore.getMessages(sourcePodId);
-    if (messages.length === 0) {
-      return null;
-    }
+    if (messages.length === 0) return null;
 
-    // 使用 summaryPromptBuilder 格式化對話歷史
     const conversationHistory = summaryPromptBuilder.formatConversationHistory(messages);
+    const sourcePodOutputStyle = sourcePod.outputStyleId
+      ? await outputStyleService.getContent(sourcePod.outputStyleId)
+      : null;
 
-    let sourcePodOutputStyle: string | null = null;
-    if (sourcePod.outputStyleId) {
-      sourcePodOutputStyle = await outputStyleService.getContent(sourcePod.outputStyleId);
-    }
-
-    // 建構簡化的摘要 prompt（不指定 target）
     const systemPrompt = `你是一個對話摘要助手。請將以下對話內容濃縮為簡短的摘要，重點放在最終產出和關鍵結論。`;
     const userPrompt = `# Pod 名稱
 ${sourcePod.name}
@@ -268,14 +254,7 @@ ${conversationHistory}
 
     if (!result.success) {
       logger.log('Workflow', 'Update', `[AiDecideService] Failed to generate summary, using fallback`);
-
-      // Fallback: 使用最後一條 assistant 訊息
-      const assistantMessages = messages.filter(msg => msg.role === 'assistant');
-      if (assistantMessages.length > 0) {
-        return assistantMessages[assistantMessages.length - 1].content;
-      }
-
-      return null;
+      return this.getFallbackSummary(sourcePodId);
     }
 
     return result.content;

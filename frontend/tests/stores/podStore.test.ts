@@ -549,7 +549,7 @@ describe('podStore', () => {
           commandId: null,
           schedule: null,
         })
-      ).rejects.toThrow('Cannot create pod: no active canvas')
+      ).rejects.toThrow('沒有啟用的畫布')
     })
 
     it('WebSocket 回應無 pod 時應 throw、顯示錯誤 Toast', async () => {
@@ -804,7 +804,7 @@ describe('podStore', () => {
       const store = usePodStore()
 
       await expect(store.renamePodWithBackend('pod-1', 'New Name')).rejects.toThrow(
-        '無法重命名 Pod：沒有啟用的畫布'
+        '沒有啟用的畫布'
       )
     })
 
@@ -946,7 +946,7 @@ describe('podStore', () => {
       const schedule = createMockSchedule()
 
       await expect(store.setScheduleWithBackend('pod-1', schedule)).rejects.toThrow(
-        '無法設定排程：沒有啟用的畫布'
+        '沒有啟用的畫布'
       )
     })
 

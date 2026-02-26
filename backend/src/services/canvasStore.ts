@@ -18,6 +18,25 @@ class CanvasStore {
         'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
     ];
 
+    private validateCanvasPath(canvasPath: string): Result<void> {
+        const resolvedPath = path.resolve(canvasPath);
+        const resolvedRoot = path.resolve(config.canvasRoot);
+        if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
+            logger.error('Canvas', 'Error', `Attempted path traversal: ${canvasPath}`);
+            return err('無效的 Canvas 路徑');
+        }
+        return ok(undefined);
+    }
+
+    private buildPersistedCanvas(canvas: Canvas): PersistedCanvas {
+        return {
+            id: canvas.id,
+            name: canvas.name,
+            createdAt: canvas.createdAt.toISOString(),
+            sortIndex: canvas.sortIndex,
+        };
+    }
+
     private validateCanvasName(name: string): Result<void> {
         const trimmedName = name.trim();
 
@@ -54,24 +73,16 @@ class CanvasStore {
         const canvasDataPath = config.getCanvasDataPath(canvas.name);
         const canvasJsonPath = path.join(canvasPath, 'canvas.json');
 
-        const resolvedPath = path.resolve(canvasPath);
-        const resolvedRoot = path.resolve(config.canvasRoot);
-        if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
-            logger.error('Canvas', 'Error', `Attempted path traversal: ${canvasPath}`);
-            return err('無效的 Canvas 路徑');
+        const pathValidation = this.validateCanvasPath(canvasPath);
+        if (!pathValidation.success) {
+            return pathValidation;
         }
 
         return fsOperation(async () => {
             await fs.mkdir(canvasPath, {recursive: true});
             await fs.mkdir(canvasDataPath, {recursive: true});
 
-            const persistedCanvas: PersistedCanvas = {
-                id: canvas.id,
-                name: canvas.name,
-                createdAt: canvas.createdAt.toISOString(),
-                sortIndex: canvas.sortIndex,
-            };
-
+            const persistedCanvas = this.buildPersistedCanvas(canvas);
             await fs.writeFile(canvasJsonPath, JSON.stringify(persistedCanvas, null, 2), 'utf-8');
         }, `建立 Canvas 檔案失敗: ${canvas.name}`);
     }
@@ -131,15 +142,14 @@ class CanvasStore {
         const oldPath = config.getCanvasPath(canvas.name);
         const newPath = config.getCanvasPath(trimmedName);
 
-        const resolvedRoot = path.resolve(config.canvasRoot);
-        const resolvedOldPath = path.resolve(oldPath);
-        const resolvedNewPath = path.resolve(newPath);
-        if (
-            !resolvedOldPath.startsWith(resolvedRoot + path.sep) ||
-            !resolvedNewPath.startsWith(resolvedRoot + path.sep)
-        ) {
-            logger.error('Canvas', 'Error', `Attempted path traversal: ${oldPath} -> ${newPath}`);
-            return err('無效的 Canvas 路徑');
+        const oldPathValidation = this.validateCanvasPath(oldPath);
+        if (!oldPathValidation.success) {
+            return err(oldPathValidation.error!);
+        }
+
+        const newPathValidation = this.validateCanvasPath(newPath);
+        if (!newPathValidation.success) {
+            return err(newPathValidation.error!);
         }
 
         const targetExistsResult = await fsOperation(
@@ -158,12 +168,8 @@ class CanvasStore {
             await fs.rename(oldPath, newPath);
 
             const canvasJsonPath = path.join(newPath, 'canvas.json');
-            const persistedCanvas: PersistedCanvas = {
-                id: canvas.id,
-                name: trimmedName,
-                createdAt: canvas.createdAt.toISOString(),
-                sortIndex: canvas.sortIndex,
-            };
+            const updatedCanvas: Canvas = {...canvas, name: trimmedName};
+            const persistedCanvas = this.buildPersistedCanvas(updatedCanvas);
 
             await fs.writeFile(canvasJsonPath, JSON.stringify(persistedCanvas, null, 2), 'utf-8');
         }, `重新命名 Canvas 失敗: ${id}`);
@@ -187,12 +193,9 @@ class CanvasStore {
 
         const canvasPath = config.getCanvasPath(canvas.name);
 
-        const resolvedPath = path.resolve(canvasPath);
-        const resolvedRoot = path.resolve(config.canvasRoot);
-
-        if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
-            logger.error('Canvas', 'Error', `Attempted path traversal: ${canvasPath}`);
-            return err('無效的 Canvas 路徑');
+        const pathValidation = this.validateCanvasPath(canvasPath);
+        if (!pathValidation.success) {
+            return err(pathValidation.error!);
         }
 
         const deleteResult = await fsOperation(
@@ -237,12 +240,7 @@ class CanvasStore {
                 canvas.sortIndex = i;
 
                 const canvasJsonPath = path.join(config.getCanvasPath(canvas.name), 'canvas.json');
-                const persistedCanvas: PersistedCanvas = {
-                    id: canvas.id,
-                    name: canvas.name,
-                    createdAt: canvas.createdAt.toISOString(),
-                    sortIndex: canvas.sortIndex,
-                };
+                const persistedCanvas = this.buildPersistedCanvas(canvas);
 
                 await fs.writeFile(canvasJsonPath, JSON.stringify(persistedCanvas, null, 2), 'utf-8');
             }
@@ -264,9 +262,17 @@ class CanvasStore {
             return null;
         }
 
+        const readResult = await fsOperation(
+            () => fs.readFile(canvasJsonPath, 'utf-8'),
+            `讀取 canvas.json 失敗: ${dirName}`
+        );
+
+        if (!readResult.success) {
+            return null;
+        }
+
         try {
-            const data = await fs.readFile(canvasJsonPath, 'utf-8');
-            const persistedCanvas: PersistedCanvas = JSON.parse(data);
+            const persistedCanvas: PersistedCanvas = JSON.parse(readResult.data!);
 
             if (persistedCanvas.sortIndex === undefined) {
                 logger.error('Canvas', 'Load', `Missing sortIndex in canvas.json for ${dirName}`);

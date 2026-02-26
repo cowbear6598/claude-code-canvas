@@ -5,7 +5,9 @@ import type {Connection, AnchorPosition, TriggerMode, DecideStatus, ConnectionSt
 import type {PersistedConnection} from '../types';
 import {Result, ok, err} from '../types';
 import {logger} from '../utils/logger.js';
+import {fireAndForget} from '../utils/operationHelpers.js';
 import {canvasStore} from './canvasStore.js';
+import {readJsonFileOrDefault} from './shared/fileResourceHelpers.js';
 
 interface CreateConnectionData {
     sourcePodId: string;
@@ -199,33 +201,23 @@ class ConnectionStore {
 
         await fs.mkdir(canvasDataDir, {recursive: true});
 
-        try {
-            await fs.access(connectionsFilePath);
-        } catch {
+        const persistedConnections = await readJsonFileOrDefault<unknown>(connectionsFilePath);
+        if (persistedConnections === null) {
             this.connectionsByCanvas.set(canvasId, new Map());
             return ok(undefined);
         }
 
-        const data = await fs.readFile(connectionsFilePath, 'utf-8');
-
-        try {
-            const persistedConnections: unknown[] = JSON.parse(data);
-
-            const connectionsMap = new Map<string, Connection>();
-            for (const persisted of persistedConnections) {
-                const connection = this.parsePersistedConnection(persisted);
-                if (!connection) continue;
-                connectionsMap.set(connection.id, connection);
-            }
-
-            this.connectionsByCanvas.set(canvasId, connectionsMap);
-
-            logger.log('Connection', 'Load', `[ConnectionStore] Loaded ${connectionsMap.size} connections for canvas ${canvasId}`);
-            return ok(undefined);
-        } catch (error) {
-            logger.error('Connection', 'Error', `[ConnectionStore] Failed to load connections for canvas ${canvasId}`, error);
-            return err('載入連線資料失敗');
+        const connectionsMap = new Map<string, Connection>();
+        for (const persisted of persistedConnections) {
+            const connection = this.parsePersistedConnection(persisted);
+            if (!connection) continue;
+            connectionsMap.set(connection.id, connection);
         }
+
+        this.connectionsByCanvas.set(canvasId, connectionsMap);
+
+        logger.log('Connection', 'Load', `[ConnectionStore] Loaded ${connectionsMap.size} connections for canvas ${canvasId}`);
+        return ok(undefined);
     }
 
     async saveToDisk(canvasId: string): Promise<Result<void>> {
@@ -263,14 +255,13 @@ class ConnectionStore {
     }
 
     private saveToDiskAsync(canvasId: string): void {
-        this.saveToDisk(canvasId).catch((error) => {
-            logger.error('Connection', 'Error', `[ConnectionStore] Failed to persist connections for canvas ${canvasId}`, error);
-        });
+        fireAndForget(
+            this.saveToDisk(canvasId),
+            'Connection',
+            `[ConnectionStore] Failed to persist connections for canvas ${canvasId}`
+        );
     }
 
-    /**
-     * 更新單一 connection 的 AI Decide 狀態
-     */
     updateDecideStatus(canvasId: string, connectionId: string, status: DecideStatus, reason: string | null): Connection | undefined {
         return this.update(canvasId, connectionId, {
             decideStatus: status,
@@ -278,9 +269,6 @@ class ConnectionStore {
         });
     }
 
-    /**
-     * 清除該 Pod 所有出站 connections 的 decideStatus 為 'none' 並清空 reason
-     */
     clearDecideStatusByPodId(canvasId: string, podId: string): void {
         const outgoingConnections = this.findBySourcePodId(canvasId, podId);
 
@@ -294,9 +282,6 @@ class ConnectionStore {
         }
     }
 
-    /**
-     * 根據 triggerMode 過濾出站 connections
-     */
     findByTriggerMode(canvasId: string, sourcePodId: string, triggerMode: TriggerMode): Connection[] {
         const connections = this.findBySourcePodId(canvasId, sourcePodId);
         return connections.filter(conn => conn.triggerMode === triggerMode);

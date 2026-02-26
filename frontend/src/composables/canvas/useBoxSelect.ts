@@ -1,6 +1,7 @@
-import { ref, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
 import { isCtrlOrCmdPressed } from '@/utils/keyboardHelpers'
+import { useDragHandler } from '@/composables/useDragHandler'
 
 const BOX_SELECT_THRESHOLD = 5
 
@@ -12,19 +13,37 @@ export function useBoxSelect(): {
 
   const isBoxSelecting = ref(false)
 
-  let currentMoveHandler: ((e: MouseEvent) => void) | null = null
-  let currentUpHandler: ((e: MouseEvent) => void) | null = null
+  let startClientX = 0
+  let startClientY = 0
 
-  const cleanupEventListeners = (): void => {
-    if (currentMoveHandler) {
-      document.removeEventListener('mousemove', currentMoveHandler)
-      currentMoveHandler = null
+  const { startDrag } = useDragHandler({
+    onMove: (moveEvent: MouseEvent): void => {
+      const moveCanvasX = (moveEvent.clientX - viewportStore.offset.x) / viewportStore.zoom
+      const moveCanvasY = (moveEvent.clientY - viewportStore.offset.y) / viewportStore.zoom
+      selectionStore.updateSelection(moveCanvasX, moveCanvasY)
+      selectionStore.calculateSelectedElements(
+        podStore.pods,
+        outputStyleStore.notes,
+        skillStore.notes,
+        repositoryStore.notes,
+        subAgentStore.notes,
+        commandStore.notes
+      )
+    },
+    onEnd: (upEvent: MouseEvent): void => {
+      const deltaX = Math.abs(upEvent.clientX - startClientX)
+      const deltaY = Math.abs(upEvent.clientY - startClientY)
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+
+      if (distance < BOX_SELECT_THRESHOLD) {
+        selectionStore.cancelSelection()
+      } else {
+        selectionStore.endSelection()
+      }
+
+      isBoxSelecting.value = false
     }
-    if (currentUpHandler) {
-      document.removeEventListener('mouseup', currentUpHandler)
-      currentUpHandler = null
-    }
-  }
+  })
 
   const startBoxSelect = (e: MouseEvent): void => {
     if (e.button !== 0) return
@@ -44,8 +63,8 @@ export function useBoxSelect(): {
 
     if (viewportStore.zoom === 0) return
 
-    const startClientX = e.clientX
-    const startClientY = e.clientY
+    startClientX = e.clientX
+    startClientY = e.clientY
     const canvasX = (e.clientX - viewportStore.offset.x) / viewportStore.zoom
     const canvasY = (e.clientY - viewportStore.offset.y) / viewportStore.zoom
 
@@ -53,44 +72,8 @@ export function useBoxSelect(): {
     selectionStore.startSelection(canvasX, canvasY, isCtrlPressed)
     isBoxSelecting.value = true
 
-    cleanupEventListeners()
-
-    currentMoveHandler = (moveEvent: MouseEvent): void => {
-      const moveCanvasX = (moveEvent.clientX - viewportStore.offset.x) / viewportStore.zoom
-      const moveCanvasY = (moveEvent.clientY - viewportStore.offset.y) / viewportStore.zoom
-      selectionStore.updateSelection(moveCanvasX, moveCanvasY)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
-    }
-
-    currentUpHandler = (upEvent: MouseEvent): void => {
-      const deltaX = Math.abs(upEvent.clientX - startClientX)
-      const deltaY = Math.abs(upEvent.clientY - startClientY)
-      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
-
-      if (distance < BOX_SELECT_THRESHOLD) {
-        selectionStore.cancelSelection()
-      } else {
-        selectionStore.endSelection()
-      }
-
-      isBoxSelecting.value = false
-      cleanupEventListeners()
-    }
-
-    document.addEventListener('mousemove', currentMoveHandler)
-    document.addEventListener('mouseup', currentUpHandler)
+    startDrag(e)
   }
-
-  onUnmounted(() => {
-    cleanupEventListeners()
-  })
 
   return {
     isBoxSelecting,

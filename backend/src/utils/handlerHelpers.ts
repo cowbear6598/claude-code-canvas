@@ -21,7 +21,6 @@ export function getCanvasId(
 	return canvasId;
 }
 
-// Handler 型別定義
 export type HandlerWithCanvasId<TPayload = unknown> = (
 	connectionId: string,
 	canvasId: string,
@@ -35,10 +34,6 @@ export type StandardHandler<TPayload = unknown> = (
 	requestId: string
 ) => Promise<void>;
 
-/**
- * 將需要 canvasId 的 handler 包裝成標準 handler
- * 自動注入 canvasId，若無法取得則自動回傳錯誤
- */
 export function withCanvasId<TPayload = unknown>(
 	responseEvent: WebSocketResponseEvents,
 	handler: HandlerWithCanvasId<TPayload>

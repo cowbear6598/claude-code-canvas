@@ -4,6 +4,8 @@ import { Group, GroupType } from '../types';
 import { logger } from '../utils/logger.js';
 import { config } from '../config';
 import { sanitizePathSegment } from '../utils/pathValidator.js';
+import { fileExists } from './shared/fileResourceHelpers.js';
+import { fsOperation } from '../utils/operationHelpers.js';
 
 class GroupStore {
   async create(name: string, type: GroupType): Promise<Group> {
@@ -23,18 +25,13 @@ class GroupStore {
   async exists(name: string, type: GroupType): Promise<boolean> {
     const safeName = sanitizePathSegment(name);
     const dirPath = path.join(this.getBasePath(type), safeName);
-    try {
-      const stat = await fs.stat(dirPath);
-      return stat.isDirectory();
-    } catch {
-      return false;
-    }
+    return fileExists(dirPath);
   }
 
   async list(type: GroupType): Promise<Group[]> {
     const basePath = this.getBasePath(type);
 
-    try {
+    const result = await fsOperation(async () => {
       await fs.mkdir(basePath, { recursive: true });
       const entries = await fs.readdir(basePath, { withFileTypes: true });
 
@@ -50,37 +47,33 @@ class GroupStore {
       }
 
       return groups;
-    } catch (error) {
-      logger.error('Note', 'Error', `[GroupStore] 列出 Groups 失敗 (${type})`, error);
-      return [];
-    }
+    }, `[GroupStore] 列出 Groups 失敗 (${type})`);
+
+    return result.success ? (result.data ?? []) : [];
   }
 
   async delete(name: string, type: GroupType): Promise<boolean> {
     const safeName = sanitizePathSegment(name);
     const dirPath = path.join(this.getBasePath(type), safeName);
 
-    try {
+    const result = await fsOperation(async () => {
       await fs.rmdir(dirPath);
       logger.log('Note', 'Delete', `[GroupStore] 刪除 Group: ${safeName}`);
-      return true;
-    } catch (error) {
-      logger.error('Note', 'Error', `[GroupStore] 刪除 Group 失敗: ${safeName}`, error);
-      return false;
-    }
+    }, `[GroupStore] 刪除 Group 失敗: ${safeName}`);
+
+    return result.success;
   }
 
   async hasItems(name: string, type: GroupType): Promise<boolean> {
     const safeName = sanitizePathSegment(name);
     const dirPath = path.join(this.getBasePath(type), safeName);
 
-    try {
+    const result = await fsOperation(async () => {
       const entries = await fs.readdir(dirPath);
-      const mdFiles = entries.filter((file) => file.endsWith('.md'));
-      return mdFiles.length > 0;
-    } catch {
-      return false;
-    }
+      return entries.filter((file) => file.endsWith('.md')).length > 0;
+    }, `[GroupStore] 讀取 Group 內容失敗: ${safeName}`);
+
+    return result.success ? (result.data ?? false) : false;
   }
 
   private getBasePath(type: GroupType): string {

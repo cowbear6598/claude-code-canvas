@@ -637,7 +637,7 @@ describe('createNoteStore', () => {
       store.availableItems = [item] as unknown[]
 
       await expect(store.createNote('item-1', 300, 400)).rejects.toThrow(
-        'Cannot create note: no active canvas'
+        '沒有啟用的畫布'
       )
     })
   })

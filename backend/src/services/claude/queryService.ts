@@ -4,7 +4,7 @@ import {type Options, type Query, query} from '@anthropic-ai/claude-agent-sdk';
 import {podStore} from '../podStore.js';
 import {isAbortError, getErrorMessage} from '../../utils/errorHelpers.js';
 import {outputStyleService} from '../outputStyleService.js';
-import {Message, ToolUseInfo, ContentBlock} from '../../types';
+import {Message, ToolUseInfo, ContentBlock, Pod} from '../../types';
 import {config} from '../../config';
 import {logger} from '../../utils/logger.js';
 import {
@@ -12,43 +12,9 @@ import {
     createUserMessageStream,
     type SDKUserMessage,
 } from './messageBuilder.js';
+import type {StreamCallback} from './types.js';
 
-export type StreamEvent =
-    | TextStreamEvent
-    | ToolUseStreamEvent
-    | ToolResultStreamEvent
-    | CompleteStreamEvent
-    | ErrorStreamEvent;
-
-interface TextStreamEvent {
-    type: 'text';
-    content: string;
-}
-
-interface ToolUseStreamEvent {
-    type: 'tool_use';
-    toolUseId: string;
-    toolName: string;
-    input: Record<string, unknown>;
-}
-
-interface ToolResultStreamEvent {
-    type: 'tool_result';
-    toolUseId: string;
-    toolName: string;
-    output: string;
-}
-
-interface CompleteStreamEvent {
-    type: 'complete';
-}
-
-interface ErrorStreamEvent {
-    type: 'error';
-    error: string;
-}
-
-export type StreamCallback = (event: StreamEvent) => void;
+export type {StreamEvent, StreamCallback} from './types.js';
 
 interface QueryState {
     sessionId: string | null;
@@ -124,6 +90,31 @@ function handleAssistantMessage(
     }
 }
 
+function handleToolResultBlock(
+    contentBlock: Record<string, unknown>,
+    state: QueryState,
+    onStream: StreamCallback
+): void {
+    if (contentBlock.type !== 'tool_result' || !('tool_use_id' in contentBlock)) return;
+
+    const toolUseId = String(contentBlock.tool_use_id);
+    const content = String(contentBlock.content || '');
+    const toolInfo = state.activeTools.get(toolUseId);
+
+    if (!toolInfo) return;
+
+    if (state.toolUseInfo?.toolUseId === toolUseId) {
+        state.toolUseInfo.output = content;
+    }
+
+    onStream({
+        type: 'tool_result',
+        toolUseId,
+        toolName: toolInfo.toolName,
+        output: content,
+    });
+}
+
 function handleUserMessage(
     msg: Record<string, unknown>,
     state: QueryState,
@@ -137,26 +128,7 @@ function handleUserMessage(
     if (!userMsg.content) return;
 
     for (const block of userMsg.content) {
-        const contentBlock = block as Record<string, unknown>;
-
-        if (contentBlock.type === 'tool_result' && 'tool_use_id' in contentBlock) {
-            const toolUseId = String(contentBlock.tool_use_id);
-            const content = String(contentBlock.content || '');
-            const toolInfo = state.activeTools.get(toolUseId);
-
-            if (!toolInfo) continue;
-
-            if (state.toolUseInfo?.toolUseId === toolUseId) {
-                state.toolUseInfo.output = content;
-            }
-
-            onStream({
-                type: 'tool_result',
-                toolUseId,
-                toolName: toolInfo.toolName,
-                output: content,
-            });
-        }
+        handleToolResultBlock(block as Record<string, unknown>, state, onStream);
     }
 }
 
@@ -234,6 +206,12 @@ function handleResultMessage(
     throw new Error(errorMessage);
 }
 
+function shouldRetrySession(error: unknown, pod: Pod, isRetry: boolean): boolean {
+    const errorMessage = getErrorMessage(error);
+    const isResumeError = errorMessage.includes('session') || errorMessage.includes('resume');
+    return isResumeError && !!pod.claudeSessionId && !isRetry;
+}
+
 class ClaudeQueryService {
     private activeQueries = new Map<string, {
         queryStream: Query;
@@ -305,6 +283,37 @@ class ClaudeQueryService {
         handleResultMessage(msg, state, onStream);
     }
 
+    private async buildQueryOptions(
+        pod: Pod,
+        cwd: string
+    ): Promise<Options & { abortController: AbortController }> {
+        const abortController = new AbortController();
+
+        const queryOptions: Options & { abortController: AbortController } = {
+            cwd,
+            settingSources: ['project'],
+            allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Skill'],
+            permissionMode: 'acceptEdits',
+            includePartialMessages: true,
+            abortController,
+        };
+
+        if (pod.outputStyleId) {
+            const styleContent = await outputStyleService.getContent(pod.outputStyleId);
+            if (styleContent) {
+                queryOptions.systemPrompt = styleContent;
+            }
+        }
+
+        if (pod.claudeSessionId) {
+            queryOptions.resume = pod.claudeSessionId;
+        }
+
+        queryOptions.model = pod.model;
+
+        return queryOptions;
+    }
+
     async sendMessage(
         podId: string,
         message: string | ContentBlock[],
@@ -336,29 +345,8 @@ class ClaudeQueryService {
                 ? path.join(config.repositoriesRoot, pod.repositoryId)
                 : pod.workspacePath;
 
-            const abortController = new AbortController();
-
-            const queryOptions: Options = {
-                cwd,
-                settingSources: ['project'],
-                allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Skill'],
-                permissionMode: 'acceptEdits',
-                includePartialMessages: true,
-                abortController,
-            };
-
-            if (pod.outputStyleId) {
-                const styleContent = await outputStyleService.getContent(pod.outputStyleId);
-                if (styleContent) {
-                    queryOptions.systemPrompt = styleContent;
-                }
-            }
-
-            if (resumeSessionId) {
-                queryOptions.resume = resumeSessionId;
-            }
-
-            queryOptions.model = pod.model;
+            const queryOptions = await this.buildQueryOptions(pod, cwd);
+            const {abortController} = queryOptions;
 
             const prompt = this.buildPrompt(message, pod.commandId, resumeSessionId);
 
@@ -399,42 +387,26 @@ class ClaudeQueryService {
                 throw error;
             }
 
-            const errorMessage = getErrorMessage(error);
-            const isResumeError =
-                errorMessage.includes('session') || errorMessage.includes('resume');
-
-            // 對前端隱藏內部錯誤細節，只顯示通用訊息
-            const sanitizedMessage = '與 Claude 通訊時發生錯誤，請稍後再試';
-
-            if (!isResumeError || !pod.claudeSessionId) {
-                logger.error('Chat', 'Error', `Pod ${podId} 查詢失敗: ${errorMessage}`);
-                onStream({
-                    type: 'error',
-                    error: sanitizedMessage,
-                });
-
-                throw error;
+            if (shouldRetrySession(error, pod, isRetry)) {
+                logger.log(
+                    'Chat',
+                    'Update',
+                    `[QueryService] Session resume failed for Pod ${podId}, clearing session ID and retrying`
+                );
+                podStore.setClaudeSessionId(canvasId, podId, '');
+                return this.sendMessageInternal(podId, message, onStream, connectionId, true);
             }
 
+            const errorMessage = getErrorMessage(error);
             if (isRetry) {
                 logger.error('Chat', 'Error', `Pod ${podId} 重試查詢仍然失敗: ${errorMessage}`);
-                onStream({
-                    type: 'error',
-                    error: sanitizedMessage,
-                });
-
-                throw error;
+            } else {
+                logger.error('Chat', 'Error', `Pod ${podId} 查詢失敗: ${errorMessage}`);
             }
 
-            logger.log(
-                'Chat',
-                'Update',
-                `[QueryService] Session resume failed for Pod ${podId}, clearing session ID and retrying`
-            );
-
-            podStore.setClaudeSessionId(canvasId, podId, '');
-
-            return this.sendMessageInternal(podId, message, onStream, connectionId, true);
+            // 對前端隱藏內部錯誤細節，只顯示通用訊息
+            onStream({type: 'error', error: '與 Claude 通訊時發生錯誤，請稍後再試'});
+            throw error;
         } finally {
             // 確保所有情況都清理 activeQueries entry，防止 Memory Leak
             this.activeQueries.delete(podId);

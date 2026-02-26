@@ -154,50 +154,78 @@ const loadAppData = async (): Promise<void> => {
 
   isLoading.value = true
 
-  try {
-    if (currentAbortController.signal.aborted) return
-
-    console.log('[App] Loading canvases...')
-    await canvasStore.loadCanvases()
-
-    if (currentAbortController.signal.aborted) return
-
-    if (canvasStore.canvases.length === 0) {
-      console.log('[App] No canvases found, creating default canvas...')
-      const defaultCanvas = await canvasStore.createCanvas('Default')
-      if (!defaultCanvas) {
-        console.error('[App] Failed to create default canvas')
-        return
-      }
-    }
-
-    if (currentAbortController.signal.aborted) return
-
-    if (!canvasStore.activeCanvasId) {
-      console.error('[App] No active canvas after initialization')
-      console.error('[App] Available canvases:', canvasStore.canvases)
-      return
-    }
-
-    console.log('[App] Active canvas:', canvasStore.activeCanvasId)
-    console.log('[App] Loading canvas data...')
-    await loadCanvasData()
-
-    if (currentAbortController.signal.aborted) return
-
-    websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
-    websocketClient.on<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
-    registerUnifiedListeners()
-
-    isInitialized.value = true
-    console.log('[App] Initialization complete')
-  } catch (error) {
-    console.error('[App] Error during initialization:', error)
-  } finally {
+  if (currentAbortController.signal.aborted) {
     if (currentAbortController === loadingAbortController) {
       isLoading.value = false
       loadingAbortController = null
     }
+    return
+  }
+
+  console.log('[App] Loading canvases...')
+  await canvasStore.loadCanvases()
+
+  if (currentAbortController.signal.aborted) {
+    if (currentAbortController === loadingAbortController) {
+      isLoading.value = false
+      loadingAbortController = null
+    }
+    return
+  }
+
+  if (canvasStore.canvases.length === 0) {
+    console.log('[App] No canvases found, creating default canvas...')
+    const defaultCanvas = await canvasStore.createCanvas('Default')
+    if (!defaultCanvas) {
+      console.error('[App] Failed to create default canvas')
+      if (currentAbortController === loadingAbortController) {
+        isLoading.value = false
+        loadingAbortController = null
+      }
+      return
+    }
+  }
+
+  if (currentAbortController.signal.aborted) {
+    if (currentAbortController === loadingAbortController) {
+      isLoading.value = false
+      loadingAbortController = null
+    }
+    return
+  }
+
+  if (!canvasStore.activeCanvasId) {
+    console.error('[App] No active canvas after initialization')
+    console.error('[App] Available canvases:', canvasStore.canvases)
+    if (currentAbortController === loadingAbortController) {
+      isLoading.value = false
+      loadingAbortController = null
+    }
+    return
+  }
+
+  console.log('[App] Active canvas:', canvasStore.activeCanvasId)
+  console.log('[App] Loading canvas data...')
+  await loadCanvasData()
+
+  if (currentAbortController.signal.aborted) {
+    if (currentAbortController === loadingAbortController) {
+      isLoading.value = false
+      loadingAbortController = null
+    }
+    return
+  }
+
+  websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
+  websocketClient.on<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
+  registerUnifiedListeners()
+
+  isInitialized.value = true
+  console.log('[App] Initialization complete')
+
+  if (currentAbortController === loadingAbortController) {
+    isLoading.value = false
+    loadingAbortController = null
   }
 }
 

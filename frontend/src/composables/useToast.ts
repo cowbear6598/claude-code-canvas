@@ -34,9 +34,6 @@ interface ToastItem extends ToastOptions {
 
 const toasts = ref<ToastItem[]>([])
 
-/**
- * 限制描述文字長度
- */
 function limitDescriptionLength(description: string | undefined): string | undefined {
   if (!description) return description
 
@@ -47,9 +44,6 @@ function limitDescriptionLength(description: string | undefined): string | undef
   return description.substring(0, MAX_DESCRIPTION_LENGTH) + '...'
 }
 
-/**
- * 建立 Toast 描述文字的 Helper 函式
- */
 function createDescription(action: string, detail?: string): string {
   return detail ? `${action} - ${detail}` : action
 }

@@ -3,7 +3,9 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { Result, ok, err } from '../types';
 import { logger } from '../utils/logger.js';
+import { fireAndForget } from '../utils/operationHelpers.js';
 import { canvasStore } from './canvasStore.js';
+import { readJsonFileOrDefault } from './shared/fileResourceHelpers.js';
 
 export interface BaseNote {
   id: string;
@@ -162,31 +164,21 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
 
     await fs.mkdir(canvasDataDir, { recursive: true });
 
-    try {
-      await fs.access(notesFilePath);
-    } catch {
+    const notesArray = await readJsonFileOrDefault<T>(notesFilePath);
+    if (notesArray === null) {
       this.notesByCanvas.set(canvasId, new Map());
       return ok(undefined);
     }
 
-    const data = await fs.readFile(notesFilePath, 'utf-8');
-
-    try {
-      const notesArray: T[] = JSON.parse(data);
-
-      const notesMap = new Map<string, T>();
-      for (const note of notesArray) {
-        notesMap.set(note.id, note);
-      }
-
-      this.notesByCanvas.set(canvasId, notesMap);
-
-      logger.log('Note', 'Load', `[${this.config.storeName}] Loaded ${notesMap.size} notes for canvas ${canvasId}`);
-      return ok(undefined);
-    } catch (error) {
-      logger.error('Note', 'Error', `[${this.config.storeName}] Failed to load notes for canvas ${canvasId}`, error);
-      return err('載入筆記失敗');
+    const notesMap = new Map<string, T>();
+    for (const note of notesArray) {
+      notesMap.set(note.id, note);
     }
+
+    this.notesByCanvas.set(canvasId, notesMap);
+
+    logger.log('Note', 'Load', `[${this.config.storeName}] Loaded ${notesMap.size} notes for canvas ${canvasId}`);
+    return ok(undefined);
   }
 
   async saveToDisk(canvasId: string): Promise<Result<void>> {
@@ -207,9 +199,11 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
   }
 
   saveToDiskAsync(canvasId: string): void {
-    this.saveToDisk(canvasId).catch((error) => {
-      logger.error('Note', 'Error', `[${this.config.storeName}] Failed to persist notes for canvas ${canvasId}`, error);
-    });
+    fireAndForget(
+      this.saveToDisk(canvasId),
+      'Note',
+      `[${this.config.storeName}] Failed to persist notes for canvas ${canvasId}`
+    );
   }
 }
 

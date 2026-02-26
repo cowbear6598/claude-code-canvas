@@ -9,6 +9,7 @@ import { socketService } from './socketService.js';
 import { workflowExecutionService } from './workflow';
 import { autoClearService } from './autoClear';
 import { logger } from '../utils/logger.js';
+import { fireAndForget } from '../utils/operationHelpers.js';
 import { executeStreamingChat } from './claude/streamingChatExecutor.js';
 
 const TICK_INTERVAL_MS = 1000;
@@ -119,9 +120,11 @@ class ScheduleService {
 
     for (const { canvasId, pod } of podsWithSchedule) {
       if (pod.schedule && this.shouldFire(pod.schedule, now)) {
-        this.fireSchedule(canvasId, pod, now).catch((error) => {
-          logger.error('Schedule', 'Error', `Failed to fire schedule for Pod ${pod.id}`, error);
-        });
+        fireAndForget(
+          this.fireSchedule(canvasId, pod, now),
+          'Schedule',
+          `Failed to fire schedule for Pod ${pod.id}`
+        );
       }
     }
   }
@@ -163,10 +166,16 @@ class ScheduleService {
         { canvasId, podId, message: '', connectionId: SystemConnectionIds.SCHEDULE, supportAbort: false },
         {
           onComplete: async (canvasId, podId) => {
-            autoClearService.onPodComplete(canvasId, podId).catch(error =>
-              logger.error('Schedule', 'Error', `autoClear 處理失敗`, error));
-            workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch(error =>
-              logger.error('Schedule', 'Error', `workflow 觸發失敗`, error));
+            fireAndForget(
+              autoClearService.onPodComplete(canvasId, podId),
+              'Schedule',
+              'autoClear 處理失敗'
+            );
+            fireAndForget(
+              workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId),
+              'Schedule',
+              'workflow 觸發失敗'
+            );
           },
         }
       );

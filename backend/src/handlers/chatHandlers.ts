@@ -13,6 +13,7 @@ import {workflowExecutionService} from '../services/workflow/index.js';
 import {autoClearService} from '../services/autoClear/index.js';
 import {emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
+import {fireAndForget} from '../utils/operationHelpers.js';
 import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';
 import {executeStreamingChat} from '../services/claude/streamingChatExecutor.js';
 
@@ -66,10 +67,16 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
             {canvasId, podId, message, connectionId, supportAbort: true},
             {
                 onComplete: async (canvasId, podId) => {
-                    autoClearService.onPodComplete(canvasId, podId).catch(error =>
-                        logger.error('AutoClear', 'Error', `Failed to check auto-clear for Pod ${podId}`, error));
-                    workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId).catch(error =>
-                        logger.error('Workflow', 'Error', `Failed to check auto-trigger workflows for Pod ${podId}`, error));
+                    fireAndForget(
+                        autoClearService.onPodComplete(canvasId, podId),
+                        'AutoClear',
+                        `Failed to check auto-clear for Pod ${podId}`
+                    );
+                    fireAndForget(
+                        workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId),
+                        'Workflow',
+                        `Failed to check auto-trigger workflows for Pod ${podId}`
+                    );
                 },
                 onAborted: async (canvasId, podId, messageId) => {
                     const abortedPayload: PodChatAbortedPayload = {canvasId, podId, messageId};
@@ -101,7 +108,6 @@ export const handleChatAbort = withCanvasId<ChatAbortPayload>(
             return;
         }
 
-        // 驗證請求者是否為對話發起者
         const queryConnectionId = claudeQueryService.getQueryConnectionId(podId);
         if (!queryConnectionId) {
             // 找不到查詢但 pod 狀態是 chatting，重設為 idle 避免卡死

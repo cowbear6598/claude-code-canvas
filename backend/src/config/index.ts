@@ -1,34 +1,22 @@
 import os from 'os';
 import path from 'path';
 
-/**
- * 驗證 GitLab URL 格式
- * @param url GitLab URL
- * @throws Error 如果 URL 格式不正確
- */
 function validateGitLabUrl(url: string | undefined): void {
   if (!url) {
     return;
   }
 
-  // 必須是 HTTPS URL
   if (!url.startsWith('https://')) {
     throw new Error('GITLAB_URL 必須使用 HTTPS 協議');
   }
 
-  // 驗證 URL 格式
-  try {
-    const urlObj = new URL(url);
+  if (!URL.canParse(url)) {
+    throw new Error('GITLAB_URL 格式不正確');
+  }
 
-    // 驗證 hostname 格式合法（不包含非法字元）
-    if (!urlObj.hostname || urlObj.hostname.includes(' ')) {
-      throw new Error('GITLAB_URL 包含無效的主機名稱');
-    }
-  } catch (error) {
-    if (error instanceof TypeError) {
-      throw new Error('GITLAB_URL 格式不正確');
-    }
-    throw error;
+  const urlObj = new URL(url);
+  if (!urlObj.hostname || urlObj.hostname.includes(' ')) {
+    throw new Error('GITLAB_URL 包含無效的主機名稱');
   }
 }
 
@@ -57,7 +45,6 @@ function loadConfig(): Config {
   const gitlabToken = process.env.GITLAB_TOKEN;
   const gitlabUrl = process.env.GITLAB_URL?.replace(/\/$/, '');
 
-  // 驗證 GitLab URL
   validateGitLabUrl(gitlabUrl);
 
   const corsOrigin = (origin: string | undefined): boolean => {
@@ -65,13 +52,8 @@ function loadConfig(): Config {
       return true;
     }
 
-    // 允許 localhost、127.0.0.1 和區域網路 IP（可選 port）
     const localOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$/;
-
-    // 允許 ngrok 免費版網域（*.ngrok-free.dev）
     const ngrokFreePattern = /^https?:\/\/[\w-]+\.ngrok-free\.dev$/;
-
-    // 允許 ngrok 付費版網域（*.ngrok.io）
     const ngrokProPattern = /^https?:\/\/[\w-]+\.ngrok\.io$/;
 
     return localOriginPattern.test(origin) ||

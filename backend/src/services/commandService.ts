@@ -2,47 +2,14 @@ import fs from 'fs/promises';
 import path from 'path';
 import {config} from '../config';
 import type {Command} from '../types';
-import {isPathWithinDirectory, validatePodId, validateCommandId, sanitizePathSegment} from '../utils/pathValidator.js';
-import {fileExists, ensureDirectoryAndWriteFile, readFileOrNull} from './shared/fileResourceHelpers.js';
+import {isPathWithinDirectory, validatePodId, validateCommandId} from '../utils/pathValidator.js';
+import {ensureDirectoryAndWriteFile, readFileOrNull} from './shared/fileResourceHelpers.js';
+import {listGroupedMarkdownResources, findGroupedResourceFilePath, setGroupedResourceGroupId} from './shared/groupedResourceHelpers.js';
 
 class CommandService {
     async list(): Promise<Command[]> {
         await fs.mkdir(config.commandsPath, {recursive: true});
-        const commands: Command[] = [];
-
-        try {
-            const rootEntries = await fs.readdir(config.commandsPath, {withFileTypes: true});
-
-            for (const entry of rootEntries) {
-                if (entry.isFile() && entry.name.endsWith('.md')) {
-                    const commandId = entry.name.slice(0, -3);
-                    commands.push({
-                        id: commandId,
-                        name: commandId,
-                        groupId: null,
-                    });
-                } else if (entry.isDirectory()) {
-                    const groupName = entry.name;
-                    const groupPath = path.join(config.commandsPath, groupName);
-                    const groupFiles = await fs.readdir(groupPath);
-
-                    for (const file of groupFiles) {
-                        if (file.endsWith('.md')) {
-                            const commandId = file.slice(0, -3);
-                            commands.push({
-                                id: commandId,
-                                name: commandId,
-                                groupId: groupName,
-                            });
-                        }
-                    }
-                }
-            }
-        } catch {
-            // 如果目錄不存在或讀取失敗時忽略錯誤，因為初次執行時目錄可能不存在
-        }
-
-        return commands;
+        return listGroupedMarkdownResources(config.commandsPath);
     }
     async exists(commandId: string): Promise<boolean> {
         const filePath = await this.findCommandFilePath(commandId);
@@ -132,47 +99,16 @@ class CommandService {
     }
 
     async setGroupId(commandId: string, groupId: string | null): Promise<void> {
-        const oldPath = await this.findCommandFilePath(commandId);
-        if (!oldPath) throw new Error(`找不到 Command: ${commandId}`);
-
-        const newPath = groupId === null
-            ? path.join(config.commandsPath, `${commandId}.md`)
-            : path.join(config.commandsPath, sanitizePathSegment(groupId), `${commandId}.md`);
-
-        if (groupId !== null) {
-            await fs.mkdir(path.dirname(newPath), {recursive: true});
-        }
-
-        if (oldPath !== newPath) {
-            await fs.rename(oldPath, newPath);
-        }
+        return setGroupedResourceGroupId(
+            config.commandsPath,
+            commandId,
+            groupId,
+            () => this.findCommandFilePath(commandId)
+        );
     }
 
     private async findCommandFilePath(commandId: string): Promise<string | null> {
-        if (!validateCommandId(commandId)) {
-            return null;
-        }
-
-        const rootPath = path.join(config.commandsPath, `${commandId}.md`);
-        if (await fileExists(rootPath)) {
-            return rootPath;
-        }
-
-        try {
-            const entries = await fs.readdir(config.commandsPath, {withFileTypes: true});
-            for (const entry of entries) {
-                if (entry.isDirectory()) {
-                    const groupPath = path.join(config.commandsPath, entry.name, `${commandId}.md`);
-                    if (await fileExists(groupPath)) {
-                        return groupPath;
-                    }
-                }
-            }
-        } catch {
-            // 目錄不存在或讀取失敗時忽略錯誤，因為檔案可能確實不存在
-        }
-
-        return null;
+        return findGroupedResourceFilePath(config.commandsPath, commandId, validateCommandId);
     }
 
     private getCommandFilePath(commandId: string): string {

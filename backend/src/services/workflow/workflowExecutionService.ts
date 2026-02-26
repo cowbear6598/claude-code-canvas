@@ -16,6 +16,7 @@ import {summaryService} from '../summaryService.js';
 import {workflowQueueService} from './workflowQueueService.js';
 import {autoClearService} from '../autoClear/index.js';
 import {logger} from '../../utils/logger.js';
+import {fireAndForget} from '../../utils/operationHelpers.js';
 import {commandService} from '../commandService.js';
 import {executeStreamingChat} from '../claude/streamingChatExecutor.js';
 import {
@@ -44,6 +45,11 @@ class WorkflowExecutionService {
     this.directTriggerService = deps.directTriggerService;
   }
 
+  private getLastAssistantFallback(sourcePodId: string): { content: string; isSummarized: boolean } | null {
+    const fallback = workflowAutoTriggerService.getLastAssistantMessage(sourcePodId);
+    return fallback ? { content: fallback, isSummarized: false } : null;
+  }
+
   async generateSummaryWithFallback(
     canvasId: string,
     sourcePodId: string,
@@ -63,9 +69,8 @@ class WorkflowExecutionService {
       );
     } catch (error) {
       logger.error('Workflow', 'Error', 'Failed to generate summary', error);
-      const fallback = workflowAutoTriggerService.getLastAssistantMessage(sourcePodId);
       podStore.setStatus(canvasId, sourcePodId, 'idle');
-      return fallback ? { content: fallback, isSummarized: false } : null;
+      return this.getLastAssistantFallback(sourcePodId);
     }
 
     if (summaryResult.success) {
@@ -74,9 +79,8 @@ class WorkflowExecutionService {
     }
 
     logger.error('Workflow', 'Error', `Failed to generate summary: ${summaryResult.error}`);
-    const fallback = workflowAutoTriggerService.getLastAssistantMessage(sourcePodId);
     podStore.setStatus(canvasId, sourcePodId, 'idle');
-    return fallback ? { content: fallback, isSummarized: false } : null;
+    return this.getLastAssistantFallback(sourcePodId);
   }
 
   async checkAndTriggerWorkflows(canvasId: string, sourcePodId: string): Promise<void> {
@@ -84,13 +88,14 @@ class WorkflowExecutionService {
       throw new Error('WorkflowExecutionService 尚未初始化，請先呼叫 init()');
     }
     const connections = connectionStore.findBySourcePodId(canvasId, sourcePodId);
+
+    if (connections.length === 0) {
+      return;
+    }
+
     const autoConnections = connections.filter((conn) => conn.triggerMode === 'auto');
     const aiDecideConnections = connections.filter((conn) => conn.triggerMode === 'ai-decide');
     const directConnections = connections.filter((conn) => conn.triggerMode === 'direct');
-
-    if (autoConnections.length === 0 && aiDecideConnections.length === 0 && directConnections.length === 0) {
-      return;
-    }
 
     const sourcePod = podStore.getById(canvasId, sourcePodId);
     logger.log('Workflow', 'Create', `Found ${autoConnections.length} auto, ${aiDecideConnections.length} ai-decide, and ${directConnections.length} direct connections for Pod "${sourcePod?.name ?? sourcePodId}"`);
@@ -157,8 +162,10 @@ class WorkflowExecutionService {
     });
 
     podStore.setStatus(canvasId, targetPodId, 'chatting');
-    this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, summary, strategy).catch(error =>
-      logger.error('Workflow', 'Error', `executeClaudeQuery 執行失敗 (connection: ${connectionId})`, error)
+    fireAndForget(
+      this.executeClaudeQuery(canvasId, connectionId, sourcePodId, targetPodId, summary, strategy),
+      'Workflow',
+      `executeClaudeQuery 執行失敗 (connection: ${connectionId})`
     );
   }
 
@@ -178,9 +185,11 @@ class WorkflowExecutionService {
   }
 
   private scheduleNextInQueue(canvasId: string, targetPodId: string): void {
-    workflowQueueService.processNextInQueue(canvasId, targetPodId).catch(error => {
-      logger.error('Workflow', 'Error', `處理佇列下一項時發生錯誤: ${error}`);
-    });
+    fireAndForget(
+      workflowQueueService.processNextInQueue(canvasId, targetPodId),
+      'Workflow',
+      '處理佇列下一項時發生錯誤'
+    );
   }
 
   private async executeClaudeQuery(
@@ -222,8 +231,10 @@ class WorkflowExecutionService {
           );
           logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod "${targetPod?.name ?? targetPodId}"`);
           await autoClearService.onPodComplete(canvasId, targetPodId);
-          this.checkAndTriggerWorkflows(canvasId, targetPodId).catch(error =>
-            logger.error('Workflow', 'Error', `下游 workflow 觸發失敗 (pod: ${targetPodId})`, error)
+          fireAndForget(
+            this.checkAndTriggerWorkflows(canvasId, targetPodId),
+            'Workflow',
+            `下游 workflow 觸發失敗 (pod: ${targetPodId})`
           );
           this.scheduleNextInQueue(canvasId, targetPodId);
         },

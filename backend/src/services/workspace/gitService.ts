@@ -27,7 +27,6 @@ export interface SmartCheckoutOptions {
 
 type GitSource = 'github' | 'gitlab' | 'other';
 
-// 允許英數字、底線、連字號、斜線，但不允許 `..` 路徑穿越
 const BRANCH_NAME_PATTERN = /^[a-zA-Z0-9_\-/]+$/;
 
 function isValidBranchName(branchName: string): boolean {
@@ -203,7 +202,6 @@ class GitService {
             return ok(undefined);
         } catch (error) {
             const errorMessage = parseCloneErrorMessage(error, source);
-            // logger.error 已經內建清理機制，直接傳入錯誤即可
             logger.error('Git', 'Error', `[Git] Failed to clone repository`, error);
             return err(errorMessage);
         }

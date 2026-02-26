@@ -311,7 +311,7 @@ describe('subAgentStore', () => {
 
       await store.loadGroups()
 
-      expect(warnSpy).toHaveBeenCalledWith('[SubAgentStore] Cannot load groups: no active canvas')
+      expect(warnSpy).toHaveBeenCalledWith('[SubAgentStore] 沒有啟用的畫布')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
 
       warnSpy.mockRestore()

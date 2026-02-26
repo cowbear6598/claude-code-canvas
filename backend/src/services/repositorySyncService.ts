@@ -5,6 +5,7 @@ import { commandService } from './commandService.js';
 import { skillService } from './skillService.js';
 import { subAgentService } from './subAgentService.js';
 import { logger } from '../utils/logger.js';
+import { fsOperation } from '../utils/operationHelpers.js';
 
 class RepositorySyncService {
   private locks: Map<string, Promise<void>> = new Map();
@@ -57,14 +58,12 @@ class RepositorySyncService {
         }
       }
 
-      // 同組並行執行 delete 操作
       const deleteResults = await Promise.allSettled([
         commandService.deleteCommandFromPath(repositoryPath),
         skillService.deleteSkillsFromPath(repositoryPath),
         subAgentService.deleteSubAgentsFromPath(repositoryPath),
       ]);
 
-      // 統一記錄失敗的操作
       const deleteNames = ['commands', 'skills', 'subagents'];
       deleteResults.forEach((result, index) => {
         if (result.status === 'rejected') {
@@ -73,27 +72,24 @@ class RepositorySyncService {
       });
 
       for (const commandId of commandIds) {
-        try {
-          await commandService.copyCommandToRepository(commandId, repositoryPath);
-        } catch (error) {
-          logger.error('Repository', 'Update', `Failed to copy command ${commandId} to repository ${repositoryId}`, error);
-        }
+        await fsOperation(
+          () => commandService.copyCommandToRepository(commandId, repositoryPath),
+          `Failed to copy command ${commandId} to repository ${repositoryId}`
+        );
       }
 
       for (const skillId of skillIds) {
-        try {
-          await skillService.copySkillToRepository(skillId, repositoryPath);
-        } catch (error) {
-          logger.error('Repository', 'Update', `Failed to copy skill ${skillId} to repository ${repositoryId}`, error);
-        }
+        await fsOperation(
+          () => skillService.copySkillToRepository(skillId, repositoryPath),
+          `Failed to copy skill ${skillId} to repository ${repositoryId}`
+        );
       }
 
       for (const subAgentId of subAgentIds) {
-        try {
-          await subAgentService.copySubAgentToRepository(subAgentId, repositoryPath);
-        } catch (error) {
-          logger.error('Repository', 'Update', `Failed to copy subagent ${subAgentId} to repository ${repositoryId}`, error);
-        }
+        await fsOperation(
+          () => subAgentService.copySubAgentToRepository(subAgentId, repositoryPath),
+          `Failed to copy subagent ${subAgentId} to repository ${repositoryId}`
+        );
       }
 
       logger.log('Repository', 'Update', `Synced repository ${repositoryId} with ${commandIds.size} commands, ${skillIds.size} skills, ${subAgentIds.size} subagents`);

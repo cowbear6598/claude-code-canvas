@@ -18,6 +18,7 @@ import type {
   WorkflowClearPayload
 } from '@/types/websocket'
 import {formatScheduleTooltip} from '@/utils/scheduleUtils'
+import {getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
 import PodHeader from '@/components/pod/PodHeader.vue'
 import PodMiniScreen from '@/components/pod/PodMiniScreen.vue'
 import PodSlots from '@/components/pod/PodSlots.vue'
@@ -41,7 +42,6 @@ const {
   commandStore,
   connectionStore,
   chatStore,
-  canvasStore
 } = useCanvasContext()
 const {detectTargetAnchor} = useAnchorDetection()
 const {toast} = useToast()
@@ -383,7 +383,8 @@ const handleAnchorDragEnd = async (): Promise<void> => {
 }
 
 const handleClearWorkflow = async (): Promise<void> => {
-  if (!canvasStore.activeCanvasId) return
+  const canvasId = getActiveCanvasIdOrWarn('CanvasPod')
+  if (!canvasId) return
 
   isLoadingDownstream.value = true
 
@@ -394,7 +395,7 @@ const handleClearWorkflow = async (): Promise<void> => {
         requestEvent: WebSocketRequestEvents.WORKFLOW_GET_DOWNSTREAM_PODS,
         responseEvent: WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
         payload: {
-          canvasId: canvasStore.activeCanvasId,
+          canvasId,
           sourcePodId: props.pod.id
         }
       })
@@ -411,7 +412,8 @@ const handleClearWorkflow = async (): Promise<void> => {
 }
 
 const handleConfirmClear = async (): Promise<void> => {
-  if (!canvasStore.activeCanvasId) return
+  const canvasId = getActiveCanvasIdOrWarn('CanvasPod')
+  if (!canvasId) return
 
   isClearing.value = true
 
@@ -422,7 +424,7 @@ const handleConfirmClear = async (): Promise<void> => {
         requestEvent: WebSocketRequestEvents.WORKFLOW_CLEAR,
         responseEvent: WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
         payload: {
-          canvasId: canvasStore.activeCanvasId,
+          canvasId,
           sourcePodId: props.pod.id
         }
       })
@@ -437,7 +439,6 @@ const handleConfirmClear = async (): Promise<void> => {
   chatStore.clearMessagesByPodIds(response.clearedPodIds)
   podStore.clearPodOutputsByIds(response.clearedPodIds)
 
-  // 清除下游 AI Decide connections 的狀態
   const downstreamAiDecideConnectionIds: string[] = []
   response.clearedPodIds.forEach(podId => {
     const connections = connectionStore.getAiDecideConnectionsBySourcePodId(podId)
@@ -458,7 +459,8 @@ const handleCancelClear = (): void => {
 }
 
 const handleModelChange = async (model: ModelType): Promise<void> => {
-  if (!canvasStore.activeCanvasId) return
+  const canvasId = getActiveCanvasIdOrWarn('CanvasPod')
+  if (!canvasId) return
 
   const {wrapWebSocketRequest} = useWebSocketErrorHandler()
 
@@ -467,7 +469,7 @@ const handleModelChange = async (model: ModelType): Promise<void> => {
         requestEvent: WebSocketRequestEvents.POD_SET_MODEL,
         responseEvent: WebSocketResponseEvents.POD_MODEL_SET,
         payload: {
-          canvasId: canvasStore.activeCanvasId,
+          canvasId,
           podId: props.pod.id,
           model
         }

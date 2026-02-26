@@ -11,7 +11,7 @@ import type {
 } from '../../types';
 
 import {claudeQueryService} from './queryService.js';
-import type {StreamEvent} from './queryService.js';
+import type {StreamEvent} from './types.js';
 import {
     buildPersistedMessage,
     createSubMessageFlusher,
@@ -46,7 +46,6 @@ export interface StreamingChatExecutorResult {
     aborted: boolean;
 }
 
-/** 建立統一的 streaming 事件處理 callback */
 function createStreamingCallback(
     canvasId: string,
     podId: string,

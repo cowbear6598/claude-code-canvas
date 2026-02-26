@@ -8,6 +8,8 @@ import {
 } from '@/services/websocket'
 import {useToast} from '@/composables/useToast'
 import {useCanvasStore} from '@/stores/canvasStore'
+import {requireActiveCanvas, getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
+import {createWorkflowEventHandlers} from './workflowEventHandlers'
 import type {
     ConnectionCreatedPayload,
     ConnectionCreatePayload,
@@ -16,17 +18,6 @@ import type {
     ConnectionListPayload,
     ConnectionListResultPayload,
     ConnectionUpdatePayload,
-    WorkflowAutoTriggeredPayload,
-    WorkflowCompletePayload,
-    WorkflowAiDecidePendingPayload,
-    WorkflowAiDecideResultPayload,
-    WorkflowAiDecideErrorPayload,
-    WorkflowAiDecideClearPayload,
-    WorkflowAiDecideTriggeredPayload,
-    WorkflowDirectTriggeredPayload,
-    WorkflowDirectWaitingPayload,
-    WorkflowQueuedPayload,
-    WorkflowQueueProcessedPayload
 } from '@/types/websocket'
 
 interface RawConnection {
@@ -135,18 +126,14 @@ export const useConnectionStore = defineStore('connection', {
         },
 
         async loadConnectionsFromBackend(): Promise<void> {
-            const canvasStore = useCanvasStore()
-
-            if (!canvasStore.activeCanvasId) {
-                console.warn('[ConnectionStore] Cannot load connections: no active canvas')
-                return
-            }
+            const canvasId = getActiveCanvasIdOrWarn('ConnectionStore')
+            if (!canvasId) return
 
             const response = await createWebSocketRequest<ConnectionListPayload, ConnectionListResultPayload>({
                 requestEvent: WebSocketRequestEvents.CONNECTION_LIST,
                 responseEvent: WebSocketResponseEvents.CONNECTION_LIST_RESULT,
                 payload: {
-                    canvasId: canvasStore.activeCanvasId
+                    canvasId
                 }
             })
 
@@ -155,41 +142,43 @@ export const useConnectionStore = defineStore('connection', {
             }
         },
 
+        validateNewConnection(sourcePodId: string | undefined | null, targetPodId: string): boolean {
+            if (sourcePodId === targetPodId) {
+                console.warn('[ConnectionStore] Cannot connect pod to itself')
+                return false
+            }
+
+            if (!sourcePodId) return true
+
+            const alreadyConnected = this.connections.some(
+                conn => conn.sourcePodId === sourcePodId && conn.targetPodId === targetPodId
+            )
+            if (alreadyConnected) {
+                const {toast} = useToast()
+                toast({
+                    title: '連線已存在',
+                    description: '這兩個 Pod 之間已經有連線了',
+                    duration: 3000
+                })
+                return false
+            }
+
+            return true
+        },
+
         async createConnection(
             sourcePodId: string | undefined | null,
             sourceAnchor: AnchorPosition,
             targetPodId: string,
             targetAnchor: AnchorPosition
         ): Promise<Connection | null> {
-            if (sourcePodId === targetPodId) {
-                console.warn('[ConnectionStore] Cannot connect pod to itself')
-                return null
-            }
+            if (!this.validateNewConnection(sourcePodId, targetPodId)) return null
 
-            if (sourcePodId) {
-                const existingConnection = this.connections.find(
-                    conn => conn.sourcePodId === sourcePodId && conn.targetPodId === targetPodId
-                )
-                if (existingConnection) {
-                    const {toast} = useToast()
-                    toast({
-                        title: '連線已存在',
-                        description: '這兩個 Pod 之間已經有連線了',
-                        duration: 3000
-                    })
-                    return null
-                }
-            }
-
-            const canvasStore = useCanvasStore()
-
-            if (!canvasStore.activeCanvasId) {
-                throw new Error('無法建立連線：沒有啟用的畫布')
-            }
+            const canvasId = requireActiveCanvas()
 
             const payload: ConnectionCreatePayload = {
                 requestId: '',
-                canvasId: canvasStore.activeCanvasId,
+                canvasId,
                 sourceAnchor,
                 targetPodId,
                 targetAnchor,
@@ -291,17 +280,13 @@ export const useConnectionStore = defineStore('connection', {
         },
 
         async updateConnectionTriggerMode(connectionId: string, triggerMode: TriggerMode): Promise<Connection | null> {
-            const canvasStore = useCanvasStore()
-
-            if (!canvasStore.activeCanvasId) {
-                throw new Error('無法更新連線：沒有啟用的畫布')
-            }
+            const canvasId = requireActiveCanvas()
 
             const response = await createWebSocketRequest<ConnectionUpdatePayload, ConnectionCreatedPayload>({
                 requestEvent: WebSocketRequestEvents.CONNECTION_UPDATE,
                 responseEvent: WebSocketResponseEvents.CONNECTION_UPDATED,
                 payload: {
-                    canvasId: canvasStore.activeCanvasId,
+                    canvasId,
                     connectionId,
                     triggerMode
                 }
@@ -312,6 +297,10 @@ export const useConnectionStore = defineStore('connection', {
             }
 
             return normalizeConnection(response.connection)
+        },
+
+        _getWorkflowHandlers() {
+            return createWorkflowEventHandlers(this)
         },
 
         setupWorkflowListeners(): void {
@@ -326,100 +315,52 @@ export const useConnectionStore = defineStore('connection', {
             })
         },
 
-        handleWorkflowAutoTriggered(payload: WorkflowAutoTriggeredPayload): void {
-            this.updateAutoGroupStatus(payload.targetPodId, 'active')
+        handleWorkflowAutoTriggered(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowAutoTriggered']>[0]): void {
+            this._getWorkflowHandlers().handleWorkflowAutoTriggered(payload)
         },
 
-        handleWorkflowAiDecideTriggered(payload: WorkflowAiDecideTriggeredPayload): void {
-            this.updateAutoGroupStatus(payload.targetPodId, 'active')
+        handleWorkflowAiDecideTriggered(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowAiDecideTriggered']>[0]): void {
+            this._getWorkflowHandlers().handleWorkflowAiDecideTriggered(payload)
         },
 
-        handleWorkflowComplete(payload: WorkflowCompletePayload): void {
-            const triggerMode = payload.triggerMode
-            if (triggerMode === 'auto' || triggerMode === 'ai-decide') {
-                this.updateAutoGroupStatus(payload.targetPodId, 'idle')
-            } else {
-                const connection = this._findById(payload.connectionId)
-                if (connection) {
-                    connection.status = 'idle'
-                }
-            }
+        handleWorkflowComplete(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowComplete']>[0]): void {
+            this._getWorkflowHandlers().handleWorkflowComplete(payload)
         },
 
-        handleWorkflowDirectTriggered(payload: WorkflowDirectTriggeredPayload): void {
-            const connection = this._findById(payload.connectionId)
-            if (connection) {
-                connection.status = 'active'
-            }
+        handleWorkflowDirectTriggered(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowDirectTriggered']>[0]): void {
+            this._getWorkflowHandlers().handleWorkflowDirectTriggered(payload)
         },
 
-        handleWorkflowDirectWaiting(payload: WorkflowDirectWaitingPayload): void {
-            const connection = this._findById(payload.connectionId)
-            if (connection) {
-                connection.status = 'waiting'
-            }
+        handleWorkflowDirectWaiting(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowDirectWaiting']>[0]): void {
+            this._getWorkflowHandlers().handleWorkflowDirectWaiting(payload)
         },
 
-        handleWorkflowQueued(payload: WorkflowQueuedPayload): void {
-            if (payload.triggerMode === 'auto' || payload.triggerMode === 'ai-decide') {
-                this.updateAutoGroupStatus(payload.targetPodId, 'queued')
-            } else {
-                const connection = this._findById(payload.connectionId)
-                if (connection) {
-                    connection.status = 'queued'
-                }
-            }
+        handleWorkflowQueued(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowQueued']>[0]): void {
+            this._getWorkflowHandlers().handleWorkflowQueued(payload)
         },
 
-        handleWorkflowQueueProcessed(payload: WorkflowQueueProcessedPayload): void {
-            if (payload.triggerMode === 'auto' || payload.triggerMode === 'ai-decide') {
-                this.updateAutoGroupStatus(payload.targetPodId, 'active')
-            } else {
-                const connection = this._findById(payload.connectionId)
-                if (connection) {
-                    connection.status = 'active'
-                }
-            }
+        handleWorkflowQueueProcessed(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowQueueProcessed']>[0]): void {
+            this._getWorkflowHandlers().handleWorkflowQueueProcessed(payload)
         },
 
-        handleAiDecidePending(payload: WorkflowAiDecidePendingPayload): void {
-            payload.connectionIds.forEach(connectionId => {
-                const connection = this._findById(connectionId)
-                if (connection) {
-                    connection.status = 'ai-deciding'
-                    connection.decideReason = undefined
-                }
-            })
+        handleAiDecidePending(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleAiDecidePending']>[0]): void {
+            this._getWorkflowHandlers().handleAiDecidePending(payload)
         },
 
-        handleAiDecideResult(payload: WorkflowAiDecideResultPayload): void {
-            const connection = this._findById(payload.connectionId)
-            if (connection) {
-                connection.status = payload.shouldTrigger ? 'ai-approved' : 'ai-rejected'
-                connection.decideReason = payload.shouldTrigger ? undefined : payload.reason
-            }
+        handleAiDecideResult(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleAiDecideResult']>[0]): void {
+            this._getWorkflowHandlers().handleAiDecideResult(payload)
         },
 
-        handleAiDecideError(payload: WorkflowAiDecideErrorPayload): void {
-            const connection = this._findById(payload.connectionId)
-            if (connection) {
-                connection.status = 'ai-error'
-                connection.decideReason = payload.error
-            }
+        handleAiDecideError(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleAiDecideError']>[0]): void {
+            this._getWorkflowHandlers().handleAiDecideError(payload)
         },
 
-        handleAiDecideClear(payload: WorkflowAiDecideClearPayload): void {
-            this.clearAiDecideStatusByConnectionIds(payload.connectionIds)
+        handleAiDecideClear(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleAiDecideClear']>[0]): void {
+            this._getWorkflowHandlers().handleAiDecideClear(payload)
         },
 
         clearAiDecideStatusByConnectionIds(connectionIds: string[]): void {
-            connectionIds.forEach(connectionId => {
-                const connection = this._findById(connectionId)
-                if (connection) {
-                    connection.status = 'idle'
-                    connection.decideReason = undefined
-                }
-            })
+            this._getWorkflowHandlers().clearAiDecideStatusByConnectionIds(connectionIds)
         },
 
         addConnectionFromEvent(connection: Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }): void {

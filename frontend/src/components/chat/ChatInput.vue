@@ -163,7 +163,6 @@ const insertNodeAtCursor = (node: Node): void => {
   element.dispatchEvent(new Event('input', {bubbles: true}))
 }
 
-/** 讀取檔案為 DataURL */
 const readFileAsDataURL = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -242,7 +241,6 @@ const handlePaste = async (e: ClipboardEvent): Promise<void> => {
       range.deleteContents()
       const textNode = document.createTextNode(text)
       range.insertNode(textNode)
-      // 將游標移到插入的文字後面
       range.setStartAfter(textNode)
       range.setEndAfter(textNode)
       selection.removeAllRanges()
@@ -406,7 +404,6 @@ const handleEnterKey = (e: KeyboardEvent): void => {
   handleSend()
 }
 
-/** 查找游標前方的圖片 atom 節點 */
 const findImageAtomBefore = (range: Range): HTMLElement | null => {
   const {startContainer, startOffset} = range
 

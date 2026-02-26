@@ -186,7 +186,6 @@ const pathRef = ref<SVGPathElement | null>(null)
 // X marker 位置（沿路徑等距分佈）
 const xMarkerPositions = ref<Array<{ x: number; y: number; angle: number }>>([])
 
-// 計算 X marker 位置
 const calculateXMarkerPositions = (): void => {
   if (!pathRef.value || !useXMarker.value) {
     xMarkerPositions.value = []

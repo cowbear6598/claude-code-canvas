@@ -22,6 +22,8 @@ import { getErrorMessage } from '../../utils/websocketResponse.js';
 import { logger } from '../../utils/logger.js';
 import fs from 'fs/promises';
 import path from 'path';
+import { fileExists } from '../../services/shared/fileResourceHelpers.js';
+import { fsOperation } from '../../utils/operationHelpers.js';
 
 function resolveBoundPodId(
   boundToOriginalPodId: string | null,
@@ -47,17 +49,15 @@ async function copyClaudeDir(srcCwd: string, destCwd: string): Promise<void> {
   const srcClaudeDir = path.join(srcCwd, '.claude');
   const destClaudeDir = path.join(destCwd, '.claude');
 
-  try {
-    await fs.access(srcClaudeDir);
-  } catch {
+  const exists = await fileExists(srcClaudeDir);
+  if (!exists) {
     return;
   }
 
-  try {
-    await fs.cp(srcClaudeDir, destClaudeDir, { recursive: true });
-  } catch (error) {
-    logger.error('Paste', 'Error', `Failed to copy .claude directory: ${error}`);
-  }
+  await fsOperation(
+    () => fs.cp(srcClaudeDir, destClaudeDir, { recursive: true }),
+    `Failed to copy .claude directory`
+  );
 }
 
 async function createSinglePod(

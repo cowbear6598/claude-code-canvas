@@ -2,59 +2,23 @@ import fs from 'fs/promises';
 import path from 'path';
 import {config} from '../config';
 import type {SubAgent} from '../types';
-import {validateSubAgentId, validatePodId, isPathWithinDirectory, sanitizePathSegment} from '../utils/pathValidator.js';
-import {fileExists, parseFrontmatterDescription, readFileOrNull, ensureDirectoryAndWriteFile} from './shared/fileResourceHelpers.js';
+import {validateSubAgentId, validatePodId, isPathWithinDirectory} from '../utils/pathValidator.js';
+import {parseFrontmatterDescription, readFileOrNull, ensureDirectoryAndWriteFile} from './shared/fileResourceHelpers.js';
+import {listGroupedMarkdownResources, findGroupedResourceFilePath, setGroupedResourceGroupId} from './shared/groupedResourceHelpers.js';
 
 class SubAgentService {
     async list(): Promise<SubAgent[]> {
         await fs.mkdir(config.agentsPath, {recursive: true});
-        const subAgents: SubAgent[] = [];
+        const resources = await listGroupedMarkdownResources(config.agentsPath);
 
-        try {
-            const rootEntries = await fs.readdir(config.agentsPath, {withFileTypes: true});
-
-            for (const entry of rootEntries) {
-                if (entry.isFile() && entry.name.endsWith('.md')) {
-                    const agentId = entry.name.slice(0, -3);
-                    const agentFilePath = this.getSubAgentFilePath(agentId);
-
-                    const content = await fs.readFile(agentFilePath, 'utf-8');
-                    const description = parseFrontmatterDescription(content);
-
-                    subAgents.push({
-                        id: agentId,
-                        name: agentId,
-                        description,
-                        groupId: null,
-                    });
-                } else if (entry.isDirectory()) {
-                    const groupName = entry.name;
-                    const groupPath = path.join(config.agentsPath, groupName);
-                    const groupFiles = await fs.readdir(groupPath);
-
-                    for (const file of groupFiles) {
-                        if (file.endsWith('.md')) {
-                            const agentId = file.slice(0, -3);
-                            const agentFilePath = path.join(groupPath, file);
-
-                            const content = await fs.readFile(agentFilePath, 'utf-8');
-                            const description = parseFrontmatterDescription(content);
-
-                            subAgents.push({
-                                id: agentId,
-                                name: agentId,
-                                description,
-                                groupId: groupName,
-                            });
-                        }
-                    }
-                }
-            }
-        } catch {
-            // 如果目錄不存在或讀取失敗時忽略錯誤，因為初次執行時目錄可能不存在
-        }
-
-        return subAgents;
+        return Promise.all(resources.map(async ({ id, name, groupId }) => {
+            const filePath = groupId === null
+                ? path.join(config.agentsPath, `${id}.md`)
+                : path.join(config.agentsPath, groupId, `${id}.md`);
+            const content = await fs.readFile(filePath, 'utf-8');
+            const description = parseFrontmatterDescription(content);
+            return { id, name, description, groupId };
+        }));
     }
 
     async exists(subAgentId: string): Promise<boolean> {
@@ -137,47 +101,16 @@ class SubAgentService {
     }
 
     async setGroupId(subAgentId: string, groupId: string | null): Promise<void> {
-        const oldPath = await this.findSubAgentFilePath(subAgentId);
-        if (!oldPath) throw new Error(`找不到子代理: ${subAgentId}`);
-
-        const newPath = groupId === null
-            ? path.join(config.agentsPath, `${subAgentId}.md`)
-            : path.join(config.agentsPath, sanitizePathSegment(groupId), `${subAgentId}.md`);
-
-        if (groupId !== null) {
-            await fs.mkdir(path.dirname(newPath), {recursive: true});
-        }
-
-        if (oldPath !== newPath) {
-            await fs.rename(oldPath, newPath);
-        }
+        return setGroupedResourceGroupId(
+            config.agentsPath,
+            subAgentId,
+            groupId,
+            () => this.findSubAgentFilePath(subAgentId)
+        );
     }
 
     private async findSubAgentFilePath(subAgentId: string): Promise<string | null> {
-        if (!validateSubAgentId(subAgentId)) {
-            return null;
-        }
-
-        const rootPath = path.join(config.agentsPath, `${subAgentId}.md`);
-        if (await fileExists(rootPath)) {
-            return rootPath;
-        }
-
-        try {
-            const entries = await fs.readdir(config.agentsPath, {withFileTypes: true});
-            for (const entry of entries) {
-                if (entry.isDirectory()) {
-                    const groupPath = path.join(config.agentsPath, entry.name, `${subAgentId}.md`);
-                    if (await fileExists(groupPath)) {
-                        return groupPath;
-                    }
-                }
-            }
-        } catch {
-            // 目錄不存在或讀取失敗時忽略錯誤，因為檔案可能確實不存在
-        }
-
-        return null;
+        return findGroupedResourceFilePath(config.agentsPath, subAgentId, validateSubAgentId);
     }
 
     private getSubAgentFilePath(subAgentId: string): string {

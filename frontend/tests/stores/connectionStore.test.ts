@@ -347,7 +347,7 @@ describe('connectionStore', () => {
       const store = useConnectionStore()
 
       await expect(store.createConnection('pod-a', 'bottom', 'pod-b', 'top')).rejects.toThrow(
-        '無法建立連線：沒有啟用的畫布'
+        '沒有啟用的畫布'
       )
     })
 
@@ -537,7 +537,7 @@ describe('connectionStore', () => {
       const store = useConnectionStore()
 
       await expect(store.updateConnectionTriggerMode('conn-1', 'direct')).rejects.toThrow(
-        '無法更新連線：沒有啟用的畫布'
+        '沒有啟用的畫布'
       )
     })
 
@@ -1258,7 +1258,7 @@ describe('connectionStore', () => {
 
       await store.loadConnectionsFromBackend()
 
-      expect(console.warn).toHaveBeenCalledWith('[ConnectionStore] Cannot load connections: no active canvas')
+      expect(console.warn).toHaveBeenCalledWith('[ConnectionStore] 沒有啟用的畫布')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 

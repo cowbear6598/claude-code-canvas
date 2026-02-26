@@ -5,6 +5,9 @@ import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import {useDeleteItem} from '@/composables/useDeleteItem'
 import {useCanvasStore} from '@/stores/canvasStore'
 import {useToast} from '@/composables/useToast'
+import {requireActiveCanvas, getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
+import {createNoteBindingActions} from './noteBindingActions'
+import {createNotePositionActions} from './notePositionActions'
 
 const STORE_TO_CATEGORY_MAP: Record<string, string> = {
     'skill': 'Skill',
@@ -12,11 +15,6 @@ const STORE_TO_CATEGORY_MAP: Record<string, string> = {
     'subAgent': 'SubAgent',
     'command': 'Command',
     'outputStyle': 'OutputStyle'
-}
-
-interface Position {
-    x: number
-    y: number
 }
 
 interface BasePayload {
@@ -102,12 +100,8 @@ export async function rebuildNotesFromPods(
     pods: Pod[],
     config: RebuildNotesConfig
 ): Promise<void> {
-    const canvasStore = useCanvasStore()
-
-    if (!canvasStore.activeCanvasId) {
-        console.warn(`[${config.storeName}] Cannot rebuild notes: no active canvas`)
-        return
-    }
+    const canvasId = getActiveCanvasIdOrWarn(config.storeName)
+    if (!canvasId) return
 
     const promises: Promise<void>[] = []
 
@@ -127,7 +121,7 @@ export async function rebuildNotesFromPods(
             requestEvent: config.requestEvent,
             responseEvent: config.responseEvent,
             payload: {
-                canvasId: canvasStore.activeCanvasId,
+                canvasId,
                 [config.itemIdField]: itemId,
                 name: itemName,
                 x: pod.x,
@@ -242,10 +236,9 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 this.error = null
 
                 const {wrapWebSocketRequest} = useWebSocketErrorHandler()
-                const canvasStore = useCanvasStore()
+                const canvasId = getActiveCanvasIdOrWarn(config.storeName)
 
-                if (!canvasStore.activeCanvasId) {
-                    console.warn(`[${config.storeName}] Cannot load items: no active canvas`)
+                if (!canvasId) {
                     this.isLoading = false
                     return
                 }
@@ -255,7 +248,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                         requestEvent: config.events.listItems.request,
                         responseEvent: config.events.listItems.response,
                         payload: {
-                            canvasId: canvasStore.activeCanvasId
+                            canvasId
                         }
                     })
                 )
@@ -277,10 +270,9 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 this.error = null
 
                 const {wrapWebSocketRequest} = useWebSocketErrorHandler()
-                const canvasStore = useCanvasStore()
+                const canvasId = getActiveCanvasIdOrWarn(config.storeName)
 
-                if (!canvasStore.activeCanvasId) {
-                    console.warn(`[${config.storeName}] Cannot load notes: no active canvas`)
+                if (!canvasId) {
                     this.isLoading = false
                     return
                 }
@@ -290,7 +282,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                         requestEvent: config.events.listNotes.request,
                         responseEvent: config.events.listNotes.response,
                         payload: {
-                            canvasId: canvasStore.activeCanvasId
+                            canvasId
                         }
                     })
                 )
@@ -312,14 +304,10 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 if (!item) return
 
                 const itemName = config.getItemName(item as TItem)
-                const canvasStore = useCanvasStore()
-
-                if (!canvasStore.activeCanvasId) {
-                    throw new Error('Cannot create note: no active canvas')
-                }
+                const canvasId = requireActiveCanvas()
 
                 const payload = {
-                    canvasId: canvasStore.activeCanvasId,
+                    canvasId,
                     ...config.createNotePayload(item as TItem, x, y),
                     name: itemName,
                     x,
@@ -335,52 +323,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 })
             },
 
-            updateNotePositionLocal(noteId: string, x: number, y: number): void {
-                const note = this.notes.find(n => n.id === noteId)
-                if (!note) return
-                note.x = x
-                note.y = y
-            },
-
-            async updateNotePosition(noteId: string, x: number, y: number): Promise<void> {
-                const note = this.notes.find(n => n.id === noteId)
-                if (!note) return
-
-                const originalX = note.x
-                const originalY = note.y
-
-                note.x = x
-                note.y = y
-
-                const {wrapWebSocketRequest} = useWebSocketErrorHandler()
-                const canvasStore = useCanvasStore()
-
-                const response = await wrapWebSocketRequest(
-                    createWebSocketRequest<BasePayload, BaseResponse>({
-                        requestEvent: config.events.updateNote.request,
-                        responseEvent: config.events.updateNote.response,
-                        payload: {
-                            canvasId: canvasStore.activeCanvasId!,
-                            noteId,
-                            x,
-                            y,
-                        }
-                    })
-                )
-
-                if (!response) {
-                    note.x = originalX
-                    note.y = originalY
-                    return
-                }
-
-                if (response.note) {
-                    const index = this.notes.findIndex(n => n.id === noteId)
-                    if (index !== -1) {
-                        this.notes[index] = response.note
-                    }
-                }
-            },
+            ...createNotePositionActions(config),
 
             setDraggedNote(noteId: string | null): void {
                 this.draggedNoteId = noteId
@@ -402,90 +345,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 this.isOverTrash = isOver
             },
 
-            async bindToPod(noteId: string, podId: string): Promise<void> {
-                const note = this.notes.find(n => n.id === noteId)
-                if (!note) return
-
-                if (config.relationship === 'one-to-one') {
-                    const existingNotes = this.getNotesByPodId(podId)
-                    if (existingNotes.length > 0 && config.unbindEvents) {
-                        await this.unbindFromPod!(podId, true)
-                    }
-                }
-
-                const originalPosition = {x: note.x, y: note.y}
-
-                if (!config.bindEvents) return
-
-                const canvasStore = useCanvasStore()
-
-                // 並行執行 bind 和 update
-                await Promise.all([
-                    createWebSocketRequest<BasePayload, BaseResponse>({
-                        requestEvent: config.bindEvents.request,
-                        responseEvent: config.bindEvents.response,
-                        payload: {
-                            canvasId: canvasStore.activeCanvasId!,
-                            podId,
-                            [config.itemIdField]: (note as Record<string, unknown>)[config.itemIdField]
-                        }
-                    }),
-                    createWebSocketRequest<BasePayload, BaseResponse>({
-                        requestEvent: config.events.updateNote.request,
-                        responseEvent: config.events.updateNote.response,
-                        payload: {
-                            canvasId: canvasStore.activeCanvasId!,
-                            noteId,
-                            boundToPodId: podId,
-                            originalPosition,
-                        }
-                    })
-                ])
-            },
-
-            async unbindFromPod(podId: string, returnToOriginal: boolean = false, targetPosition?: Position): Promise<void> {
-                if (!config.unbindEvents || config.relationship !== 'one-to-one') return
-
-                const notes = this.getNotesByPodId(podId)
-                const note = notes[0]
-                if (!note) return
-
-                const noteId = note.id
-
-                const canvasStore = useCanvasStore()
-
-                const updatePayload: Record<string, unknown> = {
-                    canvasId: canvasStore.activeCanvasId!,
-                    noteId,
-                    boundToPodId: null,
-                    originalPosition: null,
-                }
-
-                if (returnToOriginal && note.originalPosition) {
-                    updatePayload.x = note.originalPosition.x
-                    updatePayload.y = note.originalPosition.y
-                } else if (targetPosition) {
-                    updatePayload.x = targetPosition.x
-                    updatePayload.y = targetPosition.y
-                }
-
-                // 並行執行 unbind 和 update
-                await Promise.all([
-                    createWebSocketRequest<BasePayload, BaseResponse>({
-                        requestEvent: config.unbindEvents.request,
-                        responseEvent: config.unbindEvents.response,
-                        payload: {
-                            canvasId: canvasStore.activeCanvasId!,
-                            podId
-                        }
-                    }),
-                    createWebSocketRequest<BasePayload, BaseResponse>({
-                        requestEvent: config.events.updateNote.request,
-                        responseEvent: config.events.updateNote.response,
-                        payload: updatePayload
-                    })
-                ])
-            },
+            ...createNoteBindingActions(config),
 
             async deleteNote(noteId: string): Promise<void> {
                 const {wrapWebSocketRequest} = useWebSocketErrorHandler()
@@ -512,6 +372,19 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
 
                 const item = this.availableItems.find(i => config.getItemId(i as TItem) === itemId)
                 const itemName = item ? config.getItemName(item as TItem) : undefined
+                const category = (STORE_TO_CATEGORY_MAP[config.storeName] || 'Note') as 'Skill' | 'Repository' | 'SubAgent' | 'Command' | 'OutputStyle' | 'Note'
+
+                const removeItemFromState = (res: BaseResponse): void => {
+                    const index = this.availableItems.findIndex(i => config.getItemId(i as TItem) === itemId)
+                    if (index !== -1) {
+                        this.availableItems.splice(index, 1)
+                    }
+                    if (res.deletedNoteIds) {
+                        const deletedIds = res.deletedNoteIds as string[]
+                        this.notes.splice(0, this.notes.length, ...this.notes.filter(note => !deletedIds.includes(note.id)))
+                    }
+                    showSuccessToast(category, '刪除成功', itemName)
+                }
 
                 try {
                     await deleteItem<Record<string, unknown>, BaseResponse>({
@@ -522,22 +395,9 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                             [config.itemIdField]: itemId
                         },
                         errorMessage: '刪除項目失敗',
-                        onSuccess: (res) => {
-                            const index = this.availableItems.findIndex(item => config.getItemId(item as TItem) === itemId)
-                            if (index !== -1) {
-                                this.availableItems.splice(index, 1)
-                            }
-
-                            if (res.deletedNoteIds) {
-                                this.notes.splice(0, this.notes.length, ...this.notes.filter(note => !(res.deletedNoteIds as string[]).includes(note.id)))
-                            }
-
-                            const category = (STORE_TO_CATEGORY_MAP[config.storeName] || 'Note') as 'Skill' | 'Repository' | 'SubAgent' | 'Command' | 'OutputStyle' | 'Note'
-                            showSuccessToast(category, '刪除成功', itemName)
-                        }
+                        onSuccess: removeItemFromState
                     })
                 } catch (error) {
-                    const category = (STORE_TO_CATEGORY_MAP[config.storeName] || 'Note') as 'Skill' | 'Repository' | 'SubAgent' | 'Command' | 'OutputStyle' | 'Note'
                     const message = error instanceof Error ? error.message : '未知錯誤'
                     showErrorToast(category, '刪除失敗', message)
                     throw error

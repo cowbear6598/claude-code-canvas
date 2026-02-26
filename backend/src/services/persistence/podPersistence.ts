@@ -4,6 +4,7 @@ import { persistenceService } from './index.js';
 import type { Pod, PersistedPod } from '../../types';
 import { Result, ok, err } from '../../types';
 import { logger } from '../../utils/logger.js';
+import { fileExists } from '../shared/fileResourceHelpers.js';
 
 class PodPersistenceService {
   getPodFilePath(canvasDir: string, podId: string): string {
@@ -96,7 +97,7 @@ class PodPersistenceService {
 
       const podId = entry.name.substring(4);
       const podFilePath = this.getPodFilePath(canvasDir, podId);
-      const exists = await persistenceService.fileExists(podFilePath);
+      const exists = await fileExists(podFilePath);
 
       if (!exists) {
         continue;

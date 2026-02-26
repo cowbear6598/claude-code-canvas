@@ -102,7 +102,7 @@ describe('createGroupCRUDActions', () => {
 
       await actions.loadGroups.call(ctx)
 
-      expect(consoleSpy).toHaveBeenCalledWith('[TestStore] Cannot load groups: no active canvas')
+      expect(consoleSpy).toHaveBeenCalledWith('[TestStore] 沒有啟用的畫布')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
       expect(ctx.groups).toHaveLength(0)
 

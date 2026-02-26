@@ -79,7 +79,6 @@ function limitLength(message: string, maxLength: number = MAX_ERROR_LENGTH): str
  * @returns 過濾後的錯誤訊息
  */
 export function sanitizeErrorForUser(error: unknown): string {
-  // 1. 提取原始錯誤訊息
   let message: string
 
   if (error instanceof Error) {
@@ -92,13 +91,8 @@ export function sanitizeErrorForUser(error: unknown): string {
     message = '未知錯誤'
   }
 
-  // 2. 映射錯誤代碼
   message = mapErrorCode(message)
-
-  // 3. 移除敏感資訊
   message = removeSensitiveInfo(message)
-
-  // 4. 限制長度
   message = limitLength(message)
 
   return message

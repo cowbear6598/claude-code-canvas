@@ -15,11 +15,7 @@ interface ValidationResult {
   error?: string
 }
 
-/**
- * 驗證檔案格式和大小
- */
 const validateFile = (file: File): ValidationResult => {
-  // 檢查副檔名
   const fileName = file.name.toLowerCase()
   const hasValidExtension = ALLOWED_EXTENSIONS.some(ext => fileName.endsWith(ext))
 
@@ -27,12 +23,10 @@ const validateFile = (file: File): ValidationResult => {
     return { valid: false, error: ERROR_INVALID_FORMAT }
   }
 
-  // 檢查 MIME type
   if (file.type && !['application/zip', 'application/x-zip-compressed', ''].includes(file.type)) {
     return { valid: false, error: ERROR_INVALID_FORMAT }
   }
 
-  // 檢查檔案大小
   if (file.size > MAX_FILE_SIZE) {
     return { valid: false, error: ERROR_FILE_TOO_LARGE }
   }
@@ -40,16 +34,12 @@ const validateFile = (file: File): ValidationResult => {
   return { valid: true }
 }
 
-/**
- * 將檔案轉換為 Base64
- */
 const convertToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
 
     reader.onload = (): void => {
       const result = reader.result as string
-      // 移除 data URL 前綴 (e.g., "data:application/zip;base64,")
       const parts = result.split(',')
       const base64Data = parts.length > 1 ? parts[1] : result
       if (!base64Data) {
@@ -67,9 +57,6 @@ const convertToBase64 = (file: File): Promise<string> => {
   })
 }
 
-/**
- * 開啟檔案選擇對話框
- */
 const openFilePicker = (): Promise<File | null> => {
   return new Promise((resolve) => {
     const input = document.createElement('input')
@@ -100,22 +87,17 @@ export function useSkillImport(): UseSkillImportReturn {
   const { showSuccessToast, showErrorToast } = useToast()
   const isImporting = ref(false)
 
-  /**
-   * 主要的匯入流程
-   */
   const importSkill = async (): Promise<void> => {
     if (isImporting.value) {
       return
     }
 
     try {
-      // 1. 開啟檔案選擇器
       const file = await openFilePicker()
       if (!file) {
         return
       }
 
-      // 2. 驗證檔案
       const validation = validateFile(file)
       if (!validation.valid) {
         showErrorToast('Skill', '匯入失敗', validation.error)
@@ -124,17 +106,8 @@ export function useSkillImport(): UseSkillImportReturn {
 
       isImporting.value = true
 
-      // 3. 轉換為 Base64
-      let fileData: string
-      try {
-        fileData = await convertToBase64(file)
-      } catch (error) {
-        const message = sanitizeErrorForUser(error)
-        showErrorToast('Skill', '匯入失敗', message)
-        return
-      }
+      const fileData = await convertToBase64(file)
 
-      // 4. 發送到後端
       const result = await skillStore.importSkill(file.name, fileData, file.size)
 
       if (result.success) {

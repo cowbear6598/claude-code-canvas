@@ -5,6 +5,7 @@ import type {PersistedPod} from '../types';
 import {podPersistenceService} from './persistence/podPersistence.js';
 import {socketService} from './socketService.js';
 import {logger} from '../utils/logger.js';
+import {fireAndForget} from '../utils/operationHelpers.js';
 import {canvasStore} from './canvasStore.js';
 
 class PodStore {
@@ -26,9 +27,11 @@ class PodStore {
             return;
         }
 
-        podPersistenceService.savePod(canvasDir, pod, claudeSessionId).catch((error) => {
-            logger.error('Pod', 'Error', `[PodStore] Failed to persist Pod ${pod.id}: ${error}`);
-        });
+        fireAndForget(
+            podPersistenceService.savePod(canvasDir, pod, claudeSessionId),
+            'Pod',
+            `[PodStore] Failed to persist Pod ${pod.id}`
+        );
     }
 
     private modifyPod(canvasId: string, podId: string, updates: Partial<Pod>, persist = true, claudeSessionId?: string): Pod | undefined {
@@ -171,9 +174,11 @@ class PodStore {
             return false;
         }
 
-        podPersistenceService.deletePodData(canvasDir, id).catch((error) => {
-            logger.error('Pod', 'Delete', `[PodStore] Failed to delete Pod data ${id}: ${error}`);
-        });
+        fireAndForget(
+            podPersistenceService.deletePodData(canvasDir, id),
+            'Pod',
+            `[PodStore] Failed to delete Pod data ${id}`
+        );
 
         return true;
     }

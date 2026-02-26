@@ -384,7 +384,7 @@ describe('commandStore', () => {
 
       await store.rebuildNotesFromPods([])
 
-      expect(consoleSpy).toHaveBeenCalledWith('[CommandStore] Cannot rebuild notes: no active canvas')
+      expect(consoleSpy).toHaveBeenCalledWith('[CommandStore] 沒有啟用的畫布')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
 
       consoleSpy.mockRestore()
@@ -605,7 +605,7 @@ describe('commandStore', () => {
 
       await store.loadGroups()
 
-      expect(consoleSpy).toHaveBeenCalledWith('[CommandStore] Cannot load groups: no active canvas')
+      expect(consoleSpy).toHaveBeenCalledWith('[CommandStore] 沒有啟用的畫布')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
 
       consoleSpy.mockRestore()

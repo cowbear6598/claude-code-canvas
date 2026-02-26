@@ -73,7 +73,6 @@ export const useCanvasStore = defineStore('canvas', {
             const firstCanvas = this.canvases[0]
             if (!firstCanvas) return
 
-            // Notify backend which canvas is active
             await createWebSocketRequest<CanvasSwitchPayload, CanvasSwitchedPayload>({
               requestEvent: WebSocketRequestEvents.CANVAS_SWITCH,
               responseEvent: WebSocketResponseEvents.CANVAS_SWITCHED,
@@ -105,7 +104,6 @@ export const useCanvasStore = defineStore('canvas', {
         })
 
         if (response.canvas) {
-          // Notify backend which canvas is active
           await createWebSocketRequest<CanvasSwitchPayload, CanvasSwitchedPayload>({
             requestEvent: WebSocketRequestEvents.CANVAS_SWITCH,
             responseEvent: WebSocketResponseEvents.CANVAS_SWITCHED,
@@ -146,7 +144,6 @@ export const useCanvasStore = defineStore('canvas', {
     async deleteCanvas(canvasId: string): Promise<void> {
       const {showSuccessToast} = useToast()
 
-      // If deleting active canvas, switch to another one first
       if (this.activeCanvasId === canvasId) {
         const otherCanvas = this.canvases.find(c => c.id !== canvasId)
         if (otherCanvas) {

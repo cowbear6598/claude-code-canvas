@@ -124,7 +124,6 @@ class WebSocketClient {
     try {
       const message = JSON.parse(event.data) as WebSocketMessage
 
-      // 處理 ack 回應訊息
       if (message.type === 'ack') {
         const ackMessage = message as WebSocketAckMessage
         const callback = this.ackCallbacks.get(ackMessage.ackId)
@@ -135,12 +134,10 @@ class WebSocketClient {
         return
       }
 
-      // 分發到對應的監聽器
       const listeners = this.eventListeners.get(message.type)
       if (listeners) {
         listeners.forEach(callback => {
           try {
-            // 如果有 ackId，提供 ack 函數
             if (message.ackId) {
               const ack = (response?: unknown): void => {
                 const ackMessage: WebSocketAckMessage = {
@@ -170,7 +167,6 @@ class WebSocketClient {
       return
     }
 
-    // 從 payload 中提取 requestId 並放到訊息根層級
     const payloadWithRequestId = payload as T & { requestId?: string }
     const message: WebSocketMessage<T> = {
       type: event,

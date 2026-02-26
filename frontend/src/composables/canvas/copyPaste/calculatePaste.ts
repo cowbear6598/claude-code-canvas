@@ -1,0 +1,270 @@
+import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT } from '@/lib/constants'
+import type {
+  CopiedPod,
+  CopiedOutputStyleNote,
+  CopiedSkillNote,
+  CopiedRepositoryNote,
+  CopiedSubAgentNote,
+  CopiedCommandNote,
+  CopiedConnection,
+  PastePodItem,
+  PasteOutputStyleNoteItem,
+  PasteSkillNoteItem,
+  PasteRepositoryNoteItem,
+  PasteSubAgentNoteItem,
+  PasteCommandNoteItem,
+  PasteConnectionItem,
+} from '@/types'
+
+type BoundingBox = { minX: number; maxX: number; minY: number; maxY: number }
+
+export function updateBoundingBox(
+  bounds: BoundingBox,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  bounds.minX = Math.min(bounds.minX, x)
+  bounds.maxX = Math.max(bounds.maxX, x + width)
+  bounds.minY = Math.min(bounds.minY, y)
+  bounds.maxY = Math.max(bounds.maxY, y + height)
+}
+
+export function calculateBoundingBox<T extends { x: number; y: number }>(
+  pods: CopiedPod[],
+  notes: {
+    outputStyleNotes: T[]
+    skillNotes: T[]
+    repositoryNotes: T[]
+    subAgentNotes: T[]
+    commandNotes: T[]
+  },
+  getBoundKeys: {
+    outputStyleNote: (n: T) => string | null
+    skillNote: (n: T) => string | null
+    repositoryNote: (n: T) => string | null
+    subAgentNote: (n: T) => string | null
+    commandNote: (n: T) => string | null
+  }
+): BoundingBox {
+  const bounds = {
+    minX: Infinity,
+    maxX: -Infinity,
+    minY: Infinity,
+    maxY: -Infinity
+  }
+
+  for (const pod of pods) {
+    updateBoundingBox(bounds, pod.x, pod.y, POD_WIDTH, POD_HEIGHT)
+  }
+
+  const processUnboundNotes = <TNote extends { x: number; y: number }>(
+    noteList: TNote[],
+    getBoundKey: (n: TNote) => string | null
+  ): void => {
+    for (const note of noteList) {
+      if (getBoundKey(note) === null) {
+        updateBoundingBox(bounds, note.x, note.y, NOTE_WIDTH, NOTE_HEIGHT)
+      }
+    }
+  }
+
+  processUnboundNotes(notes.outputStyleNotes, getBoundKeys.outputStyleNote)
+  processUnboundNotes(notes.skillNotes, getBoundKeys.skillNote)
+  processUnboundNotes(notes.repositoryNotes, getBoundKeys.repositoryNote)
+  processUnboundNotes(notes.subAgentNotes, getBoundKeys.subAgentNote)
+  processUnboundNotes(notes.commandNotes, getBoundKeys.commandNote)
+
+  return bounds
+}
+
+export function calculateOffsets(
+  boundingBox: BoundingBox,
+  targetPosition: { x: number; y: number }
+): { offsetX: number; offsetY: number } {
+  const centerX = (boundingBox.minX + boundingBox.maxX) / 2
+  const centerY = (boundingBox.minY + boundingBox.maxY) / 2
+
+  return {
+    offsetX: targetPosition.x - centerX,
+    offsetY: targetPosition.y - centerY
+  }
+}
+
+export function transformPods(
+  pods: CopiedPod[],
+  offset: { offsetX: number; offsetY: number }
+): PastePodItem[] {
+  return pods.map(pod => ({
+    originalId: pod.id,
+    name: pod.name,
+    color: pod.color,
+    x: pod.x + offset.offsetX,
+    y: pod.y + offset.offsetY,
+    rotation: pod.rotation,
+    outputStyleId: pod.outputStyleId,
+    skillIds: pod.skillIds,
+    subAgentIds: pod.subAgentIds,
+    model: pod.model,
+    repositoryId: pod.repositoryId,
+    commandId: pod.commandId,
+  }))
+}
+
+export function transformNotes<
+  TSource extends { x: number; y: number; name: string; originalPosition: { x: number; y: number } | null },
+  TResult
+>(
+  notes: TSource[],
+  offset: { offsetX: number; offsetY: number },
+  getBoundKey: (note: TSource) => string | null,
+  mapFn: (note: TSource, position: { x: number; y: number }) => TResult
+): TResult[] {
+  return notes.map(note => {
+    const isBound = getBoundKey(note) !== null
+    const position = {
+      x: isBound ? 0 : note.x + offset.offsetX,
+      y: isBound ? 0 : note.y + offset.offsetY,
+    }
+    return mapFn(note, position)
+  })
+}
+
+export function transformConnections(connections: CopiedConnection[]): PasteConnectionItem[] {
+  return connections.map(conn => ({
+    originalSourcePodId: conn.sourcePodId,
+    sourceAnchor: conn.sourceAnchor,
+    originalTargetPodId: conn.targetPodId,
+    targetAnchor: conn.targetAnchor,
+    autoTrigger: conn.autoTrigger,
+  }))
+}
+
+export function calculatePastePositions(
+  targetPosition: { x: number; y: number },
+  clipboardData: {
+    pods: CopiedPod[]
+    outputStyleNotes: CopiedOutputStyleNote[]
+    skillNotes: CopiedSkillNote[]
+    repositoryNotes: CopiedRepositoryNote[]
+    subAgentNotes: CopiedSubAgentNote[]
+    commandNotes: CopiedCommandNote[]
+    connections: CopiedConnection[]
+  }
+): {
+  pods: PastePodItem[]
+  outputStyleNotes: PasteOutputStyleNoteItem[]
+  skillNotes: PasteSkillNoteItem[]
+  repositoryNotes: PasteRepositoryNoteItem[]
+  subAgentNotes: PasteSubAgentNoteItem[]
+  commandNotes: PasteCommandNoteItem[]
+  connections: PasteConnectionItem[]
+} {
+  const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, commandNotes, connections } = clipboardData
+
+  const isEmpty = pods.length === 0 && outputStyleNotes.length === 0 && skillNotes.length === 0 && repositoryNotes.length === 0 && subAgentNotes.length === 0 && commandNotes.length === 0
+  if (isEmpty) {
+    return { pods: [], outputStyleNotes: [], skillNotes: [], repositoryNotes: [], subAgentNotes: [], commandNotes: [], connections: [] }
+  }
+
+  const boundingBox = calculateBoundingBox(pods, {
+    outputStyleNotes,
+    skillNotes,
+    repositoryNotes,
+    subAgentNotes,
+    commandNotes
+  }, {
+    outputStyleNote: n => n.boundToPodId,
+    skillNote: n => n.boundToPodId,
+    repositoryNote: n => n.boundToOriginalPodId,
+    subAgentNote: n => n.boundToPodId,
+    commandNote: n => n.boundToOriginalPodId
+  })
+
+  const offset = calculateOffsets(boundingBox, targetPosition)
+
+  const newPods = transformPods(pods, offset)
+
+  const newOutputStyleNotes = transformNotes(
+    outputStyleNotes,
+    offset,
+    n => n.boundToPodId,
+    (note, position) => ({
+      outputStyleId: note.outputStyleId,
+      name: note.name,
+      x: position.x,
+      y: position.y,
+      boundToOriginalPodId: note.boundToPodId,
+      originalPosition: note.originalPosition,
+    })
+  )
+
+  const newSkillNotes = transformNotes(
+    skillNotes,
+    offset,
+    n => n.boundToPodId,
+    (note, position) => ({
+      skillId: note.skillId,
+      name: note.name,
+      x: position.x,
+      y: position.y,
+      boundToOriginalPodId: note.boundToPodId,
+      originalPosition: note.originalPosition,
+    })
+  )
+
+  const newRepositoryNotes = transformNotes(
+    repositoryNotes,
+    offset,
+    n => n.boundToOriginalPodId,
+    (note, position) => ({
+      repositoryId: note.repositoryId,
+      name: note.name,
+      x: position.x,
+      y: position.y,
+      boundToOriginalPodId: note.boundToOriginalPodId,
+      originalPosition: note.originalPosition,
+    })
+  )
+
+  const newSubAgentNotes = transformNotes(
+    subAgentNotes,
+    offset,
+    n => n.boundToPodId,
+    (note, position) => ({
+      subAgentId: note.subAgentId,
+      name: note.name,
+      x: position.x,
+      y: position.y,
+      boundToOriginalPodId: note.boundToPodId,
+      originalPosition: note.originalPosition,
+    })
+  )
+
+  const newCommandNotes = transformNotes(
+    commandNotes,
+    offset,
+    n => n.boundToOriginalPodId,
+    (note, position) => ({
+      commandId: note.commandId,
+      name: note.name,
+      x: position.x,
+      y: position.y,
+      boundToOriginalPodId: note.boundToOriginalPodId,
+      originalPosition: note.originalPosition,
+    })
+  )
+
+  const newConnections = transformConnections(connections)
+
+  return {
+    pods: newPods,
+    outputStyleNotes: newOutputStyleNotes,
+    skillNotes: newSkillNotes,
+    repositoryNotes: newRepositoryNotes,
+    subAgentNotes: newSubAgentNotes,
+    commandNotes: newCommandNotes,
+    connections: newConnections,
+  }
+}

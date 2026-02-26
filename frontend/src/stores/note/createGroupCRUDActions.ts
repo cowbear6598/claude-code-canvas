@@ -2,6 +2,7 @@ import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler
 import { createWebSocketRequest } from '@/services/websocket'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useToast } from '@/composables/useToast'
+import { getActiveCanvasIdOrWarn } from '@/utils/canvasGuard'
 import type { ToastCategory } from '@/composables/useToast'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import type {
@@ -46,19 +47,15 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
 
   return {
     async loadGroups(this: GroupCRUDStoreContext): Promise<void> {
-      const canvasStore = useCanvasStore()
-
-      if (!canvasStore.activeCanvasId) {
-        console.warn(`[${config.storeName}] Cannot load groups: no active canvas`)
-        return
-      }
+      const canvasId = getActiveCanvasIdOrWarn(config.storeName)
+      if (!canvasId) return
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<GroupListPayload, GroupListResultPayload>({
           requestEvent: WebSocketRequestEvents.GROUP_LIST,
           responseEvent: WebSocketResponseEvents.GROUP_LIST_RESULT,
           payload: {
-            canvasId: canvasStore.activeCanvasId,
+            canvasId,
             type: config.groupType as GroupListPayload['type']
           }
         })
@@ -80,17 +77,17 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
       }
 
       const canvasStore = useCanvasStore()
-
       if (!canvasStore.activeCanvasId) {
         return { success: false, error: '無作用中的畫布' }
       }
+      const canvasId = canvasStore.activeCanvasId
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<GroupCreatePayload, GroupCreatedPayload>({
           requestEvent: WebSocketRequestEvents.GROUP_CREATE,
           responseEvent: WebSocketResponseEvents.GROUP_CREATED,
           payload: {
-            canvasId: canvasStore.activeCanvasId,
+            canvasId,
             name,
             type: config.groupType as GroupCreatePayload['type']
           }
@@ -120,17 +117,17 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
       }
 
       const canvasStore = useCanvasStore()
-
       if (!canvasStore.activeCanvasId) {
         return { success: false, error: '無作用中的畫布' }
       }
+      const canvasId = canvasStore.activeCanvasId
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<GroupDeletePayload, GroupDeletedPayload>({
           requestEvent: WebSocketRequestEvents.GROUP_DELETE,
           responseEvent: WebSocketResponseEvents.GROUP_DELETED,
           payload: {
-            canvasId: canvasStore.activeCanvasId,
+            canvasId,
             groupId
           }
         })
@@ -158,17 +155,17 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
       }
 
       const canvasStore = useCanvasStore()
-
       if (!canvasStore.activeCanvasId) {
         return { success: false, error: '無作用中的畫布' }
       }
+      const canvasId = canvasStore.activeCanvasId
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<MoveToGroupPayload, MovedToGroupPayload>({
           requestEvent: config.moveItemToGroupEvents.request,
           responseEvent: config.moveItemToGroupEvents.response,
           payload: {
-            canvasId: canvasStore.activeCanvasId,
+            canvasId,
             itemId,
             groupId
           }

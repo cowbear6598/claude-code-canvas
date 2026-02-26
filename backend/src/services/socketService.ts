@@ -27,16 +27,10 @@ class SocketService {
 		this.startHeartbeat();
 	}
 
-	/**
-	 * 發送訊息給所有連線
-	 */
 	emitToAll(event: string, payload: unknown): void {
 		this.emitToAllExcept('', event, payload);
 	}
 
-	/**
-	 * 發送訊息給所有連線，但排除特定連線
-	 */
 	emitToAllExcept(excludeConnectionId: string, event: string, payload: unknown): void {
 		const connections = connectionManager.getAll();
 		for (const connection of connections) {
@@ -45,9 +39,6 @@ class SocketService {
 		}
 	}
 
-	/**
-	 * 發送訊息給指定連線
-	 */
 	emitToConnection(connectionId: string, event: string, payload: unknown): void {
 		const connection = connectionManager.get(connectionId);
 		if (!connection) {
@@ -68,16 +59,10 @@ class SocketService {
 		}
 	}
 
-	/**
-	 * 發送連線就緒訊息
-	 */
 	emitConnectionReady(connectionId: string, payload: ConnectionReadyPayload): void {
 		this.emitToConnection(connectionId, WebSocketResponseEvents.CONNECTION_READY, payload);
 	}
 
-	/**
-	 * 加入 Canvas Room
-	 */
 	joinCanvasRoom(connectionId: string, canvasId: string): void {
 		this.leaveCanvasRoom(connectionId);
 
@@ -86,9 +71,6 @@ class SocketService {
 		connectionManager.setCanvasId(connectionId, canvasId);
 	}
 
-	/**
-	 * 離開 Canvas Room
-	 */
 	leaveCanvasRoom(connectionId: string): void {
 		const currentCanvasId = connectionManager.getCanvasId(connectionId);
 		if (!currentCanvasId) {
@@ -100,16 +82,10 @@ class SocketService {
 		connectionManager.setCanvasId(connectionId, '');
 	}
 
-	/**
-	 * 發送訊息給指定 Canvas 的所有連線
-	 */
 	emitToCanvas(canvasId: string, event: string, payload: unknown): void {
 		this.emitToCanvasExcept(canvasId, '', event, payload);
 	}
 
-	/**
-	 * 發送訊息給指定 Canvas 的所有連線，但排除特定連線
-	 */
 	emitToCanvasExcept(canvasId: string, excludeConnectionId: string, event: string, payload: unknown): void {
 		const roomName = `canvas:${canvasId}`;
 		const members = roomManager.getMembers(roomName);
@@ -120,18 +96,12 @@ class SocketService {
 		}
 	}
 
-	/**
-	 * 清理連線
-	 */
 	cleanupSocket(connectionId: string): void {
 		roomManager.leaveAll(connectionId);
 		connectionManager.remove(connectionId);
 		this.clearHeartbeatTimeout(connectionId);
 	}
 
-	/**
-	 * 清除心跳超時計時器
-	 */
 	private clearHeartbeatTimeout(connectionId: string): void {
 		const timeout = this.heartbeatTimeouts.get(connectionId);
 		if (timeout) {
@@ -140,9 +110,6 @@ class SocketService {
 		}
 	}
 
-	/**
-	 * 開始心跳檢測
-	 */
 	private startHeartbeat(): void {
 		if (this.heartbeatInterval) {
 			return;
@@ -158,9 +125,6 @@ class SocketService {
 		logger.log('Startup', 'Complete', '[Heartbeat] Started');
 	}
 
-	/**
-	 * 發送心跳 ping
-	 */
 	private sendHeartbeatPing(connectionId: string): void {
 		const connection = connectionManager.get(connectionId);
 		if (!connection) {
@@ -186,7 +150,6 @@ class SocketService {
 			return;
 		}
 
-		// 設定超時檢查
 		const timeout = setTimeout(() => {
 			const conn = connectionManager.get(connectionId);
 			if (!conn) {
@@ -208,17 +171,11 @@ class SocketService {
 		this.heartbeatTimeouts.set(connectionId, timeout);
 	}
 
-	/**
-	 * 處理心跳 pong 回應
-	 */
 	handleHeartbeatPong(connectionId: string): void {
 		connectionManager.updateHeartbeat(connectionId);
 		this.clearHeartbeatTimeout(connectionId);
 	}
 
-	/**
-	 * 停止心跳檢測
-	 */
 	stopHeartbeat(): void {
 		if (!this.heartbeatInterval) {
 			return;

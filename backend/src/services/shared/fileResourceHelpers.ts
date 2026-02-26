@@ -1,9 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { logger } from '../../utils/logger.js';
 
-/**
- * Read file content, return null if file not found (ENOENT)
- */
 export async function readFileOrNull(filePath: string): Promise<string | null> {
     try {
         return await fs.readFile(filePath, 'utf-8');
@@ -15,9 +13,6 @@ export async function readFileOrNull(filePath: string): Promise<string | null> {
     }
 }
 
-/**
- * Check if a file exists
- */
 export async function fileExists(filePath: string): Promise<boolean> {
     try {
         await fs.access(filePath);
@@ -27,17 +22,27 @@ export async function fileExists(filePath: string): Promise<boolean> {
     }
 }
 
-/**
- * Ensure directory exists and write file
- */
 export async function ensureDirectoryAndWriteFile(filePath: string, content: string): Promise<void> {
     await fs.mkdir(path.dirname(filePath), {recursive: true});
     await fs.writeFile(filePath, content, 'utf-8');
 }
 
-/**
- * Parse frontmatter description from markdown content
- */
+export async function readJsonFileOrDefault<T>(filePath: string): Promise<T[] | null> {
+    const exists = await fileExists(filePath);
+    if (!exists) {
+        return null;
+    }
+
+    const data = await fs.readFile(filePath, 'utf-8');
+
+    try {
+        return JSON.parse(data) as T[];
+    } catch (error) {
+        logger.error('Startup', 'Error', `[FileResource] 無效的 JSON 檔案 ${filePath}`, error);
+        return null;
+    }
+}
+
 export function parseFrontmatterDescription(content: string): string {
     const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---/;
     const match = content.match(frontmatterRegex);

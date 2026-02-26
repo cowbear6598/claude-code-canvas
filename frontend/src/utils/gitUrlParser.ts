@@ -32,28 +32,24 @@ export function parseGitUrl(url: string): GitUrlParseResult {
     return { platform, owner, repoName, isValid }
   }
 
-  try {
-    if (trimmedUrl.startsWith('https://')) {
-      const httpsPattern = /^https:\/\/([^/]+)\/([^/]+)\/(.+?)(?:\.git)?$/
-      const match = trimmedUrl.match(httpsPattern)
+  if (trimmedUrl.startsWith('https://')) {
+    const httpsPattern = /^https:\/\/([^/]+)\/([^/]+)\/(.+?)(?:\.git)?$/
+    const match = trimmedUrl.match(httpsPattern)
 
-      if (match) {
-        owner = match[2]
-        repoName = match[3]
-        isValid = true
-      }
-    } else if (trimmedUrl.startsWith('git@')) {
-      const sshPattern = /^git@([^:]+):([^/]+)\/(.+?)(?:\.git)?$/
-      const match = trimmedUrl.match(sshPattern)
-
-      if (match) {
-        owner = match[2]
-        repoName = match[3]
-        isValid = true
-      }
+    if (match) {
+      owner = match[2]
+      repoName = match[3]
+      isValid = true
     }
-  } catch {
-    isValid = false
+  } else if (trimmedUrl.startsWith('git@')) {
+    const sshPattern = /^git@([^:]+):([^/]+)\/(.+?)(?:\.git)?$/
+    const match = trimmedUrl.match(sshPattern)
+
+    if (match) {
+      owner = match[2]
+      repoName = match[3]
+      isValid = true
+    }
   }
 
   return { platform, owner, repoName, isValid }

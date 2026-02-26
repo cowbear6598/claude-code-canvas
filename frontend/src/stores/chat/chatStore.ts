@@ -119,7 +119,6 @@ export const useChatStore = defineStore('chat', {
     },
 
     actions: {
-        // Connection actions
         initWebSocket(): void {
             const connectionActions = this.getConnectionActions()
             connectionActions.initWebSocket()
@@ -179,7 +178,6 @@ export const useChatStore = defineStore('chat', {
             connectionActions.handleError(payload)
         },
 
-        // Message actions
         async sendMessage(podId: string, content: string, contentBlocks?: ContentBlock[]): Promise<void> {
             if (!this.isConnected) {
                 throw new Error('WebSocket not connected')
@@ -201,14 +199,13 @@ export const useChatStore = defineStore('chat', {
 
             const messagePayload = buildMessagePayload(content, contentBlocks, command)
 
-            const {useCanvasStore} = await import('../canvasStore')
-            const canvasStore = useCanvasStore()
-
-            if (!canvasStore.activeCanvasId) return
+            const {getActiveCanvasIdOrWarn} = await import('@/utils/canvasGuard')
+            const canvasId = getActiveCanvasIdOrWarn('ChatStore')
+            if (!canvasId) return
 
             websocketClient.emit<PodChatSendPayload>(WebSocketRequestEvents.POD_CHAT_SEND, {
                 requestId: generateRequestId(),
-                canvasId: canvasStore.activeCanvasId,
+                canvasId,
                 podId,
                 message: messagePayload
             })
@@ -248,14 +245,13 @@ export const useChatStore = defineStore('chat', {
                 return
             }
 
-            const {useCanvasStore} = await import('../canvasStore')
-            const canvasStore = useCanvasStore()
-
-            if (!canvasStore.activeCanvasId) return
+            const {getActiveCanvasIdOrWarn} = await import('@/utils/canvasGuard')
+            const canvasId = getActiveCanvasIdOrWarn('ChatStore')
+            if (!canvasId) return
 
             websocketClient.emit<PodChatAbortPayload>(WebSocketRequestEvents.POD_CHAT_ABORT, {
                 requestId: generateRequestId(),
-                canvasId: canvasStore.activeCanvasId,
+                canvasId,
                 podId
             })
 

@@ -27,7 +27,6 @@ async function startServer(): Promise<void> {
 
 	const PORT = config.port;
 
-	// 只在 production 模式且 dist 目錄存在時才啟用靜態檔案服務，dev 模式由 Vite dev server 提供
 	const enableStaticFiles = config.nodeEnv === 'production' && (await isStaticFilesAvailable());
 	if (enableStaticFiles) {
 		logger.log('Startup', 'Complete', '已啟用前端靜態檔案服務');
@@ -37,39 +36,32 @@ async function startServer(): Promise<void> {
 		port: PORT,
 		hostname: '0.0.0.0',
 		async fetch(req, server) {
-			// 檢查 CORS Origin
 			const origin = req.headers.get('origin');
 			if (origin && !config.corsOrigin(origin)) {
 				return new Response('Forbidden', { status: 403 });
 			}
 
-			// 處理 REST API 請求
 			const apiResponse = await handleApiRequest(req);
 			if (apiResponse !== null) {
 				return apiResponse;
 			}
 
-			// 檢查是否為 WebSocket upgrade 請求
 			const upgradeHeader = req.headers.get('upgrade');
 			if (upgradeHeader?.toLowerCase() === 'websocket') {
-				// 嘗試升級為 WebSocket
 				const success = server.upgrade(req, {
 					data: { connectionId: '' }, // 將在 open 時設置
 				});
 				if (success) return undefined;
 			}
 
-			// 普通 HTTP 請求：serve 靜態檔案（如果已啟用）
 			if (enableStaticFiles) {
 				return serveStaticFile(req);
 			}
 
-			// 未啟用靜態檔案服務時返回 404
 			return new Response('Not Found', { status: 404 });
 		},
 		websocket: {
 			open(ws: ServerWebSocket<{ connectionId: string }>) {
-				// 新連線處理
 				const connectionId = connectionManager.add(ws);
 				ws.data = { connectionId };
 
@@ -81,22 +73,18 @@ async function startServer(): Promise<void> {
 				const connectionId = ws.data.connectionId;
 
 				try {
-					// 解析訊息
 					const parsedMessage = deserialize(message);
 
-					// 處理心跳 pong（舊格式）
 					if (parsedMessage.type === WebSocketResponseEvents.HEARTBEAT_PONG) {
 						socketService.handleHeartbeatPong(connectionId);
 						return;
 					}
 
-					// 處理 ack 回應（用於心跳等需要確認的訊息）
 					if (parsedMessage.type === 'ack' && parsedMessage.ackId?.startsWith('heartbeat-')) {
 						socketService.handleHeartbeatPong(connectionId);
 						return;
 					}
 
-					// 路由訊息到對應的處理器
 					eventRouter.route(connectionId, parsedMessage).catch((error) => {
 						logger.error('WebSocket', 'Error', `Failed to route message: ${error}`, error);
 						socketService.emitToConnection(connectionId, 'error', {
@@ -125,7 +113,6 @@ async function startServer(): Promise<void> {
 				// 廣播游標離開事件（必須在 cleanupSocket 前執行，否則 room 資訊已被清除）
 				broadcastCursorLeft(connectionId);
 
-				// 斷線處理
 				socketService.cleanupSocket(connectionId);
 				canvasStore.removeSocket(connectionId);
 
