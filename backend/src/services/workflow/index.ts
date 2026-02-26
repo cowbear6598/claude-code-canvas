@@ -23,6 +23,7 @@ import { workflowEventEmitter } from './workflowEventEmitter.js';
 import { aiDecideService } from './aiDecideService.js';
 import { connectionStore } from '../connectionStore.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
+import { autoClearService } from '../autoClear/autoClearService.js';
 
 /**
  * 初始化 Workflow 相關服務（解決循環依賴）
@@ -48,6 +49,7 @@ export function initWorkflowServices(): void {
     pendingTargetStore,
     pipeline: workflowPipeline,
     multiInputService: workflowMultiInputService,
+    autoClearService,
   });
 
   // 4. MultiInput

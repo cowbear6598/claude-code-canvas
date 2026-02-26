@@ -4,6 +4,8 @@ import { messageStore } from './messageStore.js';
 import { chatPersistenceService } from './persistence/chatPersistence.js';
 import { claudeSessionManager } from './claude/sessionManager.js';
 import { canvasStore } from './canvasStore.js';
+import { pendingTargetStore } from './pendingTargetStore.js';
+import { directTriggerStore } from './directTriggerStore.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../utils/errorHelpers.js';
 
@@ -131,6 +133,9 @@ class WorkflowClearService {
       });
 
     const clearedConnectionIds = this.clearAiDecideConnections(canvasId, podId);
+
+    pendingTargetStore.clearPendingTarget(podId);
+    directTriggerStore.clearDirectPending(podId);
 
     return { podName: pod.name, clearedConnectionIds };
   }

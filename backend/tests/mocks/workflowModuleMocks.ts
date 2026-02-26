@@ -101,6 +101,7 @@ export function createAutoClearServiceMock() {
     autoClearService: {
       initializeWorkflowTracking: vi.fn(),
       onPodComplete: vi.fn(),
+      onGroupNotTriggered: vi.fn().mockResolvedValue(undefined),
     },
   };
 }

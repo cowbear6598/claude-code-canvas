@@ -20,6 +20,7 @@ import { forEachMultiInputGroupConnection } from './workflowHelpers.js';
 import { logger } from '../../utils/logger.js';
 import { getErrorMessage } from '../../utils/errorHelpers.js';
 import { LazyInitializable } from './lazyInitializable.js';
+import { autoClearService } from '../autoClear/autoClearService.js';
 
 // 使用 typeof 取得實例的型別
 type AiDecideService = typeof aiDecideService;
@@ -29,6 +30,7 @@ type WorkflowStateService = typeof workflowStateService;
 type PendingTargetStore = typeof pendingTargetStore;
 type WorkflowPipeline = typeof workflowPipeline;
 type WorkflowMultiInputService = typeof workflowMultiInputService;
+type AutoClearService = typeof autoClearService;
 
 interface AiDecideTriggerDependencies {
   aiDecideService: AiDecideService;
@@ -38,6 +40,7 @@ interface AiDecideTriggerDependencies {
   pendingTargetStore: PendingTargetStore;
   pipeline: WorkflowPipeline;
   multiInputService: WorkflowMultiInputService;
+  autoClearService: AutoClearService;
 }
 
 /**
@@ -215,7 +218,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
       } else if (decideResult.approved) {
         this.handleApprovedConnection(canvasId, sourcePodId, conn, decideResult);
       } else {
-        this.handleRejectedConnection(canvasId, sourcePodId, conn, decideResult);
+        await this.handleRejectedConnection(canvasId, sourcePodId, conn, decideResult);
       }
     }
   }
@@ -281,12 +284,12 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     });
   }
 
-  private handleRejectedConnection(
+  private async handleRejectedConnection(
     canvasId: string,
     sourcePodId: string,
     conn: Connection,
     decideResult: TriggerDecideResult
-  ): void {
+  ): Promise<void> {
     this.ensureInitialized();
     this.deps.connectionStore.updateDecideStatus(canvasId, conn.id, 'rejected', decideResult.reason);
     this.deps.connectionStore.updateConnectionStatus(canvasId, conn.id, 'ai-rejected');
@@ -302,8 +305,45 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
 
     const { isMultiInput } = this.deps.stateService.checkMultiInputScenario(canvasId, conn.targetPodId);
     if (isMultiInput && this.deps.pendingTargetStore.hasPendingTarget(conn.targetPodId)) {
-      this.deps.pendingTargetStore.recordSourceRejection(conn.targetPodId, sourcePodId, decideResult.reason ?? '');
-      this.deps.stateService.emitPendingStatus(canvasId, conn.targetPodId);
+      await this.handleRejectedMultiInput(canvasId, sourcePodId, conn, decideResult.reason ?? '');
+      return;
+    }
+
+    // 單一 ai-decide connection 被拒絕時，檢查是否整個 Auto/AI 組都無法觸發
+    if (this.isLastRejectionTriggersGroupCancel(canvasId, conn.targetPodId)) {
+      await this.deps.autoClearService.onGroupNotTriggered(canvasId, conn.targetPodId);
+    }
+  }
+
+  // 檢查是否只有單一 auto/ai-decide 連線，此次拒絕即導致整個群組取消
+  private isLastRejectionTriggersGroupCancel(canvasId: string, targetPodId: string): boolean {
+    this.ensureInitialized();
+    const incomingConnections = this.deps.connectionStore.findByTargetPodId(canvasId, targetPodId);
+    const autoAiIncoming = incomingConnections.filter(
+      (c) => c.triggerMode === 'auto' || c.triggerMode === 'ai-decide'
+    );
+    return autoAiIncoming.length === 1;
+  }
+
+  // 處理多輸入場景的拒絕邏輯，並在所有來源都已回應且有拒絕時通知 autoClearService
+  private async handleRejectedMultiInput(
+    canvasId: string,
+    sourcePodId: string,
+    conn: Connection,
+    reason: string
+  ): Promise<void> {
+    this.ensureInitialized();
+    this.deps.pendingTargetStore.recordSourceRejection(conn.targetPodId, sourcePodId, reason);
+    this.deps.stateService.emitPendingStatus(canvasId, conn.targetPodId);
+
+    const pending = this.deps.pendingTargetStore.getPendingTarget(conn.targetPodId);
+    if (!pending) {
+      return;
+    }
+
+    const allSourcesResponded = pending.completedSources.size + pending.rejectedSources.size >= pending.requiredSourcePodIds.length;
+    if (allSourcesResponded && pending.rejectedSources.size > 0) {
+      await this.deps.autoClearService.onGroupNotTriggered(canvasId, conn.targetPodId);
     }
   }
 }

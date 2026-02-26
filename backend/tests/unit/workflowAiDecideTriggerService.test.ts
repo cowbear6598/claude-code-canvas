@@ -8,6 +8,7 @@ import {
   createPendingTargetStoreMock,
   createWorkflowMultiInputServiceMock,
   createLoggerMock,
+  createAutoClearServiceMock,
 } from '../mocks/workflowModuleMocks.js';
 
 vi.mock('../../src/services/workflow/aiDecideService.js', () => createAiDecideServiceMock());
@@ -27,6 +28,9 @@ vi.mock('../../src/services/workflow/workflowMultiInputService.js', () => create
 vi.mock('../../src/utils/logger.js', () => createLoggerMock());
 
 vi.mock('../../src/utils/errorHelpers.js', () => createErrorHelpersMock());
+
+vi.mock('../../src/services/autoClear/autoClearService.js', () => createAutoClearServiceMock());
+
 import { workflowAiDecideTriggerService } from '../../src/services/workflow/workflowAiDecideTriggerService.js';
 import { aiDecideService } from '../../src/services/workflow/aiDecideService.js';
 import { workflowEventEmitter } from '../../src/services/workflow/workflowEventEmitter.js';
@@ -35,6 +39,7 @@ import { workflowStateService } from '../../src/services/workflow/workflowStateS
 import { pendingTargetStore } from '../../src/services/pendingTargetStore.js';
 import { workflowPipeline } from '../../src/services/workflow/workflowPipeline.js';
 import { workflowMultiInputService } from '../../src/services/workflow/workflowMultiInputService.js';
+import { autoClearService } from '../../src/services/autoClear/autoClearService.js';
 import { logger } from '../../src/utils/logger.js';
 import type { Connection } from '../../src/types';
 import { createMockConnection, TEST_IDS } from '../mocks/workflowTestFactories.js';
@@ -60,7 +65,10 @@ describe('WorkflowAiDecideTriggerService', () => {
       pendingTargetStore,
       pipeline: workflowPipeline,
       multiInputService: workflowMultiInputService,
+      autoClearService,
     });
+
+    (connectionStore.findByTargetPodId as any).mockReturnValue([]);
 
     (workflowStateService.checkMultiInputScenario as any).mockReturnValue({
       isMultiInput: false,
@@ -593,6 +601,129 @@ describe('WorkflowAiDecideTriggerService', () => {
           isSummarized: true,
         })
       ).toThrow('WorkflowAiDecideTriggerService 尚未初始化');
+    });
+  });
+
+  describe('handleRejectedConnection - 拒絕是最後回應的路徑', () => {
+    it('多輸入場景 + 拒絕是最後一個回應 → 應呼叫 autoClearService.onGroupNotTriggered', async () => {
+      (aiDecideService.decideConnections as any).mockResolvedValue({
+        results: [
+          { connectionId: 'conn-ai-1', shouldTrigger: false, reason: '不相關' },
+        ],
+        errors: [],
+      });
+
+      (workflowStateService.checkMultiInputScenario as any).mockReturnValue({
+        isMultiInput: true,
+        requiredSourcePodIds: [sourcePodId, 'other-source'],
+      });
+
+      (pendingTargetStore.hasPendingTarget as any).mockReturnValue(true);
+
+      // 模擬所有來源都已回應且有拒絕（拒絕是最後一個回應）
+      (pendingTargetStore.getPendingTarget as any).mockReturnValue({
+        completedSources: new Set(['other-source']),
+        rejectedSources: new Set([sourcePodId]),
+        requiredSourcePodIds: [sourcePodId, 'other-source'],
+      });
+
+      (autoClearService.onGroupNotTriggered as any).mockResolvedValue(undefined);
+
+      await workflowAiDecideTriggerService.processAiDecideConnections(
+        canvasId,
+        sourcePodId,
+        [mockConnection]
+      );
+
+      expect(autoClearService.onGroupNotTriggered).toHaveBeenCalledWith(canvasId, targetPodId);
+    });
+
+    it('多輸入場景 + 拒絕但還有其他 source 未回應 → 不應呼叫 onGroupNotTriggered', async () => {
+      (aiDecideService.decideConnections as any).mockResolvedValue({
+        results: [
+          { connectionId: 'conn-ai-1', shouldTrigger: false, reason: '不相關' },
+        ],
+        errors: [],
+      });
+
+      (workflowStateService.checkMultiInputScenario as any).mockReturnValue({
+        isMultiInput: true,
+        requiredSourcePodIds: [sourcePodId, 'other-source', 'another-source'],
+      });
+
+      (pendingTargetStore.hasPendingTarget as any).mockReturnValue(true);
+
+      // 只有一個 source 回應，其他還未回應
+      (pendingTargetStore.getPendingTarget as any).mockReturnValue({
+        completedSources: new Set([]),
+        rejectedSources: new Set([sourcePodId]),
+        requiredSourcePodIds: [sourcePodId, 'other-source', 'another-source'],
+      });
+
+      await workflowAiDecideTriggerService.processAiDecideConnections(
+        canvasId,
+        sourcePodId,
+        [mockConnection]
+      );
+
+      expect(autoClearService.onGroupNotTriggered).not.toHaveBeenCalled();
+    });
+
+    it('單一 ai-decide connection 被拒絕 → 應呼叫 autoClearService.onGroupNotTriggered', async () => {
+      (aiDecideService.decideConnections as any).mockResolvedValue({
+        results: [
+          { connectionId: 'conn-ai-1', shouldTrigger: false, reason: '不相關' },
+        ],
+        errors: [],
+      });
+
+      (workflowStateService.checkMultiInputScenario as any).mockReturnValue({
+        isMultiInput: false,
+        requiredSourcePodIds: [],
+      });
+
+      // 只有一條 auto/ai-decide 連線
+      (connectionStore.findByTargetPodId as any).mockReturnValue([
+        { id: 'conn-ai-1', triggerMode: 'ai-decide', sourcePodId, targetPodId },
+      ]);
+
+      (autoClearService.onGroupNotTriggered as any).mockResolvedValue(undefined);
+
+      await workflowAiDecideTriggerService.processAiDecideConnections(
+        canvasId,
+        sourcePodId,
+        [mockConnection]
+      );
+
+      expect(autoClearService.onGroupNotTriggered).toHaveBeenCalledWith(canvasId, targetPodId);
+    });
+
+    it('多條 auto/ai-decide 連到同一 target，其中一條 ai-decide 被拒絕 → 不應在此處呼叫 onGroupNotTriggered', async () => {
+      (aiDecideService.decideConnections as any).mockResolvedValue({
+        results: [
+          { connectionId: 'conn-ai-1', shouldTrigger: false, reason: '不相關' },
+        ],
+        errors: [],
+      });
+
+      (workflowStateService.checkMultiInputScenario as any).mockReturnValue({
+        isMultiInput: false,
+        requiredSourcePodIds: [],
+      });
+
+      // 有多條 auto/ai-decide 連線
+      (connectionStore.findByTargetPodId as any).mockReturnValue([
+        { id: 'conn-ai-1', triggerMode: 'ai-decide', sourcePodId, targetPodId },
+        { id: 'conn-auto-1', triggerMode: 'auto', sourcePodId: 'other-source', targetPodId },
+      ]);
+
+      await workflowAiDecideTriggerService.processAiDecideConnections(
+        canvasId,
+        sourcePodId,
+        [mockConnection]
+      );
+
+      expect(autoClearService.onGroupNotTriggered).not.toHaveBeenCalled();
     });
   });
 

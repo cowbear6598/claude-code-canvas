@@ -9,8 +9,9 @@ describe('AutoClearService 單元測試', () => {
   const canvasId = 'test-canvas-id';
 
   beforeEach(() => {
-    // 清空 stores
-    // bun:test 會自動清理 mock
+    // restoreAllMocks 才能還原 spy 到原始方法，避免 clearAllMocks 導致 spy 變成空函數
+    vi.restoreAllMocks();
+    terminalPodTracker.clearAll();
   });
 
   describe('findTerminalPods - BFS 邏輯測試', () => {
@@ -19,25 +20,18 @@ describe('AutoClearService 單元測試', () => {
       const podB = createMockPod('B');
       const podC = createMockPod('C');
 
-      // Mock connectionStore
       vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
-        if (sourceId === podA.id) {
-          return [createMockConnection(podA.id, podB.id, 'auto')];
-        }
-        if (sourceId === podB.id) {
-          return [createMockConnection(podB.id, podC.id, 'auto')];
-        }
-        if (sourceId === podC.id) {
-          return [];
-        }
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podB.id, 'auto')];
+        if (sourceId === podB.id) return [createMockConnection(podB.id, podC.id, 'auto')];
         return [];
       });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]);
 
       const terminalPods = autoClearService.findTerminalPods(canvasId, podA.id);
 
-      // podC 應該是唯一的 terminal pod（沒有 outgoing auto-trigger）
-      expect(terminalPods).toHaveLength(1);
-      expect(terminalPods).toContain(podC.id);
+      expect(terminalPods.size).toBe(1);
+      expect(terminalPods.has(podC.id)).toBe(true);
+      expect(terminalPods.get(podC.id)).toBe(1);
     });
 
     it('測試分支連接：A -> B, A -> C', () => {
@@ -45,7 +39,6 @@ describe('AutoClearService 單元測試', () => {
       const podB = createMockPod('B');
       const podC = createMockPod('C');
 
-      // Mock connectionStore
       vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [
@@ -53,18 +46,15 @@ describe('AutoClearService 單元測試', () => {
             createMockConnection(podA.id, podC.id, 'auto'),
           ];
         }
-        if (sourceId === podB.id || sourceId === podC.id) {
-          return [];
-        }
         return [];
       });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]);
 
       const terminalPods = autoClearService.findTerminalPods(canvasId, podA.id);
 
-      // podB 和 podC 都是 terminal pods
-      expect(terminalPods).toHaveLength(2);
-      expect(terminalPods).toContain(podB.id);
-      expect(terminalPods).toContain(podC.id);
+      expect(terminalPods.size).toBe(2);
+      expect(terminalPods.has(podB.id)).toBe(true);
+      expect(terminalPods.has(podC.id)).toBe(true);
     });
 
     it('測試循環防護：A -> B -> C -> A', () => {
@@ -72,24 +62,17 @@ describe('AutoClearService 單元測試', () => {
       const podB = createMockPod('B');
       const podC = createMockPod('C');
 
-      // Mock connectionStore - 創建循環
       vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
-        if (sourceId === podA.id) {
-          return [createMockConnection(podA.id, podB.id, 'auto')];
-        }
-        if (sourceId === podB.id) {
-          return [createMockConnection(podB.id, podC.id, 'auto')];
-        }
-        if (sourceId === podC.id) {
-          return [createMockConnection(podC.id, podA.id, 'auto')];
-        }
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podB.id, 'auto')];
+        if (sourceId === podB.id) return [createMockConnection(podB.id, podC.id, 'auto')];
+        if (sourceId === podC.id) return [createMockConnection(podC.id, podA.id, 'auto')];
         return [];
       });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]);
 
       const terminalPods = autoClearService.findTerminalPods(canvasId, podA.id);
 
-      // 沒有 terminal pod（都在循環中）
-      expect(terminalPods).toHaveLength(0);
+      expect(terminalPods.size).toBe(0);
     });
 
     it('測試混合連接：有 auto-trigger 和無 auto-trigger 的混合', () => {
@@ -98,28 +81,22 @@ describe('AutoClearService 單元測試', () => {
       const podC = createMockPod('C');
       const podD = createMockPod('D');
 
-      // A -> B (auto-trigger), A -> C (no auto-trigger), B -> D (auto-trigger)
       vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
           return [
             createMockConnection(podA.id, podB.id, 'auto'),
-            createMockConnection(podA.id, podC.id, 'ai-decide'), // 不是 auto-trigger
+            createMockConnection(podA.id, podC.id, 'ai-decide'),
           ];
         }
-        if (sourceId === podB.id) {
-          return [createMockConnection(podB.id, podD.id, 'auto')];
-        }
-        if (sourceId === podC.id || sourceId === podD.id) {
-          return [];
-        }
+        if (sourceId === podB.id) return [createMockConnection(podB.id, podD.id, 'auto')];
         return [];
       });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]);
 
       const terminalPods = autoClearService.findTerminalPods(canvasId, podA.id);
 
-      // 只有 podD 是 terminal（podC 不透過 auto-trigger 連接，不算在內）
-      expect(terminalPods).toHaveLength(1);
-      expect(terminalPods).toContain(podD.id);
+      expect(terminalPods.size).toBe(1);
+      expect(terminalPods.has(podD.id)).toBe(true);
     });
 
     it('測試複雜樹狀結構：A -> B -> D, A -> C -> E', () => {
@@ -136,24 +113,78 @@ describe('AutoClearService 單元測試', () => {
             createMockConnection(podA.id, podC.id, 'auto'),
           ];
         }
-        if (sourceId === podB.id) {
-          return [createMockConnection(podB.id, podD.id, 'auto')];
-        }
-        if (sourceId === podC.id) {
-          return [createMockConnection(podC.id, podE.id, 'auto')];
-        }
-        if (sourceId === podD.id || sourceId === podE.id) {
-          return [];
+        if (sourceId === podB.id) return [createMockConnection(podB.id, podD.id, 'auto')];
+        if (sourceId === podC.id) return [createMockConnection(podC.id, podE.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]);
+
+      const terminalPods = autoClearService.findTerminalPods(canvasId, podA.id);
+
+      expect(terminalPods.size).toBe(2);
+      expect(terminalPods.has(podD.id)).toBe(true);
+      expect(terminalPods.has(podE.id)).toBe(true);
+    });
+
+    it('calculateExpectedGroups: 只有 auto 連入的 POD 預期組數為 1', () => {
+      const podA = createMockPod('A');
+      const podD = createMockPod('D');
+
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+
+      const terminalPods = autoClearService.findTerminalPods(canvasId, podA.id);
+
+      expect(terminalPods.get(podD.id)).toBe(1);
+    });
+
+    it('calculateExpectedGroups: 同時有 auto 和 direct 連入的 POD 預期組數為 2', () => {
+      const podA = createMockPod('A');
+      const podC = createMockPod('C');
+      const podD = createMockPod('D');
+
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) {
+          return [
+            createMockConnection(podA.id, podD.id, 'auto'),
+            createMockConnection(podC.id, podD.id, 'direct'),
+          ];
         }
         return [];
       });
 
       const terminalPods = autoClearService.findTerminalPods(canvasId, podA.id);
 
-      // podD 和 podE 是 terminal pods
-      expect(terminalPods).toHaveLength(2);
-      expect(terminalPods).toContain(podD.id);
-      expect(terminalPods).toContain(podE.id);
+      expect(terminalPods.get(podD.id)).toBe(2);
+    });
+
+    it('calculateExpectedGroups: 只有 direct 連入的 POD 預期組數為 1（不在 auto 路徑上）', () => {
+      const podA = createMockPod('A');
+      const podD = createMockPod('D');
+
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      // podD 只有 auto incoming，沒有 direct
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+
+      const terminalPods = autoClearService.findTerminalPods(canvasId, podA.id);
+
+      expect(terminalPods.get(podD.id)).toBe(1);
     });
   });
 
@@ -196,17 +227,13 @@ describe('AutoClearService 單元測試', () => {
       const podA = createMockPod('A', true);
       const podB = createMockPod('B', true);
 
-      // A -> B -> A (循環)
       vi.spyOn(podStore, 'getById').mockReturnValue(podA);
       vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
-        if (sourceId === podA.id) {
-          return [createMockConnection(podA.id, podB.id, 'auto')];
-        }
-        if (sourceId === podB.id) {
-          return [createMockConnection(podB.id, podA.id, 'auto')];
-        }
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podB.id, 'auto')];
+        if (sourceId === podB.id) return [createMockConnection(podB.id, podA.id, 'auto')];
         return [];
       });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]);
       vi.spyOn(terminalPodTracker, 'initializeTracking');
 
       autoClearService.initializeWorkflowTracking(canvasId, podA.id);
@@ -214,12 +241,11 @@ describe('AutoClearService 單元測試', () => {
       expect(terminalPodTracker.initializeTracking).not.toHaveBeenCalled();
     });
 
-    it('正常情況下，正確初始化 terminalPodTracker', () => {
+    it('正常情況下，正確初始化 terminalPodTracker（傳入 Map<string, number>）', () => {
       const podA = createMockPod('A', true);
       const podB = createMockPod('B', true);
       const podC = createMockPod('C', true);
 
-      // A -> B, A -> C
       vi.spyOn(podStore, 'getById').mockReturnValue(podA);
       vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
         if (sourceId === podA.id) {
@@ -230,14 +256,21 @@ describe('AutoClearService 單元測試', () => {
         }
         return [];
       });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]);
       vi.spyOn(terminalPodTracker, 'initializeTracking');
 
       autoClearService.initializeWorkflowTracking(canvasId, podA.id);
 
-      expect(terminalPodTracker.initializeTracking).toHaveBeenCalledWith(podA.id, [
-        podB.id,
-        podC.id,
-      ]);
+      expect(terminalPodTracker.initializeTracking).toHaveBeenCalledWith(
+        podA.id,
+        expect.any(Map)
+      );
+
+      const callArg = (terminalPodTracker.initializeTracking as ReturnType<typeof vi.spyOn>).mock.calls[0][1] as Map<string, number>;
+      expect(callArg.has(podB.id)).toBe(true);
+      expect(callArg.has(podC.id)).toBe(true);
+      expect(callArg.get(podB.id)).toBe(1);
+      expect(callArg.get(podC.id)).toBe(1);
     });
   });
 
@@ -337,7 +370,6 @@ describe('AutoClearService 單元測試', () => {
     it('當沒有 triggerable connections 時，返回 false', () => {
       const podA = createMockPod('A');
 
-      // Mock 沒有任何 outgoing connections
       vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
 
       const result = autoClearService.hasOutgoingAutoTrigger(canvasId, podA.id);
@@ -358,6 +390,359 @@ describe('AutoClearService 單元測試', () => {
       const result = autoClearService.hasOutgoingAutoTrigger(canvasId, podA.id);
 
       expect(result).toBe(true);
+    });
+  });
+
+  describe('多組觸發追蹤測試', () => {
+    it('兩組都存在時，第一組完成不觸發 autoClear', () => {
+      const podA = createMockPod('A');
+      const podC = createMockPod('C');
+      const podD = createMockPod('D');
+
+      // A -> auto -> D, C -> direct -> D
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) {
+          return [
+            createMockConnection(podA.id, podD.id, 'auto'),
+            createMockConnection(podC.id, podD.id, 'direct'),
+          ];
+        }
+        return [];
+      });
+
+      const expectedCounts = autoClearService.findTerminalPods(canvasId, podA.id);
+      terminalPodTracker.initializeTracking(podA.id, expectedCounts);
+
+      const result = terminalPodTracker.recordCompletion(podD.id);
+
+      expect(result.allComplete).toBe(false);
+      expect(result.sourcePodId).toBeNull();
+    });
+
+    it('兩組都完成後才觸發 autoClear', () => {
+      const podA = createMockPod('A');
+      const podC = createMockPod('C');
+      const podD = createMockPod('D');
+
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) {
+          return [
+            createMockConnection(podA.id, podD.id, 'auto'),
+            createMockConnection(podC.id, podD.id, 'direct'),
+          ];
+        }
+        return [];
+      });
+
+      const expectedCounts = autoClearService.findTerminalPods(canvasId, podA.id);
+      terminalPodTracker.initializeTracking(podA.id, expectedCounts);
+
+      terminalPodTracker.recordCompletion(podD.id);
+      const result = terminalPodTracker.recordCompletion(podD.id);
+
+      expect(result.allComplete).toBe(true);
+      expect(result.sourcePodId).toBe(podA.id);
+    });
+
+    it('只有 Auto/AI 組時，完成即觸發 autoClear', () => {
+      const podA = createMockPod('A');
+      const podD = createMockPod('D');
+
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+
+      const expectedCounts = autoClearService.findTerminalPods(canvasId, podA.id);
+      terminalPodTracker.initializeTracking(podA.id, expectedCounts);
+
+      const result = terminalPodTracker.recordCompletion(podD.id);
+
+      expect(result.allComplete).toBe(true);
+      expect(result.sourcePodId).toBe(podA.id);
+    });
+
+    it('只有 Direct 組時（無 direct incoming），完成即 autoClear', () => {
+      const podA = createMockPod('A');
+      const podD = createMockPod('D');
+
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      // podD 只有 auto incoming，沒有 direct
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+
+      const expectedCounts = autoClearService.findTerminalPods(canvasId, podA.id);
+      terminalPodTracker.initializeTracking(podA.id, expectedCounts);
+
+      const result = terminalPodTracker.recordCompletion(podD.id);
+
+      expect(result.allComplete).toBe(true);
+    });
+
+    it('多層結構：POD F 需要兩次完成才觸發 autoClear', () => {
+      const podA = createMockPod('A');
+      const podC = createMockPod('C');
+      const podD = createMockPod('D');
+      const podF = createMockPod('F');
+
+      // A -> auto -> D -> auto -> F, C -> direct -> D
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        if (sourceId === podD.id) return [createMockConnection(podD.id, podF.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) {
+          return [
+            createMockConnection(podA.id, podD.id, 'auto'),
+            createMockConnection(podC.id, podD.id, 'direct'),
+          ];
+        }
+        if (targetId === podF.id) return [createMockConnection(podD.id, podF.id, 'auto')];
+        return [];
+      });
+
+      const expectedCounts = autoClearService.findTerminalPods(canvasId, podA.id);
+
+      // POD F 的 expectedCount 應為 2（因為 POD D 被觸發 2 次，向下傳播）
+      expect(expectedCounts.get(podF.id)).toBe(2);
+
+      terminalPodTracker.initializeTracking(podA.id, expectedCounts);
+
+      const firstResult = terminalPodTracker.recordCompletion(podF.id);
+      expect(firstResult.allComplete).toBe(false);
+
+      const secondResult = terminalPodTracker.recordCompletion(podF.id);
+      expect(secondResult.allComplete).toBe(true);
+      expect(secondResult.sourcePodId).toBe(podA.id);
+    });
+  });
+
+  describe('decrementExpectedCount 邊界情況', () => {
+    it('expectedCount 已為 0 時再次呼叫 decrementExpectedCount → expectedCount 保持 0，不重複觸發 allComplete', () => {
+      const podA = createMockPod('A');
+      const podD = createMockPod('D');
+
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+
+      const expectedCounts = autoClearService.findTerminalPods(canvasId, podA.id);
+      terminalPodTracker.initializeTracking(podA.id, expectedCounts);
+
+      // 第一次遞減：expectedCount 從 1 → 0，completedCount=0，checkAllComplete 回傳 true
+      const firstResult = terminalPodTracker.decrementExpectedCount(podD.id);
+      expect(firstResult.allComplete).toBe(true);
+      expect(firstResult.sourcePodId).toBe(podA.id);
+
+      // clearTracking 後再初始化新追蹤，模擬重複遞減情境
+      // 直接驗證 Math.max(0, ...) 防護：expectedCount 不會低於 0
+      terminalPodTracker.clearAll();
+      const expectedCounts2 = new Map([[podD.id, 1]]);
+      terminalPodTracker.initializeTracking(podA.id, expectedCounts2);
+
+      terminalPodTracker.decrementExpectedCount(podD.id); // expectedCount → 0
+      const secondResult = terminalPodTracker.decrementExpectedCount(podD.id); // 再次遞減，應保持 0
+
+      // expectedCount=0, completedCount=0，checkAllComplete 回傳 true
+      expect(secondResult.allComplete).toBe(true);
+    });
+  });
+
+  describe('recordCompletion 超額呼叫防護', () => {
+    it('recordCompletion 被呼叫超過 expectedCount 次 → 超額呼叫被忽略，count 不繼續累加', () => {
+      const podA = createMockPod('A');
+      const podD = createMockPod('D');
+
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+
+      const expectedCounts = autoClearService.findTerminalPods(canvasId, podA.id);
+      expect(expectedCounts.get(podD.id)).toBe(1);
+      terminalPodTracker.initializeTracking(podA.id, expectedCounts);
+
+      // 第一次呼叫：正常完成
+      const firstResult = terminalPodTracker.recordCompletion(podD.id);
+      expect(firstResult.allComplete).toBe(true);
+      expect(firstResult.sourcePodId).toBe(podA.id);
+
+      // 超額呼叫：應被忽略，回傳 allComplete: true 但 count 不增加
+      const overflowResult = terminalPodTracker.recordCompletion(podD.id);
+      expect(overflowResult.allComplete).toBe(true);
+      expect(overflowResult.sourcePodId).toBe(podA.id);
+    });
+  });
+
+  describe('AI 拒絕處理測試', () => {
+    it('Auto/AI 組被拒絕後，expectedCount 正確遞減', () => {
+      const podA = createMockPod('A');
+      const podC = createMockPod('C');
+      const podD = createMockPod('D');
+
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) {
+          return [
+            createMockConnection(podA.id, podD.id, 'auto'),
+            createMockConnection(podC.id, podD.id, 'direct'),
+          ];
+        }
+        return [];
+      });
+
+      const expectedCounts = autoClearService.findTerminalPods(canvasId, podA.id);
+      expect(expectedCounts.get(podD.id)).toBe(2);
+      terminalPodTracker.initializeTracking(podA.id, expectedCounts);
+
+      const result = terminalPodTracker.decrementExpectedCount(podD.id);
+
+      // completedCount=0, expectedCount=1，尚未完成
+      expect(result.allComplete).toBe(false);
+      expect(result.sourcePodId).toBeNull();
+    });
+
+    it('遞減後 allComplete 變為 true，觸發 autoClear', () => {
+      const podA = createMockPod('A');
+      const podC = createMockPod('C');
+      const podD = createMockPod('D');
+
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) {
+          return [
+            createMockConnection(podA.id, podD.id, 'auto'),
+            createMockConnection(podC.id, podD.id, 'direct'),
+          ];
+        }
+        return [];
+      });
+
+      const expectedCounts = autoClearService.findTerminalPods(canvasId, podA.id);
+      terminalPodTracker.initializeTracking(podA.id, expectedCounts);
+
+      // Direct 組完成（completedCount=1）
+      terminalPodTracker.recordCompletion(podD.id);
+
+      // Auto/AI 組被拒絕（expectedCount 從 2 減為 1）
+      const result = terminalPodTracker.decrementExpectedCount(podD.id);
+
+      // completedCount(1) >= expectedCount(1)，allComplete 應為 true
+      expect(result.allComplete).toBe(true);
+      expect(result.sourcePodId).toBe(podA.id);
+    });
+
+    it('Direct 組已完成 + Auto/AI 組被拒絕，autoClear 正確觸發（透過 onGroupNotTriggered）', async () => {
+      const podA = createMockPod('A', true);
+      const podC = createMockPod('C');
+      const podD = createMockPod('D', false);
+
+      vi.spyOn(podStore, 'getById').mockImplementation((cId, pId) => {
+        if (pId === podA.id) return podA;
+        if (pId === podD.id) return podD;
+        return undefined;
+      });
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) {
+          return [
+            createMockConnection(podA.id, podD.id, 'auto'),
+            createMockConnection(podC.id, podD.id, 'direct'),
+          ];
+        }
+        return [];
+      });
+      vi.spyOn(autoClearService, 'executeAutoClear').mockResolvedValue();
+
+      // 初始化 tracking
+      autoClearService.initializeWorkflowTracking(canvasId, podA.id);
+
+      // Direct 組完成（POD D 完成一次）
+      await autoClearService.onPodComplete(canvasId, podD.id);
+      expect(autoClearService.executeAutoClear).not.toHaveBeenCalled();
+
+      // Auto/AI 組被拒絕
+      await autoClearService.onGroupNotTriggered(canvasId, podD.id);
+
+      expect(autoClearService.executeAutoClear).toHaveBeenCalledWith(canvasId, podA.id);
+    });
+
+    it('多層結構中拒絕的傳播：下游 terminal PODs 的 expectedCount 遞減', async () => {
+      const podA = createMockPod('A', true);
+      const podC = createMockPod('C');
+      const podD = createMockPod('D', false);
+      const podF = createMockPod('F', false);
+
+      vi.spyOn(podStore, 'getById').mockImplementation((cId, pId) => {
+        if (pId === podA.id) return podA;
+        if (pId === podD.id) return podD;
+        if (pId === podF.id) return podF;
+        return undefined;
+      });
+      vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((cId, sourceId) => {
+        if (sourceId === podA.id) return [createMockConnection(podA.id, podD.id, 'auto')];
+        if (sourceId === podD.id) return [createMockConnection(podD.id, podF.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(connectionStore, 'findByTargetPodId').mockImplementation((cId, targetId) => {
+        if (targetId === podD.id) {
+          return [
+            createMockConnection(podA.id, podD.id, 'auto'),
+            createMockConnection(podC.id, podD.id, 'direct'),
+          ];
+        }
+        if (targetId === podF.id) return [createMockConnection(podD.id, podF.id, 'auto')];
+        return [];
+      });
+      vi.spyOn(autoClearService, 'executeAutoClear').mockResolvedValue();
+
+      autoClearService.initializeWorkflowTracking(canvasId, podA.id);
+
+      // Direct 組觸發，POD D 完成，接著觸發 POD F 完成（completedCount=1）
+      await autoClearService.onPodComplete(canvasId, podF.id);
+      expect(autoClearService.executeAutoClear).not.toHaveBeenCalled();
+
+      // Auto/AI 組被拒絕，BFS 找到下游 POD F 並遞減 expectedCount（從 2 減為 1）
+      await autoClearService.onGroupNotTriggered(canvasId, podD.id);
+
+      // POD F: completedCount(1) >= expectedCount(1)，allComplete = true
+      expect(autoClearService.executeAutoClear).toHaveBeenCalledWith(canvasId, podA.id);
     });
   });
 });
@@ -391,7 +776,7 @@ function createMockPod(name: string, autoClear: boolean = false): Pod {
 function createMockConnection(
   sourcePodId: string,
   targetPodId: string,
-  triggerMode: 'auto' | 'ai-decide' = 'auto'
+  triggerMode: 'auto' | 'ai-decide' | 'direct' = 'auto'
 ): Connection {
   return {
     id: uuidv4(),

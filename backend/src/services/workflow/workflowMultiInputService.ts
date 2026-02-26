@@ -12,6 +12,7 @@ import {workflowQueueService} from './workflowQueueService.js';
 import {workflowStateService} from './workflowStateService.js';
 import {logger} from '../../utils/logger.js';
 import {formatMergedSummaries} from './workflowHelpers.js';
+import {autoClearService} from '../autoClear/autoClearService.js';
 
 class WorkflowMultiInputService {
   private executionService!: ExecutionServiceMethods;
@@ -88,6 +89,7 @@ class WorkflowMultiInputService {
     if (hasRejection) {
       logger.log('Workflow', 'Update', `Target ${connection.targetPodId} has rejected sources, not triggering`);
       workflowStateService.emitPendingStatus(canvasId, connection.targetPodId);
+      await autoClearService.onGroupNotTriggered(canvasId, connection.targetPodId);
       return;
     }
 
