@@ -30,6 +30,12 @@ class WorkflowPipeline {
     this.queueService = queueService;
   }
 
+  private ensureInitialized(): void {
+    if (!this.executionService || !this.stateService || !this.multiInputService || !this.queueService) {
+      throw new Error('Pipeline 尚未初始化，請先呼叫 init()');
+    }
+  }
+
   /**
    * 執行統一的觸發 Pipeline
    *
@@ -40,9 +46,7 @@ class WorkflowPipeline {
    * 4. trigger 階段：觸發工作流程
    */
   async execute(context: PipelineContext, strategy: TriggerStrategy): Promise<void> {
-    if (!this.executionService || !this.stateService || !this.multiInputService || !this.queueService) {
-      throw new Error('Pipeline 尚未初始化，請先呼叫 init()');
-    }
+    this.ensureInitialized();
 
     const { canvasId, sourcePodId, connection, triggerMode } = context;
     const { targetPodId, id: connectionId } = connection;
@@ -51,7 +55,7 @@ class WorkflowPipeline {
 
     // ========== 1. generateSummary 階段 ==========
     logger.log('Workflow', 'Pipeline', `[generateSummary] 生成摘要：${sourcePodId} → ${targetPodId}`);
-    const summaryResult = await this.executionService.generateSummaryWithFallback(
+    const summaryResult = await this.executionService!.generateSummaryWithFallback(
       canvasId,
       sourcePodId,
       targetPodId
@@ -62,53 +66,12 @@ class WorkflowPipeline {
       return;
     }
 
-    let finalSummary = summaryResult.content;
-    let finalIsSummarized = summaryResult.isSummarized;
-
     // ========== 2. collectSources 階段 ==========
     logger.log('Workflow', 'Pipeline', `[collectSources] 收集來源`);
+    const collectResult = await this.runCollectSourcesStage(context, strategy, summaryResult.content, summaryResult.isSummarized);
+    if (!collectResult) return;
 
-    if (strategy.collectSources) {
-      // Strategy 提供自訂 collectSources 邏輯
-      logger.log('Workflow', 'Pipeline', `[collectSources] 使用 Strategy 自訂邏輯`);
-      const collectResult = await strategy.collectSources({
-        canvasId,
-        sourcePodId,
-        connection,
-        summary: summaryResult.content,
-      });
-
-      if (!collectResult.ready) {
-        logger.log('Workflow', 'Pipeline', `[collectSources] 來源尚未就緒，暫停 Pipeline`);
-        return;
-      }
-
-      if (collectResult.mergedContent) {
-        finalSummary = collectResult.mergedContent;
-        finalIsSummarized = collectResult.isSummarized ?? true;
-        logger.log('Workflow', 'Pipeline', `[collectSources] 使用合併內容`);
-      }
-    } else {
-      // 使用預設邏輯：檢查多輸入
-      logger.log('Workflow', 'Pipeline', `[collectSources] 使用預設多輸入邏輯`);
-      const { isMultiInput, requiredSourcePodIds } = this.stateService.checkMultiInputScenario(
-        canvasId,
-        targetPodId
-      );
-
-      if (isMultiInput) {
-        logger.log('Workflow', 'Pipeline', `[collectSources] 偵測到多輸入場景`);
-        await this.multiInputService.handleMultiInputForConnection(
-          canvasId,
-          sourcePodId,
-          connection,
-          requiredSourcePodIds,
-          summaryResult.content,
-          triggerMode as 'auto' | 'ai-decide'
-        );
-        return;
-      }
-    }
+    const { finalSummary, finalIsSummarized } = collectResult;
 
     // ========== 3. checkQueue 階段 ==========
     logger.log('Workflow', 'Pipeline', `[checkQueue] 檢查目標 Pod 狀態`);
@@ -121,7 +84,7 @@ class WorkflowPipeline {
 
     if (targetPod.status !== 'idle') {
       logger.log('Workflow', 'Pipeline', `[checkQueue] 目標 Pod 忙碌中 (${targetPod.status})，加入佇列`);
-      this.queueService.enqueue({
+      this.queueService!.enqueue({
         canvasId,
         connectionId,
         sourcePodId,
@@ -136,7 +99,7 @@ class WorkflowPipeline {
     // ========== 4. trigger 階段 ==========
     logger.log('Workflow', 'Pipeline', `[trigger] 觸發工作流程`);
 
-    await this.executionService.triggerWorkflowWithSummary(
+    await this.executionService!.triggerWorkflowWithSummary(
       canvasId,
       connectionId,
       finalSummary,
@@ -145,6 +108,59 @@ class WorkflowPipeline {
     );
 
     logger.log('Workflow', 'Pipeline', `Pipeline 執行完成`);
+  }
+
+  private async runCollectSourcesStage(
+    context: PipelineContext,
+    strategy: TriggerStrategy,
+    summaryContent: string,
+    summaryIsSummarized: boolean
+  ): Promise<{ finalSummary: string; finalIsSummarized: boolean } | null> {
+    const { canvasId, sourcePodId, connection, triggerMode } = context;
+    const { targetPodId } = connection;
+
+    if (strategy.collectSources) {
+      logger.log('Workflow', 'Pipeline', `[collectSources] 使用 Strategy 自訂邏輯`);
+      const collectResult = await strategy.collectSources({
+        canvasId,
+        sourcePodId,
+        connection,
+        summary: summaryContent,
+      });
+
+      if (!collectResult.ready) {
+        logger.log('Workflow', 'Pipeline', `[collectSources] 來源尚未就緒，暫停 Pipeline`);
+        return null;
+      }
+
+      if (collectResult.mergedContent) {
+        logger.log('Workflow', 'Pipeline', `[collectSources] 使用合併內容`);
+        return { finalSummary: collectResult.mergedContent, finalIsSummarized: collectResult.isSummarized ?? true };
+      }
+
+      return { finalSummary: summaryContent, finalIsSummarized: summaryIsSummarized };
+    }
+
+    logger.log('Workflow', 'Pipeline', `[collectSources] 使用預設多輸入邏輯`);
+    const { isMultiInput, requiredSourcePodIds } = this.stateService!.checkMultiInputScenario(
+      canvasId,
+      targetPodId
+    );
+
+    if (isMultiInput) {
+      logger.log('Workflow', 'Pipeline', `[collectSources] 偵測到多輸入場景`);
+      await this.multiInputService!.handleMultiInputForConnection(
+        canvasId,
+        sourcePodId,
+        connection,
+        requiredSourcePodIds,
+        summaryContent,
+        triggerMode as 'auto' | 'ai-decide'
+      );
+      return null;
+    }
+
+    return { finalSummary: summaryContent, finalIsSummarized: summaryIsSummarized };
   }
 }
 

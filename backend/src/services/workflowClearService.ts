@@ -57,51 +57,24 @@ class WorkflowClearService {
   }
 
   async clearWorkflow(canvasId: string, sourcePodId: string): Promise<ClearResult> {
-    try {
-      const canvasDir = canvasStore.getCanvasDir(canvasId);
-      if (!canvasDir) {
-        return {
-          success: false,
-          clearedPodIds: [],
-          clearedPodNames: [],
-          clearedConnectionIds: [],
-          error: `Canvas not found: ${canvasId}`,
-        };
-      }
+    const canvasDir = canvasStore.getCanvasDir(canvasId);
+    if (!canvasDir) {
+      return {
+        success: false,
+        clearedPodIds: [],
+        clearedPodNames: [],
+        clearedConnectionIds: [],
+        error: `Canvas not found: ${canvasId}`,
+      };
+    }
 
+    try {
       const podIds = this.getDownstreamPodIds(canvasId, sourcePodId);
       const clearedPodNames: string[] = [];
       const clearedConnectionIds: string[] = [];
 
       for (const podId of podIds) {
-        const pod = podStore.getById(canvasId, podId);
-        if (pod) {
-          clearedPodNames.push(pod.name);
-
-          messageStore.clearMessages(podId);
-
-          const clearResult = await chatPersistenceService.clearChatHistory(canvasDir, podId);
-          if (!clearResult.success) {
-            logger.error('AutoClear', 'Error', `[WorkflowClear] Error clearing chat history for Pod ${podId}: ${clearResult.error}`);
-          }
-
-          await claudeSessionManager
-            .destroySession(podId)
-            .then(() => {
-              podStore.setClaudeSessionId(canvasId, podId, '');
-            })
-            .catch((error) => {
-              logger.error('AutoClear', 'Error', `[WorkflowClear] Error destroying session for Pod ${podId}`, error);
-            });
-
-          const outgoingConnections = connectionStore.findBySourcePodId(canvasId, podId);
-          for (const conn of outgoingConnections) {
-            if (conn.triggerMode === 'ai-decide' && conn.decideStatus !== 'none') {
-              connectionStore.updateDecideStatus(canvasId, conn.id, 'none', null);
-              clearedConnectionIds.push(conn.id);
-            }
-          }
-        }
+        await this.clearSinglePod(canvasId, podId, canvasDir, clearedPodNames, clearedConnectionIds);
       }
 
       return {
@@ -121,6 +94,51 @@ class WorkflowClearService {
         clearedConnectionIds: [],
         error: errorMessage,
       };
+    }
+  }
+
+  private async clearSinglePod(
+    canvasId: string,
+    podId: string,
+    canvasDir: string,
+    clearedPodNames: string[],
+    clearedConnectionIds: string[]
+  ): Promise<void> {
+    const pod = podStore.getById(canvasId, podId);
+    if (!pod) return;
+
+    clearedPodNames.push(pod.name);
+
+    messageStore.clearMessages(podId);
+
+    const clearResult = await chatPersistenceService.clearChatHistory(canvasDir, podId);
+    if (!clearResult.success) {
+      logger.error('AutoClear', 'Error', `[WorkflowClear] Error clearing chat history for Pod ${podId}: ${clearResult.error}`);
+    }
+
+    await claudeSessionManager
+      .destroySession(podId)
+      .then(() => {
+        podStore.setClaudeSessionId(canvasId, podId, '');
+      })
+      .catch((error) => {
+        logger.error('AutoClear', 'Error', `[WorkflowClear] Error destroying session for Pod ${podId}`, error);
+      });
+
+    this.clearAiDecideConnections(canvasId, podId, clearedConnectionIds);
+  }
+
+  private clearAiDecideConnections(
+    canvasId: string,
+    podId: string,
+    clearedConnectionIds: string[]
+  ): void {
+    const outgoingConnections = connectionStore.findBySourcePodId(canvasId, podId);
+    for (const conn of outgoingConnections) {
+      if (conn.triggerMode === 'ai-decide' && conn.decideStatus !== 'none') {
+        connectionStore.updateDecideStatus(canvasId, conn.id, 'none', null);
+        clearedConnectionIds.push(conn.id);
+      }
     }
   }
 }

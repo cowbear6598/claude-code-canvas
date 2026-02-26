@@ -206,6 +206,12 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
     }
   }
 
+  private ensureInitialized(): void {
+    if (!this.eventEmitter || !this.connectionStore || !this.stateService || !this.pendingTargetStore || !this.pipeline || !this.multiInputService) {
+      throw new Error('WorkflowAiDecideTriggerService 尚未初始化，請先呼叫 init()');
+    }
+  }
+
   /**
    * 處理 AI Decide connections 的批次判斷和觸發
    *
@@ -217,18 +223,16 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
     sourcePodId: string,
     connections: Connection[]
   ): Promise<void> {
-    if (!this.eventEmitter || !this.connectionStore || !this.stateService || !this.pendingTargetStore || !this.pipeline || !this.multiInputService) {
-      throw new Error('WorkflowAiDecideTriggerService 尚未初始化，請先呼叫 init()');
-    }
+    this.ensureInitialized();
 
     // 1. 發送 PENDING 事件
     const connectionIds = connections.map(conn => conn.id);
-    this.eventEmitter.emitAiDecidePending(canvasId, connectionIds, sourcePodId);
+    this.eventEmitter!.emitAiDecidePending(canvasId, connectionIds, sourcePodId);
 
     // 2. 更新所有 connections 狀態為 pending 並持久化 ai-deciding
     for (const conn of connections) {
-      this.connectionStore.updateDecideStatus(canvasId, conn.id, 'pending', null);
-      this.connectionStore.updateConnectionStatus(canvasId, conn.id, 'ai-deciding');
+      this.connectionStore!.updateDecideStatus(canvasId, conn.id, 'pending', null);
+      this.connectionStore!.updateConnectionStatus(canvasId, conn.id, 'ai-deciding');
     }
 
     // 3. 呼叫 decide() 取得判斷結果
