@@ -137,7 +137,8 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
       throw new Error(`Pod not found: ${targetPodId}`);
     }
 
-    logger.log('Workflow', 'Create', `觸發工作流程：Pod ${sourcePodId} → Pod ${targetPodId}`);
+    const sourcePod = podStore.getById(canvasId, sourcePodId);
+    logger.log('Workflow', 'Create', `觸發工作流程：Pod "${sourcePod?.name ?? sourcePodId}" → Pod "${targetPod.name}"`);
 
     const triggerMode = connection.triggerMode;
     this.setConnectionsToActive(canvasId, targetPodId, triggerMode);

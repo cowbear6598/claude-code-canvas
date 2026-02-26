@@ -22,6 +22,7 @@ import { workflowStateService } from './workflowStateService.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
 import { aiDecideService } from './aiDecideService.js';
 import { connectionStore } from '../connectionStore.js';
+import { podStore } from '../podStore.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
 import { autoClearService } from '../autoClear/autoClearService.js';
 
@@ -45,6 +46,7 @@ export function initWorkflowServices(): void {
     aiDecideService,
     eventEmitter: workflowEventEmitter,
     connectionStore,
+    podStore,
     stateService: workflowStateService,
     pendingTargetStore,
     pipeline: workflowPipeline,

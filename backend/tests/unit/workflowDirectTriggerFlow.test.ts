@@ -30,15 +30,21 @@ describe('Direct Trigger Flow', () => {
         mockDirectConnection = createMockConnection({ id: connectionId, sourcePodId, targetPodId, triggerMode: 'direct' });
         mockMessages = createMockMessages();
 
-        const podLookup = new Map([[sourcePodId, mockSourcePod], [targetPodId, mockTargetPod]]);
         const summary = { targetPodId: '', success: true, summary: testSummary };
         const customClaudeQuery = async (...args: any[]) => {
             const callback = args[2] as any;
             callback({ type: 'text', content: 'Claude response' });
             callback({ type: 'complete' });
         };
+        const customPodGetter = (_cId: string, podId: string) => {
+            if (podId === sourcePodId) return { ...mockSourcePod };
+            if (podId.startsWith('source-pod')) return createMockPod({ id: podId, name: `Source ${podId}`, status: 'idle' });
+            if (podId === targetPodId) return { ...mockTargetPod };
+            if (podId.startsWith('target-pod')) return createMockPod({ id: podId, name: `Target ${podId}`, status: 'idle' });
+            return undefined;
+        };
 
-        setupAllSpies({ podLookup, messages: mockMessages, connection: mockDirectConnection, directConnectionCount: 1, summary, customClaudeQuery });
+        setupAllSpies({ customPodGetter, messages: mockMessages, connection: mockDirectConnection, directConnectionCount: 1, summary, customClaudeQuery });
     });
 
     afterEach(() => {

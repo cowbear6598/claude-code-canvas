@@ -47,7 +47,8 @@ class WorkflowMultiInputService {
     mergedContent: string,
     triggerMode: 'auto' | 'ai-decide'
   ): void {
-    logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is busy, enqueuing merged workflow`);
+    const targetPod = podStore.getById(canvasId, connection.targetPodId);
+    logger.log('Workflow', 'Update', `Target Pod "${targetPod?.name ?? connection.targetPodId}" is busy, enqueuing merged workflow`);
 
     workflowQueueService.enqueue({
       canvasId,
@@ -72,7 +73,8 @@ class WorkflowMultiInputService {
   ): Promise<void> {
     if (!pendingTargetStore.hasPendingTarget(connection.targetPodId)) {
       pendingTargetStore.initializePendingTarget(connection.targetPodId, requiredSourcePodIds);
-      logger.log('Workflow', 'Create', `Initialized pending target ${connection.targetPodId}, waiting for ${requiredSourcePodIds.length} sources`);
+      const targetPod = podStore.getById(canvasId, connection.targetPodId);
+      logger.log('Workflow', 'Create', `Initialized pending target "${targetPod?.name ?? connection.targetPodId}", waiting for ${requiredSourcePodIds.length} sources`);
     }
 
     const { allSourcesResponded, hasRejection } = pendingTargetStore.recordSourceCompletion(
@@ -87,7 +89,8 @@ class WorkflowMultiInputService {
     }
 
     if (hasRejection) {
-      logger.log('Workflow', 'Update', `Target ${connection.targetPodId} has rejected sources, not triggering`);
+      const targetPod = podStore.getById(canvasId, connection.targetPodId);
+      logger.log('Workflow', 'Update', `Target "${targetPod?.name ?? connection.targetPodId}" has rejected sources, not triggering`);
       workflowStateService.emitPendingStatus(canvasId, connection.targetPodId);
       await autoClearService.onGroupNotTriggered(canvasId, connection.targetPodId);
       return;
@@ -118,7 +121,8 @@ class WorkflowMultiInputService {
     connection: Connection,
     triggerMode: 'auto' | 'ai-decide'
   ): void {
-    logger.log('Workflow', 'Complete', `All sources complete for target ${connection.targetPodId}`);
+    const targetPod = podStore.getById(canvasId, connection.targetPodId);
+    logger.log('Workflow', 'Complete', `All sources complete for target "${targetPod?.name ?? connection.targetPodId}"`);
 
     const completedSummaries = pendingTargetStore.getCompletedSummaries(connection.targetPodId);
     if (!completedSummaries) {

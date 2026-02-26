@@ -356,6 +356,14 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 targetPodId: 'target-fail',
             };
 
+            vi.spyOn(connectionStore, 'getById').mockReturnValue(conn);
+            vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
+            vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
+                if (podId === 'target-fail') return {...mockTargetPod, id: 'target-fail', status: 'idle'};
+                if (podId === sourcePodId) return mockSourcePod;
+                return undefined;
+            }) as any);
+
             workflowQueueService.enqueue({
                 canvasId,
                 connectionId: 'conn-queued-after-fail',
@@ -365,14 +373,6 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 isSummarized: true,
                 triggerMode: 'auto',
             });
-
-            vi.spyOn(connectionStore, 'getById').mockReturnValue(conn);
-            vi.spyOn(connectionStore, 'findBySourcePodId').mockReturnValue([]);
-            vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
-                if (podId === 'target-fail') return {...mockTargetPod, id: 'target-fail', status: 'idle'};
-                if (podId === sourcePodId) return mockSourcePod;
-                return undefined;
-            }) as any);
 
             const testError = new Error('Claude query failed');
             vi.spyOn(claudeQueryService, 'sendMessage').mockImplementation(async () => {

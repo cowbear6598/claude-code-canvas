@@ -48,14 +48,16 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         const directCount = workflowStateService.getDirectConnectionCount(canvasId, targetPodId);
 
         if (directCount === 1) {
-            return this.handleSingleDirectTrigger(sourcePodId, targetPodId);
+            return this.handleSingleDirectTrigger(canvasId, sourcePodId, targetPodId);
         }
 
         return this.handleMultiDirectTrigger(canvasId, sourcePodId, targetPodId, connection, summary);
     }
 
-    private handleSingleDirectTrigger(sourcePodId: string, targetPodId: string): CollectSourcesResult {
-        logger.log('Workflow', 'Create', `Direct trigger from Pod ${sourcePodId} to Pod ${targetPodId}`);
+    private handleSingleDirectTrigger(canvasId: string, sourcePodId: string, targetPodId: string): CollectSourcesResult {
+        const sourcePod = podStore.getById(canvasId, sourcePodId);
+        const targetPod = podStore.getById(canvasId, targetPodId);
+        logger.log('Workflow', 'Create', `Direct trigger from Pod "${sourcePod?.name ?? sourcePodId}" to Pod "${targetPod?.name ?? targetPodId}"`);
         return {ready: true};
     }
 
@@ -85,7 +87,8 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         const readySummaries = directTriggerStore.getReadySummaries(targetPodId);
         const readySourcePodIds = readySummaries ? Array.from(readySummaries.keys()) : [];
 
-        logger.log('Workflow', 'Update', `Multi-direct trigger: ${readySourcePodIds.length} sources ready for target ${targetPodId}, countdown started`);
+        const targetPod = podStore.getById(canvasId, targetPodId);
+        logger.log('Workflow', 'Update', `Multi-direct trigger: ${readySourcePodIds.length} sources ready for target "${targetPod?.name ?? targetPodId}", countdown started`);
 
         if (this.pendingResolvers.has(targetPodId)) {
             this.startCountdownTimer(canvasId, targetPodId);

@@ -147,6 +147,7 @@ class WorkflowClearService {
     for (const conn of outgoingConnections) {
       if (conn.triggerMode === 'ai-decide' && conn.decideStatus !== 'none') {
         connectionStore.updateDecideStatus(canvasId, conn.id, 'none', null);
+        connectionStore.updateConnectionStatus(canvasId, conn.id, 'idle');
         clearedConnectionIds.push(conn.id);
       }
     }

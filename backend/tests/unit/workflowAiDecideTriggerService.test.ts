@@ -9,7 +9,10 @@ import {
   createWorkflowMultiInputServiceMock,
   createLoggerMock,
   createAutoClearServiceMock,
+  createPodStoreMock,
 } from '../mocks/workflowModuleMocks.js';
+
+vi.mock('../../src/services/podStore.js', () => createPodStoreMock());
 
 vi.mock('../../src/services/workflow/aiDecideService.js', () => createAiDecideServiceMock());
 
@@ -40,9 +43,10 @@ import { pendingTargetStore } from '../../src/services/pendingTargetStore.js';
 import { workflowPipeline } from '../../src/services/workflow/workflowPipeline.js';
 import { workflowMultiInputService } from '../../src/services/workflow/workflowMultiInputService.js';
 import { autoClearService } from '../../src/services/autoClear/autoClearService.js';
+import { podStore } from '../../src/services/podStore.js';
 import { logger } from '../../src/utils/logger.js';
 import type { Connection } from '../../src/types';
-import { createMockConnection, TEST_IDS } from '../mocks/workflowTestFactories.js';
+import { createMockConnection, createMockPod, TEST_IDS } from '../mocks/workflowTestFactories.js';
 
 describe('WorkflowAiDecideTriggerService', () => {
   const { canvasId, sourcePodId, targetPodId } = TEST_IDS;
@@ -61,12 +65,17 @@ describe('WorkflowAiDecideTriggerService', () => {
       aiDecideService,
       eventEmitter: workflowEventEmitter,
       connectionStore,
+      podStore,
       stateService: workflowStateService,
       pendingTargetStore,
       pipeline: workflowPipeline,
       multiInputService: workflowMultiInputService,
       autoClearService,
     });
+
+    (podStore.getById as any).mockImplementation((_canvasId: string, podId: string) =>
+      createMockPod({ id: podId, name: `Pod ${podId}` })
+    );
 
     (connectionStore.findByTargetPodId as any).mockReturnValue([]);
 

@@ -55,7 +55,8 @@ class WorkflowQueueService extends LazyInitializable<QueueServiceDeps> {
       triggerMode: item.triggerMode,
     });
 
-    logger.log('Workflow', 'Create', `Enqueued workflow for target ${item.targetPodId}, position ${position}/${queueSize}`);
+    const targetPodName = podStore.getById(item.canvasId, item.targetPodId)?.name ?? item.targetPodId;
+    logger.log('Workflow', 'Create', `Enqueued workflow for target "${targetPodName}", position ${position}/${queueSize}`);
 
     return { position, queueSize };
   }
@@ -121,7 +122,7 @@ class WorkflowQueueService extends LazyInitializable<QueueServiceDeps> {
       triggerMode: item.triggerMode,
     });
 
-    logger.log('Workflow', 'Update', `Processing queued workflow for target ${targetPodId}, ${remainingQueueSize} remaining`);
+    logger.log('Workflow', 'Update', `Processing queued workflow for target "${targetPod.name}", ${remainingQueueSize} remaining`);
 
     await this.deps.executionService.triggerWorkflowWithSummary(
       canvasId,

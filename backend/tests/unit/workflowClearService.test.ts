@@ -5,6 +5,7 @@ vi.mock('../../src/services/connectionStore.js', () => ({
     findBySourcePodId: vi.fn(),
     findByTargetPodId: vi.fn(),
     updateDecideStatus: vi.fn(),
+    updateConnectionStatus: vi.fn(),
   },
 }));
 
@@ -213,6 +214,75 @@ describe('WorkflowClearService', () => {
       await workflowClearService.clearWorkflow(CANVAS_ID, SOURCE_POD_ID);
 
       expect(connectionStore.updateDecideStatus).not.toHaveBeenCalled();
+    });
+
+    it('ai-decide connection 為 approved 狀態時，connectionStatus 重置為 idle', async () => {
+      (connectionStore.findBySourcePodId as any).mockImplementation((_cId: string, podId: string) => {
+        if (podId === SOURCE_POD_ID) {
+          return [{ id: 'conn-ai', sourcePodId: SOURCE_POD_ID, targetPodId: TARGET_POD_ID, triggerMode: 'ai-decide', decideStatus: 'approved' }];
+        }
+        return [];
+      });
+
+      await workflowClearService.clearWorkflow(CANVAS_ID, SOURCE_POD_ID);
+
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(CANVAS_ID, 'conn-ai', 'idle');
+    });
+
+    it('ai-decide connection 為 rejected 狀態時，connectionStatus 重置為 idle', async () => {
+      (connectionStore.findBySourcePodId as any).mockImplementation((_cId: string, podId: string) => {
+        if (podId === SOURCE_POD_ID) {
+          return [{ id: 'conn-ai', sourcePodId: SOURCE_POD_ID, targetPodId: TARGET_POD_ID, triggerMode: 'ai-decide', decideStatus: 'rejected' }];
+        }
+        return [];
+      });
+
+      await workflowClearService.clearWorkflow(CANVAS_ID, SOURCE_POD_ID);
+
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(CANVAS_ID, 'conn-ai', 'idle');
+    });
+
+    it('ai-decide connection 為 error 狀態時，connectionStatus 重置為 idle', async () => {
+      (connectionStore.findBySourcePodId as any).mockImplementation((_cId: string, podId: string) => {
+        if (podId === SOURCE_POD_ID) {
+          return [{ id: 'conn-ai', sourcePodId: SOURCE_POD_ID, targetPodId: TARGET_POD_ID, triggerMode: 'ai-decide', decideStatus: 'error' }];
+        }
+        return [];
+      });
+
+      await workflowClearService.clearWorkflow(CANVAS_ID, SOURCE_POD_ID);
+
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(CANVAS_ID, 'conn-ai', 'idle');
+    });
+
+    it('多條 ai-decide connection 全部都應被重置 connectionStatus 為 idle', async () => {
+      (connectionStore.findBySourcePodId as any).mockImplementation((_cId: string, podId: string) => {
+        if (podId === SOURCE_POD_ID) {
+          return [
+            { id: 'conn-ai-1', sourcePodId: SOURCE_POD_ID, targetPodId: TARGET_POD_ID, triggerMode: 'ai-decide', decideStatus: 'approved' },
+            { id: 'conn-ai-2', sourcePodId: SOURCE_POD_ID, targetPodId: DOWNSTREAM_POD_ID, triggerMode: 'ai-decide', decideStatus: 'rejected' },
+          ];
+        }
+        return [];
+      });
+
+      await workflowClearService.clearWorkflow(CANVAS_ID, SOURCE_POD_ID);
+
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(CANVAS_ID, 'conn-ai-1', 'idle');
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(CANVAS_ID, 'conn-ai-2', 'idle');
+    });
+
+    it('ai-decide connection 且 decideStatus 為 none 時，不呼叫 updateConnectionStatus', async () => {
+      (connectionStore.findBySourcePodId as any).mockImplementation((_cId: string, podId: string) => {
+        if (podId === SOURCE_POD_ID) {
+          return [{ id: 'conn-ai', sourcePodId: SOURCE_POD_ID, targetPodId: TARGET_POD_ID, triggerMode: 'ai-decide', decideStatus: 'none' }];
+        }
+        return [];
+      });
+
+      await workflowClearService.clearWorkflow(CANVAS_ID, SOURCE_POD_ID);
+
+      expect(connectionStore.updateConnectionStatus).not.toHaveBeenCalled();
     });
   });
 

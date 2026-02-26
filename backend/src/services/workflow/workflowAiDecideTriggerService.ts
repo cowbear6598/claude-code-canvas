@@ -12,6 +12,7 @@ import type {
 import { aiDecideService } from './aiDecideService.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
 import { connectionStore } from '../connectionStore.js';
+import { podStore } from '../podStore.js';
 import { workflowStateService } from './workflowStateService.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
 import { workflowPipeline } from './workflowPipeline.js';
@@ -26,6 +27,7 @@ import { autoClearService } from '../autoClear/autoClearService.js';
 type AiDecideService = typeof aiDecideService;
 type WorkflowEventEmitter = typeof workflowEventEmitter;
 type ConnectionStore = typeof connectionStore;
+type PodStore = typeof podStore;
 type WorkflowStateService = typeof workflowStateService;
 type PendingTargetStore = typeof pendingTargetStore;
 type WorkflowPipeline = typeof workflowPipeline;
@@ -36,6 +38,7 @@ interface AiDecideTriggerDependencies {
   aiDecideService: AiDecideService;
   eventEmitter: WorkflowEventEmitter;
   connectionStore: ConnectionStore;
+  podStore: PodStore;
   stateService: WorkflowStateService;
   pendingTargetStore: PendingTargetStore;
   pipeline: WorkflowPipeline;
@@ -240,7 +243,9 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
       conn.targetPodId,
       errorMessage
     );
-    logger.error('Workflow', 'Error', `AI Decide error for connection ${conn.id}: ${errorMessage}`);
+    const sourcePod = this.deps.podStore.getById(canvasId, sourcePodId);
+    const targetPod = this.deps.podStore.getById(canvasId, conn.targetPodId);
+    logger.error('Workflow', 'Error', `AI Decide error for connection ${conn.id} ("${sourcePod?.name ?? sourcePodId}" → "${targetPod?.name ?? conn.targetPodId}"): ${errorMessage}`);
   }
 
   private handleApprovedConnection(
@@ -260,7 +265,9 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
       true,
       decideResult.reason ?? ''
     );
-    logger.log('Workflow', 'Create', `AI Decide approved connection ${conn.id}: ${decideResult.reason}`);
+    const sourcePod = this.deps.podStore.getById(canvasId, sourcePodId);
+    const targetPod = this.deps.podStore.getById(canvasId, conn.targetPodId);
+    logger.log('Workflow', 'Create', `AI Decide approved connection ${conn.id} ("${sourcePod?.name ?? sourcePodId}" → "${targetPod?.name ?? conn.targetPodId}"): ${decideResult.reason}`);
 
     const pipelineContext: PipelineContext = {
       canvasId,
@@ -301,7 +308,9 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
       false,
       decideResult.reason ?? ''
     );
-    logger.log('Workflow', 'Update', `AI Decide rejected connection ${conn.id}: ${decideResult.reason}`);
+    const sourcePod = this.deps.podStore.getById(canvasId, sourcePodId);
+    const targetPod = this.deps.podStore.getById(canvasId, conn.targetPodId);
+    logger.log('Workflow', 'Update', `AI Decide rejected connection ${conn.id} ("${sourcePod?.name ?? sourcePodId}" → "${targetPod?.name ?? conn.targetPodId}"): ${decideResult.reason}`);
 
     const { isMultiInput } = this.deps.stateService.checkMultiInputScenario(canvasId, conn.targetPodId);
     if (isMultiInput && this.deps.pendingTargetStore.hasPendingTarget(conn.targetPodId)) {

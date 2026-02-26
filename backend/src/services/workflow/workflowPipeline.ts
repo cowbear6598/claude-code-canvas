@@ -34,9 +34,18 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
     const { canvasId, sourcePodId, connection, triggerMode } = context;
     const { targetPodId, id: connectionId } = connection;
 
-    logger.log('Workflow', 'Pipeline', `開始執行 Pipeline：${sourcePodId} → ${targetPodId} (${triggerMode})`);
+    const targetPod = podStore.getById(canvasId, targetPodId);
 
-    logger.log('Workflow', 'Pipeline', `[generateSummary] 生成摘要：${sourcePodId} → ${targetPodId}`);
+    if (!targetPod) {
+      logger.error('Workflow', 'Pipeline', `[checkQueue] 找不到目標 Pod: ${targetPodId}`);
+      return;
+    }
+
+    const sourcePodName = podStore.getById(canvasId, sourcePodId)?.name ?? sourcePodId;
+
+    logger.log('Workflow', 'Pipeline', `開始執行 Pipeline："${sourcePodName}" → "${targetPod.name}" (${triggerMode})`);
+
+    logger.log('Workflow', 'Pipeline', `[generateSummary] 生成摘要："${sourcePodName}" → "${targetPod.name}"`);
     const summaryResult = await this.deps.executionService.generateSummaryWithFallback(
       canvasId,
       sourcePodId,
@@ -55,12 +64,6 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
     const { finalSummary, finalIsSummarized } = collectResult;
 
     logger.log('Workflow', 'Pipeline', `[checkQueue] 檢查目標 Pod 狀態`);
-    const targetPod = podStore.getById(canvasId, targetPodId);
-
-    if (!targetPod) {
-      logger.error('Workflow', 'Pipeline', `[checkQueue] 找不到目標 Pod: ${targetPodId}`);
-      return;
-    }
 
     if (targetPod.status !== 'idle') {
       logger.log('Workflow', 'Pipeline', `[checkQueue] 目標 Pod 忙碌中 (${targetPod.status})，加入佇列`);
