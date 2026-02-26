@@ -19,6 +19,7 @@ import { workflowMultiInputService } from './workflowMultiInputService.js';
 import { forEachMultiInputGroupConnection } from './workflowHelpers.js';
 import { logger } from '../../utils/logger.js';
 import { getErrorMessage } from '../../utils/errorHelpers.js';
+import { LazyInitializable } from './lazyInitializable.js';
 
 // 使用 typeof 取得實例的型別
 type AiDecideService = typeof aiDecideService;
@@ -48,39 +49,16 @@ interface AiDecideTriggerDependencies {
  * 3. 處理 rejected connections（記錄到多輸入狀態）
  * 4. 處理 error connections（發送錯誤事件）
  */
-class WorkflowAiDecideTriggerService implements TriggerStrategy {
+class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDependencies> implements TriggerStrategy {
   readonly mode = 'ai-decide' as const;
-
-  private aiDecideService?: AiDecideService;
-  private eventEmitter?: WorkflowEventEmitter;
-  private connectionStore?: ConnectionStore;
-  private stateService?: WorkflowStateService;
-  private pendingTargetStore?: PendingTargetStore;
-  private pipeline?: WorkflowPipeline;
-  private multiInputService?: WorkflowMultiInputService;
-
-  /**
-   * 延遲注入依賴（避免循環依賴）
-   */
-  init(deps: AiDecideTriggerDependencies): void {
-    this.aiDecideService = deps.aiDecideService;
-    this.eventEmitter = deps.eventEmitter;
-    this.connectionStore = deps.connectionStore;
-    this.stateService = deps.stateService;
-    this.pendingTargetStore = deps.pendingTargetStore;
-    this.pipeline = deps.pipeline;
-    this.multiInputService = deps.multiInputService;
-  }
 
   /**
    * 觸發生命週期 - onTrigger
    * 發送 WORKFLOW_AI_DECIDE_TRIGGERED 事件，通知前端更新同群連線為 active 狀態。
    */
   onTrigger(context: TriggerLifecycleContext): void {
-    if (!this.eventEmitter) {
-      throw new Error('WorkflowAiDecideTriggerService 尚未初始化');
-    }
-    this.eventEmitter.emitWorkflowAiDecideTriggered(
+    this.ensureInitialized();
+    this.deps.eventEmitter.emitWorkflowAiDecideTriggered(
       context.canvasId,
       context.connectionId,
       context.sourcePodId,
@@ -93,12 +71,13 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
    * Workflow 完成時的處理，更新同群所有 connection 狀態
    */
   onComplete(context: CompletionContext, success: boolean, error?: string): void {
+    this.ensureInitialized();
     forEachMultiInputGroupConnection(context.canvasId, context.targetPodId, (conn) => {
-      this.eventEmitter!.emitWorkflowComplete(
+      this.deps.eventEmitter.emitWorkflowComplete(
         context.canvasId, conn.id, conn.sourcePodId,
         context.targetPodId, success, error, context.triggerMode
       );
-      this.connectionStore!.updateConnectionStatus(context.canvasId, conn.id, 'idle');
+      this.deps.connectionStore.updateConnectionStatus(context.canvasId, conn.id, 'idle');
     });
   }
 
@@ -107,12 +86,13 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
    * Workflow 錯誤時的處理，更新同群所有 connection 狀態
    */
   onError(context: CompletionContext, errorMessage: string): void {
+    this.ensureInitialized();
     forEachMultiInputGroupConnection(context.canvasId, context.targetPodId, (conn) => {
-      this.eventEmitter!.emitWorkflowComplete(
+      this.deps.eventEmitter.emitWorkflowComplete(
         context.canvasId, conn.id, conn.sourcePodId,
         context.targetPodId, false, errorMessage, context.triggerMode
       );
-      this.connectionStore!.updateConnectionStatus(context.canvasId, conn.id, 'idle');
+      this.deps.connectionStore.updateConnectionStatus(context.canvasId, conn.id, 'idle');
     });
   }
 
@@ -121,10 +101,11 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
    * Workflow 進入佇列時的處理
    */
   onQueued(context: QueuedContext): void {
+    this.ensureInitialized();
     forEachMultiInputGroupConnection(context.canvasId, context.targetPodId, (conn) => {
-      this.connectionStore!.updateConnectionStatus(context.canvasId, conn.id, 'queued');
+      this.deps.connectionStore.updateConnectionStatus(context.canvasId, conn.id, 'queued');
     });
-    this.eventEmitter!.emitWorkflowQueued(context.canvasId, {
+    this.deps.eventEmitter.emitWorkflowQueued(context.canvasId, {
       canvasId: context.canvasId,
       targetPodId: context.targetPodId,
       connectionId: context.connectionId,
@@ -141,7 +122,8 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
    * active 狀態由 triggerWorkflowWithSummary 統一設定，確保 summary 產生後才顯示 active。
    */
   onQueueProcessed(context: QueueProcessedContext): void {
-    this.eventEmitter!.emitWorkflowQueueProcessed(context.canvasId, {
+    this.ensureInitialized();
+    this.deps.eventEmitter.emitWorkflowQueueProcessed(context.canvasId, {
       canvasId: context.canvasId,
       targetPodId: context.targetPodId,
       connectionId: context.connectionId,
@@ -156,14 +138,12 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
    * 呼叫 aiDecideService 進行批次判斷
    */
   async decide(context: TriggerDecideContext): Promise<TriggerDecideResult[]> {
-    if (!this.aiDecideService) {
-      throw new Error('WorkflowAiDecideTriggerService 尚未初始化，請先呼叫 init()');
-    }
+    this.ensureInitialized();
 
     const { canvasId, sourcePodId, connections } = context;
 
     try {
-      const batchResult = await this.aiDecideService.decideConnections(
+      const batchResult = await this.deps.aiDecideService.decideConnections(
         canvasId,
         sourcePodId,
         connections
@@ -171,7 +151,6 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
 
       const results: TriggerDecideResult[] = [];
 
-      // 將成功結果轉換為 TriggerDecideResult 格式
       for (const result of batchResult.results) {
         results.push({
           connectionId: result.connectionId,
@@ -181,7 +160,6 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
         });
       }
 
-      // 將錯誤結果轉換為 TriggerDecideResult 格式（approved = false）
       for (const errorResult of batchResult.errors) {
         logger.error('Workflow', 'Error', `[AI-Decide] Connection ${errorResult.connectionId} 錯誤：${errorResult.error}`);
         results.push({
@@ -196,19 +174,12 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
     } catch (error) {
       logger.error('Workflow', 'Error', '[AI-Decide] aiDecideService.decideConnections 失敗', error);
 
-      // 所有 connections 標記為錯誤
       return connections.map(conn => ({
         connectionId: conn.id,
         approved: false,
         reason: `錯誤：${getErrorMessage(error)}`,
         isError: true,
       }));
-    }
-  }
-
-  private ensureInitialized(): void {
-    if (!this.eventEmitter || !this.connectionStore || !this.stateService || !this.pendingTargetStore || !this.pipeline || !this.multiInputService) {
-      throw new Error('WorkflowAiDecideTriggerService 尚未初始化，請先呼叫 init()');
     }
   }
 
@@ -225,20 +196,16 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
   ): Promise<void> {
     this.ensureInitialized();
 
-    // 1. 發送 PENDING 事件
     const connectionIds = connections.map(conn => conn.id);
-    this.eventEmitter!.emitAiDecidePending(canvasId, connectionIds, sourcePodId);
+    this.deps.eventEmitter.emitAiDecidePending(canvasId, connectionIds, sourcePodId);
 
-    // 2. 更新所有 connections 狀態為 pending 並持久化 ai-deciding
     for (const conn of connections) {
-      this.connectionStore!.updateDecideStatus(canvasId, conn.id, 'pending', null);
-      this.connectionStore!.updateConnectionStatus(canvasId, conn.id, 'ai-deciding');
+      this.deps.connectionStore.updateDecideStatus(canvasId, conn.id, 'pending', null);
+      this.deps.connectionStore.updateConnectionStatus(canvasId, conn.id, 'ai-deciding');
     }
 
-    // 3. 呼叫 decide() 取得判斷結果
     const decideResults = await this.decide({ canvasId, sourcePodId, connections });
 
-    // 4. 處理判斷結果
     for (const decideResult of decideResults) {
       const conn = connections.find(c => c.id === decideResult.connectionId);
       if (!conn) continue;
@@ -259,10 +226,11 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
     conn: Connection,
     decideResult: TriggerDecideResult
   ): void {
+    this.ensureInitialized();
     const errorMessage = decideResult.reason ?? '未知錯誤';
-    this.connectionStore!.updateDecideStatus(canvasId, conn.id, 'error', errorMessage);
-    this.connectionStore!.updateConnectionStatus(canvasId, conn.id, 'ai-error');
-    this.eventEmitter!.emitAiDecideError(
+    this.deps.connectionStore.updateDecideStatus(canvasId, conn.id, 'error', errorMessage);
+    this.deps.connectionStore.updateConnectionStatus(canvasId, conn.id, 'ai-error');
+    this.deps.eventEmitter.emitAiDecideError(
       canvasId,
       conn.id,
       sourcePodId,
@@ -278,9 +246,10 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
     conn: Connection,
     decideResult: TriggerDecideResult
   ): void {
-    this.connectionStore!.updateDecideStatus(canvasId, conn.id, 'approved', decideResult.reason);
-    this.connectionStore!.updateConnectionStatus(canvasId, conn.id, 'ai-approved');
-    this.eventEmitter!.emitAiDecideResult(
+    this.ensureInitialized();
+    this.deps.connectionStore.updateDecideStatus(canvasId, conn.id, 'approved', decideResult.reason);
+    this.deps.connectionStore.updateConnectionStatus(canvasId, conn.id, 'ai-approved');
+    this.deps.eventEmitter.emitAiDecideResult(
       canvasId,
       conn.id,
       sourcePodId,
@@ -298,9 +267,9 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
       decideResult,
     };
 
-    this.pipeline!.execute(pipelineContext, this).catch((error: unknown) => {
+    this.deps.pipeline.execute(pipelineContext, this).catch((error: unknown) => {
       logger.error('Workflow', 'Error', `Failed to execute AI-decided workflow ${conn.id}`, error);
-      this.eventEmitter?.emitWorkflowComplete(
+      this.deps.eventEmitter.emitWorkflowComplete(
         canvasId,
         conn.id,
         sourcePodId,
@@ -318,9 +287,10 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
     conn: Connection,
     decideResult: TriggerDecideResult
   ): void {
-    this.connectionStore!.updateDecideStatus(canvasId, conn.id, 'rejected', decideResult.reason);
-    this.connectionStore!.updateConnectionStatus(canvasId, conn.id, 'ai-rejected');
-    this.eventEmitter!.emitAiDecideResult(
+    this.ensureInitialized();
+    this.deps.connectionStore.updateDecideStatus(canvasId, conn.id, 'rejected', decideResult.reason);
+    this.deps.connectionStore.updateConnectionStatus(canvasId, conn.id, 'ai-rejected');
+    this.deps.eventEmitter.emitAiDecideResult(
       canvasId,
       conn.id,
       sourcePodId,
@@ -330,10 +300,10 @@ class WorkflowAiDecideTriggerService implements TriggerStrategy {
     );
     logger.log('Workflow', 'Update', `AI Decide rejected connection ${conn.id}: ${decideResult.reason}`);
 
-    const { isMultiInput } = this.stateService!.checkMultiInputScenario(canvasId, conn.targetPodId);
-    if (isMultiInput && this.pendingTargetStore!.hasPendingTarget(conn.targetPodId)) {
-      this.pendingTargetStore!.recordSourceRejection(conn.targetPodId, sourcePodId, decideResult.reason ?? '');
-      this.stateService!.emitPendingStatus(canvasId, conn.targetPodId);
+    const { isMultiInput } = this.deps.stateService.checkMultiInputScenario(canvasId, conn.targetPodId);
+    if (isMultiInput && this.deps.pendingTargetStore.hasPendingTarget(conn.targetPodId)) {
+      this.deps.pendingTargetStore.recordSourceRejection(conn.targetPodId, sourcePodId, decideResult.reason ?? '');
+      this.deps.stateService.emitPendingStatus(canvasId, conn.targetPodId);
     }
   }
 }

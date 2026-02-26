@@ -131,6 +131,32 @@ class AiDecideService {
     return { results, errors };
   }
 
+  private async validateDecisionInput(
+    canvasId: string,
+    sourcePodId: string,
+    connections: Connection[]
+  ): Promise<
+    | { valid: true; sourcePod: NonNullable<ReturnType<typeof podStore.getById>>; sourceSummary: string; targets: AiDecideTargetInfo[] }
+    | { valid: false; error: AiDecideBatchResult }
+  > {
+    const sourceSummary = await this.generateSourceSummary(canvasId, sourcePodId);
+    if (!sourceSummary) {
+      return { valid: false, error: this.buildDecisionErrors(connections, 'Failed to generate source summary') };
+    }
+
+    const sourcePod = podStore.getById(canvasId, sourcePodId);
+    if (!sourcePod) {
+      return { valid: false, error: this.buildDecisionErrors(connections, 'Source Pod not found') };
+    }
+
+    const targets = await this.buildTargetInfos(canvasId, connections);
+    if (targets.length === 0) {
+      return { valid: false, error: this.buildDecisionErrors(connections, 'No valid target pods found') };
+    }
+
+    return { valid: true, sourcePod, sourceSummary, targets };
+  }
+
   async decideConnections(
     canvasId: string,
     sourcePodId: string,
@@ -140,21 +166,12 @@ class AiDecideService {
       return { results: [], errors: [] };
     }
 
-    const sourceSummary = await this.generateSourceSummary(canvasId, sourcePodId);
-    if (!sourceSummary) {
-      return this.buildDecisionErrors(connections, 'Failed to generate source summary');
+    const inputValidation = await this.validateDecisionInput(canvasId, sourcePodId, connections);
+    if (!inputValidation.valid) {
+      return inputValidation.error;
     }
 
-    const sourcePod = podStore.getById(canvasId, sourcePodId);
-    if (!sourcePod) {
-      return this.buildDecisionErrors(connections, 'Source Pod not found');
-    }
-
-    const targets = await this.buildTargetInfos(canvasId, connections);
-
-    if (targets.length === 0) {
-      return this.buildDecisionErrors(connections, 'No valid target pods found');
-    }
+    const { sourcePod, sourceSummary, targets } = inputValidation;
 
     let decisionResults: DecisionResults | null = null;
     try {

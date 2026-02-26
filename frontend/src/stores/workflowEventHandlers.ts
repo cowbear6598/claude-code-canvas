@@ -15,7 +15,7 @@ import type {
 
 interface WorkflowHandlerStore {
     connections: Connection[]
-    _findById: (connectionId: string) => Connection | undefined
+    findConnectionById: (connectionId: string) => Connection | undefined
     updateAutoGroupStatus: (targetPodId: string, status: ConnectionStatus) => void
 }
 
@@ -46,7 +46,7 @@ export function createWorkflowEventHandlers(store: WorkflowHandlerStore): {
         if (triggerMode === 'auto' || triggerMode === 'ai-decide') {
             store.updateAutoGroupStatus(payload.targetPodId, 'idle')
         } else {
-            const connection = store._findById(payload.connectionId)
+            const connection = store.findConnectionById(payload.connectionId)
             if (connection) {
                 connection.status = 'idle'
             }
@@ -54,14 +54,14 @@ export function createWorkflowEventHandlers(store: WorkflowHandlerStore): {
     }
 
     const handleWorkflowDirectTriggered = (payload: WorkflowDirectTriggeredPayload): void => {
-        const connection = store._findById(payload.connectionId)
+        const connection = store.findConnectionById(payload.connectionId)
         if (connection) {
             connection.status = 'active'
         }
     }
 
     const handleWorkflowDirectWaiting = (payload: WorkflowDirectWaitingPayload): void => {
-        const connection = store._findById(payload.connectionId)
+        const connection = store.findConnectionById(payload.connectionId)
         if (connection) {
             connection.status = 'waiting'
         }
@@ -71,7 +71,7 @@ export function createWorkflowEventHandlers(store: WorkflowHandlerStore): {
         if (payload.triggerMode === 'auto' || payload.triggerMode === 'ai-decide') {
             store.updateAutoGroupStatus(payload.targetPodId, 'queued')
         } else {
-            const connection = store._findById(payload.connectionId)
+            const connection = store.findConnectionById(payload.connectionId)
             if (connection) {
                 connection.status = 'queued'
             }
@@ -82,7 +82,7 @@ export function createWorkflowEventHandlers(store: WorkflowHandlerStore): {
         if (payload.triggerMode === 'auto' || payload.triggerMode === 'ai-decide') {
             store.updateAutoGroupStatus(payload.targetPodId, 'active')
         } else {
-            const connection = store._findById(payload.connectionId)
+            const connection = store.findConnectionById(payload.connectionId)
             if (connection) {
                 connection.status = 'active'
             }
@@ -91,7 +91,7 @@ export function createWorkflowEventHandlers(store: WorkflowHandlerStore): {
 
     const handleAiDecidePending = (payload: WorkflowAiDecidePendingPayload): void => {
         payload.connectionIds.forEach(connectionId => {
-            const connection = store._findById(connectionId)
+            const connection = store.findConnectionById(connectionId)
             if (connection) {
                 connection.status = 'ai-deciding'
                 connection.decideReason = undefined
@@ -100,7 +100,7 @@ export function createWorkflowEventHandlers(store: WorkflowHandlerStore): {
     }
 
     const handleAiDecideResult = (payload: WorkflowAiDecideResultPayload): void => {
-        const connection = store._findById(payload.connectionId)
+        const connection = store.findConnectionById(payload.connectionId)
         if (connection) {
             connection.status = payload.shouldTrigger ? 'ai-approved' : 'ai-rejected'
             connection.decideReason = payload.shouldTrigger ? undefined : payload.reason
@@ -108,7 +108,7 @@ export function createWorkflowEventHandlers(store: WorkflowHandlerStore): {
     }
 
     const handleAiDecideError = (payload: WorkflowAiDecideErrorPayload): void => {
-        const connection = store._findById(payload.connectionId)
+        const connection = store.findConnectionById(payload.connectionId)
         if (connection) {
             connection.status = 'ai-error'
             connection.decideReason = payload.error
@@ -121,7 +121,7 @@ export function createWorkflowEventHandlers(store: WorkflowHandlerStore): {
 
     const clearAiDecideStatusByConnectionIds = (connectionIds: string[]): void => {
         connectionIds.forEach(connectionId => {
-            const connection = store._findById(connectionId)
+            const connection = store.findConnectionById(connectionId)
             if (connection) {
                 connection.status = 'idle'
                 connection.decideReason = undefined

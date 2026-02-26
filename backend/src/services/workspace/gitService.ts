@@ -96,83 +96,83 @@ function extractDomainFromUrl(url: string): string {
     return '';
 }
 
+const sourceDetectors: Array<{ check: (url: string, domain: string) => boolean; source: GitSource }> = [
+    {
+        check: (url, domain) => url.includes('github.com') || domain === 'github.com',
+        source: 'github',
+    },
+    {
+        check: (url, domain) => url.includes('gitlab.com') || domain === 'gitlab.com',
+        source: 'gitlab',
+    },
+    {
+        check: (_url, domain): boolean => {
+            if (!config.gitlabUrl) return false;
+            const gitlabDomain = extractDomainFromUrl(config.gitlabUrl);
+            return domain === gitlabDomain;
+        },
+        source: 'gitlab',
+    },
+];
+
 function detectGitSource(repoUrl: string): GitSource {
     const domain = extractDomainFromUrl(repoUrl);
+    return sourceDetectors.find(({ check }) => check(repoUrl, domain))?.source ?? 'other';
+}
 
-    if (repoUrl.includes('github.com') || domain === 'github.com') {
-        return 'github';
+function buildGithubAuthUrl(repoUrl: string, token: string): string {
+    if (!repoUrl.startsWith('https://github.com/')) {
+        return repoUrl;
+    }
+    return repoUrl.replace('https://github.com/', `https://${token}@github.com/`);
+}
+
+function buildGitlabAuthUrl(repoUrl: string, token: string): string {
+    if (repoUrl.startsWith('https://gitlab.com/')) {
+        return repoUrl.replace('https://gitlab.com/', `https://oauth2:${token}@gitlab.com/`);
     }
 
-    if (repoUrl.includes('gitlab.com') || domain === 'gitlab.com') {
-        return 'gitlab';
+    if (config.gitlabUrl && repoUrl.startsWith(config.gitlabUrl)) {
+        const urlWithoutProtocol = config.gitlabUrl.replace(/^https?:\/\//, '');
+        return repoUrl.replace(
+            `https://${urlWithoutProtocol}/`,
+            `https://oauth2:${token}@${urlWithoutProtocol}/`
+        );
     }
 
-    if (config.gitlabUrl) {
-        const gitlabDomain = extractDomainFromUrl(config.gitlabUrl);
-        if (domain === gitlabDomain) {
-            return 'gitlab';
-        }
-    }
-
-    return 'other';
+    return repoUrl;
 }
 
 function buildAuthenticatedUrl(repoUrl: string): string {
     const source = detectGitSource(repoUrl);
 
     if (source === 'github' && config.githubToken) {
-        if (repoUrl.startsWith('https://github.com/')) {
-            return repoUrl.replace(
-                'https://github.com/',
-                `https://${config.githubToken}@github.com/`
-            );
-        }
-        return repoUrl;
+        return buildGithubAuthUrl(repoUrl, config.githubToken);
     }
 
     if (source === 'gitlab' && config.gitlabToken) {
-        if (repoUrl.startsWith('https://gitlab.com/')) {
-            return repoUrl.replace(
-                'https://gitlab.com/',
-                `https://oauth2:${config.gitlabToken}@gitlab.com/`
-            );
-        }
-
-        if (config.gitlabUrl && repoUrl.startsWith(config.gitlabUrl)) {
-            const urlWithoutProtocol = config.gitlabUrl.replace(/^https?:\/\//, '');
-            return repoUrl.replace(
-                `https://${urlWithoutProtocol}/`,
-                `https://oauth2:${config.gitlabToken}@${urlWithoutProtocol}/`
-            );
-        }
-        return repoUrl;
+        return buildGitlabAuthUrl(repoUrl, config.gitlabToken);
     }
 
     return repoUrl;
 }
 
+const privateRepoMessages: Record<GitSource, string> = {
+    github: '無法存取私有倉庫，請設定 GITHUB_TOKEN',
+    gitlab: '無法存取私有倉庫，請設定 GITLAB_TOKEN',
+    other: '無法存取私有倉庫，請設定對應的 Token',
+};
+
+const cloneErrorPatterns: Array<{ match: string; getMessage: (source: GitSource) => string }> = [
+    { match: 'Authentication failed', getMessage: () => '認證失敗，請檢查 Token 是否正確' },
+    { match: 'Repository not found', getMessage: () => '找不到指定的倉庫' },
+    { match: 'not found', getMessage: () => '找不到指定的倉庫' },
+    { match: 'could not read Username', getMessage: (source) => privateRepoMessages[source] },
+];
+
 function parseCloneErrorMessage(error: unknown, source: GitSource): string {
     const errorMessage = parseGitErrorMessage(error);
-
-    if (errorMessage.includes('Authentication failed')) {
-        return '認證失敗，請檢查 Token 是否正確';
-    }
-
-    if (errorMessage.includes('Repository not found') || errorMessage.includes('not found')) {
-        return '找不到指定的倉庫';
-    }
-
-    if (errorMessage.includes('could not read Username')) {
-        if (source === 'github') {
-            return '無法存取私有倉庫，請設定 GITHUB_TOKEN';
-        }
-        if (source === 'gitlab') {
-            return '無法存取私有倉庫，請設定 GITLAB_TOKEN';
-        }
-        return '無法存取私有倉庫，請設定對應的 Token';
-    }
-
-    return '複製儲存庫失敗';
+    return cloneErrorPatterns.find(({ match }) => errorMessage.includes(match))?.getMessage(source) ?? '複製儲存庫失敗';
 }
 
 class GitService {
@@ -428,23 +428,25 @@ class GitService {
         }, '建立並切換分支失敗');
     }
 
-    async pullLatest(
-        workspacePath: string,
-        onProgress?: (progress: number, message: string) => void
-    ): Promise<Result<void>> {
+    private async validateCurrentBranch(workspacePath: string): Promise<Result<string>> {
         const currentBranchResult = await this.getCurrentBranch(workspacePath);
         if (!currentBranchResult.success) {
             return err('取得目前分支失敗');
         }
 
         const currentBranch = currentBranchResult.data!;
-
         if (!currentBranch || !isValidBranchName(currentBranch)) {
             return err('無效的分支名稱格式');
         }
 
-        onProgress?.(5, '取得分支資訊...');
+        return ok(currentBranch);
+    }
 
+    private async performPullWithProgress(
+        workspacePath: string,
+        currentBranch: string,
+        onProgress?: (progress: number, message: string) => void
+    ): Promise<Result<void>> {
         try {
             const git = simpleGit({
                 baseDir: workspacePath,
@@ -468,6 +470,71 @@ class GitService {
         }
     }
 
+    async pullLatest(
+        workspacePath: string,
+        onProgress?: (progress: number, message: string) => void
+    ): Promise<Result<void>> {
+        const branchResult = await this.validateCurrentBranch(workspacePath);
+        if (!branchResult.success) {
+            return err(branchResult.error!);
+        }
+
+        const currentBranch = branchResult.data!;
+        onProgress?.(5, '取得分支資訊...');
+
+        return this.performPullWithProgress(workspacePath, currentBranch, onProgress);
+    }
+
+    private async checkoutLocalBranch(
+        workspacePath: string,
+        branchName: string,
+        force: boolean | undefined,
+        onProgress?: CheckoutProgressCallback
+    ): Promise<Result<'switched'>> {
+        onProgress?.(80, '切換分支...');
+        const checkoutResult = await this.checkoutBranch(workspacePath, branchName, force);
+        if (!checkoutResult.success) {
+            return err(checkoutResult.error!);
+        }
+        return ok('switched');
+    }
+
+    private async fetchAndCheckoutRemoteBranch(
+        workspacePath: string,
+        branchName: string,
+        force: boolean | undefined,
+        onProgress?: CheckoutProgressCallback
+    ): Promise<Result<'fetched'>> {
+        const fetchResult = await this.fetchRemoteBranch(workspacePath, branchName, (progressData) => {
+            const mappedProgress = Math.floor(20 + progressData.progress * 0.6);
+            const stageMessage = getFetchStageMessage(progressData.stage);
+            onProgress?.(mappedProgress, stageMessage);
+        });
+        if (!fetchResult.success) {
+            return err(fetchResult.error!);
+        }
+
+        onProgress?.(80, '切換分支...');
+        const checkoutResult = await this.checkoutBranch(workspacePath, branchName, force);
+        if (!checkoutResult.success) {
+            return err(checkoutResult.error!);
+        }
+        return ok('fetched');
+    }
+
+    private async createNewBranch(
+        workspacePath: string,
+        branchName: string,
+        onProgress?: CheckoutProgressCallback
+    ): Promise<Result<'created'>> {
+        onProgress?.(80, '建立並切換分支...');
+        const createResult = await this.createAndCheckoutBranch(workspacePath, branchName);
+        if (!createResult.success) {
+            return err(createResult.error!);
+        }
+        return ok('created');
+    }
+
     async smartCheckoutBranch(
         workspacePath: string,
         branchName: string,
@@ -487,12 +554,7 @@ class GitService {
         onProgress?.(10, '檢查本地分支...');
 
         if (localBranchExists.data) {
-            onProgress?.(80, '切換分支...');
-            const checkoutResult = await this.checkoutBranch(workspacePath, branchName, force);
-            if (!checkoutResult.success) {
-                return err(checkoutResult.error!);
-            }
-            return ok('switched');
+            return this.checkoutLocalBranch(workspacePath, branchName, force, onProgress);
         }
 
         onProgress?.(20, '檢查遠端分支...');
@@ -502,29 +564,10 @@ class GitService {
         }
 
         if (remoteBranchExists.data) {
-            const fetchResult = await this.fetchRemoteBranch(workspacePath, branchName, (progressData) => {
-                const mappedProgress = Math.floor(20 + progressData.progress * 0.6);
-                const stageMessage = getFetchStageMessage(progressData.stage);
-                onProgress?.(mappedProgress, stageMessage);
-            });
-            if (!fetchResult.success) {
-                return err(fetchResult.error!);
-            }
-
-            onProgress?.(80, '切換分支...');
-            const checkoutResult = await this.checkoutBranch(workspacePath, branchName, force);
-            if (!checkoutResult.success) {
-                return err(checkoutResult.error!);
-            }
-            return ok('fetched');
+            return this.fetchAndCheckoutRemoteBranch(workspacePath, branchName, force, onProgress);
         }
 
-        onProgress?.(80, '建立並切換分支...');
-        const createResult = await this.createAndCheckoutBranch(workspacePath, branchName);
-        if (!createResult.success) {
-            return err(createResult.error!);
-        }
-        return ok('created');
+        return this.createNewBranch(workspacePath, branchName, onProgress);
     }
 }
 

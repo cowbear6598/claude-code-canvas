@@ -95,53 +95,41 @@ const handlePodScheduleSet = createUnifiedHandler<BasePayload & { pod?: Pod; can
   { toastMessage: '排程設定成功' }
 )
 
-const removeDeletedNotes = (deletedNoteIds: {
+type DeletedNoteIds = {
   note?: string[]
   skillNote?: string[]
   repositoryNote?: string[]
   commandNote?: string[]
   subAgentNote?: string[]
-} | undefined): void => {
+}
+
+const noteTypeHandlers: {
+  key: keyof DeletedNoteIds
+  getStore: () => { removeNoteFromEvent: (id: string) => void }
+}[] = [
+  { key: 'note', getStore: () => useOutputStyleStore() },
+  { key: 'skillNote', getStore: () => useSkillStore() },
+  { key: 'repositoryNote', getStore: () => useRepositoryStore() },
+  { key: 'commandNote', getStore: () => useCommandStore() },
+  { key: 'subAgentNote', getStore: () => useSubAgentStore() },
+]
+
+const removeDeletedNotes = (deletedNoteIds: DeletedNoteIds | undefined): void => {
   if (!deletedNoteIds) return
 
-  const { note, skillNote, repositoryNote, commandNote, subAgentNote } = deletedNoteIds
-
-  if (note && note.length > 0) {
-    const outputStyleStore = useOutputStyleStore()
-    note.forEach(noteId => outputStyleStore.removeNoteFromEvent(noteId))
-  }
-
-  if (skillNote && skillNote.length > 0) {
-    const skillStore = useSkillStore()
-    skillNote.forEach(noteId => skillStore.removeNoteFromEvent(noteId))
-  }
-
-  if (repositoryNote && repositoryNote.length > 0) {
-    const repositoryStore = useRepositoryStore()
-    repositoryNote.forEach(noteId => repositoryStore.removeNoteFromEvent(noteId))
-  }
-
-  if (commandNote && commandNote.length > 0) {
-    const commandStore = useCommandStore()
-    commandNote.forEach(noteId => commandStore.removeNoteFromEvent(noteId))
-  }
-
-  if (subAgentNote && subAgentNote.length > 0) {
-    const subAgentStore = useSubAgentStore()
-    subAgentNote.forEach(noteId => subAgentStore.removeNoteFromEvent(noteId))
+  for (const { key, getStore } of noteTypeHandlers) {
+    const ids = deletedNoteIds[key]
+    if (ids && ids.length > 0) {
+      const store = getStore()
+      ids.forEach(noteId => store.removeNoteFromEvent(noteId))
+    }
   }
 }
 
 const handlePodDeleted = createUnifiedHandler<BasePayload & {
   podId: string
   canvasId: string
-  deletedNoteIds?: {
-    note?: string[]
-    skillNote?: string[]
-    repositoryNote?: string[]
-    commandNote?: string[]
-    subAgentNote?: string[]
-  }
+  deletedNoteIds?: DeletedNoteIds
 }>(
   (payload) => {
     usePodStore().removePod(payload.podId)

@@ -4,7 +4,7 @@ import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/webs
 import { createWebSocketRequest } from '@/services/websocket/createWebSocketRequest'
 import type { SkillImportPayload, SkillImportedPayload } from '@/types/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
-import { useCanvasStore } from '@/stores/canvasStore'
+import { requireActiveCanvas } from '@/utils/canvasGuard'
 
 interface SkillStoreCustomActions {
   deleteSkill(skillId: string): Promise<void>
@@ -63,14 +63,14 @@ const store = createNoteStore<Skill, SkillNote>({
 
     async importSkill(this, fileName: string, fileData: string, fileSize: number): Promise<{ success: boolean; isOverwrite?: boolean; error?: string; skill?: Skill }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
+      const canvasId = requireActiveCanvas()
 
       const result = await wrapWebSocketRequest(
         createWebSocketRequest<SkillImportPayload, SkillImportedPayload>({
           requestEvent: WebSocketRequestEvents.SKILL_IMPORT,
           responseEvent: WebSocketResponseEvents.SKILL_IMPORTED,
           payload: {
-            canvasId: canvasStore.activeCanvasId!,
+            canvasId,
             fileName,
             fileData,
             fileSize

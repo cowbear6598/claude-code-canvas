@@ -3,6 +3,7 @@ import type { TriggerMode } from '../../types/index.js';
 import type { TriggerStrategy, ExecutionServiceMethods } from './types.js';
 import { podStore } from '../podStore.js';
 import { logger } from '../../utils/logger.js';
+import { LazyInitializable } from './lazyInitializable.js';
 
 export interface QueueItem {
   id: string;
@@ -16,24 +17,17 @@ export interface QueueItem {
   enqueuedAt: Date;
 }
 
-class WorkflowQueueService {
+interface QueueServiceDeps {
+  executionService: ExecutionServiceMethods;
+  strategies: { auto: TriggerStrategy; direct: TriggerStrategy; 'ai-decide': TriggerStrategy };
+}
+
+class WorkflowQueueService extends LazyInitializable<QueueServiceDeps> {
   private queues: Map<string, QueueItem[]> = new Map();
-  private executionService?: ExecutionServiceMethods;
-  private strategies?: { auto: TriggerStrategy; direct: TriggerStrategy; 'ai-decide': TriggerStrategy };
 
   private getStrategy(triggerMode: TriggerMode): TriggerStrategy {
-    if (!this.strategies) {
-      throw new Error('WorkflowQueueService 尚未初始化');
-    }
-    return this.strategies[triggerMode];
-  }
-
-  init(dependencies: {
-    executionService: ExecutionServiceMethods;
-    strategies: { auto: TriggerStrategy; direct: TriggerStrategy; 'ai-decide': TriggerStrategy };
-  }): void {
-    this.executionService = dependencies.executionService;
-    this.strategies = dependencies.strategies;
+    this.ensureInitialized();
+    return this.deps.strategies[triggerMode];
   }
 
   enqueue(item: Omit<QueueItem, 'id' | 'enqueuedAt'>): { position: number; queueSize: number } {
@@ -99,9 +93,7 @@ class WorkflowQueueService {
   }
 
   async processNextInQueue(canvasId: string, targetPodId: string): Promise<void> {
-    if (!this.executionService) {
-      throw new Error('WorkflowQueueService 尚未初始化，請先呼叫 init()');
-    }
+    this.ensureInitialized();
 
     const targetPod = podStore.getById(canvasId, targetPodId);
     if (!targetPod) {
@@ -131,7 +123,7 @@ class WorkflowQueueService {
 
     logger.log('Workflow', 'Update', `Processing queued workflow for target ${targetPodId}, ${remainingQueueSize} remaining`);
 
-    await this.executionService.triggerWorkflowWithSummary(
+    await this.deps.executionService.triggerWorkflowWithSummary(
       canvasId,
       item.connectionId,
       item.summary,

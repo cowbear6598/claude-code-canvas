@@ -188,6 +188,32 @@ export function createMessageActions(store: ChatStoreInstance): {
         }
     }
 
+    const convertSubMessages = (persistedMessage: PersistedMessage): Pick<Message, 'subMessages' | 'toolUse'> => {
+        if (!persistedMessage.subMessages || persistedMessage.subMessages.length === 0) {
+            return {
+                subMessages: [{
+                    id: `${persistedMessage.id}-sub-0`,
+                    content: persistedMessage.content,
+                    isPartial: false
+                }]
+            }
+        }
+
+        const allToolUse = collectToolUseFromSubMessages(persistedMessage.subMessages)
+
+        // 保留多個 subMessages 的分段結構，但把所有 toolUse 集中到第一個
+        // 確保歷史載入後 tool 標籤位置與即時串流一致
+        return {
+            subMessages: persistedMessage.subMessages.map((sub, index) => ({
+                id: sub.id,
+                content: sub.content,
+                isPartial: false,
+                toolUse: index === 0 && allToolUse.length > 0 ? allToolUse : undefined,
+            })),
+            ...(allToolUse.length > 0 && { toolUse: allToolUse })
+        }
+    }
+
     const convertPersistedToMessage = (persistedMessage: PersistedMessage): Message => {
         const message: Message = {
             id: persistedMessage.id,
@@ -199,30 +225,7 @@ export function createMessageActions(store: ChatStoreInstance): {
 
         if (persistedMessage.role !== 'assistant') return message
 
-        if (persistedMessage.subMessages && persistedMessage.subMessages.length > 0) {
-            const allToolUse = collectToolUseFromSubMessages(persistedMessage.subMessages)
-
-            // 保留多個 subMessages 的分段結構，但把所有 toolUse 集中到第一個
-            // 確保歷史載入後 tool 標籤位置與即時串流一致
-            message.subMessages = persistedMessage.subMessages.map((sub, index) => ({
-                id: sub.id,
-                content: sub.content,
-                isPartial: false,
-                toolUse: index === 0 && allToolUse.length > 0 ? allToolUse : undefined,
-            }))
-
-            if (allToolUse.length > 0) {
-                message.toolUse = allToolUse
-            }
-        } else {
-            message.subMessages = [{
-                id: `${persistedMessage.id}-sub-0`,
-                content: persistedMessage.content,
-                isPartial: false
-            }]
-        }
-
-        return message
+        return { ...message, ...convertSubMessages(persistedMessage) }
     }
 
     const setPodMessages = (podId: string, messages: Message[]): void => {

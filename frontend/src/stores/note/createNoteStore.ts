@@ -3,7 +3,6 @@ import type {BaseNote, Pod} from '@/types'
 import {createWebSocketRequest} from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import {useDeleteItem} from '@/composables/useDeleteItem'
-import {useCanvasStore} from '@/stores/canvasStore'
 import {useToast} from '@/composables/useToast'
 import {requireActiveCanvas, getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
 import {createNoteBindingActions} from './noteBindingActions'
@@ -355,14 +354,14 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
 
             async deleteNote(noteId: string): Promise<void> {
                 const {wrapWebSocketRequest} = useWebSocketErrorHandler()
-                const canvasStore = useCanvasStore()
+                const canvasId = requireActiveCanvas()
 
                 await wrapWebSocketRequest(
                     createWebSocketRequest<BasePayload, BaseResponse>({
                         requestEvent: config.events.deleteNote.request,
                         responseEvent: config.events.deleteNote.response,
                         payload: {
-                            canvasId: canvasStore.activeCanvasId!,
+                            canvasId,
                             noteId,
                         }
                     })
@@ -373,7 +372,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 if (!config.deleteItemEvents) return
 
                 const {deleteItem} = useDeleteItem()
-                const canvasStore = useCanvasStore()
+                const canvasId = requireActiveCanvas()
                 const {showSuccessToast, showErrorToast} = useToast()
 
                 const item = this.availableItems.find(i => config.getItemId(i as TItem) === itemId)
@@ -397,7 +396,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                         requestEvent: config.deleteItemEvents.request,
                         responseEvent: config.deleteItemEvents.response,
                         payload: {
-                            canvasId: canvasStore.activeCanvasId!,
+                            canvasId,
                             [config.itemIdField]: itemId
                         },
                         errorMessage: '刪除項目失敗',

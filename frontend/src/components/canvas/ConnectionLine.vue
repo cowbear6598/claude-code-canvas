@@ -57,14 +57,12 @@ const pathData = computed(() => {
     return { path: '', midPoint: { x: 0, y: 0 }, angle: 0 }
   }
 
-  return calculatePathData(
-    sourceX,
-    sourceY,
-    targetAnchor.x,
-    targetAnchor.y,
-    props.connection.sourceAnchor,
-    props.connection.targetAnchor
-  )
+  return calculatePathData({
+    start: { x: sourceX, y: sourceY },
+    end: { x: targetAnchor.x, y: targetAnchor.y },
+    sourceAnchor: props.connection.sourceAnchor,
+    targetAnchor: props.connection.targetAnchor,
+  })
 })
 
 function getAiDecideColor(status: string): string {
@@ -164,15 +162,12 @@ const arrowPositions = computed(() => {
     return []
   }
 
-  return calculateMultipleArrowPositions(
-    sourceX,
-    sourceY,
-    targetAnchor.x,
-    targetAnchor.y,
-    props.connection.sourceAnchor,
-    props.connection.targetAnchor,
-    160
-  )
+  return calculateMultipleArrowPositions({
+    start: { x: sourceX, y: sourceY },
+    end: { x: targetAnchor.x, y: targetAnchor.y },
+    sourceAnchor: props.connection.sourceAnchor,
+    targetAnchor: props.connection.targetAnchor,
+  }, 160)
 })
 
 // 是否使用 X marker（rejected 狀態）

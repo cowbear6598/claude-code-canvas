@@ -16,6 +16,7 @@ const TICK_INTERVAL_MS = 1000;
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60 * 1000;
 const MS_PER_HOUR = 60 * 60 * 1000;
+const SCHEDULE_TRIGGER_SECOND = 0;
 
 type ShouldFireChecker = (schedule: ScheduleConfig, now: Date) => boolean;
 
@@ -49,7 +50,7 @@ const shouldFireCheckers: Record<ScheduleConfig['frequency'], ShouldFireChecker>
     const currentMinute = now.getMinutes();
     const currentSecond = now.getSeconds();
 
-    if (currentHour !== schedule.hour || currentMinute !== schedule.minute || currentSecond !== 0) {
+    if (currentHour !== schedule.hour || currentMinute !== schedule.minute || currentSecond !== SCHEDULE_TRIGGER_SECOND) {
       return false;
     }
 
@@ -70,7 +71,7 @@ const shouldFireCheckers: Record<ScheduleConfig['frequency'], ShouldFireChecker>
       return false;
     }
 
-    if (currentHour !== schedule.hour || currentMinute !== schedule.minute || currentSecond !== 0) {
+    if (currentHour !== schedule.hour || currentMinute !== schedule.minute || currentSecond !== SCHEDULE_TRIGGER_SECOND) {
       return false;
     }
 

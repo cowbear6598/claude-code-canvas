@@ -29,43 +29,43 @@ class CursorColorManager {
   }
 
   /** 修正 RGB 加總超出上界 */
-  private fixOverflow(r: number, g: number, b: number, overflow: number): [number, number, number] {
-    if (r >= g && r >= b) return [Math.max(0, r - overflow), g, b];
-    if (g >= r && g >= b) return [r, Math.max(0, g - overflow), b];
-    return [r, g, Math.max(0, b - overflow)];
+  private fixOverflow(redChannel: number, greenChannel: number, blueChannel: number, overflow: number): [number, number, number] {
+    if (redChannel >= greenChannel && redChannel >= blueChannel) return [Math.max(0, redChannel - overflow), greenChannel, blueChannel];
+    if (greenChannel >= redChannel && greenChannel >= blueChannel) return [redChannel, Math.max(0, greenChannel - overflow), blueChannel];
+    return [redChannel, greenChannel, Math.max(0, blueChannel - overflow)];
   }
 
   /** 修正 RGB 加總低於下界 */
-  private fixDeficit(r: number, g: number, b: number, deficit: number): [number, number, number] {
-    if (r <= g && r <= b) return [Math.min(255, r + deficit), g, b];
-    if (g <= r && g <= b) return [r, Math.min(255, g + deficit), b];
-    return [r, g, Math.min(255, b + deficit)];
+  private fixDeficit(redChannel: number, greenChannel: number, blueChannel: number, deficit: number): [number, number, number] {
+    if (redChannel <= greenChannel && redChannel <= blueChannel) return [Math.min(255, redChannel + deficit), greenChannel, blueChannel];
+    if (greenChannel <= redChannel && greenChannel <= blueChannel) return [redChannel, Math.min(255, greenChannel + deficit), blueChannel];
+    return [redChannel, greenChannel, Math.min(255, blueChannel + deficit)];
   }
 
   private clampColor(hex: string): string {
-    let r = parseInt(hex.slice(1, 3), 16);
-    let g = parseInt(hex.slice(3, 5), 16);
-    let b = parseInt(hex.slice(5, 7), 16);
-    const sum = r + g + b;
+    let redChannel = parseInt(hex.slice(1, 3), 16);
+    let greenChannel = parseInt(hex.slice(3, 5), 16);
+    let blueChannel = parseInt(hex.slice(5, 7), 16);
+    const sum = redChannel + greenChannel + blueChannel;
 
     if (sum === 0) return '#555555';
     if (sum >= 150 && sum <= 450) return hex;
 
     const factor = sum > 450 ? 450 / sum : 150 / sum;
     const round = sum > 450 ? Math.floor : Math.ceil;
-    let nr = Math.min(255, round(r * factor));
-    let ng = Math.min(255, round(g * factor));
-    let nb = Math.min(255, round(b * factor));
+    let clampedRed = Math.min(255, round(redChannel * factor));
+    let clampedGreen = Math.min(255, round(greenChannel * factor));
+    let clampedBlue = Math.min(255, round(blueChannel * factor));
 
     // 浮點精度安全檢查：Math.floor/ceil 仍可能因浮點誤差導致總和超出範圍
-    const newSum = nr + ng + nb;
+    const newSum = clampedRed + clampedGreen + clampedBlue;
     if (newSum > 450) {
-      [nr, ng, nb] = this.fixOverflow(nr, ng, nb, newSum - 450);
+      [clampedRed, clampedGreen, clampedBlue] = this.fixOverflow(clampedRed, clampedGreen, clampedBlue, newSum - 450);
     } else if (newSum < 150) {
-      [nr, ng, nb] = this.fixDeficit(nr, ng, nb, 150 - newSum);
+      [clampedRed, clampedGreen, clampedBlue] = this.fixDeficit(clampedRed, clampedGreen, clampedBlue, 150 - newSum);
     }
 
-    return `#${this.toHexChannel(nr)}${this.toHexChannel(ng)}${this.toHexChannel(nb)}`;
+    return `#${this.toHexChannel(clampedRed)}${this.toHexChannel(clampedGreen)}${this.toHexChannel(clampedBlue)}`;
   }
 
   /** 顏色用盡時以 connectionId hash 產生 fallback 顏色 */
@@ -75,11 +75,11 @@ class CursorColorManager {
       hash = (hash << 5) - hash + connectionId.charCodeAt(i);
       hash |= 0;
     }
-    // hash 可為負數，但 bitwise AND 保證 r/g/b 皆在 [0, 255]
-    const r = (hash & 0xff0000) >> 16;
-    const g = (hash & 0x00ff00) >> 8;
-    const b = hash & 0x0000ff;
-    const hex = `#${this.toHexChannel(r)}${this.toHexChannel(g)}${this.toHexChannel(b)}`;
+    // hash 可為負數，但 bitwise AND 保證各 channel 皆在 [0, 255]
+    const redChannel = (hash & 0xff0000) >> 16;
+    const greenChannel = (hash & 0x00ff00) >> 8;
+    const blueChannel = hash & 0x0000ff;
+    const hex = `#${this.toHexChannel(redChannel)}${this.toHexChannel(greenChannel)}${this.toHexChannel(blueChannel)}`;
     return this.clampColor(hex);
   }
 

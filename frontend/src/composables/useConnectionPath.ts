@@ -12,6 +12,17 @@ export interface ArrowPosition {
   angle: number
 }
 
+export interface BezierPathParams {
+  start: { x: number; y: number }
+  end: { x: number; y: number }
+  sourceAnchor: AnchorPosition
+  targetAnchor: AnchorPosition
+}
+
+const CURVE_MIDPOINT = 0.5
+const TANGENT_STEP = 0.01
+const BEZIER_LENGTH_ESTIMATION_FACTOR = 1.2
+
 function applyAnchorOffset(
   baseX: number,
   baseY: number,
@@ -35,89 +46,72 @@ function applyAnchorOffset(
 }
 
 export function useConnectionPath(): {
-  calculatePathData: (startX: number, startY: number, endX: number, endY: number, sourceAnchor: AnchorPosition, targetAnchor: AnchorPosition) => PathData
-  calculateMultipleArrowPositions: (startX: number, startY: number, endX: number, endY: number, sourceAnchor: AnchorPosition, targetAnchor: AnchorPosition, spacing?: number) => ArrowPosition[]
+  calculatePathData: (params: BezierPathParams) => PathData
+  calculateMultipleArrowPositions: (params: BezierPathParams, spacing?: number) => ArrowPosition[]
 } {
   const calculateControlPoints = (
-    startX: number,
-    startY: number,
-    endX: number,
-    endY: number,
-    sourceAnchor: AnchorPosition,
-    targetAnchor: AnchorPosition
+    params: BezierPathParams
   ): { cp1x: number; cp1y: number; cp2x: number; cp2y: number } => {
-    const dx = endX - startX
-    const dy = endY - startY
-    const distance = Math.sqrt(dx * dx + dy * dy)
+    const { start, end, sourceAnchor, targetAnchor } = params
+    const deltaX = end.x - start.x
+    const deltaY = end.y - start.y
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
     const offset = Math.min(distance * 0.3, 100)
 
-    const cp1 = applyAnchorOffset(startX, startY, sourceAnchor, offset)
-    const cp2 = applyAnchorOffset(endX, endY, targetAnchor, offset)
+    const cp1 = applyAnchorOffset(start.x, start.y, sourceAnchor, offset)
+    const cp2 = applyAnchorOffset(end.x, end.y, targetAnchor, offset)
 
     return { cp1x: cp1.x, cp1y: cp1.y, cp2x: cp2.x, cp2y: cp2.y }
   }
 
   const calculateBezierPoint = (
-    t: number,
-    p0: number,
-    p1: number,
-    p2: number,
-    p3: number
+    curveParameter: number,
+    startPoint: number,
+    controlPoint1: number,
+    controlPoint2: number,
+    endPoint: number
   ): number => {
-    const mt = 1 - t
+    const oneMinusT = 1 - curveParameter
     return (
-      mt * mt * mt * p0 +
-      3 * mt * mt * t * p1 +
-      3 * mt * t * t * p2 +
-      t * t * t * p3
+      oneMinusT * oneMinusT * oneMinusT * startPoint +
+      3 * oneMinusT * oneMinusT * curveParameter * controlPoint1 +
+      3 * oneMinusT * curveParameter * curveParameter * controlPoint2 +
+      curveParameter * curveParameter * curveParameter * endPoint
     )
   }
 
   const calculateBezierTangent = (
-    t: number,
-    p0: number,
-    p1: number,
-    p2: number,
-    p3: number
+    curveParameter: number,
+    startPoint: number,
+    controlPoint1: number,
+    controlPoint2: number,
+    endPoint: number
   ): number => {
-    const mt = 1 - t
-    const t2 = t * t
-    const mt2 = mt * mt
+    const oneMinusT = 1 - curveParameter
+    const tSquared = curveParameter * curveParameter
+    const oneMinusTSquared = oneMinusT * oneMinusT
     return (
-      3 * mt2 * (p1 - p0) +
-      6 * mt * t * (p2 - p1) +
-      3 * t2 * (p3 - p2)
+      3 * oneMinusTSquared * (controlPoint1 - startPoint) +
+      6 * oneMinusT * curveParameter * (controlPoint2 - controlPoint1) +
+      3 * tSquared * (endPoint - controlPoint2)
     )
   }
 
   const calculatePathData = (
-    startX: number,
-    startY: number,
-    endX: number,
-    endY: number,
-    sourceAnchor: AnchorPosition,
-    targetAnchor: AnchorPosition
+    params: BezierPathParams
   ): PathData => {
-    const { cp1x, cp1y, cp2x, cp2y } = calculateControlPoints(
-      startX,
-      startY,
-      endX,
-      endY,
-      sourceAnchor,
-      targetAnchor
-    )
+    const { start, end } = params
+    const { cp1x, cp1y, cp2x, cp2y } = calculateControlPoints(params)
 
-    const path = `M ${startX},${startY} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${endX},${endY}`
+    const path = `M ${start.x},${start.y} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${end.x},${end.y}`
 
-    const midX = calculateBezierPoint(0.5, startX, cp1x, cp2x, endX)
-    const midY = calculateBezierPoint(0.5, startY, cp1y, cp2y, endY)
+    const midX = calculateBezierPoint(CURVE_MIDPOINT, start.x, cp1x, cp2x, end.x)
+    const midY = calculateBezierPoint(CURVE_MIDPOINT, start.y, cp1y, cp2y, end.y)
 
-    const t = 0.5
-    const dt = 0.01
-    const beforeX = calculateBezierPoint(t - dt, startX, cp1x, cp2x, endX)
-    const beforeY = calculateBezierPoint(t - dt, startY, cp1y, cp2y, endY)
-    const afterX = calculateBezierPoint(t + dt, startX, cp1x, cp2x, endX)
-    const afterY = calculateBezierPoint(t + dt, startY, cp1y, cp2y, endY)
+    const beforeX = calculateBezierPoint(CURVE_MIDPOINT - TANGENT_STEP, start.x, cp1x, cp2x, end.x)
+    const beforeY = calculateBezierPoint(CURVE_MIDPOINT - TANGENT_STEP, start.y, cp1y, cp2y, end.y)
+    const afterX = calculateBezierPoint(CURVE_MIDPOINT + TANGENT_STEP, start.x, cp1x, cp2x, end.x)
+    const afterY = calculateBezierPoint(CURVE_MIDPOINT + TANGENT_STEP, start.y, cp1y, cp2y, end.y)
 
     const angle = Math.atan2(afterY - beforeY, afterX - beforeX) * (180 / Math.PI)
 
@@ -129,39 +123,28 @@ export function useConnectionPath(): {
   }
 
   const calculateMultipleArrowPositions = (
-    startX: number,
-    startY: number,
-    endX: number,
-    endY: number,
-    sourceAnchor: AnchorPosition,
-    targetAnchor: AnchorPosition,
+    params: BezierPathParams,
     spacing: number = 80
   ): ArrowPosition[] => {
-    const { cp1x, cp1y, cp2x, cp2y } = calculateControlPoints(
-      startX,
-      startY,
-      endX,
-      endY,
-      sourceAnchor,
-      targetAnchor
-    )
+    const { start, end } = params
+    const { cp1x, cp1y, cp2x, cp2y } = calculateControlPoints(params)
 
-    const dx = endX - startX
-    const dy = endY - startY
-    const straightDistance = Math.sqrt(dx * dx + dy * dy)
-    const estimatedLength = straightDistance * 1.2
+    const deltaX = end.x - start.x
+    const deltaY = end.y - start.y
+    const straightDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+    const estimatedLength = straightDistance * BEZIER_LENGTH_ESTIMATION_FACTOR
 
     const arrowCount = Math.max(1, Math.floor(estimatedLength / spacing))
 
     const arrows: ArrowPosition[] = []
     for (let i = 1; i <= arrowCount; i++) {
-      const t = i / (arrowCount + 1)
+      const curveParameter = i / (arrowCount + 1)
 
-      const x = calculateBezierPoint(t, startX, cp1x, cp2x, endX)
-      const y = calculateBezierPoint(t, startY, cp1y, cp2y, endY)
+      const x = calculateBezierPoint(curveParameter, start.x, cp1x, cp2x, end.x)
+      const y = calculateBezierPoint(curveParameter, start.y, cp1y, cp2y, end.y)
 
-      const tangentX = calculateBezierTangent(t, startX, cp1x, cp2x, endX)
-      const tangentY = calculateBezierTangent(t, startY, cp1y, cp2y, endY)
+      const tangentX = calculateBezierTangent(curveParameter, start.x, cp1x, cp2x, end.x)
+      const tangentY = calculateBezierTangent(curveParameter, start.y, cp1y, cp2y, end.y)
       const angle = Math.atan2(tangentY, tangentX) * (180 / Math.PI)
 
       arrows.push({ x, y, angle })

@@ -25,6 +25,10 @@ type SDKToolProgressWithOutput = {
     tool_use_id?: string;
 };
 
+type AssistantTextBlock = { type: 'text'; text: string };
+type AssistantToolUseBlock = { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
+type AssistantContentBlock = AssistantTextBlock | AssistantToolUseBlock;
+
 interface QueryState {
     sessionId: string | null;
     fullContent: string;
@@ -45,6 +49,40 @@ function handleSystemInitMessage(sdkMessage: SDKSystemMessage, state: QueryState
     state.sessionId = sdkMessage.session_id;
 }
 
+function processTextBlock(
+    contentBlock: AssistantTextBlock,
+    state: QueryState,
+    onStream: StreamCallback
+): void {
+    state.fullContent += contentBlock.text;
+    onStream({type: 'text', content: contentBlock.text});
+}
+
+function processToolUseBlock(
+    contentBlock: AssistantToolUseBlock,
+    state: QueryState,
+    onStream: StreamCallback
+): void {
+    state.activeTools.set(contentBlock.id, {
+        toolName: contentBlock.name,
+        input: contentBlock.input,
+    });
+
+    state.toolUseInfo = {
+        toolUseId: contentBlock.id,
+        toolName: contentBlock.name,
+        input: contentBlock.input,
+        output: null,
+    };
+
+    onStream({
+        type: 'tool_use',
+        toolUseId: contentBlock.id,
+        toolName: contentBlock.name,
+        input: contentBlock.input,
+    });
+}
+
 function handleAssistantMessage(
     sdkMessage: SDKAssistantMessage,
     state: QueryState,
@@ -53,54 +91,42 @@ function handleAssistantMessage(
     const assistantMessage = sdkMessage.message;
     if (!assistantMessage.content) return;
 
-    for (const block of assistantMessage.content) {
-        const contentBlock = block as Record<string, unknown>;
-
-        if ('text' in contentBlock && contentBlock.text) {
-            const text = String(contentBlock.text);
-            state.fullContent += text;
-            onStream({type: 'text', content: text});
+    for (const block of assistantMessage.content as AssistantContentBlock[]) {
+        if (block.type === 'text' && block.text) {
+            processTextBlock(block, state, onStream);
             continue;
         }
 
-        if ('type' in contentBlock && contentBlock.type === 'tool_use') {
-            const toolBlock = contentBlock as {
-                id: string;
-                name: string;
-                input: Record<string, unknown>;
-            };
-
-            state.activeTools.set(toolBlock.id, {
-                toolName: toolBlock.name,
-                input: toolBlock.input,
-            });
-
-            state.toolUseInfo = {
-                toolUseId: toolBlock.id,
-                toolName: toolBlock.name,
-                input: toolBlock.input,
-                output: null,
-            };
-
-            onStream({
-                type: 'tool_use',
-                toolUseId: toolBlock.id,
-                toolName: toolBlock.name,
-                input: toolBlock.input,
-            });
+        if (block.type === 'tool_use') {
+            processToolUseBlock(block, state, onStream);
         }
     }
 }
 
+type UserToolResultBlock = {
+    type: 'tool_result';
+    tool_use_id: string;
+    content?: string;
+};
+
+function isToolResultBlock(block: unknown): block is UserToolResultBlock {
+    return (
+        typeof block === 'object' &&
+        block !== null &&
+        (block as Record<string, unknown>).type === 'tool_result' &&
+        'tool_use_id' in (block as Record<string, unknown>)
+    );
+}
+
 function handleToolResultBlock(
-    contentBlock: Record<string, unknown>,
+    block: unknown,
     state: QueryState,
     onStream: StreamCallback
 ): void {
-    if (contentBlock.type !== 'tool_result' || !('tool_use_id' in contentBlock)) return;
+    if (!isToolResultBlock(block)) return;
 
-    const toolUseId = String(contentBlock.tool_use_id);
-    const content = String(contentBlock.content || '');
+    const toolUseId = block.tool_use_id;
+    const content = block.content ?? '';
     const toolInfo = state.activeTools.get(toolUseId);
 
     if (!toolInfo) return;
@@ -126,8 +152,46 @@ function handleUserMessage(
     if (!userMessage.content || !Array.isArray(userMessage.content)) return;
 
     for (const block of userMessage.content) {
-        handleToolResultBlock(block as Record<string, unknown>, state, onStream);
+        handleToolResultBlock(block, state, onStream);
     }
+}
+
+function updateExistingToolProgress(
+    state: QueryState,
+    toolUseId: string,
+    outputText: string,
+    onStream: StreamCallback
+): void {
+    const toolInfo = state.activeTools.get(toolUseId);
+    if (!toolInfo) return;
+
+    if (state.toolUseInfo?.toolUseId === toolUseId) {
+        state.toolUseInfo.output = outputText;
+    }
+
+    onStream({
+        type: 'tool_result',
+        toolUseId,
+        toolName: toolInfo.toolName,
+        output: outputText,
+    });
+}
+
+function createNewToolProgress(
+    state: QueryState,
+    outputText: string,
+    onStream: StreamCallback
+): void {
+    if (!state.toolUseInfo) return;
+
+    state.toolUseInfo.output = outputText;
+
+    onStream({
+        type: 'tool_result',
+        toolUseId: state.toolUseInfo.toolUseId,
+        toolName: state.toolUseInfo.toolName,
+        output: outputText,
+    });
 }
 
 function handleToolProgressMessage(
@@ -139,32 +203,14 @@ function handleToolProgressMessage(
     if (!outputText) return;
 
     const toolUseId = sdkMessage.tool_use_id;
-    const toolInfo = toolUseId ? state.activeTools.get(toolUseId) : null;
+    const hasKnownTool = toolUseId && state.activeTools.has(toolUseId);
 
-    if (toolInfo && toolUseId) {
-        if (state.toolUseInfo?.toolUseId === toolUseId) {
-            state.toolUseInfo.output = outputText;
-        }
-
-        onStream({
-            type: 'tool_result',
-            toolUseId,
-            toolName: toolInfo.toolName,
-            output: outputText,
-        });
+    if (hasKnownTool && toolUseId) {
+        updateExistingToolProgress(state, toolUseId, outputText, onStream);
         return;
     }
 
-    if (state.toolUseInfo) {
-        state.toolUseInfo.output = outputText;
-
-        onStream({
-            type: 'tool_result',
-            toolUseId: state.toolUseInfo.toolUseId,
-            toolName: state.toolUseInfo.toolName,
-            output: outputText,
-        });
-    }
+    createNewToolProgress(state, outputText, onStream);
 }
 
 function handleResultMessage(
@@ -192,6 +238,53 @@ function shouldRetrySession(error: unknown, pod: Pod, isRetry: boolean): boolean
     const isResumeError = errorMessage.includes('session') || errorMessage.includes('resume');
     return isResumeError && !!pod.claudeSessionId && !isRetry;
 }
+
+interface HandleSendMessageErrorParams {
+    error: unknown;
+    pod: Pod;
+    canvasId: string;
+    podId: string;
+    onStream: StreamCallback;
+    isRetry: boolean;
+    retryFn: () => Promise<Message>;
+}
+
+async function handleSendMessageError(params: HandleSendMessageErrorParams): Promise<Message> {
+    const {error, pod, canvasId, podId, onStream, isRetry, retryFn} = params;
+
+    if (isAbortError(error)) {
+        // re-throw 讓外層 catch 處理，確保前端收到 POD_CHAT_ABORTED 事件
+        throw error;
+    }
+
+    if (shouldRetrySession(error, pod, isRetry)) {
+        logger.log(
+            'Chat',
+            'Update',
+            `[QueryService] Session resume failed for Pod ${podId}, clearing session ID and retrying`
+        );
+        podStore.setClaudeSessionId(canvasId, podId, '');
+        return retryFn();
+    }
+
+    const errorMessage = getErrorMessage(error);
+    if (isRetry) {
+        logger.error('Chat', 'Error', `Pod ${podId} 重試查詢仍然失敗: ${errorMessage}`);
+    } else {
+        logger.error('Chat', 'Error', `Pod ${podId} 查詢失敗: ${errorMessage}`);
+    }
+
+    // 對前端隱藏內部錯誤細節，只顯示通用訊息
+    onStream({type: 'error', error: '與 Claude 通訊時發生錯誤，請稍後再試'});
+    throw error;
+}
+
+const SDK_MESSAGE_HANDLERS: Record<string, (msg: SDKMessage, s: QueryState, cb: StreamCallback) => void> = {
+    assistant: (msg, s, cb) => handleAssistantMessage(msg as SDKAssistantMessage, s, cb),
+    user: (msg, s, cb) => handleUserMessage(msg as SDKUserMessageType, s, cb),
+    tool_progress: (msg, s, cb) => handleToolProgressMessage(msg as unknown as SDKToolProgressWithOutput, s, cb),
+    result: (msg, s, cb) => handleResultMessage(msg as SDKResultMessage, s, cb),
+};
 
 class ClaudeQueryService {
     private activeQueries = new Map<string, {
@@ -257,15 +350,10 @@ class ClaudeQueryService {
     ): void {
         if (sdkMessage.type === 'system' && sdkMessage.subtype === 'init') {
             handleSystemInitMessage(sdkMessage, state);
-        } else if (sdkMessage.type === 'assistant') {
-            handleAssistantMessage(sdkMessage, state, onStream);
-        } else if (sdkMessage.type === 'user') {
-            handleUserMessage(sdkMessage, state, onStream);
-        } else if (sdkMessage.type === 'tool_progress') {
-            handleToolProgressMessage(sdkMessage as SDKToolProgressWithOutput, state, onStream);
-        } else if (sdkMessage.type === 'result') {
-            handleResultMessage(sdkMessage, state, onStream);
+            return;
         }
+
+        SDK_MESSAGE_HANDLERS[sdkMessage.type]?.(sdkMessage, state, onStream);
     }
 
     private async buildQueryOptions(
@@ -367,31 +455,15 @@ class ClaudeQueryService {
                 createdAt: new Date(),
             };
         } catch (error) {
-            if (isAbortError(error)) {
-                // re-throw 讓外層 catch 處理，確保前端收到 POD_CHAT_ABORTED 事件
-                throw error;
-            }
-
-            if (shouldRetrySession(error, pod, isRetry)) {
-                logger.log(
-                    'Chat',
-                    'Update',
-                    `[QueryService] Session resume failed for Pod ${podId}, clearing session ID and retrying`
-                );
-                podStore.setClaudeSessionId(canvasId, podId, '');
-                return this.sendMessageInternal(podId, message, onStream, connectionId, true);
-            }
-
-            const errorMessage = getErrorMessage(error);
-            if (isRetry) {
-                logger.error('Chat', 'Error', `Pod ${podId} 重試查詢仍然失敗: ${errorMessage}`);
-            } else {
-                logger.error('Chat', 'Error', `Pod ${podId} 查詢失敗: ${errorMessage}`);
-            }
-
-            // 對前端隱藏內部錯誤細節，只顯示通用訊息
-            onStream({type: 'error', error: '與 Claude 通訊時發生錯誤，請稍後再試'});
-            throw error;
+            return handleSendMessageError({
+                error,
+                pod,
+                canvasId,
+                podId,
+                onStream,
+                isRetry,
+                retryFn: () => this.sendMessageInternal(podId, message, onStream, connectionId, true),
+            });
         } finally {
             // 確保所有情況都清理 activeQueries entry，防止 Memory Leak
             this.activeQueries.delete(podId);

@@ -1,7 +1,6 @@
 import {WebSocketResponseEvents} from '../schemas';
 import type {
     PodBindSubAgentPayload,
-    SubAgentDeletePayload,
     SubAgentMoveToGroupPayload,
 } from '../schemas';
 import {subAgentService} from '../services/subAgentService.js';
@@ -11,7 +10,6 @@ import {repositoryService} from '../services/repositoryService.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
 import {createBindHandler} from './factories/createBindHandlers.js';
-import {handleResourceDelete} from '../utils/handlerHelpers.js';
 import {createMoveToGroupHandler} from './factories/createMoveToGroupHandler.js';
 import {GROUP_TYPES} from '../types';
 import type {Pod} from '../types/pod.js';
@@ -40,6 +38,11 @@ const resourceHandlers = createResourceHandlers({
         created: WebSocketResponseEvents.SUBAGENT_CREATED,
         updated: WebSocketResponseEvents.SUBAGENT_UPDATED,
         readResult: WebSocketResponseEvents.SUBAGENT_READ_RESULT,
+        deleted: {
+            deleted: WebSocketResponseEvents.SUBAGENT_DELETED,
+            findPodsUsing: (canvasId, subAgentId) => podStore.findBySubAgentId(canvasId, subAgentId),
+            deleteNotes: (canvasId, subAgentId) => subAgentNoteStore.deleteByForeignKey(canvasId, subAgentId),
+        },
     },
     resourceName: 'SubAgent',
     responseKey: 'subAgent',
@@ -51,6 +54,7 @@ export const handleSubAgentList = resourceHandlers.handleList;
 export const handleSubAgentCreate = resourceHandlers.handleCreate;
 export const handleSubAgentUpdate = resourceHandlers.handleUpdate;
 export const handleSubAgentRead = resourceHandlers.handleRead;
+export const handleSubAgentDelete = resourceHandlers.handleDelete;
 
 const subAgentBindHandler = createBindHandler({
     resourceName: 'SubAgent',
@@ -80,26 +84,6 @@ export async function handlePodBindSubAgent(
     requestId: string
 ): Promise<void> {
     return subAgentBindHandler(connectionId, payload, requestId);
-}
-
-export async function handleSubAgentDelete(
-    connectionId: string,
-    payload: SubAgentDeletePayload,
-    requestId: string
-): Promise<void> {
-    const {subAgentId} = payload;
-
-    await handleResourceDelete({
-        connectionId,
-        requestId,
-        resourceId: subAgentId,
-        resourceName: 'SubAgent',
-        responseEvent: WebSocketResponseEvents.SUBAGENT_DELETED,
-        existsCheck: () => subAgentService.exists(subAgentId),
-        findPodsUsing: (canvasId: string) => podStore.findBySubAgentId(canvasId, subAgentId),
-        deleteNotes: (canvasId: string) => subAgentNoteStore.deleteByForeignKey(canvasId, subAgentId),
-        deleteResource: () => subAgentService.delete(subAgentId),
-    });
 }
 
 const subAgentMoveToGroupHandler = createMoveToGroupHandler({

@@ -5,12 +5,18 @@ const DETECTION_RADIUS = 20
 const POD_WIDTH = 224
 const POD_HEIGHT = 168
 
+const anchorOffsets: Record<AnchorPosition, { localX: number; localY: number }> = {
+  top: { localX: POD_WIDTH / 2, localY: 0 },
+  bottom: { localX: POD_WIDTH / 2, localY: POD_HEIGHT },
+  left: { localX: 0, localY: POD_HEIGHT / 2 },
+  right: { localX: POD_WIDTH, localY: POD_HEIGHT / 2 },
+}
+
 export function useAnchorDetection(): {
   getAnchorPositions: (pod: Pod) => AnchorPoint[]
   detectTargetAnchor: (point: { x: number; y: number }, pods: Pod[], sourcePodId: string) => AnchorPoint | null
 } {
   const getAnchorPositions = (pod: Pod): AnchorPoint[] => {
-    const anchors: AnchorPoint[] = []
     const positions: AnchorPosition[] = ['top', 'bottom', 'left', 'right']
 
     const rotation = pod.rotation || 0
@@ -19,23 +25,8 @@ export function useAnchorDetection(): {
     const centerX = pod.x + POD_WIDTH / 2
     const centerY = pod.y + POD_HEIGHT / 2
 
-    positions.forEach(anchor => {
-      let localX = 0
-      let localY = 0
-
-      if (anchor === 'top') {
-        localX = POD_WIDTH / 2
-        localY = 0
-      } else if (anchor === 'bottom') {
-        localX = POD_WIDTH / 2
-        localY = POD_HEIGHT
-      } else if (anchor === 'left') {
-        localX = 0
-        localY = POD_HEIGHT / 2
-      } else if (anchor === 'right') {
-        localX = POD_WIDTH
-        localY = POD_HEIGHT / 2
-      }
+    return positions.map(anchor => {
+      const { localX, localY } = anchorOffsets[anchor]
 
       const relativeX = localX - POD_WIDTH / 2
       const relativeY = localY - POD_HEIGHT / 2
@@ -43,13 +34,35 @@ export function useAnchorDetection(): {
       const rotatedX = relativeX * Math.cos(radians) - relativeY * Math.sin(radians)
       const rotatedY = relativeX * Math.sin(radians) + relativeY * Math.cos(radians)
 
-      const x = centerX + rotatedX
-      const y = centerY + rotatedY
-
-      anchors.push({ podId: pod.id, anchor, x, y })
+      return {
+        podId: pod.id,
+        anchor,
+        x: centerX + rotatedX,
+        y: centerY + rotatedY,
+      }
     })
+  }
 
-    return anchors
+  const findAnchorForPod = (
+    pod: Pod,
+    point: { x: number; y: number },
+    sourcePodId: string
+  ): AnchorPoint | null => {
+    if (pod.id === sourcePodId) return null
+
+    const anchors = getAnchorPositions(pod)
+
+    for (const anchor of anchors) {
+      const dx = point.x - anchor.x
+      const dy = point.y - anchor.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+
+      if (distance <= DETECTION_RADIUS) {
+        return anchor
+      }
+    }
+
+    return null
   }
 
   const detectTargetAnchor = (
@@ -58,19 +71,8 @@ export function useAnchorDetection(): {
     sourcePodId: string
   ): AnchorPoint | null => {
     for (const pod of pods) {
-      if (pod.id === sourcePodId) continue
-
-      const anchors = getAnchorPositions(pod)
-
-      for (const anchor of anchors) {
-        const dx = point.x - anchor.x
-        const dy = point.y - anchor.y
-        const distance = Math.sqrt(dx * dx + dy * dy)
-
-        if (distance <= DETECTION_RADIUS) {
-          return anchor
-        }
-      }
+      const anchor = findAnchorForPod(pod, point, sourcePodId)
+      if (anchor) return anchor
     }
 
     return null

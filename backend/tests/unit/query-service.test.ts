@@ -90,14 +90,14 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'Hello, ' }],
+            content: [{ type: 'text', text: 'Hello, ' }],
           },
         };
 
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'how can I help?' }],
+            content: [{ type: 'text', text: 'how can I help?' }],
           },
         };
 
@@ -174,7 +174,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'I read the file.' }],
+            content: [{ type: 'text', text: 'I read the file.' }],
           },
         };
 
@@ -270,7 +270,7 @@ describe('Claude QueryService', () => {
           yield {
             type: 'assistant',
             message: {
-              content: [{ text: 'Retry successful' }],
+              content: [{ type: 'text', text: 'Retry successful' }],
             },
           };
 
@@ -421,7 +421,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'I see the image.' }],
+            content: [{ type: 'text', text: 'I see the image.' }],
           },
         };
 
@@ -473,7 +473,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'I see multiple images.' }],
+            content: [{ type: 'text', text: 'I see multiple images.' }],
           },
         };
 
@@ -527,7 +527,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'Response' }],
+            content: [{ type: 'text', text: 'Response' }],
           },
         };
 
@@ -576,7 +576,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'OK' }],
+            content: [{ type: 'text', text: 'OK' }],
           },
         };
 
@@ -620,7 +620,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'Reviewing code...' }],
+            content: [{ type: 'text', text: 'Reviewing code...' }],
           },
         };
 
@@ -662,7 +662,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'Analysis result' }],
+            content: [{ type: 'text', text: 'Analysis result' }],
           },
         };
 
@@ -709,7 +709,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'Response' }],
+            content: [{ type: 'text', text: 'Response' }],
           },
         };
 
@@ -751,7 +751,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'Started' }],
+            content: [{ type: 'text', text: 'Started' }],
           },
         };
 
@@ -797,7 +797,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'OK' }],
+            content: [{ type: 'text', text: 'OK' }],
           },
         };
 
@@ -844,7 +844,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'Styled response' }],
+            content: [{ type: 'text', text: 'Styled response' }],
           },
         };
 
@@ -888,7 +888,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'Response' }],
+            content: [{ type: 'text', text: 'Response' }],
           },
         };
 
@@ -927,7 +927,7 @@ describe('Claude QueryService', () => {
         yield {
           type: 'assistant',
           message: {
-            content: [{ text: 'Resumed conversation' }],
+            content: [{ type: 'text', text: 'Resumed conversation' }],
           },
         };
 

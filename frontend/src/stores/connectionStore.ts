@@ -7,7 +7,6 @@ import {
     WebSocketResponseEvents
 } from '@/services/websocket'
 import {useToast} from '@/composables/useToast'
-import {useCanvasStore} from '@/stores/canvasStore'
 import {requireActiveCanvas, getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
 import {createWorkflowEventHandlers} from './workflowEventHandlers'
 import type {
@@ -72,7 +71,7 @@ export const useConnectionStore = defineStore('connection', {
 
         selectedConnection: (state): Connection | null => {
             if (!state.selectedConnectionId) return null
-            return state.connections.find(c => c.id === state.selectedConnectionId) || null
+            return state.connections.find(connection => connection.id === state.selectedConnectionId) || null
         },
 
         isSourcePod: (state) => (podId: string): boolean => {
@@ -105,11 +104,13 @@ export const useConnectionStore = defineStore('connection', {
     },
 
     actions: {
-        _findById(connectionId: string): Connection | undefined {
-            return this.connections.find(c => c.id === connectionId)
+        findConnectionById(connectionId: string): Connection | undefined {
+            return this.connections.find(connection => connection.id === connectionId)
         },
 
-        _getWorkflowEventMap(): Array<[string, (payload: unknown) => void]> {
+        // Pinia 的 action handler 型別需要統一以 unknown 接收，再由各 handler 自行轉型，
+        // 因為 websocketClient.on/off 的 handler 簽章要求型別一致
+        getWorkflowEventMap(): Array<[string, (payload: unknown) => void]> {
             return [
                 [WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, this.handleWorkflowAutoTriggered as (payload: unknown) => void],
                 [WebSocketResponseEvents.WORKFLOW_COMPLETE, this.handleWorkflowComplete as (payload: unknown) => void],
@@ -202,13 +203,13 @@ export const useConnectionStore = defineStore('connection', {
         },
 
         async deleteConnection(connectionId: string): Promise<void> {
-            const canvasStore = useCanvasStore()
+            const canvasId = requireActiveCanvas()
 
             await createWebSocketRequest<ConnectionDeletePayload, ConnectionDeletedPayload>({
                 requestEvent: WebSocketRequestEvents.CONNECTION_DELETE,
                 responseEvent: WebSocketResponseEvents.CONNECTION_DELETED,
                 payload: {
-                    canvasId: canvasStore.activeCanvasId!,
+                    canvasId,
                     connectionId
                 }
             })
@@ -304,13 +305,13 @@ export const useConnectionStore = defineStore('connection', {
         },
 
         setupWorkflowListeners(): void {
-            this._getWorkflowEventMap().forEach(([event, handler]) => {
+            this.getWorkflowEventMap().forEach(([event, handler]) => {
                 websocketClient.on(event, handler)
             })
         },
 
         cleanupWorkflowListeners(): void {
-            this._getWorkflowEventMap().forEach(([event, handler]) => {
+            this.getWorkflowEventMap().forEach(([event, handler]) => {
                 websocketClient.off(event, handler)
             })
         },
@@ -371,14 +372,14 @@ export const useConnectionStore = defineStore('connection', {
                 status: 'idle' as ConnectionStatus
             }
 
-            const exists = this.connections.some(c => c.id === enrichedConnection.id)
+            const exists = this.connections.some(conn => conn.id === enrichedConnection.id)
             if (!exists) {
                 this.connections.push(enrichedConnection)
             }
         },
 
         updateConnectionFromEvent(connection: Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }): void {
-            const existingConnection = this.connections.find(c => c.id === connection.id)
+            const existingConnection = this.connections.find(conn => conn.id === connection.id)
             const enrichedConnection: Connection = {
                 ...connection,
                 createdAt: new Date(connection.createdAt),
@@ -387,14 +388,14 @@ export const useConnectionStore = defineStore('connection', {
                 decideReason: connection.decideReason ?? existingConnection?.decideReason
             }
 
-            const index = this.connections.findIndex(c => c.id === enrichedConnection.id)
+            const index = this.connections.findIndex(conn => conn.id === enrichedConnection.id)
             if (index !== -1) {
                 this.connections.splice(index, 1, enrichedConnection)
             }
         },
 
         removeConnectionFromEvent(connectionId: string): void {
-            this.connections = this.connections.filter(c => c.id !== connectionId)
+            this.connections = this.connections.filter(connection => connection.id !== connectionId)
         },
     },
 })

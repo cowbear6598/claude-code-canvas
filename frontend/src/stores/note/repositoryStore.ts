@@ -2,7 +2,7 @@ import type { Repository, RepositoryNote } from '@/types'
 import { createNoteStore } from './createNoteStore'
 import { websocketClient, WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
-import { useCanvasStore } from '@/stores/canvasStore'
+import { requireActiveCanvas } from '@/utils/canvasGuard'
 import { useToast } from '@/composables/useToast'
 import { generateRequestId } from '@/services/utils'
 import type {
@@ -21,6 +21,17 @@ import type {
   RepositoryBranchDeletedPayload,
   RepositoryPullLatestPayload
 } from '@/types/websocket'
+
+function getRepositoryActionDeps(): {
+  wrapWebSocketRequest: ReturnType<typeof useWebSocketErrorHandler>['wrapWebSocketRequest']
+  showSuccessToast: ReturnType<typeof useToast>['showSuccessToast']
+  showErrorToast: ReturnType<typeof useToast>['showErrorToast']
+} {
+  return {
+    wrapWebSocketRequest: useWebSocketErrorHandler().wrapWebSocketRequest,
+    ...useToast(),
+  }
+}
 
 interface RepositoryStoreCustomActions {
   createRepository(name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }>
@@ -82,16 +93,15 @@ const store = createNoteStore<Repository, RepositoryNote>({
   getItemName: (item: Repository) => item.name,
   customActions: {
     async createRepository(this, name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const { showSuccessToast, showErrorToast } = useToast()
-      const canvasStore = useCanvasStore()
+      const { wrapWebSocketRequest, showSuccessToast, showErrorToast } = getRepositoryActionDeps()
+      const canvasId = requireActiveCanvas()
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<RepositoryCreatePayload, RepositoryCreatedPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_CREATE,
           responseEvent: WebSocketResponseEvents.REPOSITORY_CREATED,
           payload: {
-            canvasId: canvasStore.activeCanvasId!,
+            canvasId,
             name
           }
         })
@@ -122,15 +132,15 @@ const store = createNoteStore<Repository, RepositoryNote>({
     },
 
     async checkIsGit(this, repositoryId: string): Promise<boolean> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasStore = useCanvasStore()
+      const { wrapWebSocketRequest } = getRepositoryActionDeps()
+      const canvasId = requireActiveCanvas()
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<RepositoryCheckGitPayload, RepositoryCheckGitResultPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_CHECK_GIT,
           responseEvent: WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT,
           payload: {
-            canvasId: canvasStore.activeCanvasId!,
+            canvasId,
             repositoryId
           }
         })
@@ -149,16 +159,15 @@ const store = createNoteStore<Repository, RepositoryNote>({
     },
 
     async createWorktree(this, repositoryId: string, worktreeName: string, sourceNotePosition: { x: number; y: number }): Promise<{ success: boolean; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const { showSuccessToast, showErrorToast } = useToast()
-      const canvasStore = useCanvasStore()
+      const { wrapWebSocketRequest, showSuccessToast, showErrorToast } = getRepositoryActionDeps()
+      const canvasId = requireActiveCanvas()
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
           responseEvent: WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
           payload: {
-            canvasId: canvasStore.activeCanvasId!,
+            canvasId,
             repositoryId,
             worktreeName
           }
@@ -191,16 +200,15 @@ const store = createNoteStore<Repository, RepositoryNote>({
     },
 
     async getLocalBranches(this, repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; worktreeBranches?: string[]; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const { showErrorToast } = useToast()
-      const canvasStore = useCanvasStore()
+      const { wrapWebSocketRequest, showErrorToast } = getRepositoryActionDeps()
+      const canvasId = requireActiveCanvas()
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<RepositoryGetLocalBranchesPayload, RepositoryLocalBranchesResultPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_GET_LOCAL_BRANCHES,
           responseEvent: WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
           payload: {
-            canvasId: canvasStore.activeCanvasId!,
+            canvasId,
             repositoryId
           }
         })
@@ -221,16 +229,15 @@ const store = createNoteStore<Repository, RepositoryNote>({
     },
 
     async checkDirty(this, repositoryId: string): Promise<{ success: boolean; isDirty?: boolean; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const { showErrorToast } = useToast()
-      const canvasStore = useCanvasStore()
+      const { wrapWebSocketRequest, showErrorToast } = getRepositoryActionDeps()
+      const canvasId = requireActiveCanvas()
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<RepositoryCheckDirtyPayload, RepositoryDirtyCheckResultPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_CHECK_DIRTY,
           responseEvent: WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
           payload: {
-            canvasId: canvasStore.activeCanvasId!,
+            canvasId,
             repositoryId
           }
         })
@@ -249,14 +256,14 @@ const store = createNoteStore<Repository, RepositoryNote>({
     },
 
     async checkoutBranch(this, repositoryId: string, branchName: string, force: boolean = false): Promise<{ requestId: string }> {
-      const canvasStore = useCanvasStore()
+      const canvasId = requireActiveCanvas()
       const requestId = generateRequestId()
 
       websocketClient.emit<RepositoryCheckoutBranchPayload>(
         WebSocketRequestEvents.REPOSITORY_CHECKOUT_BRANCH,
         {
           requestId,
-          canvasId: canvasStore.activeCanvasId!,
+          canvasId,
           repositoryId,
           branchName,
           force
@@ -267,16 +274,15 @@ const store = createNoteStore<Repository, RepositoryNote>({
     },
 
     async deleteBranch(this, repositoryId: string, branchName: string): Promise<{ success: boolean; branchName?: string; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const { showSuccessToast, showErrorToast } = useToast()
-      const canvasStore = useCanvasStore()
+      const { wrapWebSocketRequest, showSuccessToast, showErrorToast } = getRepositoryActionDeps()
+      const canvasId = requireActiveCanvas()
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<RepositoryDeleteBranchPayload, RepositoryBranchDeletedPayload>({
           requestEvent: WebSocketRequestEvents.REPOSITORY_DELETE_BRANCH,
           responseEvent: WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
           payload: {
-            canvasId: canvasStore.activeCanvasId!,
+            canvasId,
             repositoryId,
             branchName,
             force: true
@@ -303,14 +309,14 @@ const store = createNoteStore<Repository, RepositoryNote>({
     },
 
     async pullLatest(this, repositoryId: string): Promise<{ requestId: string }> {
-      const canvasStore = useCanvasStore()
+      const canvasId = requireActiveCanvas()
       const requestId = generateRequestId()
 
       websocketClient.emit<RepositoryPullLatestPayload>(
         WebSocketRequestEvents.REPOSITORY_PULL_LATEST,
         {
           requestId,
-          canvasId: canvasStore.activeCanvasId!,
+          canvasId,
           repositoryId
         }
       )

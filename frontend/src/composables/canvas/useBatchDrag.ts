@@ -95,10 +95,10 @@ export function useBatchDrag(): {
 
   const { isDragging: isBatchDragging, startDrag } = useDragHandler({
     onMove: (moveEvent: MouseEvent): void => {
-      const dx = (moveEvent.clientX - startX) / viewportStore.zoom
-      const dy = (moveEvent.clientY - startY) / viewportStore.zoom
+      const deltaXInCanvasCoords = (moveEvent.clientX - startX) / viewportStore.zoom
+      const deltaYInCanvasCoords = (moveEvent.clientY - startY) / viewportStore.zoom
 
-      moveSelectedElements(dx, dy)
+      moveSelectedElements(deltaXInCanvasCoords, deltaYInCanvasCoords)
 
       startX = moveEvent.clientX
       startY = moveEvent.clientY

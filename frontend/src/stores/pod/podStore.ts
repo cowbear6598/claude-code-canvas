@@ -24,7 +24,6 @@ import type {
     PodSetSchedulePayload
 } from '@/types/websocket'
 import {useConnectionStore} from '@/stores/connectionStore'
-import {useCanvasStore} from '@/stores/canvasStore'
 import {useToast} from '@/composables/useToast'
 import {sanitizeErrorForUser} from '@/utils/errorSanitizer'
 import {isValidPod as isValidPodFn, enrichPod as enrichPodFn} from '@/lib/podValidation'
@@ -143,7 +142,7 @@ export const usePodStore = defineStore('pod', {
         },
 
         async deletePodWithBackend(id: string): Promise<void> {
-            const canvasStore = useCanvasStore()
+            const canvasId = requireActiveCanvas()
             const { showSuccessToast, showErrorToast } = useToast()
 
             const pod = this.pods.find((p) => p.id === id)
@@ -154,7 +153,7 @@ export const usePodStore = defineStore('pod', {
                     requestEvent: WebSocketRequestEvents.POD_DELETE,
                     responseEvent: WebSocketResponseEvents.POD_DELETED,
                     payload: {
-                        canvasId: canvasStore.activeCanvasId!,
+                        canvasId,
                         podId: id
                     }
                 })

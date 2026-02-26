@@ -2,13 +2,11 @@ import { WebSocketResponseEvents } from '../schemas';
 import type {
   PodBindOutputStylePayload,
   PodUnbindOutputStylePayload,
-  OutputStyleDeletePayload,
   OutputStyleMoveToGroupPayload,
 } from '../schemas';
 import { outputStyleService } from '../services/outputStyleService.js';
 import { podStore } from '../services/podStore.js';
 import { noteStore } from '../services/noteStores.js';
-import { handleResourceDelete } from '../utils/handlerHelpers.js';
 import { createResourceHandlers } from './factories/createResourceHandlers.js';
 import { createBindHandler, createUnbindHandler } from './factories/createBindHandlers.js';
 import { createMoveToGroupHandler } from './factories/createMoveToGroupHandler.js';
@@ -21,6 +19,12 @@ const resourceHandlers = createResourceHandlers({
     created: WebSocketResponseEvents.OUTPUT_STYLE_CREATED,
     updated: WebSocketResponseEvents.OUTPUT_STYLE_UPDATED,
     readResult: WebSocketResponseEvents.OUTPUT_STYLE_READ_RESULT,
+    deleted: {
+      deleted: WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
+      findPodsUsing: (canvasId, outputStyleId) => podStore.findByOutputStyleId(canvasId, outputStyleId),
+      deleteNotes: (canvasId, outputStyleId) => noteStore.deleteByForeignKey(canvasId, outputStyleId),
+      idFieldName: 'outputStyleId',
+    },
   },
   resourceName: 'OutputStyle',
   responseKey: 'outputStyle',
@@ -32,6 +36,7 @@ export const handleOutputStyleList = resourceHandlers.handleList;
 export const handleOutputStyleCreate = resourceHandlers.handleCreate;
 export const handleOutputStyleUpdate = resourceHandlers.handleUpdate;
 export const handleOutputStyleRead = resourceHandlers.handleRead;
+export const handleOutputStyleDelete = resourceHandlers.handleDelete;
 
 const outputStyleBindConfig = {
   resourceName: 'OutputStyle',
@@ -68,27 +73,6 @@ export async function handlePodUnbindOutputStyle(
   requestId: string
 ): Promise<void> {
   return outputStyleUnbindHandler(connectionId, payload, requestId);
-}
-
-export async function handleOutputStyleDelete(
-  connectionId: string,
-  payload: OutputStyleDeletePayload,
-  requestId: string
-): Promise<void> {
-  const { outputStyleId } = payload;
-
-  await handleResourceDelete({
-    connectionId,
-    requestId,
-    resourceId: outputStyleId,
-    resourceName: 'OutputStyle',
-    responseEvent: WebSocketResponseEvents.OUTPUT_STYLE_DELETED,
-    existsCheck: () => outputStyleService.exists(outputStyleId),
-    findPodsUsing: (canvasId: string) => podStore.findByOutputStyleId(canvasId, outputStyleId),
-    deleteNotes: (canvasId: string) => noteStore.deleteByForeignKey(canvasId, outputStyleId),
-    deleteResource: () => outputStyleService.delete(outputStyleId),
-    idFieldName: 'outputStyleId',
-  });
 }
 
 const outputStyleMoveToGroupHandler = createMoveToGroupHandler({

@@ -26,25 +26,16 @@ import {
     forEachDirectConnection,
 } from './workflowHelpers.js';
 import {workflowAutoTriggerService} from './workflowAutoTriggerService.js';
+import { LazyInitializable } from './lazyInitializable.js';
 
-class WorkflowExecutionService {
-  private pipeline?: PipelineMethods;
-  private aiDecideTriggerService?: AiDecideMethods;
-  private autoTriggerService?: AutoTriggerMethods;
-  private directTriggerService?: TriggerStrategy;
+interface ExecutionServiceDeps {
+  pipeline: PipelineMethods;
+  aiDecideTriggerService: AiDecideMethods;
+  autoTriggerService: AutoTriggerMethods;
+  directTriggerService: TriggerStrategy;
+}
 
-  init(deps: {
-    pipeline: PipelineMethods;
-    aiDecideTriggerService: AiDecideMethods;
-    autoTriggerService: AutoTriggerMethods;
-    directTriggerService: TriggerStrategy;
-  }): void {
-    this.pipeline = deps.pipeline;
-    this.aiDecideTriggerService = deps.aiDecideTriggerService;
-    this.autoTriggerService = deps.autoTriggerService;
-    this.directTriggerService = deps.directTriggerService;
-  }
-
+class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
   private getLastAssistantFallback(sourcePodId: string): { content: string; isSummarized: boolean } | null {
     const fallback = workflowAutoTriggerService.getLastAssistantMessage(sourcePodId);
     return fallback ? { content: fallback, isSummarized: false } : null;
@@ -84,9 +75,8 @@ class WorkflowExecutionService {
   }
 
   async checkAndTriggerWorkflows(canvasId: string, sourcePodId: string): Promise<void> {
-    if (!this.pipeline || !this.aiDecideTriggerService || !this.autoTriggerService || !this.directTriggerService) {
-      throw new Error('WorkflowExecutionService 尚未初始化，請先呼叫 init()');
-    }
+    this.ensureInitialized();
+
     const connections = connectionStore.findBySourcePodId(canvasId, sourcePodId);
 
     if (connections.length === 0) {
@@ -104,10 +94,10 @@ class WorkflowExecutionService {
 
     await Promise.allSettled([
       ...autoConnections.map(connection =>
-        this.autoTriggerService!.processAutoTriggerConnection(canvasId, sourcePodId, connection)
+        this.deps.autoTriggerService.processAutoTriggerConnection(canvasId, sourcePodId, connection)
       ),
       aiDecideConnections.length > 0
-        ? this.aiDecideTriggerService!.processAiDecideConnections(canvasId, sourcePodId, aiDecideConnections)
+        ? this.deps.aiDecideTriggerService.processAiDecideConnections(canvasId, sourcePodId, aiDecideConnections)
         : Promise.resolve(),
       ...directConnections.map(connection => {
         const pipelineContext: PipelineContext = {
@@ -117,7 +107,7 @@ class WorkflowExecutionService {
           triggerMode: 'direct',
           decideResult: { connectionId: connection.id, approved: true, reason: null, isError: false },
         };
-        return this.pipeline!.execute(pipelineContext, this.directTriggerService!);
+        return this.deps.pipeline.execute(pipelineContext, this.deps.directTriggerService);
       }),
     ]);
   }
@@ -243,7 +233,7 @@ class WorkflowExecutionService {
           );
           this.scheduleNextInQueue(canvasId, targetPodId);
         },
-        onError: async (_canvasId, _podId, error) => {
+        onError: async (_ignoredCanvasId, _ignoredPodId, error) => {
           const errorMessage = error.message;
           strategy.onError(
             { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode },

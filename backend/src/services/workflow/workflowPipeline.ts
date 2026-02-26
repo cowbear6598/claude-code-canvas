@@ -8,33 +8,16 @@ import type {
 } from './types.js';
 import { podStore } from '../podStore.js';
 import { logger } from '../../utils/logger.js';
+import { LazyInitializable } from './lazyInitializable.js';
 
-class WorkflowPipeline {
-  private executionService?: ExecutionServiceMethods;
-  private stateService?: StateServiceMethods;
-  private multiInputService?: MultiInputServiceMethods;
-  private queueService?: QueueServiceMethods;
+interface PipelineDeps {
+  executionService: ExecutionServiceMethods;
+  stateService: StateServiceMethods;
+  multiInputService: MultiInputServiceMethods;
+  queueService: QueueServiceMethods;
+}
 
-  /**
-   * 初始化 Pipeline 依賴（延遲注入，避免循環依賴）
-   */
-  init(
-    executionService: ExecutionServiceMethods,
-    stateService: StateServiceMethods,
-    multiInputService: MultiInputServiceMethods,
-    queueService: QueueServiceMethods
-  ): void {
-    this.executionService = executionService;
-    this.stateService = stateService;
-    this.multiInputService = multiInputService;
-    this.queueService = queueService;
-  }
-
-  private ensureInitialized(): void {
-    if (!this.executionService || !this.stateService || !this.multiInputService || !this.queueService) {
-      throw new Error('Pipeline 尚未初始化，請先呼叫 init()');
-    }
-  }
+class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
 
   /**
    * 執行統一的觸發 Pipeline
@@ -53,9 +36,8 @@ class WorkflowPipeline {
 
     logger.log('Workflow', 'Pipeline', `開始執行 Pipeline：${sourcePodId} → ${targetPodId} (${triggerMode})`);
 
-    // ========== 1. generateSummary 階段 ==========
     logger.log('Workflow', 'Pipeline', `[generateSummary] 生成摘要：${sourcePodId} → ${targetPodId}`);
-    const summaryResult = await this.executionService!.generateSummaryWithFallback(
+    const summaryResult = await this.deps.executionService.generateSummaryWithFallback(
       canvasId,
       sourcePodId,
       targetPodId
@@ -66,14 +48,12 @@ class WorkflowPipeline {
       return;
     }
 
-    // ========== 2. collectSources 階段 ==========
     logger.log('Workflow', 'Pipeline', `[collectSources] 收集來源`);
     const collectResult = await this.runCollectSourcesStage(context, strategy, summaryResult.content, summaryResult.isSummarized);
     if (!collectResult) return;
 
     const { finalSummary, finalIsSummarized } = collectResult;
 
-    // ========== 3. checkQueue 階段 ==========
     logger.log('Workflow', 'Pipeline', `[checkQueue] 檢查目標 Pod 狀態`);
     const targetPod = podStore.getById(canvasId, targetPodId);
 
@@ -84,7 +64,7 @@ class WorkflowPipeline {
 
     if (targetPod.status !== 'idle') {
       logger.log('Workflow', 'Pipeline', `[checkQueue] 目標 Pod 忙碌中 (${targetPod.status})，加入佇列`);
-      this.queueService!.enqueue({
+      this.deps.queueService.enqueue({
         canvasId,
         connectionId,
         sourcePodId,
@@ -96,10 +76,9 @@ class WorkflowPipeline {
       return;
     }
 
-    // ========== 4. trigger 階段 ==========
     logger.log('Workflow', 'Pipeline', `[trigger] 觸發工作流程`);
 
-    await this.executionService!.triggerWorkflowWithSummary(
+    await this.deps.executionService.triggerWorkflowWithSummary(
       canvasId,
       connectionId,
       finalSummary,
@@ -116,6 +95,7 @@ class WorkflowPipeline {
     summaryContent: string,
     summaryIsSummarized: boolean
   ): Promise<{ finalSummary: string; finalIsSummarized: boolean } | null> {
+    this.ensureInitialized();
     const { canvasId, sourcePodId, connection, triggerMode } = context;
     const { targetPodId } = connection;
 
@@ -142,14 +122,14 @@ class WorkflowPipeline {
     }
 
     logger.log('Workflow', 'Pipeline', `[collectSources] 使用預設多輸入邏輯`);
-    const { isMultiInput, requiredSourcePodIds } = this.stateService!.checkMultiInputScenario(
+    const { isMultiInput, requiredSourcePodIds } = this.deps.stateService.checkMultiInputScenario(
       canvasId,
       targetPodId
     );
 
     if (isMultiInput) {
       logger.log('Workflow', 'Pipeline', `[collectSources] 偵測到多輸入場景`);
-      await this.multiInputService!.handleMultiInputForConnection(
+      await this.deps.multiInputService.handleMultiInputForConnection(
         canvasId,
         sourcePodId,
         connection,

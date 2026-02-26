@@ -4,6 +4,7 @@ import {
     WebSocketResponseEvents
 } from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
+import {requireActiveCanvas} from '@/utils/canvasGuard'
 import type {HistoryLoadingStatus, Message} from '@/types/chat'
 import type {
     PodChatHistoryPayload,
@@ -49,15 +50,14 @@ export function createHistoryActions(store: ChatStoreInstance, messageActions: M
         setHistoryLoadingStatus(podId, 'loading')
 
         const {wrapWebSocketRequest} = useWebSocketErrorHandler()
-        const {useCanvasStore} = await import('../canvasStore')
-        const canvasStore = useCanvasStore()
+        const canvasId = requireActiveCanvas()
 
         const response = await wrapWebSocketRequest(
             createWebSocketRequest<PodChatHistoryPayload, PodChatHistoryResultPayload>({
                 requestEvent: WebSocketRequestEvents.POD_CHAT_HISTORY,
                 responseEvent: WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT,
                 payload: {
-                    canvasId: canvasStore.activeCanvasId!,
+                    canvasId,
                     podId
                 },
                 timeout: HISTORY_LOAD_TIMEOUT_MS

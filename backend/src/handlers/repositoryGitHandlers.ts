@@ -52,6 +52,17 @@ async function validateRepositoryIsGit(
   return result.data!.repositoryPath;
 }
 
+function withValidatedGitRepository<T extends { repositoryId: string }>(
+  responseEvent: WebSocketResponseEvents,
+  handler: (connectionId: string, payload: T, requestId: string, repositoryPath: string) => Promise<void>
+) {
+  return async (connectionId: string, payload: T, requestId: string): Promise<void> => {
+    const repositoryPath = await validateRepositoryIsGit(connectionId, payload.repositoryId, responseEvent, requestId);
+    if (!repositoryPath) return;
+    await handler(connectionId, payload, requestId, repositoryPath);
+  };
+}
+
 /**
  * 驗證 Git Repository URL 格式
  * @param repoUrl Repository URL
@@ -274,40 +285,16 @@ export async function handleRepositoryCheckGit(
   emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT, response);
 }
 
-export async function handleRepositoryWorktreeCreate(
-  connectionId: string,
-  payload: RepositoryWorktreeCreatePayload,
-  requestId: string
-): Promise<void> {
-  const { repositoryId, worktreeName } = payload;
+type WorktreeValidationError = { error: string; errorCode: string } | null;
 
-  const validateResult = await getValidatedGitRepository(repositoryId);
-  if (!validateResult.success) {
-    const errorCode = validateResult.error!.includes('找不到') ? 'NOT_FOUND' : 'INVALID_STATE';
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
-      validateResult.error!,
-      requestId,
-      undefined,
-      errorCode
-    );
-    return;
-  }
-
-  const repositoryPath = validateResult.data!.repositoryPath;
-
+async function validateWorktreePrerequisites(
+  repositoryPath: string,
+  repositoryId: string,
+  worktreeName: string
+): Promise<WorktreeValidationError> {
   const hasCommitsResult = await gitService.hasCommits(repositoryPath);
   if (!hasCommitsResult.data) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
-      'Repository 沒有任何 commit，無法建立 Worktree',
-      requestId,
-      undefined,
-      'INVALID_STATE'
-    );
-    return;
+    return { error: 'Repository 沒有任何 commit，無法建立 Worktree', errorCode: 'INVALID_STATE' };
   }
 
   const parentDirectory = repositoryService.getParentDirectory();
@@ -315,65 +302,56 @@ export async function handleRepositoryWorktreeCreate(
   const targetPath = path.join(parentDirectory, newRepositoryId);
 
   if (!isPathWithinDirectory(targetPath, config.repositoriesRoot)) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
-      '無效的 worktree 路徑',
-      requestId,
-      undefined,
-      'INVALID_PATH'
-    );
-    return;
+    return { error: '無效的 worktree 路徑', errorCode: 'INVALID_PATH' };
   }
 
   const targetExists = await fileExists(targetPath);
   if (targetExists) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
-      `資料夾已存在: ${newRepositoryId}`,
-      requestId,
-      undefined,
-      'ALREADY_EXISTS'
-    );
-    return;
+    return { error: `資料夾已存在: ${newRepositoryId}`, errorCode: 'ALREADY_EXISTS' };
   }
 
   const branchExistsResult = await gitService.branchExists(repositoryPath, worktreeName);
   if (!branchExistsResult.success) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
-      branchExistsResult.error!,
-      requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
-    return;
+    return { error: branchExistsResult.error!, errorCode: 'INTERNAL_ERROR' };
   }
 
   if (branchExistsResult.data) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
-      `分支已存在: ${worktreeName}`,
-      requestId,
-      undefined,
-      'ALREADY_EXISTS'
-    );
+    return { error: `分支已存在: ${worktreeName}`, errorCode: 'ALREADY_EXISTS' };
+  }
+
+  return null;
+}
+
+export async function handleRepositoryWorktreeCreate(
+  connectionId: string,
+  payload: RepositoryWorktreeCreatePayload,
+  requestId: string
+): Promise<void> {
+  const { repositoryId, worktreeName } = payload;
+  const responseEvent = WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED;
+
+  const validateResult = await getValidatedGitRepository(repositoryId);
+  if (!validateResult.success) {
+    const errorCode = validateResult.error!.includes('找不到') ? 'NOT_FOUND' : 'INVALID_STATE';
+    emitError(connectionId, responseEvent, validateResult.error!, requestId, undefined, errorCode);
     return;
   }
 
+  const repositoryPath = validateResult.data!.repositoryPath;
+
+  const prerequisiteError = await validateWorktreePrerequisites(repositoryPath, repositoryId, worktreeName);
+  if (prerequisiteError) {
+    emitError(connectionId, responseEvent, prerequisiteError.error, requestId, undefined, prerequisiteError.errorCode);
+    return;
+  }
+
+  const parentDirectory = repositoryService.getParentDirectory();
+  const newRepositoryId = `${repositoryId}-${worktreeName}`;
+  const targetPath = path.join(parentDirectory, newRepositoryId);
+
   const createResult = await gitService.createWorktree(repositoryPath, targetPath, worktreeName);
   if (!createResult.success) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
-      `建立 Worktree 失敗: ${createResult.error}`,
-      requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
+    emitError(connectionId, responseEvent, `建立 Worktree 失敗: ${createResult.error}`, requestId, undefined, 'INTERNAL_ERROR');
     return;
   }
 
@@ -396,288 +374,114 @@ export async function handleRepositoryWorktreeCreate(
     repository,
   };
 
-  socketService.emitToCanvas(payload.canvasId, WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED, response);
+  socketService.emitToCanvas(payload.canvasId, responseEvent, response);
 
   logger.log('Repository', 'Create', `Created worktree ${newRepositoryId} from ${repositoryId}`);
 }
 
-export async function handleRepositoryGetLocalBranches(
-  connectionId: string,
-  payload: RepositoryGetLocalBranchesPayload,
-  requestId: string
-): Promise<void> {
-  const { repositoryId } = payload;
+export const handleRepositoryGetLocalBranches = withValidatedGitRepository<RepositoryGetLocalBranchesPayload>(
+  WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
+  async (connectionId, payload, requestId, repositoryPath) => {
+    const { repositoryId } = payload;
 
-  const repositoryPath = await validateRepositoryIsGit(
-    connectionId,
-    repositoryId,
-    WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
-    requestId
-  );
-  if (!repositoryPath) {
-    return;
-  }
+    const branchesResult = await gitService.getLocalBranches(repositoryPath);
+    if (!branchesResult.success) {
+      emitError(
+        connectionId,
+        WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
+        branchesResult.error!,
+        requestId,
+        undefined,
+        'INTERNAL_ERROR'
+      );
+      return;
+    }
 
-  const branchesResult = await gitService.getLocalBranches(repositoryPath);
-  if (!branchesResult.success) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
-      branchesResult.error!,
+    const response: RepositoryLocalBranchesResultPayload = {
       requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
-    return;
-  }
-
-  const response: RepositoryLocalBranchesResultPayload = {
-    requestId,
-    success: true,
-    branches: branchesResult.data!.branches,
-    currentBranch: branchesResult.data!.current,
-    worktreeBranches: branchesResult.data!.worktreeBranches,
-  };
-
-  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT, response);
-  logger.log('Repository', 'List', `Got local branches for ${repositoryId}`);
-}
-
-export async function handleRepositoryCheckDirty(
-  connectionId: string,
-  payload: RepositoryCheckDirtyPayload,
-  requestId: string
-): Promise<void> {
-  const { repositoryId } = payload;
-
-  const repositoryPath = await validateRepositoryIsGit(
-    connectionId,
-    repositoryId,
-    WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
-    requestId
-  );
-  if (!repositoryPath) {
-    return;
-  }
-
-  const dirtyResult = await gitService.hasUncommittedChanges(repositoryPath);
-  if (!dirtyResult.success) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
-      dirtyResult.error!,
-      requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
-    return;
-  }
-
-  const response: RepositoryDirtyCheckResultPayload = {
-    requestId,
-    success: true,
-    isDirty: dirtyResult.data,
-  };
-
-  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT, response);
-  logger.log('Repository', 'Check', `Checked dirty status for ${repositoryId}: ${dirtyResult.data}`);
-}
-
-export async function handleRepositoryCheckoutBranch(
-  connectionId: string,
-  payload: RepositoryCheckoutBranchPayload,
-  requestId: string
-): Promise<void> {
-  const { repositoryId, branchName, force } = payload;
-
-  const repositoryPath = await validateRepositoryIsGit(
-    connectionId,
-    repositoryId,
-    WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
-    requestId
-  );
-  if (!repositoryPath) {
-    return;
-  }
-
-  const metadata = repositoryService.getMetadata(repositoryId);
-  if (metadata?.parentRepoId) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
-      'Worktree 無法切換分支',
-      requestId,
-      undefined,
-      'INVALID_STATE'
-    );
-    return;
-  }
-
-  function emitCheckoutProgress(progress: number, message: string): void {
-    const progressPayload: RepositoryCheckoutBranchProgressPayload = {
-      requestId,
-      progress,
-      message,
-      branchName,
+      success: true,
+      branches: branchesResult.data!.branches,
+      currentBranch: branchesResult.data!.current,
+      worktreeBranches: branchesResult.data!.worktreeBranches,
     };
-    socketService.emitToConnection(connectionId, WebSocketResponseEvents.REPOSITORY_CHECKOUT_BRANCH_PROGRESS, progressPayload);
+
+    emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT, response);
+    logger.log('Repository', 'List', `Got local branches for ${repositoryId}`);
   }
+);
 
-  const throttledEmit = throttle(emitCheckoutProgress, 500);
+export const handleRepositoryCheckDirty = withValidatedGitRepository<RepositoryCheckDirtyPayload>(
+  WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
+  async (connectionId, payload, requestId, repositoryPath) => {
+    const { repositoryId } = payload;
 
-  emitCheckoutProgress(0, '準備切換分支...');
+    const dirtyResult = await gitService.hasUncommittedChanges(repositoryPath);
+    if (!dirtyResult.success) {
+      emitError(
+        connectionId,
+        WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
+        dirtyResult.error!,
+        requestId,
+        undefined,
+        'INTERNAL_ERROR'
+      );
+      return;
+    }
 
-  const checkoutResult = await gitService.smartCheckoutBranch(repositoryPath, branchName, {
-    force,
-    onProgress: (progress, message) => throttledEmit(progress, message),
-  });
-
-  if (!checkoutResult.success) {
-    throttledEmit.cancel();
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
-      checkoutResult.error!,
+    const response: RepositoryDirtyCheckResultPayload = {
       requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
-    return;
+      success: true,
+      isDirty: dirtyResult.data,
+    };
+
+    emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT, response);
+    logger.log('Repository', 'Check', `Checked dirty status for ${repositoryId}: ${dirtyResult.data}`);
   }
+);
 
-  throttledEmit.flush();
+export const handleRepositoryCheckoutBranch = withValidatedGitRepository<RepositoryCheckoutBranchPayload>(
+  WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+  async (connectionId, payload, requestId, repositoryPath) => {
+    const { repositoryId, branchName, force } = payload;
 
-  const action = checkoutResult.data;
-  const completionMessage = action === 'created' ? '分支建立完成' : '切換完成';
-  emitCheckoutProgress(100, completionMessage);
+    const metadata = repositoryService.getMetadata(repositoryId);
+    if (metadata?.parentRepoId) {
+      emitError(
+        connectionId,
+        WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+        'Worktree 無法切換分支',
+        requestId,
+        undefined,
+        'INVALID_STATE'
+      );
+      return;
+    }
 
-  await repositoryService.registerMetadata(repositoryId, {
-    ...metadata,
-    currentBranch: branchName
-  });
+    function emitCheckoutProgress(progress: number, message: string): void {
+      const progressPayload: RepositoryCheckoutBranchProgressPayload = {
+        requestId,
+        progress,
+        message,
+        branchName,
+      };
+      socketService.emitToConnection(connectionId, WebSocketResponseEvents.REPOSITORY_CHECKOUT_BRANCH_PROGRESS, progressPayload);
+    }
 
-  const response: RepositoryBranchCheckedOutPayload = {
-    requestId,
-    success: true,
-    repositoryId,
-    branchName,
-    action,
-  };
+    const throttledEmit = throttle(emitCheckoutProgress, 500);
 
-  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, response);
+    emitCheckoutProgress(0, '準備切換分支...');
 
-  const broadcastPayload: BroadcastRepositoryBranchChangedPayload = {
-    repositoryId,
-    branchName,
-  };
-  socketService.emitToAllExcept(connectionId, WebSocketResponseEvents.REPOSITORY_BRANCH_CHANGED, broadcastPayload);
+    const checkoutResult = await gitService.smartCheckoutBranch(repositoryPath, branchName, {
+      force,
+      onProgress: (progress, message) => throttledEmit(progress, message),
+    });
 
-  logger.log('Repository', 'Update', `Checked out branch ${branchName} for ${repositoryId} (${action})`);
-}
-
-export async function handleRepositoryDeleteBranch(
-  connectionId: string,
-  payload: RepositoryDeleteBranchPayload,
-  requestId: string
-): Promise<void> {
-  const { repositoryId, branchName, force } = payload;
-
-  const repositoryPath = await validateRepositoryIsGit(
-    connectionId,
-    repositoryId,
-    WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
-    requestId
-  );
-  if (!repositoryPath) {
-    return;
-  }
-
-  const deleteResult = await gitService.deleteBranch(repositoryPath, branchName, force);
-  if (!deleteResult.success) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
-      deleteResult.error!,
-      requestId,
-      undefined,
-      'INTERNAL_ERROR'
-    );
-    return;
-  }
-
-  const response: RepositoryBranchDeletedPayload = {
-    requestId,
-    success: true,
-    branchName,
-  };
-
-  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED, response);
-
-  logger.log('Repository', 'Update', `Deleted branch ${branchName} from ${repositoryId}`);
-}
-
-export async function handleRepositoryPullLatest(
-  connectionId: string,
-  payload: RepositoryPullLatestPayload,
-  requestId: string
-): Promise<void> {
-  const { repositoryId } = payload;
-
-  const repositoryPath = await validateRepositoryIsGit(
-    connectionId,
-    repositoryId,
-    WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
-    requestId
-  );
-  if (!repositoryPath) {
-    return;
-  }
-
-  const metadata = repositoryService.getMetadata(repositoryId);
-  if (metadata?.parentRepoId) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
-      'Worktree 無法執行 Pull',
-      requestId,
-      undefined,
-      'INVALID_STATE'
-    );
-    return;
-  }
-
-  if (pullingRepositories.has(repositoryId)) {
-    emitError(
-      connectionId,
-      WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
-      '此 Repository 已有 Pull 操作進行中',
-      requestId,
-      undefined,
-      'CONFLICT'
-    );
-    return;
-  }
-
-  pullingRepositories.add(repositoryId);
-
-  const emitPullProgress = createProgressEmitter(
-    connectionId,
-    requestId,
-    WebSocketResponseEvents.REPOSITORY_PULL_LATEST_PROGRESS
-  );
-
-  const throttledEmit = throttle(emitPullProgress, 500);
-
-  emitPullProgress(0, '準備 Pull...');
-
-  try {
-    const pullResult = await gitService.pullLatest(repositoryPath, (progress, message) => throttledEmit(progress, message));
-    if (!pullResult.success) {
+    if (!checkoutResult.success) {
       throttledEmit.cancel();
       emitError(
         connectionId,
-        WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
-        pullResult.error!,
+        WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT,
+        checkoutResult.error!,
         requestId,
         undefined,
         'INTERNAL_ERROR'
@@ -686,18 +490,137 @@ export async function handleRepositoryPullLatest(
     }
 
     throttledEmit.flush();
-    emitPullProgress(100, 'Pull 完成');
 
-    const response: RepositoryPullLatestResultPayload = {
+    const action = checkoutResult.data;
+    const completionMessage = action === 'created' ? '分支建立完成' : '切換完成';
+    emitCheckoutProgress(100, completionMessage);
+
+    await repositoryService.registerMetadata(repositoryId, {
+      ...metadata,
+      currentBranch: branchName
+    });
+
+    const response: RepositoryBranchCheckedOutPayload = {
       requestId,
       success: true,
       repositoryId,
+      branchName,
+      action,
     };
 
-    emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT, response);
+    emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_BRANCH_CHECKED_OUT, response);
 
-    logger.log('Repository', 'Update', `Pulled latest for ${repositoryId}`);
-  } finally {
-    pullingRepositories.delete(repositoryId);
+    const broadcastPayload: BroadcastRepositoryBranchChangedPayload = {
+      repositoryId,
+      branchName,
+    };
+    socketService.emitToAllExcept(connectionId, WebSocketResponseEvents.REPOSITORY_BRANCH_CHANGED, broadcastPayload);
+
+    logger.log('Repository', 'Update', `Checked out branch ${branchName} for ${repositoryId} (${action})`);
   }
-}
+);
+
+export const handleRepositoryDeleteBranch = withValidatedGitRepository<RepositoryDeleteBranchPayload>(
+  WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
+  async (connectionId, payload, requestId, repositoryPath) => {
+    const { repositoryId, branchName, force } = payload;
+
+    const deleteResult = await gitService.deleteBranch(repositoryPath, branchName, force);
+    if (!deleteResult.success) {
+      emitError(
+        connectionId,
+        WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
+        deleteResult.error!,
+        requestId,
+        undefined,
+        'INTERNAL_ERROR'
+      );
+      return;
+    }
+
+    const response: RepositoryBranchDeletedPayload = {
+      requestId,
+      success: true,
+      branchName,
+    };
+
+    emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED, response);
+
+    logger.log('Repository', 'Update', `Deleted branch ${branchName} from ${repositoryId}`);
+  }
+);
+
+export const handleRepositoryPullLatest = withValidatedGitRepository<RepositoryPullLatestPayload>(
+  WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+  async (connectionId, payload, requestId, repositoryPath) => {
+    const { repositoryId } = payload;
+
+    const metadata = repositoryService.getMetadata(repositoryId);
+    if (metadata?.parentRepoId) {
+      emitError(
+        connectionId,
+        WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+        'Worktree 無法執行 Pull',
+        requestId,
+        undefined,
+        'INVALID_STATE'
+      );
+      return;
+    }
+
+    if (pullingRepositories.has(repositoryId)) {
+      emitError(
+        connectionId,
+        WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+        '此 Repository 已有 Pull 操作進行中',
+        requestId,
+        undefined,
+        'CONFLICT'
+      );
+      return;
+    }
+
+    pullingRepositories.add(repositoryId);
+
+    const emitPullProgress = createProgressEmitter(
+      connectionId,
+      requestId,
+      WebSocketResponseEvents.REPOSITORY_PULL_LATEST_PROGRESS
+    );
+
+    const throttledEmit = throttle(emitPullProgress, 500);
+
+    emitPullProgress(0, '準備 Pull...');
+
+    try {
+      const pullResult = await gitService.pullLatest(repositoryPath, (progress, message) => throttledEmit(progress, message));
+      if (!pullResult.success) {
+        throttledEmit.cancel();
+        emitError(
+          connectionId,
+          WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT,
+          pullResult.error!,
+          requestId,
+          undefined,
+          'INTERNAL_ERROR'
+        );
+        return;
+      }
+
+      throttledEmit.flush();
+      emitPullProgress(100, 'Pull 完成');
+
+      const response: RepositoryPullLatestResultPayload = {
+        requestId,
+        success: true,
+        repositoryId,
+      };
+
+      emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT, response);
+
+      logger.log('Repository', 'Update', `Pulled latest for ${repositoryId}`);
+    } finally {
+      pullingRepositories.delete(repositoryId);
+    }
+  }
+);

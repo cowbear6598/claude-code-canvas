@@ -64,6 +64,26 @@ export function updateSubMessageContent(
     return updatedSubMessages
 }
 
+function updateSingleSubToolUse(sub: SubMessage, toolUseId: string, output: string): SubMessage {
+    if (!sub.toolUse) return sub
+
+    const updatedSubToolUse = sub.toolUse.map(tool =>
+        tool.toolUseId === toolUseId
+            ? {...markToolCompleted(tool), output}
+            : tool
+    )
+
+    const allToolsCompleted = updatedSubToolUse.every(
+        tool => tool.status === 'completed' || tool.status === 'error'
+    )
+
+    return {
+        ...sub,
+        toolUse: updatedSubToolUse,
+        ...(allToolsCompleted && { isPartial: false })
+    }
+}
+
 /**
  * 更新 SubMessages 中的 ToolUse Result
  * 處理 toolUse status 更新與 allToolsCompleted 計算
@@ -73,31 +93,7 @@ export function updateSubMessagesToolUseResult(
     toolUseId: string,
     output: string
 ): SubMessage[] {
-    const updatedSubMessages = [...subMessages]
-
-    for (let i = 0; i < updatedSubMessages.length; i++) {
-        const sub = updatedSubMessages[i]
-        if (!sub) continue
-        if (sub.toolUse) {
-            const updatedSubToolUse = sub.toolUse.map(tool =>
-                tool.toolUseId === toolUseId
-                    ? {...markToolCompleted(tool), output}
-                    : tool
-            )
-
-            const allToolsCompleted = updatedSubToolUse.every(
-                tool => tool.status === 'completed' || tool.status === 'error'
-            )
-
-            updatedSubMessages[i] = {
-                ...sub,
-                toolUse: updatedSubToolUse,
-                ...(allToolsCompleted && { isPartial: false })
-            }
-        }
-    }
-
-    return updatedSubMessages
+    return subMessages.map(sub => updateSingleSubToolUse(sub, toolUseId, output))
 }
 
 /**

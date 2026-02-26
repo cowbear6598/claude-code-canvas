@@ -1,5 +1,5 @@
 import {createWebSocketRequest} from '@/services/websocket'
-import {useCanvasStore} from '@/stores/canvasStore'
+import {requireActiveCanvas} from '@/utils/canvasGuard'
 import type {NoteStoreConfig} from './createNoteStore'
 
 interface BasePayload {
@@ -53,14 +53,14 @@ export function createNoteBindingActions<TItem>(config: NoteStoreConfig<TItem>):
 
             if (!config.bindEvents) return
 
-            const canvasStore = useCanvasStore()
+            const canvasId = requireActiveCanvas()
 
             await Promise.all([
                 createWebSocketRequest<BasePayload, BaseResponse>({
                     requestEvent: config.bindEvents.request,
                     responseEvent: config.bindEvents.response,
                     payload: {
-                        canvasId: canvasStore.activeCanvasId!,
+                        canvasId,
                         podId,
                         [config.itemIdField]: (note as Record<string, unknown>)[config.itemIdField]
                     }
@@ -69,7 +69,7 @@ export function createNoteBindingActions<TItem>(config: NoteStoreConfig<TItem>):
                     requestEvent: config.events.updateNote.request,
                     responseEvent: config.events.updateNote.response,
                     payload: {
-                        canvasId: canvasStore.activeCanvasId!,
+                        canvasId,
                         noteId,
                         boundToPodId: podId,
                         originalPosition,
@@ -87,10 +87,10 @@ export function createNoteBindingActions<TItem>(config: NoteStoreConfig<TItem>):
 
             const noteId = note.id
 
-            const canvasStore = useCanvasStore()
+            const canvasId = requireActiveCanvas()
 
             const updatePayload: Record<string, unknown> = {
-                canvasId: canvasStore.activeCanvasId!,
+                canvasId,
                 noteId,
                 boundToPodId: null,
                 originalPosition: null,
@@ -109,7 +109,7 @@ export function createNoteBindingActions<TItem>(config: NoteStoreConfig<TItem>):
                     requestEvent: config.unbindEvents.request,
                     responseEvent: config.unbindEvents.response,
                     payload: {
-                        canvasId: canvasStore.activeCanvasId!,
+                        canvasId,
                         podId
                     }
                 }),

@@ -2,6 +2,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
 import { createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
+import { requireActiveCanvas } from '@/utils/canvasGuard'
 import { isEditingElement, isModifierKeyPressed, hasTextSelection } from '@/utils/domHelpers'
 import { PASTE_TIMEOUT_MS } from '@/lib/constants'
 import type {
@@ -24,7 +25,6 @@ export function useCopyPaste(): void {
     commandStore,
     clipboardStore,
     connectionStore,
-    canvasStore
   } = useCanvasContext()
 
   const mousePosition = ref({ x: 0, y: 0 })
@@ -76,7 +76,7 @@ export function useCopyPaste(): void {
         requestEvent: WebSocketRequestEvents.CANVAS_PASTE,
         responseEvent: WebSocketResponseEvents.CANVAS_PASTE_RESULT,
         payload: {
-          canvasId: canvasStore.activeCanvasId!,
+          canvasId: requireActiveCanvas(),
           pods,
           outputStyleNotes,
           skillNotes,

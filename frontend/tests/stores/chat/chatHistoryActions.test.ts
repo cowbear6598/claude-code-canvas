@@ -17,9 +17,12 @@ vi.mock('@/services/websocket', async () => {
 })
 
 // Mock useToast
-const mockToast = vi.fn()
-const mockShowSuccessToast = vi.fn()
-const mockShowErrorToast = vi.fn()
+const { mockToast, mockShowSuccessToast, mockShowErrorToast } = vi.hoisted(() => ({
+  mockToast: vi.fn(),
+  mockShowSuccessToast: vi.fn(),
+  mockShowErrorToast: vi.fn(),
+}))
+
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
     toast: mockToast,
@@ -29,7 +32,10 @@ vi.mock('@/composables/useToast', () => ({
 }))
 
 // Mock useWebSocketErrorHandler
-const mockWrapWebSocketRequest = vi.fn()
+const { mockWrapWebSocketRequest } = vi.hoisted(() => ({
+  mockWrapWebSocketRequest: vi.fn(),
+}))
+
 vi.mock('@/composables/useWebSocketErrorHandler', () => ({
   useWebSocketErrorHandler: () => ({
     wrapWebSocketRequest: mockWrapWebSocketRequest,

@@ -2,7 +2,6 @@ import {WebSocketResponseEvents} from '../schemas';
 import type {
     PodBindCommandPayload,
     PodUnbindCommandPayload,
-    CommandDeletePayload,
     CommandMoveToGroupPayload,
 } from '../schemas';
 import {commandService} from '../services/commandService.js';
@@ -11,7 +10,6 @@ import {podStore} from '../services/podStore.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
 import {createBindHandler, createUnbindHandler, type BindResourceConfig} from './factories/createBindHandlers.js';
-import {handleResourceDelete} from '../utils/handlerHelpers.js';
 import {createMoveToGroupHandler} from './factories/createMoveToGroupHandler.js';
 import {GROUP_TYPES} from '../types';
 
@@ -39,6 +37,11 @@ const resourceHandlers = createResourceHandlers({
         created: WebSocketResponseEvents.COMMAND_CREATED,
         updated: WebSocketResponseEvents.COMMAND_UPDATED,
         readResult: WebSocketResponseEvents.COMMAND_READ_RESULT,
+        deleted: {
+            deleted: WebSocketResponseEvents.COMMAND_DELETED,
+            findPodsUsing: (canvasId, commandId) => podStore.findByCommandId(canvasId, commandId),
+            deleteNotes: (canvasId, commandId) => commandNoteStore.deleteByForeignKey(canvasId, commandId),
+        },
     },
     resourceName: 'Command',
     responseKey: 'command',
@@ -50,6 +53,7 @@ export const handleCommandList = resourceHandlers.handleList;
 export const handleCommandCreate = resourceHandlers.handleCreate;
 export const handleCommandUpdate = resourceHandlers.handleUpdate;
 export const handleCommandRead = resourceHandlers.handleRead;
+export const handleCommandDelete = resourceHandlers.handleDelete;
 
 const commandBindConfig: BindResourceConfig<typeof commandService> = {
     resourceName: 'Command',
@@ -86,26 +90,6 @@ export async function handlePodUnbindCommand(
     requestId: string
 ): Promise<void> {
     return commandUnbindHandler(connectionId, payload, requestId);
-}
-
-export async function handleCommandDelete(
-    connectionId: string,
-    payload: CommandDeletePayload,
-    requestId: string
-): Promise<void> {
-    const {commandId} = payload;
-
-    await handleResourceDelete({
-        connectionId,
-        requestId,
-        resourceId: commandId,
-        resourceName: 'Command',
-        responseEvent: WebSocketResponseEvents.COMMAND_DELETED,
-        existsCheck: () => commandService.exists(commandId),
-        findPodsUsing: (canvasId: string) => podStore.findByCommandId(canvasId, commandId),
-        deleteNotes: (canvasId: string) => commandNoteStore.deleteByForeignKey(canvasId, commandId),
-        deleteResource: () => commandService.delete(commandId),
-    });
 }
 
 const commandMoveToGroupHandler = createMoveToGroupHandler({

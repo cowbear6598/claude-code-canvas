@@ -7,6 +7,7 @@ import { usePodStore, useSelectionStore, useViewportStore } from '@/stores/pod'
 import { useOutputStyleStore, useSkillStore, useRepositoryStore, useSubAgentStore, useCommandStore } from '@/stores/note'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useClipboardStore } from '@/stores/clipboardStore'
+import { useCanvasStore } from '@/stores/canvasStore'
 import type { SelectableElement } from '@/types'
 
 const { mockShowSuccessToast, mockShowErrorToast, mockToast } = vi.hoisted(() => ({
@@ -43,6 +44,7 @@ describe('複製貼上/批量操作完整流程', () => {
   let commandStore: ReturnType<typeof useCommandStore>
   let connectionStore: ReturnType<typeof useConnectionStore>
   let clipboardStore: ReturnType<typeof useClipboardStore>
+  let canvasStore: ReturnType<typeof useCanvasStore>
 
   beforeEach(() => {
     const pinia = setupTestPinia()
@@ -60,6 +62,8 @@ describe('複製貼上/批量操作完整流程', () => {
     commandStore = useCommandStore()
     connectionStore = useConnectionStore()
     clipboardStore = useClipboardStore()
+    canvasStore = useCanvasStore()
+    canvasStore.activeCanvasId = 'test-canvas-id'
   })
 
   describe('框選 -> 複製 -> 貼上', () => {

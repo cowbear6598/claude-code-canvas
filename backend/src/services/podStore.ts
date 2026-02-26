@@ -295,42 +295,51 @@ class PodStore {
         return result;
     }
 
-    private deserializePod(persistedPod: PersistedPod, canvasDir: string): Pod | null {
+    private validatePodData(persistedPod: PersistedPod): Result<void> {
         // 防禦性驗證：驗證必要欄位的型別和範圍，避免磁碟檔案被竄改時注入惡意值
         if (persistedPod.id.trim() === '') {
             logger.log('Pod', 'Load', `[PodStore] 無效的 Pod ID: ${persistedPod.id}`);
-            return null;
+            return err('無效的 Pod ID');
         }
 
         if (persistedPod.name.trim() === '') {
             logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 名稱: ${persistedPod.name}`);
-            return null;
+            return err('無效的 Pod 名稱');
         }
 
         const validColors: PodColor[] = ['blue', 'coral', 'pink', 'yellow', 'green'];
         if (!validColors.includes(persistedPod.color)) {
             logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 顏色: ${persistedPod.color}`);
-            return null;
+            return err('無效的 Pod 顏色');
         }
 
         if (!Number.isFinite(persistedPod.x)) {
             logger.log('Pod', 'Load', `[PodStore] 無效的 Pod X 座標: ${persistedPod.x}`);
-            return null;
+            return err('無效的 Pod X 座標');
         }
 
         if (!Number.isFinite(persistedPod.y)) {
             logger.log('Pod', 'Load', `[PodStore] 無效的 Pod Y 座標: ${persistedPod.y}`);
-            return null;
+            return err('無效的 Pod Y 座標');
         }
 
         if (!Number.isFinite(persistedPod.rotation)) {
             logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 旋轉角度: ${persistedPod.rotation}`);
-            return null;
+            return err('無效的 Pod 旋轉角度');
         }
 
         const validStatuses: PodStatus[] = ['idle', 'chatting', 'summarizing', 'error'];
         if (!validStatuses.includes(persistedPod.status)) {
             logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 狀態: ${persistedPod.status}`);
+            return err('無效的 Pod 狀態');
+        }
+
+        return ok(undefined);
+    }
+
+    private deserializePod(persistedPod: PersistedPod, canvasDir: string): Pod | null {
+        const validation = this.validatePodData(persistedPod);
+        if (!validation.success) {
             return null;
         }
 

@@ -1,7 +1,9 @@
 import type { WebSocketResponseEvents } from '../../schemas';
+import type { Pod } from '../../types/index.js';
 import { socketService } from '../../services/socketService.js';
 import { emitError } from '../../utils/websocketResponse.js';
 import { logger, type LogCategory } from '../../utils/logger.js';
+import { handleResourceDelete } from '../../utils/handlerHelpers.js';
 
 interface ResourceService<T = { id: string; name: string }> {
   list(): Promise<T[]>;
@@ -9,6 +11,18 @@ interface ResourceService<T = { id: string; name: string }> {
   create(name: string, content: string): Promise<T>;
   update(id: string, content: string): Promise<T>;
   getContent(id: string): Promise<string | null>;
+  delete(id: string): Promise<void>;
+}
+
+export interface DeleteResourcePayload {
+  [key: string]: unknown;
+}
+
+interface DeleteHandlerConfig {
+  deleted: WebSocketResponseEvents;
+  findPodsUsing: (canvasId: string, resourceId: string) => Pod[];
+  deleteNotes: (canvasId: string, resourceId: string) => string[];
+  idFieldName?: string;
 }
 
 interface ResourceHandlerConfig<T = { id: string; name: string }> {
@@ -18,6 +32,7 @@ interface ResourceHandlerConfig<T = { id: string; name: string }> {
     created: WebSocketResponseEvents;
     updated: WebSocketResponseEvents;
     readResult: WebSocketResponseEvents;
+    deleted?: DeleteHandlerConfig;
   };
   resourceName: LogCategory;
   responseKey: string;
@@ -69,6 +84,7 @@ export function createResourceHandlers<T extends { id: string; name: string }>(c
   handleCreate: (connectionId: string, payload: CreateResourcePayload, requestId: string) => Promise<void>;
   handleUpdate: (connectionId: string, payload: UpdateResourcePayload, requestId: string) => Promise<void>;
   handleRead: (connectionId: string, payload: ReadResourcePayload, requestId: string) => Promise<void>;
+  handleDelete: (connectionId: string, payload: DeleteResourcePayload, requestId: string) => Promise<void>;
 } {
   const { service, events, resourceName, responseKey, listResponseKey, idField } = config;
 
@@ -181,10 +197,37 @@ export function createResourceHandlers<T extends { id: string; name: string }>(c
     socketService.emitToConnection(connectionId, events.readResult, response);
   }
 
+  async function handleDelete(
+    connectionId: string,
+    payload: DeleteResourcePayload,
+    requestId: string
+  ): Promise<void> {
+    if (!events.deleted) {
+      return;
+    }
+
+    const resourceId = payload[idField] as string;
+    const deleteConfig = events.deleted;
+
+    await handleResourceDelete({
+      connectionId,
+      requestId,
+      resourceId,
+      resourceName,
+      responseEvent: deleteConfig.deleted,
+      existsCheck: () => service.exists(resourceId),
+      findPodsUsing: (canvasId: string) => deleteConfig.findPodsUsing(canvasId, resourceId),
+      deleteNotes: (canvasId: string) => deleteConfig.deleteNotes(canvasId, resourceId),
+      deleteResource: () => service.delete(resourceId),
+      idFieldName: deleteConfig.idFieldName,
+    });
+  }
+
   return {
     handleList,
     handleCreate,
     handleUpdate,
     handleRead,
+    handleDelete,
   };
 }

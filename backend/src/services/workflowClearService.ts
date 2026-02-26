@@ -15,6 +15,11 @@ interface ClearResult {
   error?: string;
 }
 
+interface ClearSinglePodResult {
+  podName: string;
+  clearedConnectionIds: string[];
+}
+
 class WorkflowClearService {
   getDownstreamPodIds(canvasId: string, sourcePodId: string): string[] {
     const visited = new Set<string>();
@@ -74,7 +79,11 @@ class WorkflowClearService {
       const clearedConnectionIds: string[] = [];
 
       for (const podId of podIds) {
-        await this.clearSinglePod(canvasId, podId, canvasDir, clearedPodNames, clearedConnectionIds);
+        const result = await this.clearSinglePod(canvasId, podId, canvasDir);
+        if (result) {
+          clearedPodNames.push(result.podName);
+          clearedConnectionIds.push(...result.clearedConnectionIds);
+        }
       }
 
       return {
@@ -101,13 +110,9 @@ class WorkflowClearService {
     canvasId: string,
     podId: string,
     canvasDir: string,
-    clearedPodNames: string[],
-    clearedConnectionIds: string[]
-  ): Promise<void> {
+  ): Promise<ClearSinglePodResult | null> {
     const pod = podStore.getById(canvasId, podId);
-    if (!pod) return;
-
-    clearedPodNames.push(pod.name);
+    if (!pod) return null;
 
     messageStore.clearMessages(podId);
 
@@ -125,21 +130,23 @@ class WorkflowClearService {
         logger.error('AutoClear', 'Error', `[WorkflowClear] Error destroying session for Pod ${podId}`, error);
       });
 
-    this.clearAiDecideConnections(canvasId, podId, clearedConnectionIds);
+    const clearedConnectionIds = this.clearAiDecideConnections(canvasId, podId);
+
+    return { podName: pod.name, clearedConnectionIds };
   }
 
-  private clearAiDecideConnections(
-    canvasId: string,
-    podId: string,
-    clearedConnectionIds: string[]
-  ): void {
+  private clearAiDecideConnections(canvasId: string, podId: string): string[] {
     const outgoingConnections = connectionStore.findBySourcePodId(canvasId, podId);
+    const clearedConnectionIds: string[] = [];
+
     for (const conn of outgoingConnections) {
       if (conn.triggerMode === 'ai-decide' && conn.decideStatus !== 'none') {
         connectionStore.updateDecideStatus(canvasId, conn.id, 'none', null);
         clearedConnectionIds.push(conn.id);
       }
     }
+
+    return clearedConnectionIds;
   }
 }
 

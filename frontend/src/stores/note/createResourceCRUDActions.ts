@@ -1,6 +1,6 @@
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { createWebSocketRequest } from '@/services/websocket'
-import { useCanvasStore } from '@/stores/canvasStore'
+import { requireActiveCanvas } from '@/utils/canvasGuard'
 import { useToast } from '@/composables/useToast'
 import type { WebSocketRequestEvents, WebSocketResponseEvents } from '@/types/websocket'
 import type { ToastCategory } from '@/composables/useToast'
@@ -60,14 +60,14 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
       name: string,
       content: string
     ): Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }> {
-      const canvasStore = useCanvasStore()
+      const canvasId = requireActiveCanvas()
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest({
           requestEvent: events.create.request,
           responseEvent: events.create.response,
           payload: {
-            canvasId: canvasStore.activeCanvasId!,
+            canvasId,
             name,
             content
           }
@@ -105,14 +105,14 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
       itemId: string,
       content: string
     ): Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }> {
-      const canvasStore = useCanvasStore()
+      const canvasId = requireActiveCanvas()
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest({
           requestEvent: events.update.request,
           responseEvent: events.update.response,
           payload: {
-            canvasId: canvasStore.activeCanvasId!,
+            canvasId,
             ...config.getUpdatePayload(itemId, content)
           }
         })
@@ -147,14 +147,14 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
     async read(
       itemId: string
     ): Promise<{ id: string; name: string; content: string } | null> {
-      const canvasStore = useCanvasStore()
+      const canvasId = requireActiveCanvas()
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest({
           requestEvent: events.read.request,
           responseEvent: events.read.response,
           payload: {
-            canvasId: canvasStore.activeCanvasId!,
+            canvasId,
             ...config.getReadPayload(itemId)
           }
         })

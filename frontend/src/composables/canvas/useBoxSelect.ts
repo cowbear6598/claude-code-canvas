@@ -45,14 +45,17 @@ export function useBoxSelect(): {
     }
   })
 
-  const startBoxSelect = (e: MouseEvent): void => {
-    if (e.button !== 0) return
+  const shouldStartBoxSelect = (e: MouseEvent, target: HTMLElement): boolean => {
+    if (e.button !== 0) return false
+    if (!target.classList.contains('canvas-grid') && !target.classList.contains('canvas-content')) return false
+    if (viewportStore.zoom === 0) return false
+    return true
+  }
 
+  const startBoxSelect = (e: MouseEvent): void => {
     const target = e.target as HTMLElement
-    if (!target.classList.contains('canvas-grid') &&
-        !target.classList.contains('canvas-content')) {
-      return
-    }
+
+    if (!shouldStartBoxSelect(e, target)) return
 
     if (document.activeElement instanceof HTMLInputElement ||
         document.activeElement instanceof HTMLTextAreaElement) {
@@ -60,8 +63,6 @@ export function useBoxSelect(): {
     }
 
     e.preventDefault()
-
-    if (viewportStore.zoom === 0) return
 
     startClientX = e.clientX
     startClientY = e.clientY

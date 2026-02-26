@@ -26,8 +26,10 @@ vi.mock('@/composables/canvas/useCanvasContext', () => ({
   },
 }))
 
-const mockShowSuccessToast = vi.fn()
-const mockShowErrorToast = vi.fn()
+const { mockShowSuccessToast, mockShowErrorToast } = vi.hoisted(() => ({
+  mockShowSuccessToast: vi.fn(),
+  mockShowErrorToast: vi.fn(),
+}))
 
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({

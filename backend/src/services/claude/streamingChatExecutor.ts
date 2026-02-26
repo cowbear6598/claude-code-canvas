@@ -14,7 +14,7 @@ import {claudeQueryService} from './queryService.js';
 import type {StreamEvent} from './types.js';
 import {
     buildPersistedMessage,
-    createSubMessageFlusher,
+    createSubMessageAccumulator,
     createSubMessageState,
     processTextEvent,
     processToolResultEvent,
@@ -44,6 +44,16 @@ export interface StreamingChatExecutorResult {
     content: string;
     hasContent: boolean;
     aborted: boolean;
+}
+
+interface StreamContext {
+    canvasId: string;
+    podId: string;
+    messageId: string;
+    accumulatedContentRef: {value: string};
+    subMessageState: ReturnType<typeof createSubMessageState>;
+    flushCurrentSubMessage: () => void;
+    persistStreamingMessage: () => void;
 }
 
 function createStreamingCallback(
@@ -151,6 +161,50 @@ function createStreamingCallback(
     };
 }
 
+async function handleStreamAbort(
+    context: StreamContext,
+    callbacks?: StreamingChatExecutorCallbacks
+): Promise<StreamingChatExecutorResult> {
+    const {canvasId, podId, messageId, accumulatedContentRef, subMessageState, flushCurrentSubMessage, persistStreamingMessage} = context;
+
+    flushCurrentSubMessage();
+
+    const hasAssistantContent = accumulatedContentRef.value || subMessageState.subMessages.length > 0;
+    if (hasAssistantContent) {
+        persistStreamingMessage();
+        await messageStore.flushWrites(podId);
+    }
+
+    podStore.setStatus(canvasId, podId, 'idle');
+
+    if (callbacks?.onAborted) {
+        await callbacks.onAborted(canvasId, podId, messageId);
+    }
+
+    return {
+        messageId,
+        content: accumulatedContentRef.value,
+        hasContent: !!hasAssistantContent,
+        aborted: true,
+    };
+}
+
+async function handleStreamError(
+    context: StreamContext,
+    error: unknown,
+    callbacks?: StreamingChatExecutorCallbacks
+): Promise<never> {
+    const {canvasId, podId} = context;
+
+    podStore.setStatus(canvasId, podId, 'idle');
+
+    if (callbacks?.onError) {
+        await callbacks.onError(canvasId, podId, error as Error);
+    }
+
+    throw error;
+}
+
 export async function executeStreamingChat(
     options: StreamingChatExecutorOptions,
     callbacks?: StreamingChatExecutorCallbacks
@@ -160,11 +214,21 @@ export async function executeStreamingChat(
     const messageId = uuidv4();
     const accumulatedContentRef = {value: ''};
     const subMessageState = createSubMessageState();
-    const flushCurrentSubMessage = createSubMessageFlusher(messageId, subMessageState);
+    const flushCurrentSubMessage = createSubMessageAccumulator(messageId, subMessageState);
 
     const persistStreamingMessage = (): void => {
         const persistedMsg = buildPersistedMessage(messageId, accumulatedContentRef.value, subMessageState);
         messageStore.upsertMessage(canvasId, podId, persistedMsg);
+    };
+
+    const streamContext: StreamContext = {
+        canvasId,
+        podId,
+        messageId,
+        accumulatedContentRef,
+        subMessageState,
+        flushCurrentSubMessage,
+        persistStreamingMessage,
     };
 
     const streamingCallback = createStreamingCallback(
@@ -201,34 +265,9 @@ export async function executeStreamingChat(
         };
     } catch (error) {
         if (isAbortError(error) && supportAbort) {
-            flushCurrentSubMessage();
-
-            const hasAssistantContent = accumulatedContentRef.value || subMessageState.subMessages.length > 0;
-            if (hasAssistantContent) {
-                persistStreamingMessage();
-                await messageStore.flushWrites(podId);
-            }
-
-            podStore.setStatus(canvasId, podId, 'idle');
-
-            if (callbacks?.onAborted) {
-                await callbacks.onAborted(canvasId, podId, messageId);
-            }
-
-            return {
-                messageId,
-                content: accumulatedContentRef.value,
-                hasContent: !!hasAssistantContent,
-                aborted: true,
-            };
+            return handleStreamAbort(streamContext, callbacks);
         }
 
-        podStore.setStatus(canvasId, podId, 'idle');
-
-        if (callbacks?.onError) {
-            await callbacks.onError(canvasId, podId, error as Error);
-        }
-
-        throw error;
+        return handleStreamError(streamContext, error, callbacks);
     }
 }

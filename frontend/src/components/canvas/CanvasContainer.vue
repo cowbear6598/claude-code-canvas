@@ -560,44 +560,27 @@ const handleRepositoryCreated = (repository: { id: string; name: string }): void
   repositoryStore.createNote(repository.id, x, y)
 }
 
-/**
- * 處理 Note 雙擊事件
- * 根據不同類型的 Note 取得對應的資源 ID，並開啟編輯 Modal
- * 只處理可編輯的 Note 類型（outputStyle、subAgent、command）
- */
+type EditableNoteType = 'outputStyle' | 'subAgent' | 'command'
+
+const editableNoteResourceIdGetters: Record<EditableNoteType, (noteId: string) => string | undefined> = {
+  outputStyle: (noteId) => outputStyleStore.notes.find(n => n.id === noteId)?.outputStyleId,
+  subAgent: (noteId) => subAgentStore.notes.find(n => n.id === noteId)?.subAgentId,
+  command: (noteId) => commandStore.notes.find(n => n.id === noteId)?.commandId,
+}
+
 const handleNoteDoubleClick = (data: {
   noteId: string;
   noteType: 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command'
 }): void => {
   const {noteId, noteType} = data
 
-  // 只處理可編輯的類型
-  if (noteType !== 'outputStyle' && noteType !== 'subAgent' && noteType !== 'command') {
-    return
-  }
+  const getResourceId = editableNoteResourceIdGetters[noteType as EditableNoteType]
+  if (!getResourceId) return
 
-  let resourceId: string | undefined
-
-  switch (noteType) {
-    case 'outputStyle': {
-      const note = outputStyleStore.notes.find(n => n.id === noteId)
-      resourceId = note?.outputStyleId
-      break
-    }
-    case 'subAgent': {
-      const note = subAgentStore.notes.find(n => n.id === noteId)
-      resourceId = note?.subAgentId
-      break
-    }
-    case 'command': {
-      const note = commandStore.notes.find(n => n.id === noteId)
-      resourceId = note?.commandId
-      break
-    }
-  }
+  const resourceId = getResourceId(noteId)
 
   if (resourceId) {
-    handleOpenEditModal(noteType, resourceId)
+    handleOpenEditModal(noteType as EditableNoteType, resourceId)
   } else {
     console.error(`無法找到 Note (id: ${noteId}, type: ${noteType}) 的資源 ID`)
   }

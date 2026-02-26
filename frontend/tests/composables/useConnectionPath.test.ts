@@ -7,7 +7,7 @@ describe('useConnectionPath', () => {
     it('應回傳包含 path, midPoint, angle 的物件', () => {
       const { calculatePathData } = useConnectionPath()
 
-      const result = calculatePathData(100, 100, 300, 200, 'right', 'left')
+      const result = calculatePathData({ start: { x: 100, y: 100 }, end: { x: 300, y: 200 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       expect(result).toHaveProperty('path')
       expect(result).toHaveProperty('midPoint')
@@ -21,7 +21,7 @@ describe('useConnectionPath', () => {
     it('path 應為 SVG Bezier 曲線格式（M ... C ...）', () => {
       const { calculatePathData } = useConnectionPath()
 
-      const result = calculatePathData(100, 100, 300, 200, 'right', 'left')
+      const result = calculatePathData({ start: { x: 100, y: 100 }, end: { x: 300, y: 200 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       expect(result.path).toMatch(/^M \d+(\.\d+)?,\d+(\.\d+)? C /)
       expect(result.path).toContain('M ')
@@ -35,7 +35,7 @@ describe('useConnectionPath', () => {
       const endX = 300
       const endY = 200
 
-      const result = calculatePathData(startX, startY, endX, endY, 'right', 'left')
+      const result = calculatePathData({ start: { x: startX, y: startY }, end: { x: endX, y: endY }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       // midPoint 的 x 應在 startX 和 endX 之間（考慮 Bezier 曲線可能略超出直線範圍）
       expect(result.midPoint.x).toBeGreaterThanOrEqual(Math.min(startX, endX) - 50)
@@ -53,8 +53,8 @@ describe('useConnectionPath', () => {
       const endX = 400
       const endY = 300
 
-      const topBottom = calculatePathData(startX, startY, endX, endY, 'top', 'bottom')
-      const bottomTop = calculatePathData(startX, startY, endX, endY, 'bottom', 'top')
+      const topBottom = calculatePathData({ start: { x: startX, y: startY }, end: { x: endX, y: endY }, sourceAnchor: 'top', targetAnchor: 'bottom' })
+      const bottomTop = calculatePathData({ start: { x: startX, y: startY }, end: { x: endX, y: endY }, sourceAnchor: 'bottom', targetAnchor: 'top' })
 
       // 不同 anchor 組合應產生不同 path
       expect(topBottom.path).not.toBe(bottomTop.path)
@@ -77,8 +77,8 @@ describe('useConnectionPath', () => {
       const endX = 400
       const endY = 300
 
-      const leftRight = calculatePathData(startX, startY, endX, endY, 'left', 'right')
-      const rightLeft = calculatePathData(startX, startY, endX, endY, 'right', 'left')
+      const leftRight = calculatePathData({ start: { x: startX, y: startY }, end: { x: endX, y: endY }, sourceAnchor: 'left', targetAnchor: 'right' })
+      const rightLeft = calculatePathData({ start: { x: startX, y: startY }, end: { x: endX, y: endY }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       // 不同 anchor 組合應產生不同 path
       expect(leftRight.path).not.toBe(rightLeft.path)
@@ -98,14 +98,14 @@ describe('useConnectionPath', () => {
       const { calculatePathData } = useConnectionPath()
 
       expect(() => {
-        calculatePathData(100, 100, 100, 100, 'right', 'left')
+        calculatePathData({ start: { x: 100, y: 100 }, end: { x: 100, y: 100 }, sourceAnchor: 'right', targetAnchor: 'left' })
       }).not.toThrow()
     })
 
     it('起點和終點相同時應回傳合法資料', () => {
       const { calculatePathData } = useConnectionPath()
 
-      const result = calculatePathData(100, 100, 100, 100, 'right', 'left')
+      const result = calculatePathData({ start: { x: 100, y: 100 }, end: { x: 100, y: 100 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       expect(result.path).toBeTruthy()
       expect(result.midPoint.x).toBe(100)
@@ -118,7 +118,7 @@ describe('useConnectionPath', () => {
       // 距離 = sqrt((200-100)^2 + (200-100)^2) = sqrt(20000) ≈ 141.4
       // offset = min(141.4 * 0.3, 100) = min(42.4, 100) = 42.4
 
-      const result = calculatePathData(100, 100, 200, 200, 'right', 'left')
+      const result = calculatePathData({ start: { x: 100, y: 100 }, end: { x: 200, y: 200 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       // 驗證 path 中的 control points 有應用 offset
       // 由於 anchor 是 right/left，offset 應該影響 x 座標
@@ -140,7 +140,7 @@ describe('useConnectionPath', () => {
       // 距離 = sqrt((1000-100)^2 + (1000-100)^2) = sqrt(1620000) ≈ 1272.8
       // offset = min(1272.8 * 0.3, 100) = min(381.8, 100) = 100
 
-      const result = calculatePathData(100, 100, 1000, 1000, 'right', 'left')
+      const result = calculatePathData({ start: { x: 100, y: 100 }, end: { x: 1000, y: 1000 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       const coords = result.path.match(/[\d.]+/g)?.map(Number)
       expect(coords).toBeDefined()
@@ -153,7 +153,7 @@ describe('useConnectionPath', () => {
     it('所有 anchor 位置應正確計算 offset（top）', () => {
       const { calculatePathData } = useConnectionPath()
 
-      const result = calculatePathData(100, 100, 300, 300, 'top', 'bottom')
+      const result = calculatePathData({ start: { x: 100, y: 100 }, end: { x: 300, y: 300 }, sourceAnchor: 'top', targetAnchor: 'bottom' })
       const coords = result.path.match(/[\d.]+/g)?.map(Number)
 
       // top anchor: cp1y 應該是 startY - offset
@@ -164,7 +164,7 @@ describe('useConnectionPath', () => {
     it('所有 anchor 位置應正確計算 offset（bottom）', () => {
       const { calculatePathData } = useConnectionPath()
 
-      const result = calculatePathData(100, 100, 300, 300, 'bottom', 'top')
+      const result = calculatePathData({ start: { x: 100, y: 100 }, end: { x: 300, y: 300 }, sourceAnchor: 'bottom', targetAnchor: 'top' })
       const coords = result.path.match(/[\d.]+/g)?.map(Number)
 
       // bottom anchor: cp1y 應該是 startY + offset
@@ -175,7 +175,7 @@ describe('useConnectionPath', () => {
     it('angle 應在 -180 到 180 度之間', () => {
       const { calculatePathData } = useConnectionPath()
 
-      const result = calculatePathData(100, 100, 300, 200, 'right', 'left')
+      const result = calculatePathData({ start: { x: 100, y: 100 }, end: { x: 300, y: 200 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       expect(result.angle).toBeGreaterThanOrEqual(-180)
       expect(result.angle).toBeLessThanOrEqual(180)
@@ -186,7 +186,7 @@ describe('useConnectionPath', () => {
     it('應至少回傳 1 個箭頭位置', () => {
       const { calculateMultipleArrowPositions } = useConnectionPath()
 
-      const result = calculateMultipleArrowPositions(100, 100, 150, 150, 'right', 'left')
+      const result = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 150, y: 150 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       expect(result).toBeInstanceOf(Array)
       expect(result.length).toBeGreaterThanOrEqual(1)
@@ -195,7 +195,7 @@ describe('useConnectionPath', () => {
     it('每個箭頭應包含 x, y, angle', () => {
       const { calculateMultipleArrowPositions } = useConnectionPath()
 
-      const result = calculateMultipleArrowPositions(100, 100, 300, 200, 'right', 'left')
+      const result = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 300, y: 200 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       for (const arrow of result) {
         expect(arrow).toHaveProperty('x')
@@ -210,8 +210,8 @@ describe('useConnectionPath', () => {
     it('箭頭數量應隨距離增加', () => {
       const { calculateMultipleArrowPositions } = useConnectionPath()
 
-      const shortDistance = calculateMultipleArrowPositions(100, 100, 200, 200, 'right', 'left')
-      const longDistance = calculateMultipleArrowPositions(100, 100, 1000, 1000, 'right', 'left')
+      const shortDistance = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 200, y: 200 }, sourceAnchor: 'right', targetAnchor: 'left' })
+      const longDistance = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 1000, y: 1000 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       expect(longDistance.length).toBeGreaterThan(shortDistance.length)
     })
@@ -222,7 +222,7 @@ describe('useConnectionPath', () => {
       // estimatedLength = 223.6 * 1.2 = 268.3
       // arrowCount = max(1, floor(268.3 / 80)) = max(1, 3) = 3
 
-      const result = calculateMultipleArrowPositions(100, 100, 300, 200, 'right', 'left', 80)
+      const result = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 300, y: 200 }, sourceAnchor: 'right', targetAnchor: 'left' }, 80)
 
       expect(result.length).toBe(3)
     })
@@ -230,8 +230,8 @@ describe('useConnectionPath', () => {
     it('自訂 spacing 應影響箭頭數量（較小 spacing）', () => {
       const { calculateMultipleArrowPositions } = useConnectionPath()
 
-      const defaultSpacing = calculateMultipleArrowPositions(100, 100, 500, 500, 'right', 'left')
-      const smallSpacing = calculateMultipleArrowPositions(100, 100, 500, 500, 'right', 'left', 40)
+      const defaultSpacing = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 500, y: 500 }, sourceAnchor: 'right', targetAnchor: 'left' })
+      const smallSpacing = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 500, y: 500 }, sourceAnchor: 'right', targetAnchor: 'left' }, 40)
 
       expect(smallSpacing.length).toBeGreaterThan(defaultSpacing.length)
     })
@@ -239,8 +239,8 @@ describe('useConnectionPath', () => {
     it('自訂 spacing 應影響箭頭數量（較大 spacing）', () => {
       const { calculateMultipleArrowPositions } = useConnectionPath()
 
-      const defaultSpacing = calculateMultipleArrowPositions(100, 100, 500, 500, 'right', 'left')
-      const largeSpacing = calculateMultipleArrowPositions(100, 100, 500, 500, 'right', 'left', 200)
+      const defaultSpacing = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 500, y: 500 }, sourceAnchor: 'right', targetAnchor: 'left' })
+      const largeSpacing = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 500, y: 500 }, sourceAnchor: 'right', targetAnchor: 'left' }, 200)
 
       expect(largeSpacing.length).toBeLessThan(defaultSpacing.length)
     })
@@ -248,8 +248,8 @@ describe('useConnectionPath', () => {
     it('預設 spacing 應為 80', () => {
       const { calculateMultipleArrowPositions } = useConnectionPath()
 
-      const defaultSpacing = calculateMultipleArrowPositions(100, 100, 500, 500, 'right', 'left')
-      const explicitSpacing = calculateMultipleArrowPositions(100, 100, 500, 500, 'right', 'left', 80)
+      const defaultSpacing = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 500, y: 500 }, sourceAnchor: 'right', targetAnchor: 'left' })
+      const explicitSpacing = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 500, y: 500 }, sourceAnchor: 'right', targetAnchor: 'left' }, 80)
 
       expect(defaultSpacing.length).toBe(explicitSpacing.length)
     })
@@ -261,7 +261,7 @@ describe('useConnectionPath', () => {
       const endX = 300
       const endY = 200
 
-      const result = calculateMultipleArrowPositions(startX, startY, endX, endY, 'right', 'left')
+      const result = calculateMultipleArrowPositions({ start: { x: startX, y: startY }, end: { x: endX, y: endY }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       for (const arrow of result) {
         // 箭頭 x 應在起點和終點之間（考慮 Bezier 曲線可能略超出）
@@ -277,7 +277,7 @@ describe('useConnectionPath', () => {
     it('箭頭 angle 應在 -180 到 180 度之間', () => {
       const { calculateMultipleArrowPositions } = useConnectionPath()
 
-      const result = calculateMultipleArrowPositions(100, 100, 300, 200, 'right', 'left')
+      const result = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 300, y: 200 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       for (const arrow of result) {
         expect(arrow.angle).toBeGreaterThanOrEqual(-180)
@@ -291,7 +291,7 @@ describe('useConnectionPath', () => {
       // estimatedLength = 14.1 * 1.2 = 16.9
       // arrowCount = max(1, floor(16.9 / 80)) = max(1, 0) = 1
 
-      const result = calculateMultipleArrowPositions(100, 100, 110, 110, 'right', 'left')
+      const result = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 110, y: 110 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       expect(result.length).toBe(1)
     })
@@ -299,7 +299,7 @@ describe('useConnectionPath', () => {
     it('起點和終點相同時應回傳 1 個箭頭', () => {
       const { calculateMultipleArrowPositions } = useConnectionPath()
 
-      const result = calculateMultipleArrowPositions(100, 100, 100, 100, 'right', 'left')
+      const result = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 100, y: 100 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       expect(result.length).toBe(1)
       expect(result[0]?.x).toBe(100)
@@ -309,8 +309,8 @@ describe('useConnectionPath', () => {
     it('不同 anchor 組合應產生不同的箭頭位置', () => {
       const { calculateMultipleArrowPositions } = useConnectionPath()
 
-      const topBottom = calculateMultipleArrowPositions(100, 100, 300, 300, 'top', 'bottom')
-      const leftRight = calculateMultipleArrowPositions(100, 100, 300, 300, 'left', 'right')
+      const topBottom = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 300, y: 300 }, sourceAnchor: 'top', targetAnchor: 'bottom' })
+      const leftRight = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 300, y: 300 }, sourceAnchor: 'left', targetAnchor: 'right' })
 
       // 至少第一個箭頭的位置應該不同（因為 Bezier 曲線路徑不同）
       expect(topBottom[0]?.x).not.toBeCloseTo(leftRight[0]?.x, 1)
@@ -319,7 +319,7 @@ describe('useConnectionPath', () => {
     it('箭頭應均勻分佈在曲線上', () => {
       const { calculateMultipleArrowPositions } = useConnectionPath()
 
-      const result = calculateMultipleArrowPositions(100, 100, 500, 500, 'right', 'left')
+      const result = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 500, y: 500 }, sourceAnchor: 'right', targetAnchor: 'left' })
 
       // 箭頭數量至少 2 個才能測試分佈
       if (result.length >= 2) {
@@ -343,8 +343,8 @@ describe('useConnectionPath', () => {
       const sourceAnchor: AnchorPosition = 'right'
       const targetAnchor: AnchorPosition = 'left'
 
-      const pathData = calculatePathData(startX, startY, endX, endY, sourceAnchor, targetAnchor)
-      const arrows = calculateMultipleArrowPositions(startX, startY, endX, endY, sourceAnchor, targetAnchor)
+      const pathData = calculatePathData({ start: { x: startX, y: startY }, end: { x: endX, y: endY }, sourceAnchor, targetAnchor })
+      const arrows = calculateMultipleArrowPositions({ start: { x: startX, y: startY }, end: { x: endX, y: endY }, sourceAnchor, targetAnchor })
 
       // 箭頭應該分佈在 path 定義的曲線上
       // 驗證至少有一個箭頭接近 midPoint

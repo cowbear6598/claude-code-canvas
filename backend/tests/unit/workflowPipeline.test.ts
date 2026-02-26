@@ -65,12 +65,12 @@ describe('WorkflowPipeline', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    workflowPipeline.init(
-      mockExecutionService,
-      mockStateService,
-      mockMultiInputService,
-      mockQueueService
-    );
+    workflowPipeline.init({
+      executionService: mockExecutionService,
+      stateService: mockStateService,
+      multiInputService: mockMultiInputService,
+      queueService: mockQueueService,
+    });
 
     (mockExecutionService.generateSummaryWithFallback as any).mockResolvedValue({
       content: '摘要',
