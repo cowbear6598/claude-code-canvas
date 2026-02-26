@@ -1,7 +1,6 @@
 import {WebSocketResponseEvents} from '../schemas';
-import type {SkillListResultPayload, SkillImportedPayload} from '../types';
+import type {SkillImportedPayload} from '../types';
 import type {
-    SkillListPayload,
     PodBindSkillPayload,
     SkillDeletePayload,
     SkillImportPayload,
@@ -12,6 +11,7 @@ import {podStore} from '../services/podStore.js';
 import {emitSuccess} from '../utils/websocketResponse.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createBindHandler} from './factories/createBindHandlers.js';
+import {createListHandler} from './factories/createResourceHandlers.js';
 import {handleResourceDelete} from '../utils/handlerHelpers.js';
 import {logger} from '../utils/logger.js';
 
@@ -32,21 +32,11 @@ export const handleSkillNoteList = skillNoteHandlers.handleNoteList;
 export const handleSkillNoteUpdate = skillNoteHandlers.handleNoteUpdate;
 export const handleSkillNoteDelete = skillNoteHandlers.handleNoteDelete;
 
-export async function handleSkillList(
-    connectionId: string,
-    _: SkillListPayload,
-    requestId: string
-): Promise<void> {
-    const skills = await skillService.list();
-
-    const response: SkillListResultPayload = {
-        requestId,
-        success: true,
-        skills,
-    };
-
-    emitSuccess(connectionId, WebSocketResponseEvents.SKILL_LIST_RESULT, response);
-}
+export const handleSkillList = createListHandler({
+    service: skillService,
+    event: WebSocketResponseEvents.SKILL_LIST_RESULT,
+    responseKey: 'skills',
+});
 
 // 使用工廠函數建立 Skill 綁定處理器
 const skillBindHandler = createBindHandler({
@@ -58,7 +48,7 @@ const skillBindHandler = createBindHandler({
         bind: (canvasId, podId, skillId) => podStore.addSkillId(canvasId, podId, skillId),
     },
     getPodResourceIds: (pod) => pod.skillIds,
-    copyResourceToPod: (skillId, podId, workspacePath) => skillService.copySkillToPod(skillId, podId, workspacePath),
+    copyResourceToPod: (skillId, pod) => skillService.copySkillToPod(skillId, pod.id, pod.workspacePath),
     events: {
         bound: WebSocketResponseEvents.POD_SKILL_BOUND,
     },

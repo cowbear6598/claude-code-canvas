@@ -1,7 +1,5 @@
 import {WebSocketResponseEvents} from '../schemas';
-import type {CommandListResultPayload} from '../types';
 import type {
-    CommandListPayload,
     PodBindCommandPayload,
     PodUnbindCommandPayload,
     CommandDeletePayload,
@@ -10,10 +8,9 @@ import type {
 import {commandService} from '../services/commandService.js';
 import {commandNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
-import {emitSuccess} from '../utils/websocketResponse.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
-import {createBindHandler, createUnbindHandler} from './factories/createBindHandlers.js';
+import {createBindHandler, createUnbindHandler, type BindResourceConfig} from './factories/createBindHandlers.js';
 import {handleResourceDelete} from '../utils/handlerHelpers.js';
 import {createMoveToGroupHandler} from './factories/createMoveToGroupHandler.js';
 import {GROUP_TYPES} from '../types';
@@ -45,31 +42,16 @@ const resourceHandlers = createResourceHandlers({
     },
     resourceName: 'Command',
     responseKey: 'command',
+    listResponseKey: 'commands',
     idField: 'commandId',
 });
 
+export const handleCommandList = resourceHandlers.handleList;
 export const handleCommandCreate = resourceHandlers.handleCreate;
 export const handleCommandUpdate = resourceHandlers.handleUpdate;
-export const handleCommandRead = resourceHandlers.handleRead!;
+export const handleCommandRead = resourceHandlers.handleRead;
 
-export async function handleCommandList(
-    connectionId: string,
-    _: CommandListPayload,
-    requestId: string
-): Promise<void> {
-    const commands = await commandService.list();
-
-    const response: CommandListResultPayload = {
-        requestId,
-        success: true,
-        commands,
-    };
-
-    emitSuccess(connectionId, WebSocketResponseEvents.COMMAND_LIST_RESULT, response);
-}
-
-// 使用工廠函數建立 Command 綁定/解綁處理器
-const commandBindHandler = createBindHandler({
+const commandBindConfig: BindResourceConfig<typeof commandService> = {
     resourceName: 'Command',
     idField: 'commandId',
     isMultiBind: false,
@@ -79,31 +61,16 @@ const commandBindHandler = createBindHandler({
         unbind: (canvasId, podId) => podStore.setCommandId(canvasId, podId, null),
     },
     getPodResourceIds: (pod) => pod.commandId,
-    copyResourceToPod: (commandId, podId, workspacePath) => commandService.copyCommandToPod(commandId, podId, workspacePath),
+    copyResourceToPod: (commandId, pod) => commandService.copyCommandToPod(commandId, pod.id, pod.workspacePath),
     deleteResourceFromPath: (workspacePath) => commandService.deleteCommandFromPath(workspacePath),
     events: {
         bound: WebSocketResponseEvents.POD_COMMAND_BOUND,
         unbound: WebSocketResponseEvents.POD_COMMAND_UNBOUND,
     },
-});
+};
 
-const commandUnbindHandler = createUnbindHandler({
-    resourceName: 'Command',
-    idField: 'commandId',
-    isMultiBind: false,
-    service: commandService,
-    podStoreMethod: {
-        bind: (canvasId, podId, commandId) => podStore.setCommandId(canvasId, podId, commandId),
-        unbind: (canvasId, podId) => podStore.setCommandId(canvasId, podId, null),
-    },
-    getPodResourceIds: (pod) => pod.commandId,
-    copyResourceToPod: (commandId, podId, workspacePath) => commandService.copyCommandToPod(commandId, podId, workspacePath),
-    deleteResourceFromPath: (workspacePath) => commandService.deleteCommandFromPath(workspacePath),
-    events: {
-        bound: WebSocketResponseEvents.POD_COMMAND_BOUND,
-        unbound: WebSocketResponseEvents.POD_COMMAND_UNBOUND,
-    },
-});
+const commandBindHandler = createBindHandler(commandBindConfig);
+const commandUnbindHandler = createUnbindHandler(commandBindConfig);
 
 export async function handlePodBindCommand(
     connectionId: string,

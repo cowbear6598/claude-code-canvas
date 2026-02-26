@@ -4,10 +4,11 @@ import { emitError } from '../../utils/websocketResponse.js';
 import { logger, type LogCategory } from '../../utils/logger.js';
 
 interface ResourceService<T = { id: string; name: string }> {
+  list(): Promise<T[]>;
   exists(id: string): Promise<boolean>;
   create(name: string, content: string): Promise<T>;
   update(id: string, content: string): Promise<T>;
-  getContent?(id: string): Promise<string | null>;
+  getContent(id: string): Promise<string | null>;
 }
 
 interface ResourceHandlerConfig<T = { id: string; name: string }> {
@@ -16,10 +17,11 @@ interface ResourceHandlerConfig<T = { id: string; name: string }> {
     listResult: WebSocketResponseEvents;
     created: WebSocketResponseEvents;
     updated: WebSocketResponseEvents;
-    readResult?: WebSocketResponseEvents;
+    readResult: WebSocketResponseEvents;
   };
   resourceName: LogCategory;
   responseKey: string;
+  listResponseKey: string;
   idField: string;
 }
 
@@ -42,12 +44,37 @@ interface BaseResponse {
   success: true;
 }
 
+export function createListHandler<T>(config: {
+  service: { list(): Promise<T[]> };
+  event: WebSocketResponseEvents;
+  responseKey: string;
+}): (connectionId: string, payload: unknown, requestId: string) => Promise<void> {
+  return async function (connectionId: string, _: unknown, requestId: string): Promise<void> {
+    const items = await config.service.list();
+
+    const response: BaseResponse & { [key: string]: unknown } = {
+      requestId,
+      success: true,
+      [config.responseKey]: items,
+    };
+
+    socketService.emitToConnection(connectionId, config.event, response);
+  };
+}
+
 export function createResourceHandlers<T extends { id: string; name: string }>(config: ResourceHandlerConfig<T>): {
+  handleList: (connectionId: string, payload: unknown, requestId: string) => Promise<void>;
   handleCreate: (connectionId: string, payload: CreateResourcePayload, requestId: string) => Promise<void>;
   handleUpdate: (connectionId: string, payload: UpdateResourcePayload, requestId: string) => Promise<void>;
-  handleRead?: (connectionId: string, payload: ReadResourcePayload, requestId: string) => Promise<void>;
+  handleRead: (connectionId: string, payload: ReadResourcePayload, requestId: string) => Promise<void>;
 } {
-  const { service, events, resourceName, responseKey, idField } = config;
+  const { service, events, resourceName, responseKey, listResponseKey, idField } = config;
+
+  const handleList = createListHandler({
+    service,
+    event: events.listResult,
+    responseKey: listResponseKey,
+  });
 
   async function handleCreate(
     connectionId: string,
@@ -119,46 +146,43 @@ export function createResourceHandlers<T extends { id: string; name: string }>(c
     logger.log(resourceName, 'Update', `Updated ${resourceName.toLowerCase()} ${resourceId}`);
   }
 
-  let handleRead: ((connectionId: string, payload: ReadResourcePayload, requestId: string) => Promise<void>) | undefined;
+  async function handleRead(
+    connectionId: string,
+    payload: ReadResourcePayload,
+    requestId: string
+  ): Promise<void> {
+    const resourceId = payload[idField] as string;
 
-  if (service.getContent && events.readResult) {
-    handleRead = async function (
-      connectionId: string,
-      payload: ReadResourcePayload,
-      requestId: string
-    ): Promise<void> {
-      const resourceId = payload[idField] as string;
-
-      const content = await service.getContent!(resourceId);
-      if (!content) {
-        emitError(
-          connectionId,
-          events.readResult!,
-          `${resourceName} 找不到: ${resourceId}`,
-          requestId,
-          undefined,
-          'NOT_FOUND'
-        );
-        return;
-      }
-
-      const response: BaseResponse & { [key: string]: unknown } = {
+    const content = await service.getContent(resourceId);
+    if (!content) {
+      emitError(
+        connectionId,
+        events.readResult,
+        `${resourceName} 找不到: ${resourceId}`,
         requestId,
-        success: true,
-        [responseKey]: {
-          id: resourceId,
-          name: resourceId,
-          content,
-        },
-      };
+        undefined,
+        'NOT_FOUND'
+      );
+      return;
+    }
 
-      socketService.emitToConnection(connectionId, events.readResult!, response);
+    const response: BaseResponse & { [key: string]: unknown } = {
+      requestId,
+      success: true,
+      [responseKey]: {
+        id: resourceId,
+        name: resourceId,
+        content,
+      },
     };
+
+    socketService.emitToConnection(connectionId, events.readResult, response);
   }
 
   return {
+    handleList,
     handleCreate,
     handleUpdate,
-    ...(handleRead && { handleRead }),
+    handleRead,
   };
 }

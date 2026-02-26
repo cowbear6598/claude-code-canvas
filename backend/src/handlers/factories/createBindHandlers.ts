@@ -1,4 +1,5 @@
 import type {WebSocketResponseEvents} from '../../schemas';
+import type {Pod} from '../../types/pod.js';
 import {podStore} from '../../services/podStore.js';
 import {socketService} from '../../services/socketService.js';
 import {repositorySyncService} from '../../services/repositorySyncService.js';
@@ -24,11 +25,15 @@ export interface BindResourceConfig<TService> {
         unbind?: (canvasId: string, podId: string) => void;
     };
     /** 獲取 Pod 已綁定的資源 IDs */
-    getPodResourceIds: (pod: {skillIds: string[]; commandId: string | null}) => string[] | string | null;
-    /** 複製資源到 Pod 的方法 */
-    copyResourceToPod: (resourceId: string, podId: string, workspacePath: string) => Promise<void>;
-    /** 從路徑刪除資源的方法（用於 unbind） */
+    getPodResourceIds: (pod: {skillIds: string[]; commandId: string | null; outputStyleId: string | null; subAgentIds: string[]}) => string[] | string | null;
+    /** 複製資源到 Pod 的方法（optional，不提供時跳過複製） */
+    copyResourceToPod?: (resourceId: string, pod: Pod) => Promise<void>;
+    /** 從路徑刪除資源的方法（用於 unbind，optional，不提供時跳過刪除） */
     deleteResourceFromPath?: (workspacePath: string) => Promise<void>;
+    /** 跳過衝突檢查（用於允許直接覆蓋的情境，如 OutputStyle） */
+    skipConflictCheck?: boolean;
+    /** 跳過 repository sync（用於不需要同步的情境，如 OutputStyle） */
+    skipRepositorySync?: boolean;
     /** WebSocket 事件名稱 */
     events: {
         bound: WebSocketResponseEvents;
@@ -78,28 +83,32 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
                 return;
             }
 
-            const boundIds = config.getPodResourceIds(pod);
-            if (isResourceAlreadyBound(boundIds, resourceId, config.isMultiBind)) {
-                const conflictMessage = config.isMultiBind
-                    ? `${config.resourceName} ${resourceId} 已綁定到 Pod ${podId}`
-                    : `Pod ${podId} 已有 ${config.resourceName.toLowerCase()} ${boundIds} 綁定，請先解綁`;
+            if (!config.skipConflictCheck) {
+                const boundIds = config.getPodResourceIds(pod);
+                if (isResourceAlreadyBound(boundIds, resourceId, config.isMultiBind)) {
+                    const conflictMessage = config.isMultiBind
+                        ? `${config.resourceName} ${resourceId} 已綁定到 Pod ${podId}`
+                        : `Pod ${podId} 已有 ${config.resourceName.toLowerCase()} ${boundIds} 綁定，請先解綁`;
 
-                emitError(
-                    connectionId,
-                    config.events.bound,
-                    conflictMessage,
-                    requestId,
-                    podId,
-                    'CONFLICT'
-                );
-                return;
+                    emitError(
+                        connectionId,
+                        config.events.bound,
+                        conflictMessage,
+                        requestId,
+                        podId,
+                        'CONFLICT'
+                    );
+                    return;
+                }
             }
 
-            await config.copyResourceToPod(resourceId, podId, pod.workspacePath);
+            if (config.copyResourceToPod) {
+                await config.copyResourceToPod(resourceId, pod);
+            }
 
             config.podStoreMethod.bind(canvasId, podId, resourceId);
 
-            if (pod.repositoryId) {
+            if (!config.skipRepositorySync && pod.repositoryId) {
                 await repositorySyncService.syncRepositoryResources(pod.repositoryId);
             }
 
@@ -132,8 +141,8 @@ export function createUnbindHandler<TService>(
         throw new Error('Unbind event is required for unbind handler');
     }
 
-    if (!config.podStoreMethod.unbind || !config.deleteResourceFromPath) {
-        throw new Error('Unbind method and deleteResourceFromPath are required for unbind handler');
+    if (!config.podStoreMethod.unbind) {
+        throw new Error('Unbind method is required for unbind handler');
     }
 
     return withCanvasId<{podId: string}>(
@@ -157,11 +166,13 @@ export function createUnbindHandler<TService>(
                 return;
             }
 
-            await config.deleteResourceFromPath!(pod.workspacePath);
+            if (config.deleteResourceFromPath) {
+                await config.deleteResourceFromPath(pod.workspacePath);
+            }
 
             config.podStoreMethod.unbind!(canvasId, podId);
 
-            if (pod.repositoryId) {
+            if (!config.skipRepositorySync && pod.repositoryId) {
                 await repositorySyncService.syncRepositoryResources(pod.repositoryId);
             }
 

@@ -1,10 +1,5 @@
 import {WebSocketResponseEvents} from '../schemas';
 import type {
-    SubAgentListResultPayload,
-    PodSubAgentBoundPayload,
-} from '../types';
-import type {
-    SubAgentListPayload,
     PodBindSubAgentPayload,
     SubAgentDeletePayload,
     SubAgentMoveToGroupPayload,
@@ -12,16 +7,14 @@ import type {
 import {subAgentService} from '../services/subAgentService.js';
 import {subAgentNoteStore} from '../services/noteStores.js';
 import {podStore} from '../services/podStore.js';
-import {socketService} from '../services/socketService.js';
 import {repositoryService} from '../services/repositoryService.js';
-import {repositorySyncService} from '../services/repositorySyncService.js';
-import {emitError} from '../utils/websocketResponse.js';
-import {logger} from '../utils/logger.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createResourceHandlers} from './factories/createResourceHandlers.js';
-import {validatePod, handleResourceDelete, withCanvasId} from '../utils/handlerHelpers.js';
+import {createBindHandler} from './factories/createBindHandlers.js';
+import {handleResourceDelete} from '../utils/handlerHelpers.js';
 import {createMoveToGroupHandler} from './factories/createMoveToGroupHandler.js';
 import {GROUP_TYPES} from '../types';
+import type {Pod} from '../types/pod.js';
 
 const subAgentNoteHandlers = createNoteHandlers({
     noteStore: subAgentNoteStore,
@@ -50,92 +43,44 @@ const resourceHandlers = createResourceHandlers({
     },
     resourceName: 'SubAgent',
     responseKey: 'subAgent',
+    listResponseKey: 'subAgents',
     idField: 'subAgentId',
 });
 
+export const handleSubAgentList = resourceHandlers.handleList;
 export const handleSubAgentCreate = resourceHandlers.handleCreate;
 export const handleSubAgentUpdate = resourceHandlers.handleUpdate;
-export const handleSubAgentRead = resourceHandlers.handleRead!;
+export const handleSubAgentRead = resourceHandlers.handleRead;
 
-export async function handleSubAgentList(
+const subAgentBindHandler = createBindHandler({
+    resourceName: 'SubAgent',
+    idField: 'subAgentId',
+    isMultiBind: true,
+    service: subAgentService,
+    podStoreMethod: {
+        bind: (canvasId, podId, subAgentId) => podStore.addSubAgentId(canvasId, podId, subAgentId),
+    },
+    getPodResourceIds: (pod) => pod.subAgentIds,
+    copyResourceToPod: async (subAgentId: string, pod: Pod) => {
+        if (!pod.repositoryId) {
+            await subAgentService.copySubAgentToPod(subAgentId, pod.id, pod.workspacePath);
+        } else {
+            const repositoryPath = repositoryService.getRepositoryPath(pod.repositoryId);
+            await subAgentService.copySubAgentToRepository(subAgentId, repositoryPath);
+        }
+    },
+    events: {
+        bound: WebSocketResponseEvents.POD_SUBAGENT_BOUND,
+    },
+});
+
+export async function handlePodBindSubAgent(
     connectionId: string,
-    _: SubAgentListPayload,
+    payload: PodBindSubAgentPayload,
     requestId: string
 ): Promise<void> {
-    const subAgents = await subAgentService.list();
-
-    const response: SubAgentListResultPayload = {
-        requestId,
-        success: true,
-        subAgents,
-    };
-
-    socketService.emitToConnection(connectionId, WebSocketResponseEvents.SUBAGENT_LIST_RESULT, response);
+    return subAgentBindHandler(connectionId, payload, requestId);
 }
-
-export const handlePodBindSubAgent = withCanvasId<PodBindSubAgentPayload>(
-    WebSocketResponseEvents.POD_SUBAGENT_BOUND,
-    async (connectionId: string, canvasId: string, payload: PodBindSubAgentPayload, requestId: string): Promise<void> => {
-        const {podId, subAgentId} = payload;
-
-        const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_SUBAGENT_BOUND, requestId);
-
-        if (!pod) {
-            return;
-        }
-
-    const subAgentExists = await subAgentService.exists(subAgentId);
-    if (!subAgentExists) {
-        emitError(
-            connectionId,
-            WebSocketResponseEvents.POD_SUBAGENT_BOUND,
-            `SubAgent 找不到: ${subAgentId}`,
-            requestId,
-            podId,
-            'NOT_FOUND'
-        );
-        return;
-    }
-
-    if (pod.subAgentIds.includes(subAgentId)) {
-        emitError(
-            connectionId,
-            WebSocketResponseEvents.POD_SUBAGENT_BOUND,
-            `SubAgent ${subAgentId} 已綁定到 Pod ${podId}`,
-            requestId,
-            podId,
-            'CONFLICT'
-        );
-        return;
-    }
-
-    if (!pod.repositoryId) {
-        await subAgentService.copySubAgentToPod(subAgentId, podId, pod.workspacePath);
-    } else {
-        const repositoryPath = repositoryService.getRepositoryPath(pod.repositoryId);
-        await subAgentService.copySubAgentToRepository(subAgentId, repositoryPath);
-    }
-
-    podStore.addSubAgentId(canvasId, podId, subAgentId);
-
-    if (pod.repositoryId) {
-        await repositorySyncService.syncRepositoryResources(pod.repositoryId);
-    }
-
-    const updatedPod = podStore.getById(canvasId, podId);
-
-    const response: PodSubAgentBoundPayload = {
-        requestId,
-        canvasId,
-        success: true,
-        pod: updatedPod,
-    };
-
-    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_SUBAGENT_BOUND, response);
-
-    logger.log('SubAgent', 'Bind', `Bound subagent ${subAgentId} to Pod ${podId}`);
-    }
-);
 
 export async function handleSubAgentDelete(
     connectionId: string,

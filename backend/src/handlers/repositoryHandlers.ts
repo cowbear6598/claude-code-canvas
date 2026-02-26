@@ -1,13 +1,11 @@
 
 import { WebSocketResponseEvents } from '../schemas';
 import type {
-  RepositoryListResultPayload,
   RepositoryCreatedPayload,
   PodRepositoryBoundPayload,
   PodRepositoryUnboundPayload,
 } from '../types';
 import type {
-  RepositoryListPayload,
   RepositoryCreatePayload,
   PodBindRepositoryPayload,
   PodUnbindRepositoryPayload,
@@ -22,10 +20,11 @@ import { repositorySyncService } from '../services/repositorySyncService.js';
 import { skillService } from '../services/skillService.js';
 import { subAgentService } from '../services/subAgentService.js';
 import { commandService } from '../services/commandService.js';
-import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { emitError } from '../utils/websocketResponse.js';
 import { clearPodMessages } from './repository/repositoryBindHelpers.js';
 import { logger } from '../utils/logger.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';
+import { createListHandler } from './factories/createResourceHandlers.js';
 import { validatePod, handleResourceDelete, withCanvasId } from '../utils/handlerHelpers.js';
 import { validateRepositoryExists } from '../utils/validators.js';
 
@@ -47,21 +46,11 @@ export const handleRepositoryNoteList = repositoryNoteHandlers.handleNoteList;
 export const handleRepositoryNoteUpdate = repositoryNoteHandlers.handleNoteUpdate;
 export const handleRepositoryNoteDelete = repositoryNoteHandlers.handleNoteDelete;
 
-export async function handleRepositoryList(
-  connectionId: string,
-  _: RepositoryListPayload,
-  requestId: string
-): Promise<void> {
-  const repositories = await repositoryService.list();
-
-  const response: RepositoryListResultPayload = {
-    requestId,
-    success: true,
-    repositories,
-  };
-
-  emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_LIST_RESULT, response);
-}
+export const handleRepositoryList = createListHandler({
+  service: repositoryService,
+  event: WebSocketResponseEvents.REPOSITORY_LIST_RESULT,
+  responseKey: 'repositories',
+});
 
 export async function handleRepositoryCreate(
   connectionId: string,
