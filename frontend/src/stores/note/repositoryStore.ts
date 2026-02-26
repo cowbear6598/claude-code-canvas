@@ -179,7 +179,6 @@ const store = createNoteStore<Repository, RepositoryNote>({
       if (response.repository) {
         this.availableItems.push(response.repository)
 
-        // 透過後端 API 建立 Note
         await this.createNote(
           response.repository.id,
           sourceNotePosition.x + 150,

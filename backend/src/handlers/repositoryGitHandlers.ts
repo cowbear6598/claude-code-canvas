@@ -58,12 +58,10 @@ async function validateRepositoryIsGit(
  * @returns 驗證結果
  */
 function validateRepoUrl(repoUrl: string): { valid: boolean; error?: string } {
-  // 檢查 URL 長度
   if (repoUrl.length > 500) {
     return { valid: false, error: 'Repository URL 長度超過限制' };
   }
 
-  // 檢查是否為合法的 Git URL 格式
   const isHttpsUrl = /^https:\/\/[^\s]+$/.test(repoUrl);
   const isSshUrl = /^git@[^\s:]+:[^\s]+$/.test(repoUrl);
 
@@ -140,7 +138,6 @@ export async function handleRepositoryGitClone(
 ): Promise<void> {
   const { repoUrl, branch } = payload;
 
-  // 驗證 URL 格式
   const validation = validateRepoUrl(repoUrl);
   if (!validation.valid) {
     emitError(
@@ -211,7 +208,6 @@ export async function handleRepositoryGitClone(
   throttledEmit.flush();
   emitCloneProgress(95, '完成中...');
 
-  // Clone 成功後，取得目前分支名稱並儲存
   const currentBranchResult = await gitService.getCurrentBranch(targetPath);
   if (currentBranchResult.success) {
     await repositoryService.registerMetadata(repoName, {

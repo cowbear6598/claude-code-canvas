@@ -38,23 +38,18 @@ export type LogCategory =
  * Category 顏色映射表
  */
 const CATEGORY_COLORS: Record<LogCategory, string> = {
-  // 系統類（灰色）
   Startup: ANSI_COLORS.GRAY,
   Connection: ANSI_COLORS.GRAY,
   WebSocket: ANSI_COLORS.GRAY,
-  // Pod 類（藍色）
   Pod: ANSI_COLORS.BLUE,
   Workflow: ANSI_COLORS.BLUE,
   SubAgent: ANSI_COLORS.BLUE,
-  // 資料類（紫色）
   Repository: ANSI_COLORS.MAGENTA,
   Workspace: ANSI_COLORS.MAGENTA,
   Canvas: ANSI_COLORS.MAGENTA,
-  // 功能類（綠色）
   Skill: ANSI_COLORS.GREEN,
   Command: ANSI_COLORS.GREEN,
   Chat: ANSI_COLORS.GREEN,
-  // 其他類（黃色）
   Git: ANSI_COLORS.YELLOW,
   Note: ANSI_COLORS.YELLOW,
   Paste: ANSI_COLORS.YELLOW,

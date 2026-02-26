@@ -53,10 +53,8 @@ class ChatPersistenceService {
 
     const existingIndex = chatHistory.messages.findIndex(msg => msg.id === message.id);
     if (existingIndex >= 0) {
-      // 找到則整筆覆蓋
       chatHistory.messages[existingIndex] = message;
     } else {
-      // 沒找到則新增
       chatHistory.messages.push(message);
     }
 

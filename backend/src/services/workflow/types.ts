@@ -65,18 +65,14 @@ export interface CompletionContext {
 export interface TriggerStrategy {
   mode: TriggerMode;
 
-  // 決策階段
   decide(context: TriggerDecideContext): Promise<TriggerDecideResult[]>;
 
-  // 來源收集階段（可選，Direct 模式用到）
   collectSources?(context: CollectSourcesContext): Promise<CollectSourcesResult>;
 
-  // 觸發生命週期
   onTrigger(context: TriggerLifecycleContext): void;
   onComplete(context: CompletionContext, success: boolean, error?: string): void;
   onError(context: CompletionContext, errorMessage: string): void;
 
-  // 佇列生命週期
   onQueued(context: QueuedContext): void;
   onQueueProcessed(context: QueueProcessedContext): void;
 }

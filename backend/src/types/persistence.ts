@@ -20,7 +20,7 @@ export interface PersistedSubMessage {
  * Message stored in chat history
  */
 export interface PersistedMessage {
-  id: string; // Message UUID
+  id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: string; // ISO 8601 format
@@ -32,7 +32,7 @@ export interface PersistedMessage {
  */
 export interface ChatHistory {
   messages: PersistedMessage[];
-  lastUpdated: string; // ISO 8601 format
+  lastUpdated: string;
 }
 
 /**
@@ -44,20 +44,18 @@ export interface PersistedPod {
   color: PodColor;
   status: PodStatus;
   gitUrl: string | null;
-  createdAt: string; // ISO 8601 format
-  updatedAt: string; // ISO 8601 format
-  // Canvas-specific fields
+  createdAt: string;
+  updatedAt: string;
   x: number;
   y: number;
   rotation: number;
-  // Claude session management
-  claudeSessionId: string | null; // Claude SDK session ID for resume
-  outputStyleId: string | null; // Output style ID
-  skillIds: string[]; // Bound Skill IDs
-  subAgentIds?: string[]; // Bound SubAgent IDs
-  model: ModelType; // Model type for Claude API
-  repositoryId: string | null; // Bound Repository ID
-  commandId?: string | null; // Bound Command ID
+  claudeSessionId: string | null;
+  outputStyleId: string | null;
+  skillIds: string[];
+  subAgentIds?: string[];
+  model: ModelType;
+  repositoryId: string | null;
+  commandId?: string | null;
   needsForkSession?: boolean; // Flag to fork session on next query
   autoClear?: boolean; // Auto-clear messages after workflow completion
   schedule?: PersistedScheduleConfig; // Schedule configuration for automatic execution
@@ -76,5 +74,5 @@ export interface PersistedConnection {
   decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error';
   decideReason?: string | null;
   connectionStatus?: ConnectionStatus;
-  createdAt: string; // ISO 8601 format
+  createdAt: string;
 }

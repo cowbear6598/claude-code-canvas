@@ -34,7 +34,6 @@ class PodPersistenceService {
       needsForkSession: pod.needsForkSession,
     };
 
-    // 處理 schedule 序列化
     if (pod.schedule) {
       persisted.schedule = {
         ...pod.schedule,

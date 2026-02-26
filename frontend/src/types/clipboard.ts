@@ -65,9 +65,9 @@ export interface CopiedCommandNote {
 }
 
 export interface CopiedConnection {
-  sourcePodId: string      // 原始 source POD ID
+  sourcePodId: string
   sourceAnchor: AnchorPosition
-  targetPodId: string      // 原始 target POD ID
+  targetPodId: string
   targetAnchor: AnchorPosition
   autoTrigger?: boolean
 }

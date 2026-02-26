@@ -135,16 +135,13 @@ class ScheduleService {
   }
 
   private async fireSchedule(canvasId: string, pod: Pod, now: Date): Promise<void> {
-    // 檢查 Pod 是否為 idle
     if (pod.status !== 'idle') {
       logger.log('Schedule', 'Update', `Pod ${pod.id} is busy, skipping schedule fire`);
       return;
     }
 
-    // 更新最後觸發時間
     podStore.setScheduleLastTriggeredAt(canvasId, pod.id, now);
 
-    // 發送 SCHEDULE_FIRED 事件
     socketService.emitToCanvas(canvasId, WebSocketResponseEvents.SCHEDULE_FIRED, {
       podId: pod.id,
       timestamp: now.toISOString(),
@@ -152,7 +149,6 @@ class ScheduleService {
 
     logger.log('Schedule', 'Update', `Schedule fired for Pod ${pod.id}`);
 
-    // 發送空訊息給 Pod
     await this.sendScheduleMessage(canvasId, pod.id);
   }
 

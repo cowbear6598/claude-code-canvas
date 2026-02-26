@@ -3,7 +3,6 @@ import { Pod, PodColor, ModelType } from './pod.js';
 export interface CreatePodRequest {
   name: string;
   color: PodColor;
-  // Canvas-specific fields
   x: number;
   y: number;
   rotation: number;

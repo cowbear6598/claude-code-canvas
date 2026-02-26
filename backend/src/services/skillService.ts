@@ -6,10 +6,10 @@ import type {Skill} from '../types';
 import {isPathWithinDirectory, validatePodId, validateSkillId} from '../utils/pathValidator.js';
 import {fileExists, parseFrontmatterDescription} from './shared/fileResourceHelpers.js';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB（壓縮檔）
-const MAX_TOTAL_UNZIPPED_SIZE = 10 * 1024 * 1024; // 10MB（解壓後）
-const MAX_ENTRIES = 100; // 最多 100 個檔案
-const MAX_INDIVIDUAL_FILE_SIZE = 1 * 1024 * 1024; // 單檔 1MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_TOTAL_UNZIPPED_SIZE = 10 * 1024 * 1024;
+const MAX_ENTRIES = 100;
+const MAX_INDIVIDUAL_FILE_SIZE = 1 * 1024 * 1024;
 const MAX_DEPTH = 10;
 const MAX_FILES = 1000;
 const SKILL_FILE_NAME = 'SKILL.md';

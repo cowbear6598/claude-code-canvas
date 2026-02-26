@@ -2,10 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from './logger.js';
 
-// 取得當前模組的目錄路徑（ESM 模式）
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// 前端靜態檔案目錄（相對於 backend 根目錄）
 const FRONTEND_DIST_PATH = path.resolve(__dirname, '../../../frontend/dist');
 
 /**
@@ -57,7 +54,6 @@ export async function serveStaticFile(request: Request): Promise<Response> {
 		const url = new URL(request.url);
 		let pathname = url.pathname;
 
-		// 預設首頁
 		if (pathname === '/') {
 			pathname = '/index.html';
 		}
@@ -67,12 +63,10 @@ export async function serveStaticFile(request: Request): Promise<Response> {
 		const filePath = path.join(FRONTEND_DIST_PATH, safePath);
 		const resolvedPath = path.resolve(filePath);
 
-		// 確保請求的路徑在允許的目錄內
 		if (!resolvedPath.startsWith(FRONTEND_DIST_PATH)) {
 			return new Response('Forbidden', { status: 403 });
 		}
 
-		// 嘗試讀取檔案
 		const file = Bun.file(resolvedPath);
 		const exists = await file.exists();
 

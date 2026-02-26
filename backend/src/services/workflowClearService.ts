@@ -94,7 +94,6 @@ class WorkflowClearService {
               logger.error('AutoClear', 'Error', `[WorkflowClear] Error destroying session for Pod ${podId}`, error);
             });
 
-          // 清除該 Pod 所有出站 ai-decide connections 的 decideStatus
           const outgoingConnections = connectionStore.findBySourcePodId(canvasId, podId);
           for (const conn of outgoingConnections) {
             if (conn.triggerMode === 'ai-decide' && conn.decideStatus !== 'none') {
