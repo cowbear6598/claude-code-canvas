@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { randomUUID } from 'crypto';
 import { Result, ok, err } from '../../types';
 import { logger } from '../../utils/logger.js';
 import { fsOperation } from '../../utils/operationHelpers.js';
@@ -50,7 +51,7 @@ class PersistenceService {
     }
 
     return fsOperation(async () => {
-      const tempPath = `${filePath}.tmp.${Date.now()}`;
+      const tempPath = `${filePath}.tmp.${randomUUID()}`;
       const jsonContent = JSON.stringify(data, null, 2);
 
       try {

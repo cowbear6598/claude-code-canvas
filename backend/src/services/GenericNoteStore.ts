@@ -3,8 +3,9 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { Result, ok, err } from '../types';
 import { logger } from '../utils/logger.js';
-import { fireAndForget } from '../utils/operationHelpers.js';
 import { canvasStore } from './canvasStore.js';
+import { WriteQueue } from '../utils/writeQueue.js';
+import { persistenceService } from './persistence/index.js';
 import { readJsonFileOrDefault } from './shared/fileResourceHelpers.js';
 
 export interface BaseNote {
@@ -25,9 +26,11 @@ interface GenericNoteStoreConfig<T, K extends keyof T> {
 export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
   protected notesByCanvas: Map<string, Map<string, T>> = new Map();
   protected readonly config: GenericNoteStoreConfig<T, K>;
+  private writeQueue!: WriteQueue;
 
   constructor(storeConfig: GenericNoteStoreConfig<T, K>) {
     this.config = storeConfig;
+    this.writeQueue = new WriteQueue('Note', this.config.storeName);
   }
 
   private getOrCreateCanvasMap(canvasId: string): Map<string, T> {
@@ -107,24 +110,7 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
   }
 
   deleteByBoundPodId(canvasId: string, podId: string): string[] {
-    const notesToDelete = this.findByBoundPodId(canvasId, podId);
-    const deletedIds: string[] = [];
-
-    const notesMap = this.notesByCanvas.get(canvasId);
-    if (!notesMap) {
-      return deletedIds;
-    }
-
-    for (const note of notesToDelete) {
-      notesMap.delete(note.id);
-      deletedIds.push(note.id);
-    }
-
-    if (deletedIds.length > 0) {
-      this.saveToDiskAsync(canvasId);
-    }
-
-    return deletedIds;
+    return this.deleteByPredicate(canvasId, (note) => note.boundToPodId === podId);
   }
 
   findByForeignKey(canvasId: string, foreignKeyValue: string): T[] {
@@ -139,15 +125,18 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
   }
 
   deleteByForeignKey(canvasId: string, foreignKeyValue: string): string[] {
-    const notesToDelete = this.findByForeignKey(canvasId, foreignKeyValue);
-    const deletedIds: string[] = [];
+    return this.deleteByPredicate(canvasId, (note) => note[this.config.foreignKeyField] === foreignKeyValue);
+  }
 
+  private deleteByPredicate(canvasId: string, predicate: (note: T) => boolean): string[] {
     const notesMap = this.notesByCanvas.get(canvasId);
     if (!notesMap) {
-      return deletedIds;
+      return [];
     }
 
-    for (const note of notesToDelete) {
+    const deletedIds: string[] = [];
+    for (const note of notesMap.values()) {
+      if (!predicate(note)) continue;
       notesMap.delete(note.id);
       deletedIds.push(note.id);
     }
@@ -189,21 +178,18 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
 
     const notesFilePath = path.join(canvasDataDir, this.config.fileName);
 
-    await fs.mkdir(canvasDataDir, { recursive: true });
-
     const notesMap = this.notesByCanvas.get(canvasId);
     const notesArray = notesMap ? Array.from(notesMap.values()) : [];
-    await fs.writeFile(notesFilePath, JSON.stringify(notesArray, null, 2), 'utf-8');
-
-    return ok(undefined);
+    return persistenceService.writeJson(notesFilePath, notesArray);
   }
 
   saveToDiskAsync(canvasId: string): void {
-    fireAndForget(
-      this.saveToDisk(canvasId),
-      'Note',
-      `[${this.config.storeName}] Failed to persist notes for canvas ${canvasId}`
-    );
+    this.writeQueue.enqueue(canvasId, () => this.saveToDisk(canvasId).then(() => undefined));
+  }
+
+  /** 等待指定 Canvas 所有排隊中的磁碟寫入完成 */
+  flushWrites(canvasId: string): Promise<void> {
+    return this.writeQueue.flush(canvasId);
   }
 }
 

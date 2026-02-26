@@ -5,11 +5,12 @@ import type {PersistedPod} from '../types';
 import {podPersistenceService} from './persistence/podPersistence.js';
 import {socketService} from './socketService.js';
 import {logger} from '../utils/logger.js';
-import {fireAndForget} from '../utils/operationHelpers.js';
 import {canvasStore} from './canvasStore.js';
+import {WriteQueue} from '../utils/writeQueue.js';
 
 class PodStore {
     private podsByCanvas: Map<string, Map<string, Pod>> = new Map();
+    private writeQueue = new WriteQueue('Pod', 'PodStore');
 
     private getCanvasPods(canvasId: string): Map<string, Pod> {
         let pods = this.podsByCanvas.get(canvasId);
@@ -20,6 +21,11 @@ class PodStore {
         return pods;
     }
 
+    /** 等待指定 Pod 所有排隊中的磁碟寫入完成 */
+    flushWrites(podId: string): Promise<void> {
+        return this.writeQueue.flush(podId);
+    }
+
     private persistPodAsync(canvasId: string, pod: Pod, claudeSessionId?: string): void {
         const canvasDir = canvasStore.getCanvasDir(canvasId);
         if (!canvasDir) {
@@ -27,11 +33,12 @@ class PodStore {
             return;
         }
 
-        fireAndForget(
-            podPersistenceService.savePod(canvasDir, pod, claudeSessionId),
-            'Pod',
-            `[PodStore] Failed to persist Pod ${pod.id}`
-        );
+        this.writeQueue.enqueue(pod.id, async () => {
+            const result = await podPersistenceService.savePod(canvasDir, pod, claudeSessionId);
+            if (!result.success) {
+                logger.error('Pod', 'Error', `[PodStore] 持久化 Pod 失敗 (${pod.id}): ${result.error}`);
+            }
+        });
     }
 
     private modifyPod(canvasId: string, podId: string, updates: Partial<Pod>, persist = true, claudeSessionId?: string): Pod | undefined {
@@ -174,11 +181,13 @@ class PodStore {
             return false;
         }
 
-        fireAndForget(
-            podPersistenceService.deletePodData(canvasDir, id),
-            'Pod',
-            `[PodStore] Failed to delete Pod data ${id}`
-        );
+        this.writeQueue.enqueue(id, async () => {
+            const result = await podPersistenceService.deletePodData(canvasDir, id);
+            if (!result.success) {
+                logger.error('Pod', 'Delete', `[PodStore] 刪除 Pod 資料失敗 (${id}): ${result.error}`);
+            }
+        });
+        this.writeQueue.delete(id);
 
         return true;
     }
@@ -297,41 +306,24 @@ class PodStore {
 
     private validatePodData(persistedPod: PersistedPod): Result<void> {
         // 防禦性驗證：驗證必要欄位的型別和範圍，避免磁碟檔案被竄改時注入惡意值
-        if (persistedPod.id.trim() === '') {
-            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod ID: ${persistedPod.id}`);
-            return err('無效的 Pod ID');
-        }
-
-        if (persistedPod.name.trim() === '') {
-            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 名稱: ${persistedPod.name}`);
-            return err('無效的 Pod 名稱');
-        }
-
         const validColors: PodColor[] = ['blue', 'coral', 'pink', 'yellow', 'green'];
-        if (!validColors.includes(persistedPod.color)) {
-            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 顏色: ${persistedPod.color}`);
-            return err('無效的 Pod 顏色');
-        }
-
-        if (!Number.isFinite(persistedPod.x)) {
-            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod X 座標: ${persistedPod.x}`);
-            return err('無效的 Pod X 座標');
-        }
-
-        if (!Number.isFinite(persistedPod.y)) {
-            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod Y 座標: ${persistedPod.y}`);
-            return err('無效的 Pod Y 座標');
-        }
-
-        if (!Number.isFinite(persistedPod.rotation)) {
-            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 旋轉角度: ${persistedPod.rotation}`);
-            return err('無效的 Pod 旋轉角度');
-        }
-
         const validStatuses: PodStatus[] = ['idle', 'chatting', 'summarizing', 'error'];
-        if (!validStatuses.includes(persistedPod.status)) {
-            logger.log('Pod', 'Load', `[PodStore] 無效的 Pod 狀態: ${persistedPod.status}`);
-            return err('無效的 Pod 狀態');
+
+        const rules: Array<{ check: boolean; errorMsg: string }> = [
+            {check: persistedPod.id.trim() === '', errorMsg: '無效的 Pod ID'},
+            {check: persistedPod.name.trim() === '', errorMsg: '無效的 Pod 名稱'},
+            {check: !validColors.includes(persistedPod.color), errorMsg: '無效的 Pod 顏色'},
+            {check: !Number.isFinite(persistedPod.x), errorMsg: '無效的 Pod X 座標'},
+            {check: !Number.isFinite(persistedPod.y), errorMsg: '無效的 Pod Y 座標'},
+            {check: !Number.isFinite(persistedPod.rotation), errorMsg: '無效的 Pod 旋轉角度'},
+            {check: !validStatuses.includes(persistedPod.status), errorMsg: '無效的 Pod 狀態'},
+        ];
+
+        for (const {check, errorMsg} of rules) {
+            if (check) {
+                logger.log('Pod', 'Load', `[PodStore] ${errorMsg}: ${persistedPod.id}`);
+                return err(errorMsg);
+            }
         }
 
         return ok(undefined);
@@ -380,6 +372,21 @@ class PodStore {
         return pod;
     }
 
+    private async loadSinglePod(podId: string, canvasDir: string, pods: Map<string, Pod>): Promise<void> {
+        const persistedPod = await podPersistenceService.loadPod(canvasDir, podId);
+        if (!persistedPod) {
+            return;
+        }
+
+        const pod = this.deserializePod(persistedPod, canvasDir);
+        if (!pod) {
+            logger.log('Pod', 'Load', `[PodStore] 跳過無效的 Pod: ${podId}`);
+            return;
+        }
+
+        pods.set(pod.id, pod);
+    }
+
     async loadFromDisk(canvasId: string, canvasDir: string): Promise<Result<void>> {
         const result = await podPersistenceService.listAllPodIds(canvasDir);
         if (!result.success) {
@@ -390,17 +397,7 @@ class PodStore {
         const pods = this.getCanvasPods(canvasId);
 
         for (const podId of podIds) {
-            const persistedPod = await podPersistenceService.loadPod(canvasDir, podId);
-            if (!persistedPod) {
-                continue;
-            }
-
-            const pod = this.deserializePod(persistedPod, canvasDir);
-            if (!pod) {
-                logger.log('Pod', 'Load', `[PodStore] 跳過無效的 Pod: ${podId}`);
-                continue;
-            }
-            pods.set(pod.id, pod);
+            await this.loadSinglePod(podId, canvasDir, pods);
         }
 
         logger.log('Pod', 'Load', `[PodStore] Successfully loaded ${pods.size} Pods for canvas ${canvasId}`);

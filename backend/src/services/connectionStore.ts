@@ -5,8 +5,9 @@ import type {Connection, AnchorPosition, TriggerMode, DecideStatus, ConnectionSt
 import type {PersistedConnection} from '../types';
 import {Result, ok, err} from '../types';
 import {logger} from '../utils/logger.js';
-import {fireAndForget} from '../utils/operationHelpers.js';
 import {canvasStore} from './canvasStore.js';
+import {WriteQueue} from '../utils/writeQueue.js';
+import {persistenceService} from './persistence/index.js';
 import {readJsonFileOrDefault} from './shared/fileResourceHelpers.js';
 
 interface CreateConnectionData {
@@ -19,6 +20,7 @@ interface CreateConnectionData {
 
 class ConnectionStore {
     private connectionsByCanvas: Map<string, Map<string, Connection>> = new Map();
+    private writeQueue = new WriteQueue('Connection', 'ConnectionStore');
 
     private getOrCreateCanvasMap(canvasId: string): Map<string, Connection> {
         let connectionsMap = this.connectionsByCanvas.get(canvasId);
@@ -228,8 +230,6 @@ class ConnectionStore {
 
         const connectionsFilePath = path.join(canvasDataDir, 'connections.json');
 
-        await fs.mkdir(canvasDataDir, {recursive: true});
-
         const connectionsMap = this.connectionsByCanvas.get(canvasId);
         const connectionsArray = connectionsMap ? Array.from(connectionsMap.values()) : [];
         const persistedConnections: PersistedConnection[] = connectionsArray.map((connection) => ({
@@ -245,21 +245,16 @@ class ConnectionStore {
             createdAt: connection.createdAt.toISOString(),
         }));
 
-        await fs.writeFile(
-            connectionsFilePath,
-            JSON.stringify(persistedConnections, null, 2),
-            'utf-8'
-        );
+        return persistenceService.writeJson(connectionsFilePath, persistedConnections);
+    }
 
-        return ok(undefined);
+    /** 等待指定 Canvas 所有排隊中的磁碟寫入完成 */
+    flushWrites(canvasId: string): Promise<void> {
+        return this.writeQueue.flush(canvasId);
     }
 
     private saveToDiskAsync(canvasId: string): void {
-        fireAndForget(
-            this.saveToDisk(canvasId),
-            'Connection',
-            `[ConnectionStore] Failed to persist connections for canvas ${canvasId}`
-        );
+        this.writeQueue.enqueue(canvasId, () => this.saveToDisk(canvasId).then(() => undefined));
     }
 
     updateDecideStatus(canvasId: string, connectionId: string, status: DecideStatus, reason: string | null): Connection | undefined {
