@@ -12,6 +12,25 @@ function getAutoTriggerTargets(canvasId: string, podId: string): string[] {
     return triggerableConnections.map((conn) => conn.targetPodId);
 }
 
+function isTerminalPod(podId: string, sourcePodId: string, hasAutoTriggerTargets: boolean): boolean {
+    return podId !== sourcePodId && !hasAutoTriggerTargets;
+}
+
+function visitAutoTriggerTargets(
+    canvasId: string,
+    currentPodId: string,
+    visitedPodIds: Set<string>,
+    pendingPodIds: string[]
+): void {
+    const autoTriggerTargets = getAutoTriggerTargets(canvasId, currentPodId);
+    for (const targetPodId of autoTriggerTargets) {
+        if (!visitedPodIds.has(targetPodId)) {
+            visitedPodIds.add(targetPodId);
+            pendingPodIds.push(targetPodId);
+        }
+    }
+}
+
 class AutoClearService {
     findTerminalPods(canvasId: string, sourcePodId: string): string[] {
         const visitedPodIds = new Set<string>();
@@ -25,18 +44,11 @@ class AutoClearService {
             const autoTriggerTargets = getAutoTriggerTargets(canvasId, currentPodId);
             const hasAutoTriggerTargets = autoTriggerTargets.length > 0;
 
-            if (currentPodId !== sourcePodId && !hasAutoTriggerTargets) {
+            if (isTerminalPod(currentPodId, sourcePodId, hasAutoTriggerTargets)) {
                 terminalPodIds.push(currentPodId);
             }
 
-            if (hasAutoTriggerTargets) {
-                for (const targetPodId of autoTriggerTargets) {
-                    if (!visitedPodIds.has(targetPodId)) {
-                        visitedPodIds.add(targetPodId);
-                        pendingPodIds.push(targetPodId);
-                    }
-                }
-            }
+            visitAutoTriggerTargets(canvasId, currentPodId, visitedPodIds, pendingPodIds);
         }
 
         logger.log('AutoClear', 'List', `Found ${terminalPodIds.length} terminal PODs for source ${sourcePodId}: ${terminalPodIds.join(', ')}`);

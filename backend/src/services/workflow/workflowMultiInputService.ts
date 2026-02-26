@@ -35,6 +35,32 @@ class WorkflowMultiInputService {
     this.strategies = dependencies.strategies;
   }
 
+  private isTargetPodBusy(targetPod: ReturnType<typeof podStore.getById>): boolean {
+    return !!targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing');
+  }
+
+  private enqueueIfBusy(
+    canvasId: string,
+    connection: Connection,
+    completedSummaries: Map<string, string>,
+    mergedContent: string,
+    triggerMode: 'auto' | 'ai-decide'
+  ): void {
+    logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is busy, enqueuing merged workflow`);
+
+    workflowQueueService.enqueue({
+      canvasId,
+      connectionId: connection.id,
+      sourcePodId: Array.from(completedSummaries.keys())[0],
+      targetPodId: connection.targetPodId,
+      summary: mergedContent,
+      isSummarized: true,
+      triggerMode,
+    });
+
+    pendingTargetStore.clearPendingTarget(connection.targetPodId);
+  }
+
   async handleMultiInputForConnection(
     canvasId: string,
     sourcePodId: string,
@@ -77,20 +103,8 @@ class WorkflowMultiInputService {
     );
 
     const targetPod = podStore.getById(canvasId, connection.targetPodId);
-    if (targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing')) {
-      logger.log('Workflow', 'Update', `Target Pod ${connection.targetPodId} is ${targetPod.status}, enqueuing merged workflow`);
-
-      workflowQueueService.enqueue({
-        canvasId,
-        connectionId: connection.id,
-        sourcePodId: Array.from(completedSummaries.keys())[0],
-        targetPodId: connection.targetPodId,
-        summary: mergedContent,
-        isSummarized: true,
-        triggerMode,
-      });
-
-      pendingTargetStore.clearPendingTarget(connection.targetPodId);
+    if (this.isTargetPodBusy(targetPod)) {
+      this.enqueueIfBusy(canvasId, connection, completedSummaries, mergedContent, triggerMode);
       return;
     }
 

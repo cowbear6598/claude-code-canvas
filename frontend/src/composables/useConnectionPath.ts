@@ -12,6 +12,28 @@ export interface ArrowPosition {
   angle: number
 }
 
+function applyAnchorOffset(
+  baseX: number,
+  baseY: number,
+  anchor: AnchorPosition,
+  offset: number
+): { x: number; y: number } {
+  let x = baseX
+  let y = baseY
+
+  if (anchor === 'top') {
+    y -= offset
+  } else if (anchor === 'bottom') {
+    y += offset
+  } else if (anchor === 'left') {
+    x -= offset
+  } else if (anchor === 'right') {
+    x += offset
+  }
+
+  return { x, y }
+}
+
 export function useConnectionPath(): {
   calculatePathData: (startX: number, startY: number, endX: number, endY: number, sourceAnchor: AnchorPosition, targetAnchor: AnchorPosition) => PathData
   calculateMultipleArrowPositions: (startX: number, startY: number, endX: number, endY: number, sourceAnchor: AnchorPosition, targetAnchor: AnchorPosition, spacing?: number) => ArrowPosition[]
@@ -29,32 +51,10 @@ export function useConnectionPath(): {
     const distance = Math.sqrt(dx * dx + dy * dy)
     const offset = Math.min(distance * 0.3, 100)
 
-    let cp1x = startX
-    let cp1y = startY
-    let cp2x = endX
-    let cp2y = endY
+    const cp1 = applyAnchorOffset(startX, startY, sourceAnchor, offset)
+    const cp2 = applyAnchorOffset(endX, endY, targetAnchor, offset)
 
-    if (sourceAnchor === 'top') {
-      cp1y -= offset
-    } else if (sourceAnchor === 'bottom') {
-      cp1y += offset
-    } else if (sourceAnchor === 'left') {
-      cp1x -= offset
-    } else if (sourceAnchor === 'right') {
-      cp1x += offset
-    }
-
-    if (targetAnchor === 'top') {
-      cp2y -= offset
-    } else if (targetAnchor === 'bottom') {
-      cp2y += offset
-    } else if (targetAnchor === 'left') {
-      cp2x -= offset
-    } else if (targetAnchor === 'right') {
-      cp2x += offset
-    }
-
-    return { cp1x, cp1y, cp2x, cp2y }
+    return { cp1x: cp1.x, cp1y: cp1.y, cp2x: cp2.x, cp2y: cp2.y }
   }
 
   const calculateBezierPoint = (

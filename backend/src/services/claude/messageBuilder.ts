@@ -26,38 +26,44 @@ export type SDKUserMessage = {
   session_id: string;
 };
 
+function processTextBlock(text: string): ClaudeTextContent | null {
+  if (text.trim().length === 0) {
+    return null;
+  }
+  return { type: 'text', text };
+}
+
+function processImageBlock(block: Extract<ContentBlock, { type: 'image' }>): ClaudeImageContent {
+  return {
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: block.mediaType,
+      data: block.base64Data,
+    },
+  };
+}
+
 export function buildClaudeContentBlocks(
   message: ContentBlock[],
   commandId: string | null
 ): ClaudeMessageContent[] {
+  const prefix = commandId ? `/${commandId} ` : '';
+  let prefixApplied = false;
   const contentArray: ClaudeMessageContent[] = [];
-  let isFirstTextBlock = true;
 
   for (const block of message) {
     if (block.type === 'text') {
-      let text = block.text;
-      if (isFirstTextBlock && commandId) {
-        text = `/${commandId} ${text}`;
-        isFirstTextBlock = false;
+      const text = !prefixApplied && prefix ? `${prefix}${block.text}` : block.text;
+      if (!prefixApplied && prefix) {
+        prefixApplied = true;
       }
-
-      if (text.trim().length === 0) {
-        continue;
+      const result = processTextBlock(text);
+      if (result) {
+        contentArray.push(result);
       }
-
-      contentArray.push({
-        type: 'text',
-        text,
-      });
     } else if (block.type === 'image') {
-      contentArray.push({
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: block.mediaType,
-          data: block.base64Data,
-        },
-      });
+      contentArray.push(processImageBlock(block));
     }
   }
 

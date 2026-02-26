@@ -10,6 +10,46 @@ import {
 } from '../../types/index.js';
 import { logger } from '../../utils/logger.js';
 
+function emitMergedIfAllComplete(
+  canvasId: string,
+  targetPodId: string,
+  emitPendingStatus: (canvasId: string, targetPodId: string) => void
+): boolean {
+  const pending = pendingTargetStore.getPendingTarget(targetPodId);
+  if (!pending) {
+    return false;
+  }
+
+  if (pending.requiredSourcePodIds.length === 0) {
+    pendingTargetStore.clearPendingTarget(targetPodId);
+    return true;
+  }
+
+  const allComplete = pending.completedSources.size >= pending.requiredSourcePodIds.length;
+  if (!allComplete) {
+    emitPendingStatus(canvasId, targetPodId);
+    return false;
+  }
+
+  const completedSummaries = pendingTargetStore.getCompletedSummaries(targetPodId);
+  if (!completedSummaries) {
+    return false;
+  }
+
+  const mergedContent = formatMergedSummaries(completedSummaries, (podId) => podStore.getById(canvasId, podId));
+  const sourcePodIds = Array.from(completedSummaries.keys());
+
+  const mergedPayload: WorkflowSourcesMergedPayload = {
+    canvasId,
+    targetPodId,
+    sourcePodIds,
+    mergedContentPreview: mergedContent.substring(0, 200),
+  };
+
+  workflowEventEmitter.emitWorkflowSourcesMerged(canvasId, targetPodId, sourcePodIds, mergedPayload);
+  return true;
+}
+
 class WorkflowStateService {
 
   checkMultiInputScenario(canvasId: string, targetPodId: string): { isMultiInput: boolean; requiredSourcePodIds: string[] } {
@@ -56,71 +96,40 @@ class WorkflowStateService {
     logger.log('Workflow', 'Update', `Updated pending target ${targetPodId}: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources`);
   }
 
+  private processAffectedTarget(canvasId: string, targetPodId: string): void {
+    const pending = pendingTargetStore.getPendingTarget(targetPodId);
+    if (!pending) {
+      return;
+    }
+
+    if (pending.requiredSourcePodIds.length === 0) {
+      pendingTargetStore.clearPendingTarget(targetPodId);
+      logger.log('Workflow', 'Delete', `Cleared pending target ${targetPodId} - no sources remaining`);
+      return;
+    }
+
+    logger.log('Workflow', 'Update', `Source deleted, but remaining sources complete for ${targetPodId}`);
+    emitMergedIfAllComplete(canvasId, targetPodId, this.emitPendingStatus.bind(this));
+  }
+
   handleSourceDeletion(canvasId: string, sourcePodId: string): string[] {
     const affectedTargetIds = pendingTargetStore.removeSourceFromAllPending(sourcePodId);
 
     for (const targetPodId of affectedTargetIds) {
-      const pending = pendingTargetStore.getPendingTarget(targetPodId);
-      if (!pending) {
-        continue;
-      }
-
-      if (pending.requiredSourcePodIds.length === 0) {
-        pendingTargetStore.clearPendingTarget(targetPodId);
-        logger.log('Workflow', 'Delete', `Cleared pending target ${targetPodId} - no sources remaining`);
-        continue;
-      }
-
-      const allComplete = pending.completedSources.size >= pending.requiredSourcePodIds.length;
-
-      if (!allComplete) {
-        this.emitPendingStatus(canvasId, targetPodId);
-        continue;
-      }
-
-      logger.log('Workflow', 'Update', `Source deleted, but remaining sources complete for ${targetPodId}`);
-
-      const completedSummaries = pendingTargetStore.getCompletedSummaries(targetPodId);
-      if (!completedSummaries) {
-        continue;
-      }
-
-      const mergedContent = formatMergedSummaries(completedSummaries, (podId) => podStore.getById(canvasId, podId));
-      const sourcePodIds = Array.from(completedSummaries.keys());
-
-      const mergedPayload: WorkflowSourcesMergedPayload = {
-        canvasId,
-        targetPodId,
-        sourcePodIds,
-        mergedContentPreview: mergedContent.substring(0, 200),
-      };
-
-      workflowEventEmitter.emitWorkflowSourcesMerged(canvasId, targetPodId, sourcePodIds, mergedPayload);
+      this.processAffectedTarget(canvasId, targetPodId);
     }
 
     return affectedTargetIds;
   }
 
-  handleConnectionDeletion(canvasId: string, connectionId: string): void {
-    const connection = connectionStore.getById(canvasId, connectionId);
-    if (!connection) {
-      return;
+  private handleDirectConnectionDeletion(targetPodId: string): void {
+    if (directTriggerStore.hasDirectPending(targetPodId)) {
+      directTriggerStore.clearDirectPending(targetPodId);
+      logger.log('Workflow', 'Delete', `Cleared direct pending for target ${targetPodId} - connection deleted`);
     }
+  }
 
-    const { sourcePodId, targetPodId, triggerMode } = connection;
-
-    if (triggerMode === 'direct') {
-      if (directTriggerStore.hasDirectPending(targetPodId)) {
-        directTriggerStore.clearDirectPending(targetPodId);
-        logger.log('Workflow', 'Delete', `Cleared direct pending for target ${targetPodId} - connection deleted`);
-      }
-      return;
-    }
-
-    if (triggerMode !== 'auto' && triggerMode !== 'ai-decide') {
-      return;
-    }
-
+  private handleMultiInputConnectionDeletion(canvasId: string, sourcePodId: string, targetPodId: string): void {
     if (!pendingTargetStore.hasPendingTarget(targetPodId)) {
       return;
     }
@@ -138,31 +147,28 @@ class WorkflowStateService {
       return;
     }
 
-    const allComplete = pending.completedSources.size >= pending.requiredSourcePodIds.length;
-
-    if (!allComplete) {
-      this.emitPendingStatus(canvasId, targetPodId);
-      return;
-    }
-
     logger.log('Workflow', 'Update', `Connection deleted, but remaining sources complete for ${targetPodId}`);
+    emitMergedIfAllComplete(canvasId, targetPodId, this.emitPendingStatus.bind(this));
+  }
 
-    const completedSummaries = pendingTargetStore.getCompletedSummaries(targetPodId);
-    if (!completedSummaries) {
+  handleConnectionDeletion(canvasId: string, connectionId: string): void {
+    const connection = connectionStore.getById(canvasId, connectionId);
+    if (!connection) {
       return;
     }
 
-    const mergedContent = formatMergedSummaries(completedSummaries, (podId) => podStore.getById(canvasId, podId));
-    const sourcePodIds = Array.from(completedSummaries.keys());
+    const { sourcePodId, targetPodId, triggerMode } = connection;
 
-    const mergedPayload: WorkflowSourcesMergedPayload = {
-      canvasId,
-      targetPodId,
-      sourcePodIds,
-      mergedContentPreview: mergedContent.substring(0, 200),
-    };
+    if (triggerMode === 'direct') {
+      this.handleDirectConnectionDeletion(targetPodId);
+      return;
+    }
 
-    workflowEventEmitter.emitWorkflowSourcesMerged(canvasId, targetPodId, sourcePodIds, mergedPayload);
+    if (triggerMode !== 'auto' && triggerMode !== 'ai-decide') {
+      return;
+    }
+
+    this.handleMultiInputConnectionDeletion(canvasId, sourcePodId, targetPodId);
   }
 }
 

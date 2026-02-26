@@ -267,38 +267,36 @@ export const handlePodSetModel = withCanvasId<PodSetModelPayload>(
     }
 );
 
+function buildScheduleUpdates(
+    schedule: NonNullable<PodSetSchedulePayload['schedule']> | null,
+    existingSchedule: Pod['schedule']
+): Record<string, unknown> {
+    if (schedule === null) {
+        return {schedule: null};
+    }
+
+    const isEnabling = schedule.enabled && (!existingSchedule || !existingSchedule.enabled);
+    const lastTriggeredAt = isEnabling ? new Date() : (existingSchedule?.lastTriggeredAt ?? null);
+
+    return {
+        schedule: {
+            ...schedule,
+            lastTriggeredAt,
+        },
+    };
+}
+
 export const handlePodSetSchedule = withCanvasId<PodSetSchedulePayload>(
     WebSocketResponseEvents.POD_SCHEDULE_SET,
     async (connectionId: string, canvasId: string, payload: PodSetSchedulePayload, requestId: string): Promise<void> => {
         const {podId, schedule} = payload;
 
         const existingPod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_SCHEDULE_SET, requestId);
-
         if (!existingPod) {
             return;
         }
 
-        const updates: Record<string, unknown> = {};
-
-        if (schedule === null) {
-            updates.schedule = null;
-        } else {
-            const existingSchedule = existingPod.schedule;
-            const isEnabling = schedule.enabled && (!existingSchedule || !existingSchedule.enabled);
-
-            let lastTriggeredAt: Date | null;
-            if (isEnabling) {
-                lastTriggeredAt = new Date();
-            } else {
-                lastTriggeredAt = existingSchedule?.lastTriggeredAt ?? null;
-            }
-
-            updates.schedule = {
-                ...schedule,
-                lastTriggeredAt,
-            };
-        }
-
+        const updates = buildScheduleUpdates(schedule, existingPod.schedule);
         const updatedPod = podStore.update(canvasId, podId, updates);
 
         if (!updatedPod) {

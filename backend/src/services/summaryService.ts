@@ -5,6 +5,7 @@ import { messageStore } from './messageStore.js';
 import { outputStyleService } from './outputStyleService.js';
 import { commandService } from './commandService.js';
 import { logger } from '../utils/logger.js';
+import type { Pod, PersistedMessage } from '../types/index.js';
 
 interface TargetSummaryResult {
   targetPodId: string;
@@ -13,65 +14,65 @@ interface TargetSummaryResult {
   error?: string;
 }
 
+async function buildSummaryContext(sourcePod: Pod, targetPod: Pod, messages: PersistedMessage[]): Promise<{
+  sourcePodName: string;
+  sourcePodOutputStyle: string | null;
+  targetPodName: string;
+  targetPodOutputStyle: string | null;
+  targetPodCommand: string | null;
+  conversationHistory: string;
+}> {
+  const sourcePodOutputStyle = sourcePod.outputStyleId
+    ? await outputStyleService.getContent(sourcePod.outputStyleId)
+    : null;
+
+  const targetPodOutputStyle = targetPod.outputStyleId
+    ? await outputStyleService.getContent(targetPod.outputStyleId)
+    : null;
+
+  const targetPodCommand = targetPod.commandId
+    ? await commandService.getContent(targetPod.commandId)
+    : null;
+
+  const conversationHistory = summaryPromptBuilder.formatConversationHistory(messages);
+
+  return {
+    sourcePodName: sourcePod.name,
+    sourcePodOutputStyle,
+    targetPodName: targetPod.name,
+    targetPodOutputStyle,
+    targetPodCommand,
+    conversationHistory,
+  };
+}
+
+function getFallbackContent(messages: PersistedMessage[]): string | null {
+  const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
+  if (assistantMessages.length === 0) {
+    return null;
+  }
+  return assistantMessages[assistantMessages.length - 1].content;
+}
+
 class SummaryService {
-    async generateSummaryForTarget(canvasId: string, sourcePodId: string, targetPodId: string): Promise<TargetSummaryResult> {
+  async generateSummaryForTarget(canvasId: string, sourcePodId: string, targetPodId: string): Promise<TargetSummaryResult> {
     const sourcePod = podStore.getById(canvasId, sourcePodId);
     if (!sourcePod) {
-      return {
-        targetPodId,
-        summary: '',
-        success: false,
-        error: `Source Pod ${sourcePodId} not found`,
-      };
+      return { targetPodId, summary: '', success: false, error: `Source Pod ${sourcePodId} not found` };
     }
 
     const targetPod = podStore.getById(canvasId, targetPodId);
     if (!targetPod) {
-      return {
-        targetPodId,
-        summary: '',
-        success: false,
-        error: `Target Pod ${targetPodId} not found`,
-      };
+      return { targetPodId, summary: '', success: false, error: `Target Pod ${targetPodId} not found` };
     }
 
     const messages = messageStore.getMessages(sourcePodId);
     if (messages.length === 0) {
-      return {
-        targetPodId,
-        summary: '',
-        success: false,
-        error: `Source Pod ${sourcePodId} has no messages`,
-      };
+      return { targetPodId, summary: '', success: false, error: `Source Pod ${sourcePodId} has no messages` };
     }
 
-    let sourcePodOutputStyle: string | null = null;
-    if (sourcePod.outputStyleId) {
-      sourcePodOutputStyle = await outputStyleService.getContent(sourcePod.outputStyleId);
-    }
-
-    let targetPodOutputStyle: string | null = null;
-    if (targetPod.outputStyleId) {
-      targetPodOutputStyle = await outputStyleService.getContent(targetPod.outputStyleId);
-    }
-
-    let targetPodCommand: string | null = null;
-    if (targetPod.commandId) {
-      targetPodCommand = await commandService.getContent(targetPod.commandId);
-    }
-
-    const conversationHistory = summaryPromptBuilder.formatConversationHistory(messages);
-
-    const context = {
-      sourcePodName: sourcePod.name,
-      sourcePodOutputStyle,
-      targetPodName: targetPod.name,
-      targetPodOutputStyle,
-      targetPodCommand,
-      conversationHistory,
-    };
-
-    const systemPrompt = summaryPromptBuilder.buildSystemPrompt(sourcePodOutputStyle);
+    const context = await buildSummaryContext(sourcePod, targetPod, messages);
+    const systemPrompt = summaryPromptBuilder.buildSystemPrompt(context.sourcePodOutputStyle);
     const userPrompt = summaryPromptBuilder.buildUserPrompt(context);
 
     const result = await disposableChatService.executeDisposableChat({
@@ -83,29 +84,15 @@ class SummaryService {
     if (!result.success) {
       logger.error('Workflow', 'Error', `[SummaryService] Failed to generate summary for target ${targetPodId}: ${result.error}`);
 
-      const assistantMessages = messages.filter((msg) => msg.role === 'assistant');
-      if (assistantMessages.length > 0) {
-        const fallbackSummary = assistantMessages[assistantMessages.length - 1].content;
-        return {
-          targetPodId,
-          summary: fallbackSummary,
-          success: true,
-        };
+      const fallbackContent = getFallbackContent(messages);
+      if (fallbackContent !== null) {
+        return { targetPodId, summary: fallbackContent, success: true };
       }
 
-      return {
-        targetPodId,
-        summary: '',
-        success: false,
-        error: result.error,
-      };
+      return { targetPodId, summary: '', success: false, error: result.error };
     }
 
-    return {
-      targetPodId,
-      summary: result.content,
-      success: true,
-    };
+    return { targetPodId, summary: result.content, success: true };
   }
 }
 
