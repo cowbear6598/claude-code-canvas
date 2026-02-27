@@ -320,7 +320,7 @@ class CanvasStore {
             this.canvases.set(canvas.id, canvas);
         }
 
-        logger.log('Canvas', 'Load', `Loaded ${this.canvases.size} canvases`);
+        logger.log('Canvas', 'Load', `已載入 ${this.canvases.size} 個畫布`);
         return ok(undefined);
     }
 

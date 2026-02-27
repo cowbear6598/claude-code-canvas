@@ -166,7 +166,8 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
 
     this.notesByCanvas.set(canvasId, notesMap);
 
-    logger.log('Note', 'Load', `[${this.config.storeName}] Loaded ${notesMap.size} notes for canvas ${canvasId}`);
+    const canvasName = canvasStore.getById(canvasId)?.name ?? canvasId;
+    logger.log('Note', 'Load', `[${this.config.storeName}] 已載入 ${notesMap.size} 個筆記，畫布 ${canvasName}`);
     return ok(undefined);
   }
 

@@ -104,7 +104,7 @@ class ScheduleService {
       this.tick();
     }, TICK_INTERVAL_MS);
 
-    logger.log('Schedule', 'Create', 'Schedule scheduler started');
+    logger.log('Schedule', 'Create', '排程器已啟動');
   }
 
   stop(): void {

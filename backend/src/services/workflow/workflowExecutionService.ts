@@ -47,10 +47,6 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     targetPodId: string
   ): Promise<{ content: string; isSummarized: boolean } | null> {
     podStore.setStatus(canvasId, sourcePodId, 'summarizing');
-    const sourcePod = podStore.getById(canvasId, sourcePodId);
-    const targetPod = podStore.getById(canvasId, targetPodId);
-    logger.log('Workflow', 'Create', `Generating customized summary for source POD "${sourcePod?.name ?? sourcePodId}" to target POD "${targetPod?.name ?? targetPodId}"`);
-
     let summaryResult: Awaited<ReturnType<typeof summaryService.generateSummaryForTarget>>;
     try {
       summaryResult = await summaryService.generateSummaryForTarget(
@@ -221,7 +217,6 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
             { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode },
             true
           );
-          logger.log('Workflow', 'Complete', `Completed workflow for connection ${connectionId}, target Pod "${targetPod?.name ?? targetPodId}"`);
           await autoClearService.onPodComplete(canvasId, targetPodId);
           // 刻意不 await：下游 workflow 觸發獨立於當前查詢完成流程
           fireAndForget(

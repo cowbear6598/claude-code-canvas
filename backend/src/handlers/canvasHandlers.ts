@@ -185,7 +185,8 @@ export async function handleCanvasSwitch(
     canvasId: payload.canvasId,
   });
 
-  logger.log('Canvas', 'Switch', `Connection ${connectionId} switched to canvas ${payload.canvasId}`);
+  const canvasName = canvasStore.getById(payload.canvasId)?.name ?? payload.canvasId;
+  logger.log('Canvas', 'Switch', `連線 ${connectionId} 切換至畫布 ${canvasName}`);
 }
 
 export async function handleCanvasReorder(

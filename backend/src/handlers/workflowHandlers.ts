@@ -95,7 +95,7 @@ export const handleWorkflowClear = withCanvasId<WorkflowClearPayload>(
     logger.log(
       'Workflow',
       'Complete',
-      `Cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`
+      `已清除 ${result.clearedPodIds.length} 個 Pod：${result.clearedPodNames.join(', ')}`
     );
   }
 );

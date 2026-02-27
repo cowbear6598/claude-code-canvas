@@ -50,11 +50,6 @@ class AutoClearService {
             this.enqueueAutoTriggerTargets(autoTriggerTargets, visitedPodIds, pendingPodIds, propagatedCounts, updatedCount);
         }
 
-        const terminalSummary = Array.from(terminalPods.entries())
-            .map(([podId, count]) => `${podId}(x${count})`)
-            .join(', ');
-        logger.log('AutoClear', 'List', `Found ${terminalPods.size} terminal PODs for source ${sourcePodId}: ${terminalSummary}`);
-
         return terminalPods;
     }
 
@@ -72,7 +67,6 @@ class AutoClearService {
         const {allComplete, sourcePodId} = terminalPodTracker.recordCompletion(podId);
 
         if (allComplete && sourcePodId) {
-            logger.log('AutoClear', 'Complete', `All terminal PODs complete for source ${sourcePodId}, executing auto-clear`);
             // 先同步清除追蹤，避免 await 期間重入
             terminalPodTracker.clearTracking(sourcePodId);
             await this.executeAutoClear(canvasId, sourcePodId);
@@ -84,7 +78,6 @@ class AutoClearService {
         }
 
         if (this.hasOutgoingAutoTrigger(canvasId, podId)) {
-            logger.log('AutoClear', 'Update', `POD ${podId} has auto-trigger connections, skipping standalone auto-clear`);
             return;
         }
 
@@ -133,7 +126,6 @@ class AutoClearService {
     }
 
     async executeAutoClear(canvasId: string, sourcePodId: string): Promise<void> {
-        logger.log('AutoClear', 'Complete', `Executing auto-clear for source POD ${sourcePodId}`);
 
         const result = await workflowClearService.clearWorkflow(canvasId, sourcePodId);
 
@@ -155,7 +147,7 @@ class AutoClearService {
             workflowEventEmitter.emitAiDecideClear(canvasId, result.clearedConnectionIds);
         }
 
-        logger.log('AutoClear', 'Complete', `Successfully cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`);
+        logger.log('AutoClear', 'Complete', `成功清除 ${result.clearedPodIds.length} 個 Pod：${result.clearedPodNames.join(', ')}`);
     }
 
     // 通用 BFS 工具：沿著 auto connection 遍歷圖，對每個節點呼叫 visitor

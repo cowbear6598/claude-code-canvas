@@ -22,7 +22,7 @@ class SocketService {
 		}
 
 		this.initialized = true;
-		logger.log('Startup', 'Complete', '[WebSocket] Service initialized');
+		logger.log('Startup', 'Complete', '[WebSocket] 服務已初始化');
 
 		this.startHeartbeat();
 	}
@@ -122,7 +122,7 @@ class SocketService {
 			}
 		}, this.HEARTBEAT_INTERVAL);
 
-		logger.log('Startup', 'Complete', '[Heartbeat] Started');
+		logger.log('Startup', 'Complete', '[Heartbeat] 已啟動');
 	}
 
 	private sendHeartbeatPing(connectionId: string): void {

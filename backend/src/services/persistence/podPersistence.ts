@@ -105,7 +105,7 @@ class PodPersistenceService {
       podIds.push(podId);
     }
 
-    logger.log('Startup', 'Load', `[PodPersistence] Found ${podIds.length} Pods on disk`);
+    logger.log('Startup', 'Load', `[PodPersistence] 在磁碟上找到 ${podIds.length} 個 Pod`);
     return ok(podIds);
   }
 }

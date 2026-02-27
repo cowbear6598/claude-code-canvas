@@ -27,10 +27,6 @@ class TerminalPodTracker {
       createdAt: new Date(),
     });
 
-    const terminalPodSummary = Array.from(expectedCounts.entries())
-      .map(([podId, count]) => `${podId}(x${count})`)
-      .join(', ');
-    logger.log('AutoClear', 'Create', `Initialized tracking for source ${sourcePodId}, terminal PODs: ${terminalPodSummary}`);
   }
 
   recordCompletion(podId: string): { allComplete: boolean; sourcePodId: string | null } {
@@ -52,8 +48,6 @@ class TerminalPodTracker {
     pending.completedCounts.set(podId, currentCount + 1);
 
     const allComplete = this.checkAllComplete(pending);
-
-    logger.log('AutoClear', 'Update', `Recorded completion for ${podId}, source ${sourcePodId}: completed ${currentCount + 1}/${expectedCount}`);
 
     return { allComplete, sourcePodId: allComplete ? sourcePodId : null };
   }
@@ -77,10 +71,7 @@ class TerminalPodTracker {
   }
 
   clearTracking(sourcePodId: string): void {
-    const deleted = this.pendingAutoClearMap.delete(sourcePodId);
-    if (deleted) {
-      logger.log('AutoClear', 'Delete', `Cleared tracking for source ${sourcePodId}`);
-    }
+    this.pendingAutoClearMap.delete(sourcePodId);
   }
 
   clearAll(): void {

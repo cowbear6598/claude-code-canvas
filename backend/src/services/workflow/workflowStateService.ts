@@ -92,8 +92,6 @@ class WorkflowStateService {
     };
 
     workflowEventEmitter.emitWorkflowPending(canvasId, targetPodId, pendingPayload);
-
-    logger.log('Workflow', 'Update', `Updated pending target ${targetPodId}: ${pending.completedSources.size}/${pending.requiredSourcePodIds.length} sources`);
   }
 
   private processAffectedTarget(canvasId: string, targetPodId: string): void {

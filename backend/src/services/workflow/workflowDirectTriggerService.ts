@@ -54,10 +54,7 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         return this.handleMultiDirectTrigger(canvasId, sourcePodId, targetPodId, connection, summary);
     }
 
-    private handleSingleDirectTrigger(canvasId: string, sourcePodId: string, targetPodId: string): CollectSourcesResult {
-        const sourcePod = podStore.getById(canvasId, sourcePodId);
-        const targetPod = podStore.getById(canvasId, targetPodId);
-        logger.log('Workflow', 'Create', `Direct trigger from Pod "${sourcePod?.name ?? sourcePodId}" to Pod "${targetPod?.name ?? targetPodId}"`);
+    private handleSingleDirectTrigger(_canvasId: string, _sourcePodId: string, _targetPodId: string): CollectSourcesResult {
         return {ready: true};
     }
 
@@ -83,12 +80,6 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
             targetPodId,
         };
         workflowEventEmitter.emitDirectWaiting(canvasId, directWaitingPayload);
-
-        const readySummaries = directTriggerStore.getReadySummaries(targetPodId);
-        const readySourcePodIds = readySummaries ? Array.from(readySummaries.keys()) : [];
-
-        const targetPod = podStore.getById(canvasId, targetPodId);
-        logger.log('Workflow', 'Update', `Multi-direct trigger: ${readySourcePodIds.length} sources ready for target "${targetPod?.name ?? targetPodId}", countdown started`);
 
         if (this.pendingResolvers.has(targetPodId)) {
             this.startCountdownTimer(canvasId, targetPodId);

@@ -73,8 +73,6 @@ class WorkflowMultiInputService {
   ): Promise<void> {
     if (!pendingTargetStore.hasPendingTarget(connection.targetPodId)) {
       pendingTargetStore.initializePendingTarget(connection.targetPodId, requiredSourcePodIds);
-      const targetPod = podStore.getById(canvasId, connection.targetPodId);
-      logger.log('Workflow', 'Create', `Initialized pending target "${targetPod?.name ?? connection.targetPodId}", waiting for ${requiredSourcePodIds.length} sources`);
     }
 
     const { allSourcesResponded, hasRejection } = pendingTargetStore.recordSourceCompletion(
@@ -121,9 +119,6 @@ class WorkflowMultiInputService {
     connection: Connection,
     triggerMode: 'auto' | 'ai-decide'
   ): void {
-    const targetPod = podStore.getById(canvasId, connection.targetPodId);
-    logger.log('Workflow', 'Complete', `All sources complete for target "${targetPod?.name ?? connection.targetPodId}"`);
-
     const completedSummaries = pendingTargetStore.getCompletedSummaries(connection.targetPodId);
     if (!completedSummaries) {
       logger.error('Workflow', 'Error', '無法取得已完成的摘要');

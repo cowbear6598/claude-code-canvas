@@ -66,7 +66,7 @@ async function startServer(): Promise<void> {
 
 				socketService.emitConnectionReady(connectionId, { socketId: connectionId });
 
-				logger.log('Connection', 'Create', `New connection: ${connectionId}`);
+				logger.log('Connection', 'Create', `新連線：${connectionId}`);
 			},
 			message(webSocket: ServerWebSocket<{ connectionId: string }>, message: string | Buffer) {
 				const connectionId = webSocket.data.connectionId;
@@ -112,12 +112,13 @@ async function startServer(): Promise<void> {
 				socketService.cleanupSocket(connectionId);
 				canvasStore.removeSocket(connectionId);
 
-				logger.log('Connection', 'Delete', `Connection closed: ${connectionId}`);
+				logger.log('Connection', 'Delete', `連線關閉：${connectionId}`);
 			},
 		},
 	});
 
-	logger.log('Startup', 'Complete', `Server running on port ${PORT}`);
+	logger.log('Startup', 'Complete', `伺服器運行於 port ${PORT}`);
+	console.log('=============================');
 }
 
 startServer();

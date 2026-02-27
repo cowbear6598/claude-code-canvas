@@ -72,12 +72,12 @@ class StartupService {
       await repositoryNoteStore.loadFromDisk(canvas.id, canvasDataDir);
       await connectionStore.loadFromDisk(canvas.id, canvasDataDir);
 
-      logger.log('Startup', 'Complete', `Loaded canvas: ${canvas.name} (${canvas.id})`);
+      logger.log('Startup', 'Complete', `已載入畫布：${canvas.name}`);
     }
 
     scheduleService.start();
 
-    logger.log('Startup', 'Complete', 'Server initialization completed successfully');
+    logger.log('Startup', 'Complete', '伺服器初始化完成');
     return ok(undefined);
   }
 }

@@ -46,7 +46,6 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
 
     logger.log('Workflow', 'Pipeline', `開始執行 Pipeline："${sourcePodName}" → "${targetPod.name}" (${triggerMode})`);
 
-    logger.log('Workflow', 'Pipeline', `[generateSummary] 生成摘要："${sourcePodName}" → "${targetPod.name}"`);
     const summaryResult = await this.deps.executionService.generateSummaryWithFallback(
       canvasId,
       sourcePodId,
@@ -62,8 +61,6 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
     if (!collectResult) return;
 
     const { finalSummary, finalIsSummarized } = collectResult;
-
-    logger.log('Workflow', 'Pipeline', `[checkQueue] 檢查目標 Pod 狀態`);
 
     if (targetPod.status !== 'idle') {
       logger.log('Workflow', 'Pipeline', `[checkQueue] 目標 Pod 忙碌中 (${targetPod.status})，加入佇列`);
@@ -84,8 +81,6 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
       );
       return;
     }
-
-    logger.log('Workflow', 'Pipeline', `[trigger] 觸發工作流程`);
 
     await this.deps.executionService.triggerWorkflowWithSummary(
       canvasId,
@@ -115,26 +110,22 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
       });
 
       if (!collectResult.ready) {
-        logger.log('Workflow', 'Pipeline', `[collectSources] 來源尚未就緒，暫停 Pipeline`);
         return null;
       }
 
       if (collectResult.mergedContent) {
-        logger.log('Workflow', 'Pipeline', `[collectSources] 使用合併內容`);
         return { finalSummary: collectResult.mergedContent, finalIsSummarized: collectResult.isSummarized ?? true };
       }
 
       return { finalSummary: summaryContent, finalIsSummarized: summaryIsSummarized };
     }
 
-    logger.log('Workflow', 'Pipeline', `[collectSources] 使用預設多輸入邏輯`);
     const { isMultiInput, requiredSourcePodIds } = this.deps.stateService.checkMultiInputScenario(
       canvasId,
       targetPodId
     );
 
     if (isMultiInput) {
-      logger.log('Workflow', 'Pipeline', `[collectSources] 偵測到多輸入場景`);
       await this.deps.multiInputService.handleMultiInputForConnection(
         canvasId,
         sourcePodId,

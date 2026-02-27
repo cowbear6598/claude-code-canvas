@@ -219,7 +219,8 @@ class ConnectionStore {
 
         this.connectionsByCanvas.set(canvasId, connectionsMap);
 
-        logger.log('Connection', 'Load', `[ConnectionStore] Loaded ${connectionsMap.size} connections for canvas ${canvasId}`);
+        const canvasName = canvasStore.getById(canvasId)?.name ?? canvasId;
+        logger.log('Connection', 'Load', `[ConnectionStore] 已載入 ${connectionsMap.size} 個連線，畫布 ${canvasName}`);
         return ok(undefined);
     }
 
