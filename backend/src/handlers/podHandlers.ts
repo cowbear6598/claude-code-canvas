@@ -25,6 +25,8 @@ import {connectionStore} from '../services/connectionStore.js';
 import {socketService} from '../services/socketService.js';
 import {workflowStateService} from '../services/workflow';
 import {repositorySyncService} from '../services/repositorySyncService.js';
+import {repositoryService} from '../services/repositoryService.js';
+import {podManifestService} from '../services/podManifestService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';
@@ -153,6 +155,11 @@ export const handlePodDelete = withCanvasId<PodDeletePayload>(
         connectionStore.deleteByPodId(canvasId, podId);
 
         const repositoryId = pod.repositoryId;
+
+        if (repositoryId) {
+            const repositoryPath = repositoryService.getRepositoryPath(repositoryId);
+            await podManifestService.deleteManagedFiles(repositoryPath, podId);
+        }
 
         const deleted = podStore.delete(canvasId, podId);
         if (!deleted) {

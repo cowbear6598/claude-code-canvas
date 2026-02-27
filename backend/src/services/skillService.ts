@@ -148,7 +148,7 @@ class SkillService {
         return {skill, isOverwrite};
     }
 
-    private getSkillDirectoryPath(skillId: string): string {
+    getSkillDirectoryPath(skillId: string): string {
         if (!validateSkillId(skillId)) {
             throw new Error('無效的技能 ID 格式');
         }

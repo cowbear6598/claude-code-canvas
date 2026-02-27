@@ -12,6 +12,7 @@ import type {
   RepositoryDeletePayload,
 } from '../schemas';
 import { repositoryService } from '../services/repositoryService.js';
+import { podManifestService } from '../services/podManifestService.js';
 import { repositoryNoteStore } from '../services/noteStores.js';
 import { podStore } from '../services/podStore.js';
 import { socketService } from '../services/socketService.js';
@@ -116,6 +117,8 @@ export const handlePodBindRepository = withCanvasId<PodBindRepositoryPayload>(
     await repositorySyncService.syncRepositoryResources(repositoryId);
 
     if (oldRepositoryId && oldRepositoryId !== repositoryId) {
+      const oldRepositoryPath = repositoryService.getRepositoryPath(oldRepositoryId);
+      await podManifestService.deleteManagedFiles(oldRepositoryPath, podId);
       await repositorySyncService.syncRepositoryResources(oldRepositoryId);
     }
 
@@ -170,6 +173,8 @@ export const handlePodUnbindRepository = withCanvasId<PodUnbindRepositoryPayload
     podStore.setClaudeSessionId(canvasId, podId, '');
 
     if (oldRepositoryId) {
+      const repositoryPath = repositoryService.getRepositoryPath(oldRepositoryId);
+      await podManifestService.deleteManagedFiles(repositoryPath, podId);
       await repositorySyncService.syncRepositoryResources(oldRepositoryId);
     }
 
