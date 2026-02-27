@@ -4,6 +4,7 @@ import { podStore } from '../podStore.js';
 import { directTriggerStore } from '../directTriggerStore.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
 import { formatMergedSummaries } from './workflowHelpers.js';
+import { workflowDirectTriggerService } from './workflowDirectTriggerService.js';
 import {
   type WorkflowPendingPayload,
   type WorkflowSourcesMergedPayload,
@@ -125,6 +126,8 @@ class WorkflowStateService {
       directTriggerStore.clearDirectPending(targetPodId);
       logger.log('Workflow', 'Delete', `已清除目標 ${targetPodId} 的 direct 等待狀態 - 連線已刪除`);
     }
+
+    workflowDirectTriggerService.cancelPendingResolver(targetPodId);
   }
 
   private handleMultiInputConnectionDeletion(canvasId: string, sourcePodId: string, targetPodId: string): void {

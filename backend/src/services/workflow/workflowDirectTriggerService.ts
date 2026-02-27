@@ -18,16 +18,13 @@ import {directTriggerStore} from '../directTriggerStore.js';
 import {workflowStateService} from './workflowStateService.js';
 import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {logger} from '../../utils/logger.js';
-import {formatMergedSummaries, forEachDirectConnection, getDirectConnectionsForTarget} from './workflowHelpers.js';
+import {formatMergedSummaries, forEachDirectConnection} from './workflowHelpers.js';
 import {connectionStore} from '../connectionStore.js';
 
 class WorkflowDirectTriggerService implements TriggerStrategy {
     readonly mode = 'direct' as const;
 
     private pendingResolvers: Map<string, (result: CollectSourcesResult) => void> = new Map();
-
-    // 防止 resolver 永久懸掛
-    private readonly MAX_PENDING_TIME = 30000;
 
     // multi-direct 合併等待視窗
     private readonly MULTI_DIRECT_MERGE_WINDOW_MS = 10000;
@@ -89,32 +86,7 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         return new Promise<CollectSourcesResult>((resolve) => {
             this.pendingResolvers.set(targetPodId, resolve);
             this.startCountdownTimer(canvasId, targetPodId);
-            this.createTimeoutGuard(canvasId, targetPodId, resolve);
         });
-    }
-
-    private createTimeoutGuard(
-        canvasId: string,
-        targetPodId: string,
-        resolve: (result: CollectSourcesResult) => void
-    ): void {
-        setTimeout(() => {
-            if (!this.pendingResolvers.has(targetPodId)) {
-                return; // resolver 已被其他流程（10 秒 timer）處理，跳過
-            }
-            // 確認 targetPod 仍存在有效的 direct connections
-            const directConns = getDirectConnectionsForTarget(canvasId, targetPodId);
-            if (directConns.length === 0) {
-                logger.warn('Workflow', 'Warn', `Direct trigger 30 秒超時：targetPod ${targetPodId} 已無 direct 連線，跳過`);
-                this.pendingResolvers.delete(targetPodId);
-                directTriggerStore.clearDirectPending(targetPodId);
-                return;
-            }
-            logger.error('Workflow', 'Error', `Direct trigger 超時未完成，清理 ${targetPodId}`);
-            this.pendingResolvers.delete(targetPodId);
-            directTriggerStore.clearDirectPending(targetPodId);
-            resolve({ready: false});
-        }, this.MAX_PENDING_TIME);
     }
 
     private startCountdownTimer(canvasId: string, targetPodId: string): void {
@@ -129,23 +101,29 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         directTriggerStore.setTimer(targetPodId, timer);
     }
 
+    cancelPendingResolver(targetPodId: string): void {
+        const resolver = this.pendingResolvers.get(targetPodId);
+        if (!resolver) {
+            return;
+        }
+
+        resolver({ready: false});
+        this.pendingResolvers.delete(targetPodId);
+        logger.log('Workflow', 'Delete', `已取消目標 ${targetPodId} 的 pending resolver - 連線已刪除`);
+    }
+
     private onTimerExpired(canvasId: string, targetPodId: string): void {
         const resolver = this.pendingResolvers.get(targetPodId);
         if (!resolver) {
             return;
         }
 
-        let resolverCalled = false;
-
         try {
             const result = this.processTimerResult(canvasId, targetPodId);
             resolver(result);
-            resolverCalled = true;
         } catch (error) {
             logger.error('Workflow', 'Error', `Direct trigger timer 處理失敗: ${targetPodId}`, error);
-            if (!resolverCalled) {
-                resolver({ready: false});
-            }
+            resolver({ready: false});
         } finally {
             this.pendingResolvers.delete(targetPodId);
             directTriggerStore.clearDirectPending(targetPodId);
@@ -206,13 +184,7 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
     }
 
     onError(context: CompletionContext, errorMessage: string): void {
-        forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
-            workflowEventEmitter.emitWorkflowComplete(
-                context.canvasId, directConn.id, directConn.sourcePodId,
-                context.targetPodId, false, errorMessage, context.triggerMode
-            );
-            connectionStore.updateConnectionStatus(context.canvasId, directConn.id, 'idle');
-        });
+        this.onComplete(context, false, errorMessage);
     }
 
     onQueued(context: QueuedContext): void {
