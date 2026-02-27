@@ -2,7 +2,7 @@
 
 # Claude Code Canvas
 
-視覺化設計與執行 AI Agent 工作流程的畫布工具，串接 Claude Agent SDK 驅動 Agent 執行。
+視覺化設計與執行 AI Agent 工作流程的畫布工具，串接 Claude Agent SDK 驅動 Agent 執行，也可支援團隊多人協作。
 
 ## 目錄
 
@@ -13,6 +13,7 @@
 - [教學](#教學)
   - [什麼是 POD？](#什麼是-pod)
   - [如何切換模型？](#如何切換模型)
+  - [Slot 說明](#slot-說明)
 
 ## 注意事項
 
@@ -20,6 +21,7 @@
 - 建議在 **Local 環境** 使用，不建議部署到雲端（本工具目前沒有使用者認證機制）
 - 因為使用 **Claude Agent SDK**，請確保此服務啟動在**已登入 Claude 的環境**，暫時不支援 API Key
 - 目前**僅在 macOS 上測試過**，其他作業系統可能會有未知問題
+- 畫布資料會存放在 `~/Documents/ClaudeCanvas`
 
 ## 安裝
 
@@ -85,3 +87,12 @@ GITLAB_URL=https://gitlab.example.com
 - 移動到 Pod 上方的模型標籤，就可以選擇 Opus / Sonnet / Haiku
 
 ![Switch Model](tutorials/switch-model.gif)
+
+### Slot 說明
+
+- Skills / SubAgents 可以放入多個
+- Style（Output Style）/ Command（Slash Command）/ Repo 只能單個
+- Command 會讓你的訊息前方自動加入，例如：`/command message`
+- Repo 會更改你的工作目錄，沒有放入則是 Pod 自己的目錄
+
+![Pod](tutorials/pod.png)

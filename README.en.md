@@ -2,7 +2,7 @@
 
 # Claude Code Canvas
 
-A canvas tool for visually designing and executing AI Agent workflows, powered by Claude Agent SDK for agent execution.
+A canvas tool for visually designing and executing AI Agent workflows, powered by Claude Agent SDK for agent execution. Also supports team collaboration.
 
 ## Table of Contents
 
@@ -13,6 +13,7 @@ A canvas tool for visually designing and executing AI Agent workflows, powered b
 - [Tutorials](#tutorials)
   - [What is a POD?](#what-is-a-pod)
   - [How to Switch Models?](#how-to-switch-models)
+  - [Slot Overview](#slot-overview)
 
 ## Important Notes
 
@@ -20,6 +21,7 @@ A canvas tool for visually designing and executing AI Agent workflows, powered b
 - Recommended for **local environment** use only, not recommended for cloud deployment (no user authentication is implemented).
 - Since it uses the **Claude Agent SDK**, make sure the service runs in an environment where **Claude is already logged in**. Not supported API Key now.
 - Currently **only tested on macOS**. Other operating systems may have unknown issues.
+- Canvas data is stored in `~/Documents/ClaudeCanvas`
 
 ## Installation
 
@@ -85,3 +87,12 @@ GITLAB_URL=https://gitlab.example.com
 - Hover over the model label on top of the Pod to select Opus / Sonnet / Haiku
 
 ![Switch Model](tutorials/switch-model.gif)
+
+### Slot Overview
+
+- Skills / SubAgents can hold multiple items
+- Style (Output Style) / Command (Slash Command) / Repo can only hold one
+- Command will automatically prepend to your message, e.g., `/command message`
+- Repo changes the working directory; without one, the Pod uses its own directory
+
+![Pod](tutorials/pod.png)
