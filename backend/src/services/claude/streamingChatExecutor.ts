@@ -29,7 +29,6 @@ export interface StreamingChatExecutorOptions {
     canvasId: string;
     podId: string;
     message: string | ContentBlock[];
-    connectionId: string;
     supportAbort: boolean;
 }
 
@@ -209,7 +208,7 @@ export async function executeStreamingChat(
     options: StreamingChatExecutorOptions,
     callbacks?: StreamingChatExecutorCallbacks
 ): Promise<StreamingChatExecutorResult> {
-    const {canvasId, podId, message, connectionId, supportAbort} = options;
+    const {canvasId, podId, message, supportAbort} = options;
 
     const messageId = uuidv4();
     const accumulatedContentRef = {value: ''};
@@ -242,7 +241,7 @@ export async function executeStreamingChat(
     );
 
     try {
-        await claudeQueryService.sendMessage(podId, message, streamingCallback, connectionId);
+        await claudeQueryService.sendMessage(podId, message, streamingCallback);
 
         const hasAssistantContent = accumulatedContentRef.value || subMessageState.subMessages.length > 0;
         if (hasAssistantContent) {

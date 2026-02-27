@@ -54,7 +54,6 @@ describe('executeStreamingChat', () => {
     const canvasId = 'test-canvas';
     const podId = 'test-pod';
     const message = 'test message';
-    const connectionId = 'test-connection';
 
     // Helper: 設定 sendMessage mock 來產生特定事件序列
     function mockSendMessageWithEvents(events: Array<{type: string; [key: string]: unknown}>) {
@@ -121,7 +120,6 @@ describe('executeStreamingChat', () => {
                 canvasId,
                 podId,
                 message,
-                connectionId,
                 supportAbort: false,
             });
 
@@ -174,7 +172,6 @@ describe('executeStreamingChat', () => {
                 canvasId,
                 podId,
                 message,
-                connectionId,
                 supportAbort: false,
             });
 
@@ -204,7 +201,6 @@ describe('executeStreamingChat', () => {
                 canvasId,
                 podId,
                 message,
-                connectionId,
                 supportAbort: false,
             });
 
@@ -233,7 +229,6 @@ describe('executeStreamingChat', () => {
                 canvasId,
                 podId,
                 message,
-                connectionId,
                 supportAbort: false,
             });
 
@@ -262,7 +257,6 @@ describe('executeStreamingChat', () => {
                 canvasId,
                 podId,
                 message,
-                connectionId,
                 supportAbort: false,
             });
 
@@ -282,7 +276,6 @@ describe('executeStreamingChat', () => {
                 canvasId,
                 podId,
                 message,
-                connectionId,
                 supportAbort: false,
             });
 
@@ -310,7 +303,6 @@ describe('executeStreamingChat', () => {
                 canvasId,
                 podId,
                 message,
-                connectionId,
                 supportAbort: false,
             });
 
@@ -340,7 +332,6 @@ describe('executeStreamingChat', () => {
                     canvasId,
                     podId,
                     message,
-                    connectionId,
                     supportAbort: false,
                 },
                 {
@@ -361,7 +352,6 @@ describe('executeStreamingChat', () => {
                 canvasId,
                 podId,
                 message,
-                connectionId,
                 supportAbort: false,
             });
 
@@ -392,7 +382,6 @@ describe('executeStreamingChat', () => {
                     canvasId,
                     podId,
                     message,
-                    connectionId,
                     supportAbort: true,
                 },
                 {
@@ -432,7 +421,6 @@ describe('executeStreamingChat', () => {
                         canvasId,
                         podId,
                         message,
-                        connectionId,
                         supportAbort: false,
                     },
                     {
@@ -465,7 +453,6 @@ describe('executeStreamingChat', () => {
                     canvasId,
                     podId,
                     message,
-                    connectionId,
                     supportAbort: true,
                 },
                 {
@@ -493,7 +480,6 @@ describe('executeStreamingChat', () => {
                         canvasId,
                         podId,
                         message,
-                        connectionId,
                         supportAbort: false,
                     },
                     {

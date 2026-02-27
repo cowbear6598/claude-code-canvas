@@ -64,7 +64,7 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
         );
 
         await executeStreamingChat(
-            {canvasId, podId, message, connectionId, supportAbort: true},
+            {canvasId, podId, message, supportAbort: true},
             {
                 onComplete: async (canvasId, podId) => {
                     fireAndForget(
@@ -104,33 +104,6 @@ export const handleChatAbort = withCanvasId<ChatAbortPayload>(
                 requestId,
                 podId,
                 'POD_NOT_CHATTING'
-            );
-            return;
-        }
-
-        const queryConnectionId = claudeQueryService.getQueryConnectionId(podId);
-        if (!queryConnectionId) {
-            // 找不到查詢但 pod 狀態是 chatting，重設為 idle 避免卡死
-            podStore.setStatus(canvasId, podId, 'idle');
-            emitError(
-                connectionId,
-                WebSocketResponseEvents.POD_ERROR,
-                `找不到 Pod ${podId} 的活躍查詢`,
-                requestId,
-                podId,
-                'NO_ACTIVE_QUERY'
-            );
-            return;
-        }
-
-        if (queryConnectionId !== connectionId) {
-            emitError(
-                connectionId,
-                WebSocketResponseEvents.POD_ERROR,
-                `無權限中斷此對話`,
-                requestId,
-                podId,
-                'UNAUTHORIZED'
             );
             return;
         }

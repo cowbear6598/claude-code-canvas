@@ -1,5 +1,5 @@
 import {v4 as uuidv4} from 'uuid';
-import {WebSocketResponseEvents, SystemConnectionIds} from '../../schemas/index.js';
+import {WebSocketResponseEvents} from '../../schemas/index.js';
 import type { TriggerMode } from '../../types/index.js';
 import type {
   PipelineContext,
@@ -86,9 +86,6 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     const autoConnections = connections.filter((conn) => conn.triggerMode === 'auto');
     const aiDecideConnections = connections.filter((conn) => conn.triggerMode === 'ai-decide');
     const directConnections = connections.filter((conn) => conn.triggerMode === 'direct');
-
-    const sourcePod = podStore.getById(canvasId, sourcePodId);
-    logger.log('Workflow', 'Create', `Found ${autoConnections.length} auto, ${aiDecideConnections.length} ai-decide, and ${directConnections.length} direct connections for Pod "${sourcePod?.name ?? sourcePodId}"`);
 
     autoClearService.initializeWorkflowTracking(canvasId, sourcePodId);
 
@@ -217,7 +214,7 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     await messageStore.addMessage(canvasId, targetPodId, 'user', messageToSend);
 
     await executeStreamingChat(
-      { canvasId, podId: targetPodId, message: messageToSend, connectionId: SystemConnectionIds.WORKFLOW, supportAbort: false },
+      { canvasId, podId: targetPodId, message: messageToSend, supportAbort: false },
       {
         onComplete: async () => {
           strategy.onComplete(

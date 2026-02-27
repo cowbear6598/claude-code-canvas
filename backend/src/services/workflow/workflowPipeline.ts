@@ -57,7 +57,6 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
       return;
     }
 
-    logger.log('Workflow', 'Pipeline', `[collectSources] 收集來源`);
     const collectResult = await this.runCollectSourcesStage(context, strategy, summaryResult.content, summaryResult.isSummarized);
     if (!collectResult) return;
 
@@ -88,8 +87,6 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
       finalIsSummarized,
       strategy
     );
-
-    logger.log('Workflow', 'Pipeline', `Pipeline 執行完成`);
   }
 
   private async runCollectSourcesStage(
@@ -103,7 +100,6 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
     const { targetPodId } = connection;
 
     if (strategy.collectSources) {
-      logger.log('Workflow', 'Pipeline', `[collectSources] 使用 Strategy 自訂邏輯`);
       const collectResult = await strategy.collectSources({
         canvasId,
         sourcePodId,

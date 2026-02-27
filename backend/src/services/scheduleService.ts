@@ -1,4 +1,4 @@
-import { WebSocketResponseEvents, SystemConnectionIds } from '../schemas';
+import { WebSocketResponseEvents } from '../schemas';
 import type {
   Pod,
   ScheduleConfig,
@@ -160,7 +160,7 @@ class ScheduleService {
       await messageStore.addMessage(canvasId, podId, 'user', '');
 
       await executeStreamingChat(
-        { canvasId, podId, message: '', connectionId: SystemConnectionIds.SCHEDULE, supportAbort: false },
+        { canvasId, podId, message: '', supportAbort: false },
         {
           onComplete: async (canvasId, podId) => {
             fireAndForget(

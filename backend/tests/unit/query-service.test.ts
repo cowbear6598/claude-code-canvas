@@ -111,8 +111,7 @@ describe('Claude QueryService', () => {
       const result = await claudeQueryService.sendMessage(
         'test-pod-id',
         'Hello',
-        onStreamCallback,
-        'test-connection-id'
+        onStreamCallback
       );
 
       // 驗證 stream events
@@ -188,8 +187,7 @@ describe('Claude QueryService', () => {
       const result = await claudeQueryService.sendMessage(
         'test-pod-id',
         'Read the file',
-        onStreamCallback,
-        'test-connection-id'
+        onStreamCallback
       );
 
       // 驗證 stream events
@@ -223,7 +221,7 @@ describe('Claude QueryService', () => {
       (podStore.getByIdGlobal as any).mockReturnValue(null);
 
       await expect(
-        claudeQueryService.sendMessage('nonexistent-pod', 'Hello', onStreamCallback, 'test-connection-id')
+        claudeQueryService.sendMessage('nonexistent-pod', 'Hello', onStreamCallback)
       ).rejects.toThrow('找不到 Pod nonexistent-pod');
     });
   });
@@ -285,8 +283,7 @@ describe('Claude QueryService', () => {
       const result = await claudeQueryService.sendMessage(
         'test-pod-id',
         'Test retry',
-        onStreamCallback,
-        'test-connection-id'
+        onStreamCallback
       );
 
       // 驗證 logger 被呼叫
@@ -328,7 +325,7 @@ describe('Claude QueryService', () => {
       };
 
       await expect(
-        claudeQueryService.sendMessage('test-pod-id', 'Test', onStreamCallback, 'test-connection-id')
+        claudeQueryService.sendMessage('test-pod-id', 'Test', onStreamCallback)
       ).rejects.toThrow('Network error occurred');
 
       // 驗證 stream event 包含錯誤
@@ -375,7 +372,7 @@ describe('Claude QueryService', () => {
       };
 
       await expect(
-        claudeQueryService.sendMessage('test-pod-id', 'Test retry limit', onStreamCallback, 'test-connection-id')
+        claudeQueryService.sendMessage('test-pod-id', 'Test retry limit', onStreamCallback)
       ).rejects.toThrow('Invalid session ID or session expired');
 
       // 驗證只重試了一次（總共呼叫兩次）
@@ -441,7 +438,7 @@ describe('Claude QueryService', () => {
         },
       ];
 
-      await claudeQueryService.sendMessage('test-pod-id', contentBlocks, onStreamCallback, 'test-connection-id');
+      await claudeQueryService.sendMessage('test-pod-id', contentBlocks, onStreamCallback);
 
       // 驗證 query 被呼叫
       expect(claudeAgentSdk.query).toHaveBeenCalledWith(
@@ -501,8 +498,7 @@ describe('Claude QueryService', () => {
       const result = await claudeQueryService.sendMessage(
         'test-pod-id',
         contentBlocks,
-        onStreamCallback,
-        'test-connection-id'
+        onStreamCallback
       );
 
       expect(result.content).toBe('I see multiple images.');
@@ -550,8 +546,7 @@ describe('Claude QueryService', () => {
       const result = await claudeQueryService.sendMessage(
         'test-pod-id',
         contentBlocks,
-        onStreamCallback,
-        'test-connection-id'
+        onStreamCallback
       );
 
       expect(result.content).toBe('Response');
@@ -591,7 +586,7 @@ describe('Claude QueryService', () => {
         { type: 'text', text: '   ' }, // 只有空白
       ];
 
-      await claudeQueryService.sendMessage('test-pod-id', contentBlocks, onStreamCallback, 'test-connection-id');
+      await claudeQueryService.sendMessage('test-pod-id', contentBlocks, onStreamCallback);
 
       // 驗證使用了預設訊息
       expect(claudeAgentSdk.query).toHaveBeenCalled();
@@ -631,7 +626,7 @@ describe('Claude QueryService', () => {
         };
       };
 
-      await claudeQueryService.sendMessage('test-pod-id', 'the code', onStreamCallback, 'test-connection-id');
+      await claudeQueryService.sendMessage('test-pod-id', 'the code', onStreamCallback);
 
       // 驗證 query 被呼叫時 prompt 包含 command 前綴
       expect(claudeAgentSdk.query).toHaveBeenCalledWith(
@@ -682,7 +677,7 @@ describe('Claude QueryService', () => {
         },
       ];
 
-      await claudeQueryService.sendMessage('test-pod-id', contentBlocks, onStreamCallback, 'test-connection-id');
+      await claudeQueryService.sendMessage('test-pod-id', contentBlocks, onStreamCallback);
 
       // 驗證 query 被呼叫
       expect(claudeAgentSdk.query).toHaveBeenCalled();
@@ -720,7 +715,7 @@ describe('Claude QueryService', () => {
         };
       };
 
-      await claudeQueryService.sendMessage('test-pod-id', 'normal message', onStreamCallback, 'test-connection-id');
+      await claudeQueryService.sendMessage('test-pod-id', 'normal message', onStreamCallback);
 
       // 驗證 query 被呼叫時 prompt 不包含前綴
       expect(claudeAgentSdk.query).toHaveBeenCalledWith(
@@ -762,7 +757,7 @@ describe('Claude QueryService', () => {
         };
       };
 
-      await claudeQueryService.sendMessage('test-pod-id', '', onStreamCallback, 'test-connection-id');
+      await claudeQueryService.sendMessage('test-pod-id', '', onStreamCallback);
 
       // 驗證空訊息加上 commandId 後的結果
       // 空字串加上 command 前綴變成 "/start "
@@ -808,7 +803,7 @@ describe('Claude QueryService', () => {
         };
       };
 
-      await claudeQueryService.sendMessage('test-pod-id', 'test', onStreamCallback, 'test-connection-id');
+      await claudeQueryService.sendMessage('test-pod-id', 'test', onStreamCallback);
 
       // 驗證 cwd 使用 repositoriesRoot + repositoryId
       expect(claudeAgentSdk.query).toHaveBeenCalledWith(
@@ -855,7 +850,7 @@ describe('Claude QueryService', () => {
         };
       };
 
-      await claudeQueryService.sendMessage('test-pod-id', 'test', onStreamCallback, 'test-connection-id');
+      await claudeQueryService.sendMessage('test-pod-id', 'test', onStreamCallback);
 
       // 驗證 systemPrompt 被設定
       expect(claudeAgentSdk.query).toHaveBeenCalledWith(
@@ -899,7 +894,7 @@ describe('Claude QueryService', () => {
         };
       };
 
-      await claudeQueryService.sendMessage('test-pod-id', 'test', onStreamCallback, 'test-connection-id');
+      await claudeQueryService.sendMessage('test-pod-id', 'test', onStreamCallback);
 
       // 驗證 options 不包含 systemPrompt
       const callArgs = (claudeAgentSdk.query as any).mock.calls[0][0];
@@ -938,7 +933,7 @@ describe('Claude QueryService', () => {
         };
       };
 
-      await claudeQueryService.sendMessage('test-pod-id', 'continue', onStreamCallback, 'test-connection-id');
+      await claudeQueryService.sendMessage('test-pod-id', 'continue', onStreamCallback);
 
       // 驗證 resume 選項被設定
       expect(claudeAgentSdk.query).toHaveBeenCalledWith(

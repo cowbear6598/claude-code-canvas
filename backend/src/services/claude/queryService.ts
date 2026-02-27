@@ -290,21 +290,7 @@ class ClaudeQueryService {
     private activeQueries = new Map<string, {
         queryStream: Query;
         abortController: AbortController;
-        connectionId: string;
     }>();
-
-    /**
-     * 清理指定連線的所有活躍查詢
-     * 用於連線斷開時，避免 Pod 永遠卡在 chatting 狀態
-     */
-    public abortQueriesByConnectionId(connectionId: string): void {
-        for (const [podId, entry] of this.activeQueries.entries()) {
-            if (entry.connectionId === connectionId) {
-                entry.abortController.abort();
-                this.activeQueries.delete(podId);
-            }
-        }
-    }
 
     public abortQuery(podId: string): boolean {
         const entry = this.activeQueries.get(podId);
@@ -319,10 +305,6 @@ class ClaudeQueryService {
         this.activeQueries.delete(podId);
 
         return true;
-    }
-
-    public getQueryConnectionId(podId: string): string | undefined {
-        return this.activeQueries.get(podId)?.connectionId;
     }
 
     private buildPrompt(
@@ -390,17 +372,15 @@ class ClaudeQueryService {
     async sendMessage(
         podId: string,
         message: string | ContentBlock[],
-        onStream: StreamCallback,
-        connectionId: string
+        onStream: StreamCallback
     ): Promise<Message> {
-        return this.sendMessageInternal(podId, message, onStream, connectionId, false);
+        return this.sendMessageInternal(podId, message, onStream, false);
     }
 
     private async sendMessageInternal(
         podId: string,
         message: string | ContentBlock[],
         onStream: StreamCallback,
-        connectionId: string,
         isRetry: boolean
     ): Promise<Message> {
         const result = podStore.getByIdGlobal(podId);
@@ -428,7 +408,7 @@ class ClaudeQueryService {
                 options: queryOptions,
             });
 
-            this.activeQueries.set(podId, {queryStream, abortController, connectionId});
+            this.activeQueries.set(podId, {queryStream, abortController});
 
             for await (const sdkMessage of queryStream) {
                 this.processSDKMessage(sdkMessage, state, onStream);
@@ -462,7 +442,7 @@ class ClaudeQueryService {
                 podId,
                 onStream,
                 isRetry,
-                retryFn: () => this.sendMessageInternal(podId, message, onStream, connectionId, true),
+                retryFn: () => this.sendMessageInternal(podId, message, onStream, true),
             });
         } finally {
             // 確保所有情況都清理 activeQueries entry，防止 Memory Leak

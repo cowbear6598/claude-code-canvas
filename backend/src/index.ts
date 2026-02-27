@@ -10,7 +10,6 @@ import { broadcastCursorLeft } from './handlers/cursorHandlers.js';
 import { deserialize } from './utils/messageSerializer.js';
 import { logger } from './utils/logger.js';
 import { WebSocketResponseEvents } from './schemas/index.js';
-import { claudeQueryService } from './services/claude/queryService.js';
 import { isStaticFilesAvailable, serveStaticFile } from './utils/staticFileServer.js';
 import { handleApiRequest } from './api/apiRouter.js';
 
@@ -106,9 +105,6 @@ async function startServer(): Promise<void> {
 			},
 			close(webSocket: ServerWebSocket<{ connectionId: string }>) {
 				const connectionId = webSocket.data.connectionId;
-
-				// 清理該連線的活躍查詢，避免 Pod 卡在 chatting 狀態
-				claudeQueryService.abortQueriesByConnectionId(connectionId);
 
 				// 廣播游標離開事件（必須在 cleanupSocket 前執行，否則 room 資訊已被清除）
 				broadcastCursorLeft(connectionId);
