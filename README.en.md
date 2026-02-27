@@ -80,9 +80,13 @@ GITLAB_URL=https://gitlab.example.com
 - A Pod = Claude Code
 - Right-click on the canvas → Pod to create one
 
+![Pod](tutorials/pod.png)
+
 ### How to Switch Models?
 
 - Hover over the model label on top of the Pod to select Opus / Sonnet / Haiku
+
+![Switch Model](tutorials/switch-model.gif)
 
 ### Slot Overview
 
