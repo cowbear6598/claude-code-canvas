@@ -1,0 +1,55 @@
+name: Release
+
+# 當推送 v* 格式的 tag 時觸發
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout 原始碼
+        uses: actions/checkout@v4
+
+      - name: 安裝 Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: 安裝前端依賴
+        run: cd frontend && bun install
+
+      - name: 安裝後端依賴
+        run: cd backend && bun install
+
+      - name: Build 前端
+        run: cd frontend && bun run build
+
+      - name: Compile darwin-arm64
+        run: TARGET=bun-darwin-arm64 bun scripts/compile.ts
+
+      - name: Compile darwin-x64
+        run: TARGET=bun-darwin-x64 bun scripts/compile.ts
+
+      - name: Compile linux-x64
+        run: TARGET=bun-linux-x64 bun scripts/compile.ts
+
+      - name: Compile linux-arm64
+        run: TARGET=bun-linux-arm64 bun scripts/compile.ts
+
+      - name: 計算 SHA256（供下載驗證用）
+        run: shasum -a 256 dist/claude-canvas-* > dist/checksums.txt
+
+      - name: 發布到 GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/claude-canvas-darwin-arm64
+            dist/claude-canvas-darwin-x64
+            dist/claude-canvas-linux-x64
+            dist/claude-canvas-linux-arm64
+            dist/checksums.txt

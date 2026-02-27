@@ -30,6 +30,8 @@ export default [
         URL: 'readonly',
         AbortController: 'readonly',
         structuredClone: 'readonly',
+        Blob: 'readonly',
+        Headers: 'readonly',
       },
     },
     plugins: {
