@@ -102,11 +102,11 @@ class WorkflowStateService {
 
     if (pending.requiredSourcePodIds.length === 0) {
       pendingTargetStore.clearPendingTarget(targetPodId);
-      logger.log('Workflow', 'Delete', `Cleared pending target ${targetPodId} - no sources remaining`);
+      logger.log('Workflow', 'Delete', `已清除等待目標 ${targetPodId} - 無剩餘來源`);
       return;
     }
 
-    logger.log('Workflow', 'Update', `Source deleted, but remaining sources complete for ${targetPodId}`);
+    logger.log('Workflow', 'Update', `來源已刪除，但目標 ${targetPodId} 的剩餘來源已全部完成`);
     emitMergedIfAllComplete(canvasId, targetPodId, this.emitPendingStatus.bind(this));
   }
 
@@ -123,7 +123,7 @@ class WorkflowStateService {
   private handleDirectConnectionDeletion(targetPodId: string): void {
     if (directTriggerStore.hasDirectPending(targetPodId)) {
       directTriggerStore.clearDirectPending(targetPodId);
-      logger.log('Workflow', 'Delete', `Cleared direct pending for target ${targetPodId} - connection deleted`);
+      logger.log('Workflow', 'Delete', `已清除目標 ${targetPodId} 的 direct 等待狀態 - 連線已刪除`);
     }
   }
 
@@ -141,11 +141,11 @@ class WorkflowStateService {
 
     if (pending.requiredSourcePodIds.length === 0) {
       pendingTargetStore.clearPendingTarget(targetPodId);
-      logger.log('Workflow', 'Delete', `Cleared pending target ${targetPodId} - connection deleted`);
+      logger.log('Workflow', 'Delete', `已清除等待目標 ${targetPodId} - 連線已刪除`);
       return;
     }
 
-    logger.log('Workflow', 'Update', `Connection deleted, but remaining sources complete for ${targetPodId}`);
+    logger.log('Workflow', 'Update', `連線已刪除，但目標 ${targetPodId} 的剩餘來源已全部完成`);
     emitMergedIfAllComplete(canvasId, targetPodId, this.emitPendingStatus.bind(this));
   }
 

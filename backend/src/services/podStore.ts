@@ -400,7 +400,7 @@ class PodStore {
             await this.loadSinglePod(podId, canvasDir, pods);
         }
 
-        const canvasName = canvasStore.getById(canvasId)?.name ?? canvasId;
+        const canvasName = canvasStore.getNameById(canvasId);
         logger.log('Pod', 'Load', `[PodStore] 成功載入 ${pods.size} 個 Pod，畫布 ${canvasName}`);
         return ok(undefined);
     }

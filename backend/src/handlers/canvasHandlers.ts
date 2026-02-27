@@ -64,9 +64,6 @@ export async function handleCanvasCreate(
   );
 
   if (!success) return;
-
-  const canvas = result.data!;
-  logger.log('Canvas', 'Create', `Canvas created: ${canvas.name} (${canvas.id})`);
 }
 
 export async function handleCanvasList(
@@ -108,9 +105,6 @@ export async function handleCanvasRename(
   );
 
   if (!success) return;
-
-  const canvas = result.data!;
-  logger.log('Canvas', 'Rename', `Canvas renamed: ${canvas.id} to ${canvas.name}`);
 }
 
 export async function handleCanvasDelete(
@@ -155,7 +149,6 @@ export async function handleCanvasDelete(
   if (!success) return;
 
   cursorColorManager.removeCanvas(payload.canvasId);
-  logger.log('Canvas', 'Delete', `Canvas deleted: ${payload.canvasId}`);
 }
 
 export async function handleCanvasSwitch(
@@ -185,8 +178,7 @@ export async function handleCanvasSwitch(
     canvasId: payload.canvasId,
   });
 
-  const canvasName = canvasStore.getById(payload.canvasId)?.name ?? payload.canvasId;
-  logger.log('Canvas', 'Switch', `連線 ${connectionId} 切換至畫布 ${canvasName}`);
+  logger.log('Canvas', 'Switch', `連線 ${connectionId} 切換至畫布 ${canvas.name}`);
 }
 
 export async function handleCanvasReorder(

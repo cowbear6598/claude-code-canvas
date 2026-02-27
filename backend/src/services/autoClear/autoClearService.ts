@@ -81,21 +81,21 @@ class AutoClearService {
             return;
         }
 
-        logger.log('AutoClear', 'Complete', `Executing auto-clear for standalone POD ${podId}`);
+        logger.log('AutoClear', 'Complete', `執行獨立 Pod 的自動清除：${podId}`);
         await this.executeAutoClear(canvasId, podId);
     }
 
     async onGroupNotTriggered(canvasId: string, targetPodId: string): Promise<void> {
-        logger.log('AutoClear', 'Update', `Group not triggered for target ${targetPodId}, finding affected terminal PODs`);
+        logger.log('AutoClear', 'Update', `群組未觸發，目標 ${targetPodId}，正在尋找受影響的 terminal Pod`);
 
         const affectedPodIds = this.findAffectedTerminalPods(canvasId, targetPodId);
 
-        logger.log('AutoClear', 'Update', `Group not triggered for target ${targetPodId}, affected terminal PODs: ${affectedPodIds.join(', ')}`);
+        logger.log('AutoClear', 'Update', `群組未觸發，目標 ${targetPodId}，受影響的 terminal Pod：${affectedPodIds.join(', ')}`);
 
         for (const podId of affectedPodIds) {
             const { allComplete, sourcePodId } = terminalPodTracker.decrementExpectedCount(podId);
             if (allComplete && sourcePodId) {
-                logger.log('AutoClear', 'Complete', `All terminal PODs complete after decrement for source ${sourcePodId}, executing auto-clear`);
+                logger.log('AutoClear', 'Complete', `遞減後所有 terminal Pod 已完成，來源 ${sourcePodId}，執行自動清除`);
                 // 先同步清除追蹤，避免 await 期間重入；找到第一個完成即 break
                 terminalPodTracker.clearTracking(sourcePodId);
                 await this.executeAutoClear(canvasId, sourcePodId);
@@ -111,14 +111,14 @@ class AutoClearService {
         }
 
         if (!this.hasOutgoingAutoTrigger(canvasId, sourcePodId)) {
-            logger.log('AutoClear', 'Update', `Source POD ${sourcePodId} has no auto-trigger connections, skipping workflow tracking`);
+            logger.log('AutoClear', 'Update', `來源 Pod ${sourcePodId} 沒有 auto-trigger 連線，略過 workflow 追蹤`);
             return;
         }
 
         const terminalPods = this.findTerminalPods(canvasId, sourcePodId);
 
         if (terminalPods.size === 0) {
-            logger.log('AutoClear', 'Update', `No terminal PODs found for source ${sourcePodId}, skipping workflow tracking`);
+            logger.log('AutoClear', 'Update', `未找到來源 ${sourcePodId} 的 terminal Pod，略過 workflow 追蹤`);
             return;
         }
 

@@ -39,7 +39,7 @@ class TerminalPodTracker {
     const currentCount = pending.completedCounts.get(podId) ?? 0;
     const expectedCount = pending.expectedCounts.get(podId) ?? 0;
 
-    // 超額防護：若已達到預期完成次數，忽略此次呼叫
+    // 防止競態條件導致同一個 pod 完成事件被重複觸發
     if (currentCount >= expectedCount) {
       logger.warn('AutoClear', 'Warn', `重複的完成事件被忽略: ${podId}`);
       return { allComplete: true, sourcePodId };
@@ -64,7 +64,7 @@ class TerminalPodTracker {
     pending.expectedCounts.set(podId, newExpected);
 
     const completedCount = pending.completedCounts.get(podId) ?? 0;
-    logger.log('AutoClear', 'Update', `Decremented expectedCount for ${podId}, source ${sourcePodId}: expected ${newExpected}, completed ${completedCount}`);
+    logger.log('AutoClear', 'Update', `已遞減 ${podId} 的預期完成次數，來源 ${sourcePodId}：預期 ${newExpected}，已完成 ${completedCount}`);
 
     const allComplete = this.checkAllComplete(pending);
     return { allComplete, sourcePodId: allComplete ? sourcePodId : null };
@@ -78,7 +78,6 @@ class TerminalPodTracker {
     this.pendingAutoClearMap.clear();
   }
 
-  // 共用的查找邏輯：掃描 pendingAutoClearMap 找出包含指定 podId 的 entry
   private findPendingEntryByPodId(podId: string): { sourcePodId: string; pending: PendingAutoClear } | null {
     for (const [sourcePodId, pending] of this.pendingAutoClearMap) {
       if (pending.expectedCounts.has(podId)) {
@@ -88,7 +87,6 @@ class TerminalPodTracker {
     return null;
   }
 
-  // 每個 terminal POD 的 completedCount >= expectedCount 才視為全部完成
   private checkAllComplete(pending: PendingAutoClear): boolean {
     for (const [podId, expectedCount] of pending.expectedCounts) {
       const completedCount = pending.completedCounts.get(podId) ?? 0;

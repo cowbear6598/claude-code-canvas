@@ -113,7 +113,7 @@ class CanvasStore {
         }
 
         this.canvases.set(id, canvas);
-        logger.log('Canvas', 'Create', `Created canvas: ${trimmedName} (${id})`);
+        logger.log('Canvas', 'Create', `已建立畫布：${trimmedName}`);
 
         return ok(canvas);
     }
@@ -124,6 +124,10 @@ class CanvasStore {
 
     getById(id: string): Canvas | undefined {
         return this.canvases.get(id);
+    }
+
+    getNameById(canvasId: string): string {
+        return this.canvases.get(canvasId)?.name ?? canvasId;
     }
 
     async rename(id: string, newName: string): Promise<Result<Canvas>> {
@@ -178,9 +182,10 @@ class CanvasStore {
             return err(renameResult.error!);
         }
 
+        const oldName = canvas.name;
         canvas.name = trimmedName;
         this.canvases.set(id, canvas);
-        logger.log('Canvas', 'Rename', `Renamed canvas from ${oldPath} to ${newPath}`);
+        logger.log('Canvas', 'Rename', `已重新命名畫布：${oldName} → ${trimmedName}`);
 
         return ok(canvas);
     }
@@ -210,7 +215,7 @@ class CanvasStore {
         }
 
         this.canvases.delete(id);
-        logger.log('Canvas', 'Delete', `Deleted canvas: ${canvas.name} (${id})`);
+        logger.log('Canvas', 'Delete', `已刪除畫布：${canvas.name}`);
 
         return ok(true);
     }
@@ -250,7 +255,7 @@ class CanvasStore {
             return err(reorderResult.error!);
         }
 
-        logger.log('Canvas', 'Reorder', `Reordered ${canvasIds.length} canvases`);
+        logger.log('Canvas', 'Reorder', `已重新排序 ${canvasIds.length} 個畫布`);
         return ok(undefined);
     }
 

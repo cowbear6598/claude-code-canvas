@@ -36,7 +36,7 @@ class StartupService {
 
     const canvases = canvasStore.list();
     if (canvases.length === 0) {
-      logger.log('Startup', 'Create', 'No canvases found, creating default canvas');
+      logger.log('Startup', 'Create', '未找到任何畫布，建立預設畫布');
       const defaultCanvasResult = await canvasStore.create('default');
       if (!defaultCanvasResult.success) {
         return err(`建立預設 Canvas 失敗: ${defaultCanvasResult.error}`);
@@ -49,13 +49,13 @@ class StartupService {
       const canvasDataDir = canvasStore.getCanvasDataDir(canvas.id);
 
       if (!canvasDir || !canvasDataDir) {
-        logger.error('Startup', 'Error', `Failed to get directories for canvas ${canvas.id}`);
+        logger.error('Startup', 'Error', `無法取得畫布目錄：${canvas.name}`);
         continue;
       }
 
       const podLoadResult = await podStore.loadFromDisk(canvas.id, canvasDir);
       if (!podLoadResult.success) {
-        logger.error('Startup', 'Error', `Failed to load pods for canvas ${canvas.id}: ${podLoadResult.error}`);
+        logger.error('Startup', 'Error', `載入畫布 Pod 失敗：${canvas.name}：${podLoadResult.error}`);
         continue;
       }
 

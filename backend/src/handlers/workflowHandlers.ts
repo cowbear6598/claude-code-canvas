@@ -12,7 +12,6 @@ import { podStore } from '../services/podStore.js';
 import { socketService } from '../services/socketService.js';
 import { workflowEventEmitter } from '../services/workflow';
 import { emitSuccess, emitError } from '../utils/websocketResponse.js';
-import { logger } from '../utils/logger.js';
 import { withCanvasId } from '../utils/handlerHelpers.js';
 
 export const handleWorkflowGetDownstreamPods = withCanvasId<WorkflowGetDownstreamPodsPayload>(
@@ -91,11 +90,5 @@ export const handleWorkflowClear = withCanvasId<WorkflowClearPayload>(
     if (result.clearedConnectionIds.length > 0) {
       workflowEventEmitter.emitAiDecideClear(canvasId, result.clearedConnectionIds);
     }
-
-    logger.log(
-      'Workflow',
-      'Complete',
-      `已清除 ${result.clearedPodIds.length} 個 Pod：${result.clearedPodNames.join(', ')}`
-    );
   }
 );
