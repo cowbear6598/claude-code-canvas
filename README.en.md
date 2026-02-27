@@ -12,6 +12,7 @@ A canvas tool for visually designing and executing AI Agent workflows, powered b
 - [Environment Variables](#environment-variables)
 - [Tutorials](#tutorials)
   - [What is a POD?](#what-is-a-pod)
+  - [How to Switch Models?](#how-to-switch-models)
 
 ## Important Notes
 
@@ -74,6 +75,13 @@ GITLAB_URL=https://gitlab.example.com
 
 ### What is a POD?
 
-A Pod = Claude Code
+- A Pod = Claude Code
+- Right-click on the canvas → Pod to create one
 
 ![Pod](tutorials/pod.png)
+
+### How to Switch Models?
+
+- Hover over the model label on top of the Pod to select Opus / Sonnet / Haiku
+
+![Switch Model](tutorials/switch-model.gif)
