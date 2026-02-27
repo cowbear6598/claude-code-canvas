@@ -160,6 +160,7 @@ class ConnectionStore {
                 if (oldMode === 'ai-decide' && (updates.triggerMode === 'auto' || updates.triggerMode === 'direct')) {
                     connection.decideStatus = 'none';
                     connection.decideReason = null;
+                    connection.connectionStatus = 'idle';
                 }
             }
 

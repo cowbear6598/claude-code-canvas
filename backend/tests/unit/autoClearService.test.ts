@@ -2,6 +2,9 @@ import { autoClearService } from '../../src/services/autoClear';
 import { connectionStore } from '../../src/services/connectionStore.js';
 import { podStore } from '../../src/services/podStore.js';
 import { terminalPodTracker } from '../../src/services/autoClear';
+import { workflowClearService } from '../../src/services/workflowClearService.js';
+import { workflowEventEmitter } from '../../src/services/workflow/workflowEventEmitter.js';
+import { socketService } from '../../src/services/socketService.js';
 import type { Pod, Connection } from '../../src/types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -568,6 +571,60 @@ describe('AutoClearService 單元測試', () => {
 
       // expectedCount=0, completedCount=0，checkAllComplete 回傳 true
       expect(secondResult.allComplete).toBe(true);
+    });
+  });
+
+  describe('executeAutoClear - emitAiDecideClear 條件測試', () => {
+    it('成功且有 clearedConnectionIds 時，應呼叫 emitAiDecideClear', async () => {
+      const sourcePodId = uuidv4();
+      const connectionId = uuidv4();
+
+      vi.spyOn(workflowClearService, 'clearWorkflow').mockResolvedValue({
+        success: true,
+        clearedPodIds: [sourcePodId],
+        clearedPodNames: ['Test Pod'],
+        clearedConnectionIds: [connectionId],
+      });
+      vi.spyOn(socketService, 'emitToCanvas').mockImplementation(() => {});
+      vi.spyOn(workflowEventEmitter, 'emitAiDecideClear').mockImplementation(() => {});
+
+      await autoClearService.executeAutoClear(canvasId, sourcePodId);
+
+      expect(workflowEventEmitter.emitAiDecideClear).toHaveBeenCalledWith(canvasId, [connectionId]);
+    });
+
+    it('成功但無 clearedConnectionIds 時，不應呼叫 emitAiDecideClear', async () => {
+      const sourcePodId = uuidv4();
+
+      vi.spyOn(workflowClearService, 'clearWorkflow').mockResolvedValue({
+        success: true,
+        clearedPodIds: [sourcePodId],
+        clearedPodNames: ['Test Pod'],
+        clearedConnectionIds: [],
+      });
+      vi.spyOn(socketService, 'emitToCanvas').mockImplementation(() => {});
+      vi.spyOn(workflowEventEmitter, 'emitAiDecideClear').mockImplementation(() => {});
+
+      await autoClearService.executeAutoClear(canvasId, sourcePodId);
+
+      expect(workflowEventEmitter.emitAiDecideClear).not.toHaveBeenCalled();
+    });
+
+    it('失敗時，不應呼叫 emitAiDecideClear', async () => {
+      const sourcePodId = uuidv4();
+
+      vi.spyOn(workflowClearService, 'clearWorkflow').mockResolvedValue({
+        success: false,
+        error: '清除失敗',
+        clearedPodIds: [],
+        clearedPodNames: [],
+        clearedConnectionIds: [],
+      });
+      vi.spyOn(workflowEventEmitter, 'emitAiDecideClear').mockImplementation(() => {});
+
+      await autoClearService.executeAutoClear(canvasId, sourcePodId);
+
+      expect(workflowEventEmitter.emitAiDecideClear).not.toHaveBeenCalled();
     });
   });
 

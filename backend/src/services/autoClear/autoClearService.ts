@@ -3,6 +3,7 @@ import {podStore} from '../podStore.js';
 import {workflowClearService} from '../workflowClearService.js';
 import {socketService} from '../socketService.js';
 import {terminalPodTracker} from './terminalPodTracker.js';
+import {workflowEventEmitter} from '../workflow/workflowEventEmitter.js';
 import {WebSocketResponseEvents} from '../../schemas';
 import {logger} from '../../utils/logger.js';
 
@@ -149,6 +150,10 @@ class AutoClearService {
         };
 
         socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, payload);
+
+        if (result.clearedConnectionIds.length > 0) {
+            workflowEventEmitter.emitAiDecideClear(canvasId, result.clearedConnectionIds);
+        }
 
         logger.log('AutoClear', 'Complete', `Successfully cleared ${result.clearedPodIds.length} PODs: ${result.clearedPodNames.join(', ')}`);
     }
