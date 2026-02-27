@@ -9,6 +9,7 @@ import type {
 import { podStore } from '../podStore.js';
 import { logger } from '../../utils/logger.js';
 import { LazyInitializable } from './lazyInitializable.js';
+import { fireAndForget } from '../../utils/operationHelpers.js';
 
 interface PipelineDeps {
   executionService: ExecutionServiceMethods;
@@ -75,6 +76,12 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
         isSummarized: finalIsSummarized,
         triggerMode,
       });
+      // 安全網：立即嘗試消化佇列，防止 enqueue 發生在最後一次 scheduleNextInQueue 之後導致佇列卡住
+      fireAndForget(
+        this.deps.queueService.processNextInQueue(canvasId, targetPodId),
+        'Workflow',
+        `[checkQueue] enqueue 後嘗試消化佇列失敗`
+      );
       return;
     }
 

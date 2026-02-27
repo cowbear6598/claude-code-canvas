@@ -53,6 +53,7 @@ describe('WorkflowPipeline', () => {
 
   const mockQueueService = {
     enqueue: vi.fn(),
+    processNextInQueue: vi.fn().mockResolvedValue(undefined),
   };
 
   const mockTargetPod = createMockPod({
@@ -219,6 +220,21 @@ describe('WorkflowPipeline', () => {
       });
 
       expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
+    });
+
+    it('目標 Pod 忙碌時 enqueue 後立即呼叫一次 processNextInQueue', async () => {
+      const mockStrategy = createMockStrategy('auto');
+
+      (podStore.getById as any).mockReturnValue({
+        ...mockTargetPod,
+        status: 'chatting',
+      });
+
+      await workflowPipeline.execute(baseContext, mockStrategy);
+
+      expect(mockQueueService.enqueue).toHaveBeenCalled();
+      expect(mockQueueService.processNextInQueue).toHaveBeenCalledTimes(1);
+      expect(mockQueueService.processNextInQueue).toHaveBeenCalledWith(canvasId, targetPodId);
     });
   });
 

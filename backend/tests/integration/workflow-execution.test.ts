@@ -169,7 +169,9 @@ describe('WorkflowExecution 服務', () => {
             const targetPodAfter = podStore.getById(canvasId, targetPod.id);
             expect(targetPodAfter?.status).toBe('chatting');
 
-            // 清理：重置狀態
+            // 清理：重置狀態並清空佇列，避免 scheduleQueueRetry 污染後續測試
+            const {workflowQueueService} = await import('../../src/services/workflow/index.js');
+            workflowQueueService.clearQueue(targetPod.id);
             podStore.setStatus(canvasId, targetPod.id, 'idle');
         });
     });

@@ -129,6 +129,8 @@ export interface QueueServiceMethods {
     isSummarized: boolean;
     triggerMode: TriggerMode;
   }): { position: number; queueSize: number };
+
+  processNextInQueue(canvasId: string, targetPodId: string): Promise<void>;
 }
 
 export interface PipelineMethods {
