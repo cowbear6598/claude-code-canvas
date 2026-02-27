@@ -80,13 +80,9 @@ GITLAB_URL=https://gitlab.example.com
 - 一個 Pod = Claude Code
 - 右鍵畫布 → Pod 即可建立
 
-![Pod](tutorials/pod.png)
-
 ### 如何切換模型？
 
 - 移動到 Pod 上方的模型標籤，就可以選擇 Opus / Sonnet / Haiku
-
-![Switch Model](tutorials/switch-model.gif)
 
 ### Slot 說明
 
@@ -95,4 +91,4 @@ GITLAB_URL=https://gitlab.example.com
 - Command 會讓你的訊息前方自動加入，例如：`/command message`
 - Repo 會更改你的工作目錄，沒有放入則是 Pod 自己的目錄
 
-![Pod](tutorials/pod.png)
+![Slot](tutorials/slot.gif)

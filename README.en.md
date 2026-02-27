@@ -80,13 +80,9 @@ GITLAB_URL=https://gitlab.example.com
 - A Pod = Claude Code
 - Right-click on the canvas → Pod to create one
 
-![Pod](tutorials/pod.png)
-
 ### How to Switch Models?
 
 - Hover over the model label on top of the Pod to select Opus / Sonnet / Haiku
-
-![Switch Model](tutorials/switch-model.gif)
 
 ### Slot Overview
 
@@ -95,4 +91,4 @@ GITLAB_URL=https://gitlab.example.com
 - Command will automatically prepend to your message, e.g., `/command message`
 - Repo changes the working directory; without one, the Pod uses its own directory
 
-![Pod](tutorials/pod.png)
+![Slot](tutorials/slot.gif)
