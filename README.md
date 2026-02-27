@@ -14,6 +14,7 @@
   - [什麼是 POD？](#什麼是-pod)
   - [如何切換模型？](#如何切換模型)
   - [Slot 說明](#slot-說明)
+  - [Connection Line](#connection-line)
 
 ## 注意事項
 
@@ -96,3 +97,20 @@ GITLAB_URL=https://gitlab.example.com
 - Repo 會更改你的工作目錄，沒有放入則是 Pod 自己的目錄
 
 ![Slot](tutorials/slot.gif)
+
+### Connection Line
+
+- Auto：不管怎樣都會往下一個 Pod 執行
+- AI：會交由 AI 判斷有沒有需要往下一個 Pod 執行
+- Direct：不理會其他 Connection Line 直接執行
+
+#### 多條觸發規則
+
+當 Pod 被多條 Connection Line 接入：
+
+- Auto + Auto = 當兩條都準備好時，則會觸發 Pod
+- Auto + AI = 當 AI 拒絕時，則不會觸發，同意時，則會觸發 Pod
+- Direct + Direct = 當一條完成時，會等 10 秒看其他 Direct 是否完成，如果完成則一起做總結觸發 Pod，等不到的話則會各自總結
+- Auto + Auto + Direct + Direct = 會分成兩組（Auto 組與 Direct 組）去做總結，哪一條先完成則會先觸發那組，另一組則會進入 queue 等待觸發
+
+![Connection Line](tutorials/connection-line.gif)

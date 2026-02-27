@@ -14,6 +14,7 @@ A canvas tool for visually designing and executing AI Agent workflows, powered b
   - [What is a POD?](#what-is-a-pod)
   - [How to Switch Models?](#how-to-switch-models)
   - [Slot Overview](#slot-overview)
+  - [Connection Line](#connection-line)
 
 ## Important Notes
 
@@ -96,3 +97,20 @@ GITLAB_URL=https://gitlab.example.com
 - Repo changes the working directory; without one, the Pod uses its own directory
 
 ![Slot](tutorials/slot.gif)
+
+### Connection Line
+
+- Auto: Always triggers the next Pod regardless
+- AI: AI decides whether to trigger the next Pod
+- Direct: Ignores other Connection Lines and triggers directly
+
+#### Multi-Connection Trigger Rules
+
+When a Pod has multiple incoming Connection Lines:
+
+- Auto + Auto = Pod triggers when both are ready
+- Auto + AI = If AI rejects, Pod won't trigger; if AI approves, Pod triggers
+- Direct + Direct = When one completes, waits 10 seconds for other Direct lines to finish; if they do, summarizes together then triggers Pod; otherwise, each summarizes independently
+- Auto + Auto + Direct + Direct = Split into two groups (Auto group and Direct group) for summarizing; whichever group completes first triggers first, the other group enters the queue
+
+![Connection Line](tutorials/connection-line.gif)
