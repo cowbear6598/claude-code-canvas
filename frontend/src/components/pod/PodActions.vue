@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<{
   isAutoClearAnimating: boolean
   isLoadingDownstream: boolean
   isClearing: boolean
-  isTyping?: boolean
+  isWorkflowRunning?: boolean
   downstreamPods: Array<{ id: string; name: string }>
   showClearDialog: boolean
   showDeleteDialog: boolean
@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<{
   isScheduleFiredAnimating?: boolean
 }>(), {
   isScheduleFiredAnimating: false,
-  isTyping: false
+  isWorkflowRunning: false,
 })
 
 const emit = defineEmits<{
@@ -63,7 +63,7 @@ let longPressStartTime: number | null = null
 let autoClearAnimationTimer: ReturnType<typeof setTimeout> | null = null
 
 const isEraserDisabled = computed(() =>
-  props.isLoadingDownstream || props.isClearing || isToggling.value || props.isTyping
+  props.isLoadingDownstream || props.isClearing || isToggling.value || props.isWorkflowRunning
 )
 
 const cleanupLongPress = (): void => {

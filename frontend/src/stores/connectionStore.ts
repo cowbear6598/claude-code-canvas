@@ -1,5 +1,6 @@
 import {defineStore} from 'pinia'
 import type {AnchorPosition, Connection, ConnectionStatus, DraggingConnection, TriggerMode} from '@/types/connection'
+import {usePodStore} from '@/stores/pod/podStore'
 import {
     createWebSocketRequest,
     websocketClient,
@@ -40,6 +41,12 @@ function normalizeConnection(raw: RawConnection): Connection {
         decideReason: raw.decideReason ?? undefined,
     }
 }
+
+const RUNNING_CONNECTION_STATUSES = new Set<ConnectionStatus>([
+    'active', 'queued', 'waiting', 'ai-deciding', 'ai-approved'
+])
+
+const RUNNING_POD_STATUSES = new Set(['chatting', 'summarizing'])
 
 interface ConnectionState {
     connections: Connection[]
@@ -100,6 +107,36 @@ export const useConnectionStore = defineStore('connection', {
             return state.connections.filter(
                 conn => conn.sourcePodId === sourcePodId && conn.triggerMode === 'direct'
             )
+        },
+
+        isWorkflowRunning: (state) => (sourcePodId: string): boolean => {
+            const podStore = usePodStore()
+
+            const sourcePod = podStore.getPodById(sourcePodId)
+            if (sourcePod && RUNNING_POD_STATUSES.has(sourcePod.status ?? '')) return true
+
+            const visited = new Set<string>()
+            const queue: string[] = [sourcePodId]
+            visited.add(sourcePodId)
+
+            while (queue.length > 0) {
+                const currentPodId = queue.shift()!
+                const outgoing = state.connections.filter(conn => conn.sourcePodId === currentPodId)
+
+                for (const conn of outgoing) {
+                    if (RUNNING_CONNECTION_STATUSES.has(conn.status)) return true
+
+                    const targetPod = podStore.getPodById(conn.targetPodId)
+                    if (targetPod && RUNNING_POD_STATUSES.has(targetPod.status ?? '')) return true
+
+                    if (!visited.has(conn.targetPodId)) {
+                        visited.add(conn.targetPodId)
+                        queue.push(conn.targetPodId)
+                    }
+                }
+            }
+
+            return false
         },
     },
 
