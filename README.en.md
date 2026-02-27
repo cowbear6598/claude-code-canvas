@@ -2,8 +2,16 @@
 
 # Claude Code Canvas
 
-- A canvas tool for visually designing and executing AI Agent workflows
-- Powered by Claude Agent SDK for agent execution
+A canvas tool for visually designing and executing AI Agent workflows, powered by Claude Agent SDK for agent execution.
+
+## Table of Contents
+
+- [Important Notes](#important-notes)
+- [Installation](#installation)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Tutorials](#tutorials)
+  - [What is a POD?](#what-is-a-pod)
 
 ## Important Notes
 
@@ -12,14 +20,21 @@
 - Since it uses the **Claude Agent SDK**, make sure the service runs in an environment where **Claude is already logged in**. Not supported API Key now.
 - Currently **only tested on macOS**. Other operating systems may have unknown issues.
 
-## Installation & Getting Started
+## Installation
 
 **Prerequisites:** Bun
+
+```bash
+cd frontend && bun install
+cd backend && bun install
+```
+
+## Getting Started
 
 **Frontend**
 
 ```bash
-cd frontend && bun install && bun run dev
+cd frontend && bun run dev
 ```
 
 Runs on port 5173.
@@ -27,12 +42,20 @@ Runs on port 5173.
 **Backend**
 
 ```bash
-cd backend && bun install && bun run dev
+cd backend && bun run dev
 ```
 
 Runs on port 3001.
 
-**Environment Variables (Optional)**
+**Production**
+
+```bash
+cd backend && bun run prod
+```
+
+Builds the frontend and serves everything together from the backend.
+
+## Environment Variables
 
 To use Clone features for accessing private repositories, create a `.env` file in the `backend/` directory:
 
@@ -47,11 +70,10 @@ GITLAB_TOKEN=glpat-xxxxx
 GITLAB_URL=https://gitlab.example.com
 ```
 
-**Production**
+## Tutorials
 
-```bash
-cd backend && bun run prod
-```
+### What is a POD?
 
-Builds the frontend and serves everything together from the backend.
+A Pod = Claude Code
 
+![Pod](tutorials/pod.png)
