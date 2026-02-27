@@ -28,8 +28,8 @@ export interface GroupCRUDConfig {
 }
 
 export interface GroupCRUDStoreContext {
-  groups: Array<{ id: string; name: string; [key: string]: unknown }>
-  addGroupFromEvent: (group: Record<string, unknown>) => void
+  groups: Group[]
+  addGroupFromEvent: (group: Group) => void
   removeGroupFromEvent: (groupId: string) => void
   updateItemGroupId: (itemId: string, groupId: string | null) => void
 }

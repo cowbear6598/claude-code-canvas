@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ref, type Ref } from 'vue'
-import { useSlotEject } from '@/composables/pod/useSlotEject'
+import { useSlotEject, type UseSlotEjectOptions } from '@/composables/pod/useSlotEject'
 
 interface NotePosition {
   id: string
@@ -16,6 +16,18 @@ describe('useSlotEject', () => {
   let mockUnbindFromPod: ReturnType<typeof vi.fn>
   let mockGetViewportZoom: ReturnType<typeof vi.fn>
   let mockGetViewportOffset: ReturnType<typeof vi.fn>
+
+  function buildOptions(): UseSlotEjectOptions {
+    return {
+      slotRef,
+      podRotation: mockPodRotation as unknown as UseSlotEjectOptions['podRotation'],
+      getNoteById: mockGetNoteById as unknown as UseSlotEjectOptions['getNoteById'],
+      setNoteAnimating: mockSetNoteAnimating as unknown as UseSlotEjectOptions['setNoteAnimating'],
+      unbindFromPod: mockUnbindFromPod as unknown as UseSlotEjectOptions['unbindFromPod'],
+      getViewportZoom: mockGetViewportZoom as unknown as UseSlotEjectOptions['getViewportZoom'],
+      getViewportOffset: mockGetViewportOffset as unknown as UseSlotEjectOptions['getViewportOffset'],
+    }
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -36,13 +48,7 @@ describe('useSlotEject', () => {
 
   it('應回傳 isEjecting ref 和 handleSlotClick 函數', () => {
     const { isEjecting, handleSlotClick } = useSlotEject({
-      slotRef,
-      podRotation: mockPodRotation,
-      getNoteById: mockGetNoteById,
-      setNoteAnimating: mockSetNoteAnimating,
-      unbindFromPod: mockUnbindFromPod,
-      getViewportZoom: mockGetViewportZoom,
-      getViewportOffset: mockGetViewportOffset,
+      ...buildOptions(),
     })
 
     expect(isEjecting.value).toBe(false)
@@ -83,13 +89,7 @@ describe('useSlotEject', () => {
       })
 
       const { isEjecting, handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -139,13 +139,7 @@ describe('useSlotEject', () => {
       })
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -163,13 +157,7 @@ describe('useSlotEject', () => {
       mockGetNoteById.mockReturnValue(undefined)
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -185,13 +173,7 @@ describe('useSlotEject', () => {
       slotRef.value = null
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -208,13 +190,7 @@ describe('useSlotEject', () => {
       slotRef.value = mockSlotElement
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -260,13 +236,7 @@ describe('useSlotEject', () => {
       mockPodRotation.mockReturnValue(0)
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -317,13 +287,7 @@ describe('useSlotEject', () => {
       mockPodRotation.mockReturnValue(90)
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -376,13 +340,7 @@ describe('useSlotEject', () => {
       mockPodRotation.mockReturnValue(180)
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -434,13 +392,7 @@ describe('useSlotEject', () => {
       mockPodRotation.mockReturnValue(270)
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -493,13 +445,7 @@ describe('useSlotEject', () => {
       mockGetViewportZoom.mockReturnValue(2)
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -548,13 +494,7 @@ describe('useSlotEject', () => {
       mockGetViewportOffset.mockReturnValue({ x: 50, y: 50 })
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -600,13 +540,7 @@ describe('useSlotEject', () => {
       })
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -649,13 +583,7 @@ describe('useSlotEject', () => {
       })
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -697,13 +625,7 @@ describe('useSlotEject', () => {
       })
 
       const { isEjecting, handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')
@@ -754,13 +676,7 @@ describe('useSlotEject', () => {
       mockUnbindFromPod.mockRejectedValue(new Error('解綁失敗'))
 
       const { handleSlotClick } = useSlotEject({
-        slotRef,
-        podRotation: mockPodRotation,
-        getNoteById: mockGetNoteById,
-        setNoteAnimating: mockSetNoteAnimating,
-        unbindFromPod: mockUnbindFromPod,
-        getViewportZoom: mockGetViewportZoom,
-        getViewportOffset: mockGetViewportOffset,
+        ...buildOptions(),
       })
 
       const mockEvent = new MouseEvent('click')

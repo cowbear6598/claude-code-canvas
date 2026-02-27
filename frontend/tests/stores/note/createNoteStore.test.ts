@@ -6,6 +6,7 @@ import { createMockNote, createMockCanvas } from '../../helpers/factories'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { createNoteStore, type NoteStoreConfig } from '@/stores/note/createNoteStore'
 import type { BaseNote } from '@/types'
+import type { Group } from '@/types/group'
 
 // Mock WebSocket
 vi.mock('@/services/websocket', async () => {
@@ -36,6 +37,7 @@ interface TestItem {
 }
 
 interface TestNote extends BaseNote {
+  [key: string]: unknown
   testItemId: string
 }
 
@@ -416,9 +418,9 @@ describe('createNoteStore', () => {
         const config = createTestConfig()
         const store = createNoteStore<TestItem, TestNote>(config)()
         store.groups = [
-          { id: 'group-2', name: 'Group B' },
-          { id: 'group-1', name: 'Group A' },
-        ]
+          { id: 'group-2', name: 'Group B', type: 'outputStyle' },
+          { id: 'group-1', name: 'Group A', type: 'outputStyle' },
+        ] as Group[]
         store.availableItems = [
           { id: 'item-3', name: 'Item C' },
           { id: 'item-1', name: 'Item A' },
@@ -428,11 +430,11 @@ describe('createNoteStore', () => {
         const result = store.getSortedItemsWithGroups
 
         expect(result.groups).toHaveLength(2)
-        expect(result.groups[0].name).toBe('Group A')
-        expect(result.groups[1].name).toBe('Group B')
+        expect(result.groups[0]!.name).toBe('Group A')
+        expect(result.groups[1]!.name).toBe('Group B')
         expect(result.rootItems).toHaveLength(2)
-        expect(result.rootItems[0].name).toBe('Item A')
-        expect(result.rootItems[1].name).toBe('Item C')
+        expect(result.rootItems[0]!.name).toBe('Item A')
+        expect(result.rootItems[1]!.name).toBe('Item C')
       })
 
       it('沒有 groups 時應只返回排序的 rootItems', () => {
@@ -448,14 +450,14 @@ describe('createNoteStore', () => {
 
         expect(result.groups).toEqual([])
         expect(result.rootItems).toHaveLength(2)
-        expect(result.rootItems[0].name).toBe('Item A')
-        expect(result.rootItems[1].name).toBe('Item B')
+        expect(result.rootItems[0]!.name).toBe('Item A')
+        expect(result.rootItems[1]!.name).toBe('Item B')
       })
 
       it('所有 items 都有 groupId 時 rootItems 應為空陣列', () => {
         const config = createTestConfig()
         const store = createNoteStore<TestItem, TestNote>(config)()
-        store.groups = [{ id: 'group-1', name: 'Group A' }]
+        store.groups = [{ id: 'group-1', name: 'Group A', type: 'outputStyle' }] as Group[]
         store.availableItems = [
           { id: 'item-1', name: 'Item A', groupId: 'group-1' },
           { id: 'item-2', name: 'Item B', groupId: 'group-1' },
@@ -1125,7 +1127,7 @@ describe('createNoteStore', () => {
       it('應新增 group', () => {
         const config = createTestConfig()
         const store = createNoteStore<TestItem, TestNote>(config)()
-        const group = { id: 'group-1', name: 'Group 1' }
+        const group: Group = { id: 'group-1', name: 'Group 1', type: 'outputStyle' }
 
         store.addGroupFromEvent(group)
 
@@ -1136,7 +1138,7 @@ describe('createNoteStore', () => {
       it('不應重複新增相同 id 的 group', () => {
         const config = createTestConfig()
         const store = createNoteStore<TestItem, TestNote>(config)()
-        const group = { id: 'group-1', name: 'Group 1' }
+        const group: Group = { id: 'group-1', name: 'Group 1', type: 'outputStyle' }
         store.groups = [group]
 
         store.addGroupFromEvent(group)
@@ -1149,8 +1151,8 @@ describe('createNoteStore', () => {
       it('應移除 group', () => {
         const config = createTestConfig()
         const store = createNoteStore<TestItem, TestNote>(config)()
-        const group1 = { id: 'group-1', name: 'Group 1' }
-        const group2 = { id: 'group-2', name: 'Group 2' }
+        const group1: Group = { id: 'group-1', name: 'Group 1', type: 'outputStyle' }
+        const group2: Group = { id: 'group-2', name: 'Group 2', type: 'outputStyle' }
         store.groups = [group1, group2]
 
         store.removeGroupFromEvent('group-1')

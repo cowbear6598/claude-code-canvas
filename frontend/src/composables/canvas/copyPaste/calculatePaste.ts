@@ -31,21 +31,27 @@ export function updateBoundingBox(
   bounds.maxY = Math.max(bounds.maxY, y + height)
 }
 
-export function calculateBoundingBox<T extends { x: number; y: number }>(
+export function calculateBoundingBox<
+  TO extends { x: number; y: number },
+  TS extends { x: number; y: number },
+  TR extends { x: number; y: number },
+  TSA extends { x: number; y: number },
+  TC extends { x: number; y: number }
+>(
   pods: CopiedPod[],
   notes: {
-    outputStyleNotes: T[]
-    skillNotes: T[]
-    repositoryNotes: T[]
-    subAgentNotes: T[]
-    commandNotes: T[]
+    outputStyleNotes: TO[]
+    skillNotes: TS[]
+    repositoryNotes: TR[]
+    subAgentNotes: TSA[]
+    commandNotes: TC[]
   },
   getBoundKeys: {
-    outputStyleNote: (n: T) => string | null
-    skillNote: (n: T) => string | null
-    repositoryNote: (n: T) => string | null
-    subAgentNote: (n: T) => string | null
-    commandNote: (n: T) => string | null
+    outputStyleNote: (n: TO) => string | null
+    skillNote: (n: TS) => string | null
+    repositoryNote: (n: TR) => string | null
+    subAgentNote: (n: TSA) => string | null
+    commandNote: (n: TC) => string | null
   }
 ): BoundingBox {
   const bounds = {

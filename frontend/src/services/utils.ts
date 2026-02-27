@@ -9,7 +9,7 @@ export function generateUUID(): string {
 
   // Fallback：使用 crypto.getRandomValues()（非安全上下文也可用）
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const randomNibble = crypto.getRandomValues(new Uint8Array(1))[0] % 16
+    const randomNibble = (crypto.getRandomValues(new Uint8Array(1))[0] ?? 0) % 16
     const hexDigit = c === 'x' ? randomNibble : (randomNibble & 0x3) | 0x8
     return hexDigit.toString(16)
   })

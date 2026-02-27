@@ -146,7 +146,9 @@ const handlePodStateUpdated = createUnifiedHandler<BasePayload & { pod?: Pod; ca
   }
 )
 
-const handleConnectionCreated = createUnifiedHandler<BasePayload & { connection?: Connection; canvasId: string }>(
+type RawConnectionFromEvent = Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }
+
+const handleConnectionCreated = createUnifiedHandler<BasePayload & { connection?: RawConnectionFromEvent; canvasId: string }>(
   (payload) => {
     if (payload.connection) {
       useConnectionStore().addConnectionFromEvent(payload.connection)
@@ -155,7 +157,7 @@ const handleConnectionCreated = createUnifiedHandler<BasePayload & { connection?
   { toastMessage: '連線建立成功' }
 )
 
-const handleConnectionUpdated = createUnifiedHandler<BasePayload & { connection?: Connection; canvasId: string }>(
+const handleConnectionUpdated = createUnifiedHandler<BasePayload & { connection?: RawConnectionFromEvent; canvasId: string }>(
   (payload) => {
     if (payload.connection) {
       useConnectionStore().updateConnectionFromEvent(payload.connection)
@@ -272,7 +274,7 @@ const handleRepositoryBranchChanged = createUnifiedHandler<BasePayload & { repos
     if (!payload.branchName || !/^[a-zA-Z0-9_\-/]+$/.test(payload.branchName)) return
 
     const repositoryStore = useRepositoryStore()
-    const repository = repositoryStore.availableItems.find((item) => item.id === payload.repositoryId)
+    const repository = repositoryStore.typedAvailableItems.find((item) => item.id === payload.repositoryId)
     if (repository) {
       repository.currentBranch = payload.branchName
     }
@@ -409,7 +411,7 @@ const handleCanvasPasted = createUnifiedHandler<BasePayload & {
   createdRepositoryNotes?: RepositoryNote[]
   createdSubAgentNotes?: SubAgentNote[]
   createdCommandNotes?: CommandNote[]
-  createdConnections?: Connection[]
+  createdConnections?: RawConnectionFromEvent[]
 }>(
   (payload) => {
     const podStore = usePodStore()

@@ -104,6 +104,7 @@ describe('useCheckoutProgress', () => {
         requestId: 'req-1',
         progress: 50,
         message: '切換分支...',
+        branchName: 'feature-branch',
       }
 
       simulateEvent(WebSocketResponseEvents.REPOSITORY_CHECKOUT_BRANCH_PROGRESS, progressPayload)
@@ -156,6 +157,7 @@ describe('useCheckoutProgress', () => {
         requestId: 'non-existent',
         progress: 50,
         message: '不應更新',
+        branchName: 'feature-branch',
       }
 
       simulateEvent(WebSocketResponseEvents.REPOSITORY_CHECKOUT_BRANCH_PROGRESS, progressPayload)
@@ -185,6 +187,7 @@ describe('useCheckoutProgress', () => {
         requestId: 'req-1',
         progress: 50,
         message: '不應更新',
+        branchName: 'feature-branch',
       }
 
       simulateEvent(WebSocketResponseEvents.REPOSITORY_CHECKOUT_BRANCH_PROGRESS, progressPayload)
@@ -213,6 +216,7 @@ describe('useCheckoutProgress', () => {
         requestId: 'req-1',
         progress: 50,
         message: '不應更新',
+        branchName: 'feature-branch',
       }
 
       simulateEvent(WebSocketResponseEvents.REPOSITORY_CHECKOUT_BRANCH_PROGRESS, progressPayload)
@@ -251,7 +255,7 @@ describe('useCheckoutProgress', () => {
       expect(task?.status).toBe('completed')
       expect(task?.progress).toBe(100)
       expect(task?.message).toBe('切換完成')
-      expect(repositoryStore.availableItems[0]?.currentBranch).toBe('feature-branch')
+      expect((repositoryStore.availableItems[0] as any)?.currentBranch).toBe('feature-branch')
     })
 
     it('成功後應在 1 秒後移除任務', async () => {

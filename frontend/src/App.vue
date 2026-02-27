@@ -132,7 +132,7 @@ const handleScheduleFired = async (payload: ScheduleFiredPayload): Promise<void>
     podStore.triggerScheduleFiredAnimation(payload.podId)
 
     const command = pod.commandId
-      ? commandStore.availableItems.find(c => c.id === pod.commandId)
+      ? commandStore.typedAvailableItems.find(c => c.id === pod.commandId)
       : null
     const displayMessage = command ? `/${command.name} ` : ''
 

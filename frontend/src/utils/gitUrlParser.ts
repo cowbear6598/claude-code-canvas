@@ -37,8 +37,8 @@ export function parseGitUrl(url: string): GitUrlParseResult {
     const match = trimmedUrl.match(httpsPattern)
 
     if (match) {
-      owner = match[2]
-      repoName = match[3]
+      owner = match[2] ?? null
+      repoName = match[3] ?? null
       isValid = true
     }
   } else if (trimmedUrl.startsWith('git@')) {
@@ -46,8 +46,8 @@ export function parseGitUrl(url: string): GitUrlParseResult {
     const match = trimmedUrl.match(sshPattern)
 
     if (match) {
-      owner = match[2]
-      repoName = match[3]
+      owner = match[2] ?? null
+      repoName = match[3] ?? null
       isValid = true
     }
   }

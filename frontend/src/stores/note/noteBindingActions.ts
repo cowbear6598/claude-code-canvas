@@ -24,7 +24,6 @@ interface NoteItem {
     x: number
     y: number
     originalPosition?: Position | null
-    [key: string]: unknown
 }
 
 interface NoteBindingStore {
@@ -62,7 +61,7 @@ export function createNoteBindingActions<TItem>(config: NoteStoreConfig<TItem>):
                     payload: {
                         canvasId,
                         podId,
-                        [config.itemIdField]: (note as Record<string, unknown>)[config.itemIdField]
+                        [config.itemIdField]: (note as unknown as Record<string, unknown>)[config.itemIdField]
                     }
                 }),
                 createWebSocketRequest<BasePayload, BaseResponse>({

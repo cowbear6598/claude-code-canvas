@@ -3,6 +3,7 @@ import { setActivePinia } from 'pinia'
 import { setupTestPinia } from '../../helpers/mockStoreFactory'
 import { mockWebSocketModule, resetMockWebSocket, mockWebSocketClient } from '../../helpers/mockWebSocket'
 import { useChatStore } from '@/stores/chat/chatStore'
+import type { HeartbeatPingPayload, PodErrorPayload } from '@/types/websocket'
 
 // Mock WebSocket
 vi.mock('@/services/websocket', async () => {
@@ -143,7 +144,7 @@ describe('chatConnectionActions', () => {
       vi.spyOn(Date, 'now').mockReturnValue(now)
       const ack = vi.fn()
 
-      store.handleHeartbeatPing({}, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
 
       expect(store.lastHeartbeatAt).toBe(now)
     })
@@ -154,7 +155,7 @@ describe('chatConnectionActions', () => {
       vi.spyOn(Date, 'now').mockReturnValue(now)
       const ack = vi.fn()
 
-      store.handleHeartbeatPing({}, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
 
       expect(ack).toHaveBeenCalledWith({ timestamp: now })
     })
@@ -164,7 +165,7 @@ describe('chatConnectionActions', () => {
       store.connectionStatus = 'error'
       const ack = vi.fn()
 
-      store.handleHeartbeatPing({}, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
 
       expect(store.connectionStatus).toBe('connected')
     })
@@ -174,7 +175,7 @@ describe('chatConnectionActions', () => {
       store.connectionStatus = 'connected'
       const ack = vi.fn()
 
-      store.handleHeartbeatPing({}, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
 
       expect(store.connectionStatus).toBe('connected')
     })
@@ -192,7 +193,7 @@ describe('chatConnectionActions', () => {
       const now = Date.now()
       vi.spyOn(Date, 'now').mockReturnValue(now)
       const ack = vi.fn()
-      store.handleHeartbeatPing({}, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
 
       // 前進 21 秒（超過 20 秒超時）
       vi.spyOn(Date, 'now').mockReturnValue(now + 21000)
@@ -236,7 +237,7 @@ describe('chatConnectionActions', () => {
       const now = Date.now()
       vi.spyOn(Date, 'now').mockReturnValue(now)
       const ack = vi.fn()
-      store.handleHeartbeatPing({}, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
 
       // 前進 4.9 秒，不應判斷超時
       vi.spyOn(Date, 'now').mockReturnValue(now + 21000)
@@ -359,7 +360,7 @@ describe('chatConnectionActions', () => {
       mockWebSocketClient.isConnected.value = false
       store.connectionStatus = 'connecting'
 
-      store.handleError({ error: 'Some error' })
+      store.handleError({ error: 'Some error' } as unknown as PodErrorPayload)
 
       expect(store.connectionStatus).toBe('error')
     })
@@ -369,7 +370,7 @@ describe('chatConnectionActions', () => {
       mockWebSocketClient.isConnected.value = true
       store.connectionStatus = 'connected'
 
-      store.handleError({ error: 'Some error' })
+      store.handleError({ error: 'Some error' } as unknown as PodErrorPayload)
 
       expect(store.connectionStatus).toBe('connected')
     })
@@ -379,7 +380,7 @@ describe('chatConnectionActions', () => {
       mockWebSocketClient.isConnected.value = true
       store.isTypingByPodId.set('pod-1', true)
 
-      store.handleError({ error: 'Some error', podId: 'pod-1' })
+      store.handleError({ error: 'Some error', podId: 'pod-1' } as unknown as PodErrorPayload)
 
       expect(store.isTypingByPodId.get('pod-1')).toBe(false)
     })
@@ -389,7 +390,7 @@ describe('chatConnectionActions', () => {
       mockWebSocketClient.isConnected.value = true
       store.isTypingByPodId.set('pod-1', true)
 
-      store.handleError({ error: 'Some error' })
+      store.handleError({ error: 'Some error' } as unknown as PodErrorPayload)
 
       expect(store.isTypingByPodId.get('pod-1')).toBe(true)
     })
@@ -398,7 +399,7 @@ describe('chatConnectionActions', () => {
       const store = useChatStore()
       mockWebSocketClient.isConnected.value = true
 
-      store.handleError({ error: 'Some error', podId: 'pod-new' })
+      store.handleError({ error: 'Some error', podId: 'pod-new' } as unknown as PodErrorPayload)
 
       expect(store.isTypingByPodId.get('pod-new')).toBe(false)
     })

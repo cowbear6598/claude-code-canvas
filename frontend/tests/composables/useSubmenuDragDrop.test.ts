@@ -2,19 +2,19 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useSubmenuDragDrop } from '@/composables/useSubmenuDragDrop'
 
 function createMockDragEvent(type: string): DragEvent {
+  const internalData: Record<string, string> = {}
   const dataTransfer = {
     effectAllowed: 'none' as DataTransfer['effectAllowed'],
     dropEffect: 'none' as DataTransfer['dropEffect'],
-    items: [] as DataTransferItemList,
+    items: [] as unknown as DataTransferItemList,
     types: [] as readonly string[],
-    files: [] as FileList,
+    files: [] as unknown as FileList,
     setData: vi.fn((format: string, data: string) => {
-      dataTransfer._data[format] = data
+      internalData[format] = data
     }),
-    getData: vi.fn((format: string) => dataTransfer._data[format] || ''),
+    getData: vi.fn((format: string) => internalData[format] ?? ''),
     clearData: vi.fn(),
     setDragImage: vi.fn(),
-    _data: {} as Record<string, string>,
   } as unknown as DataTransfer
 
   return {
@@ -28,13 +28,17 @@ function createMockDragEvent(type: string): DragEvent {
 describe('useSubmenuDragDrop', () => {
   let onItemDropToGroup: ReturnType<typeof vi.fn>
 
+  function getMockCallback(): (itemId: string, groupId: string | null) => void {
+    return onItemDropToGroup as unknown as (itemId: string, groupId: string | null) => void
+  }
+
   beforeEach(() => {
     onItemDropToGroup = vi.fn()
   })
 
   describe('拖曳項目到群組', () => {
     it('開始拖曳 → 經過群組 → 放下 → 觸發 moveToGroup', () => {
-      const { handleDragStart, handleGroupDragOver, handleGroupDrop, draggedItemId, dragOverGroupId } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleDragStart, handleGroupDragOver, handleGroupDrop, draggedItemId, dragOverGroupId } = useSubmenuDragDrop(getMockCallback())
 
       const startEvent = createMockDragEvent('dragstart')
       handleDragStart('item-1', startEvent)
@@ -50,7 +54,7 @@ describe('useSubmenuDragDrop', () => {
     })
 
     it('放下後所有狀態重置', () => {
-      const { handleDragStart, handleGroupDrop, draggedItemId, dragOverGroupId, isDraggingOverRoot } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleDragStart, handleGroupDrop, draggedItemId, dragOverGroupId, isDraggingOverRoot } = useSubmenuDragDrop(getMockCallback())
 
       const startEvent = createMockDragEvent('dragstart')
       handleDragStart('item-1', startEvent)
@@ -66,7 +70,7 @@ describe('useSubmenuDragDrop', () => {
 
   describe('拖曳項目到根層級', () => {
     it('開始拖曳 → 經過根層級 → 放下 → 觸發 moveToRoot', () => {
-      const { handleDragStart, handleRootDragOver, handleRootDrop, draggedItemId, isDraggingOverRoot } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleDragStart, handleRootDragOver, handleRootDrop, draggedItemId, isDraggingOverRoot } = useSubmenuDragDrop(getMockCallback())
 
       const startEvent = createMockDragEvent('dragstart')
       handleDragStart('item-1', startEvent)
@@ -82,7 +86,7 @@ describe('useSubmenuDragDrop', () => {
     })
 
     it('放下後所有狀態重置', () => {
-      const { handleDragStart, handleRootDrop, draggedItemId, dragOverGroupId, isDraggingOverRoot } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleDragStart, handleRootDrop, draggedItemId, dragOverGroupId, isDraggingOverRoot } = useSubmenuDragDrop(getMockCallback())
 
       const startEvent = createMockDragEvent('dragstart')
       handleDragStart('item-1', startEvent)
@@ -98,7 +102,7 @@ describe('useSubmenuDragDrop', () => {
 
   describe('拖曳取消', () => {
     it('dragEnd 後所有狀態重置', () => {
-      const { handleDragStart, handleGroupDragOver, handleRootDragOver, handleDragEnd, draggedItemId, dragOverGroupId, isDraggingOverRoot } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleDragStart, handleGroupDragOver, handleRootDragOver, handleDragEnd, draggedItemId, dragOverGroupId, isDraggingOverRoot } = useSubmenuDragDrop(getMockCallback())
 
       const startEvent = createMockDragEvent('dragstart')
       handleDragStart('item-1', startEvent)
@@ -117,7 +121,7 @@ describe('useSubmenuDragDrop', () => {
 
   describe('拖曳視覺狀態', () => {
     it('dragOverGroupId 切換', () => {
-      const { handleGroupDragOver, handleGroupDragLeave, dragOverGroupId } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleGroupDragOver, handleGroupDragLeave, dragOverGroupId } = useSubmenuDragDrop(getMockCallback())
 
       const overEvent = createMockDragEvent('dragover')
       handleGroupDragOver('group-1', overEvent)
@@ -128,7 +132,7 @@ describe('useSubmenuDragDrop', () => {
     })
 
     it('isDraggingOverRoot 切換', () => {
-      const { handleRootDragOver, handleRootDragLeave, isDraggingOverRoot } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleRootDragOver, handleRootDragLeave, isDraggingOverRoot } = useSubmenuDragDrop(getMockCallback())
 
       const overEvent = createMockDragEvent('dragover')
       handleRootDragOver(overEvent)
@@ -141,7 +145,7 @@ describe('useSubmenuDragDrop', () => {
 
   describe('DragEvent dataTransfer 處理', () => {
     it('handleDragStart 設定 dataTransfer', () => {
-      const { handleDragStart } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleDragStart } = useSubmenuDragDrop(getMockCallback())
 
       const startEvent = createMockDragEvent('dragstart')
       handleDragStart('item-1', startEvent)
@@ -151,7 +155,7 @@ describe('useSubmenuDragDrop', () => {
     })
 
     it('handleGroupDragOver 設定 dropEffect', () => {
-      const { handleGroupDragOver } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleGroupDragOver } = useSubmenuDragDrop(getMockCallback())
 
       const overEvent = createMockDragEvent('dragover')
       handleGroupDragOver('group-1', overEvent)
@@ -160,7 +164,7 @@ describe('useSubmenuDragDrop', () => {
     })
 
     it('handleRootDragOver 設定 dropEffect', () => {
-      const { handleRootDragOver } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleRootDragOver } = useSubmenuDragDrop(getMockCallback())
 
       const overEvent = createMockDragEvent('dragover')
       handleRootDragOver(overEvent)
@@ -171,7 +175,7 @@ describe('useSubmenuDragDrop', () => {
 
   describe('無拖曳項目時的處理', () => {
     it('無拖曳項目放下群組時不觸發回調', () => {
-      const { handleGroupDrop } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleGroupDrop } = useSubmenuDragDrop(getMockCallback())
 
       const dropEvent = createMockDragEvent('drop')
       handleGroupDrop('group-1', dropEvent)
@@ -180,7 +184,7 @@ describe('useSubmenuDragDrop', () => {
     })
 
     it('無拖曳項目放下根層級時不觸發回調', () => {
-      const { handleRootDrop } = useSubmenuDragDrop(onItemDropToGroup)
+      const { handleRootDrop } = useSubmenuDragDrop(getMockCallback())
 
       const dropEvent = createMockDragEvent('drop')
       handleRootDrop(dropEvent)

@@ -1,5 +1,6 @@
 import type { Repository, RepositoryNote } from '@/types'
 import { createNoteStore } from './createNoteStore'
+import type { NoteStoreContext } from './createNoteStore'
 import { websocketClient, WebSocketRequestEvents, WebSocketResponseEvents, createWebSocketRequest } from '@/services/websocket'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { requireActiveCanvas } from '@/utils/canvasGuard'
@@ -92,7 +93,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
   getItemId: (item: Repository) => item.id,
   getItemName: (item: Repository) => item.name,
   customActions: {
-    async createRepository(this, name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }> {
+    async createRepository(this: NoteStoreContext<Repository>, name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }> {
       const { wrapWebSocketRequest, showSuccessToast, showErrorToast } = getRepositoryActionDeps()
       const canvasId = requireActiveCanvas()
 
@@ -123,15 +124,15 @@ const store = createNoteStore<Repository, RepositoryNote>({
       return { success: true, repository: response.repository }
     },
 
-    async deleteRepository(this, repositoryId: string): Promise<void> {
+    async deleteRepository(this: NoteStoreContext<Repository>, repositoryId: string): Promise<void> {
       return this.deleteItem(repositoryId)
     },
 
-    async loadRepositories(this): Promise<void> {
+    async loadRepositories(this: NoteStoreContext<Repository>): Promise<void> {
       return this.loadItems()
     },
 
-    async checkIsGit(this, repositoryId: string): Promise<boolean> {
+    async checkIsGit(this: NoteStoreContext<Repository>, repositoryId: string): Promise<boolean> {
       const { wrapWebSocketRequest } = getRepositoryActionDeps()
       const canvasId = requireActiveCanvas()
 
@@ -158,7 +159,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
       return response.isGit
     },
 
-    async createWorktree(this, repositoryId: string, worktreeName: string, sourceNotePosition: { x: number; y: number }): Promise<{ success: boolean; error?: string }> {
+    async createWorktree(this: NoteStoreContext<Repository>, repositoryId: string, worktreeName: string, sourceNotePosition: { x: number; y: number }): Promise<{ success: boolean; error?: string }> {
       const { wrapWebSocketRequest, showSuccessToast, showErrorToast } = getRepositoryActionDeps()
       const canvasId = requireActiveCanvas()
 
@@ -199,7 +200,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
       return { success: true }
     },
 
-    async getLocalBranches(this, repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; worktreeBranches?: string[]; error?: string }> {
+    async getLocalBranches(this: NoteStoreContext<Repository>, repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; worktreeBranches?: string[]; error?: string }> {
       const { wrapWebSocketRequest, showErrorToast } = getRepositoryActionDeps()
       const canvasId = requireActiveCanvas()
 
@@ -228,7 +229,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
       }
     },
 
-    async checkDirty(this, repositoryId: string): Promise<{ success: boolean; isDirty?: boolean; error?: string }> {
+    async checkDirty(this: NoteStoreContext<Repository>, repositoryId: string): Promise<{ success: boolean; isDirty?: boolean; error?: string }> {
       const { wrapWebSocketRequest, showErrorToast } = getRepositoryActionDeps()
       const canvasId = requireActiveCanvas()
 
@@ -255,7 +256,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
       }
     },
 
-    async checkoutBranch(this, repositoryId: string, branchName: string, force: boolean = false): Promise<{ requestId: string }> {
+    async checkoutBranch(this: NoteStoreContext<Repository>, repositoryId: string, branchName: string, force: boolean = false): Promise<{ requestId: string }> {
       const canvasId = requireActiveCanvas()
       const requestId = generateRequestId()
 
@@ -273,7 +274,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
       return { requestId }
     },
 
-    async deleteBranch(this, repositoryId: string, branchName: string): Promise<{ success: boolean; branchName?: string; error?: string }> {
+    async deleteBranch(this: NoteStoreContext<Repository>, repositoryId: string, branchName: string): Promise<{ success: boolean; branchName?: string; error?: string }> {
       const { wrapWebSocketRequest, showSuccessToast, showErrorToast } = getRepositoryActionDeps()
       const canvasId = requireActiveCanvas()
 
@@ -308,7 +309,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
       }
     },
 
-    async pullLatest(this, repositoryId: string): Promise<{ requestId: string }> {
+    async pullLatest(this: NoteStoreContext<Repository>, repositoryId: string): Promise<{ requestId: string }> {
       const canvasId = requireActiveCanvas()
       const requestId = generateRequestId()
 
@@ -324,7 +325,7 @@ const store = createNoteStore<Repository, RepositoryNote>({
       return { requestId }
     },
 
-    isWorktree(this, repositoryId: string): boolean {
+    isWorktree(this: NoteStoreContext<Repository>, repositoryId: string): boolean {
       const repository = this.availableItems.find((item: Repository) => item.id === repositoryId)
       return !!repository?.parentRepoId
     },

@@ -1,5 +1,6 @@
 import type { Skill, SkillNote } from '@/types'
 import { createNoteStore } from './createNoteStore'
+import type { NoteStoreContext } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { createWebSocketRequest } from '@/services/websocket/createWebSocketRequest'
 import type { SkillImportPayload, SkillImportedPayload } from '@/types/websocket'
@@ -53,15 +54,15 @@ const store = createNoteStore<Skill, SkillNote>({
   getItemId: (item: Skill) => item.id,
   getItemName: (item: Skill) => item.name,
   customActions: {
-    async deleteSkill(this, skillId: string): Promise<void> {
+    async deleteSkill(this: NoteStoreContext<Skill>, skillId: string): Promise<void> {
       return this.deleteItem(skillId)
     },
 
-    async loadSkills(this): Promise<void> {
+    async loadSkills(this: NoteStoreContext<Skill>): Promise<void> {
       return this.loadItems()
     },
 
-    async importSkill(this, fileName: string, fileData: string, fileSize: number): Promise<{ success: boolean; isOverwrite?: boolean; error?: string; skill?: Skill }> {
+    async importSkill(this: NoteStoreContext<Skill> & SkillStoreCustomActions, fileName: string, fileData: string, fileSize: number): Promise<{ success: boolean; isOverwrite?: boolean; error?: string; skill?: Skill }> {
       const { wrapWebSocketRequest } = useWebSocketErrorHandler()
       const canvasId = requireActiveCanvas()
 

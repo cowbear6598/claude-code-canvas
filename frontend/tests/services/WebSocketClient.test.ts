@@ -21,7 +21,10 @@ class MockWebSocket {
     this.readyState = MockWebSocket.CLOSED
   })
 
-  constructor(public url: string) {
+  url: string
+
+  constructor(url: string) {
+    this.url = url
     mockWebSocketInstances.push(this)
   }
 
@@ -72,7 +75,7 @@ describe('WebSocketClient', () => {
       websocketClient.connect('http://localhost:3001')
 
       expect(mockWebSocketInstances.length).toBe(1)
-      expect(mockWebSocketInstances[0].url).toBe('ws://localhost:3001')
+      expect(mockWebSocketInstances[0]!.url).toBe('ws://localhost:3001')
     })
 
     it('應該在 dev 模式下使用 port 3001', () => {
@@ -87,8 +90,8 @@ describe('WebSocketClient', () => {
 
       websocketClient.connect()
 
-      expect(mockWebSocketInstances[0].url).toContain('ws://')
-      expect(mockWebSocketInstances[0].url).toContain('localhost:3001')
+      expect(mockWebSocketInstances[0]!.url).toContain('ws://')
+      expect(mockWebSocketInstances[0]!.url).toContain('localhost:3001')
 
       vi.unstubAllGlobals()
       vi.stubGlobal('WebSocket', MockWebSocket)
@@ -96,7 +99,7 @@ describe('WebSocketClient', () => {
 
     it('應該不重複連線已連線的 socket', () => {
       websocketClient.connect('http://localhost:3001')
-      mockWebSocketInstances[0].triggerOpen()
+      mockWebSocketInstances[0]!.triggerOpen()
 
       websocketClient.connect('http://localhost:3001')
 
@@ -106,7 +109,7 @@ describe('WebSocketClient', () => {
     it('應該設定 socket 事件處理器', () => {
       websocketClient.connect('http://localhost:3001')
 
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       expect(instance.onopen).not.toBeNull()
       expect(instance.onclose).not.toBeNull()
       expect(instance.onerror).not.toBeNull()
@@ -118,7 +121,7 @@ describe('WebSocketClient', () => {
 
       expect(websocketClient.isConnected.value).toBe(false)
 
-      mockWebSocketInstances[0].triggerOpen()
+      mockWebSocketInstances[0]!.triggerOpen()
 
       expect(websocketClient.isConnected.value).toBe(true)
     })
@@ -127,7 +130,7 @@ describe('WebSocketClient', () => {
   describe('disconnect', () => {
     it('應該清理 socket', () => {
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       websocketClient.disconnect()
@@ -141,7 +144,7 @@ describe('WebSocketClient', () => {
 
     it('應該設定 isConnected 為 false', () => {
       websocketClient.connect('http://localhost:3001')
-      mockWebSocketInstances[0].triggerOpen()
+      mockWebSocketInstances[0]!.triggerOpen()
       expect(websocketClient.isConnected.value).toBe(true)
 
       websocketClient.disconnect()
@@ -153,7 +156,7 @@ describe('WebSocketClient', () => {
       vi.useFakeTimers()
       websocketClient.connect('http://localhost:3001')
       const initialCount = mockWebSocketInstances.length
-      mockWebSocketInstances[0].triggerClose(1006, '異常關閉')
+      mockWebSocketInstances[0]!.triggerClose(1006, '異常關閉')
 
       websocketClient.disconnect()
 
@@ -167,7 +170,7 @@ describe('WebSocketClient', () => {
   describe('emit', () => {
     it('應該在未連線時不發送訊息', () => {
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.readyState = MockWebSocket.CONNECTING
 
       websocketClient.emit('testEvent', { data: 'test' })
@@ -177,7 +180,7 @@ describe('WebSocketClient', () => {
 
     it('應該在已連線時透過 send 發送 JSON', () => {
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       websocketClient.emit('testEvent', { data: 'test' })
@@ -193,12 +196,12 @@ describe('WebSocketClient', () => {
 
     it('應該包含 type, payload 和 requestId', () => {
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       websocketClient.emit('testEvent', { data: 'test', requestId: 'req-123' })
 
-      const sentMessage = JSON.parse(instance.send.mock.calls[0][0])
+      const sentMessage = JSON.parse(instance.send.mock.calls[0]![0] as string)
       expect(sentMessage).toEqual({
         type: 'testEvent',
         payload: { data: 'test', requestId: 'req-123' },
@@ -213,7 +216,7 @@ describe('WebSocketClient', () => {
 
       websocketClient.on('testEvent', callback)
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       const message: WebSocketMessage = {
@@ -231,7 +234,7 @@ describe('WebSocketClient', () => {
       websocketClient.on('testEvent', callback)
       websocketClient.off('testEvent', callback)
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       const message: WebSocketMessage = {
@@ -250,7 +253,7 @@ describe('WebSocketClient', () => {
       websocketClient.on('event1', callback1)
       websocketClient.on('event2', callback2)
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       const message: WebSocketMessage = {
@@ -270,7 +273,7 @@ describe('WebSocketClient', () => {
       websocketClient.on('testEvent', callback1)
       websocketClient.on('testEvent', callback2)
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       const message: WebSocketMessage = {
@@ -290,7 +293,7 @@ describe('WebSocketClient', () => {
 
       websocketClient.onWithAck('testEvent', callback)
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       const message: WebSocketMessage = {
@@ -311,7 +314,7 @@ describe('WebSocketClient', () => {
         ack({ response: 'ok' })
       })
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       const message: WebSocketMessage = {
@@ -336,7 +339,7 @@ describe('WebSocketClient', () => {
       websocketClient.onWithAck('testEvent', callback)
       websocketClient.offWithAck('testEvent', callback)
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       const message: WebSocketMessage = {
@@ -353,7 +356,7 @@ describe('WebSocketClient', () => {
   describe('handleMessage', () => {
     it('應該解析 type 為 ack 的訊息並呼叫對應 callback', () => {
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       const ackCallback = vi.fn()
@@ -371,7 +374,7 @@ describe('WebSocketClient', () => {
 
     it('應該在 ack 後刪除 callback', () => {
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       const ackCallback = vi.fn()
@@ -391,7 +394,7 @@ describe('WebSocketClient', () => {
       const callback = vi.fn()
       websocketClient.on('normalEvent', callback)
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       const message: WebSocketMessage = {
@@ -407,7 +410,7 @@ describe('WebSocketClient', () => {
       const callback = vi.fn()
       websocketClient.on('testEvent', callback)
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       expect(() => {
@@ -424,7 +427,7 @@ describe('WebSocketClient', () => {
 
       websocketClient.onDisconnect(disconnectCallback)
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       instance.triggerClose(1006, '異常關閉')
@@ -436,7 +439,7 @@ describe('WebSocketClient', () => {
     it('應該在斷線時啟動重連機制', () => {
       vi.useFakeTimers()
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       const initialCount = mockWebSocketInstances.length
@@ -453,14 +456,14 @@ describe('WebSocketClient', () => {
     it('應該在重連成功時停止重連計時器', () => {
       vi.useFakeTimers()
       websocketClient.connect('http://localhost:3001')
-      const firstInstance = mockWebSocketInstances[0]
+      const firstInstance = mockWebSocketInstances[0]!
       firstInstance.triggerOpen()
 
       firstInstance.triggerClose(1006, '異常關閉')
 
       vi.advanceTimersByTime(3000)
 
-      mockWebSocketInstances[1].triggerOpen()
+      mockWebSocketInstances[1]!.triggerOpen()
 
       const countAfterReconnect = mockWebSocketInstances.length
       vi.advanceTimersByTime(10000)
@@ -476,7 +479,7 @@ describe('WebSocketClient', () => {
       websocketClient.onDisconnect(disconnectCallback)
       websocketClient.offDisconnect(disconnectCallback)
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       instance.triggerClose(1006, '異常關閉')
@@ -486,7 +489,7 @@ describe('WebSocketClient', () => {
 
     it('應該在 handleClose 沒有 reason 時使用 code', () => {
       websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]
+      const instance = mockWebSocketInstances[0]!
       instance.triggerOpen()
 
       instance.triggerClose(1006, '')

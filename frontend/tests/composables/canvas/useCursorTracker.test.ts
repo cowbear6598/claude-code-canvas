@@ -106,7 +106,7 @@ describe('useCursorTracker', () => {
 
       fireMouseMove(el, 150, 250)
 
-      const callArgs = mockWebSocketClient.emit.mock.calls[0][1] as { x: number; y: number }
+      const callArgs = mockWebSocketClient.emit.mock.calls[0]![1] as { x: number; y: number }
       expect(callArgs.x).toBe((150 - 50) / 2)
       expect(callArgs.y).toBe((250 - 50) / 2)
     })

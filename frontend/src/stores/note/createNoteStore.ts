@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import type {BaseNote, Pod} from '@/types'
+import type {BaseNote, Pod, Group} from '@/types'
 import {createWebSocketRequest} from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import {useDeleteItem} from '@/composables/useDeleteItem'
@@ -31,21 +31,11 @@ interface BaseResponse {
     [key: string]: unknown
 }
 
-interface GroupItem {
-    id: string
-    name: string
+interface NoteItem extends BaseNote {
     [key: string]: unknown
 }
 
-interface NoteItem {
-    id: string
-    boundToPodId: string | null
-    x: number
-    y: number
-    [key: string]: unknown
-}
-
-export interface NoteStoreConfig<TItem> {
+export interface NoteStoreConfig<TItem, TCustomActions extends object = object> {
     storeName: string
     relationship: 'one-to-one' | 'one-to-many'
     responseItemsKey: string
@@ -78,9 +68,7 @@ export interface NoteStoreConfig<TItem> {
     createNotePayload: (item: TItem, x: number, y: number) => object
     getItemId: (item: TItem) => string
     getItemName: (item: TItem) => string
-    // 各 store 的 customActions 方法簽名各不相同，此處使用最寬型別。
-    // 型別安全由各 store 匯出的精確 interface（如 SkillStoreCustomActions）保障。
-    customActions?: Record<string, (...args: unknown[]) => unknown>
+    customActions?: TCustomActions
 }
 
 export interface RebuildNotesConfig {
@@ -92,11 +80,7 @@ export interface RebuildNotesConfig {
     responseEvent: string
 }
 
-interface RebuildNotesStoreContext {
-    notes: NoteItem[]
-    availableItems: unknown[]
-    getNotesByPodId: (podId: string) => NoteItem[]
-}
+type RebuildNotesStoreContext = Pick<NoteStoreContext, 'notes' | 'availableItems' | 'getNotesByPodId'>
 
 export async function rebuildNotesFromPods(
     context: RebuildNotesStoreContext,
@@ -120,7 +104,7 @@ export async function rebuildNotesFromPods(
         )
         const itemName = (item as Record<string, unknown> | undefined)?.name as string | undefined ?? itemId
 
-        const promise = createWebSocketRequest<Record<string, unknown>, Record<string, unknown>>({
+        const promise = createWebSocketRequest<BasePayload, Record<string, unknown>>({
             requestEvent: config.requestEvent,
             responseEvent: config.responseEvent,
             payload: {
@@ -157,13 +141,28 @@ interface BaseNoteState {
     animatingNoteIds: Set<string>
     isDraggingNote: boolean
     isOverTrash: boolean
-    groups: GroupItem[]
+    groups: Group[]
     expandedGroupIds: Set<string>
 }
 
-export function createNoteStore<TItem, TNote extends BaseNote>(
-    config: NoteStoreConfig<TItem>
-): ReturnType<typeof defineStore> {
+// 提供給 customActions 方法的基礎 store context，讓 this 可以存取 state 與 built-in actions。
+export interface NoteStoreContext<TItem = unknown> extends BaseNoteState {
+    availableItems: TItem[]
+    loadItems(): Promise<void>
+    loadNotesFromBackend(): Promise<void>
+    createNote(itemId: string, x: number, y: number): Promise<void>
+    deleteItem(itemId: string): Promise<void>
+    deleteNote(noteId: string): Promise<void>
+    bindToPod(noteId: string, podId: string): Promise<void>
+    unbindFromPod(podId: string, returnToOriginal?: boolean): Promise<void>
+    getNotesByPodId(podId: string): NoteItem[]
+}
+
+// 此函數的回傳型別由 TypeScript 自動推斷，手動標註會抹除泛型資訊（見 Pinia defineStore 重載限制）
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions extends object = object>(
+    config: NoteStoreConfig<TItem, TCustomActions>
+) {
     return defineStore(config.storeName, {
         state: (): BaseNoteState => ({
             availableItems: [],
@@ -188,13 +187,13 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
             getNotesByPodId: (state) => (podId: string): TNote[] => {
                 if (config.relationship === 'one-to-one') {
                     const note = state.notes.find(note => note.boundToPodId === podId)
-                    return note ? [note] : []
+                    return note ? [note as TNote] : []
                 }
-                return state.notes.filter(note => note.boundToPodId === podId)
+                return state.notes.filter(note => note.boundToPodId === podId) as TNote[]
             },
 
             getNoteById: (state) => (noteId: string): TNote | undefined =>
-                state.notes.find(note => note.id === noteId),
+                state.notes.find(note => note.id === noteId) as TNote | undefined,
 
             isNoteAnimating: (state) => (noteId: string): boolean =>
                 state.animatingNoteIds.has(noteId),
@@ -211,7 +210,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
             isItemBoundToPod: (state) => (itemId: string, podId: string): boolean =>
                 state.notes.some(note => (note as Record<string, unknown>)[config.itemIdField] === itemId && note.boundToPodId === podId),
 
-            getGroupById: (state) => (groupId: string): GroupItem | undefined =>
+            getGroupById: (state) => (groupId: string): Group | undefined =>
                 state.groups.find(group => group.id === groupId),
 
             getItemsByGroupId: (state) => (groupId: string | null): TItem[] =>
@@ -220,7 +219,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
             getRootItems: (state): TItem[] =>
                 state.availableItems.filter(item => !(item as Record<string, unknown>).groupId) as TItem[],
 
-            getSortedItemsWithGroups: (state): { groups: GroupItem[]; rootItems: TItem[] } => {
+            getSortedItemsWithGroups: (state): { groups: Group[]; rootItems: TItem[] } => {
                 const groups = [...state.groups].sort((a, b) => a.name.localeCompare(b.name))
                 const rootItems = state.availableItems
                     .filter(item => !(item as Record<string, unknown>).groupId)
@@ -300,7 +299,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 }
 
                 if (response.notes) {
-                    this.notes = response.notes as unknown[]
+                    this.notes = response.notes as NoteItem[]
                 }
             },
 
@@ -412,14 +411,14 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
             addNoteFromEvent(note: TNote): void {
                 const exists = this.notes.some(n => n.id === note.id)
                 if (!exists) {
-                    this.notes.push(note)
+                    this.notes.push(note as unknown as NoteItem)
                 }
             },
 
             updateNoteFromEvent(note: TNote): void {
                 const index = this.notes.findIndex(n => n.id === note.id)
                 if (index !== -1) {
-                    this.notes.splice(index, 1, note)
+                    this.notes.splice(index, 1, note as unknown as NoteItem)
                 }
             },
 
@@ -450,7 +449,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 }
             },
 
-            addGroupFromEvent(group: Record<string, unknown>): void {
+            addGroupFromEvent(group: Group): void {
                 const exists = this.groups.some(g => g.id === group.id)
                 if (!exists) {
                     this.groups.push(group)
@@ -468,7 +467,7 @@ export function createNoteStore<TItem, TNote extends BaseNote>(
                 }
             },
 
-            ...((config.customActions ?? {}) as Record<string, (...args: unknown[]) => unknown>)
+            ...(config.customActions ?? {} as TCustomActions)
         },
     })
 }

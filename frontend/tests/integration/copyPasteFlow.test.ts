@@ -75,8 +75,8 @@ describe('複製貼上/批量操作完整流程', () => {
       const skillNote = createMockNote('skill', { id: 'note-2', x: 400, y: 400, boundToPodId: null })
 
       podStore.pods = [pod1, pod2]
-      outputStyleStore.notes = [outputNote]
-      skillStore.notes = [skillNote]
+      outputStyleStore.notes = [outputNote as any]
+      skillStore.notes = [skillNote as any]
 
       // 框選
       selectionStore.startSelection(0, 0)
@@ -132,15 +132,15 @@ describe('複製貼上/批量操作完整流程', () => {
           originalPosition: n.originalPosition,
         }))
 
-      clipboardStore.setCopy(copiedPods, copiedOutputStyleNotes, copiedSkillNotes, [], [], [], [])
+      clipboardStore.setCopy(copiedPods, copiedOutputStyleNotes as any, copiedSkillNotes as any, [], [], [], [])
 
       // Assert
       expect(clipboardStore.isEmpty).toBe(false)
       expect(clipboardStore.copiedPods).toHaveLength(2)
       expect(clipboardStore.copiedOutputStyleNotes).toHaveLength(1)
       expect(clipboardStore.copiedSkillNotes).toHaveLength(1)
-      expect(clipboardStore.copiedPods[0].id).toBe('pod-1')
-      expect(clipboardStore.copiedPods[1].id).toBe('pod-2')
+      expect(clipboardStore.copiedPods[0]!.id).toBe('pod-1')
+      expect(clipboardStore.copiedPods[1]!.id).toBe('pod-2')
     })
 
     it('應過濾掉已綁定的 Note，只複製未綁定的 Note', () => {
@@ -150,7 +150,7 @@ describe('複製貼上/批量操作完整流程', () => {
       const unboundNote = createMockNote('outputStyle', { id: 'note-2', x: 200, y: 200, boundToPodId: null })
 
       podStore.pods = [pod]
-      outputStyleStore.notes = [boundNote, unboundNote]
+      outputStyleStore.notes = [boundNote as any, unboundNote as any]
 
       // 框選全部
       selectionStore.startSelection(0, 0)
@@ -178,11 +178,11 @@ describe('複製貼上/批量操作完整流程', () => {
           originalPosition: n.originalPosition,
         }))
 
-      clipboardStore.setCopy([], copiedOutputStyleNotes, [], [], [], [], [])
+      clipboardStore.setCopy([], copiedOutputStyleNotes as any, [], [], [], [], [])
 
       // Assert: 只有未綁定的 note 被複製
       expect(clipboardStore.copiedOutputStyleNotes).toHaveLength(1)
-      expect(clipboardStore.copiedOutputStyleNotes[0].id).toBe('note-2')
+      expect(clipboardStore.copiedOutputStyleNotes[0]!.id).toBe('note-2')
     })
 
     it('應複製兩個 Pod 之間的 Connection', () => {
@@ -216,7 +216,7 @@ describe('複製貼上/批量操作完整流程', () => {
       const selectedElements = selectionStore.selectedElements
       const selectedPodIds = new Set(selectedElements.filter(el => el.type === 'pod').map(el => el.id))
       const copiedConnections = connectionStore.connections
-        .filter(conn => selectedPodIds.has(conn.sourcePodId) && selectedPodIds.has(conn.targetPodId))
+        .filter(conn => selectedPodIds.has(conn.sourcePodId!) && selectedPodIds.has(conn.targetPodId))
         .map(conn => ({
           sourcePodId: conn.sourcePodId,
           sourceAnchor: conn.sourceAnchor,
@@ -225,12 +225,12 @@ describe('複製貼上/批量操作完整流程', () => {
           autoTrigger: conn.triggerMode === 'auto',
         }))
 
-      clipboardStore.setCopy([], [], [], [], [], [], copiedConnections)
+      clipboardStore.setCopy([], [], [], [], [], [], copiedConnections as any)
 
       // Assert
       expect(clipboardStore.copiedConnections).toHaveLength(1)
-      expect(clipboardStore.copiedConnections[0].sourcePodId).toBe('pod-1')
-      expect(clipboardStore.copiedConnections[0].targetPodId).toBe('pod-2')
+      expect(clipboardStore.copiedConnections[0]!.sourcePodId).toBe('pod-1')
+      expect(clipboardStore.copiedConnections[0]!.targetPodId).toBe('pod-2')
     })
 
     it('應在貼上後更新 selectionStore 為新建立的元素', () => {
@@ -249,7 +249,7 @@ describe('複製貼上/批量操作完整流程', () => {
         }],
         [{
           id: note.id,
-          outputStyleId: note.outputStyleId,
+          outputStyleId: (note as any).outputStyleId,
           name: note.name,
           x: note.x,
           y: note.y,
@@ -326,8 +326,8 @@ describe('複製貼上/批量操作完整流程', () => {
       const note2 = createMockNote('skill', { id: 'note-2', x: 200, y: 200, boundToPodId: null })
       const boundNote = createMockNote('outputStyle', { id: 'note-3', x: 300, y: 300, boundToPodId: 'pod-1' })
 
-      outputStyleStore.notes = [note1, boundNote]
-      skillStore.notes = [note2]
+      outputStyleStore.notes = [note1 as any, boundNote as any]
+      skillStore.notes = [note2 as any]
 
       selectionStore.startSelection(0, 0)
       selectionStore.updateSelection(500, 500)
@@ -392,7 +392,7 @@ describe('複製貼上/批量操作完整流程', () => {
     it('應在拖曳後調用 updateNotePosition 同步 Note 到後端', async () => {
       // Arrange
       const note = createMockNote('outputStyle', { id: 'note-1', x: 100, y: 100, boundToPodId: null })
-      outputStyleStore.notes = [note]
+      outputStyleStore.notes = [note as any]
 
       selectionStore.setSelectedElements([{ type: 'outputStyleNote', id: 'note-1' }])
 
@@ -449,8 +449,8 @@ describe('複製貼上/批量操作完整流程', () => {
       const note2 = createMockNote('skill', { id: 'note-2', x: 200, y: 200, boundToPodId: null })
       const note3 = createMockNote('outputStyle', { id: 'note-3', x: 1000, y: 1000, boundToPodId: null })
 
-      outputStyleStore.notes = [note1, note3]
-      skillStore.notes = [note2]
+      outputStyleStore.notes = [note1 as any, note3 as any]
+      skillStore.notes = [note2 as any]
 
       selectionStore.startSelection(0, 0)
       selectionStore.updateSelection(500, 500)

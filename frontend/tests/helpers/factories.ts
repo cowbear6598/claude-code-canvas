@@ -228,7 +228,7 @@ export function createMockGroup(overrides?: Partial<Group>): Group {
   return {
     id: `group-${++groupCounter}`,
     name: `Group ${groupCounter}`,
-    type: 'subagent',
+    type: 'subAgent',
     ...overrides,
   }
 }

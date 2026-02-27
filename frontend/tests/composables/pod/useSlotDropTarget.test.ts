@@ -83,7 +83,7 @@ describe('useSlotDropTarget', () => {
 
     it('draggedNoteId 變為 null 時應清理監聽器', async () => {
       const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener')
-      const draggedNoteId = ref('note-1')
+      const draggedNoteId = ref<string | null>('note-1')
 
       const TestComponent = defineComponent({
         setup() {
@@ -634,7 +634,7 @@ describe('useSlotDropTarget', () => {
 
   describe('清理後狀態重置', () => {
     it('清理監聽器時應重置 isDropTarget 為 false', async () => {
-      const draggedNoteId = ref('note-1')
+      const draggedNoteId = ref<string | null>('note-1')
 
       const TestComponent = defineComponent({
         setup() {

@@ -193,7 +193,7 @@ describe('repositoryStore', () => {
         },
       })
       expect(result).toBe(true)
-      expect(store.availableItems[0]?.isGit).toBe(true)
+      expect((store.availableItems[0] as any)?.isGit).toBe(true)
     })
 
     it('成功時應更新 repository.isGit 為 false', async () => {
@@ -209,7 +209,7 @@ describe('repositoryStore', () => {
       const result = await store.checkIsGit('repo-1')
 
       expect(result).toBe(false)
-      expect(store.availableItems[0]?.isGit).toBe(false)
+      expect((store.availableItems[0] as any)?.isGit).toBe(false)
     })
 
     it('回應 success: false 時應回傳 false', async () => {
@@ -224,7 +224,7 @@ describe('repositoryStore', () => {
       const result = await store.checkIsGit('repo-1')
 
       expect(result).toBe(false)
-      expect(store.availableItems[0]?.isGit).toBe(true) // 保持不變
+      expect((store.availableItems[0] as any)?.isGit).toBe(true) // 保持不變
     })
 
     it('回應為 null 時應回傳 false', async () => {
@@ -783,7 +783,7 @@ describe('repositoryStore', () => {
     it('deleteNote 應刪除指定 note', async () => {
       const store = useRepositoryStore()
       const note = createMockRepositoryNote({ id: 'note-1' })
-      store.notes = [note]
+      store.notes = [note as any]
 
       mockCreateWebSocketRequest.mockResolvedValueOnce({
         success: true,
@@ -808,7 +808,7 @@ describe('repositoryStore', () => {
         x: 100,
         y: 200,
       })
-      store.notes = [note as RepositoryNote]
+      store.notes = [note as any]
 
       const repositoryId = (note as RepositoryNote).repositoryId
 
@@ -847,7 +847,7 @@ describe('repositoryStore', () => {
         boundToPodId: 'pod-1',
         originalPosition: { x: 100, y: 200 },
       })
-      store.notes = [note as RepositoryNote]
+      store.notes = [note as any]
 
       mockCreateWebSocketRequest.mockResolvedValue({
         success: true,

@@ -37,7 +37,7 @@ describe('useNoteEventHandlers', () => {
   describe('handleDragEnd - Note 拖曳移動', () => {
     it('拖曳結束時應更新本地座標', () => {
       const trashZoneRef = ref(mockTrashZone)
-      const { handleDragEnd } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragEnd } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       handleDragEnd({ noteId: 'note-1', x: 100, y: 200 })
 
@@ -46,7 +46,7 @@ describe('useNoteEventHandlers', () => {
 
     it('應處理多次拖曳移動', () => {
       const trashZoneRef = ref(mockTrashZone)
-      const { handleDragEnd } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragEnd } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       handleDragEnd({ noteId: 'note-1', x: 100, y: 200 })
       handleDragEnd({ noteId: 'note-1', x: 150, y: 250 })
@@ -60,7 +60,7 @@ describe('useNoteEventHandlers', () => {
 
     it('應處理不同 note 的拖曳', () => {
       const trashZoneRef = ref(mockTrashZone)
-      const { handleDragEnd } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragEnd } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       handleDragEnd({ noteId: 'note-1', x: 100, y: 200 })
       handleDragEnd({ noteId: 'note-2', x: 300, y: 400 })
@@ -75,7 +75,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockTrashZone.isPointInZone.mockReturnValue(true)
 
-      const { handleDragMove } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragMove } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       handleDragMove({ noteId: 'note-1', screenX: 100, screenY: 200 })
 
@@ -87,7 +87,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockTrashZone.isPointInZone.mockReturnValue(false)
 
-      const { handleDragMove } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragMove } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       handleDragMove({ noteId: 'note-1', screenX: 500, screenY: 600 })
 
@@ -97,7 +97,7 @@ describe('useNoteEventHandlers', () => {
 
     it('trashZoneRef 為 null 時應不執行任何操作', () => {
       const trashZoneRef = ref(null)
-      const { handleDragMove } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragMove } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       handleDragMove({ noteId: 'note-1', screenX: 100, screenY: 200 })
 
@@ -113,7 +113,7 @@ describe('useNoteEventHandlers', () => {
         .mockReturnValueOnce(true)
         .mockReturnValueOnce(false)
 
-      const { handleDragMove } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragMove } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       handleDragMove({ noteId: 'note-1', screenX: 50, screenY: 50 })
       expect(mockStore.setIsOverTrash).toHaveBeenCalledWith(false)
@@ -137,7 +137,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue({ x: 100, y: 200, boundToPodId: null })
 
-      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       await handleDragComplete({ noteId: 'note-1', isOverTrash: true, startX: 50, startY: 50 })
 
@@ -149,7 +149,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue({ x: 100, y: 200, boundToPodId: null })
 
-      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       await handleDragComplete({ noteId: 'note-1', isOverTrash: true, startX: 50, startY: 50 })
 
@@ -162,7 +162,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue({ x: 100, y: 200, boundToPodId: 'pod-1' })
 
-      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       await handleDragComplete({ noteId: 'note-1', isOverTrash: true, startX: 50, startY: 75 })
 
@@ -175,7 +175,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue({ x: 100, y: 200, boundToPodId: 'pod-1' })
 
-      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       await handleDragComplete({ noteId: 'note-1', isOverTrash: true, startX: 50, startY: 75 })
 
@@ -190,7 +190,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue({ x: 100, y: 200, boundToPodId: 'pod-1' })
 
-      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       await handleDragComplete({ noteId: 'note-1', isOverTrash: true, startX: 50, startY: 75 })
 
@@ -203,7 +203,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue({ x: 300, y: 400, boundToPodId: null })
 
-      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       await handleDragComplete({ noteId: 'note-1', isOverTrash: false, startX: 100, startY: 200 })
 
@@ -216,7 +216,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue({ x: 500, y: 600, boundToPodId: null })
 
-      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       await handleDragComplete({ noteId: 'note-1', isOverTrash: false, startX: 100, startY: 200 })
 
@@ -227,7 +227,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue({ x: 300, y: 400, boundToPodId: null })
 
-      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       await handleDragComplete({ noteId: 'note-1', isOverTrash: false, startX: 100, startY: 200 })
 
@@ -240,7 +240,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue(undefined)
 
-      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const { handleDragComplete } = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       await handleDragComplete({ noteId: 'note-999', isOverTrash: true, startX: 100, startY: 200 })
 
@@ -255,7 +255,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue({ x: 100, y: 200, boundToPodId: null })
 
-      const handlers = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const handlers = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       handlers.handleDragEnd({ noteId: 'note-1', x: 100, y: 200 })
       expect(mockStore.updateNotePositionLocal).toHaveBeenCalledWith('note-1', 100, 200)
@@ -277,7 +277,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue({ x: 150, y: 200, boundToPodId: 'pod-1' })
 
-      const handlers = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const handlers = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       handlers.handleDragEnd({ noteId: 'note-1', x: 150, y: 200 })
 
@@ -298,7 +298,7 @@ describe('useNoteEventHandlers', () => {
       const trashZoneRef = ref(mockTrashZone)
       mockStore.getNoteById.mockReturnValue({ x: 300, y: 400, boundToPodId: null })
 
-      const handlers = useNoteEventHandlers({ store: mockStore, trashZoneRef })
+      const handlers = useNoteEventHandlers({ store: mockStore as any, trashZoneRef: trashZoneRef as any })
 
       handlers.handleDragEnd({ noteId: 'note-1', x: 300, y: 400 })
       expect(mockStore.updateNotePositionLocal).toHaveBeenCalledWith('note-1', 300, 400)

@@ -52,7 +52,7 @@ describe('useSkillImport', () => {
       LOADING: 1,
     } as unknown as FileReader
 
-    global.FileReader = vi.fn().mockImplementation(() => mockFileReader)
+    global.FileReader = vi.fn().mockImplementation(() => mockFileReader) as unknown as typeof FileReader
 
     // Mock document.createElement
     mockFileInput = {

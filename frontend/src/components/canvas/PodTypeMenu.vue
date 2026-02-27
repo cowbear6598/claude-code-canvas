@@ -255,7 +255,7 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
 
       <PodTypeMenuSubmenu
         v-model:hovered-item-id="hoveredItemId"
-        :items="outputStyleStore.availableItems"
+        :items="outputStyleStore.typedAvailableItems"
         :visible="openMenuType === 'outputStyle'"
         :groups="outputStyleStore.groups"
         :expanded-group-ids="outputStyleStore.expandedGroupIds"
@@ -306,7 +306,7 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
 
       <PodTypeMenuSubmenu
         v-model:hovered-item-id="hoveredItemId"
-        :items="commandStore.availableItems"
+        :items="commandStore.typedAvailableItems"
         :visible="openMenuType === 'command'"
         :groups="commandStore.groups"
         :expanded-group-ids="commandStore.expandedGroupIds"
@@ -360,7 +360,7 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
 
       <PodTypeMenuSubmenu
         v-model:hovered-item-id="hoveredItemId"
-        :items="skillStore.availableItems"
+        :items="skillStore.typedAvailableItems"
         :visible="openMenuType === 'skill'"
         :editable="false"
         @item-select="handleSkillSelect"
@@ -403,7 +403,7 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
 
       <PodTypeMenuSubmenu
         v-model:hovered-item-id="hoveredItemId"
-        :items="subAgentStore.availableItems"
+        :items="subAgentStore.typedAvailableItems"
         :visible="openMenuType === 'subAgent'"
         :groups="subAgentStore.groups"
         :expanded-group-ids="subAgentStore.expandedGroupIds"
@@ -457,7 +457,7 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
 
       <PodTypeMenuSubmenu
         v-model:hovered-item-id="hoveredItemId"
-        :items="repositoryStore.availableItems"
+        :items="repositoryStore.typedAvailableItems"
         :visible="openMenuType === 'repository'"
         @item-select="handleRepositorySelect"
         @item-delete="(id, name, event) => handleDeleteClick('repository', id, name, event)"

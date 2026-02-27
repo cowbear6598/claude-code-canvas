@@ -1,5 +1,6 @@
 import type { Command, CommandNote, Pod } from '@/types'
 import { createNoteStore, rebuildNotesFromPods } from './createNoteStore'
+import type { NoteStoreContext } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { createResourceCRUDActions } from './createResourceCRUDActions'
 import { createGroupCRUDActions } from './createGroupCRUDActions'
@@ -118,7 +119,7 @@ const store = createNoteStore<Command, CommandNote>({
   getItemId: (item: Command) => item.id,
   getItemName: (item: Command) => item.name,
   customActions: {
-    async rebuildNotesFromPods(this, pods: Pod[]): Promise<void> {
+    async rebuildNotesFromPods(this: NoteStoreContext<Command>, pods: Pod[]): Promise<void> {
       await rebuildNotesFromPods(this, pods, {
         storeName: 'CommandStore',
         podIdField: 'commandId',
@@ -129,25 +130,25 @@ const store = createNoteStore<Command, CommandNote>({
       })
     },
 
-    async createCommand(this, name: string, content: string): Promise<{ success: boolean; command?: { id: string; name: string }; error?: string }> {
+    async createCommand(this: NoteStoreContext<Command>, name: string, content: string): Promise<{ success: boolean; command?: { id: string; name: string }; error?: string }> {
       const result = await commandCRUD.create(this.availableItems, name, content)
       return result.success ? { success: true, command: result.item } : { success: false, error: result.error }
     },
 
-    async updateCommand(this, commandId: string, content: string): Promise<{ success: boolean; command?: { id: string; name: string }; error?: string }> {
+    async updateCommand(this: NoteStoreContext<Command>, commandId: string, content: string): Promise<{ success: boolean; command?: { id: string; name: string }; error?: string }> {
       const result = await commandCRUD.update(this.availableItems, commandId, content)
       return result.success ? { success: true, command: result.item } : { success: false, error: result.error }
     },
 
-    async readCommand(this, commandId: string): Promise<{ id: string; name: string; content: string } | null> {
+    async readCommand(this: NoteStoreContext<Command>, commandId: string): Promise<{ id: string; name: string; content: string } | null> {
       return commandCRUD.read(commandId)
     },
 
-    async deleteCommand(this, commandId: string): Promise<void> {
+    async deleteCommand(this: NoteStoreContext<Command>, commandId: string): Promise<void> {
       return this.deleteItem(commandId)
     },
 
-    async loadCommands(this): Promise<void> {
+    async loadCommands(this: NoteStoreContext<Command>): Promise<void> {
       return this.loadItems()
     },
 

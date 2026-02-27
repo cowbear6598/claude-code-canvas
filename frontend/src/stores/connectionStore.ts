@@ -124,7 +124,7 @@ export const useConnectionStore = defineStore('connection', {
                 const outgoing = state.connections.filter(conn => conn.sourcePodId === currentPodId)
 
                 for (const conn of outgoing) {
-                    if (RUNNING_CONNECTION_STATUSES.has(conn.status)) return true
+                    if (conn.status && RUNNING_CONNECTION_STATUSES.has(conn.status)) return true
 
                     const targetPod = podStore.getPodById(conn.targetPodId)
                     if (targetPod && RUNNING_POD_STATUSES.has(targetPod.status ?? '')) return true

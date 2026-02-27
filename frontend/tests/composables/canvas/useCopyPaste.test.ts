@@ -13,6 +13,7 @@ import { useClipboardStore } from '@/stores/clipboardStore'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import type { SelectableElement, CanvasPasteResultPayload } from '@/types'
+import type { CopiedOutputStyleNote, CopiedConnection } from '@/types/clipboard'
 
 // Mock functions using vi.hoisted
 const { mockShowSuccessToast, mockShowErrorToast, mockIsEditingElement, mockHasTextSelection, mockIsModifierKeyPressed, mockWrapWebSocketRequest } = vi.hoisted(() => ({
@@ -138,7 +139,7 @@ describe('useCopyPaste', () => {
     canvasStore.activeCanvasId = 'canvas-1'
 
     // Mock viewportStore.screenToCanvas
-    viewportStore.screenToCanvas = vi.fn((screenX: number, screenY: number) => ({
+    ;(viewportStore as any).screenToCanvas = vi.fn((screenX: number, screenY: number) => ({
       x: screenX,
       y: screenY,
     }))
@@ -184,8 +185,8 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.pods).toHaveLength(2)
-      expect(copiedData.pods[0].id).toBe('pod-1')
-      expect(copiedData.pods[1].id).toBe('pod-2')
+      expect(copiedData.pods[0]!.id).toBe('pod-1')
+      expect(copiedData.pods[1]!.id).toBe('pod-2')
     })
 
     it('收集選中 Pod 綁定的 OutputStyle Note', () => {
@@ -199,7 +200,7 @@ describe('useCopyPaste', () => {
         x: 10,
         y: 10,
       })
-      outputStyleStore.notes = [boundNote]
+      outputStyleStore.notes = [boundNote] as any[]
 
       selectionStore.selectedElements = [{ type: 'pod', id: 'pod-1' }]
 
@@ -211,8 +212,8 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.outputStyleNotes).toHaveLength(1)
-      expect(copiedData.outputStyleNotes[0].id).toBe('note-1')
-      expect(copiedData.outputStyleNotes[0].boundToPodId).toBe('pod-1')
+      expect(copiedData.outputStyleNotes[0]!.id).toBe('note-1')
+      expect(copiedData.outputStyleNotes[0]!.boundToPodId).toBe('pod-1')
     })
 
     it('收集選中 Pod 綁定的 Skill Note', () => {
@@ -226,7 +227,7 @@ describe('useCopyPaste', () => {
         x: 10,
         y: 10,
       })
-      skillStore.notes = [boundNote]
+      skillStore.notes = [boundNote] as any[]
 
       selectionStore.selectedElements = [{ type: 'pod', id: 'pod-1' }]
 
@@ -238,7 +239,7 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.skillNotes).toHaveLength(1)
-      expect(copiedData.skillNotes[0].id).toBe('note-1')
+      expect(copiedData.skillNotes[0]!.id).toBe('note-1')
     })
 
     it('收集選中 Pod 綁定的 Repository Note', () => {
@@ -252,7 +253,7 @@ describe('useCopyPaste', () => {
         x: 10,
         y: 10,
       })
-      repositoryStore.notes = [boundNote]
+      repositoryStore.notes = [boundNote] as any[]
 
       selectionStore.selectedElements = [{ type: 'pod', id: 'pod-1' }]
 
@@ -264,7 +265,7 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.repositoryNotes).toHaveLength(1)
-      expect(copiedData.repositoryNotes[0].boundToOriginalPodId).toBe('pod-1')
+      expect(copiedData.repositoryNotes[0]!.boundToOriginalPodId).toBe('pod-1')
     })
 
     it('收集選中 Pod 綁定的 SubAgent Note', () => {
@@ -278,7 +279,7 @@ describe('useCopyPaste', () => {
         x: 10,
         y: 10,
       })
-      subAgentStore.notes = [boundNote]
+      subAgentStore.notes = [boundNote] as any[]
 
       selectionStore.selectedElements = [{ type: 'pod', id: 'pod-1' }]
 
@@ -290,7 +291,7 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.subAgentNotes).toHaveLength(1)
-      expect(copiedData.subAgentNotes[0].id).toBe('note-1')
+      expect(copiedData.subAgentNotes[0]!.id).toBe('note-1')
     })
 
     it('收集選中 Pod 綁定的 Command Note', () => {
@@ -304,7 +305,7 @@ describe('useCopyPaste', () => {
         x: 10,
         y: 10,
       })
-      commandStore.notes = [boundNote]
+      commandStore.notes = [boundNote] as any[]
 
       selectionStore.selectedElements = [{ type: 'pod', id: 'pod-1' }]
 
@@ -316,7 +317,7 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.commandNotes).toHaveLength(1)
-      expect(copiedData.commandNotes[0].boundToOriginalPodId).toBe('pod-1')
+      expect(copiedData.commandNotes[0]!.boundToOriginalPodId).toBe('pod-1')
     })
 
     it('收集選中的未綁定 OutputStyle Note', () => {
@@ -327,7 +328,7 @@ describe('useCopyPaste', () => {
         x: 100,
         y: 100,
       })
-      outputStyleStore.notes = [unboundNote]
+      outputStyleStore.notes = [unboundNote] as any[]
 
       selectionStore.selectedElements = [{ type: 'outputStyleNote', id: 'note-1' }]
 
@@ -339,7 +340,7 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.outputStyleNotes).toHaveLength(1)
-      expect(copiedData.outputStyleNotes[0].boundToPodId).toBeNull()
+      expect(copiedData.outputStyleNotes[0]!.boundToPodId).toBeNull()
     })
 
     it('收集選中的未綁定 Skill Note', () => {
@@ -350,7 +351,7 @@ describe('useCopyPaste', () => {
         x: 100,
         y: 100,
       })
-      skillStore.notes = [unboundNote]
+      skillStore.notes = [unboundNote] as any[]
 
       selectionStore.selectedElements = [{ type: 'skillNote', id: 'note-1' }]
 
@@ -362,7 +363,7 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.skillNotes).toHaveLength(1)
-      expect(copiedData.skillNotes[0].boundToPodId).toBeNull()
+      expect(copiedData.skillNotes[0]!.boundToPodId).toBeNull()
     })
 
     it('收集選中的未綁定 Repository Note', () => {
@@ -373,7 +374,7 @@ describe('useCopyPaste', () => {
         x: 100,
         y: 100,
       })
-      repositoryStore.notes = [unboundNote]
+      repositoryStore.notes = [unboundNote] as any[]
 
       selectionStore.selectedElements = [{ type: 'repositoryNote', id: 'note-1' }]
 
@@ -385,7 +386,7 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.repositoryNotes).toHaveLength(1)
-      expect(copiedData.repositoryNotes[0].boundToOriginalPodId).toBeNull()
+      expect(copiedData.repositoryNotes[0]!.boundToOriginalPodId).toBeNull()
     })
 
     it('收集選中的未綁定 SubAgent Note', () => {
@@ -396,7 +397,7 @@ describe('useCopyPaste', () => {
         x: 100,
         y: 100,
       })
-      subAgentStore.notes = [unboundNote]
+      subAgentStore.notes = [unboundNote] as any[]
 
       selectionStore.selectedElements = [{ type: 'subAgentNote', id: 'note-1' }]
 
@@ -408,7 +409,7 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.subAgentNotes).toHaveLength(1)
-      expect(copiedData.subAgentNotes[0].boundToPodId).toBeNull()
+      expect(copiedData.subAgentNotes[0]!.boundToPodId).toBeNull()
     })
 
     it('收集選中的未綁定 Command Note', () => {
@@ -419,7 +420,7 @@ describe('useCopyPaste', () => {
         x: 100,
         y: 100,
       })
-      commandStore.notes = [unboundNote]
+      commandStore.notes = [unboundNote] as any[]
 
       selectionStore.selectedElements = [{ type: 'commandNote', id: 'note-1' }]
 
@@ -431,7 +432,7 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.commandNotes).toHaveLength(1)
-      expect(copiedData.commandNotes[0].boundToOriginalPodId).toBeNull()
+      expect(copiedData.commandNotes[0]!.boundToOriginalPodId).toBeNull()
     })
 
     it('只收集兩端都在選中範圍內的 Connection', () => {
@@ -467,8 +468,8 @@ describe('useCopyPaste', () => {
       // Assert
       const copiedData = clipboardStore.getCopiedData()
       expect(copiedData.connections).toHaveLength(1)
-      expect(copiedData.connections[0].sourcePodId).toBe('pod-1')
-      expect(copiedData.connections[0].targetPodId).toBe('pod-2')
+      expect(copiedData.connections[0]!.sourcePodId).toBe('pod-1')
+      expect(copiedData.connections[0]!.targetPodId).toBe('pod-2')
     })
 
     it('呼叫 clipboardStore.setCopy 儲存複製資料', () => {
@@ -526,7 +527,7 @@ describe('useCopyPaste', () => {
       })
       document.dispatchEvent(mouseMoveEvent)
 
-      viewportStore.screenToCanvas = vi.fn(() => ({ x: 600, y: 400 }))
+      ;(viewportStore as any).screenToCanvas = vi.fn(() => ({ x: 600, y: 400 }))
 
       mockWrapWebSocketRequest.mockResolvedValue({
         createdPods: [],
@@ -590,6 +591,10 @@ describe('useCopyPaste', () => {
       clipboardStore.setCopy([pod1], [], [], [], [], [], [])
 
       const mockResponse: CanvasPasteResultPayload = {
+        requestId: '',
+        success: true,
+        podIdMapping: {},
+        errors: [],
         createdPods: [
           { ...pod1, id: 'new-pod-1' },
         ],
@@ -629,14 +634,18 @@ describe('useCopyPaste', () => {
         boundToPodId: null,
       })
 
-      clipboardStore.setCopy([], [boundNote, unboundNote], [], [], [], [], [])
+      clipboardStore.setCopy([], [boundNote, unboundNote] as unknown as CopiedOutputStyleNote[], [], [], [], [], [])
 
       const mockResponse: CanvasPasteResultPayload = {
+        requestId: '',
+        success: true,
+        podIdMapping: {},
+        errors: [],
         createdPods: [],
         createdOutputStyleNotes: [
-          { ...boundNote, id: 'new-note-1', boundToPodId: 'new-pod-1' },
-          { ...unboundNote, id: 'new-note-2', boundToPodId: null },
-        ],
+          { ...boundNote as any, id: 'new-note-1', boundToPodId: 'new-pod-1' },
+          { ...unboundNote as any, id: 'new-note-2', boundToPodId: null },
+        ] as any,
         createdSkillNotes: [],
         createdRepositoryNotes: [],
         createdSubAgentNotes: [],
@@ -698,7 +707,7 @@ describe('useCopyPaste', () => {
           createdConnections: [],
         })
 
-        viewportStore.screenToCanvas = vi.fn(() => ({ x: 400, y: 300 }))
+        ;(viewportStore as any).screenToCanvas = vi.fn(() => ({ x: 400, y: 300 }))
 
         // Act
         const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true })
@@ -709,7 +718,7 @@ describe('useCopyPaste', () => {
 
         // Assert
         expect(mockCreateWebSocketRequest).toHaveBeenCalled()
-        const payload = mockCreateWebSocketRequest.mock.calls[0][0].payload
+        const payload = mockCreateWebSocketRequest.mock.calls[0]![0]!.payload
         expect(payload.pods).toHaveLength(2)
       })
 
@@ -721,7 +730,7 @@ describe('useCopyPaste', () => {
           x: 150,
           y: 150,
         })
-        clipboardStore.setCopy([], [note1], [], [], [], [], [])
+        clipboardStore.setCopy([], [note1] as unknown as CopiedOutputStyleNote[], [], [], [], [], [])
 
         mockWrapWebSocketRequest.mockResolvedValue({
           createdPods: [],
@@ -733,7 +742,7 @@ describe('useCopyPaste', () => {
           createdConnections: [],
         })
 
-        viewportStore.screenToCanvas = vi.fn(() => ({ x: 400, y: 300 }))
+        ;(viewportStore as any).screenToCanvas = vi.fn(() => ({ x: 400, y: 300 }))
 
         // Act
         const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true })
@@ -755,7 +764,7 @@ describe('useCopyPaste', () => {
           x: 50,
           y: 50,
         })
-        clipboardStore.setCopy([pod1], [boundNote], [], [], [], [], [])
+        clipboardStore.setCopy([pod1], [boundNote] as unknown as CopiedOutputStyleNote[], [], [], [], [], [])
 
         mockWrapWebSocketRequest.mockResolvedValue({
           createdPods: [],
@@ -767,7 +776,7 @@ describe('useCopyPaste', () => {
           createdConnections: [],
         })
 
-        viewportStore.screenToCanvas = vi.fn(() => ({ x: 400, y: 300 }))
+        ;(viewportStore as any).screenToCanvas = vi.fn(() => ({ x: 400, y: 300 }))
 
         // Act
         const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true })
@@ -797,7 +806,7 @@ describe('useCopyPaste', () => {
           createdConnections: [],
         })
 
-        viewportStore.screenToCanvas = vi.fn(() => ({ x: 500, y: 400 }))
+        ;(viewportStore as any).screenToCanvas = vi.fn(() => ({ x: 500, y: 400 }))
 
         // Act
         const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true })
@@ -808,7 +817,7 @@ describe('useCopyPaste', () => {
 
         // Assert
         expect(mockCreateWebSocketRequest).toHaveBeenCalled()
-        const payload = mockCreateWebSocketRequest.mock.calls[0][0].payload
+        const payload = mockCreateWebSocketRequest.mock.calls[0]![0]!.payload
         expect(payload.pods[0].x).not.toBe(100)
         expect(payload.pods[0].y).not.toBe(100)
       })
@@ -831,7 +840,7 @@ describe('useCopyPaste', () => {
           createdConnections: [],
         })
 
-        viewportStore.screenToCanvas = vi.fn(() => ({ x: 500, y: 400 }))
+        ;(viewportStore as any).screenToCanvas = vi.fn(() => ({ x: 500, y: 400 }))
 
         // Act
         const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true })
@@ -841,7 +850,7 @@ describe('useCopyPaste', () => {
         await new Promise(resolve => setTimeout(resolve, 0))
 
         // Assert
-        const payload = mockCreateWebSocketRequest.mock.calls[0][0].payload
+        const payload = mockCreateWebSocketRequest.mock.calls[0]![0]!.payload
         expect(payload.pods).toHaveLength(2)
         expect(payload.pods[0].originalId).toBe('pod-1')
         expect(payload.pods[1].originalId).toBe('pod-2')
@@ -857,7 +866,7 @@ describe('useCopyPaste', () => {
           x: 100,
           y: 100,
         })
-        clipboardStore.setCopy([], [unboundNote], [], [], [], [], [])
+        clipboardStore.setCopy([], [unboundNote] as unknown as CopiedOutputStyleNote[], [], [], [], [], [])
 
         mockWrapWebSocketRequest.mockResolvedValue({
           createdPods: [],
@@ -869,7 +878,7 @@ describe('useCopyPaste', () => {
           createdConnections: [],
         })
 
-        viewportStore.screenToCanvas = vi.fn(() => ({ x: 500, y: 400 }))
+        ;(viewportStore as any).screenToCanvas = vi.fn(() => ({ x: 500, y: 400 }))
 
         // Act
         const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true })
@@ -879,7 +888,7 @@ describe('useCopyPaste', () => {
         await new Promise(resolve => setTimeout(resolve, 0))
 
         // Assert
-        const payload = mockCreateWebSocketRequest.mock.calls[0][0].payload
+        const payload = mockCreateWebSocketRequest.mock.calls[0]![0]!.payload
         expect(payload.outputStyleNotes[0].x).not.toBe(100)
         expect(payload.outputStyleNotes[0].y).not.toBe(100)
       })
@@ -893,7 +902,7 @@ describe('useCopyPaste', () => {
           x: 150,
           y: 150,
         })
-        clipboardStore.setCopy([pod1], [boundNote], [], [], [], [], [])
+        clipboardStore.setCopy([pod1], [boundNote] as unknown as CopiedOutputStyleNote[], [], [], [], [], [])
 
         mockWrapWebSocketRequest.mockResolvedValue({
           createdPods: [],
@@ -905,7 +914,7 @@ describe('useCopyPaste', () => {
           createdConnections: [],
         })
 
-        viewportStore.screenToCanvas = vi.fn(() => ({ x: 500, y: 400 }))
+        ;(viewportStore as any).screenToCanvas = vi.fn(() => ({ x: 500, y: 400 }))
 
         // Act
         const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true })
@@ -915,7 +924,7 @@ describe('useCopyPaste', () => {
         await new Promise(resolve => setTimeout(resolve, 0))
 
         // Assert
-        const payload = mockCreateWebSocketRequest.mock.calls[0][0].payload
+        const payload = mockCreateWebSocketRequest.mock.calls[0]![0]!.payload
         expect(payload.outputStyleNotes[0].x).toBe(0)
         expect(payload.outputStyleNotes[0].y).toBe(0)
       })
@@ -933,7 +942,7 @@ describe('useCopyPaste', () => {
           sourceAnchor: 'bottom',
           targetAnchor: 'top',
         })
-        clipboardStore.setCopy([pod1, pod2], [], [], [], [], [], [conn])
+        clipboardStore.setCopy([pod1, pod2], [], [], [], [], [], [conn] as unknown as CopiedConnection[])
 
         mockWrapWebSocketRequest.mockResolvedValue({
           createdPods: [],
@@ -945,7 +954,7 @@ describe('useCopyPaste', () => {
           createdConnections: [],
         })
 
-        viewportStore.screenToCanvas = vi.fn(() => ({ x: 500, y: 400 }))
+        ;(viewportStore as any).screenToCanvas = vi.fn(() => ({ x: 500, y: 400 }))
 
         // Act
         const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true })
@@ -955,7 +964,7 @@ describe('useCopyPaste', () => {
         await new Promise(resolve => setTimeout(resolve, 0))
 
         // Assert
-        const payload = mockCreateWebSocketRequest.mock.calls[0][0].payload
+        const payload = mockCreateWebSocketRequest.mock.calls[0]![0]!.payload
         expect(payload.connections).toHaveLength(1)
         expect(payload.connections[0].originalSourcePodId).toBe('pod-1')
         expect(payload.connections[0].originalTargetPodId).toBe('pod-2')
@@ -1107,24 +1116,6 @@ describe('useCopyPaste', () => {
       expect(mockWrapWebSocketRequest).not.toHaveBeenCalled()
     })
 
-    it('滑鼠移動時更新位置', () => {
-      // Arrange & Act
-      const event1 = new MouseEvent('mousemove', {
-        clientX: 100,
-        clientY: 200,
-      })
-      document.dispatchEvent(event1)
-
-      const event2 = new MouseEvent('mousemove', {
-        clientX: 300,
-        clientY: 400,
-      })
-      document.dispatchEvent(event2)
-
-      // Assert
-      // 無法直接測試內部 mousePosition，但可以測試它是否影響 screenToCanvas 的呼叫
-      expect(true).toBe(true) // 基本測試通過
-    })
   })
 
   describe('生命週期', () => {

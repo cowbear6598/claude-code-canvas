@@ -1,5 +1,6 @@
 import type { SubAgent, SubAgentNote } from '@/types'
 import { createNoteStore } from './createNoteStore'
+import type { NoteStoreContext } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { createResourceCRUDActions } from './createResourceCRUDActions'
 import { createGroupCRUDActions } from './createGroupCRUDActions'
@@ -113,25 +114,25 @@ const store = createNoteStore<SubAgent, SubAgentNote>({
   getItemId: (item: SubAgent) => item.id,
   getItemName: (item: SubAgent) => item.name,
   customActions: {
-    async createSubAgent(this, name: string, content: string): Promise<{ success: boolean; subAgent?: { id: string; name: string }; error?: string }> {
+    async createSubAgent(this: NoteStoreContext<SubAgent>, name: string, content: string): Promise<{ success: boolean; subAgent?: { id: string; name: string }; error?: string }> {
       const result = await subAgentCRUD.create(this.availableItems, name, content)
       return result.success ? { success: true, subAgent: result.item } : { success: false, error: result.error }
     },
 
-    async updateSubAgent(this, subAgentId: string, content: string): Promise<{ success: boolean; subAgent?: { id: string; name: string }; error?: string }> {
+    async updateSubAgent(this: NoteStoreContext<SubAgent>, subAgentId: string, content: string): Promise<{ success: boolean; subAgent?: { id: string; name: string }; error?: string }> {
       const result = await subAgentCRUD.update(this.availableItems, subAgentId, content)
       return result.success ? { success: true, subAgent: result.item } : { success: false, error: result.error }
     },
 
-    async readSubAgent(this, subAgentId: string): Promise<{ id: string; name: string; content: string } | null> {
+    async readSubAgent(this: NoteStoreContext<SubAgent>, subAgentId: string): Promise<{ id: string; name: string; content: string } | null> {
       return subAgentCRUD.read(subAgentId)
     },
 
-    async deleteSubAgent(this, subAgentId: string): Promise<void> {
+    async deleteSubAgent(this: NoteStoreContext<SubAgent>, subAgentId: string): Promise<void> {
       return this.deleteItem(subAgentId)
     },
 
-    async loadSubAgents(this): Promise<void> {
+    async loadSubAgents(this: NoteStoreContext<SubAgent>): Promise<void> {
       return this.loadItems()
     },
 

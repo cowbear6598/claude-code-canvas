@@ -10,7 +10,7 @@ interface NotePosition extends Position {
   id: string
 }
 
-interface UseSlotEjectOptions {
+export interface UseSlotEjectOptions {
   slotRef: Ref<HTMLElement | null>
   podRotation: () => number
   getNoteById: (id: string) => NotePosition | undefined

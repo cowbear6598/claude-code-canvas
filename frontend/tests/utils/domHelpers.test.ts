@@ -56,7 +56,7 @@ describe('domHelpers', () => {
 
     it('應該在沒有焦點元素時回傳 false', () => {
       document.body.innerHTML = ''
-      document.activeElement?.blur?.()
+      ;(document.activeElement as HTMLElement | null)?.blur?.()
 
       const result = isEditingElement()
       expect(result).toBe(false)

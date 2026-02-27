@@ -61,7 +61,7 @@ const toolStatusClassMap: Record<string, string> = {
 }
 
 const getToolTagClass = (status: ToolUseStatus): string => {
-  return toolStatusClassMap[status] ?? toolStatusClassMap.completed
+  return toolStatusClassMap[status] ?? toolStatusClassMap.completed ?? ''
 }
 
 const openToolModal = (toolUseId: string): void => {

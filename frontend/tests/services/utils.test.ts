@@ -67,8 +67,8 @@ describe('services/utils', () => {
       const uuid = generateUUID()
       const parts = uuid.split('-')
 
-      expect(parts[2][0]).toBe('4')
-      expect(['8', '9', 'a', 'b']).toContain(parts[3][0])
+      expect(parts[2]![0]).toBe('4')
+      expect(['8', '9', 'a', 'b']).toContain(parts[3]![0])
 
       vi.unstubAllGlobals()
     })

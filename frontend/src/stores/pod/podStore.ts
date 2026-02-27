@@ -93,7 +93,7 @@ export const usePodStore = defineStore('pod', {
             const existing = this.pods[index]
             const mergedPod = {
                 ...pod,
-                output: pod.output !== undefined ? pod.output : existing.output,
+                output: pod.output !== undefined ? pod.output : (existing?.output ?? []),
             }
 
             if (!this.isValidPod(mergedPod)) {

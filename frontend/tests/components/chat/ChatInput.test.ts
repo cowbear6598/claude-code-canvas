@@ -276,7 +276,7 @@ describe('ChatInput 安全性修復', () => {
 
       // 麥克風按鈕是最後一個 button
       const buttons = wrapper.findAll('button')
-      const micButton = buttons[buttons.length - 1]
+      const micButton = buttons[buttons.length - 1]!!
 
       await micButton.trigger('click')
 
@@ -294,7 +294,7 @@ describe('ChatInput 安全性修復', () => {
 
       const buttons = wrapper.findAll('button')
       // isTyping=false 時，送出按鈕是第一個 (Send icon)，麥克風是最後一個
-      const sendButton = buttons[0]
+      const sendButton = buttons[0]!
       await sendButton.trigger('click')
 
       expect(wrapper.emitted('send')).toBeFalsy()
@@ -351,7 +351,7 @@ describe('送出訊息流程', () => {
     const wrapper = mountChatInput()
 
     const buttons = wrapper.findAll('button')
-    const sendButton = buttons[0]
+    const sendButton = buttons[0]!
     await sendButton.trigger('click')
 
     expect(wrapper.emitted('send')).toBeFalsy()
@@ -367,7 +367,7 @@ describe('送出訊息流程', () => {
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('button')
-    const sendButton = buttons[0]
+    const sendButton = buttons[0]!
     await sendButton.trigger('click')
 
     expect(wrapper.emitted('send')).toBeFalsy()
@@ -498,7 +498,7 @@ describe('中止流程', () => {
     // isTyping=true 時，送出按鈕被隱藏，只有中止按鈕和麥克風按鈕
     const buttons = wrapper.findAll('button')
     // 第一個按鈕應為中止按鈕（含 Square icon）
-    const abortButton = buttons[0]
+    const abortButton = buttons[0]!
     expect(abortButton.find('svg').exists()).toBe(true)
     // 送出按鈕用 v-if/v-else，isTyping=true 只有 abort + mic 兩個按鈕
     expect(buttons).toHaveLength(2)
@@ -520,7 +520,7 @@ describe('中止流程', () => {
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('button')
-    const abortButton = buttons[0]
+    const abortButton = buttons[0]!
     await abortButton.trigger('click')
 
     expect(wrapper.emitted('abort')).toBeTruthy()
@@ -532,7 +532,7 @@ describe('中止流程', () => {
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('button')
-    const abortButton = buttons[0]
+    const abortButton = buttons[0]!
     await abortButton.trigger('click')
     await abortButton.trigger('click')
 
@@ -546,7 +546,7 @@ describe('中止流程', () => {
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('button')
-    const abortButton = buttons[0]
+    const abortButton = buttons[0]!
 
     // 點擊前，disabled 不存在
     expect(abortButton.attributes('disabled')).toBeUndefined()
@@ -566,7 +566,7 @@ describe('中止流程', () => {
 
     // 觸發中止
     const buttons = wrapper.findAll('button')
-    const abortButton = buttons[0]
+    const abortButton = buttons[0]!
     await abortButton.trigger('click')
 
     // 模擬 AI 停止回應，isTyping 回到 false
@@ -599,7 +599,7 @@ describe('中止流程', () => {
 
     // 第一次點擊中止
     const buttons = wrapper.findAll('button')
-    const abortButton = buttons[0]
+    const abortButton = buttons[0]!
     await abortButton.trigger('click')
 
     // isTyping 切換回 false 模擬 AI 回應完畢，isAborting 被 watch 重置
@@ -611,7 +611,7 @@ describe('中止流程', () => {
     await wrapper.vm.$nextTick()
 
     const newButtons = wrapper.findAll('button')
-    const newAbortButton = newButtons[0]
+    const newAbortButton = newButtons[0]!
     await newAbortButton.trigger('click')
 
     // 應能再次 emit abort
@@ -764,7 +764,7 @@ describe('語音辨識', () => {
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('button')
-    const micButton = buttons[buttons.length - 1]
+    const micButton = buttons[buttons.length - 1]!
     await micButton.trigger('click')
 
     expect(mockStart).toHaveBeenCalled()
@@ -777,7 +777,7 @@ describe('語音辨識', () => {
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('button')
-    const micButton = buttons[buttons.length - 1]
+    const micButton = buttons[buttons.length - 1]!
 
     // 第一次點擊開始錄音
     await micButton.trigger('click')

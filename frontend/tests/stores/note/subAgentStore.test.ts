@@ -30,7 +30,7 @@ vi.mock('@/composables/useToast', () => {
   }
 })
 
-const { mockShowSuccessToast, mockShowErrorToast } = await import('@/composables/useToast')
+const { mockShowSuccessToast, mockShowErrorToast } = await import('@/composables/useToast') as any
 
 describe('subAgentStore', () => {
   beforeEach(() => {
@@ -281,8 +281,8 @@ describe('subAgentStore', () => {
       const store = useSubAgentStore()
 
       const groups = [
-        createMockGroup({ id: 'group-1', name: 'Group 1', type: 'subagent' }),
-        createMockGroup({ id: 'group-2', name: 'Group 2', type: 'subagent' }),
+        createMockGroup({ id: 'group-1', name: 'Group 1', type: 'subAgent' }),
+        createMockGroup({ id: 'group-2', name: 'Group 2', type: 'subAgent' }),
       ]
 
       mockCreateWebSocketRequest.mockResolvedValueOnce({
@@ -355,7 +355,7 @@ describe('subAgentStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useSubAgentStore()
 
-      const newGroup = createMockGroup({ id: 'group-1', name: 'New Group', type: 'subagent' })
+      const newGroup = createMockGroup({ id: 'group-1', name: 'New Group', type: 'subAgent' })
 
       mockCreateWebSocketRequest.mockResolvedValueOnce({
         success: true,
@@ -556,7 +556,7 @@ describe('subAgentStore', () => {
         },
       })
       expect(result.success).toBe(true)
-      expect(store.availableItems[0]?.groupId).toBe('group-1')
+      expect((store.availableItems[0] as any)?.groupId).toBe('group-1')
       expect(mockShowSuccessToast).toHaveBeenCalledWith('SubAgent', '移動成功')
     })
 
@@ -586,7 +586,7 @@ describe('subAgentStore', () => {
         },
       })
       expect(result.success).toBe(true)
-      expect(store.availableItems[0]?.groupId).toBeNull()
+      expect((store.availableItems[0] as any)?.groupId).toBeNull()
       expect(mockShowSuccessToast).toHaveBeenCalledWith('SubAgent', '移動成功')
     })
 
@@ -647,7 +647,7 @@ describe('subAgentStore', () => {
       const result = await store.moveItemToGroup('subagent-1', 'group-1')
 
       expect(result.success).toBe(true)
-      expect(store.availableItems[0]?.groupId).toBeNull()
+      expect((store.availableItems[0] as any)?.groupId).toBeNull()
     })
   })
 })

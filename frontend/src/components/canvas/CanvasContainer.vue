@@ -318,15 +318,15 @@ const repositoryHandlers = useNoteEventHandlers({store: repositoryStore, trashZo
 const commandHandlers = useNoteEventHandlers({store: commandStore, trashZoneRef})
 
 const getRepositoryBranchName = (repositoryId: string): string | undefined => {
-  const repository = repositoryStore.availableItems.find(r => r.id === repositoryId)
+  const repository = repositoryStore.typedAvailableItems.find(r => r.id === repositoryId)
   return repository?.currentBranch || repository?.branchName
 }
 
 const handleRepositoryContextMenu = (data: { noteId: string; event: MouseEvent }): void => {
-  const note = repositoryStore.notes.find(n => n.id === data.noteId)
+  const note = repositoryStore.typedNotes.find(n => n.id === data.noteId)
   if (!note) return
 
-  const repository = repositoryStore.availableItems.find(r => r.id === note.repositoryId)
+  const repository = repositoryStore.typedAvailableItems.find(r => r.id === note.repositoryId)
   if (!repository) return
 
   repositoryContextMenu.value = {
@@ -563,9 +563,9 @@ const handleRepositoryCreated = (repository: { id: string; name: string }): void
 type EditableNoteType = 'outputStyle' | 'subAgent' | 'command'
 
 const editableNoteResourceIdGetters: Record<EditableNoteType, (noteId: string) => string | undefined> = {
-  outputStyle: (noteId) => outputStyleStore.notes.find(n => n.id === noteId)?.outputStyleId,
-  subAgent: (noteId) => subAgentStore.notes.find(n => n.id === noteId)?.subAgentId,
-  command: (noteId) => commandStore.notes.find(n => n.id === noteId)?.commandId,
+  outputStyle: (noteId) => outputStyleStore.typedNotes.find(n => n.id === noteId)?.outputStyleId,
+  subAgent: (noteId) => subAgentStore.typedNotes.find(n => n.id === noteId)?.subAgentId,
+  command: (noteId) => commandStore.typedNotes.find(n => n.id === noteId)?.commandId,
 }
 
 const handleNoteDoubleClick = (data: {
@@ -658,7 +658,7 @@ onUnmounted(() => {
       :key="note.id"
       :note="note"
       note-type="repository"
-      :branch-name="getRepositoryBranchName(note.repositoryId)"
+      :branch-name="getRepositoryBranchName(note.repositoryId as string)"
       @drag-end="repositoryHandlers.handleDragEnd"
       @drag-move="repositoryHandlers.handleDragMove"
       @drag-complete="repositoryHandlers.handleDragComplete"

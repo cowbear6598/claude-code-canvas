@@ -460,7 +460,7 @@ describe('commandStore', () => {
         boundToPodId: 'pod-1',
         originalPosition: null,
       }
-      store.notes = [existingNote]
+      store.notes = [existingNote as any]
 
       const pod1 = createMockPod({ id: 'pod-1', commandId: 'cmd-1' })
 
@@ -795,7 +795,7 @@ describe('commandStore', () => {
         success: true,
         error: undefined,
       })
-      expect(store.availableItems[0]?.groupId).toBe('group-1')
+      expect((store.availableItems[0] as any)?.groupId).toBe('group-1')
       expect(mockShowSuccessToast).toHaveBeenCalledWith('Command', '移動成功')
     })
 
@@ -832,7 +832,7 @@ describe('commandStore', () => {
         success: true,
         error: undefined,
       })
-      expect(store.availableItems[0]?.groupId).toBeNull()
+      expect((store.availableItems[0] as any)?.groupId).toBeNull()
       expect(mockShowSuccessToast).toHaveBeenCalledWith('Command', '移動成功')
     })
 

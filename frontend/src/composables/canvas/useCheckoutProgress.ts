@@ -60,7 +60,7 @@ export function useCheckoutProgress(): UseCheckoutProgressReturn {
         task.progress = 100
         task.message = '切換完成'
 
-        const existingRepository = repositoryStore.availableItems.find(
+        const existingRepository = repositoryStore.typedAvailableItems.find(
           (item) => item.id === payload.repositoryId
         )
         if (existingRepository) {

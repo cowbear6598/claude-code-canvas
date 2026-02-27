@@ -269,7 +269,7 @@ describe('chatStore', () => {
 
       const contentBlocks: ContentBlock[] = [
         { type: 'text', text: 'Check this' },
-        { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'abc123' } },
+        { type: 'image', mediaType: 'image/png', base64Data: 'abc123' },
       ]
 
       await store.sendMessage('pod-1', '', contentBlocks)
@@ -295,7 +295,7 @@ describe('chatStore', () => {
 
       const contentBlocks: ContentBlock[] = [
         { type: 'text', text: 'this file' },
-        { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'xyz' } },
+        { type: 'image', mediaType: 'image/png', base64Data: 'xyz' },
       ]
 
       await store.sendMessage('pod-1', '', contentBlocks)

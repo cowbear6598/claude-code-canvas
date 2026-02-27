@@ -110,7 +110,7 @@ class WebSocketClient {
     // 觸發斷線監聽器
     this.disconnectListeners.forEach(callback => {
       try {
-        callback(this.disconnectReason.value)
+        callback(this.disconnectReason.value ?? '')
       } catch (error) {
         console.error('[WebSocket] 斷線監聽器錯誤:', error)
       }
@@ -184,13 +184,13 @@ class WebSocketClient {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set())
     }
-    this.eventListeners.get(event)!.add(callback)
+    this.eventListeners.get(event)!.add(callback as unknown as EventHandler)
   }
 
   off<T>(event: string, callback: EventCallback<T>): void {
     const listeners = this.eventListeners.get(event)
     if (listeners) {
-      listeners.delete(callback)
+      listeners.delete(callback as unknown as EventHandler)
       if (listeners.size === 0) {
         this.eventListeners.delete(event)
       }
@@ -201,13 +201,13 @@ class WebSocketClient {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set())
     }
-    this.eventListeners.get(event)!.add(callback)
+    this.eventListeners.get(event)!.add(callback as unknown as EventHandler)
   }
 
   offWithAck<T>(event: string, callback: EventCallbackWithAck<T>): void {
     const listeners = this.eventListeners.get(event)
     if (listeners) {
-      listeners.delete(callback)
+      listeners.delete(callback as unknown as EventHandler)
       if (listeners.size === 0) {
         this.eventListeners.delete(event)
       }

@@ -1,5 +1,6 @@
 import type { OutputStyleListItem, OutputStyleNote, Pod } from '@/types'
 import { createNoteStore, rebuildNotesFromPods } from './createNoteStore'
+import type { NoteStoreContext } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
 import { createResourceCRUDActions } from './createResourceCRUDActions'
 import { createGroupCRUDActions } from './createGroupCRUDActions'
@@ -118,7 +119,7 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
   getItemId: (item: OutputStyleListItem) => item.id,
   getItemName: (item: OutputStyleListItem) => item.name,
   customActions: {
-    async rebuildNotesFromPods(this, pods: Pod[]): Promise<void> {
+    async rebuildNotesFromPods(this: NoteStoreContext<OutputStyleListItem>, pods: Pod[]): Promise<void> {
       await rebuildNotesFromPods(this, pods, {
         storeName: 'OutputStyleStore',
         podIdField: 'outputStyleId',
@@ -129,25 +130,25 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
       })
     },
 
-    async createOutputStyle(this, name: string, content: string): Promise<{ success: boolean; outputStyle?: { id: string; name: string }; error?: string }> {
+    async createOutputStyle(this: NoteStoreContext<OutputStyleListItem>, name: string, content: string): Promise<{ success: boolean; outputStyle?: { id: string; name: string }; error?: string }> {
       const result = await outputStyleCRUD.create(this.availableItems, name, content)
       return result.success ? { success: true, outputStyle: result.item } : { success: false, error: result.error }
     },
 
-    async updateOutputStyle(this, outputStyleId: string, content: string): Promise<{ success: boolean; outputStyle?: { id: string; name: string }; error?: string }> {
+    async updateOutputStyle(this: NoteStoreContext<OutputStyleListItem>, outputStyleId: string, content: string): Promise<{ success: boolean; outputStyle?: { id: string; name: string }; error?: string }> {
       const result = await outputStyleCRUD.update(this.availableItems, outputStyleId, content)
       return result.success ? { success: true, outputStyle: result.item } : { success: false, error: result.error }
     },
 
-    async readOutputStyle(this, outputStyleId: string): Promise<{ id: string; name: string; content: string } | null> {
+    async readOutputStyle(this: NoteStoreContext<OutputStyleListItem>, outputStyleId: string): Promise<{ id: string; name: string; content: string } | null> {
       return outputStyleCRUD.read(outputStyleId)
     },
 
-    async deleteOutputStyle(this, outputStyleId: string): Promise<void> {
+    async deleteOutputStyle(this: NoteStoreContext<OutputStyleListItem>, outputStyleId: string): Promise<void> {
       return this.deleteItem(outputStyleId)
     },
 
-    async loadOutputStyles(this): Promise<void> {
+    async loadOutputStyles(this: NoteStoreContext<OutputStyleListItem>): Promise<void> {
       return this.loadItems()
     },
 

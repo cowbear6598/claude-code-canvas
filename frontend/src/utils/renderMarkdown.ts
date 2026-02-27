@@ -1,8 +1,10 @@
 import { marked } from 'marked'
+import type { MarkedOptions } from 'marked'
 import DOMPurify from 'dompurify'
+import type { Config as DOMPurifyConfig } from 'dompurify'
 
 // marked 解析選項（每次呼叫傳入，避免全域副作用）
-const MARKED_OPTIONS: marked.MarkedOptions = {
+const MARKED_OPTIONS: MarkedOptions = {
   breaks: true,
   gfm: true,
 }
@@ -11,7 +13,7 @@ const MARKED_OPTIONS: marked.MarkedOptions = {
 const ALLOWED_URI_REGEXP = /^(?:(?:(?:f|ht)tps?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i
 
 // DOMPurify 安全設定 — 嚴格白名單，不依賴預設行為
-const DOMPURIFY_CONFIG: DOMPurify.Config = {
+const DOMPURIFY_CONFIG: DOMPurifyConfig = {
   ALLOWED_TAGS: [
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'p', 'br', 'hr',
@@ -41,6 +43,6 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
 export function renderMarkdown(raw: string | undefined): string {
   if (!raw || raw.trim().length === 0) return ''
 
-  const html = marked.parse(raw, MARKED_OPTIONS) as string
-  return DOMPurify.sanitize(html, DOMPURIFY_CONFIG)
+  const html = marked.parse(raw, MARKED_OPTIONS) as unknown as string
+  return DOMPurify.sanitize(html, DOMPURIFY_CONFIG) as unknown as string
 }

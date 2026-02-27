@@ -408,7 +408,7 @@ const findImageAtomBefore = (range: Range): HTMLElement | null => {
   const {startContainer, startOffset} = range
 
   if (startContainer.nodeType === Node.ELEMENT_NODE && startOffset > 0) {
-    const node = startContainer.childNodes[startOffset - 1]
+    const node = startContainer.childNodes[startOffset - 1] ?? null
     return isImageAtom(node) ? node : null
   }
 

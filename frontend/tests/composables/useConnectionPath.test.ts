@@ -313,7 +313,7 @@ describe('useConnectionPath', () => {
       const leftRight = calculateMultipleArrowPositions({ start: { x: 100, y: 100 }, end: { x: 300, y: 300 }, sourceAnchor: 'left', targetAnchor: 'right' })
 
       // 至少第一個箭頭的位置應該不同（因為 Bezier 曲線路徑不同）
-      expect(topBottom[0]?.x).not.toBeCloseTo(leftRight[0]?.x, 1)
+      expect(topBottom[0]?.x).not.toBeCloseTo(leftRight[0]!.x, 1)
     })
 
     it('箭頭應均勻分佈在曲線上', () => {

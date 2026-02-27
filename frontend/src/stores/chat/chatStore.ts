@@ -193,7 +193,7 @@ export const useChatStore = defineStore('chat', {
 
             const pod = podStore.pods.find(p => p.id === podId)
             const command = pod?.commandId
-                ? commandStore.availableItems.find(c => c.id === pod.commandId)
+                ? commandStore.typedAvailableItems.find(c => c.id === pod.commandId)
                 : null
 
             const hasContentBlocks = contentBlocks && contentBlocks.length > 0

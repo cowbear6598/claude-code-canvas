@@ -265,7 +265,7 @@ interface NoteStoreMapping {
   getNoteById: (noteId: string) => NoteItem | undefined
   isItemBoundToPod?: (itemId: string, podId: string) => boolean
   unbindFromPod?: (podId: string, returnToOriginal: boolean) => Promise<void>
-  getItemId: (note: NoteItem) => string
+  getItemId: (note: NoteItem) => string | undefined
   updatePodField?: (podId: string, itemId: string | null) => void
 }
 
@@ -312,7 +312,7 @@ const handleNoteDrop = async (noteType: NoteType, noteId: string): Promise<void>
 
   if (mapping.isItemBoundToPod) {
     const itemId = mapping.getItemId(note)
-    if (mapping.isItemBoundToPod(itemId, props.pod.id)) {
+    if (itemId && mapping.isItemBoundToPod(itemId, props.pod.id)) {
       if (noteType === 'skill') {
         toast({title: '已存在，無法插入', description: '此 Skill 已綁定到此 Pod', duration: 3000})
       } else if (noteType === 'subAgent') {
@@ -326,7 +326,7 @@ const handleNoteDrop = async (noteType: NoteType, noteId: string): Promise<void>
 
   if (mapping.updatePodField) {
     const itemId = mapping.getItemId(note)
-    mapping.updatePodField(props.pod.id, itemId)
+    mapping.updatePodField(props.pod.id, itemId ?? null)
   }
 }
 
@@ -367,6 +367,7 @@ const handleAnchorDragEnd = async (): Promise<void> => {
   }
 
   const {sourcePodId, sourceAnchor, currentPoint} = connectionStore.draggingConnection
+  if (!sourcePodId) return
 
   const targetAnchor = detectTargetAnchor(currentPoint, podStore.pods, sourcePodId)
 
@@ -375,8 +376,7 @@ const handleAnchorDragEnd = async (): Promise<void> => {
         sourcePodId,
         sourceAnchor,
         targetAnchor.podId,
-        targetAnchor.anchor,
-        'pod'
+        targetAnchor.anchor
     )
   }
 

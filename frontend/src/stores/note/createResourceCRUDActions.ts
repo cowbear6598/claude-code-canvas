@@ -31,14 +31,14 @@ interface CRUDPayloadConfig<TItem> {
   updateItemsList: (items: TItem[], itemId: string, newItem: { id: string; name: string }) => void
 }
 
-interface ResourceCRUDActions {
+interface ResourceCRUDActions<TItem> {
   create: (
-    items: unknown[],
+    items: TItem[],
     name: string,
     content: string
   ) => Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }>
   update: (
-    items: unknown[],
+    items: TItem[],
     itemId: string,
     content: string
   ) => Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }>
@@ -50,7 +50,7 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
   events: CRUDEventsConfig,
   config: CRUDPayloadConfig<TItem>,
   toastCategory?: ToastCategory
-): ResourceCRUDActions {
+): ResourceCRUDActions<TItem> {
   const { wrapWebSocketRequest } = useWebSocketErrorHandler()
   const { showSuccessToast, showErrorToast } = useToast()
 

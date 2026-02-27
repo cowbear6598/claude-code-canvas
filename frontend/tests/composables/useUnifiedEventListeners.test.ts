@@ -289,8 +289,8 @@ describe('useUnifiedEventListeners', () => {
 
       const outputStyleNote = createMockNote('outputStyle', { id: 'note-1' }) as OutputStyleNote
       const skillNote = createMockNote('skill', { id: 'skill-note-1' }) as SkillNote
-      outputStyleStore.notes = [outputStyleNote]
-      skillStore.notes = [skillNote]
+      outputStyleStore.notes = [outputStyleNote] as any[]
+      skillStore.notes = [skillNote] as any[]
 
       registerUnifiedListeners()
 
@@ -405,7 +405,7 @@ describe('useUnifiedEventListeners', () => {
         outputStyle: { id: 'style-1', name: 'Test Style' },
       })
 
-      expect(outputStyleStore.availableItems.some(i => i.id === 'style-1')).toBe(false)
+      expect(outputStyleStore.availableItems.some(i => (i as any).id === 'style-1')).toBe(false)
     })
 
     it('output-style:deleted 應移除 item 和相關 notes', () => {
@@ -414,7 +414,7 @@ describe('useUnifiedEventListeners', () => {
       outputStyleStore.availableItems = [{ id: 'style-1', name: 'Test' }]
       const note1 = createMockNote('outputStyle', { id: 'note-1' }) as OutputStyleNote
       const note2 = createMockNote('outputStyle', { id: 'note-2' }) as OutputStyleNote
-      outputStyleStore.notes = [note1, note2]
+      outputStyleStore.notes = [note1, note2] as any[]
 
       registerUnifiedListeners()
 
@@ -424,7 +424,7 @@ describe('useUnifiedEventListeners', () => {
         deletedNoteIds: ['note-1', 'note-2'],
       })
 
-      expect(outputStyleStore.availableItems.some(i => i.id === 'style-1')).toBe(false)
+      expect(outputStyleStore.availableItems.some(i => (i as any).id === 'style-1')).toBe(false)
       expect(outputStyleStore.notes.length).toBe(0)
     })
 
@@ -447,7 +447,7 @@ describe('useUnifiedEventListeners', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const outputStyleStore = useOutputStyleStore()
       const note = createMockNote('outputStyle', { id: 'note-1', name: 'Old' }) as OutputStyleNote
-      outputStyleStore.notes = [note]
+      outputStyleStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -464,7 +464,7 @@ describe('useUnifiedEventListeners', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const outputStyleStore = useOutputStyleStore()
       const note = createMockNote('outputStyle', { id: 'note-1' }) as OutputStyleNote
-      outputStyleStore.notes = [note]
+      outputStyleStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -497,7 +497,7 @@ describe('useUnifiedEventListeners', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const skillStore = useSkillStore()
       const note = createMockNote('skill', { id: 'skill-note-1', name: 'Old' }) as SkillNote
-      skillStore.notes = [note]
+      skillStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -514,7 +514,7 @@ describe('useUnifiedEventListeners', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const skillStore = useSkillStore()
       const note = createMockNote('skill', { id: 'skill-note-1' }) as SkillNote
-      skillStore.notes = [note]
+      skillStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -531,7 +531,7 @@ describe('useUnifiedEventListeners', () => {
       const skillStore = useSkillStore()
       skillStore.availableItems = [{ id: 'skill-1', name: 'Test Skill' }]
       const note = createMockNote('skill', { id: 'skill-note-1' }) as SkillNote
-      skillStore.notes = [note]
+      skillStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -541,7 +541,7 @@ describe('useUnifiedEventListeners', () => {
         deletedNoteIds: ['skill-note-1'],
       })
 
-      expect(skillStore.availableItems.some(i => i.id === 'skill-1')).toBe(false)
+      expect(skillStore.availableItems.some(i => (i as any).id === 'skill-1')).toBe(false)
       expect(skillStore.notes.some(n => n.id === 'skill-note-1')).toBe(false)
     })
   })
@@ -558,7 +558,7 @@ describe('useUnifiedEventListeners', () => {
         repository: { id: 'repo-1', name: 'Test Repo', path: '/test', currentBranch: 'main' },
       })
 
-      expect(repositoryStore.availableItems.some(r => r.id === 'repo-1')).toBe(false)
+      expect(repositoryStore.availableItems.some(r => (r as any).id === 'repo-1')).toBe(false)
     })
 
     it('repository:worktree:created 應新增 worktree（通過安全檢查）', () => {
@@ -572,7 +572,7 @@ describe('useUnifiedEventListeners', () => {
         repository: { id: 'worktree-1', name: 'Valid Worktree', parentRepoId: 'repo-1', branchName: 'feature' },
       })
 
-      expect(repositoryStore.availableItems.some(r => r.id === 'worktree-1')).toBe(true)
+      expect(repositoryStore.availableItems.some(r => (r as any).id === 'worktree-1')).toBe(true)
     })
 
     it('repository:worktree:created 應拒絕無效 id', () => {
@@ -631,7 +631,7 @@ describe('useUnifiedEventListeners', () => {
       const repositoryStore = useRepositoryStore()
       repositoryStore.availableItems = [{ id: 'repo-1', name: 'Test', isGit: false }]
       const note = createMockNote('repository', { id: 'repo-note-1' }) as RepositoryNote
-      repositoryStore.notes = [note]
+      repositoryStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -641,7 +641,7 @@ describe('useUnifiedEventListeners', () => {
         deletedNoteIds: ['repo-note-1'],
       })
 
-      expect(repositoryStore.availableItems.some(r => r.id === 'repo-1')).toBe(false)
+      expect(repositoryStore.availableItems.some(r => (r as any).id === 'repo-1')).toBe(false)
       expect(repositoryStore.notes.some(n => n.id === 'repo-note-1')).toBe(false)
     })
 
@@ -657,7 +657,7 @@ describe('useUnifiedEventListeners', () => {
         branchName: 'feature',
       })
 
-      const repo = repositoryStore.availableItems.find(r => r.id === 'repo-1')
+      const repo = repositoryStore.availableItems.find(r => (r as any).id === 'repo-1') as any
       expect(repo?.currentBranch).toBe('feature')
     })
 
@@ -675,7 +675,7 @@ describe('useUnifiedEventListeners', () => {
         branchName: 'feature',
       })
 
-      const repo = repositoryStore.availableItems.find(r => r.id === 'repo-1')
+      const repo = repositoryStore.availableItems.find(r => (r as any).id === 'repo-1') as any
       expect(repo?.currentBranch).toBe('feature')
     })
 
@@ -691,7 +691,7 @@ describe('useUnifiedEventListeners', () => {
         branchName: '<script>alert("xss")</script>',
       })
 
-      const repo = repositoryStore.availableItems.find(r => r.id === 'repo-1')
+      const repo = repositoryStore.availableItems.find(r => (r as any).id === 'repo-1') as any
       expect(repo?.currentBranch).toBe('main')
     })
 
@@ -707,7 +707,7 @@ describe('useUnifiedEventListeners', () => {
         branchName: '',
       })
 
-      const repo = repositoryStore.availableItems.find(r => r.id === 'repo-1')
+      const repo = repositoryStore.availableItems.find(r => (r as any).id === 'repo-1') as any
       expect(repo?.currentBranch).toBe('main')
     })
 
@@ -730,7 +730,7 @@ describe('useUnifiedEventListeners', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const repositoryStore = useRepositoryStore()
       const note = createMockNote('repository', { id: 'repo-note-1', name: 'Old' }) as RepositoryNote
-      repositoryStore.notes = [note]
+      repositoryStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -747,7 +747,7 @@ describe('useUnifiedEventListeners', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const repositoryStore = useRepositoryStore()
       const note = createMockNote('repository', { id: 'repo-note-1' }) as RepositoryNote
-      repositoryStore.notes = [note]
+      repositoryStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -772,7 +772,7 @@ describe('useUnifiedEventListeners', () => {
         subAgent: { id: 'subagent-1', name: 'Test SubAgent' },
       })
 
-      expect(subAgentStore.availableItems.some(s => s.id === 'subagent-1')).toBe(false)
+      expect(subAgentStore.availableItems.some(s => (s as any).id === 'subagent-1')).toBe(false)
     })
 
     it('subagent:deleted 應移除 subAgent 和相關 notes', () => {
@@ -780,7 +780,7 @@ describe('useUnifiedEventListeners', () => {
       const subAgentStore = useSubAgentStore()
       subAgentStore.availableItems = [{ id: 'subagent-1', name: 'Test' }]
       const note = createMockNote('subAgent', { id: 'subagent-note-1' }) as SubAgentNote
-      subAgentStore.notes = [note]
+      subAgentStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -790,7 +790,7 @@ describe('useUnifiedEventListeners', () => {
         deletedNoteIds: ['subagent-note-1'],
       })
 
-      expect(subAgentStore.availableItems.some(s => s.id === 'subagent-1')).toBe(false)
+      expect(subAgentStore.availableItems.some(s => (s as any).id === 'subagent-1')).toBe(false)
       expect(subAgentStore.notes.some(n => n.id === 'subagent-note-1')).toBe(false)
     })
 
@@ -813,7 +813,7 @@ describe('useUnifiedEventListeners', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const subAgentStore = useSubAgentStore()
       const note = createMockNote('subAgent', { id: 'subagent-note-1', name: 'Old' }) as SubAgentNote
-      subAgentStore.notes = [note]
+      subAgentStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -830,7 +830,7 @@ describe('useUnifiedEventListeners', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const subAgentStore = useSubAgentStore()
       const note = createMockNote('subAgent', { id: 'subagent-note-1' }) as SubAgentNote
-      subAgentStore.notes = [note]
+      subAgentStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -855,7 +855,7 @@ describe('useUnifiedEventListeners', () => {
         command: { id: 'cmd-1', name: 'Test Command' },
       })
 
-      expect(commandStore.availableItems.some(c => c.id === 'cmd-1')).toBe(false)
+      expect(commandStore.availableItems.some(c => (c as any).id === 'cmd-1')).toBe(false)
     })
 
     it('command:deleted 應移除 command 和相關 notes', () => {
@@ -863,7 +863,7 @@ describe('useUnifiedEventListeners', () => {
       const commandStore = useCommandStore()
       commandStore.availableItems = [{ id: 'cmd-1', name: 'Test' }]
       const note = createMockNote('command', { id: 'cmd-note-1' }) as CommandNote
-      commandStore.notes = [note]
+      commandStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -873,7 +873,7 @@ describe('useUnifiedEventListeners', () => {
         deletedNoteIds: ['cmd-note-1'],
       })
 
-      expect(commandStore.availableItems.some(c => c.id === 'cmd-1')).toBe(false)
+      expect(commandStore.availableItems.some(c => (c as any).id === 'cmd-1')).toBe(false)
       expect(commandStore.notes.some(n => n.id === 'cmd-note-1')).toBe(false)
     })
 
@@ -896,7 +896,7 @@ describe('useUnifiedEventListeners', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const commandStore = useCommandStore()
       const note = createMockNote('command', { id: 'cmd-note-1', name: 'Old' }) as CommandNote
-      commandStore.notes = [note]
+      commandStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -913,7 +913,7 @@ describe('useUnifiedEventListeners', () => {
       const { registerUnifiedListeners } = useUnifiedEventListeners()
       const commandStore = useCommandStore()
       const note = createMockNote('command', { id: 'cmd-note-1' }) as CommandNote
-      commandStore.notes = [note]
+      commandStore.notes = [note] as any[]
 
       registerUnifiedListeners()
 
@@ -1116,11 +1116,11 @@ describe('useUnifiedEventListeners', () => {
       const commandStore = useCommandStore()
       const subAgentStore = useSubAgentStore()
 
-      outputStyleStore.notes = [createMockNote('outputStyle', { id: 'note-1' }) as OutputStyleNote]
-      skillStore.notes = [createMockNote('skill', { id: 'skill-note-1' }) as SkillNote]
-      repositoryStore.notes = [createMockNote('repository', { id: 'repo-note-1' }) as RepositoryNote]
-      commandStore.notes = [createMockNote('command', { id: 'cmd-note-1' }) as CommandNote]
-      subAgentStore.notes = [createMockNote('subAgent', { id: 'subagent-note-1' }) as SubAgentNote]
+      outputStyleStore.notes = [createMockNote('outputStyle', { id: 'note-1' }) as OutputStyleNote] as any[]
+      skillStore.notes = [createMockNote('skill', { id: 'skill-note-1' }) as SkillNote] as any[]
+      repositoryStore.notes = [createMockNote('repository', { id: 'repo-note-1' }) as RepositoryNote] as any[]
+      commandStore.notes = [createMockNote('command', { id: 'cmd-note-1' }) as CommandNote] as any[]
+      subAgentStore.notes = [createMockNote('subAgent', { id: 'subagent-note-1' }) as SubAgentNote] as any[]
 
       const pod = createMockPod({ id: 'pod-1' })
       podStore.pods = [pod]
