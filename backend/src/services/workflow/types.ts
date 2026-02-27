@@ -24,6 +24,7 @@ export interface CollectSourcesResult {
   ready: boolean;
   mergedContent?: string;
   isSummarized?: boolean;
+  participatingConnectionIds?: string[];
 }
 
 export interface TriggerLifecycleContext {
@@ -33,6 +34,7 @@ export interface TriggerLifecycleContext {
   targetPodId: string;
   summary: string;
   isSummarized: boolean;
+  participatingConnectionIds: string[];
 }
 
 export interface QueuedContext {
@@ -43,6 +45,7 @@ export interface QueuedContext {
   position: number;
   queueSize: number;
   triggerMode: TriggerMode;
+  participatingConnectionIds: string[];
 }
 
 export interface QueueProcessedContext {
@@ -52,6 +55,7 @@ export interface QueueProcessedContext {
   targetPodId: string;
   remainingQueueSize: number;
   triggerMode: TriggerMode;
+  participatingConnectionIds: string[];
 }
 
 export interface CompletionContext {
@@ -60,6 +64,7 @@ export interface CompletionContext {
   sourcePodId: string;
   targetPodId: string;
   triggerMode: TriggerMode;
+  participatingConnectionIds: string[];
 }
 
 export interface TriggerStrategy {
@@ -97,6 +102,7 @@ export interface ExecutionServiceMethods {
     connectionId: string,
     summary: string,
     isSummarized: boolean,
+    participatingConnectionIds: string[] | undefined,
     strategy: TriggerStrategy
   ): Promise<void>;
 }
@@ -128,6 +134,7 @@ export interface QueueServiceMethods {
     summary: string;
     isSummarized: boolean;
     triggerMode: TriggerMode;
+    participatingConnectionIds?: string[];
   }): { position: number; queueSize: number };
 
   processNextInQueue(canvasId: string, targetPodId: string): Promise<void>;

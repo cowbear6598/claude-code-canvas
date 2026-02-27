@@ -14,8 +14,8 @@ describe('WorkflowQueueService', () => {
 
     setupAllSpies({ podLookup });
 
-    workflowQueueService.clearQueue(targetPodId);
-    workflowQueueService.clearQueue('target-pod-2');
+    while (workflowQueueService.getQueueSize(targetPodId) > 0) workflowQueueService.dequeue(targetPodId);
+    while (workflowQueueService.getQueueSize('target-pod-2') > 0) workflowQueueService.dequeue('target-pod-2');
   });
 
   afterEach(() => {
@@ -88,26 +88,6 @@ describe('WorkflowQueueService', () => {
       expect(item).toBeUndefined();
     });
 
-    it('peek 查看但不移除佇列頂端項目', () => {
-      workflowQueueService.enqueue({
-        canvasId,
-        connectionId: 'conn-1',
-        sourcePodId,
-        targetPodId,
-        summary: 'Summary 1',
-        isSummarized: true,
-        triggerMode: 'auto',
-      });
-
-      const sizeBefore = workflowQueueService.getQueueSize(targetPodId);
-      const item = workflowQueueService.peek(targetPodId);
-      const sizeAfter = workflowQueueService.getQueueSize(targetPodId);
-
-      expect(item?.connectionId).toBe('conn-1');
-      expect(sizeBefore).toBe(sizeAfter);
-      expect(sizeAfter).toBe(1);
-    });
-
     it('getQueueSize 正確回報佇列長度', () => {
       expect(workflowQueueService.getQueueSize(targetPodId)).toBe(0);
 
@@ -136,52 +116,5 @@ describe('WorkflowQueueService', () => {
       expect(workflowQueueService.getQueueSize(targetPodId)).toBe(2);
     });
 
-    it('clearQueue 清除指定 target 的佇列', () => {
-      workflowQueueService.enqueue({
-        canvasId,
-        connectionId: 'conn-1',
-        sourcePodId,
-        targetPodId,
-        summary: 'Summary 1',
-        isSummarized: true,
-        triggerMode: 'auto',
-      });
-
-      workflowQueueService.enqueue({
-        canvasId,
-        connectionId: 'conn-2',
-        sourcePodId,
-        targetPodId,
-        summary: 'Summary 2',
-        isSummarized: true,
-        triggerMode: 'auto',
-      });
-
-      expect(workflowQueueService.getQueueSize(targetPodId)).toBe(2);
-
-      workflowQueueService.clearQueue(targetPodId);
-
-      expect(workflowQueueService.getQueueSize(targetPodId)).toBe(0);
-    });
-
-    it('hasQueuedItems 正確偵測佇列是否有項目', () => {
-      expect(workflowQueueService.hasQueuedItems(targetPodId)).toBe(false);
-
-      workflowQueueService.enqueue({
-        canvasId,
-        connectionId: 'conn-1',
-        sourcePodId,
-        targetPodId,
-        summary: 'Summary 1',
-        isSummarized: true,
-        triggerMode: 'auto',
-      });
-
-      expect(workflowQueueService.hasQueuedItems(targetPodId)).toBe(true);
-
-      workflowQueueService.clearQueue(targetPodId);
-
-      expect(workflowQueueService.hasQueuedItems(targetPodId)).toBe(false);
-    });
   });
 });

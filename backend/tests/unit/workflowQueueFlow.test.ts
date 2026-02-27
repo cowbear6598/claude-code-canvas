@@ -132,6 +132,7 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 mockAutoConnection.id,
                 'Test summary',
                 true,
+                undefined,
                 mockAutoStrategy
             );
 
@@ -169,6 +170,7 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 directConn.id,
                 'Direct summary',
                 true,
+                undefined,
                 mockDirectStrategy
             );
 
@@ -204,6 +206,7 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 autoConn.id,
                 'Auto summary',
                 true,
+                undefined,
                 mockAutoStrategy
             );
 
@@ -243,49 +246,6 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
             expect(directItem.triggerMode).toBe('direct');
             expect(aiDecideItem.triggerMode).toBe('ai-decide');
             expect(autoItem.triggerMode).toBe('auto');
-        });
-    });
-
-    describe('D1: Direct + Auto 混合 - 完整流程', () => {
-        it('checkAndTriggerWorkflows 同時處理 direct 和 auto connections（平行分派）', () => {
-            const connections = [
-                {id: 'conn-auto', triggerMode: 'auto'},
-                {id: 'conn-direct', triggerMode: 'direct'},
-            ];
-
-            const autoConnections = connections.filter((conn) => conn.triggerMode === 'auto');
-            const directConnections = connections.filter((conn) => conn.triggerMode === 'direct');
-
-            expect(autoConnections.length).toBe(1);
-            expect(directConnections.length).toBe(1);
-
-            expect(autoConnections[0].id).toBe('conn-auto');
-            expect(directConnections[0].id).toBe('conn-direct');
-        });
-    });
-
-    describe('D2: Auto + AI-Decide + Direct 三種模式平行分派', () => {
-        it('checkAndTriggerWorkflows 平行處理三種 triggerMode 的 connections（分組並 Promise.all）', () => {
-            const connections = [
-                {id: 'conn-auto', triggerMode: 'auto'},
-                {id: 'conn-ai', triggerMode: 'ai-decide'},
-                {id: 'conn-direct', triggerMode: 'direct'},
-            ];
-
-            const autoConnections = connections.filter((conn) => conn.triggerMode === 'auto');
-            const aiDecideConnections = connections.filter((conn) => conn.triggerMode === 'ai-decide');
-            const directConnections = connections.filter((conn) => conn.triggerMode === 'direct');
-
-            expect(autoConnections.length).toBe(1);
-            expect(aiDecideConnections.length).toBe(1);
-            expect(directConnections.length).toBe(1);
-
-            expect(autoConnections[0].id).toBe('conn-auto');
-            expect(aiDecideConnections[0].id).toBe('conn-ai');
-            expect(directConnections[0].id).toBe('conn-direct');
-
-            const willBeProcessedInParallel = autoConnections.length > 0 || aiDecideConnections.length > 0 || directConnections.length > 0;
-            expect(willBeProcessedInParallel).toBe(true);
         });
     });
 
@@ -389,6 +349,7 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 conn.id,
                 'Test summary',
                 true,
+                undefined,
                 mockAutoStrategy
             );
 

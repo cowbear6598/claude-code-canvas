@@ -72,7 +72,8 @@ describe('Direct Trigger Flow', () => {
             expect(call[1]).toBe(mockDirectConnection.id);
             expect(call[2]).toBe(testSummary);
             expect(call[3]).toBe(true);
-            expect(call[4]).toHaveProperty('mode', 'direct');
+            expect(call[4]).toEqual([mockDirectConnection.id]);
+            expect(call[5]).toHaveProperty('mode', 'direct');
         });
     });
 
@@ -197,7 +198,7 @@ describe('Direct Trigger Flow', () => {
             (workflowDirectTriggerService as any).onTimerExpired(canvasId, targetPodId);
 
             // onTimerExpired 不再發送 DIRECT_TRIGGERED 事件，這個事件會在 trigger 階段發送
-            expect(resolvedResult).toEqual({ready: true});
+            expect(resolvedResult).toEqual({ready: true, participatingConnectionIds: [mockDirectConnection.id]});
 
             expect(directTriggerStore.clearDirectPending).toHaveBeenCalledWith(targetPodId);
 
@@ -249,6 +250,7 @@ describe('Direct Trigger Flow', () => {
                 ready: true,
                 mergedContent: expect.any(String),
                 isSummarized: true,
+                participatingConnectionIds: expect.arrayContaining([mockDirectConnection.id, connection2.id]),
             });
 
             expect(directTriggerStore.clearDirectPending).toHaveBeenCalledWith(targetPodId);
@@ -296,6 +298,7 @@ describe('Direct Trigger Flow', () => {
                 ready: true,
                 mergedContent: expect.any(String),
                 isSummarized: true,
+                participatingConnectionIds: expect.arrayContaining([mockDirectConnection.id, connection2.id]),
             });
 
             expect(directTriggerStore.clearDirectPending).toHaveBeenCalledWith(targetPodId);
@@ -304,6 +307,243 @@ describe('Direct Trigger Flow', () => {
             // 這些事件會在 trigger 階段（triggerWorkflowWithSummary）和 executeClaudeQuery 完成後發送
             expect(workflowEventEmitter.emitDirectTriggered).not.toHaveBeenCalled();
             expect(workflowEventEmitter.emitWorkflowComplete).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('C1: Timer 到期 - 單源觸發 → collectSources 回傳的 participatingConnectionIds 只含觸發的 connection', () => {
+        it('只有 1 個 source ready，timer 到期，participatingConnectionIds 只含 A→D 的 connection ID', () => {
+            const connAD: Connection = {
+                ...mockDirectConnection,
+                id: 'conn-A-D',
+                sourcePodId,
+            };
+            const connBD: Connection = {
+                ...mockDirectConnection,
+                id: 'conn-B-D',
+                sourcePodId: 'source-pod-B',
+            };
+
+            const readySummaries = new Map([[sourcePodId, testSummary]]);
+            vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(readySummaries);
+            vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([connAD, connBD]);
+
+            let resolvedResult: any;
+            (workflowDirectTriggerService as any).pendingResolvers.set(targetPodId, (result: any) => {
+                resolvedResult = result;
+            });
+
+            (workflowDirectTriggerService as any).onTimerExpired(canvasId, targetPodId);
+
+            expect(resolvedResult.ready).toBe(true);
+            expect(resolvedResult.participatingConnectionIds).toEqual(['conn-A-D']);
+            expect(resolvedResult.participatingConnectionIds).not.toContain('conn-B-D');
+        });
+    });
+
+    describe('C2: Timer 到期 - 多源合併 → collectSources 回傳的 participatingConnectionIds 含所有參與的 connections', () => {
+        it('2 個 source ready，timer 到期，participatingConnectionIds 同時含 A→D 和 B→D', () => {
+            const sourceBPodId = 'source-pod-B';
+            const connAD: Connection = {
+                ...mockDirectConnection,
+                id: 'conn-A-D',
+                sourcePodId,
+            };
+            const connBD: Connection = {
+                ...mockDirectConnection,
+                id: 'conn-B-D',
+                sourcePodId: sourceBPodId,
+            };
+
+            const readySummaries = new Map([
+                [sourcePodId, testSummary],
+                [sourceBPodId, 'Summary from B'],
+            ]);
+            vi.spyOn(directTriggerStore, 'getReadySummaries').mockReturnValue(readySummaries);
+            vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([connAD, connBD]);
+            vi.spyOn(podStore, 'getById').mockImplementation(((cId: string, podId: string) => {
+                if (podId === sourcePodId || podId === sourceBPodId) return {...mockSourcePod, id: podId};
+                return undefined;
+            }) as any);
+
+            let resolvedResult: any;
+            (workflowDirectTriggerService as any).pendingResolvers.set(targetPodId, (result: any) => {
+                resolvedResult = result;
+            });
+
+            (workflowDirectTriggerService as any).onTimerExpired(canvasId, targetPodId);
+
+            expect(resolvedResult.ready).toBe(true);
+            expect(resolvedResult.participatingConnectionIds).toContain('conn-A-D');
+            expect(resolvedResult.participatingConnectionIds).toContain('conn-B-D');
+            expect(resolvedResult.participatingConnectionIds).toHaveLength(2);
+        });
+    });
+
+    describe('C3: 單一 direct（directCount === 1）→ collectSources 回傳的 participatingConnectionIds 只含當前 connection', () => {
+        it('directCount 為 1 時，collectSources 回傳的 participatingConnectionIds 只含當前 connection ID', async () => {
+            vi.spyOn(workflowStateService, 'getDirectConnectionCount').mockReturnValue(1);
+            vi.spyOn(connectionStore, 'getById').mockReturnValue(mockDirectConnection);
+
+            const result = await (workflowDirectTriggerService as any).collectSources({
+                canvasId,
+                sourcePodId,
+                connection: mockDirectConnection,
+                summary: testSummary,
+            });
+
+            expect(result.ready).toBe(true);
+            expect(result.participatingConnectionIds).toEqual([mockDirectConnection.id]);
+        });
+    });
+
+    describe('D1: lifecycle hooks - onTrigger 只對參與的 connections 發出事件', () => {
+        it('單源觸發時，onTrigger 應只對參與的 connection 發出 emitDirectTriggered', () => {
+            const connAD: Connection = {
+                ...mockDirectConnection,
+                id: 'conn-A-D',
+                sourcePodId,
+                targetPodId,
+            };
+            const connBD: Connection = {
+                ...mockDirectConnection,
+                id: 'conn-B-D',
+                sourcePodId: 'source-pod-B',
+                targetPodId,
+            };
+
+            vi.spyOn(connectionStore, 'getById').mockImplementation(((_cId: string, id: string) => {
+                if (id === 'conn-A-D') return connAD;
+                if (id === 'conn-B-D') return connBD;
+                return undefined;
+            }) as any);
+
+            workflowDirectTriggerService.onTrigger({
+                canvasId,
+                connectionId: connAD.id,
+                sourcePodId,
+                targetPodId,
+                summary: testSummary,
+                isSummarized: true,
+                participatingConnectionIds: ['conn-A-D'],
+            });
+
+            expect(workflowEventEmitter.emitDirectTriggered).toHaveBeenCalledTimes(1);
+            expect(workflowEventEmitter.emitDirectTriggered).toHaveBeenCalledWith(
+                canvasId,
+                expect.objectContaining({ connectionId: 'conn-A-D' })
+            );
+        });
+    });
+
+    describe('D2: lifecycle hooks - onComplete 只對參與的 connections 設回 idle', () => {
+        it('onComplete 只對參與的 connections 更新狀態並發出 emitWorkflowComplete', () => {
+            const connAD: Connection = {
+                ...mockDirectConnection,
+                id: 'conn-A-D',
+                sourcePodId,
+                targetPodId,
+            };
+            const connBD: Connection = {
+                ...mockDirectConnection,
+                id: 'conn-B-D',
+                sourcePodId: 'source-pod-B',
+                targetPodId,
+            };
+
+            vi.spyOn(connectionStore, 'getById').mockImplementation(((_cId: string, id: string) => {
+                if (id === 'conn-A-D') return connAD;
+                if (id === 'conn-B-D') return connBD;
+                return undefined;
+            }) as any);
+
+            const updateStatusSpy = vi.spyOn(connectionStore, 'updateConnectionStatus');
+
+            workflowDirectTriggerService.onComplete({
+                canvasId,
+                connectionId: connAD.id,
+                sourcePodId,
+                targetPodId,
+                triggerMode: 'direct',
+                participatingConnectionIds: ['conn-A-D'],
+            }, true);
+
+            expect(workflowEventEmitter.emitWorkflowComplete).toHaveBeenCalledTimes(1);
+            expect(workflowEventEmitter.emitWorkflowComplete).toHaveBeenCalledWith(
+                canvasId, 'conn-A-D', sourcePodId, targetPodId, true, undefined, 'direct'
+            );
+            expect(updateStatusSpy).toHaveBeenCalledWith(canvasId, 'conn-A-D', 'idle');
+            expect(updateStatusSpy).not.toHaveBeenCalledWith(canvasId, 'conn-B-D', 'idle');
+        });
+    });
+
+    describe('D3: lifecycle hooks - onQueued 只對參與的 connections 設 queued', () => {
+        it('onQueued 只對參與的 connections 更新狀態並發出 emitWorkflowQueued', () => {
+            const connAD: Connection = {
+                ...mockDirectConnection,
+                id: 'conn-A-D',
+                sourcePodId,
+                targetPodId,
+            };
+            const connBD: Connection = {
+                ...mockDirectConnection,
+                id: 'conn-B-D',
+                sourcePodId: 'source-pod-B',
+                targetPodId,
+            };
+
+            vi.spyOn(connectionStore, 'getById').mockImplementation(((_cId: string, id: string) => {
+                if (id === 'conn-A-D') return connAD;
+                if (id === 'conn-B-D') return connBD;
+                return undefined;
+            }) as any);
+
+            const updateStatusSpy = vi.spyOn(connectionStore, 'updateConnectionStatus');
+
+            workflowDirectTriggerService.onQueued({
+                canvasId,
+                connectionId: connAD.id,
+                sourcePodId,
+                targetPodId,
+                position: 1,
+                queueSize: 1,
+                triggerMode: 'direct',
+                participatingConnectionIds: ['conn-A-D'],
+            });
+
+            expect(updateStatusSpy).toHaveBeenCalledWith(canvasId, 'conn-A-D', 'queued');
+            expect(updateStatusSpy).not.toHaveBeenCalledWith(canvasId, 'conn-B-D', 'queued');
+            expect(workflowEventEmitter.emitWorkflowQueued).toHaveBeenCalledTimes(1);
+            expect(workflowEventEmitter.emitWorkflowQueued).toHaveBeenCalledWith(
+                canvasId,
+                expect.objectContaining({ connectionId: 'conn-A-D' })
+            );
+        });
+    });
+
+    describe('E1: cancelPendingResolver - 取消 pending resolver', () => {
+        it('cancelPendingResolver 呼叫後 resolver 以 {ready: false} 解析且從 map 中移除', async () => {
+            let resolvedResult: any;
+            const resolverPromise = new Promise<void>((resolve) => {
+                (workflowDirectTriggerService as any).pendingResolvers.set(targetPodId, (result: any) => {
+                    resolvedResult = result;
+                    resolve();
+                });
+            });
+
+            expect((workflowDirectTriggerService as any).pendingResolvers.has(targetPodId)).toBe(true);
+
+            workflowDirectTriggerService.cancelPendingResolver(targetPodId);
+
+            await resolverPromise;
+
+            expect(resolvedResult).toEqual({ ready: false });
+            expect((workflowDirectTriggerService as any).pendingResolvers.has(targetPodId)).toBe(false);
+        });
+
+        it('cancelPendingResolver 對不存在的 targetPodId 不拋出錯誤', () => {
+            expect(() => {
+                workflowDirectTriggerService.cancelPendingResolver('non-existent-pod');
+            }).not.toThrow();
         });
     });
 });

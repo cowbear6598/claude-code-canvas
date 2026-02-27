@@ -169,6 +169,7 @@ describe('WorkflowMultiInputService', () => {
         mockConnection.id,
         expect.stringContaining('First source summary'),
         true,
+        undefined,
         mockAutoStrategy
       );
 

@@ -171,7 +171,7 @@ describe('WorkflowExecution 服務', () => {
 
             // 清理：重置狀態並清空佇列，避免 scheduleQueueRetry 污染後續測試
             const {workflowQueueService} = await import('../../src/services/workflow/index.js');
-            workflowQueueService.clearQueue(targetPod.id);
+            while (workflowQueueService.getQueueSize(targetPod.id) > 0) workflowQueueService.dequeue(targetPod.id);
             podStore.setStatus(canvasId, targetPod.id, 'idle');
         });
     });
@@ -441,6 +441,7 @@ describe('WorkflowExecution 服務', () => {
                 connection.id,
                 preGeneratedSummary,
                 true,
+                undefined,
                 workflowAutoTriggerService
             );
 
@@ -514,6 +515,7 @@ Content from Source B`;
                 connA.id,
                 mergedSummary,
                 true,
+                undefined,
                 workflowAutoTriggerService
             );
 

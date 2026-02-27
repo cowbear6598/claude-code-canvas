@@ -13,6 +13,7 @@ export interface QueueItem {
   summary: string;
   isSummarized: boolean;
   triggerMode: TriggerMode;
+  participatingConnectionIds?: string[];
   enqueuedAt: Date;
 }
 
@@ -52,6 +53,7 @@ class WorkflowQueueService extends LazyInitializable<QueueServiceDeps> {
       position,
       queueSize,
       triggerMode: item.triggerMode,
+      participatingConnectionIds: item.participatingConnectionIds ?? [item.connectionId],
     });
 
     return { position, queueSize };
@@ -71,22 +73,9 @@ class WorkflowQueueService extends LazyInitializable<QueueServiceDeps> {
     return item;
   }
 
-  peek(targetPodId: string): QueueItem | undefined {
-    const queue = this.queues.get(targetPodId);
-    return queue && queue.length > 0 ? queue[0] : undefined;
-  }
-
   getQueueSize(targetPodId: string): number {
     const queue = this.queues.get(targetPodId);
     return queue ? queue.length : 0;
-  }
-
-  hasQueuedItems(targetPodId: string): boolean {
-    return this.getQueueSize(targetPodId) > 0;
-  }
-
-  clearQueue(targetPodId: string): void {
-    this.queues.delete(targetPodId);
   }
 
   async processNextInQueue(canvasId: string, targetPodId: string): Promise<void> {
@@ -116,6 +105,7 @@ class WorkflowQueueService extends LazyInitializable<QueueServiceDeps> {
       targetPodId,
       remainingQueueSize,
       triggerMode: item.triggerMode,
+      participatingConnectionIds: item.participatingConnectionIds ?? [item.connectionId],
     });
 
     await this.deps.executionService.triggerWorkflowWithSummary(
@@ -123,6 +113,7 @@ class WorkflowQueueService extends LazyInitializable<QueueServiceDeps> {
       item.connectionId,
       item.summary,
       item.isSummarized,
+      item.participatingConnectionIds,
       strategy
     );
   }

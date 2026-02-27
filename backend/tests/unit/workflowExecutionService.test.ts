@@ -92,6 +92,7 @@ function createPipelineExecuteImpl(mockAutoStrategy: TriggerStrategy, mockAiDeci
       context.connection.id,
       summaryResult.summary || 'test summary',
       summaryResult.success || false,
+      undefined,
       strategy
     );
   };
@@ -415,6 +416,7 @@ describe('WorkflowExecutionService', () => {
         autoConn1.id,
         'Test summary',
         true,
+        undefined,
         mockAutoStrategy
       );
 
@@ -438,6 +440,7 @@ describe('WorkflowExecutionService', () => {
         aiConn1.id,
         'Test summary',
         true,
+        undefined,
         mockAiDecideStrategy
       );
 
@@ -460,6 +463,7 @@ describe('WorkflowExecutionService', () => {
         directConn.id,
         'Test summary',
         true,
+        [directConn.id],
         mockDirectStrategy
       );
 
@@ -494,6 +498,7 @@ describe('WorkflowExecutionService', () => {
         mockAutoConnection.id,
         'Test summary',
         true,
+        undefined,
         mockAutoStrategy
       );
 

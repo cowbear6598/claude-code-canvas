@@ -48,7 +48,7 @@ class WorkflowMultiInputService {
     triggerMode: 'auto' | 'ai-decide'
   ): void {
     const targetPod = podStore.getById(canvasId, connection.targetPodId);
-    logger.log('Workflow', 'Update', `Target Pod "${targetPod?.name ?? connection.targetPodId}" is busy, enqueuing merged workflow`);
+    logger.log('Workflow', 'Update', `目標 Pod "${targetPod?.name ?? connection.targetPodId}" 忙碌中，將合併的 workflow 加入佇列`);
 
     workflowQueueService.enqueue({
       canvasId,
@@ -148,7 +148,7 @@ class WorkflowMultiInputService {
     );
 
     const strategy = this.getStrategy(triggerMode);
-    this.executionService.triggerWorkflowWithSummary(canvasId, connection.id, mergedContent, true, strategy).catch((error) => {
+    this.executionService.triggerWorkflowWithSummary(canvasId, connection.id, mergedContent, true, undefined, strategy).catch((error) => {
       logger.error('Workflow', 'Error', `觸發合併工作流程失敗 ${connection.id}`, error);
       podStore.setStatus(canvasId, connection.targetPodId, 'idle');
     });

@@ -112,6 +112,7 @@ describe('WorkflowPipeline', () => {
         connectionId,
         '摘要',
         true,
+        undefined,
         mockStrategy
       );
     });
@@ -147,6 +148,7 @@ describe('WorkflowPipeline', () => {
         connectionId,
         '摘要',
         true,
+        undefined,
         mockStrategy
       );
     });
@@ -189,6 +191,7 @@ describe('WorkflowPipeline', () => {
         connectionId,
         '合併內容',
         true,
+        undefined,
         mockStrategy
       );
 
@@ -217,6 +220,7 @@ describe('WorkflowPipeline', () => {
         summary: '摘要',
         isSummarized: true,
         triggerMode: 'auto',
+        participatingConnectionIds: undefined,
       });
 
       expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
@@ -272,6 +276,7 @@ describe('WorkflowPipeline', () => {
         connectionId,
         '合併內容但未指定 isSummarized',
         true,
+        undefined,
         mockStrategy
       );
     });
@@ -303,6 +308,7 @@ describe('WorkflowPipeline', () => {
         connectionId,
         '合併內容',
         true,
+        undefined,
         mockStrategy
       );
     });
@@ -332,6 +338,7 @@ describe('WorkflowPipeline', () => {
         connectionId,
         '合併內容',
         true,
+        undefined,
         mockStrategy
       );
     });

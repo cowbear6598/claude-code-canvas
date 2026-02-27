@@ -18,7 +18,7 @@ import {directTriggerStore} from '../directTriggerStore.js';
 import {workflowStateService} from './workflowStateService.js';
 import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {logger} from '../../utils/logger.js';
-import {formatMergedSummaries, forEachDirectConnection} from './workflowHelpers.js';
+import {formatMergedSummaries} from './workflowHelpers.js';
 import {connectionStore} from '../connectionStore.js';
 
 class WorkflowDirectTriggerService implements TriggerStrategy {
@@ -45,14 +45,14 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         const directCount = workflowStateService.getDirectConnectionCount(canvasId, targetPodId);
 
         if (directCount === 1) {
-            return this.handleSingleDirectTrigger(canvasId, sourcePodId, targetPodId);
+            return this.handleSingleDirectTrigger(connection.id);
         }
 
         return this.handleMultiDirectTrigger(canvasId, sourcePodId, targetPodId, connection, summary);
     }
 
-    private handleSingleDirectTrigger(_canvasId: string, _sourcePodId: string, _targetPodId: string): CollectSourcesResult {
-        return {ready: true};
+    private handleSingleDirectTrigger(connectionId: string): CollectSourcesResult {
+        return {ready: true, participatingConnectionIds: [connectionId]};
     }
 
     private handleMultiDirectTrigger(
@@ -130,6 +130,13 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         }
     }
 
+    private findConnectionIdsBySourcePodIds(canvasId: string, targetPodId: string, sourcePodIds: string[]): string[] {
+        const allConnections = connectionStore.findByTargetPodId(canvasId, targetPodId);
+        return allConnections
+            .filter(conn => conn.triggerMode === 'direct' && sourcePodIds.includes(conn.sourcePodId))
+            .map(conn => conn.id);
+    }
+
     private processTimerResult(canvasId: string, targetPodId: string): CollectSourcesResult {
         const readySummaries = directTriggerStore.getReadySummaries(targetPodId);
         if (!readySummaries || readySummaries.size === 0) {
@@ -137,9 +144,10 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         }
 
         const sourcePodIds = Array.from(readySummaries.keys());
+        const participatingConnectionIds = this.findConnectionIdsBySourcePodIds(canvasId, targetPodId, sourcePodIds);
 
         if (sourcePodIds.length === 1) {
-            return {ready: true};
+            return {ready: true, participatingConnectionIds};
         }
 
         const mergedContent = formatMergedSummaries(
@@ -157,30 +165,46 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
 
         workflowEventEmitter.emitDirectMerged(canvasId, mergedPayload);
 
-        return {ready: true, mergedContent, isSummarized: true};
+        return {ready: true, mergedContent, isSummarized: true, participatingConnectionIds};
+    }
+
+    private getConnectionsToIterate(canvasId: string, participatingConnectionIds: string[]): Connection[] {
+        return participatingConnectionIds
+            .map(id => connectionStore.getById(canvasId, id))
+            .filter((conn): conn is Connection => conn !== undefined);
     }
 
     onTrigger(context: TriggerLifecycleContext): void {
-        forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
+        const connections = this.getConnectionsToIterate(
+            context.canvasId,
+            context.participatingConnectionIds
+        );
+
+        for (const conn of connections) {
             workflowEventEmitter.emitDirectTriggered(context.canvasId, {
                 canvasId: context.canvasId,
-                connectionId: directConn.id,
-                sourcePodId: directConn.sourcePodId,
+                connectionId: conn.id,
+                sourcePodId: conn.sourcePodId,
                 targetPodId: context.targetPodId,
                 transferredContent: context.summary,
                 isSummarized: context.isSummarized,
             });
-        });
+        }
     }
 
     onComplete(context: CompletionContext, success: boolean, error?: string): void {
-        forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
+        const connections = this.getConnectionsToIterate(
+            context.canvasId,
+            context.participatingConnectionIds
+        );
+
+        for (const conn of connections) {
             workflowEventEmitter.emitWorkflowComplete(
-                context.canvasId, directConn.id, directConn.sourcePodId,
+                context.canvasId, conn.id, conn.sourcePodId,
                 context.targetPodId, success, error, context.triggerMode
             );
-            connectionStore.updateConnectionStatus(context.canvasId, directConn.id, 'idle');
-        });
+            connectionStore.updateConnectionStatus(context.canvasId, conn.id, 'idle');
+        }
     }
 
     onError(context: CompletionContext, errorMessage: string): void {
@@ -188,18 +212,23 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
     }
 
     onQueued(context: QueuedContext): void {
-        forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
-            connectionStore.updateConnectionStatus(context.canvasId, directConn.id, 'queued');
+        const connections = this.getConnectionsToIterate(
+            context.canvasId,
+            context.participatingConnectionIds
+        );
+
+        for (const conn of connections) {
+            connectionStore.updateConnectionStatus(context.canvasId, conn.id, 'queued');
             workflowEventEmitter.emitWorkflowQueued(context.canvasId, {
                 canvasId: context.canvasId,
                 targetPodId: context.targetPodId,
-                connectionId: directConn.id,
-                sourcePodId: directConn.sourcePodId,
+                connectionId: conn.id,
+                sourcePodId: conn.sourcePodId,
                 position: context.position,
                 queueSize: context.queueSize,
                 triggerMode: context.triggerMode,
             });
-        });
+        }
     }
 
     /**
@@ -207,16 +236,21 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
      * active 狀態由 triggerWorkflowWithSummary 統一設定。
      */
     onQueueProcessed(context: QueueProcessedContext): void {
-        forEachDirectConnection(context.canvasId, context.targetPodId, (directConn) => {
+        const connections = this.getConnectionsToIterate(
+            context.canvasId,
+            context.participatingConnectionIds
+        );
+
+        for (const conn of connections) {
             workflowEventEmitter.emitWorkflowQueueProcessed(context.canvasId, {
                 canvasId: context.canvasId,
                 targetPodId: context.targetPodId,
-                connectionId: directConn.id,
-                sourcePodId: directConn.sourcePodId,
+                connectionId: conn.id,
+                sourcePodId: conn.sourcePodId,
                 remainingQueueSize: context.remainingQueueSize,
                 triggerMode: context.triggerMode,
             });
-        });
+        }
     }
 }
 

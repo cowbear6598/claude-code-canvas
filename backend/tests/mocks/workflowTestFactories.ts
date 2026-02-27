@@ -108,5 +108,7 @@ export function initializeQueueService(strategies: {
 
 // Queue 清空 Helper
 export function clearAllQueues(targetPodIds: string[]) {
-  targetPodIds.forEach((podId) => workflowQueueService.clearQueue(podId));
+  targetPodIds.forEach((podId) => {
+    while (workflowQueueService.getQueueSize(podId) > 0) workflowQueueService.dequeue(podId);
+  });
 }

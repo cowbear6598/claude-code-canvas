@@ -23,7 +23,6 @@ import {
     buildTransferMessage,
     buildMessageWithCommand,
     forEachMultiInputGroupConnection,
-    forEachDirectConnection,
 } from './workflowHelpers.js';
 import {workflowAutoTriggerService} from './workflowAutoTriggerService.js';
 import { LazyInitializable } from './lazyInitializable.js';
@@ -55,7 +54,7 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
         targetPodId
       );
     } catch (error) {
-      logger.error('Workflow', 'Error', 'Failed to generate summary', error);
+      logger.error('Workflow', 'Error', '生成摘要失敗', error);
       podStore.setStatus(canvasId, sourcePodId, 'idle');
       return this.getLastAssistantFallback(sourcePodId);
     }
@@ -65,7 +64,7 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
       return { content: summaryResult.summary, isSummarized: true };
     }
 
-    logger.error('Workflow', 'Error', `Failed to generate summary: ${summaryResult.error}`);
+    logger.error('Workflow', 'Error', `生成摘要失敗：${summaryResult.error}`);
     podStore.setStatus(canvasId, sourcePodId, 'idle');
     return this.getLastAssistantFallback(sourcePodId);
   }
@@ -115,6 +114,7 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     connectionId: string,
     summary: string,
     isSummarized: boolean,
+    participatingConnectionIds: string[] | undefined,
     strategy: TriggerStrategy
   ): Promise<void> {
     const connection = connectionStore.getById(canvasId, connectionId);
@@ -127,14 +127,16 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
 
     const targetPod = podStore.getById(canvasId, targetPodId);
     if (!targetPod) {
-      throw new Error(`Pod not found: ${targetPodId}`);
+      throw new Error(`找不到 Pod：${targetPodId}`);
     }
 
     const sourcePod = podStore.getById(canvasId, sourcePodId);
     logger.log('Workflow', 'Create', `觸發工作流程：Pod "${sourcePod?.name ?? sourcePodId}" → Pod "${targetPod.name}"`);
 
     const triggerMode = connection.triggerMode;
-    this.setConnectionsToActive(canvasId, targetPodId, triggerMode);
+    const resolvedConnectionIds = participatingConnectionIds ?? [connectionId];
+
+    this.setConnectionsToActive(canvasId, connectionId, targetPodId, triggerMode, resolvedConnectionIds);
 
     strategy.onTrigger({
       canvasId,
@@ -143,31 +145,46 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
       targetPodId,
       summary,
       isSummarized,
+      participatingConnectionIds: resolvedConnectionIds,
     });
 
     podStore.setStatus(canvasId, targetPodId, 'chatting');
     // 刻意不 await：Claude 查詢是長時間操作，結果透過 WebSocket 事件通知前端。
     // 若改為 await，呼叫方的 Promise.allSettled 會等到查詢完成才繼續，喪失多 connection 並行觸發的能力。
     fireAndForget(
-      this.executeClaudeQuery({ canvasId, connectionId, sourcePodId, targetPodId, content: summary, strategy }),
+      this.executeClaudeQuery({ canvasId, connectionId, sourcePodId, targetPodId, content: summary, participatingConnectionIds: resolvedConnectionIds, strategy }),
       'Workflow',
       `executeClaudeQuery 執行失敗 (connection: ${connectionId})`
     );
   }
 
-  private setConnectionsToActive(canvasId: string, targetPodId: string, triggerMode: TriggerMode): void {
-    const forEachFn = (triggerMode === 'auto' || triggerMode === 'ai-decide')
-      ? forEachMultiInputGroupConnection
-      : forEachDirectConnection;
+  private setConnectionsToActive(
+    canvasId: string,
+    connectionId: string,
+    targetPodId: string,
+    triggerMode: TriggerMode,
+    participatingConnectionIds: string[]
+  ): void {
+    if (triggerMode === 'auto' || triggerMode === 'ai-decide') {
+      forEachMultiInputGroupConnection(canvasId, targetPodId, (conn) => {
+        const stillExists = connectionStore.getById(canvasId, conn.id);
+        if (!stillExists) {
+          logger.warn('Workflow', 'Warn', `Connection ${conn.id} 已不存在，跳過 active 狀態設定`);
+          return;
+        }
+        connectionStore.updateConnectionStatus(canvasId, conn.id, 'active');
+      });
+      return;
+    }
 
-    forEachFn(canvasId, targetPodId, (conn) => {
-      const stillExists = connectionStore.getById(canvasId, conn.id);
+    for (const id of participatingConnectionIds) {
+      const stillExists = connectionStore.getById(canvasId, id);
       if (!stillExists) {
-        logger.warn('Workflow', 'Warn', `Connection ${conn.id} 已不存在，跳過 active 狀態設定`);
-        return;
+        logger.warn('Workflow', 'Warn', `Connection ${id} 已不存在，跳過 active 狀態設定`);
+        continue;
       }
-      connectionStore.updateConnectionStatus(canvasId, conn.id, 'active');
-    });
+      connectionStore.updateConnectionStatus(canvasId, id, 'active');
+    }
   }
 
   private scheduleNextInQueue(canvasId: string, targetPodId: string): void {
@@ -185,9 +202,10 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     sourcePodId: string;
     targetPodId: string;
     content: string;
+    participatingConnectionIds: string[];
     strategy: TriggerStrategy;
   }): Promise<void> {
-    const { canvasId, connectionId, sourcePodId, targetPodId, content, strategy } = params;
+    const { canvasId, connectionId, sourcePodId, targetPodId, content, participatingConnectionIds, strategy } = params;
     const baseMessage = buildTransferMessage(content);
     const targetPod = podStore.getById(canvasId, targetPodId);
     const commands = await commandService.list();
@@ -214,7 +232,7 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
       {
         onComplete: async () => {
           strategy.onComplete(
-            { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode },
+            { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode, participatingConnectionIds },
             true
           );
           await autoClearService.onPodComplete(canvasId, targetPodId);
@@ -229,10 +247,10 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
         onError: async (_ignoredCanvasId, _ignoredPodId, error) => {
           const errorMessage = error.message;
           strategy.onError(
-            { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode },
+            { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode, participatingConnectionIds },
             errorMessage
           );
-          logger.error('Workflow', 'Error', 'Failed to complete workflow', error);
+          logger.error('Workflow', 'Error', 'Workflow 執行失敗', error);
           podStore.setStatus(canvasId, targetPodId, 'idle');
           this.scheduleNextInQueue(canvasId, targetPodId);
         },

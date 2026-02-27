@@ -60,7 +60,7 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
     const collectResult = await this.runCollectSourcesStage(context, strategy, summaryResult.content, summaryResult.isSummarized);
     if (!collectResult) return;
 
-    const { finalSummary, finalIsSummarized } = collectResult;
+    const { finalSummary, finalIsSummarized, participatingConnectionIds } = collectResult;
 
     if (targetPod.status !== 'idle') {
       logger.log('Workflow', 'Pipeline', `[checkQueue] 目標 Pod 忙碌中 (${targetPod.status})，加入佇列`);
@@ -72,6 +72,7 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
         summary: finalSummary,
         isSummarized: finalIsSummarized,
         triggerMode,
+        participatingConnectionIds,
       });
       // 安全網：立即嘗試消化佇列，防止 enqueue 發生在最後一次 scheduleNextInQueue 之後導致佇列卡住
       fireAndForget(
@@ -87,6 +88,7 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
       connectionId,
       finalSummary,
       finalIsSummarized,
+      participatingConnectionIds,
       strategy
     );
   }
@@ -96,7 +98,7 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
     strategy: TriggerStrategy,
     summaryContent: string,
     summaryIsSummarized: boolean
-  ): Promise<{ finalSummary: string; finalIsSummarized: boolean } | null> {
+  ): Promise<{ finalSummary: string; finalIsSummarized: boolean; participatingConnectionIds?: string[] } | null> {
     this.ensureInitialized();
     const { canvasId, sourcePodId, connection, triggerMode } = context;
     const { targetPodId } = connection;
@@ -113,11 +115,13 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
         return null;
       }
 
+      const { participatingConnectionIds } = collectResult;
+
       if (collectResult.mergedContent) {
-        return { finalSummary: collectResult.mergedContent, finalIsSummarized: collectResult.isSummarized ?? true };
+        return { finalSummary: collectResult.mergedContent, finalIsSummarized: collectResult.isSummarized ?? true, participatingConnectionIds };
       }
 
-      return { finalSummary: summaryContent, finalIsSummarized: summaryIsSummarized };
+      return { finalSummary: summaryContent, finalIsSummarized: summaryIsSummarized, participatingConnectionIds };
     }
 
     const { isMultiInput, requiredSourcePodIds } = this.deps.stateService.checkMultiInputScenario(
