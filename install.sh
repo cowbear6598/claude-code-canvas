@@ -140,6 +140,11 @@ DEST="${INSTALL_DIR}/${BINARY_NAME}"
 
 info "Installing to ${DEST}..."
 
+if [ ! -d "$INSTALL_DIR" ]; then
+  warn "${INSTALL_DIR} does not exist, creating with sudo..."
+  sudo mkdir -p "$INSTALL_DIR"
+fi
+
 if [ -w "$INSTALL_DIR" ]; then
   mv "$TMP_BIN" "$DEST"
 else
