@@ -91,7 +91,7 @@ claude-canvas config list
 
 ### Slot Overview
 
-- Skills / SubAgents can hold multiple items
+- Skills / SubAgents / MCPs can hold multiple items
 - Style (Output Style) / Command (Slash Command) / Repo can only hold one
 - Command will automatically prepend to your message, e.g., `/command message`
 - Repo changes the working directory; without one, the Pod uses its own directory
@@ -104,6 +104,8 @@ claude-canvas config list
 - AI: AI decides whether to trigger the next Pod
 - Direct: Ignores other Connection Lines and triggers directly
 
+![Connection Line](tutorials/connection-line.gif)
+
 #### Multi-Connection Trigger Rules
 
 When a Pod has multiple incoming Connection Lines:
@@ -112,5 +114,3 @@ When a Pod has multiple incoming Connection Lines:
 - Auto + AI = If AI rejects, Pod won't trigger; if AI approves, Pod triggers
 - Direct + Direct = When one completes, waits 10 seconds for other Direct lines to finish; if they do, summarizes together then triggers Pod; otherwise, each summarizes independently
 - Auto + Auto + Direct + Direct = Split into two groups (Auto group and Direct group) for summarizing; whichever group completes first triggers first, the other group enters the queue
-
-![Connection Line](tutorials/connection-line.gif)

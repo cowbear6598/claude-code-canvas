@@ -93,7 +93,7 @@ claude-canvas config list
 
 ### Slot 說明
 
-- Skills / SubAgents 可以放入多個
+- Skills / SubAgents / MCPs 可以放入多個
 - Style（Output Style）/ Command（Slash Command）/ Repo 只能單個
 - Command 會讓你的訊息前方自動加入，例如：`/command message`
 - Repo 會更改你的工作目錄，沒有放入則是 Pod 自己的目錄
@@ -106,6 +106,8 @@ claude-canvas config list
 - AI：會交由 AI 判斷有沒有需要往下一個 Pod 執行
 - Direct：不理會其他 Connection Line 直接執行
 
+![Connection Line](tutorials/connection-line.gif)
+
 #### 多條觸發規則
 
 當 Pod 被多條 Connection Line 接入：
@@ -114,5 +116,3 @@ claude-canvas config list
 - Auto + AI = 當 AI 拒絕時，則不會觸發，同意時，則會觸發 Pod
 - Direct + Direct = 當一條完成時，會等 10 秒看其他 Direct 是否完成，如果完成則一起做總結觸發 Pod，等不到的話則會各自總結
 - Auto + Auto + Direct + Direct = 會分成兩組（Auto 組與 Direct 組）去做總結，哪一條先完成則會先觸發那組，另一組則會進入 queue 等待觸發
-
-![Connection Line](tutorials/connection-line.gif)
