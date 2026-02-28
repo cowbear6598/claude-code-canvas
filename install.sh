@@ -6,7 +6,7 @@ set -eu
 
 BINARY_NAME="claude-canvas"
 GITHUB_REPO="cowbear6598/claude-code-canvas"
-INSTALL_DIR="/usr/local/bin"
+INSTALL_DIR="$HOME/.local/bin"
 
 # ---------------------------------------------------------------------------
 # Color output helpers (only when stdout is a tty)
@@ -43,11 +43,7 @@ if [ "${1:-}" = "--uninstall" ]; then
     exit 0
   fi
 
-  if [ -w "$INSTALL_DIR" ]; then
-    rm -f "$TARGET_BIN"
-  else
-    sudo rm -f "$TARGET_BIN"
-  fi
+  rm -f "$TARGET_BIN"
 
   success "${BINARY_NAME} has been uninstalled"
   exit 0
@@ -125,7 +121,7 @@ TMP_BIN="${TMP_DIR}/${BINARY_NAME}"
 info "Downloading ${ASSET_NAME}..."
 
 if command -v curl > /dev/null 2>&1; then
-  curl -fsSL -o "$TMP_BIN" "$DOWNLOAD_URL"
+  curl -fL# -o "$TMP_BIN" "$DOWNLOAD_URL"
 elif command -v wget > /dev/null 2>&1; then
   wget -qO "$TMP_BIN" "$DOWNLOAD_URL"
 fi
@@ -140,17 +136,8 @@ DEST="${INSTALL_DIR}/${BINARY_NAME}"
 
 info "Installing to ${DEST}..."
 
-if [ ! -d "$INSTALL_DIR" ]; then
-  warn "${INSTALL_DIR} does not exist, creating with sudo..."
-  sudo mkdir -p "$INSTALL_DIR"
-fi
-
-if [ -w "$INSTALL_DIR" ]; then
-  mv "$TMP_BIN" "$DEST"
-else
-  warn "No write permission to ${INSTALL_DIR}, using sudo..."
-  sudo mv "$TMP_BIN" "$DEST"
-fi
+mkdir -p "$INSTALL_DIR"
+mv "$TMP_BIN" "$DEST"
 
 rm -rf "$TMP_DIR"
 
@@ -159,8 +146,9 @@ rm -rf "$TMP_DIR"
 # ---------------------------------------------------------------------------
 
 if ! command -v "$BINARY_NAME" > /dev/null 2>&1; then
-  warn "${BINARY_NAME} was installed to ${DEST} but is not in your PATH."
-  warn "Add ${INSTALL_DIR} to your PATH and run '${BINARY_NAME} --version' to verify."
+  warn "$INSTALL_DIR is not in your PATH."
+  info "Add the following to your shell profile (~/.zshrc or ~/.bashrc):"
+  info "  export PATH=\"\$HOME/.local/bin:\$PATH\""
   exit 0
 fi
 
