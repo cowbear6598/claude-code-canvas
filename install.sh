@@ -26,11 +26,11 @@ else
   RESET=""
 fi
 
-info()    { printf "  %s\n" "$1"; }
-success() { printf "  ${GREEN}✓${RESET} %s\n" "$1"; }
-error()   { printf "  ${RED}✗ Error:${RESET} %s\n" "$1" >&2; }
-warn()    { printf "  ${YELLOW}!${RESET} %s\n" "$1"; }
-header()  { printf "\n  ${BOLD}%s${RESET}\n\n" "$1"; }
+info()    { printf "  %b\n" "$1"; }
+success() { printf "  ${GREEN}✓${RESET} %b\n" "$1"; }
+error()   { printf "  ${RED}✗ Error:${RESET} %b\n" "$1" >&2; }
+warn()    { printf "  ${YELLOW}!${RESET} %b\n" "$1"; }
+header()  { printf "\n  ${BOLD}%b${RESET}\n\n" "$1"; }
 
 # ---------------------------------------------------------------------------
 # Uninstall mode
