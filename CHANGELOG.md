@@ -3,17 +3,14 @@
 ## [0.2.0] - 2026-02-28
 
 ### 新增
-- 增加 MCP Server 支援（後端：MCP Server 類型、Store、Schema、Handler 與 Claude Service 整合；前端：MCP Server 類型、Store、Slot 元件與 Modal 元件；事件系統：統一事件監聽器與 WebSocket 事件定義）
-- 新增 Release 自動化流程與更新 README
+- 新增 MCP Server 支援
+- 統一事件監聽器與 WebSocket 事件定義
+- 新增 Release 自動化流程
 
 ### 修正
-- Code review 修正改動
-- install.sh printf 改用 %b 格式正確顯示 ANSI 顏色
+- 修正 ToolOutputModal 權限檢查、Pod 刪除清理邏輯
 - install.sh 改用 ~/.local/bin 免 sudo、下載顯示進度條
-- install.sh 安裝前確保目錄存在
-- 重新正規化 install.sh 換行符（renormalize）
-- 強制 .sh 檔案使用 LF 換行符
-- 修正 install.sh CRLF 換行符為 LF
+- 修正 install.sh 換行符問題
 
 ## [0.1.0] - 2026-02-28
 
