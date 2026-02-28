@@ -8,8 +8,21 @@ const PID_FILE = path.join(APP_DATA_DIR, 'claude-canvas.pid');
 const CONFIG_FILE = path.join(APP_DATA_DIR, 'config.json');
 const LOG_DIR = path.join(APP_DATA_DIR, 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'claude-canvas.log');
+const MAX_LOG_LINES = 10_000;
+const MAX_LOG_READ_BYTES = 1 * 1024 * 1024;
 
 export const VALID_CONFIG_KEYS = ['GITHUB_TOKEN', 'GITLAB_TOKEN', 'GITLAB_URL'];
+
+export function getLocalIp(): string | null {
+	const interfaces = os.networkInterfaces();
+	for (const iface of Object.values(interfaces)) {
+		if (!iface) continue;
+		for (const info of iface) {
+			if (info.family === 'IPv4' && !info.internal) return info.address;
+		}
+	}
+	return null;
+}
 
 const HELP_TEXT = `Claude Canvas - AI Agent 畫布工具
 
@@ -23,41 +36,48 @@ const HELP_TEXT = `Claude Canvas - AI Agent 畫布工具
   config set <key> <value>      設定配置
   config get <key>              查看配置
   config list                   列出所有配置
+  logs [-n <number>]            查看最新日誌（預設 50 行）
 
 選項：
   -v, --version                 顯示版本號
   -h, --help                    顯示此說明`;
+
+const BOOLEAN_FLAGS: Record<string, string> = {
+	'--version': 'version',
+	'-v': 'version',
+	'--help': 'help',
+	'-h': 'help',
+	'--daemon': 'daemon',
+};
+
+function parseFlagValue(rawArgs: string[], currentIndex: number): { value: string | boolean; skip: boolean } {
+	const next = rawArgs[currentIndex + 1];
+	if (next !== undefined && !next.startsWith('-')) {
+		return { value: next, skip: true };
+	}
+	return { value: true, skip: false };
+}
 
 export function parseCommand(argv: string[]): {
 	command: string | null;
 	args: string[];
 	flags: Record<string, string | boolean>;
 } {
-	// 略過 bun / node 執行路徑和腳本路徑（前兩個參數）
 	const rawArgs = argv.slice(2);
-
 	const flags: Record<string, string | boolean> = {};
 	const positional: string[] = [];
-
 	let i = 0;
+
 	while (i < rawArgs.length) {
 		const arg = rawArgs[i];
 
-		if (arg === '--version' || arg === '-v') {
-			flags.version = true;
-		} else if (arg === '--help' || arg === '-h') {
-			flags.help = true;
-		} else if (arg === '--daemon') {
-			flags.daemon = true;
-		} else if (arg.startsWith('--')) {
-			const key = arg.slice(2);
-			const next = rawArgs[i + 1];
-			if (next !== undefined && !next.startsWith('-')) {
-				flags[key] = next;
-				i++;
-			} else {
-				flags[key] = true;
-			}
+		if (BOOLEAN_FLAGS[arg]) {
+			flags[BOOLEAN_FLAGS[arg]] = true;
+		} else if (arg === '-n' || arg.startsWith('--')) {
+			const key = arg === '-n' ? 'n' : arg.slice(2);
+			const { value, skip } = parseFlagValue(rawArgs, i);
+			flags[key] = value;
+			if (skip) i++;
 		} else {
 			positional.push(arg);
 		}
@@ -65,10 +85,7 @@ export function parseCommand(argv: string[]): {
 		i++;
 	}
 
-	const command = positional[0] ?? null;
-	const args = positional.slice(1);
-
-	return { command, args, flags };
+	return { command: positional[0] ?? null, args: positional.slice(1), flags };
 }
 
 export function validatePort(value: string): number | null {
@@ -144,6 +161,10 @@ function maskToken(value: string): string {
 	return value.slice(0, 4) + '****';
 }
 
+function getDisplayValue(key: string, value: string): string {
+	return key.endsWith('_TOKEN') ? maskToken(value) : value;
+}
+
 function formatUptime(startedAt: string): string {
 	const startMs = new Date(startedAt).getTime();
 	const nowMs = Date.now();
@@ -208,7 +229,9 @@ async function handleStart(flags: Record<string, string | boolean>): Promise<voi
 		startedAt: new Date().toISOString(),
 	});
 
-	console.log(`服務已啟動（PID: ${child.pid}, Port: ${port}）`);
+	const localIp = getLocalIp();
+	const networkLine = localIp ? `\n  ➜ Network: http://${localIp}:${port}` : '';
+	console.log(`服務已啟動（PID: ${child.pid}, Port: ${port}）\n\n  ➜ Local:   http://localhost:${port}${networkLine}`);
 	process.exit(0);
 }
 
@@ -258,76 +281,128 @@ function handleStatus(): void {
 	console.log(`已運行：${uptime}`);
 }
 
-function handleConfig(args: string[]): void {
+function handleConfigSet(args: string[]): void {
+	const key = args[1];
+	const value = args[2];
+
+	if (!key || !value) {
+		console.error('使用方式：claude-canvas config set <key> <value>');
+		process.exit(1);
+	}
+
+	validateConfigKey(key, 'claude-canvas config set <key> <value>');
+
+	const config = readConfig(CONFIG_FILE);
+	config[key] = value;
+	writeConfig(CONFIG_FILE, config);
+	console.log(`已設定 ${key}`);
+}
+
+function handleConfigGet(args: string[]): void {
+	const key = args[1];
+
+	if (!key) {
+		console.error('使用方式：claude-canvas config get <key>');
+		process.exit(1);
+	}
+
+	validateConfigKey(key, 'claude-canvas config get <key>');
+
+	const config = readConfig(CONFIG_FILE);
+	const value = config[key];
+
+	if (value === undefined) {
+		console.log('尚未設定');
+		return;
+	}
+
+	console.log(getDisplayValue(key, value));
+}
+
+function handleConfigList(): void {
+	const config = readConfig(CONFIG_FILE);
+	const entries = Object.entries(config);
+
+	if (entries.length === 0) {
+		console.log('尚無任何配置');
+		return;
+	}
+
+	for (const [key, value] of entries) {
+		console.log(`${key}=${getDisplayValue(key, value)}`);
+	}
+}
+
+export function handleConfig(args: string[]): void {
 	const subCommand = args[0];
 
 	if (subCommand === 'set') {
-		const key = args[1];
-		const value = args[2];
-
-		if (!key || !value) {
-			console.error('使用方式：claude-canvas config set <key> <value>');
-			process.exit(1);
-		}
-
-		validateConfigKey(key, 'claude-canvas config set <key> <value>');
-
-		const config = readConfig(CONFIG_FILE);
-		config[key] = value;
-		writeConfig(CONFIG_FILE, config);
-		console.log(`已設定 ${key}`);
+		handleConfigSet(args);
 		return;
 	}
-
 	if (subCommand === 'get') {
-		const key = args[1];
-
-		if (!key) {
-			console.error('使用方式：claude-canvas config get <key>');
-			process.exit(1);
-		}
-
-		validateConfigKey(key, 'claude-canvas config get <key>');
-
-		const config = readConfig(CONFIG_FILE);
-		const value = config[key];
-
-		if (value === undefined) {
-			console.log('尚未設定');
-		} else {
-			const isToken = key.endsWith('_TOKEN');
-			console.log(isToken ? maskToken(value) : value);
-		}
+		handleConfigGet(args);
 		return;
 	}
-
 	if (subCommand === 'list') {
-		const config = readConfig(CONFIG_FILE);
-		const entries = Object.entries(config);
-
-		if (entries.length === 0) {
-			console.log('尚無任何配置');
-			return;
-		}
-
-		for (const [key, value] of entries) {
-			const isToken = key.endsWith('_TOKEN');
-			const displayValue = isToken ? maskToken(value) : value;
-			console.log(`${key}=${displayValue}`);
-		}
+		handleConfigList();
 		return;
 	}
 
 	console.error('使用方式：claude-canvas config <set|get|list>');
+	console.log(HELP_TEXT);
 	process.exit(1);
+}
+
+export function handleLogs(flags: Record<string, string | boolean>, logFile = LOG_FILE): void {
+	const nStr = typeof flags.n === 'string' ? flags.n : '50';
+	const n = Number(nStr);
+	const lines = Math.min(Number.isInteger(n) && n > 0 ? n : 50, MAX_LOG_LINES);
+
+	if (!fs.existsSync(logFile)) {
+		console.log('尚無日誌檔案，請先啟動服務');
+		process.exit(0);
+		return;
+	}
+
+	const fileSize = fs.statSync(logFile).size;
+	const readBytes = Math.min(fileSize, MAX_LOG_READ_BYTES);
+	const buffer = Buffer.alloc(readBytes);
+	const fd = fs.openSync(logFile, 'r');
+	fs.readSync(fd, buffer, 0, readBytes, fileSize - readBytes);
+	fs.closeSync(fd);
+
+	const content = buffer.toString('utf-8');
+
+	if (content.trim() === '') {
+		console.log('日誌檔案為空');
+		return;
+	}
+
+	const allLines = content.split('\n').filter((line) => line.length > 0);
+	const tail = allLines.slice(-lines);
+	console.log(tail.join('\n'));
 }
 
 async function runDaemon(flags: Record<string, string | boolean>): Promise<void> {
 	const portStr = typeof flags.port === 'string' ? flags.port : '3001';
-	process.env.PORT = portStr;
+	const port = validatePort(portStr);
+	if (port === null) {
+		console.error(`錯誤：無效的 port 值「${portStr}」，必須是 1 到 65535 之間的整數`);
+		process.exit(1);
+	}
+	process.env.PORT = String(port);
 	process.env.NODE_ENV = 'production';
 	await import('./index.js');
 }
+
+const COMMAND_HANDLERS: Record<string, (args: string[], flags: Record<string, string | boolean>) => Promise<void> | void> = {
+	start: (_, flags) => handleStart(flags),
+	stop: () => handleStop(),
+	status: () => handleStatus(),
+	config: (args) => handleConfig(args),
+	logs: (_, flags) => handleLogs(flags),
+};
 
 async function main(): Promise<void> {
 	const { command, args, flags } = parseCommand(process.argv);
@@ -336,40 +411,23 @@ async function main(): Promise<void> {
 		await runDaemon(flags);
 		return;
 	}
-
 	if (flags.version) {
 		console.log(pkg.version);
 		process.exit(0);
 	}
-
 	if (flags.help || command === null) {
 		console.log(HELP_TEXT);
 		process.exit(0);
 	}
 
-	if (command === 'start') {
-		await handleStart(flags);
-		return;
+	const handler = COMMAND_HANDLERS[command];
+	if (!handler) {
+		console.error(`未知命令：${command}`);
+		console.log(HELP_TEXT);
+		process.exit(1);
 	}
 
-	if (command === 'stop') {
-		handleStop();
-		return;
-	}
-
-	if (command === 'status') {
-		handleStatus();
-		return;
-	}
-
-	if (command === 'config') {
-		handleConfig(args);
-		return;
-	}
-
-	console.error(`未知命令：${command}`);
-	console.log(HELP_TEXT);
-	process.exit(1);
+	await handler(args, flags);
 }
 
 // 只在直接執行時啟動，避免被 import 時觸發

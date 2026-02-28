@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
 	parseCommand,
 	validatePort,
@@ -10,7 +10,9 @@ import {
 	readPidFile,
 	writePidFile,
 	isProcessAlive,
+	getLocalIp,
 	VALID_CONFIG_KEYS,
+	handleLogs,
 } from '../../src/cli.js';
 
 const TMP_DIR = path.join(os.tmpdir(), `cli-test-${Date.now()}`);
@@ -162,6 +164,23 @@ describe('readPidFile 與 writePidFile', () => {
 		fs.writeFileSync(pidPath, 'not-json', 'utf-8');
 		expect(readPidFile(pidPath)).toBeNull();
 	});
+
+	describe('readPidFile 型別不符時回傳 null', () => {
+		it('pid 為字串時回傳 null', () => {
+			fs.writeFileSync(pidPath, JSON.stringify({ pid: 'not-a-number', port: 3001, startedAt: '2024-01-01' }), 'utf-8');
+			expect(readPidFile(pidPath)).toBeNull();
+		});
+
+		it('port 為字串時回傳 null', () => {
+			fs.writeFileSync(pidPath, JSON.stringify({ pid: 123, port: 'abc', startedAt: '2024-01-01' }), 'utf-8');
+			expect(readPidFile(pidPath)).toBeNull();
+		});
+
+		it('startedAt 為數字時回傳 null', () => {
+			fs.writeFileSync(pidPath, JSON.stringify({ pid: 123, port: 3001, startedAt: 12345 }), 'utf-8');
+			expect(readPidFile(pidPath)).toBeNull();
+		});
+	});
 });
 
 describe('isProcessAlive', () => {
@@ -175,6 +194,44 @@ describe('isProcessAlive', () => {
 		it('不存在的 PID 回傳 false', () => {
 			expect(isProcessAlive(999999)).toBe(false);
 		});
+	});
+});
+
+describe('getLocalIp', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('有 external IPv4 介面時回傳該 IP', () => {
+		vi.spyOn(os, 'networkInterfaces').mockReturnValue({
+			eth0: [
+				{ address: '192.168.1.100', family: 'IPv4', internal: false, netmask: '255.255.255.0', mac: '00:00:00:00:00:00', cidr: '192.168.1.100/24' },
+			],
+		});
+		expect(getLocalIp()).toBe('192.168.1.100');
+	});
+
+	it('所有介面都是 internal 時回傳 null', () => {
+		vi.spyOn(os, 'networkInterfaces').mockReturnValue({
+			lo: [
+				{ address: '127.0.0.1', family: 'IPv4', internal: true, netmask: '255.0.0.0', mac: '00:00:00:00:00:00', cidr: '127.0.0.1/8' },
+			],
+		});
+		expect(getLocalIp()).toBeNull();
+	});
+
+	it('只有 IPv6 介面時回傳 null', () => {
+		vi.spyOn(os, 'networkInterfaces').mockReturnValue({
+			eth0: [
+				{ address: '::1', family: 'IPv6', internal: false, netmask: 'ffff:ffff:ffff:ffff::', mac: '00:00:00:00:00:00', cidr: '::1/128', scopeid: 0 },
+			],
+		});
+		expect(getLocalIp()).toBeNull();
+	});
+
+	it('networkInterfaces 回傳空物件時回傳 null', () => {
+		vi.spyOn(os, 'networkInterfaces').mockReturnValue({});
+		expect(getLocalIp()).toBeNull();
 	});
 });
 
@@ -213,5 +270,131 @@ describe('readConfig 與 writeConfig', () => {
 	it('損毀的 JSON 回傳空物件', () => {
 		fs.writeFileSync(configPath, 'not-json', 'utf-8');
 		expect(readConfig(configPath)).toEqual({});
+	});
+});
+
+describe('handleLogs', () => {
+	const logPath = path.join(TMP_DIR, 'claude-canvas.log');
+
+	beforeEach(() => {
+		vi.spyOn(console, 'log').mockImplementation(() => {});
+		vi.spyOn(process, 'exit').mockImplementation((() => {}) as (code?: number) => never);
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	describe('CLI logs 日誌檔案不存在時顯示提示', () => {
+		it('log 檔案不存在時印出提示並 exit', () => {
+			handleLogs({}, '/不存在的路徑/claude-canvas.log');
+			expect(console.log).toHaveBeenCalledWith('尚無日誌檔案，請先啟動服務');
+			expect(process.exit).toHaveBeenCalledWith(0);
+		});
+	});
+
+	describe('CLI logs 日誌檔案為空時顯示提示', () => {
+		it('log 檔案為空時印出提示', () => {
+			fs.writeFileSync(logPath, '', 'utf-8');
+			handleLogs({}, logPath);
+			expect(console.log).toHaveBeenCalledWith('日誌檔案為空');
+		});
+	});
+
+	describe('CLI logs 預設顯示最新 50 行', () => {
+		it('超過 50 行時只顯示最後 50 行', () => {
+			const allLines = Array.from({ length: 80 }, (_, i) => `行 ${i + 1}`);
+			fs.writeFileSync(logPath, allLines.join('\n'), 'utf-8');
+			handleLogs({}, logPath);
+			const output = vi.mocked(console.log).mock.calls[0][0] as string;
+			const printed = output.split('\n');
+			expect(printed).toHaveLength(50);
+			expect(printed[0]).toBe('行 31');
+			expect(printed[49]).toBe('行 80');
+		});
+
+		it('行數不足 50 行時全部顯示', () => {
+			const allLines = Array.from({ length: 10 }, (_, i) => `行 ${i + 1}`);
+			fs.writeFileSync(logPath, allLines.join('\n'), 'utf-8');
+			handleLogs({}, logPath);
+			const output = vi.mocked(console.log).mock.calls[0][0] as string;
+			const printed = output.split('\n');
+			expect(printed).toHaveLength(10);
+		});
+	});
+
+	describe('CLI logs -n 100 顯示最新 100 行', () => {
+		it('-n 100 時顯示最後 100 行', () => {
+			const allLines = Array.from({ length: 150 }, (_, i) => `行 ${i + 1}`);
+			fs.writeFileSync(logPath, allLines.join('\n'), 'utf-8');
+			handleLogs({ n: '100' }, logPath);
+			const output = vi.mocked(console.log).mock.calls[0][0] as string;
+			const printed = output.split('\n');
+			expect(printed).toHaveLength(100);
+			expect(printed[0]).toBe('行 51');
+			expect(printed[99]).toBe('行 150');
+		});
+	});
+
+	describe('-n 邊界值應 fallback 為 50 行', () => {
+		const setup100Lines = () => {
+			const allLines = Array.from({ length: 100 }, (_, i) => `行 ${i + 1}`);
+			fs.writeFileSync(logPath, allLines.join('\n'), 'utf-8');
+		};
+
+		const getOutput = () => {
+			const output = vi.mocked(console.log).mock.calls[0][0] as string;
+			return output.split('\n');
+		};
+
+		it('-n 0 應 fallback 為 50 行', () => {
+			setup100Lines();
+			handleLogs({ n: '0' }, logPath);
+			const printed = getOutput();
+			expect(printed).toHaveLength(50);
+			expect(printed[0]).toBe('行 51');
+			expect(printed[49]).toBe('行 100');
+		});
+
+		it('-n -5 負數應 fallback 為 50 行', () => {
+			setup100Lines();
+			handleLogs({ n: '-5' }, logPath);
+			const printed = getOutput();
+			expect(printed).toHaveLength(50);
+			expect(printed[0]).toBe('行 51');
+			expect(printed[49]).toBe('行 100');
+		});
+
+		it('-n abc 非數字應 fallback 為 50 行', () => {
+			setup100Lines();
+			handleLogs({ n: 'abc' }, logPath);
+			const printed = getOutput();
+			expect(printed).toHaveLength(50);
+			expect(printed[0]).toBe('行 51');
+			expect(printed[49]).toBe('行 100');
+		});
+
+		it('-n 後面沒值（flags.n 為 boolean true）應 fallback 為 50 行', () => {
+			setup100Lines();
+			handleLogs({ n: true }, logPath);
+			const printed = getOutput();
+			expect(printed).toHaveLength(50);
+			expect(printed[0]).toBe('行 51');
+			expect(printed[49]).toBe('行 100');
+		});
+	});
+
+	describe('parseCommand 解析 -n 參數', () => {
+		it('解析 logs -n 100 命令', () => {
+			const result = parseCommand(['bun', 'cli.ts', 'logs', '-n', '100']);
+			expect(result.command).toBe('logs');
+			expect(result.flags.n).toBe('100');
+		});
+
+		it('logs 命令無 -n 時 flags.n 為 undefined', () => {
+			const result = parseCommand(['bun', 'cli.ts', 'logs']);
+			expect(result.command).toBe('logs');
+			expect(result.flags.n).toBeUndefined();
+		});
 	});
 });
