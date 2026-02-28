@@ -6,6 +6,7 @@
   "scripts": {
     "build": "bun run build:frontend && bun run build:compile",
     "build:frontend": "cd frontend && bun run build",
-    "build:compile": "bun scripts/compile.ts"
+    "build:compile": "bun scripts/compile.ts",
+    "release": "bun run scripts/release.ts"
   }
 }

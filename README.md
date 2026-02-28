@@ -1,4 +1,4 @@
-[English](README.en.md)
+[English](README.en.md) | [日本語](README.ja.md)
 
 # Claude Code Canvas
 
@@ -8,8 +8,8 @@
 
 - [注意事項](#注意事項)
 - [安裝](#安裝)
-- [啟動](#啟動)
-- [環境變數](#環境變數)
+- [使用方式](#使用方式)
+- [設定](#設定)
 - [教學](#教學)
   - [什麼是 POD？](#什麼是-pod)
   - [如何切換模型？](#如何切換模型)
@@ -26,52 +26,54 @@
 
 ## 安裝
 
-**前提條件：** Bun
+**前提條件：** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 已安裝並登入
+
+**一鍵安裝（推薦）**
 
 ```bash
-cd frontend && bun install
-cd backend && bun install
+curl -fsSL https://raw.githubusercontent.com/cowbear6598/claude-code-canvas/main/install.sh | sh
 ```
 
-## 啟動
-
-**前端**
+**解除安裝**
 
 ```bash
-cd frontend && bun run dev
+curl -fsSL https://raw.githubusercontent.com/cowbear6598/claude-code-canvas/main/install.sh | sh -s -- --uninstall
 ```
 
-啟動後運行於 port 5173。
-
-**後端**
+## 使用方式
 
 ```bash
-cd backend && bun run dev
+# 啟動服務（背景 daemon 模式，預設 port 3001）
+claude-canvas start
+
+# 指定 port 啟動
+claude-canvas start --port 8080
+
+# 查看服務狀態
+claude-canvas status
+
+# 停止服務
+claude-canvas stop
 ```
 
-啟動後運行於 port 3001。
+啟動後開啟瀏覽器前往 `http://localhost:3001` 即可使用。
 
-**正式環境**
+## 設定
 
-```bash
-cd backend && bun run prod
-```
-
-會自動建置前端並一起啟動。
-
-## 環境變數
-
-如果要使用 Clone 相關功能存取私有 Repository，請在 `backend/` 目錄下建立 `.env` 檔案：
+如果要使用 Clone 相關功能存取私有 Repository，請使用 `config` 指令設定：
 
 ```bash
-# GitHub Token，用於存取私有 Repository
-GITHUB_TOKEN=ghp_xxxxx
+# GitHub Token
+claude-canvas config set GITHUB_TOKEN ghp_xxxxx
 
-# GitLab Token，用於存取私有 Repository（支援 GitLab.com 及自架）
-GITLAB_TOKEN=glpat-xxxxx
+# GitLab Token
+claude-canvas config set GITLAB_TOKEN glpat-xxxxx
 
 # 自架 GitLab 網址（選填，預設為 gitlab.com）
-GITLAB_URL=https://gitlab.example.com
+claude-canvas config set GITLAB_URL https://gitlab.example.com
+
+# 查看所有設定
+claude-canvas config list
 ```
 
 ## 教學

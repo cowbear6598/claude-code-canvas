@@ -44,9 +44,19 @@ jobs:
       - name: 計算 SHA256（供下載驗證用）
         run: shasum -a 256 dist/claude-canvas-* > dist/checksums.txt
 
+      - name: 擷取 CHANGELOG 對應版本內容
+        id: changelog
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          BODY=$(sed -n "/^## \[${VERSION}\]/,/^## \[/p" CHANGELOG.md | sed '$d')
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: 發布到 GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
+          body: ${{ steps.changelog.outputs.body }}
           files: |
             dist/claude-canvas-darwin-arm64
             dist/claude-canvas-darwin-x64

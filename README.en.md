@@ -1,4 +1,4 @@
-[繁體中文](README.md)
+[繁體中文](README.md) | [日本語](README.ja.md)
 
 # Claude Code Canvas
 
@@ -8,8 +8,8 @@ A canvas tool for visually designing and executing AI Agent workflows, powered b
 
 - [Important Notes](#important-notes)
 - [Installation](#installation)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
+- [Usage](#usage)
+- [Configuration](#configuration)
 - [Tutorials](#tutorials)
   - [What is a POD?](#what-is-a-pod)
   - [How to Switch Models?](#how-to-switch-models)
@@ -26,52 +26,52 @@ A canvas tool for visually designing and executing AI Agent workflows, powered b
 
 ## Installation
 
-**Prerequisites:** Bun
+**Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and logged in
 
 ```bash
-cd frontend && bun install
-cd backend && bun install
+curl -fsSL https://raw.githubusercontent.com/cowbear6598/claude-code-canvas/main/install.sh | sh
 ```
 
-## Getting Started
-
-**Frontend**
+**Uninstall**
 
 ```bash
-cd frontend && bun run dev
+curl -fsSL https://raw.githubusercontent.com/cowbear6598/claude-code-canvas/main/install.sh | sh -s -- --uninstall
 ```
 
-Runs on port 5173.
-
-**Backend**
+## Usage
 
 ```bash
-cd backend && bun run dev
+# Start service (background daemon, default port 3001)
+claude-canvas start
+
+# Start with custom port
+claude-canvas start --port 8080
+
+# Check service status
+claude-canvas status
+
+# Stop service
+claude-canvas stop
 ```
 
-Runs on port 3001.
+Open your browser and navigate to `http://localhost:3001` to get started.
 
-**Production**
+## Configuration
 
-```bash
-cd backend && bun run prod
-```
-
-Builds the frontend and serves everything together from the backend.
-
-## Environment Variables
-
-To use Clone features for accessing private repositories, create a `.env` file in the `backend/` directory:
+To use Clone features for accessing private repositories, use the `config` command:
 
 ```bash
-# GitHub Token for accessing private repositories
-GITHUB_TOKEN=ghp_xxxxx
+# GitHub Token
+claude-canvas config set GITHUB_TOKEN ghp_xxxxx
 
-# GitLab Token for accessing private repositories (supports GitLab.com and self-hosted)
-GITLAB_TOKEN=glpat-xxxxx
+# GitLab Token
+claude-canvas config set GITLAB_TOKEN glpat-xxxxx
 
 # Self-hosted GitLab URL (optional, defaults to gitlab.com)
-GITLAB_URL=https://gitlab.example.com
+claude-canvas config set GITLAB_URL https://gitlab.example.com
+
+# List all configurations
+claude-canvas config list
 ```
 
 ## Tutorials
