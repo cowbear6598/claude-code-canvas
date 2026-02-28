@@ -9,6 +9,7 @@ export interface CreatePodRequest {
   outputStyleId?: string | null;
   skillIds?: string[];
   subAgentIds?: string[];
+  mcpServerIds?: string[];
   model?: ModelType;
   repositoryId?: string | null;
   commandId?: string | null;

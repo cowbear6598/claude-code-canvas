@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
-type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
+type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command' | 'mcpServer'
 type GroupType = 'outputStyleGroup' | 'subAgentGroup' | 'commandGroup'
 type ExtendedItemType = ItemType | GroupType
 
@@ -20,12 +21,22 @@ interface Props {
   itemType: ExtendedItemType
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
   confirm: []
 }>()
+
+const dialogTitle = computed(() => {
+  if (props.isInUse) return '無法刪除'
+  return '確認刪除'
+})
+
+const dialogDescription = computed(() => {
+  if (props.isInUse) return '此項目正在被 Pod 使用，無法刪除'
+  return `確定要刪除「${props.itemName}」嗎？`
+})
 
 const handleClose = (): void => {
   emit('update:open', false)
@@ -44,13 +55,8 @@ const handleConfirm = (): void => {
   >
     <DialogContent class="max-w-md">
       <DialogHeader>
-        <DialogTitle>{{ isInUse ? '無法刪除' : '確認刪除' }}</DialogTitle>
-        <DialogDescription>
-          {{ isInUse
-            ? '此項目正在被 Pod 使用，無法刪除'
-            : `確定要刪除「${itemName}」嗎？`
-          }}
-        </DialogDescription>
+        <DialogTitle>{{ dialogTitle }}</DialogTitle>
+        <DialogDescription>{{ dialogDescription }}</DialogDescription>
       </DialogHeader>
 
       <DialogFooter>

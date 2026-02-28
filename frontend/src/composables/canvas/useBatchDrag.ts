@@ -71,7 +71,7 @@ function createStoreConfigMap(
 export function useBatchDrag(): {
   isBatchDragging: import('vue').Ref<boolean>
   startBatchDrag: (e: MouseEvent) => boolean
-  isElementSelected: (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote', id: string) => boolean
+  isElementSelected: (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote' | 'mcpServerNote', id: string) => boolean
 } {
   const { podStore, viewportStore, selectionStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore } = useCanvasContext()
 
@@ -198,7 +198,7 @@ export function useBatchDrag(): {
     }
   }
 
-  const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote', id: string): boolean => {
+  const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote' | 'mcpServerNote', id: string): boolean => {
     return selectionStore.selectedElements.some(
       el => el.type === type && el.id === id
     )

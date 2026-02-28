@@ -22,14 +22,15 @@ import CreateRepositoryModal from './CreateRepositoryModal.vue'
 import CloneRepositoryModal from './CloneRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 import CreateEditModal from './CreateEditModal.vue'
-import type {Pod, PodTypeConfig, Position, Group, TriggerMode} from '@/types'
+import McpServerModal from './McpServerModal.vue'
+import type {Pod, PodTypeConfig, Position, Group, TriggerMode, McpServerConfig} from '@/types'
 import {
   POD_MENU_X_OFFSET,
   POD_MENU_Y_OFFSET,
   DEFAULT_POD_ROTATION_RANGE,
 } from '@/lib/constants'
 
-type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
+type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command' | 'mcpServer'
 type ResourceType = 'outputStyle' | 'subAgent' | 'command'
 type GroupType = 'outputStyleGroup' | 'subAgentGroup' | 'commandGroup'
 type ExtendedResourceType = ResourceType | GroupType
@@ -61,6 +62,7 @@ const {
   subAgentStore,
   repositoryStore,
   commandStore,
+  mcpServerStore,
   connectionStore
 } = useCanvasContext()
 
@@ -122,6 +124,22 @@ const editModal = ref<EditModalState>({
   showContent: true
 })
 
+interface McpServerModalState {
+  visible: boolean
+  mode: 'create' | 'edit'
+  mcpServerId: string
+  initialName: string
+  initialConfig: McpServerConfig | undefined
+}
+
+const mcpServerModal = ref<McpServerModalState>({
+  visible: false,
+  mode: 'create',
+  mcpServerId: '',
+  initialName: '',
+  initialConfig: undefined
+})
+
 const isDeleteTargetInUse = computed(() => {
   if (!deleteTarget.value) return false
 
@@ -133,6 +151,7 @@ const isDeleteTargetInUse = computed(() => {
     subAgent: (): boolean => subAgentStore.isItemInUse(id),
     repository: (): boolean => repositoryStore.isItemInUse(id),
     command: (): boolean => commandStore.isItemInUse(id),
+    mcpServer: (): boolean => mcpServerStore.isItemInUse(id),
     outputStyleGroup: (): boolean => false,
     subAgentGroup: (): boolean => false,
     commandGroup: (): boolean => false,
@@ -147,7 +166,7 @@ const isDeleteTargetInUse = computed(() => {
  * @returns 是否有任何 Store 的該屬性為 true
  */
 const checkAnyStoreProperty = (property: 'isDraggingNote' | 'isOverTrash'): boolean => {
-  const stores = [outputStyleStore, skillStore, subAgentStore, repositoryStore, commandStore]
+  const stores = [outputStyleStore, skillStore, subAgentStore, repositoryStore, commandStore, mcpServerStore]
   return stores.some(store => store[property])
 }
 
@@ -160,7 +179,8 @@ const isCanvasEmpty = computed(() =>
     skillStore.notes.length === 0 &&
     subAgentStore.notes.length === 0 &&
     repositoryStore.notes.length === 0 &&
-    commandStore.notes.length === 0
+    commandStore.notes.length === 0 &&
+    mcpServerStore.notes.length === 0
 )
 
 const resourceTitleMap = {
@@ -232,7 +252,8 @@ const handleCanvasClick = (e: MouseEvent): void => {
     '.skill-note',
     '.subagent-note',
     '.repository-note',
-    '.command-note'
+    '.command-note',
+    '.mcp-server-note'
   ]
   if (ignoredSelectors.some(s => target.closest(s))) {
     return
@@ -310,12 +331,14 @@ const handleCreateSkillNote = createNoteHandler(skillStore)
 const handleCreateSubAgentNote = createNoteHandler(subAgentStore)
 const handleCreateRepositoryNote = createNoteHandler(repositoryStore)
 const handleCreateCommandNote = createNoteHandler(commandStore)
+const handleCreateMcpServerNote = createNoteHandler(mcpServerStore)
 
 const outputStyleHandlers = useNoteEventHandlers({store: outputStyleStore, trashZoneRef})
 const skillHandlers = useNoteEventHandlers({store: skillStore, trashZoneRef})
 const subAgentHandlers = useNoteEventHandlers({store: subAgentStore, trashZoneRef})
 const repositoryHandlers = useNoteEventHandlers({store: repositoryStore, trashZoneRef})
 const commandHandlers = useNoteEventHandlers({store: commandStore, trashZoneRef})
+const mcpServerHandlers = useNoteEventHandlers({store: mcpServerStore, trashZoneRef})
 
 const getRepositoryBranchName = (repositoryId: string): string | undefined => {
   const repository = repositoryStore.typedAvailableItems.find(r => r.id === repositoryId)
@@ -461,6 +484,7 @@ const handleDeleteConfirm = async (): Promise<void> => {
     subAgent: (): Promise<void> => subAgentStore.deleteSubAgent(id),
     repository: (): Promise<void> => repositoryStore.deleteRepository(id),
     command: (): Promise<void> => commandStore.deleteCommand(id),
+    mcpServer: (): Promise<void> => mcpServerStore.deleteMcpServer(id),
     outputStyleGroup: () => outputStyleStore.deleteGroup(id),
     subAgentGroup: () => subAgentStore.deleteGroup(id),
     commandGroup: () => commandStore.deleteGroup(id),
@@ -568,11 +592,69 @@ const editableNoteResourceIdGetters: Record<EditableNoteType, (noteId: string) =
   command: (noteId) => commandStore.typedNotes.find(n => n.id === noteId)?.commandId,
 }
 
-const handleNoteDoubleClick = (data: {
+const handleOpenMcpServerModal = (mode: 'create' | 'edit', mcpServerId?: string): void => {
+  lastMenuPosition.value = podStore.typeMenu.position
+  mcpServerModal.value = {
+    visible: true,
+    mode,
+    mcpServerId: mcpServerId ?? '',
+    initialName: '',
+    initialConfig: undefined
+  }
+}
+
+const handleMcpServerModalSubmit = async (payload: { name: string; config: McpServerConfig }): Promise<void> => {
+  const { name, config } = payload
+  const { mode, mcpServerId } = mcpServerModal.value
+
+  if (mode === 'edit') {
+    await mcpServerStore.updateMcpServer(mcpServerId, name, config)
+    mcpServerModal.value.visible = false
+    return
+  }
+
+  const result = await mcpServerStore.createMcpServer(name, config)
+
+  if (!result.success || !lastMenuPosition.value) {
+    mcpServerModal.value.visible = false
+    return
+  }
+
+  if (result.mcpServer) {
+    const { x, y } = screenToCanvasPosition(lastMenuPosition.value)
+    await mcpServerStore.createNote(result.mcpServer.id, x, y)
+  }
+
+  mcpServerModal.value.visible = false
+}
+
+const handleNoteDoubleClick = async (data: {
   noteId: string;
-  noteType: 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command'
-}): void => {
+  noteType: 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | 'mcpServer'
+}): Promise<void> => {
   const {noteId, noteType} = data
+
+  if (noteType === 'mcpServer') {
+    const note = mcpServerStore.typedNotes.find(n => n.id === noteId)
+    if (!note) return
+
+    const mcpServerId = note.mcpServerId
+    const mcpServerData = await mcpServerStore.readMcpServer(mcpServerId)
+
+    if (!mcpServerData) {
+      console.error(`無法讀取 MCP Server (id: ${mcpServerId})，請確認後端是否正常運作`)
+      return
+    }
+
+    mcpServerModal.value = {
+      visible: true,
+      mode: 'edit',
+      mcpServerId,
+      initialName: mcpServerData.name,
+      initialConfig: mcpServerData.config
+    }
+    return
+  }
 
   const getResourceId = editableNoteResourceIdGetters[noteType as EditableNoteType]
   if (!getResourceId) return
@@ -677,6 +759,18 @@ onUnmounted(() => {
       @dblclick="handleNoteDoubleClick"
     />
 
+    <!-- MCP Server Notes -->
+    <GenericNote
+      v-for="note in mcpServerStore.getUnboundNotes"
+      :key="note.id"
+      :note="note"
+      note-type="mcpServer"
+      @drag-end="mcpServerHandlers.handleDragEnd"
+      @drag-move="mcpServerHandlers.handleDragMove"
+      @drag-complete="mcpServerHandlers.handleDragComplete"
+      @dblclick="handleNoteDoubleClick"
+    />
+
     <!-- 空狀態 - 在畫布座標中央 -->
     <EmptyState v-if="isCanvasEmpty" />
   </CanvasViewport>
@@ -697,6 +791,8 @@ onUnmounted(() => {
     @create-subagent-note="handleCreateSubAgentNote"
     @create-repository-note="handleCreateRepositoryNote"
     @create-command-note="handleCreateCommandNote"
+    @create-mcp-server-note="handleCreateMcpServerNote"
+    @open-mcp-server-modal="handleOpenMcpServerModal"
     @clone-started="handleCloneStarted"
     @open-create-modal="handleOpenCreateModal"
     @open-create-group-modal="handleOpenCreateGroupModal"
@@ -766,5 +862,13 @@ onUnmounted(() => {
     :name-editable="editModal.mode === 'create'"
     :show-content="editModal.showContent"
     @submit="handleCreateEditSubmit"
+  />
+
+  <McpServerModal
+    v-model:open="mcpServerModal.visible"
+    :mode="mcpServerModal.mode"
+    :initial-name="mcpServerModal.initialName"
+    :initial-config="mcpServerModal.initialConfig"
+    @submit="handleMcpServerModalSubmit"
   />
 </template>

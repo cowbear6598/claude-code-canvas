@@ -10,7 +10,7 @@ import {
 } from '../setup';
 import { createPod, createPodPair, movePod, renamePod, setPodModel, setPodSchedule, FAKE_UUID, getCanvasId} from '../helpers';
 import { createConnection } from '../helpers';
-import { createOutputStyle } from '../helpers';
+import { createOutputStyle, createMcpServer, createMcpServerNote } from '../helpers';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
@@ -24,6 +24,7 @@ import {
   type ConnectionListPayload,
   type NoteCreatePayload,
   type NoteListPayload,
+  type McpServerNoteListPayload,
 } from '../../src/schemas';
 import {
   type PodListResultPayload,
@@ -36,6 +37,7 @@ import {
   type ConnectionListResultPayload,
   type NoteCreatedPayload,
   type NoteListResultPayload,
+  type McpServerNoteListResultPayload,
 } from '../../src/types';
 
 describe('Pod 管理', () => {
@@ -299,6 +301,34 @@ describe('Pod 管理', () => {
         client,
         WebSocketRequestEvents.NOTE_LIST,
         WebSocketResponseEvents.NOTE_LIST_RESULT,
+        { requestId: uuidv4(), canvasId }
+      );
+
+      const bound = listResponse.notes!.filter((n) => n.boundToPodId === pod.id);
+      expect(bound).toHaveLength(0);
+    });
+
+    it('刪除 Pod 時清理綁定的 MCP Server Note', async () => {
+      const pod = await createPod(client);
+      const mcpServer = await createMcpServer(client, `mcp-${uuidv4()}`);
+
+      const canvasId = await getCanvasId(client);
+      await createMcpServerNote(client, mcpServer.id, {
+        boundToPodId: pod.id,
+        originalPosition: { x: 0, y: 0 },
+      });
+
+      await emitAndWaitResponse<PodDeletePayload, PodDeletedPayload>(
+        client,
+        WebSocketRequestEvents.POD_DELETE,
+        WebSocketResponseEvents.POD_DELETED,
+        { requestId: uuidv4(), canvasId, podId: pod.id }
+      );
+
+      const listResponse = await emitAndWaitResponse<McpServerNoteListPayload, McpServerNoteListResultPayload>(
+        client,
+        WebSocketRequestEvents.MCP_SERVER_NOTE_LIST,
+        WebSocketResponseEvents.MCP_SERVER_NOTE_LIST_RESULT,
         { requestId: uuidv4(), canvasId }
       );
 

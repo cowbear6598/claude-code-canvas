@@ -68,6 +68,7 @@ export interface PodDeletedPayload {
     repositoryNote?: string[];
     commandNote?: string[];
     subAgentNote?: string[];
+    mcpServerNote?: string[];
   };
   error?: string;
 }

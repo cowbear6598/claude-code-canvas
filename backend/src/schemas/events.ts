@@ -88,6 +88,17 @@ export enum WebSocketRequestEvents {
   SKILL_IMPORT = 'skill:import',
   REPOSITORY_PULL_LATEST = 'repository:pull-latest',
   CURSOR_MOVE = 'cursor:move',
+  MCP_SERVER_LIST = 'mcp-server:list',
+  MCP_SERVER_CREATE = 'mcp-server:create',
+  MCP_SERVER_UPDATE = 'mcp-server:update',
+  MCP_SERVER_READ = 'mcp-server:read',
+  MCP_SERVER_DELETE = 'mcp-server:delete',
+  MCP_SERVER_NOTE_CREATE = 'mcp-server-note:create',
+  MCP_SERVER_NOTE_LIST = 'mcp-server-note:list',
+  MCP_SERVER_NOTE_UPDATE = 'mcp-server-note:update',
+  MCP_SERVER_NOTE_DELETE = 'mcp-server-note:delete',
+  POD_BIND_MCP_SERVER = 'pod:bind-mcp-server',
+  POD_UNBIND_MCP_SERVER = 'pod:unbind-mcp-server',
 }
 
 export enum WebSocketResponseEvents {
@@ -213,4 +224,15 @@ export enum WebSocketResponseEvents {
   CURSOR_MOVED = 'cursor:moved',
   CURSOR_LEFT = 'cursor:left',
   REPOSITORY_BRANCH_CHANGED = 'repository:branch:changed',
+  MCP_SERVER_LIST_RESULT = 'mcp-server:list:result',
+  MCP_SERVER_CREATED = 'mcp-server:created',
+  MCP_SERVER_UPDATED = 'mcp-server:updated',
+  MCP_SERVER_READ_RESULT = 'mcp-server:read:result',
+  MCP_SERVER_DELETED = 'mcp-server:deleted',
+  MCP_SERVER_NOTE_CREATED = 'mcp-server-note:created',
+  MCP_SERVER_NOTE_LIST_RESULT = 'mcp-server-note:list:result',
+  MCP_SERVER_NOTE_UPDATED = 'mcp-server-note:updated',
+  MCP_SERVER_NOTE_DELETED = 'mcp-server-note:deleted',
+  POD_MCP_SERVER_BOUND = 'pod:mcp-server:bound',
+  POD_MCP_SERVER_UNBOUND = 'pod:mcp-server:unbound',
 }

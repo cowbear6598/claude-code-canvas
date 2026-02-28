@@ -14,6 +14,7 @@ import { autoClearHandlerGroup } from './groups/autoClearHandlerGroup.js';
 import { canvasHandlerGroup } from './groups/canvasHandlerGroup.js';
 import { groupHandlerGroup } from './groups/groupHandlerGroup.js';
 import { cursorHandlerGroup } from './groups/cursorHandlerGroup.js';
+import { mcpServerHandlerGroup } from './groups/mcpServerHandlerGroup.js';
 
 const registry = new HandlerRegistry();
 
@@ -32,6 +33,7 @@ registry.registerGroup(autoClearHandlerGroup);
 registry.registerGroup(canvasHandlerGroup);
 registry.registerGroup(groupHandlerGroup);
 registry.registerGroup(cursorHandlerGroup);
+registry.registerGroup(mcpServerHandlerGroup);
 
 export function registerAllHandlers(): void {
 	registry.registerToRouter();

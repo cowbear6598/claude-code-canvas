@@ -1,5 +1,6 @@
 import type { PodColor, ModelType, Schedule } from '../pod'
 import type { AnchorPosition } from '@/types'
+import type { McpServerConfig } from '../mcpServer'
 
 export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
 
@@ -325,6 +326,27 @@ export interface SkillImportPayload {
   fileName: string
   fileData: string
   fileSize: number
+}
+
+export interface McpServerCreatePayload {
+  requestId: string
+  canvasId: string
+  name: string
+  config: McpServerConfig
+}
+
+export interface McpServerUpdatePayload {
+  requestId: string
+  canvasId: string
+  mcpServerId: string
+  name: string
+  config: McpServerConfig
+}
+
+export interface McpServerReadPayload {
+  requestId: string
+  canvasId: string
+  mcpServerId: string
 }
 
 export interface CursorMovePayload {

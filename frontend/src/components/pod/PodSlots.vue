@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { OutputStyleNote, SkillNote, SubAgentNote, RepositoryNote, CommandNote } from '@/types'
+import type { OutputStyleNote, SkillNote, SubAgentNote, RepositoryNote, CommandNote, McpServerNote } from '@/types'
 import PodOutputStyleSlot from '@/components/pod/PodOutputStyleSlot.vue'
 import PodSkillSlot from '@/components/pod/PodSkillSlot.vue'
 import PodSubAgentSlot from '@/components/pod/PodSubAgentSlot.vue'
 import PodRepositorySlot from '@/components/pod/PodRepositorySlot.vue'
 import PodCommandSlot from '@/components/pod/PodCommandSlot.vue'
+import PodMcpServerSlot from '@/components/pod/PodMcpServerSlot.vue'
 
 const {
   podId,
@@ -13,7 +14,8 @@ const {
   boundSkillNotes,
   boundSubAgentNotes,
   boundRepositoryNote,
-  boundCommandNote
+  boundCommandNote,
+  boundMcpServerNotes
 } = defineProps<{
   podId: string
   podRotation: number
@@ -22,6 +24,7 @@ const {
   boundSubAgentNotes: SubAgentNote[]
   boundRepositoryNote: RepositoryNote | undefined
   boundCommandNote: CommandNote | undefined
+  boundMcpServerNotes: McpServerNote[]
 }>()
 
 const emit = defineEmits<{
@@ -33,6 +36,7 @@ const emit = defineEmits<{
   'repository-removed': []
   'command-dropped': [noteId: string]
   'command-removed': []
+  'mcp-server-dropped': [noteId: string]
 }>()
 
 const handleOutputStyleDropped = (noteId: string): void => {
@@ -65,6 +69,10 @@ const handleCommandDropped = (noteId: string): void => {
 
 const handleCommandRemoved = (): void => {
   emit('command-removed')
+}
+
+const handleMcpServerDropped = (noteId: string): void => {
+  emit('mcp-server-dropped', noteId)
 }
 </script>
 
@@ -117,6 +125,15 @@ const handleCommandRemoved = (): void => {
       :pod-rotation="podRotation"
       @note-dropped="handleCommandDropped"
       @note-removed="handleCommandRemoved"
+    />
+  </div>
+
+  <!-- MCP Server 凹槽 -->
+  <div class="pod-notch-area-base pod-mcp-server-notch-area">
+    <PodMcpServerSlot
+      :pod-id="podId"
+      :bound-notes="boundMcpServerNotes"
+      @note-dropped="handleMcpServerDropped"
     />
   </div>
 </template>

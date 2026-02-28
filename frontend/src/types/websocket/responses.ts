@@ -5,6 +5,7 @@ import type {Repository, RepositoryNote} from '@/types'
 import type {SubAgentNote} from '@/types'
 import type {CommandNote} from '@/types'
 import type {AnchorPosition} from '@/types'
+import type {McpServerConfig} from '../mcpServer'
 
 export interface ConnectionReadyPayload {
     socketId: string
@@ -63,6 +64,7 @@ export interface PodDeletedPayload {
         repositoryNote?: string[]
         commandNote?: string[]
         subAgentNote?: string[]
+        mcpServerNote?: string[]
     }
 }
 
@@ -546,6 +548,27 @@ export interface CursorMovedPayload {
     x: number
     y: number
     color: string
+}
+
+export interface McpServerCreatedPayload {
+    requestId: string
+    success: boolean
+    mcpServer?: { id: string; name: string }
+    error?: string
+}
+
+export interface McpServerUpdatedPayload {
+    requestId: string
+    success: boolean
+    mcpServer?: { id: string; name: string }
+    error?: string
+}
+
+export interface McpServerReadResultPayload {
+    requestId: string
+    success: boolean
+    mcpServer?: { id: string; name: string; config: McpServerConfig }
+    error?: string
 }
 
 export interface CursorLeftPayload {

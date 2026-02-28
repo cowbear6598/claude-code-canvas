@@ -10,7 +10,7 @@ export interface ToolUseInfo {
   toolUseId: string
   toolName: string
   input: Record<string, unknown>
-  output?: string
+  output?: string | Record<string, unknown> | unknown[]
   status: ToolUseStatus
 }
 

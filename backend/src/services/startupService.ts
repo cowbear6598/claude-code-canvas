@@ -1,6 +1,7 @@
 import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
-import { noteStore, skillNoteStore, commandNoteStore, subAgentNoteStore, repositoryNoteStore } from './noteStores.js';
+import { noteStore, skillNoteStore, commandNoteStore, subAgentNoteStore, repositoryNoteStore, mcpServerNoteStore } from './noteStores.js';
+import { mcpServerStore } from './mcpServerStore.js';
 import { connectionStore } from './connectionStore.js';
 import { scheduleService } from './scheduleService.js';
 import { canvasStore } from './canvasStore.js';
@@ -28,6 +29,8 @@ class StartupService {
     }
 
     await repositoryService.initialize();
+
+    await mcpServerStore.loadFromDisk(config.appDataRoot);
 
     const canvasLoadResult = await canvasStore.loadFromDisk();
     if (!canvasLoadResult.success) {
@@ -70,6 +73,7 @@ class StartupService {
       await commandNoteStore.loadFromDisk(canvas.id, canvasDataDir);
       await subAgentNoteStore.loadFromDisk(canvas.id, canvasDataDir);
       await repositoryNoteStore.loadFromDisk(canvas.id, canvasDataDir);
+      await mcpServerNoteStore.loadFromDisk(canvas.id, canvasDataDir);
       await connectionStore.loadFromDisk(canvas.id, canvasDataDir);
 
       logger.log('Startup', 'Complete', `已載入畫布：${canvas.name}`);

@@ -53,6 +53,7 @@ export interface PersistedPod {
   outputStyleId: string | null;
   skillIds: string[];
   subAgentIds?: string[];
+  mcpServerIds?: string[];
   model: ModelType;
   repositoryId: string | null;
   commandId?: string | null;

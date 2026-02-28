@@ -1,5 +1,5 @@
 export interface SelectableElement {
-  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote'
+  type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote' | 'mcpServerNote'
   id: string
 }
 

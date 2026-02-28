@@ -8,7 +8,7 @@ const props = defineProps<{
   open: boolean
   toolName: string
   input: Record<string, unknown>
-  output: string | undefined
+  output: string | Record<string, unknown> | unknown[] | undefined
   status: ToolUseStatus
 }>()
 
@@ -26,9 +26,17 @@ const hasInput = computed(() => Object.keys(props.input).length > 0)
 
 const formattedInput = computed(() => JSON.stringify(props.input, null, 2))
 
-const hasOutput = computed(() => !!props.output && props.output.trim().length > 0)
+const hasOutput = computed(() => {
+  if (!props.output) return false
+  if (typeof props.output === 'string') return props.output.trim().length > 0
+  return true // 物件或陣列都視為有輸出
+})
 
-const renderedOutput = computed(() => renderMarkdown(props.output))
+const renderedOutput = computed(() => {
+  if (!props.output) return ''
+  if (typeof props.output === 'string') return renderMarkdown(props.output)
+  return renderMarkdown('```json\n' + JSON.stringify(props.output, null, 2) + '\n```')
+})
 </script>
 
 <template>

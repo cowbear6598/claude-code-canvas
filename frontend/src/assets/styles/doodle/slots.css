@@ -282,3 +282,61 @@
   border-radius: 4px 0 0 4px;
   z-index: -1;
 }
+
+/* ===================================
+   MCP Server Slot
+   =================================== */
+
+/* Pod MCP Server Slot */
+.pod-mcp-server-slot {
+  position: relative;
+}
+
+.pod-mcp-server-slot::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 0;
+  width: 16px;
+  height: 100%;
+}
+
+.pod-mcp-server-slot.has-notes {
+  background: var(--doodle-purple);
+  border-style: dashed;
+  transform: translateX(50%);
+}
+
+.pod-mcp-server-slot.has-notes:hover {
+  transform: translateX(50%) translate(-0.5px, -0.5px);
+}
+
+.pod-mcp-server-slot.inserting {
+  animation: slide-into-slot 0.3s ease-out;
+}
+
+/* MCP Server Slot 容器位置（在 SubAgent 下方） */
+.pod-mcp-server-notch-area {
+  left: 0;
+  top: 98px;
+  transform: translateX(-100%);
+}
+
+/* MCP Server Menu Scrollable */
+.pod-mcp-server-menu-scrollable {
+  max-height: calc(30px * 5 + 8px);
+}
+
+/* MCP Server 凹槽視覺效果（POD 左側第三個凹槽） */
+.pod-with-mcp-server-notch .pod-doodle .mcp-server-notch {
+  position: absolute;
+  left: -6px;
+  top: 96px;
+  width: 8px;
+  height: 32px;
+  background: var(--card);
+  border: 2px solid var(--doodle-ink);
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  z-index: -1;
+}

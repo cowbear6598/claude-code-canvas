@@ -1,5 +1,5 @@
 import { createNoteStore } from './GenericNoteStore.js';
-import type { OutputStyleNote, SkillNote, RepositoryNote, SubAgentNote, CommandNote } from '../types';
+import type { OutputStyleNote, SkillNote, RepositoryNote, SubAgentNote, CommandNote, McpServerNote } from '../types';
 
 export const noteStore = createNoteStore<OutputStyleNote, 'outputStyleId'>({
   fileName: 'notes.json',
@@ -29,4 +29,10 @@ export const commandNoteStore = createNoteStore<CommandNote, 'commandId'>({
   fileName: 'command-notes.json',
   foreignKeyField: 'commandId',
   storeName: 'CommandNoteStore',
+});
+
+export const mcpServerNoteStore = createNoteStore<McpServerNote, 'mcpServerId'>({
+  fileName: 'mcp-server-notes.json',
+  foreignKeyField: 'mcpServerId',
+  storeName: 'McpServerNoteStore',
 });

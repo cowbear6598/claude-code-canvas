@@ -100,3 +100,17 @@
   box-shadow: 0 0 0 2px oklch(0.65 0.15 170 / 0.6);
   border-color: oklch(0.55 0.15 170);
 }
+
+/* MCP Server Note */
+.mcp-server-note {
+  background: var(--doodle-purple);
+  border-style: dashed;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mcp-server-note.selected {
+  box-shadow: 0 0 0 2px oklch(0.65 0.15 170 / 0.6);
+  border-color: oklch(0.55 0.15 170);
+}

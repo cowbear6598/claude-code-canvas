@@ -20,6 +20,7 @@ export type ToastCategory =
   | 'Schedule'
   | 'Paste'
   | 'WebSocket'
+  | 'McpServer'
 
 interface ToastOptions {
   title: string

@@ -25,7 +25,7 @@ export interface BindResourceConfig<TService> {
         unbind?: (canvasId: string, podId: string) => void;
     };
     /** 獲取 Pod 已綁定的資源 IDs */
-    getPodResourceIds: (pod: {skillIds: string[]; commandId: string | null; outputStyleId: string | null; subAgentIds: string[]}) => string[] | string | null;
+    getPodResourceIds: (pod: {skillIds: string[]; commandId: string | null; outputStyleId: string | null; subAgentIds: string[]; mcpServerIds: string[]}) => string[] | string | null;
     /** 複製資源到 Pod 的方法（optional，不提供時跳過複製） */
     copyResourceToPod?: (resourceId: string, pod: Pod) => Promise<void>;
     /** 從路徑刪除資源的方法（用於 unbind，optional，不提供時跳過刪除） */

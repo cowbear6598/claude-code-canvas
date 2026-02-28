@@ -40,6 +40,7 @@ const {
   subAgentStore,
   repositoryStore,
   commandStore,
+  mcpServerStore,
   connectionStore,
   chatStore,
 } = useCanvasContext()
@@ -53,6 +54,7 @@ const boundSkillNotes = computed(() => skillStore.getNotesByPodId(props.pod.id))
 const boundSubAgentNotes = computed(() => subAgentStore.getNotesByPodId(props.pod.id))
 const boundRepositoryNote = computed(() => repositoryStore.getNotesByPodId(props.pod.id)[0])
 const boundCommandNote = computed(() => commandStore.getNotesByPodId(props.pod.id)[0])
+const boundMcpServerNotes = computed(() => mcpServerStore.getNotesByPodId(props.pod.id))
 const isSourcePod = computed(() => connectionStore.isSourcePod(props.pod.id))
 const hasUpstreamConnection = computed(() => connectionStore.hasUpstreamConnections(props.pod.id))
 const showScheduleButton = computed(() => isSourcePod.value || !hasUpstreamConnection.value)
@@ -127,7 +129,8 @@ const handleMouseDown = (e: MouseEvent): void => {
     '.pod-skill-slot',
     '.pod-subagent-slot',
     '.pod-repository-slot',
-    '.pod-command-slot'
+    '.pod-command-slot',
+    '.pod-mcp-server-slot'
   ]
   const target = e.target as HTMLElement
   if (slotClasses.some(cls => target.closest(cls))) {
@@ -250,7 +253,7 @@ const handleDblClick = (e: MouseEvent): void => {
   handleSelectPod()
 }
 
-type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command'
+type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | 'mcpServer'
 
 interface NoteItem {
   outputStyleId?: string
@@ -258,6 +261,7 @@ interface NoteItem {
   subAgentId?: string
   repositoryId?: string
   commandId?: string
+  mcpServerId?: string
 }
 
 interface NoteStoreMapping {
@@ -302,6 +306,12 @@ const noteStoreMap: Record<NoteType, NoteStoreMapping> = {
     unbindFromPod: (podId, returnToOriginal) => commandStore.unbindFromPod(podId, returnToOriginal),
     getItemId: (note) => note.commandId,
     updatePodField: (podId, itemId) => podStore.updatePodCommand(podId, itemId)
+  },
+  mcpServer: {
+    bindToPod: (noteId, podId) => mcpServerStore.bindToPod(noteId, podId),
+    getNoteById: (noteId) => mcpServerStore.getNoteById(noteId),
+    isItemBoundToPod: (itemId, podId) => mcpServerStore.isItemBoundToPod(itemId, podId),
+    getItemId: (note) => note.mcpServerId
   }
 }
 
@@ -317,6 +327,8 @@ const handleNoteDrop = async (noteType: NoteType, noteId: string): Promise<void>
         toast({title: '已存在，無法插入', description: '此 Skill 已綁定到此 Pod', duration: 3000})
       } else if (noteType === 'subAgent') {
         toast({title: '已存在，無法插入', description: '此 SubAgent 已綁定到此 Pod', duration: 3000})
+      } else if (noteType === 'mcpServer') {
+        toast({title: '已存在，無法插入', description: '此 MCP Server 已綁定到此 Pod', duration: 3000})
       }
       return
     }
@@ -505,7 +517,7 @@ const handleClearScheduleFiredAnimation = (): void => {
   >
     <!-- Pod 主卡片和標籤（都在旋轉容器內） -->
     <div
-      class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch"
+      class="relative pod-with-notch pod-with-skill-notch pod-with-subagent-notch pod-with-model-notch pod-with-repository-notch pod-with-mcp-server-notch"
       :class="{ dragging: isDragging || isBatchDragging }"
       :style="{ '--pod-rotation': `${pod.rotation}deg` }"
     >
@@ -525,6 +537,7 @@ const handleClearScheduleFiredAnimation = (): void => {
         :bound-sub-agent-notes="boundSubAgentNotes"
         :bound-repository-note="boundRepositoryNote"
         :bound-command-note="boundCommandNote"
+        :bound-mcp-server-notes="boundMcpServerNotes"
         @output-style-dropped="(noteId) => handleNoteDrop('outputStyle', noteId)"
         @output-style-removed="() => handleNoteRemove('outputStyle')"
         @skill-dropped="(noteId) => handleNoteDrop('skill', noteId)"
@@ -533,6 +546,7 @@ const handleClearScheduleFiredAnimation = (): void => {
         @repository-removed="() => handleNoteRemove('repository')"
         @command-dropped="(noteId) => handleNoteDrop('command', noteId)"
         @command-removed="() => handleNoteRemove('command')"
+        @mcp-server-dropped="(noteId) => handleNoteDrop('mcpServer', noteId)"
       />
 
       <!-- Pod 主卡片 (增加凹槽偽元素) -->
@@ -545,6 +559,8 @@ const handleClearScheduleFiredAnimation = (): void => {
         <div class="model-notch" />
         <!-- SubAgent 凹槽 -->
         <div class="subagent-notch" />
+        <!-- MCP Server 凹槽 -->
+        <div class="mcp-server-notch" />
         <!-- Repository 凹槽（右側） -->
         <div class="repository-notch" />
         <!-- Command 凹槽（右側） -->

@@ -1099,7 +1099,7 @@ describe('ClaudeService', () => {
                     options: expect.objectContaining({
                         cwd: '/mcp/workspace',
                         settingSources: ['project'],
-                        permissionMode: 'acceptEdits',
+                        permissionMode: 'bypassPermissions',
                         includePartialMessages: true,
                         pathToClaudeCodeExecutable: '/usr/local/bin/claude',
                         allowedTools: ['Read'],
@@ -1131,7 +1131,7 @@ describe('ClaudeService', () => {
                 expect.objectContaining({
                     options: expect.objectContaining({
                         settingSources: ['project'],
-                        permissionMode: 'acceptEdits',
+                        permissionMode: 'bypassPermissions',
                         includePartialMessages: true,
                         pathToClaudeCodeExecutable: '/usr/local/bin/claude',
                     }),
@@ -1154,7 +1154,7 @@ describe('ClaudeService', () => {
                 expect.objectContaining({
                     options: expect.objectContaining({
                         settingSources: ['project'],
-                        permissionMode: 'acceptEdits',
+                        permissionMode: 'bypassPermissions',
                         includePartialMessages: true,
                         pathToClaudeCodeExecutable: '/usr/local/bin/claude',
                     }),
@@ -1176,7 +1176,7 @@ describe('ClaudeService', () => {
                 expect.objectContaining({
                     options: expect.objectContaining({
                         settingSources: ['project'],
-                        permissionMode: 'acceptEdits',
+                        permissionMode: 'bypassPermissions',
                         includePartialMessages: true,
                         pathToClaudeCodeExecutable: '/usr/local/bin/claude',
                     }),

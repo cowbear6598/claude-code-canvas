@@ -12,3 +12,4 @@ export * from './canvas.js';
 export * from './paste.js';
 export * from './broadcast.js';
 export * from './group.js';
+export * from './mcpServer.js';

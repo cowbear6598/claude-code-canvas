@@ -7,12 +7,13 @@ import { useSkillStore } from '@/stores/note/skillStore'
 import { useRepositoryStore } from '@/stores/note/repositoryStore'
 import { useSubAgentStore } from '@/stores/note/subAgentStore'
 import { useCommandStore } from '@/stores/note/commandStore'
+import { useMcpServerStore } from '@/stores/note/mcpServerStore'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { useChatStore } from '@/stores/chat/chatStore'
 import { useToast } from '@/composables/useToast'
 import { truncateContent } from '@/stores/chat/chatUtils'
 import { CONTENT_PREVIEW_LENGTH } from '@/lib/constants'
-import type { Pod, Connection, OutputStyleNote, SkillNote, RepositoryNote, SubAgentNote, CommandNote, Canvas } from '@/types'
+import type { Pod, Connection, OutputStyleNote, SkillNote, RepositoryNote, SubAgentNote, CommandNote, Canvas, McpServer, McpServerNote } from '@/types'
 
 let registered = false
 
@@ -101,6 +102,7 @@ type DeletedNoteIds = {
   repositoryNote?: string[]
   commandNote?: string[]
   subAgentNote?: string[]
+  mcpServerNote?: string[]
 }
 
 const noteTypeHandlers: {
@@ -112,6 +114,7 @@ const noteTypeHandlers: {
   { key: 'repositoryNote', getStore: () => useRepositoryStore() },
   { key: 'commandNote', getStore: () => useCommandStore() },
   { key: 'subAgentNote', getStore: () => useSubAgentStore() },
+  { key: 'mcpServerNote', getStore: () => useMcpServerStore() },
 ]
 
 const removeDeletedNotes = (deletedNoteIds: DeletedNoteIds | undefined): void => {
@@ -362,6 +365,53 @@ const handleCommandNoteDeleted = createUnifiedHandler<BasePayload & { noteId: st
   }
 )
 
+const handleMcpServerCreated = createUnifiedHandler<BasePayload & { mcpServer?: McpServer; canvasId: string }>(
+  (payload) => {
+    if (payload.mcpServer) {
+      useMcpServerStore().addItemFromEvent(payload.mcpServer)
+    }
+  },
+  { toastMessage: 'MCP Server 已建立' }
+)
+
+const handleMcpServerUpdated = createUnifiedHandler<BasePayload & { mcpServer?: McpServer; canvasId: string }>(
+  (payload) => {
+    if (payload.mcpServer) {
+      useMcpServerStore().updateItemFromEvent(payload.mcpServer)
+    }
+  },
+  { toastMessage: 'MCP Server 已更新' }
+)
+
+const handleMcpServerDeleted = createUnifiedHandler<BasePayload & { mcpServerId: string; deletedNoteIds?: string[]; canvasId: string }>(
+  (payload) => {
+    useMcpServerStore().removeItemFromEvent(payload.mcpServerId, payload.deletedNoteIds)
+  },
+  { toastMessage: 'MCP Server 已刪除', skipCanvasCheck: true }
+)
+
+const handleMcpServerNoteCreated = createUnifiedHandler<BasePayload & { note?: McpServerNote; canvasId: string }>(
+  (payload) => {
+    if (payload.note) {
+      useMcpServerStore().addNoteFromEvent(payload.note)
+    }
+  }
+)
+
+const handleMcpServerNoteUpdated = createUnifiedHandler<BasePayload & { note?: McpServerNote; canvasId: string }>(
+  (payload) => {
+    if (payload.note) {
+      useMcpServerStore().updateNoteFromEvent(payload.note)
+    }
+  }
+)
+
+const handleMcpServerNoteDeleted = createUnifiedHandler<BasePayload & { noteId: string; canvasId: string }>(
+  (payload) => {
+    useMcpServerStore().removeNoteFromEvent(payload.noteId)
+  }
+)
+
 const handleCanvasCreated = createUnifiedHandler<BasePayload & { canvas?: Canvas }>(
   (payload) => {
     if (payload.canvas) {
@@ -511,6 +561,14 @@ const listeners = [
   { event: WebSocketResponseEvents.COMMAND_NOTE_CREATED, handler: handleCommandNoteCreated },
   { event: WebSocketResponseEvents.COMMAND_NOTE_UPDATED, handler: handleCommandNoteUpdated },
   { event: WebSocketResponseEvents.COMMAND_NOTE_DELETED, handler: handleCommandNoteDeleted },
+  { event: WebSocketResponseEvents.MCP_SERVER_CREATED, handler: handleMcpServerCreated },
+  { event: WebSocketResponseEvents.MCP_SERVER_UPDATED, handler: handleMcpServerUpdated },
+  { event: WebSocketResponseEvents.MCP_SERVER_DELETED, handler: handleMcpServerDeleted },
+  { event: WebSocketResponseEvents.MCP_SERVER_NOTE_CREATED, handler: handleMcpServerNoteCreated },
+  { event: WebSocketResponseEvents.MCP_SERVER_NOTE_UPDATED, handler: handleMcpServerNoteUpdated },
+  { event: WebSocketResponseEvents.MCP_SERVER_NOTE_DELETED, handler: handleMcpServerNoteDeleted },
+  { event: WebSocketResponseEvents.POD_MCP_SERVER_BOUND, handler: handlePodStateUpdated },
+  { event: WebSocketResponseEvents.POD_MCP_SERVER_UNBOUND, handler: handlePodStateUpdated },
   { event: WebSocketResponseEvents.CANVAS_CREATED, handler: handleCanvasCreated },
   { event: WebSocketResponseEvents.CANVAS_RENAMED, handler: handleCanvasRenamed },
   { event: WebSocketResponseEvents.CANVAS_DELETED, handler: handleCanvasDeleted },

@@ -88,6 +88,7 @@ class PodStore {
             outputStyleId: data.outputStyleId ?? null,
             skillIds: data.skillIds ?? [],
             subAgentIds: data.subAgentIds ?? [],
+            mcpServerIds: data.mcpServerIds ?? [],
             model: data.model ?? 'opus',
             repositoryId: data.repositoryId ?? null,
             commandId: data.commandId ?? null,
@@ -251,6 +252,28 @@ class PodStore {
         return this.findByPredicate(canvasId, (pod) => pod.subAgentIds.includes(subAgentId));
     }
 
+    addMcpServerId(canvasId: string, podId: string, mcpServerId: string): void {
+        const pod = this.getById(canvasId, podId);
+        if (!pod || pod.mcpServerIds.includes(mcpServerId)) {
+            return;
+        }
+
+        this.modifyPod(canvasId, podId, {mcpServerIds: [...pod.mcpServerIds, mcpServerId]});
+    }
+
+    removeMcpServerId(canvasId: string, podId: string, mcpServerId: string): void {
+        const pod = this.getById(canvasId, podId);
+        if (!pod) {
+            return;
+        }
+
+        this.modifyPod(canvasId, podId, {mcpServerIds: pod.mcpServerIds.filter((id) => id !== mcpServerId)});
+    }
+
+    findByMcpServerId(canvasId: string, mcpServerId: string): Pod[] {
+        return this.findByPredicate(canvasId, (pod) => pod.mcpServerIds.includes(mcpServerId));
+    }
+
     setRepositoryId(canvasId: string, id: string, repositoryId: string | null): void {
         this.modifyPod(canvasId, id, {repositoryId, needsForkSession: true});
     }
@@ -353,6 +376,7 @@ class PodStore {
             outputStyleId: persistedPod.outputStyleId ?? null,
             skillIds: persistedPod.skillIds ?? [],
             subAgentIds: persistedPod.subAgentIds ?? [],
+            mcpServerIds: persistedPod.mcpServerIds ?? [],
             model: persistedPod.model ?? 'opus',
             repositoryId: persistedPod.repositoryId ?? null,
             commandId: persistedPod.commandId ?? null,

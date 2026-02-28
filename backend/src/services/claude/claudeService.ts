@@ -3,6 +3,7 @@ import {v4 as uuidv4} from 'uuid';
 import {type Options, type Query, query} from '@anthropic-ai/claude-agent-sdk';
 import type {SDKMessage, SDKSystemMessage, SDKAssistantMessage, SDKResultMessage, SDKUserMessage as SDKUserMessageType} from '@anthropic-ai/claude-agent-sdk';
 import {podStore} from '../podStore.js';
+import {mcpServerStore} from '../mcpServerStore.js';
 import {isAbortError, getErrorMessage} from '../../utils/errorHelpers.js';
 import {outputStyleService} from '../outputStyleService.js';
 import {Message, ToolUseInfo, ContentBlock, Pod} from '../../types';
@@ -85,7 +86,7 @@ export class ClaudeService {
         return {
             cwd,
             settingSources: ['project'],
-            permissionMode: 'acceptEdits',
+            permissionMode: 'bypassPermissions',
             includePartialMessages: true,
             pathToClaudeCodeExecutable: getClaudeCodePath(),
         };
@@ -362,7 +363,7 @@ export class ClaudeService {
 
         const queryOptions: Options & {abortController: AbortController} = {
             ...this.buildBaseOptions(cwd),
-            allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Skill'],
+            allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Skill', 'WebSearch'],
             abortController,
         };
 
@@ -371,6 +372,15 @@ export class ClaudeService {
             if (styleContent) {
                 queryOptions.systemPrompt = styleContent;
             }
+        }
+
+        if (pod.mcpServerIds?.length > 0) {
+            const servers = mcpServerStore.getByIds(pod.mcpServerIds);
+            const mcpServers: Record<string, unknown> = {};
+            for (const server of servers) {
+                mcpServers[server.name] = server.config;
+            }
+            queryOptions.mcpServers = mcpServers as Options['mcpServers'];
         }
 
         if (pod.claudeSessionId) {

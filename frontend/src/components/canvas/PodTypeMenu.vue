@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus, FilePlus, Import } from 'lucide-vue-next'
-import type { Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent } from '@/types'
+import { Palette, Wrench, FolderOpen, Bot, Github, FolderPlus, FilePlus, Import, Server } from 'lucide-vue-next'
+import type { Position, PodTypeConfig, OutputStyleListItem, Skill, Repository, SubAgent, McpServer } from '@/types'
 import { podTypes } from '@/data/podTypes'
 import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import { useMenuPosition } from '@/composables/useMenuPosition'
@@ -14,7 +14,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command'
+type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command' | 'mcpServer'
 type ResourceType = 'outputStyle' | 'subAgent' | 'command'
 type GroupType = 'outputStyleGroup' | 'subAgentGroup' | 'commandGroup'
 
@@ -25,6 +25,7 @@ const emit = defineEmits<{
   'create-subagent-note': [subAgentId: string]
   'create-repository-note': [repositoryId: string]
   'create-command-note': [commandId: string]
+  'create-mcp-server-note': [mcpServerId: string]
   'clone-started': [payload: { requestId: string; repoName: string }]
   'open-create-modal': [resourceType: ResourceType, title: string]
   'open-edit-modal': [resourceType: ResourceType, id: string]
@@ -33,6 +34,7 @@ const emit = defineEmits<{
   'open-delete-group-modal': [groupType: GroupType, groupId: string, name: string]
   'open-create-repository-modal': []
   'open-clone-repository-modal': []
+  'open-mcp-server-modal': [mode: 'create' | 'edit', mcpServerId?: string]
   close: []
 }>()
 
@@ -42,13 +44,14 @@ const {
   subAgentStore,
   repositoryStore,
   commandStore,
+  mcpServerStore,
   podStore
 } = useCanvasContext()
 
 const { importSkill, isImporting } = useSkillImport()
 
 const menuRef = ref<HTMLElement | null>(null)
-const openMenuType = ref<'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | null>(null)
+const openMenuType = ref<'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | 'mcpServer' | null>(null)
 const hoveredItemId = ref<string | null>(null)
 
 const handleOutsideMouseDown = (e: MouseEvent): void => {
@@ -77,7 +80,8 @@ onMounted(async () => {
     subAgentStore.loadGroups(),
     repositoryStore.loadRepositories(),
     commandStore.loadCommands(),
-    commandStore.loadGroups()
+    commandStore.loadGroups(),
+    mcpServerStore.loadMcpServers()
   ])
 })
 
@@ -116,6 +120,18 @@ const handleRepositorySelect = (repository: Repository): void => {
 const handleCommandSelect = (command: { id: string; name: string }): void => {
   openMenuType.value = null
   emit('create-command-note', command.id)
+  emit('close')
+}
+
+const handleMcpServerSelect = (mcpServer: McpServer): void => {
+  openMenuType.value = null
+  emit('create-mcp-server-note', mcpServer.id)
+  emit('close')
+}
+
+const handleNewMcpServer = (): void => {
+  openMenuType.value = null
+  emit('open-mcp-server-modal', 'create')
   emit('close')
 }
 
@@ -429,6 +445,48 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
           >
             <FolderPlus :size="16" />
             New Group...
+          </div>
+        </template>
+      </PodTypeMenuSubmenu>
+    </div>
+
+    <!-- MCPs 按鈕 -->
+    <div
+      class="relative"
+      @mouseenter="openMenuType = 'mcpServer'"
+      @mouseleave="openMenuType = null"
+    >
+      <button
+        class="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-secondary transition-colors text-left"
+      >
+        <span
+          class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
+          style="background-color: var(--doodle-purple)"
+        >
+          <Server
+            :size="16"
+            class="text-card"
+          />
+        </span>
+        <span class="font-mono text-sm text-foreground">MCPs &gt;</span>
+      </button>
+
+      <PodTypeMenuSubmenu
+        v-model:hovered-item-id="hoveredItemId"
+        :items="mcpServerStore.typedAvailableItems"
+        :visible="openMenuType === 'mcpServer'"
+        :editable="false"
+        @item-select="handleMcpServerSelect"
+        @item-delete="(id, name, event) => handleDeleteClick('mcpServer', id, name, event)"
+      >
+        <template #footer>
+          <div class="border-t border-doodle-ink/30 my-1" />
+          <div
+            class="pod-menu-submenu-item flex items-center gap-2"
+            @click="handleNewMcpServer"
+          >
+            <FilePlus :size="16" />
+            New...
           </div>
         </template>
       </PodTypeMenuSubmenu>

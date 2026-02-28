@@ -31,6 +31,7 @@ class PodPersistenceService {
       autoClear: pod.autoClear,
       commandId: pod.commandId,
       subAgentIds: pod.subAgentIds,
+      mcpServerIds: pod.mcpServerIds,
       needsForkSession: pod.needsForkSession,
     };
 

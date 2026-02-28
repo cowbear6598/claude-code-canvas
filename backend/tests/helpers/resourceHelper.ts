@@ -11,12 +11,16 @@ import {
   type RepositoryCreatePayload,
   type SubAgentCreatePayload,
   type CommandCreatePayload,
+  type McpServerCreatePayload,
+  type McpServerNoteCreatePayload,
 } from '../../src/schemas';
 import {
   type OutputStyleCreatedPayload,
   type RepositoryCreatedPayload,
   type SubAgentCreatedPayload,
   type CommandCreatedPayload,
+  type McpServerCreatedPayload,
+  type McpServerNoteCreatedPayload,
 } from '../../src/types';
 
 export async function createOutputStyle(
@@ -134,4 +138,72 @@ export async function createCommand(
   );
 
   return response.command!;
+}
+
+export async function createMcpServer(
+  client: TestWebSocketClient,
+  name: string,
+  overrides?: Partial<McpServerCreatePayload>
+): Promise<{ id: string; name: string }> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
+  const response = await emitAndWaitResponse<McpServerCreatePayload, McpServerCreatedPayload>(
+    client,
+    WebSocketRequestEvents.MCP_SERVER_CREATE,
+    WebSocketResponseEvents.MCP_SERVER_CREATED,
+    {
+      requestId: uuidv4(),
+      canvasId,
+      name,
+      config: { command: 'echo', args: ['test'] },
+      ...overrides,
+    }
+  );
+
+  return response.mcpServer!;
+}
+
+export async function createMcpServerNote(
+  client: TestWebSocketClient,
+  mcpServerId: string,
+  overrides?: Partial<McpServerNoteCreatePayload>
+): Promise<{ id: string }> {
+  if (!client.id) {
+    throw new Error('Socket not connected');
+  }
+
+  const canvasModule = await import('../../src/services/canvasStore.js');
+  const canvasId = canvasModule.canvasStore.getActiveCanvas(client.id);
+
+  if (!canvasId) {
+    throw new Error('No active canvas for socket');
+  }
+
+  const response = await emitAndWaitResponse<McpServerNoteCreatePayload, McpServerNoteCreatedPayload>(
+    client,
+    WebSocketRequestEvents.MCP_SERVER_NOTE_CREATE,
+    WebSocketResponseEvents.MCP_SERVER_NOTE_CREATED,
+    {
+      requestId: uuidv4(),
+      canvasId,
+      mcpServerId,
+      name: 'MCP Note',
+      x: 100,
+      y: 100,
+      boundToPodId: null,
+      originalPosition: null,
+      ...overrides,
+    }
+  );
+
+  return response.note!;
 }

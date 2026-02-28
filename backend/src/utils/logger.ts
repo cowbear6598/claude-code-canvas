@@ -32,7 +32,8 @@ export type LogCategory =
   | 'Schedule'
   | 'Canvas'
   | 'Workspace'
-  | 'WebSocket';
+  | 'WebSocket'
+  | 'McpServer';
 
 /**
  * Category 顏色映射表
@@ -50,6 +51,7 @@ const CATEGORY_COLORS: Record<LogCategory, string> = {
   Skill: ANSI_COLORS.GREEN,
   Command: ANSI_COLORS.GREEN,
   Chat: ANSI_COLORS.GREEN,
+  McpServer: ANSI_COLORS.GREEN,
   Git: ANSI_COLORS.YELLOW,
   Note: ANSI_COLORS.YELLOW,
   Paste: ANSI_COLORS.YELLOW,

@@ -28,6 +28,7 @@ const {
   subAgentStore,
   repositoryStore,
   commandStore,
+  mcpServerStore,
   connectionStore,
   canvasStore
 } = useCanvasContext()
@@ -70,6 +71,10 @@ const loadCanvasData = async (): Promise<void> => {
     (async (): Promise<void> => {
       await commandStore.loadCommands()
       await commandStore.loadNotesFromBackend()
+    })(),
+    (async (): Promise<void> => {
+      await mcpServerStore.loadMcpServers()
+      await mcpServerStore.loadNotesFromBackend()
     })(),
     connectionStore.loadConnectionsFromBackend(),
   ])
@@ -299,6 +304,9 @@ watch(
 
       commandStore.notes = []
       commandStore.availableItems = []
+
+      mcpServerStore.notes = []
+      mcpServerStore.availableItems = []
 
       chatStore.messagesByPodId.clear()
       chatStore.isTypingByPodId.clear()

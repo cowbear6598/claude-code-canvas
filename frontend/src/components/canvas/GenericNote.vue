@@ -5,7 +5,7 @@ import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import { useBatchDrag } from '@/composables/canvas'
 import { isCtrlOrCmdPressed } from '@/utils/keyboardHelpers'
 
-type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command'
+type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | 'mcpServer'
 
 interface Props {
   note: BaseNote
@@ -28,7 +28,8 @@ const cssClassMap: Record<NoteType, string> = {
   skill: 'skill-note',
   subAgent: 'subagent-note',
   repository: 'repository-note',
-  command: 'command-note'
+  command: 'command-note',
+  mcpServer: 'mcp-server-note'
 }
 
 const selectionTypeMap = {
@@ -36,7 +37,8 @@ const selectionTypeMap = {
   skill: 'skillNote',
   subAgent: 'subAgentNote',
   repository: 'repositoryNote',
-  command: 'commandNote'
+  command: 'commandNote',
+  mcpServer: 'mcpServerNote'
 } as const
 
 const {
@@ -47,6 +49,7 @@ const {
   subAgentStore,
   repositoryStore,
   commandStore,
+  mcpServerStore,
   connectionStore
 } = useCanvasContext()
 const { startBatchDrag, isElementSelected } = useBatchDrag()
@@ -63,6 +66,8 @@ const noteStore = computed(() => {
       return repositoryStore
     case 'command':
       return commandStore
+    case 'mcpServer':
+      return mcpServerStore
     default:
       return outputStyleStore
   }
@@ -82,6 +87,8 @@ const isSelected = computed(() => {
       return selectionStore.selectedRepositoryNoteIds.includes(props.note.id)
     case 'command':
       return selectionStore.selectedCommandNoteIds.includes(props.note.id)
+    case 'mcpServer':
+      return selectionStore.selectedMcpServerNoteIds.includes(props.note.id)
     default:
       return false
   }
@@ -213,10 +220,10 @@ const displayName = computed(() => {
 
 /**
  * 處理雙擊事件
- * 只有 outputStyle、subAgent、command 三種類型可編輯
+ * outputStyle、subAgent、command、mcpServer 四種類型可編輯
  */
 const handleDoubleClick = (): void => {
-  const editableTypes: NoteType[] = ['outputStyle', 'subAgent', 'command']
+  const editableTypes: NoteType[] = ['outputStyle', 'subAgent', 'command', 'mcpServer']
 
   if (editableTypes.includes(props.noteType)) {
     emit('dblclick', { noteId: props.note.id, noteType: props.noteType })

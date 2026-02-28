@@ -13,7 +13,8 @@ const STORE_TO_CATEGORY_MAP: Record<string, string> = {
     'repository': 'Repository',
     'subAgent': 'SubAgent',
     'command': 'Command',
-    'outputStyle': 'OutputStyle'
+    'outputStyle': 'OutputStyle',
+    'mcpServer': 'McpServer'
 }
 
 interface BasePayload {
@@ -430,6 +431,13 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
                 const exists = this.availableItems.some(i => config.getItemId(i as TItem) === config.getItemId(item))
                 if (!exists) {
                     this.availableItems.push(item)
+                }
+            },
+
+            updateItemFromEvent(item: TItem): void {
+                const index = this.availableItems.findIndex(i => config.getItemId(i as TItem) === config.getItemId(item))
+                if (index !== -1) {
+                    this.availableItems.splice(index, 1, item)
                 }
             },
 

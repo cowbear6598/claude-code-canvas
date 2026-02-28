@@ -19,7 +19,7 @@ import type {
 import type {Pod} from '../types';
 import {podStore} from '../services/podStore.js';
 import {workspaceService} from '../services/workspace';
-import {noteStore, skillNoteStore, repositoryNoteStore, commandNoteStore, subAgentNoteStore} from '../services/noteStores.js';
+import {noteStore, skillNoteStore, repositoryNoteStore, commandNoteStore, subAgentNoteStore, mcpServerNoteStore} from '../services/noteStores.js';
 import {connectionStore} from '../services/connectionStore.js';
 import {socketService} from '../services/socketService.js';
 import {workflowStateService} from '../services/workflow';
@@ -107,6 +107,7 @@ function deleteAllPodNotes(canvasId: string, podId: string): PodDeletedPayload['
     const deletedRepositoryNoteIds = repositoryNoteStore.deleteByBoundPodId(canvasId, podId);
     const deletedCommandNoteIds = commandNoteStore.deleteByBoundPodId(canvasId, podId);
     const deletedSubAgentNoteIds = subAgentNoteStore.deleteByBoundPodId(canvasId, podId);
+    const deletedMcpServerNoteIds = mcpServerNoteStore.deleteByBoundPodId(canvasId, podId);
 
     const result: PodDeletedPayload['deletedNoteIds'] = {};
 
@@ -124,6 +125,9 @@ function deleteAllPodNotes(canvasId: string, podId: string): PodDeletedPayload['
     }
     if (deletedSubAgentNoteIds.length > 0) {
         result.subAgentNote = deletedSubAgentNoteIds;
+    }
+    if (deletedMcpServerNoteIds.length > 0) {
+        result.mcpServerNote = deletedMcpServerNoteIds;
     }
 
     return result;

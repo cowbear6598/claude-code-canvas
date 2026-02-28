@@ -37,6 +37,7 @@ export interface Pod {
   outputStyleId?: string | null
   skillIds?: string[]
   subAgentIds?: string[]
+  mcpServerIds?: string[]
   model?: ModelType
   repositoryId?: string | null
   autoClear?: boolean

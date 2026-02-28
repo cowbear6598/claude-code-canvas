@@ -8,6 +8,7 @@ import type { SkillNote } from '@/types/skill'
 import type { Repository, RepositoryNote } from '@/types/repository'
 import type { SubAgentNote, SubAgent } from '@/types/subAgent'
 import type { CommandNote } from '@/types/command'
+import type { McpServerNote } from '@/types/mcpServer'
 import type { Group } from '@/types/group'
 
 // 計數器
@@ -135,9 +136,9 @@ export function createMockAssistantMessage(overrides?: Partial<Message>): Messag
  * 建立 Mock Note (依類型)
  */
 export function createMockNote(
-  type: 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command',
+  type: 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command' | 'mcpServer',
   overrides?: Partial<BaseNote>
-): OutputStyleNote | SkillNote | RepositoryNote | SubAgentNote | CommandNote {
+): OutputStyleNote | SkillNote | RepositoryNote | SubAgentNote | CommandNote | McpServerNote {
   const baseNote: BaseNote = {
     id: `note-${++noteCounter}`,
     name: `Note ${noteCounter}`,
@@ -178,6 +179,12 @@ export function createMockNote(
         ...baseNote,
         commandId: `command-${noteCounter}`,
       } as CommandNote
+
+    case 'mcpServer':
+      return {
+        ...baseNote,
+        mcpServerId: `mcp-server-${noteCounter}`,
+      } as McpServerNote
   }
 }
 
