@@ -167,3 +167,4 @@ printf "\n"
 info "Get started:"
 info "  ${BOLD}${BINARY_NAME} start${RESET}"
 printf "\n"
+
