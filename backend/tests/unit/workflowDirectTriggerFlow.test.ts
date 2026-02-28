@@ -6,7 +6,7 @@ import { directTriggerStore } from '../../src/services/directTriggerStore.js';
 import { workflowStateService } from '../../src/services/workflow';
 import { workflowEventEmitter } from '../../src/services/workflow';
 import { workflowQueueService } from '../../src/services/workflow';
-import { claudeQueryService } from '../../src/services/claude/queryService.js';
+import { claudeService } from '../../src/services/claude/claudeService.js';
 import { summaryService } from '../../src/services/summaryService.js';
 import { setupAllSpies } from '../mocks/workflowSpySetup.js';
 import { createMockPod, createMockConnection, createMockMessages } from '../mocks/workflowTestFactories.js';
@@ -106,7 +106,7 @@ describe('Direct Trigger Flow', () => {
                 })
             );
 
-            expect(claudeQueryService.sendMessage).not.toHaveBeenCalled();
+            expect(claudeService.sendMessage).not.toHaveBeenCalled();
         });
     });
 

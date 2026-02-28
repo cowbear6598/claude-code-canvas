@@ -19,7 +19,6 @@ import type {
 import type {Pod} from '../types';
 import {podStore} from '../services/podStore.js';
 import {workspaceService} from '../services/workspace';
-import {claudeSessionManager} from '../services/claude/sessionManager.js';
 import {noteStore, skillNoteStore, repositoryNoteStore, commandNoteStore, subAgentNoteStore} from '../services/noteStores.js';
 import {connectionStore} from '../services/connectionStore.js';
 import {socketService} from '../services/socketService.js';
@@ -50,8 +49,6 @@ export const handlePodCreate = withCanvasId<PodCreatePayload>(
         );
         return;
     }
-
-    await claudeSessionManager.createSession(pod.id, pod.workspacePath);
 
     const response: PodCreatedPayload = {
         requestId,
@@ -143,8 +140,6 @@ export const handlePodDelete = withCanvasId<PodDeletePayload>(
         }
 
         workflowStateService.handleSourceDeletion(canvasId, podId);
-
-        await claudeSessionManager.destroySession(podId);
 
         const deleteResult = await workspaceService.deleteWorkspace(pod.workspacePath);
         if (!deleteResult.success) {

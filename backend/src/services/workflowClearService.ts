@@ -2,7 +2,6 @@ import { connectionStore } from './connectionStore.js';
 import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { chatPersistenceService } from './persistence/chatPersistence.js';
-import { claudeSessionManager } from './claude/sessionManager.js';
 import { canvasStore } from './canvasStore.js';
 import { pendingTargetStore } from './pendingTargetStore.js';
 import { directTriggerStore } from './directTriggerStore.js';
@@ -123,14 +122,7 @@ class WorkflowClearService {
       logger.error('AutoClear', 'Error', `[WorkflowClear] Error clearing chat history for Pod ${podId}: ${clearResult.error}`);
     }
 
-    await claudeSessionManager
-      .destroySession(podId)
-      .then(() => {
-        podStore.setClaudeSessionId(canvasId, podId, '');
-      })
-      .catch((error) => {
-        logger.error('AutoClear', 'Error', `[WorkflowClear] Error destroying session for Pod ${podId}`, error);
-      });
+    podStore.setClaudeSessionId(canvasId, podId, '');
 
     const clearedConnectionIds = this.clearAiDecideConnections(canvasId, podId);
 

@@ -14,7 +14,6 @@ import type {
 } from '../../schemas';
 import { podStore } from '../../services/podStore.js';
 import { workspaceService } from '../../services/workspace';
-import { claudeSessionManager } from '../../services/claude/sessionManager.js';
 import { noteStore, skillNoteStore, subAgentNoteStore, repositoryNoteStore, commandNoteStore } from '../../services/noteStores.js';
 import { connectionStore } from '../../services/connectionStore.js';
 import { repositoryService } from '../../services/repositoryService.js';
@@ -87,12 +86,7 @@ async function createSinglePod(
     commandId: podItem.commandId ?? null,
   });
 
-  const cwd = finalRepositoryId
-    ? repositoryService.getRepositoryPath(finalRepositoryId)
-    : pod.workspacePath;
-
   await workspaceService.createWorkspace(pod.workspacePath);
-  await claudeSessionManager.createSession(pod.id, cwd);
 
   const originalPod = podStore.getById(canvasId, podItem.originalId);
   if (originalPod) {

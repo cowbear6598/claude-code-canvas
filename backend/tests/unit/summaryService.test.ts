@@ -4,7 +4,7 @@ import { commandService } from '../../src/services/commandService.js';
 import { outputStyleService } from '../../src/services/outputStyleService.js';
 import { podStore } from '../../src/services/podStore.js';
 import { messageStore } from '../../src/services/messageStore.js';
-import { disposableChatService } from '../../src/services/claude/disposableChatService.js';
+import { claudeService } from '../../src/services/claude/claudeService.js';
 import { summaryPromptBuilder } from '../../src/services/summaryPromptBuilder.js';
 import { logger } from '../../src/utils/logger.js';
 
@@ -65,8 +65,8 @@ describe('SummaryService', () => {
     // messageStore
     vi.spyOn(messageStore, 'getMessages').mockReturnValue(mockMessages);
 
-    // disposableChatService
-    vi.spyOn(disposableChatService, 'executeDisposableChat').mockResolvedValue({
+    // claudeService
+    vi.spyOn(claudeService, 'executeDisposableChat').mockResolvedValue({
       success: true,
       content: 'Summary result',
     });

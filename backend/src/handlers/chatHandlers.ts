@@ -7,7 +7,7 @@ import type {
 import type {ChatSendPayload, ChatHistoryPayload, ChatAbortPayload} from '../schemas';
 import {podStore} from '../services/podStore.js';
 import {messageStore} from '../services/messageStore.js';
-import {claudeQueryService} from '../services/claude/queryService.js';
+import {claudeService} from '../services/claude/claudeService.js';
 import {socketService} from '../services/socketService.js';
 import {workflowExecutionService} from '../services/workflow/index.js';
 import {autoClearService} from '../services/autoClear/index.js';
@@ -108,7 +108,7 @@ export const handleChatAbort = withCanvasId<ChatAbortPayload>(
             return;
         }
 
-        const aborted = claudeQueryService.abortQuery(podId);
+        const aborted = claudeService.abortQuery(podId);
         if (!aborted) {
             // abort 失敗但 pod 狀態是 chatting，重設為 idle 避免卡死
             podStore.setStatus(canvasId, podId, 'idle');

@@ -65,8 +65,7 @@ describe('靜態檔案服務', () => {
 				const contentTypeOptions = response.headers.get('X-Content-Type-Options');
 				expect(contentTypeOptions).toBe('nosniff');
 			} else {
-				// 如果沒有靜態檔案，跳過測試
-				expect(true).toBe(true);
+				return;
 			}
 		});
 

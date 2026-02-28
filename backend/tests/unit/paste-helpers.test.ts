@@ -29,8 +29,6 @@ describe('Paste Helpers', () => {
       const { repositoryService } = await import('../../src/services/repositoryService.js');
       const { podStore } = await import('../../src/services/podStore.js');
       const { workspaceService } = await import('../../src/services/workspace/index.js');
-      const { claudeSessionManager } = await import('../../src/services/claude/sessionManager.js');
-
       const repositoryId = 'test-repo-id';
       const originalPodId = uuidv4();
       const newPodId = uuidv4();
@@ -80,11 +78,9 @@ describe('Paste Helpers', () => {
       const getByIdSpy = vi.spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
-      // Mock workspace and session
+      // Mock workspace
       const createWorkspaceSpy = vi.spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
       allSpies.push(createWorkspaceSpy as any);
-      const createSessionSpy = vi.spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
-      allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
         {
@@ -154,7 +150,6 @@ describe('Paste Helpers', () => {
       const { repositoryService } = await import('../../src/services/repositoryService.js');
       const { podStore } = await import('../../src/services/podStore.js');
       const { workspaceService } = await import('../../src/services/workspace/index.js');
-      const { claudeSessionManager } = await import('../../src/services/claude/sessionManager.js');
 
       const originalPodId = uuidv4();
       const newPodId = uuidv4();
@@ -202,11 +197,9 @@ describe('Paste Helpers', () => {
       const getByIdSpy = vi.spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
-      // Mock workspace and session
+      // Mock workspace
       const createWorkspaceSpy = vi.spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
       allSpies.push(createWorkspaceSpy as any);
-      const createSessionSpy = vi.spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
-      allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
         {
@@ -237,7 +230,6 @@ describe('Paste Helpers', () => {
       const { repositoryService } = await import('../../src/services/repositoryService.js');
       const { podStore } = await import('../../src/services/podStore.js');
       const { workspaceService } = await import('../../src/services/workspace/index.js');
-      const { claudeSessionManager } = await import('../../src/services/claude/sessionManager.js');
 
       const failingPodId = uuidv4();
       const successPodId = uuidv4();
@@ -291,11 +283,9 @@ describe('Paste Helpers', () => {
       const getByIdSpy = vi.spyOn(podStore, 'getById').mockReturnValue(undefined);
       allSpies.push(getByIdSpy as any);
 
-      // Mock workspace and session
+      // Mock workspace
       const createWorkspaceSpy = vi.spyOn(workspaceService, 'createWorkspace').mockResolvedValue({ success: true, data: '/test/workspace' });
       allSpies.push(createWorkspaceSpy as any);
-      const createSessionSpy = vi.spyOn(claudeSessionManager, 'createSession').mockResolvedValue({} as any);
-      allSpies.push(createSessionSpy as any);
 
       const pods: PastePodItem[] = [
         {

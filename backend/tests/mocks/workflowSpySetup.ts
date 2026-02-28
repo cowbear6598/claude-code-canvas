@@ -11,7 +11,7 @@ import {logger} from '../../src/utils/logger.js';
 import {socketService} from '../../src/services/socketService.js';
 import {workflowStateService} from '../../src/services/workflow/workflowStateService.js';
 import {commandService} from '../../src/services/commandService.js';
-import {claudeQueryService} from '../../src/services/claude/queryService.js';
+import {claudeService} from '../../src/services/claude/claudeService.js';
 import type {Connection, PersistedMessage, Pod} from '../../src/types/index.js';
 
 interface SetupAllSpiesOptions {
@@ -24,7 +24,7 @@ interface SetupAllSpiesOptions {
     connection?: Connection;
     // 自訂 workflowStateService.getDirectConnectionCount 返回值
     directConnectionCount?: number;
-    // 自訂 claudeQueryService.sendMessage 實作
+    // 自訂 claudeService.sendMessage 實作
     customClaudeQuery?: (...args: any[]) => Promise<any>;
 }
 
@@ -198,7 +198,7 @@ export function setupCommandServiceSpy() {
     return spies;
 }
 
-export function setupClaudeQueryServiceSpy(customClaudeQuery?: (...args: any[]) => Promise<any>) {
+export function setupClaudeServiceSpy(customClaudeQuery?: (...args: any[]) => Promise<any>) {
     const defaultImplementation = async (...args: any[]) => {
         const callback = args[2] as any;
         if (callback) {
@@ -208,7 +208,7 @@ export function setupClaudeQueryServiceSpy(customClaudeQuery?: (...args: any[]) 
     };
 
     const spies = {
-        sendMessage: vi.spyOn(claudeQueryService, 'sendMessage').mockImplementation(
+        sendMessage: vi.spyOn(claudeService, 'sendMessage').mockImplementation(
             (customClaudeQuery || defaultImplementation) as any
         ),
     };
@@ -229,6 +229,6 @@ export function setupAllSpies(options?: SetupAllSpiesOptions) {
         socketService: setupSocketServiceSpy(),
         workflowStateService: setupWorkflowStateServiceSpy(options?.directConnectionCount),
         commandService: setupCommandServiceSpy(),
-        claudeQueryService: setupClaudeQueryServiceSpy(options?.customClaudeQuery),
+        claudeService: setupClaudeServiceSpy(options?.customClaudeQuery),
     };
 }

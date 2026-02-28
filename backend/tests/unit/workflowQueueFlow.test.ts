@@ -2,7 +2,7 @@ import { workflowExecutionService } from '../../src/services/workflow';
 import { workflowQueueService } from '../../src/services/workflow';
 import { connectionStore } from '../../src/services/connectionStore.js';
 import { podStore } from '../../src/services/podStore.js';
-import { claudeQueryService } from '../../src/services/claude/queryService.js';
+import { claudeService } from '../../src/services/claude/claudeService.js';
 import { setupAllSpies } from '../mocks/workflowSpySetup.js';
 import {
   createMockPod,
@@ -107,7 +107,7 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
             );
 
             await new Promise(resolve => setTimeout(resolve, 50));
-            expect(claudeQueryService.sendMessage).toHaveBeenCalled();
+            expect(claudeService.sendMessage).toHaveBeenCalled();
         });
     });
 
@@ -220,33 +220,6 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
             );
         });
 
-        it('workflowQueueService.processNextInQueue 根據 triggerMode 使用正確的 strategy', () => {
-            const directItem = {
-                canvasId,
-                connectionId: 'conn-direct',
-                sourcePodId,
-                targetPodId,
-                summary: 'test',
-                isSummarized: true,
-                triggerMode: 'direct' as const,
-            };
-
-            const aiDecideItem = {
-                ...directItem,
-                connectionId: 'conn-ai',
-                triggerMode: 'ai-decide' as const,
-            };
-
-            const autoItem = {
-                ...directItem,
-                connectionId: 'conn-auto',
-                triggerMode: 'auto' as const,
-            };
-
-            expect(directItem.triggerMode).toBe('direct');
-            expect(aiDecideItem.triggerMode).toBe('ai-decide');
-            expect(autoItem.triggerMode).toBe('auto');
-        });
     });
 
     describe('C4: onQueueProcessed 不設定 connection 為 active', () => {
@@ -335,7 +308,7 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
             });
 
             const testError = new Error('Claude query failed');
-            vi.spyOn(claudeQueryService, 'sendMessage').mockImplementation(async () => {
+            vi.spyOn(claudeService, 'sendMessage').mockImplementation(async () => {
                 throw testError;
             });
 

@@ -1,15 +1,16 @@
-import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
+import { tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { aiDecidePromptBuilder, type AiDecideTargetInfo } from './aiDecidePromptBuilder.js';
 import { podStore } from '../podStore.js';
 import { messageStore } from '../messageStore.js';
 import { outputStyleService } from '../outputStyleService.js';
 import { commandService } from '../commandService.js';
-import { disposableChatService } from '../claude/disposableChatService.js';
+import { claudeService } from '../claude/claudeService.js';
 import { summaryPromptBuilder } from '../summaryPromptBuilder.js';
 import type { Connection } from '../../types/index.js';
 import { logger } from '../../utils/logger.js';
 import { getErrorMessage } from '../../utils/errorHelpers.js';
+import { getLastAssistantMessage } from '../../utils/messageHelper.js';
 
 export interface AiDecideResult {
   connectionId: string;
@@ -84,15 +85,13 @@ class AiDecideService {
       tools: [decideTriggersTool],
     });
 
-    const queryStream = query({
+    const queryStream = claudeService.executeMcpChat({
       prompt: userPrompt,
-      options: {
-        systemPrompt,
-        mcpServers: { 'ai-decide': customServer },
-        allowedTools: ['mcp__ai-decide__decide_triggers'],
-        model: 'sonnet',
-        cwd: sourcePod.workspacePath,
-      },
+      systemPrompt,
+      mcpServers: { 'ai-decide': customServer },
+      allowedTools: ['mcp__ai-decide__decide_triggers'],
+      model: 'sonnet',
+      cwd: sourcePod.workspacePath,
     });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -234,14 +233,6 @@ class AiDecideService {
     return targets;
   }
 
-  private getFallbackSummary(sourcePodId: string): string | null {
-    const messages = messageStore.getMessages(sourcePodId);
-    const assistantMessages = messages.filter(message => message.role === 'assistant');
-    return assistantMessages.length > 0
-      ? assistantMessages[assistantMessages.length - 1].content
-      : null;
-  }
-
   private async generateSourceSummary(canvasId: string, sourcePodId: string): Promise<string | null> {
     const sourcePod = podStore.getById(canvasId, sourcePodId);
     if (!sourcePod) return null;
@@ -263,7 +254,7 @@ ${conversationHistory}
 
 請提供一個簡短的摘要（150字內），重點說明這個對話的主要產出和結論。`;
 
-    const result = await disposableChatService.executeDisposableChat({
+    const result = await claudeService.executeDisposableChat({
       systemPrompt,
       userMessage: userPrompt,
       workspacePath: sourcePod.workspacePath,
@@ -271,7 +262,7 @@ ${conversationHistory}
 
     if (!result.success) {
       logger.log('Workflow', 'Update', `[AiDecideService] Failed to generate summary, using fallback`);
-      return this.getFallbackSummary(sourcePodId);
+      return getLastAssistantMessage(sourcePodId);
     }
 
     return result.content;

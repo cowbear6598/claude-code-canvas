@@ -1,8 +1,8 @@
 import type { Mock } from 'vitest';
 
 // Mock 所有依賴模組（必須在 import 之前）
-vi.mock('../../src/services/claude/queryService.js', () => ({
-    claudeQueryService: {
+vi.mock('../../src/services/claude/claudeService.js', () => ({
+    claudeService: {
         sendMessage: vi.fn(() => Promise.resolve({})),
     },
 }));
@@ -37,7 +37,7 @@ vi.mock('../../src/utils/logger.js', () => ({
 
 // 現在可以 import 被測試的模組
 import {executeStreamingChat} from '../../src/services/claude/streamingChatExecutor.js';
-import {claudeQueryService} from '../../src/services/claude/queryService.js';
+import {claudeService} from '../../src/services/claude/claudeService.js';
 import {socketService} from '../../src/services/socketService.js';
 import {messageStore} from '../../src/services/messageStore.js';
 import {podStore} from '../../src/services/podStore.js';
@@ -57,7 +57,7 @@ describe('executeStreamingChat', () => {
 
     // Helper: 設定 sendMessage mock 來產生特定事件序列
     function mockSendMessageWithEvents(events: Array<{type: string; [key: string]: unknown}>) {
-        asMock(claudeQueryService.sendMessage).mockImplementation(
+        asMock(claudeService.sendMessage).mockImplementation(
             async (...args: any[]) => {
                 const callback = args[2] as (event: any) => void;
                 for (const event of events) {
@@ -70,7 +70,7 @@ describe('executeStreamingChat', () => {
 
     // Helper: 設定 sendMessage mock 拋出 AbortError
     function mockSendMessageWithAbort(eventsBeforeAbort: Array<{type: string; [key: string]: unknown}> = []) {
-        asMock(claudeQueryService.sendMessage).mockImplementation(
+        asMock(claudeService.sendMessage).mockImplementation(
             async (...args: any[]) => {
                 const callback = args[2] as (event: any) => void;
                 for (const event of eventsBeforeAbort) {
@@ -85,7 +85,7 @@ describe('executeStreamingChat', () => {
 
     // Helper: 設定 sendMessage mock 拋出一般錯誤
     function mockSendMessageWithError(error: Error) {
-        asMock(claudeQueryService.sendMessage).mockImplementation(
+        asMock(claudeService.sendMessage).mockImplementation(
             async () => {
                 throw error;
             }
@@ -94,7 +94,7 @@ describe('executeStreamingChat', () => {
 
     beforeEach(() => {
         // 重置所有 mock
-        asMock(claudeQueryService.sendMessage).mockClear();
+        asMock(claudeService.sendMessage).mockClear();
         asMock(socketService.emitToCanvas).mockClear();
         asMock(messageStore.upsertMessage).mockClear();
         asMock(messageStore.flushWrites).mockClear();
@@ -104,7 +104,7 @@ describe('executeStreamingChat', () => {
         asMock(logger.error).mockClear();
 
         // 預設 mock 行為
-        asMock(claudeQueryService.sendMessage).mockImplementation(() => Promise.resolve({}));
+        asMock(claudeService.sendMessage).mockImplementation(() => Promise.resolve({}));
         asMock(messageStore.flushWrites).mockImplementation(() => Promise.resolve());
     });
 
@@ -438,7 +438,7 @@ describe('executeStreamingChat', () => {
 
         it('SDK AbortError 實例也正確處理', async () => {
             // 使用真正的 AbortError 類別
-            asMock(claudeQueryService.sendMessage).mockImplementation(
+            asMock(claudeService.sendMessage).mockImplementation(
                 async (...args: any[]) => {
                     const callback = args[2] as (event: any) => void;
                     callback({type: 'text', content: 'Hello'});

@@ -1,10 +1,11 @@
-import { disposableChatService } from './claude/disposableChatService.js';
+import { claudeService } from './claude/claudeService.js';
 import { summaryPromptBuilder } from './summaryPromptBuilder.js';
 import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { outputStyleService } from './outputStyleService.js';
 import { commandService } from './commandService.js';
 import { logger } from '../utils/logger.js';
+import { getLastAssistantMessage } from '../utils/messageHelper.js';
 import type { Pod, PersistedMessage } from '../types/index.js';
 
 interface TargetSummaryResult {
@@ -46,14 +47,6 @@ async function buildSummaryContext(sourcePod: Pod, targetPod: Pod, messages: Per
   };
 }
 
-function getFallbackContent(messages: PersistedMessage[]): string | null {
-  const assistantMessages = messages.filter((message) => message.role === 'assistant');
-  if (assistantMessages.length === 0) {
-    return null;
-  }
-  return assistantMessages[assistantMessages.length - 1].content;
-}
-
 class SummaryService {
   async generateSummaryForTarget(canvasId: string, sourcePodId: string, targetPodId: string): Promise<TargetSummaryResult> {
     const sourcePod = podStore.getById(canvasId, sourcePodId);
@@ -75,7 +68,7 @@ class SummaryService {
     const systemPrompt = summaryPromptBuilder.buildSystemPrompt(context.sourcePodOutputStyle);
     const userPrompt = summaryPromptBuilder.buildUserPrompt(context);
 
-    const result = await disposableChatService.executeDisposableChat({
+    const result = await claudeService.executeDisposableChat({
       systemPrompt,
       userMessage: userPrompt,
       workspacePath: sourcePod.workspacePath,
@@ -84,7 +77,7 @@ class SummaryService {
     if (!result.success) {
       logger.error('Workflow', 'Error', `[SummaryService] Failed to generate summary for target ${targetPodId}: ${result.error}`);
 
-      const fallbackContent = getFallbackContent(messages);
+      const fallbackContent = getLastAssistantMessage(sourcePodId);
       if (fallbackContent !== null) {
         return { targetPodId, summary: fallbackContent, success: true };
       }

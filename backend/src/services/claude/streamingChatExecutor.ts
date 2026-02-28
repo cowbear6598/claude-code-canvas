@@ -10,7 +10,7 @@ import type {
     PodChatToolUsePayload,
 } from '../../types';
 
-import {claudeQueryService} from './queryService.js';
+import {claudeService} from './claudeService.js';
 import type {StreamEvent} from './types.js';
 import {
     buildPersistedMessage,
@@ -241,7 +241,7 @@ export async function executeStreamingChat(
     );
 
     try {
-        await claudeQueryService.sendMessage(podId, message, streamingCallback);
+        await claudeService.sendMessage(podId, message, streamingCallback);
 
         const hasAssistantContent = accumulatedContentRef.value || subMessageState.subMessages.length > 0;
         if (hasAssistantContent) {

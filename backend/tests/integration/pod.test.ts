@@ -452,6 +452,9 @@ describe('Pod 管理', () => {
 
       expect(disabledPod.schedule!.lastTriggeredAt).toEqual(firstLastTriggeredAt);
 
+      // 確保重新啟用時的 timestamp 與第一次不同
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
       const reEnabledPod = await setPodSchedule(client, pod.id, {
         frequency: 'every-second',
         second: 10,

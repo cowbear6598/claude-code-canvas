@@ -28,12 +28,6 @@ vi.mock('../../src/services/persistence/chatPersistence.js', () => ({
   },
 }));
 
-vi.mock('../../src/services/claude/sessionManager.js', () => ({
-  claudeSessionManager: {
-    destroySession: vi.fn(),
-  },
-}));
-
 vi.mock('../../src/services/canvasStore.js', () => ({
   canvasStore: {
     getCanvasDir: vi.fn(),
@@ -66,7 +60,6 @@ import { connectionStore } from '../../src/services/connectionStore.js';
 import { podStore } from '../../src/services/podStore.js';
 import { messageStore } from '../../src/services/messageStore.js';
 import { chatPersistenceService } from '../../src/services/persistence/chatPersistence.js';
-import { claudeSessionManager } from '../../src/services/claude/sessionManager.js';
 import { canvasStore } from '../../src/services/canvasStore.js';
 import { pendingTargetStore } from '../../src/services/pendingTargetStore.js';
 import { directTriggerStore } from '../../src/services/directTriggerStore.js';
@@ -99,7 +92,6 @@ function setupDefaultMocks() {
     return pods[podId] ?? null;
   });
 
-  (claudeSessionManager.destroySession as any).mockResolvedValue(undefined);
   (chatPersistenceService.clearChatHistory as any).mockResolvedValue({ success: true });
 }
 

@@ -1,16 +1,22 @@
-vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
-  query: vi.fn(),
-  tool: vi.fn(),
-  createSdkMcpServer: vi.fn(),
-}));
+// Mock @anthropic-ai/claude-agent-sdk，讓 createSdkMcpServer 保留 tools 供測試訪問
+vi.mock('@anthropic-ai/claude-agent-sdk', async () => {
+  const actual = await vi.importActual('@anthropic-ai/claude-agent-sdk') as any;
+  return {
+    ...actual,
+    createSdkMcpServer: vi.fn((options: { name: string; tools?: any[] }) => ({
+      type: 'sdk',
+      name: options.name,
+      tools: options.tools ?? [],
+    })),
+  };
+});
 
 import { aiDecideService } from '../../src/services/workflow';
-import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
+import { claudeService } from '../../src/services/claude/claudeService.js';
 import { podStore } from '../../src/services/podStore.js';
 import { messageStore } from '../../src/services/messageStore.js';
 import { outputStyleService } from '../../src/services/outputStyleService.js';
 import { commandService } from '../../src/services/commandService.js';
-import { disposableChatService } from '../../src/services/claude/disposableChatService.js';
 import { summaryPromptBuilder } from '../../src/services/summaryPromptBuilder.js';
 import { logger } from '../../src/utils/logger.js';
 import type { Connection } from '../../src/types';
@@ -89,8 +95,8 @@ describe('AiDecideService', () => {
     // commandService
     vi.spyOn(commandService, 'getContent').mockResolvedValue(null);
 
-    // disposableChatService
-    vi.spyOn(disposableChatService, 'executeDisposableChat').mockResolvedValue({
+    // claudeService
+    vi.spyOn(claudeService, 'executeDisposableChat').mockResolvedValue({
       success: true,
       content: 'Summary: Analysis found 3 issues',
     });
@@ -102,21 +108,12 @@ describe('AiDecideService', () => {
     vi.spyOn(logger, 'log').mockImplementation(() => {});
     vi.spyOn(logger, 'error').mockImplementation(() => {});
 
-    // @anthropic-ai/claude-agent-sdk 使用 vi.mock，需要手動重置
-    (query as any).mockClear?.();
-    (tool as any).mockClear?.();
-    (createSdkMcpServer as any).mockClear?.();
-
-    // 設定預設行為
-    (tool as any).mockImplementation((name: string, desc: string, schema: any, handler: any) => {
-      return { name, desc, schema, handler };
-    });
-    (createSdkMcpServer as any).mockImplementation((config: any) => {
-      return { name: config.name, tools: config.tools };
-    });
-    (query as any).mockImplementation(async function* () {
-      yield { type: 'result', subtype: 'success' };
-    });
+    // 設定 executeMcpChat 預設行為：回傳空 AsyncIterable
+    vi.spyOn(claudeService, 'executeMcpChat').mockReturnValue(
+      (async function* () {
+        yield { type: 'result', subtype: 'success' };
+      })() as any
+    );
   });
 
   afterEach(() => {
@@ -125,24 +122,23 @@ describe('AiDecideService', () => {
 
   describe('AI Decide 單一 connection 判斷為觸發（shouldTrigger = true）', () => {
     it('正確回傳 shouldTrigger: true 和 reason', async () => {
-      // Mock query 函式，模擬 AI 呼叫 Custom Tool
-      (query as any).mockImplementation(async function* (config: any) {
-        // 取得 tool handler
-        const mcpServer = config.options.mcpServers['ai-decide'];
-        const decideTool = mcpServer.tools[0];
+      vi.spyOn(claudeService, 'executeMcpChat').mockImplementation((options: any) => {
+        return (async function* () {
+          const mcpServer = options.mcpServers['ai-decide'];
+          const decideTool = mcpServer.tools[0];
 
-        // 模擬 AI 呼叫 tool
-        await decideTool.handler({
-          decisions: [
-            {
-              connectionId: 'conn-1',
-              shouldTrigger: true,
-              reason: '上游分析結果與下游需求相關',
-            },
-          ],
-        });
+          await decideTool.handler({
+            decisions: [
+              {
+                connectionId: 'conn-1',
+                shouldTrigger: true,
+                reason: '上游分析結果與下游需求相關',
+              },
+            ],
+          });
 
-        yield { type: 'result', subtype: 'success' };
+          yield { type: 'result', subtype: 'success' };
+        })() as any;
       });
 
       const result = await aiDecideService.decideConnections('canvas-1', 'source-pod', [mockConnection]);
@@ -157,21 +153,23 @@ describe('AiDecideService', () => {
 
   describe('AI Decide 單一 connection 判斷為不觸發（shouldTrigger = false），包含 reason', () => {
     it('正確回傳 shouldTrigger: false 和 reason', async () => {
-      (query as any).mockImplementation(async function* (config: any) {
-        const mcpServer = config.options.mcpServers['ai-decide'];
-        const decideTool = mcpServer.tools[0];
+      vi.spyOn(claudeService, 'executeMcpChat').mockImplementation((options: any) => {
+        return (async function* () {
+          const mcpServer = options.mcpServers['ai-decide'];
+          const decideTool = mcpServer.tools[0];
 
-        await decideTool.handler({
-          decisions: [
-            {
-              connectionId: 'conn-1',
-              shouldTrigger: false,
-              reason: '上游產出與下游任務無關',
-            },
-          ],
-        });
+          await decideTool.handler({
+            decisions: [
+              {
+                connectionId: 'conn-1',
+                shouldTrigger: false,
+                reason: '上游產出與下游任務無關',
+              },
+            ],
+          });
 
-        yield { type: 'result', subtype: 'success' };
+          yield { type: 'result', subtype: 'success' };
+        })() as any;
       });
 
       const result = await aiDecideService.decideConnections('canvas-1', 'source-pod', [mockConnection]);
@@ -203,19 +201,21 @@ describe('AiDecideService', () => {
         return null;
       });
 
-      (query as any).mockImplementation(async function* (config: any) {
-        const mcpServer = config.options.mcpServers['ai-decide'];
-        const decideTool = mcpServer.tools[0];
+      vi.spyOn(claudeService, 'executeMcpChat').mockImplementation((options: any) => {
+        return (async function* () {
+          const mcpServer = options.mcpServers['ai-decide'];
+          const decideTool = mcpServer.tools[0];
 
-        await decideTool.handler({
-          decisions: [
-            { connectionId: 'conn-1', shouldTrigger: true, reason: '相關任務 1' },
-            { connectionId: 'conn-2', shouldTrigger: true, reason: '相關任務 2' },
-            { connectionId: 'conn-3', shouldTrigger: true, reason: '相關任務 3' },
-          ],
-        });
+          await decideTool.handler({
+            decisions: [
+              { connectionId: 'conn-1', shouldTrigger: true, reason: '相關任務 1' },
+              { connectionId: 'conn-2', shouldTrigger: true, reason: '相關任務 2' },
+              { connectionId: 'conn-3', shouldTrigger: true, reason: '相關任務 3' },
+            ],
+          });
 
-        yield { type: 'result', subtype: 'success' };
+          yield { type: 'result', subtype: 'success' };
+        })() as any;
       });
 
       const result = await aiDecideService.decideConnections('canvas-1', 'source-pod', [
@@ -226,7 +226,7 @@ describe('AiDecideService', () => {
 
       expect(result.results).toHaveLength(3);
       expect(result.errors).toHaveLength(0);
-      expect(query).toHaveBeenCalledTimes(1); // 批次處理，只呼叫一次
+      expect(claudeService.executeMcpChat).toHaveBeenCalledTimes(1); // 批次處理，只呼叫一次
     });
   });
 
@@ -244,18 +244,20 @@ describe('AiDecideService', () => {
         return null;
       });
 
-      (query as any).mockImplementation(async function* (config: any) {
-        const mcpServer = config.options.mcpServers['ai-decide'];
-        const decideTool = mcpServer.tools[0];
+      vi.spyOn(claudeService, 'executeMcpChat').mockImplementation((options: any) => {
+        return (async function* () {
+          const mcpServer = options.mcpServers['ai-decide'];
+          const decideTool = mcpServer.tools[0];
 
-        await decideTool.handler({
-          decisions: [
-            { connectionId: 'conn-1', shouldTrigger: true, reason: '相關任務' },
-            { connectionId: 'conn-2', shouldTrigger: false, reason: '不相關任務' },
-          ],
-        });
+          await decideTool.handler({
+            decisions: [
+              { connectionId: 'conn-1', shouldTrigger: true, reason: '相關任務' },
+              { connectionId: 'conn-2', shouldTrigger: false, reason: '不相關任務' },
+            ],
+          });
 
-        yield { type: 'result', subtype: 'success' };
+          yield { type: 'result', subtype: 'success' };
+        })() as any;
       });
 
       const result = await aiDecideService.decideConnections('canvas-1', 'source-pod', [
@@ -289,19 +291,21 @@ describe('AiDecideService', () => {
         return null;
       });
 
-      (query as any).mockImplementation(async function* (config: any) {
-        const mcpServer = config.options.mcpServers['ai-decide'];
-        const decideTool = mcpServer.tools[0];
+      vi.spyOn(claudeService, 'executeMcpChat').mockImplementation((options: any) => {
+        return (async function* () {
+          const mcpServer = options.mcpServers['ai-decide'];
+          const decideTool = mcpServer.tools[0];
 
-        // 只回傳 2 條結果，conn-3 缺失
-        await decideTool.handler({
-          decisions: [
-            { connectionId: 'conn-1', shouldTrigger: true, reason: '相關任務 1' },
-            { connectionId: 'conn-2', shouldTrigger: false, reason: '不相關任務 2' },
-          ],
-        });
+          // 只回傳 2 條結果，conn-3 缺失
+          await decideTool.handler({
+            decisions: [
+              { connectionId: 'conn-1', shouldTrigger: true, reason: '相關任務 1' },
+              { connectionId: 'conn-2', shouldTrigger: false, reason: '不相關任務 2' },
+            ],
+          });
 
-        yield { type: 'result', subtype: 'success' };
+          yield { type: 'result', subtype: 'success' };
+        })() as any;
       });
 
       const result = await aiDecideService.decideConnections('canvas-1', 'source-pod', [
@@ -319,8 +323,7 @@ describe('AiDecideService', () => {
 
   describe('Claude API 請求失敗時的錯誤處理', () => {
     it('所有 connections 進入 errors 陣列', async () => {
-      // Mock query 拋出錯誤
-      (query as any).mockImplementation(() => {
+      vi.spyOn(claudeService, 'executeMcpChat').mockImplementation(() => {
         throw new Error('Claude API Error');
       });
 
@@ -335,10 +338,12 @@ describe('AiDecideService', () => {
 
   describe('Custom Tool handler 未被呼叫時的錯誤處理', () => {
     it('所有 connections 進入 errors 陣列', async () => {
-      // Mock query 但不呼叫 tool handler
-      (query as any).mockImplementation(async function* () {
-        yield { type: 'result', subtype: 'success' };
-      });
+      // Mock executeMcpChat 但不呼叫 tool handler
+      vi.spyOn(claudeService, 'executeMcpChat').mockReturnValue(
+        (async function* () {
+          yield { type: 'result', subtype: 'success' };
+        })() as any
+      );
 
       const result = await aiDecideService.decideConnections('canvas-1', 'source-pod', [mockConnection]);
 
@@ -350,7 +355,7 @@ describe('AiDecideService', () => {
   });
 
   describe('正確組裝 prompt（包含 source 摘要、target OutputStyle、target Command）', () => {
-    it('傳給 query 的 messages 包含正確資訊', async () => {
+    it('傳給 executeMcpChat 的 options 包含正確資訊', async () => {
       const targetPodWithResources = {
         ...mockTargetPod,
         outputStyleId: 'style-1',
@@ -366,25 +371,27 @@ describe('AiDecideService', () => {
       (outputStyleService.getContent as any).mockResolvedValue('You are a code reviewer.');
       (commandService.getContent as any).mockResolvedValue('Review the code for bugs.');
 
-      (query as any).mockImplementation(async function* (config: any) {
-        const mcpServer = config.options.mcpServers['ai-decide'];
-        const decideTool = mcpServer.tools[0];
+      vi.spyOn(claudeService, 'executeMcpChat').mockImplementation((options: any) => {
+        return (async function* () {
+          const mcpServer = options.mcpServers['ai-decide'];
+          const decideTool = mcpServer.tools[0];
 
-        await decideTool.handler({
-          decisions: [{ connectionId: 'conn-1', shouldTrigger: true, reason: '相關' }],
-        });
+          await decideTool.handler({
+            decisions: [{ connectionId: 'conn-1', shouldTrigger: true, reason: '相關' }],
+          });
 
-        yield { type: 'result', subtype: 'success' };
+          yield { type: 'result', subtype: 'success' };
+        })() as any;
       });
 
       await aiDecideService.decideConnections('canvas-1', 'source-pod', [mockConnection]);
 
-      expect(query).toHaveBeenCalledTimes(1);
-      const queryConfig = (query as any).mock.calls[0][0];
+      expect(claudeService.executeMcpChat).toHaveBeenCalledTimes(1);
+      const callOptions = (claudeService.executeMcpChat as any).mock.calls[0][0];
 
       // 驗證 prompt 包含必要資訊
-      expect(queryConfig.prompt).toContain('Target Pod');
-      expect(queryConfig.options.systemPrompt).toContain('Workflow 觸發判斷者');
+      expect(callOptions.prompt).toContain('Target Pod');
+      expect(callOptions.systemPrompt).toContain('Workflow 觸發判斷者');
 
       // 驗證 OutputStyle 和 Command 被讀取
       expect(outputStyleService.getContent).toHaveBeenCalledWith('style-1');
@@ -398,7 +405,7 @@ describe('AiDecideService', () => {
 
       expect(result.results).toHaveLength(0);
       expect(result.errors).toHaveLength(0);
-      expect(query).not.toHaveBeenCalled();
+      expect(claudeService.executeMcpChat).not.toHaveBeenCalled();
     });
   });
 });
