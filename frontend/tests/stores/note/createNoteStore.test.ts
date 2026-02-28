@@ -1309,4 +1309,75 @@ describe('createNoteStore', () => {
       })
     })
   })
+
+  describe('buildCRUDActions', () => {
+    function createCRUDConfig(): Parameters<typeof createTestConfig>[0] {
+      return {
+        crudConfig: {
+          resourceType: 'TestResource',
+          methodPrefix: 'testResource',
+          toastCategory: 'Skill',
+          events: {
+            create: {
+              request: 'output-style:create' as any,
+              response: 'output-style:created' as any,
+            },
+            update: {
+              request: 'output-style:update' as any,
+              response: 'output-style:updated' as any,
+            },
+            read: {
+              request: 'output-style:read' as any,
+              response: 'output-style:read:result' as any,
+            },
+          },
+          payloadConfig: {
+            getUpdatePayload: (itemId: string, content: string) => ({ itemId, content }),
+            getReadPayload: (itemId: string) => ({ itemId }),
+            extractItemFromResponse: {
+              create: (response: unknown) => (response as any)?.item,
+              update: (response: unknown) => (response as any)?.item,
+              read: (response: unknown) => (response as any)?.item,
+            },
+            updateItemsList: (items: any[], itemId: string, newItem: any) => {
+              const index = items.findIndex(i => i.id === itemId)
+              if (index !== -1) items.splice(index, 1, newItem)
+            },
+          },
+        },
+      }
+    }
+
+    it('不提供 crudConfig 時不應產生額外的 CRUD action', () => {
+      const config = createTestConfig()
+      const store = createNoteStore<TestItem, TestNote>(config)()
+
+      expect((store as any).createTestResource).toBeUndefined()
+      expect((store as any).updateTestResource).toBeUndefined()
+      expect((store as any).readTestResource).toBeUndefined()
+      expect((store as any).deleteTestResource).toBeUndefined()
+      expect((store as any).loadTestResources).toBeUndefined()
+    })
+
+    it('提供 crudConfig 後 store 應有對應的 createXxx action', () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const config = createTestConfig(createCRUDConfig())
+      const store = createNoteStore<TestItem, TestNote>(config)()
+
+      expect(typeof (store as any).createTestResource).toBe('function')
+    })
+
+    it('提供 crudConfig 後 store 應有 updateXxx、readXxx、deleteXxx、loadXxxs actions', () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const config = createTestConfig(createCRUDConfig())
+      const store = createNoteStore<TestItem, TestNote>(config)()
+
+      expect(typeof (store as any).updateTestResource).toBe('function')
+      expect(typeof (store as any).readTestResource).toBe('function')
+      expect(typeof (store as any).deleteTestResource).toBe('function')
+      expect(typeof (store as any).loadTestResources).toBe('function')
+    })
+  })
 })

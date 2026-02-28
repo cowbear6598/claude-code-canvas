@@ -60,9 +60,7 @@ export function usePullProgress(): UsePullProgressReturn {
 
         helpers.showSuccessToast('Git', 'Pull 成功', task.repositoryName)
 
-        setTimeout(() => {
-          helpers.removeTask(payload.requestId)
-        }, 1000)
+        helpers.scheduleRemove(payload.requestId, 1000)
       } else {
         const errorMessage = payload.error || 'Pull 失敗'
         task.status = 'failed'
@@ -70,9 +68,7 @@ export function usePullProgress(): UsePullProgressReturn {
 
         helpers.showErrorToast('Git', 'Pull 失敗', errorMessage)
 
-        setTimeout(() => {
-          helpers.removeTask(payload.requestId)
-        }, 2000)
+        helpers.scheduleRemove(payload.requestId, 2000)
       }
     },
 
@@ -81,9 +77,7 @@ export function usePullProgress(): UsePullProgressReturn {
       task.status = 'failed'
       task.message = '操作逾時，請重試'
 
-      setTimeout(() => {
-        helpers.removeTask(task.requestId)
-      }, 2000)
+      helpers.scheduleRemove(task.requestId, 2000)
     },
 
     toProgressTask: (task) => ({

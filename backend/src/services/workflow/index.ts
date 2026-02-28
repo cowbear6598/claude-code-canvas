@@ -83,5 +83,4 @@ export function initWorkflowServices(): void {
   });
 }
 
-// 立即初始化
 initWorkflowServices();

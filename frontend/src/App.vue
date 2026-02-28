@@ -18,6 +18,7 @@ import {
 } from '@/lib/constants'
 import {truncateContent} from '@/stores/chat/chatUtils'
 import {useCursorStore} from '@/stores/cursorStore'
+import {logger} from '@/utils/logger'
 
 const {
   podStore,
@@ -145,6 +146,16 @@ const handleScheduleFired = async (payload: ScheduleFiredPayload): Promise<void>
   }
 }
 
+const checkAbortedAndCleanup = (controller: AbortController): boolean => {
+  if (!controller.signal.aborted) return false
+
+  if (controller === loadingAbortController) {
+    isLoading.value = false
+    loadingAbortController = null
+  }
+  return true
+}
+
 const loadAppData = async (): Promise<void> => {
   if (isInitialized.value || isLoading.value) {
     return
@@ -159,30 +170,18 @@ const loadAppData = async (): Promise<void> => {
 
   isLoading.value = true
 
-  if (currentAbortController.signal.aborted) {
-    if (currentAbortController === loadingAbortController) {
-      isLoading.value = false
-      loadingAbortController = null
-    }
-    return
-  }
+  if (checkAbortedAndCleanup(currentAbortController)) return
 
-  console.log('[App] Loading canvases...')
+  logger.log('[App] Loading canvases...')
   await canvasStore.loadCanvases()
 
-  if (currentAbortController.signal.aborted) {
-    if (currentAbortController === loadingAbortController) {
-      isLoading.value = false
-      loadingAbortController = null
-    }
-    return
-  }
+  if (checkAbortedAndCleanup(currentAbortController)) return
 
   if (canvasStore.canvases.length === 0) {
-    console.log('[App] No canvases found, creating default canvas...')
+    logger.log('[App] No canvases found, creating default canvas...')
     const defaultCanvas = await canvasStore.createCanvas('Default')
     if (!defaultCanvas) {
-      console.error('[App] Failed to create default canvas')
+      logger.error('[App] Failed to create default canvas')
       if (currentAbortController === loadingAbortController) {
         isLoading.value = false
         loadingAbortController = null
@@ -191,17 +190,11 @@ const loadAppData = async (): Promise<void> => {
     }
   }
 
-  if (currentAbortController.signal.aborted) {
-    if (currentAbortController === loadingAbortController) {
-      isLoading.value = false
-      loadingAbortController = null
-    }
-    return
-  }
+  if (checkAbortedAndCleanup(currentAbortController)) return
 
   if (!canvasStore.activeCanvasId) {
-    console.error('[App] No active canvas after initialization')
-    console.error('[App] Available canvases:', canvasStore.canvases)
+    logger.error('[App] No active canvas after initialization')
+    logger.error('[App] Available canvases:', canvasStore.canvases)
     if (currentAbortController === loadingAbortController) {
       isLoading.value = false
       loadingAbortController = null
@@ -209,24 +202,18 @@ const loadAppData = async (): Promise<void> => {
     return
   }
 
-  console.log('[App] Active canvas:', canvasStore.activeCanvasId)
-  console.log('[App] Loading canvas data...')
+  logger.log('[App] Active canvas:', canvasStore.activeCanvasId)
+  logger.log('[App] Loading canvas data...')
   await loadCanvasData()
 
-  if (currentAbortController.signal.aborted) {
-    if (currentAbortController === loadingAbortController) {
-      isLoading.value = false
-      loadingAbortController = null
-    }
-    return
-  }
+  if (checkAbortedAndCleanup(currentAbortController)) return
 
   websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
   websocketClient.on<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
   registerUnifiedListeners()
 
   isInitialized.value = true
-  console.log('[App] Initialization complete')
+  logger.log('[App] Initialization complete')
 
   if (currentAbortController === loadingAbortController) {
     isLoading.value = false

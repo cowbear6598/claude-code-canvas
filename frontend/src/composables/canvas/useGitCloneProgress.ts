@@ -95,9 +95,7 @@ export function useGitCloneProgress(): UseGitCloneProgressReturn {
 
         await repositoryStore.loadRepositories()
 
-        setTimeout(() => {
-          helpers.removeTask(payload.requestId)
-        }, 1000)
+        helpers.scheduleRemove(payload.requestId, 1000)
       } else {
         const errorMessage = payload.error ? getErrorMessage(payload.error) : '未知錯誤'
         task.status = 'failed'
@@ -105,9 +103,7 @@ export function useGitCloneProgress(): UseGitCloneProgressReturn {
 
         helpers.showErrorToast('Repository', 'Clone 失敗', errorMessage)
 
-        setTimeout(() => {
-          helpers.removeTask(payload.requestId)
-        }, 2000)
+        helpers.scheduleRemove(payload.requestId, 2000)
       }
     },
 

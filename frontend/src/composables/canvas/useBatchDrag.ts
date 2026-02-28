@@ -14,53 +14,63 @@ type StoreConfigEntry = {
   isPod: boolean
 }
 
+interface BatchDragStores {
+  podStore: ReturnType<typeof useCanvasContext>['podStore']
+  outputStyleStore: NoteStore
+  skillStore: NoteStore
+  repositoryStore: NoteStore
+  subAgentStore: NoteStore
+  commandStore: NoteStore
+}
+
+interface MovedElementSets {
+  movedPodIds: Set<string>
+  movedOutputStyleNoteIds: Set<string>
+  movedSkillNoteIds: Set<string>
+  movedRepositoryNoteIds: Set<string>
+  movedSubAgentNoteIds: Set<string>
+  movedCommandNoteIds: Set<string>
+}
+
 function createStoreConfigMap(
-  podStore: ReturnType<typeof useCanvasContext>['podStore'],
-  outputStyleStore: NoteStore,
-  skillStore: NoteStore,
-  repositoryStore: NoteStore,
-  subAgentStore: NoteStore,
-  commandStore: NoteStore,
-  movedPods: Set<string>,
-  movedOutputStyleNotes: Set<string>,
-  movedSkillNotes: Set<string>,
-  movedRepositoryNotes: Set<string>,
-  movedSubAgentNotes: Set<string>,
-  movedCommandNotes: Set<string>
+  stores: BatchDragStores,
+  movedSets: MovedElementSets
 ): Record<string, StoreConfigEntry> {
+  const { podStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore } = stores
+  const { movedPodIds, movedOutputStyleNoteIds, movedSkillNoteIds, movedRepositoryNoteIds, movedSubAgentNoteIds, movedCommandNoteIds } = movedSets
   return {
     pod: {
-      movedSet: movedPods,
+      movedSet: movedPodIds,
       moveItem: (id: string, x: number, y: number) => podStore.movePod(id, x, y),
       getItem: (id: string) => podStore.pods.find(p => p.id === id),
       isPod: true
     },
     outputStyleNote: {
-      movedSet: movedOutputStyleNotes,
+      movedSet: movedOutputStyleNoteIds,
       moveItem: (id: string, x: number, y: number) => outputStyleStore.updateNotePositionLocal(id, x, y),
       getItem: (id: string) => outputStyleStore.notes.find(n => n.id === id),
       isPod: false
     },
     skillNote: {
-      movedSet: movedSkillNotes,
+      movedSet: movedSkillNoteIds,
       moveItem: (id: string, x: number, y: number) => skillStore.updateNotePositionLocal(id, x, y),
       getItem: (id: string) => skillStore.notes.find(n => n.id === id),
       isPod: false
     },
     repositoryNote: {
-      movedSet: movedRepositoryNotes,
+      movedSet: movedRepositoryNoteIds,
       moveItem: (id: string, x: number, y: number) => repositoryStore.updateNotePositionLocal(id, x, y),
       getItem: (id: string) => repositoryStore.notes.find(n => n.id === id),
       isPod: false
     },
     subAgentNote: {
-      movedSet: movedSubAgentNotes,
+      movedSet: movedSubAgentNoteIds,
       moveItem: (id: string, x: number, y: number) => subAgentStore.updateNotePositionLocal(id, x, y),
       getItem: (id: string) => subAgentStore.notes.find(n => n.id === id),
       isPod: false
     },
     commandNote: {
-      movedSet: movedCommandNotes,
+      movedSet: movedCommandNoteIds,
       moveItem: (id: string, x: number, y: number) => commandStore.updateNotePositionLocal(id, x, y),
       getItem: (id: string) => commandStore.notes.find(n => n.id === id),
       isPod: false
@@ -139,18 +149,15 @@ export function useBatchDrag(): {
 
   const moveSelectedElements = (dx: number, dy: number): void => {
     const storeConfigMap = createStoreConfigMap(
-      podStore,
-      outputStyleStore,
-      skillStore,
-      repositoryStore,
-      subAgentStore,
-      commandStore,
-      movedPods,
-      movedOutputStyleNotes,
-      movedSkillNotes,
-      movedRepositoryNotes,
-      movedSubAgentNotes,
-      movedCommandNotes
+      { podStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore },
+      {
+        movedPodIds: movedPods,
+        movedOutputStyleNoteIds: movedOutputStyleNotes,
+        movedSkillNoteIds: movedSkillNotes,
+        movedRepositoryNoteIds: movedRepositoryNotes,
+        movedSubAgentNoteIds: movedSubAgentNotes,
+        movedCommandNoteIds: movedCommandNotes,
+      }
     )
 
     for (const element of selectionStore.selectedElements) {

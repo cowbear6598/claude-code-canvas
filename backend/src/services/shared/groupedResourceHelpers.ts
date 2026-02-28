@@ -1,15 +1,11 @@
 import fs from 'fs/promises';
 import type { Dirent } from 'fs';
 import path from 'path';
-import { fileExists } from './fileResourceHelpers.js';
+import { fileExists, directoryExists } from './fileResourceHelpers.js';
 import { sanitizePathSegment, isPathWithinDirectory } from '../../utils/pathValidator.js';
 import { logger } from '../../utils/logger.js';
 
 type ResourceEntry = { id: string; name: string; groupId: string | null };
-
-function isEnoentError(error: unknown): boolean {
-    return error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT';
-}
 
 async function collectRootFiles(basePath: string): Promise<ResourceEntry[]> {
     const entries = await fs.readdir(basePath, { withFileTypes: true });
@@ -32,24 +28,14 @@ export async function listGroupedMarkdownResources(
 ): Promise<ResourceEntry[]> {
     const resources: ResourceEntry[] = [];
 
-    let rootEntries: Dirent[];
-    try {
-        rootEntries = await fs.readdir(basePath, { withFileTypes: true });
-    } catch (error) {
-        if (!isEnoentError(error)) {
-            logger.error('Workspace', 'Error', `[GroupedResource] 讀取目錄失敗: ${basePath}`, error);
-        }
+    if (!await directoryExists(basePath)) {
         return resources;
     }
 
-    try {
-        const rootFiles = await collectRootFiles(basePath);
-        resources.push(...rootFiles);
-    } catch (error) {
-        if (!isEnoentError(error)) {
-            logger.error('Workspace', 'Error', `[GroupedResource] 讀取根目錄檔案失敗: ${basePath}`, error);
-        }
-    }
+    const rootEntries = await fs.readdir(basePath, { withFileTypes: true });
+
+    const rootFiles = await collectRootFiles(basePath);
+    resources.push(...rootFiles);
 
     const groupDirs = rootEntries.filter(entry => entry.isDirectory());
     for (const entry of groupDirs) {
@@ -57,9 +43,7 @@ export async function listGroupedMarkdownResources(
             const groupFiles = await collectGroupFiles(basePath, entry.name);
             resources.push(...groupFiles);
         } catch (error) {
-            if (!isEnoentError(error)) {
-                logger.error('Workspace', 'Error', `[GroupedResource] 讀取群組目錄失敗: ${entry.name}`, error);
-            }
+            logger.error('Workspace', 'Error', `[GroupedResource] 讀取群組目錄失敗: ${entry.name}`, error);
         }
     }
 
@@ -75,15 +59,11 @@ async function findInRootDirectory(basePath: string, resourceId: string): Promis
 }
 
 async function findInGroupDirectories(basePath: string, resourceId: string): Promise<string | null> {
-    let entries: Dirent[];
-    try {
-        entries = await fs.readdir(basePath, { withFileTypes: true });
-    } catch (error) {
-        if (!isEnoentError(error)) {
-            logger.error('Workspace', 'Error', `[GroupedResource] 讀取目錄失敗: ${basePath}`, error);
-        }
+    if (!await directoryExists(basePath)) {
         return null;
     }
+
+    const entries: Dirent[] = await fs.readdir(basePath, { withFileTypes: true });
 
     for (const entry of entries) {
         if (!entry.isDirectory()) continue;

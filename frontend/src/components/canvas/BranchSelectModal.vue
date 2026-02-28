@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { watch, computed } from 'vue'
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
 import { Trash2 } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast'
+import { useModalForm } from '@/composables/useModalForm'
+import { isValidBranchName } from '@/lib/validators'
 
 interface Props {
   open: boolean
@@ -31,22 +33,20 @@ const emit = defineEmits<{
 }>()
 
 const { toast } = useToast()
-const inputBranchName = ref('')
 
-// 分支名稱驗證模式（與後端一致）
-const BRANCH_NAME_PATTERN = /^[a-zA-Z0-9_\-/]+$/
-
-const isValidBranchName = (name: string): boolean => {
-  if (!BRANCH_NAME_PATTERN.test(name)) {
-    return false
-  }
-  // 禁止連續斜線
-  if (name.includes('//')) {
-    return false
-  }
-  // 禁止以斜線開頭或結尾
-  return !(name.startsWith('/') || name.endsWith('/'));
-}
+const { inputValue: inputBranchName, resetForm } = useModalForm<string>({
+  validator: (name) => {
+    const trimmed = name.trim()
+    if (!trimmed) return '請輸入分支名稱'
+    if (!isValidBranchName(trimmed)) return '只能包含英文字母、數字、底線、連字號和斜線'
+    return null
+  },
+  onSubmit: async (name) => {
+    emit('select', name.trim())
+    return null
+  },
+  onClose: () => emit('update:open', false),
+})
 
 const normalBranches = computed(() => {
   if (!props.worktreeBranches || props.worktreeBranches.length === 0) {
@@ -61,7 +61,7 @@ const hasWorktreeBranches = computed(() => {
 
 watch(() => props.open, (isOpen) => {
   if (!isOpen) {
-    inputBranchName.value = ''
+    resetForm()
   }
 })
 
@@ -79,7 +79,6 @@ const handleInputSubmit = (): void => {
     return
   }
 
-  // 格式驗證
   if (!isValidBranchName(trimmedName)) {
     toast({
       title: '分支名稱格式錯誤',

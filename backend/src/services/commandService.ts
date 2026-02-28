@@ -3,6 +3,7 @@ import path from 'path';
 import {config} from '../config';
 import type {Command} from '../types';
 import {isPathWithinDirectory, validatePodId, validateCommandId} from '../utils/pathValidator.js';
+import {copyResourceFile} from './shared/fileResourceHelpers.js';
 import {createMarkdownResourceService} from './shared/createMarkdownResourceService.js';
 
 const baseService = createMarkdownResourceService<Command>({
@@ -50,41 +51,31 @@ class CommandService {
         return baseService.getFilePath(commandId);
     }
 
-    async copyCommandToPod(commandId: string, podId: string, podWorkspacePath: string): Promise<void> {
+    private async findValidatedCommandSrcPath(commandId: string): Promise<string> {
         if (!validateCommandId(commandId)) {
             throw new Error('無效的 Command ID 格式');
         }
+
+        const srcPath = await baseService.findFilePath(commandId);
+        if (!srcPath) {
+            throw new Error(`找不到 Command: ${commandId}`);
+        }
+
+        return srcPath;
+    }
+
+    async copyCommandToPod(commandId: string, podId: string, podWorkspacePath: string): Promise<void> {
         if (!validatePodId(podId)) {
             throw new Error('無效的 Pod ID 格式');
         }
 
-        const srcPath = await baseService.findFilePath(commandId);
-        if (!srcPath) {
-            throw new Error(`找不到 Command: ${commandId}`);
-        }
-
-        const destDir = path.join(podWorkspacePath, '.claude', 'commands');
-        await this.copyCommandFile(srcPath, destDir, commandId);
+        const srcPath = await this.findValidatedCommandSrcPath(commandId);
+        await copyResourceFile(srcPath, podWorkspacePath, 'commands', `${commandId}.md`);
     }
 
     async copyCommandToRepository(commandId: string, repositoryPath: string): Promise<void> {
-        if (!validateCommandId(commandId)) {
-            throw new Error('無效的 Command ID 格式');
-        }
-
-        const srcPath = await baseService.findFilePath(commandId);
-        if (!srcPath) {
-            throw new Error(`找不到 Command: ${commandId}`);
-        }
-
-        const destDir = path.join(repositoryPath, '.claude', 'commands');
-        await this.copyCommandFile(srcPath, destDir, commandId);
-    }
-
-    private async copyCommandFile(srcPath: string, destDir: string, commandId: string): Promise<void> {
-        await fs.mkdir(destDir, {recursive: true});
-        const destPath = path.join(destDir, `${commandId}.md`);
-        await fs.copyFile(srcPath, destPath);
+        const srcPath = await this.findValidatedCommandSrcPath(commandId);
+        await copyResourceFile(srcPath, repositoryPath, 'commands', `${commandId}.md`);
     }
 
     async deleteCommandFromPath(basePath: string): Promise<void> {

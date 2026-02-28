@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import {
   Dialog,
   DialogContent,
@@ -10,6 +9,8 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useModalForm } from '@/composables/useModalForm'
+import { validateResourceName } from '@/lib/validators'
 
 interface Props {
   open: boolean
@@ -23,40 +24,16 @@ const emit = defineEmits<{
   'submit': [worktreeName: string]
 }>()
 
-const worktreeName = ref('')
-const errorMessage = ref('')
-
-const validateWorktreeName = (name: string): string | null => {
-  const trimmedName = name.trim()
-
-  if (!trimmedName) {
-    return '請輸入 Worktree 名稱'
-  }
-
-  if (!/^[a-zA-Z0-9_-]+$/.test(trimmedName)) {
-    return '名稱只能包含英文字母、數字、底線和連字號'
-  }
-
-  return null
-}
-
-const handleSubmit = (): void => {
-  const validationError = validateWorktreeName(worktreeName.value)
-
-  if (validationError) {
-    errorMessage.value = validationError
-    return
-  }
-
-  emit('submit', worktreeName.value.trim())
-  handleClose()
-}
-
-const handleClose = (): void => {
-  emit('update:open', false)
-  worktreeName.value = ''
-  errorMessage.value = ''
-}
+const { inputValue: worktreeName, errorMessage, handleSubmit, handleClose } = useModalForm<string>({
+  validator: (name) =>
+    validateResourceName(name.trim(), '請輸入 Worktree 名稱', '名稱只能包含英文字母、數字、底線和連字號'),
+  onSubmit: async (name) => {
+    emit('submit', name.trim())
+    emit('update:open', false)
+    return null
+  },
+  onClose: () => emit('update:open', false),
+})
 </script>
 
 <template>

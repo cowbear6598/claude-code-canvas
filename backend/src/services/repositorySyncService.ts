@@ -47,7 +47,6 @@ class RepositorySyncService {
     try {
       const repositoryPath = repositoryService.getRepositoryPath(repositoryId);
 
-      // 按 Pod 分組收集資源
       const podResourcesMap = new Map<string, PodResources>();
 
       const allCanvases = canvasStore.list();
@@ -64,10 +63,8 @@ class RepositorySyncService {
         }
       }
 
-      // 清理孤兒 manifest（已不再綁定此 repo 的 Pod）
       await this.cleanOrphanManifests(repositoryPath, podResourcesMap);
 
-      // 對每個綁定此 repo 的 Pod，先刪除之前管理的檔案，再複製新資源並寫入新 manifest
       for (const [podId, resources] of podResourcesMap) {
         await podManifestService.deleteManagedFiles(repositoryPath, podId);
 
@@ -92,7 +89,6 @@ class RepositorySyncService {
           );
         }
 
-        // 收集此 Pod 所有已複製的檔案路徑，寫入新的 manifest
         const managedFiles = await this.collectPodManagedFiles(resources);
         await podManifestService.writeManifest(repositoryPath, podId, managedFiles);
       }
@@ -115,7 +111,6 @@ class RepositorySyncService {
     try {
       fileNames = await fs.readdir(claudeDir);
     } catch {
-      // .claude 目錄不存在，無需清理
       return;
     }
 

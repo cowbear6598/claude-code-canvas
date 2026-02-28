@@ -2,10 +2,7 @@ import type { McpServer, McpServerNote, McpServerConfig } from '@/types'
 import { createNoteStore } from './createNoteStore'
 import type { NoteStoreContext } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
-import { createWebSocketRequest } from '@/services/websocket'
-import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
-import { useToast } from '@/composables/useToast'
-import { requireActiveCanvas } from '@/utils/canvasGuard'
+import { createResourceCRUDActions } from './createResourceCRUDActions'
 import type {
   McpServerCreatedPayload,
   McpServerUpdatedPayload,
@@ -19,6 +16,51 @@ interface McpServerStoreCustomActions {
   deleteMcpServer(mcpServerId: string): Promise<void>
   loadMcpServers(): Promise<void>
 }
+
+interface McpServerUpdateInput {
+  name: string
+  config: McpServerConfig
+}
+
+const mcpServerCRUD = createResourceCRUDActions<
+  McpServer,
+  McpServerConfig,
+  McpServerUpdateInput,
+  { id: string; name: string; config: McpServerConfig }
+>(
+  'MCP Server',
+  {
+    create: {
+      request: WebSocketRequestEvents.MCP_SERVER_CREATE,
+      response: WebSocketResponseEvents.MCP_SERVER_CREATED,
+    },
+    update: {
+      request: WebSocketRequestEvents.MCP_SERVER_UPDATE,
+      response: WebSocketResponseEvents.MCP_SERVER_UPDATED,
+    },
+    read: {
+      request: WebSocketRequestEvents.MCP_SERVER_READ,
+      response: WebSocketResponseEvents.MCP_SERVER_READ_RESULT,
+    },
+  },
+  {
+    getCreatePayload: (name, config) => ({ name, config }),
+    getUpdatePayload: (mcpServerId, { name, config }) => ({ mcpServerId, name, config }),
+    getReadPayload: (mcpServerId) => ({ mcpServerId }),
+    extractItemFromResponse: {
+      create: (response) => (response as McpServerCreatedPayload).mcpServer,
+      update: (response) => (response as McpServerUpdatedPayload).mcpServer,
+      read: (response) => (response as McpServerReadResultPayload).mcpServer,
+    },
+    updateItemsList: (items, mcpServerId, newItem) => {
+      const index = items.findIndex(item => item.id === mcpServerId)
+      if (index !== -1) {
+        items[index] = { ...items[index], ...newItem } as McpServer
+      }
+    },
+  },
+  'McpServer'
+)
 
 const store = createNoteStore<McpServer, McpServerNote>({
   storeName: 'mcpServer',
@@ -66,85 +108,17 @@ const store = createNoteStore<McpServer, McpServerNote>({
   getItemName: (item: McpServer) => item.name,
   customActions: {
     async createMcpServer(this: NoteStoreContext<McpServer>, name: string, config: McpServerConfig): Promise<{ success: boolean; mcpServer?: { id: string; name: string }; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const { showSuccessToast, showErrorToast } = useToast()
-      const canvasId = requireActiveCanvas()
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest({
-          requestEvent: WebSocketRequestEvents.MCP_SERVER_CREATE,
-          responseEvent: WebSocketResponseEvents.MCP_SERVER_CREATED,
-          payload: { canvasId, name, config }
-        })
-      )
-
-      if (!response) {
-        showErrorToast('McpServer', '建立失敗', '建立 MCP Server 失敗')
-        return { success: false, error: '建立 MCP Server 失敗' }
-      }
-
-      const payload = response as McpServerCreatedPayload
-      if (!payload.mcpServer) {
-        const error = payload.error || '建立 MCP Server 失敗'
-        showErrorToast('McpServer', '建立失敗', error)
-        return { success: false, error }
-      }
-
-      await this.loadItems()
-      showSuccessToast('McpServer', '建立成功', name)
-      return { success: true, mcpServer: payload.mcpServer }
+      const result = await mcpServerCRUD.create(this.availableItems, name, config)
+      return result.success ? { success: true, mcpServer: result.item } : { success: false, error: result.error }
     },
 
     async updateMcpServer(this: NoteStoreContext<McpServer>, mcpServerId: string, name: string, config: McpServerConfig): Promise<{ success: boolean; mcpServer?: { id: string; name: string }; error?: string }> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const { showSuccessToast, showErrorToast } = useToast()
-      const canvasId = requireActiveCanvas()
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest({
-          requestEvent: WebSocketRequestEvents.MCP_SERVER_UPDATE,
-          responseEvent: WebSocketResponseEvents.MCP_SERVER_UPDATED,
-          payload: { canvasId, mcpServerId, name, config }
-        })
-      )
-
-      if (!response) {
-        showErrorToast('McpServer', '更新失敗', '更新 MCP Server 失敗')
-        return { success: false, error: '更新 MCP Server 失敗' }
-      }
-
-      const payload = response as McpServerUpdatedPayload
-      if (!payload.mcpServer) {
-        const error = payload.error || '更新 MCP Server 失敗'
-        showErrorToast('McpServer', '更新失敗', error)
-        return { success: false, error }
-      }
-
-      const index = this.availableItems.findIndex(item => item.id === mcpServerId)
-      if (index !== -1) {
-        this.availableItems[index] = { ...this.availableItems[index], ...payload.mcpServer } as McpServer
-      }
-
-      showSuccessToast('McpServer', '更新成功', payload.mcpServer.name)
-      return { success: true, mcpServer: payload.mcpServer }
+      const result = await mcpServerCRUD.update(this.availableItems, mcpServerId, { name, config })
+      return result.success ? { success: true, mcpServer: result.item } : { success: false, error: result.error }
     },
 
     async readMcpServer(this: NoteStoreContext<McpServer>, mcpServerId: string): Promise<{ id: string; name: string; config: McpServerConfig } | null> {
-      const { wrapWebSocketRequest } = useWebSocketErrorHandler()
-      const canvasId = requireActiveCanvas()
-
-      const response = await wrapWebSocketRequest(
-        createWebSocketRequest({
-          requestEvent: WebSocketRequestEvents.MCP_SERVER_READ,
-          responseEvent: WebSocketResponseEvents.MCP_SERVER_READ_RESULT,
-          payload: { canvasId, mcpServerId }
-        })
-      )
-
-      if (!response) return null
-
-      const payload = response as McpServerReadResultPayload
-      return payload.mcpServer || null
+      return mcpServerCRUD.read(mcpServerId)
     },
 
     async deleteMcpServer(this: NoteStoreContext<McpServer>, mcpServerId: string): Promise<void> {

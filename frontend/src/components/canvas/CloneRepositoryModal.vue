@@ -17,6 +17,8 @@ import { requireActiveCanvas } from '@/utils/canvasGuard'
 import type { RepositoryGitClonePayload } from '@/types/websocket'
 import type { GitPlatform } from '@/types/repository'
 import { parseGitUrl, getPlatformDisplayName } from '@/utils/gitUrlParser'
+import { useModalForm } from '@/composables/useModalForm'
+import { validateGitUrl } from '@/lib/validators'
 
 interface Props {
   open: boolean
@@ -29,9 +31,6 @@ const emit = defineEmits<{
   'clone-started': [payload: { requestId: string; repoName: string }]
 }>()
 
-const repoUrl = ref('')
-const isSubmitting = ref(false)
-const errorMessage = ref('')
 const detectedPlatform = ref<GitPlatform | null>(null)
 
 const platformDisplayName = computed(() => {
@@ -39,6 +38,34 @@ const platformDisplayName = computed(() => {
     return ''
   }
   return getPlatformDisplayName(detectedPlatform.value)
+})
+
+const extractRepoName = (url: string): string => {
+  const cleanUrl = url.trim().replace(/\.git$/, '')
+  const urlParts = cleanUrl.split('/')
+  return urlParts[urlParts.length - 1] || 'repository'
+}
+
+const { inputValue: repoUrl, isSubmitting, errorMessage, handleSubmit, handleClose } = useModalForm<string>({
+  validator: validateGitUrl,
+  onSubmit: async (url) => {
+    const requestId = generateRequestId()
+    const repoName = extractRepoName(url)
+    const canvasId = requireActiveCanvas()
+
+    const payload: RepositoryGitClonePayload = {
+      requestId,
+      canvasId,
+      repoUrl: url.trim(),
+    }
+
+    websocketClient.emit(WebSocketRequestEvents.REPOSITORY_GIT_CLONE, payload)
+
+    emit('clone-started', { requestId, repoName })
+    emit('update:open', false)
+    return null
+  },
+  onClose: () => emit('update:open', false),
 })
 
 watch(repoUrl, (newUrl) => {
@@ -50,63 +77,6 @@ watch(repoUrl, (newUrl) => {
   const parseResult = parseGitUrl(newUrl)
   detectedPlatform.value = parseResult.isValid ? parseResult.platform : null
 })
-
-const extractRepoName = (url: string): string => {
-  const cleanUrl = url.trim().replace(/\.git$/, '')
-  const urlParts = cleanUrl.split('/')
-  return urlParts[urlParts.length - 1] || 'repository'
-}
-
-const validateRepoUrl = (url: string): string | null => {
-  const trimmedUrl = url.trim()
-
-  if (!trimmedUrl) {
-    return '請輸入 Git Repository URL'
-  }
-
-  if (!trimmedUrl.startsWith('https://') && !trimmedUrl.startsWith('git@')) {
-    return 'URL 必須以 https:// 或 git@ 開頭'
-  }
-
-  return null
-}
-
-const handleSubmit = (): void => {
-  const validationError = validateRepoUrl(repoUrl.value)
-
-  if (validationError) {
-    errorMessage.value = validationError
-    return
-  }
-
-  isSubmitting.value = true
-  errorMessage.value = ''
-
-  const requestId = generateRequestId()
-  const repoName = extractRepoName(repoUrl.value)
-  const canvasId = requireActiveCanvas()
-
-  const payload: RepositoryGitClonePayload = {
-    requestId,
-    canvasId,
-    repoUrl: repoUrl.value.trim(),
-  }
-
-  websocketClient.emit(WebSocketRequestEvents.REPOSITORY_GIT_CLONE, payload)
-
-  emit('clone-started', { requestId, repoName })
-  emit('update:open', false)
-
-  repoUrl.value = ''
-  isSubmitting.value = false
-  errorMessage.value = ''
-}
-
-const handleClose = (): void => {
-  emit('update:open', false)
-  repoUrl.value = ''
-  errorMessage.value = ''
-}
 </script>
 
 <template>

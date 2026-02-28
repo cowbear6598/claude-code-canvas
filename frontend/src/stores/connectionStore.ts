@@ -32,6 +32,10 @@ interface RawConnection {
     decideReason?: string | null
 }
 
+function castHandler<T>(handler: (payload: T) => void): (payload: unknown) => void {
+    return handler as (payload: unknown) => void
+}
+
 function normalizeConnection(raw: RawConnection): Connection {
     return {
         ...raw,
@@ -149,17 +153,17 @@ export const useConnectionStore = defineStore('connection', {
         // 因為 websocketClient.on/off 的 handler 簽章要求型別一致
         getWorkflowEventMap(): Array<[string, (payload: unknown) => void]> {
             return [
-                [WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, this.handleWorkflowAutoTriggered as (payload: unknown) => void],
-                [WebSocketResponseEvents.WORKFLOW_COMPLETE, this.handleWorkflowComplete as (payload: unknown) => void],
-                [WebSocketResponseEvents.WORKFLOW_AI_DECIDE_PENDING, this.handleAiDecidePending as (payload: unknown) => void],
-                [WebSocketResponseEvents.WORKFLOW_AI_DECIDE_RESULT, this.handleAiDecideResult as (payload: unknown) => void],
-                [WebSocketResponseEvents.WORKFLOW_AI_DECIDE_ERROR, this.handleAiDecideError as (payload: unknown) => void],
-                [WebSocketResponseEvents.WORKFLOW_AI_DECIDE_CLEAR, this.handleAiDecideClear as (payload: unknown) => void],
-                [WebSocketResponseEvents.WORKFLOW_AI_DECIDE_TRIGGERED, this.handleWorkflowAiDecideTriggered as (payload: unknown) => void],
-                [WebSocketResponseEvents.WORKFLOW_DIRECT_TRIGGERED, this.handleWorkflowDirectTriggered as (payload: unknown) => void],
-                [WebSocketResponseEvents.WORKFLOW_DIRECT_WAITING, this.handleWorkflowDirectWaiting as (payload: unknown) => void],
-                [WebSocketResponseEvents.WORKFLOW_QUEUED, this.handleWorkflowQueued as (payload: unknown) => void],
-                [WebSocketResponseEvents.WORKFLOW_QUEUE_PROCESSED, this.handleWorkflowQueueProcessed as (payload: unknown) => void],
+                [WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, castHandler(this.handleWorkflowAutoTriggered)],
+                [WebSocketResponseEvents.WORKFLOW_COMPLETE, castHandler(this.handleWorkflowComplete)],
+                [WebSocketResponseEvents.WORKFLOW_AI_DECIDE_PENDING, castHandler(this.handleAiDecidePending)],
+                [WebSocketResponseEvents.WORKFLOW_AI_DECIDE_RESULT, castHandler(this.handleAiDecideResult)],
+                [WebSocketResponseEvents.WORKFLOW_AI_DECIDE_ERROR, castHandler(this.handleAiDecideError)],
+                [WebSocketResponseEvents.WORKFLOW_AI_DECIDE_CLEAR, castHandler(this.handleAiDecideClear)],
+                [WebSocketResponseEvents.WORKFLOW_AI_DECIDE_TRIGGERED, castHandler(this.handleWorkflowAiDecideTriggered)],
+                [WebSocketResponseEvents.WORKFLOW_DIRECT_TRIGGERED, castHandler(this.handleWorkflowDirectTriggered)],
+                [WebSocketResponseEvents.WORKFLOW_DIRECT_WAITING, castHandler(this.handleWorkflowDirectWaiting)],
+                [WebSocketResponseEvents.WORKFLOW_QUEUED, castHandler(this.handleWorkflowQueued)],
+                [WebSocketResponseEvents.WORKFLOW_QUEUE_PROCESSED, castHandler(this.handleWorkflowQueueProcessed)],
             ]
         },
 
@@ -337,7 +341,7 @@ export const useConnectionStore = defineStore('connection', {
             return normalizeConnection(response.connection)
         },
 
-        _getWorkflowHandlers() {
+        getWorkflowHandlers() {
             return createWorkflowEventHandlers(this)
         },
 
@@ -354,51 +358,51 @@ export const useConnectionStore = defineStore('connection', {
         },
 
         handleWorkflowAutoTriggered(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowAutoTriggered']>[0]): void {
-            this._getWorkflowHandlers().handleWorkflowAutoTriggered(payload)
+            this.getWorkflowHandlers().handleWorkflowAutoTriggered(payload)
         },
 
         handleWorkflowAiDecideTriggered(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowAiDecideTriggered']>[0]): void {
-            this._getWorkflowHandlers().handleWorkflowAiDecideTriggered(payload)
+            this.getWorkflowHandlers().handleWorkflowAiDecideTriggered(payload)
         },
 
         handleWorkflowComplete(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowComplete']>[0]): void {
-            this._getWorkflowHandlers().handleWorkflowComplete(payload)
+            this.getWorkflowHandlers().handleWorkflowComplete(payload)
         },
 
         handleWorkflowDirectTriggered(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowDirectTriggered']>[0]): void {
-            this._getWorkflowHandlers().handleWorkflowDirectTriggered(payload)
+            this.getWorkflowHandlers().handleWorkflowDirectTriggered(payload)
         },
 
         handleWorkflowDirectWaiting(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowDirectWaiting']>[0]): void {
-            this._getWorkflowHandlers().handleWorkflowDirectWaiting(payload)
+            this.getWorkflowHandlers().handleWorkflowDirectWaiting(payload)
         },
 
         handleWorkflowQueued(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowQueued']>[0]): void {
-            this._getWorkflowHandlers().handleWorkflowQueued(payload)
+            this.getWorkflowHandlers().handleWorkflowQueued(payload)
         },
 
         handleWorkflowQueueProcessed(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleWorkflowQueueProcessed']>[0]): void {
-            this._getWorkflowHandlers().handleWorkflowQueueProcessed(payload)
+            this.getWorkflowHandlers().handleWorkflowQueueProcessed(payload)
         },
 
         handleAiDecidePending(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleAiDecidePending']>[0]): void {
-            this._getWorkflowHandlers().handleAiDecidePending(payload)
+            this.getWorkflowHandlers().handleAiDecidePending(payload)
         },
 
         handleAiDecideResult(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleAiDecideResult']>[0]): void {
-            this._getWorkflowHandlers().handleAiDecideResult(payload)
+            this.getWorkflowHandlers().handleAiDecideResult(payload)
         },
 
         handleAiDecideError(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleAiDecideError']>[0]): void {
-            this._getWorkflowHandlers().handleAiDecideError(payload)
+            this.getWorkflowHandlers().handleAiDecideError(payload)
         },
 
         handleAiDecideClear(payload: Parameters<ReturnType<typeof createWorkflowEventHandlers>['handleAiDecideClear']>[0]): void {
-            this._getWorkflowHandlers().handleAiDecideClear(payload)
+            this.getWorkflowHandlers().handleAiDecideClear(payload)
         },
 
         clearAiDecideStatusByConnectionIds(connectionIds: string[]): void {
-            this._getWorkflowHandlers().clearAiDecideStatusByConnectionIds(connectionIds)
+            this.getWorkflowHandlers().clearAiDecideStatusByConnectionIds(connectionIds)
         },
 
         addConnectionFromEvent(connection: Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }): void {

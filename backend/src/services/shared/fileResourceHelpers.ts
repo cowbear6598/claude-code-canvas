@@ -3,20 +3,25 @@ import path from 'path';
 import { logger } from '../../utils/logger.js';
 
 export async function readFileOrNull(filePath: string): Promise<string | null> {
-    try {
-        return await fs.readFile(filePath, 'utf-8');
-    } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-            return null;
-        }
-        throw error;
+    if (!await fileExists(filePath)) {
+        return null;
     }
+    return await fs.readFile(filePath, 'utf-8');
 }
 
 export async function fileExists(filePath: string): Promise<boolean> {
     try {
         await fs.access(filePath);
         return true;
+    } catch {
+        return false;
+    }
+}
+
+export async function directoryExists(dirPath: string): Promise<boolean> {
+    try {
+        const stat = await fs.stat(dirPath);
+        return stat.isDirectory();
     } catch {
         return false;
     }
@@ -41,6 +46,12 @@ export async function readJsonFileOrDefault<T>(filePath: string): Promise<T[] | 
         logger.error('Startup', 'Error', `[FileResource] 無效的 JSON 檔案 ${filePath}`, error);
         return null;
     }
+}
+
+export async function copyResourceFile(srcPath: string, destBasePath: string, subDir: string, fileName: string): Promise<void> {
+    const destPath = path.join(destBasePath, '.claude', subDir, fileName);
+    await fs.mkdir(path.dirname(destPath), {recursive: true});
+    await fs.copyFile(srcPath, destPath);
 }
 
 export function parseFrontmatterDescription(content: string): string {

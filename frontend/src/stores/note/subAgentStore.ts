@@ -1,8 +1,6 @@
 import type { SubAgent, SubAgentNote } from '@/types'
 import { createNoteStore } from './createNoteStore'
-import type { NoteStoreContext } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
-import { createResourceCRUDActions } from './createResourceCRUDActions'
 import { createGroupCRUDActions } from './createGroupCRUDActions'
 import type {
   SubAgentCreatedPayload,
@@ -32,40 +30,6 @@ const subAgentGroupCRUD = createGroupCRUDActions({
     response: WebSocketResponseEvents.SUBAGENT_MOVED_TO_GROUP,
   },
 })
-
-const subAgentCRUD = createResourceCRUDActions<SubAgent>(
-  'SubAgent',
-  {
-    create: {
-      request: WebSocketRequestEvents.SUBAGENT_CREATE,
-      response: WebSocketResponseEvents.SUBAGENT_CREATED
-    },
-    update: {
-      request: WebSocketRequestEvents.SUBAGENT_UPDATE,
-      response: WebSocketResponseEvents.SUBAGENT_UPDATED
-    },
-    read: {
-      request: WebSocketRequestEvents.SUBAGENT_READ,
-      response: WebSocketResponseEvents.SUBAGENT_READ_RESULT
-    }
-  },
-  {
-    getUpdatePayload: (subAgentId, content) => ({ subAgentId, content }),
-    getReadPayload: (subAgentId) => ({ subAgentId }),
-    extractItemFromResponse: {
-      create: (response) => (response as SubAgentCreatedPayload).subAgent,
-      update: (response) => (response as SubAgentUpdatedPayload).subAgent,
-      read: (response) => (response as SubAgentReadResultPayload).subAgent
-    },
-    updateItemsList: (items, subAgentId, newItem) => {
-      const index = items.findIndex(item => item.id === subAgentId)
-      if (index !== -1) {
-        items[index] = newItem as SubAgent
-      }
-    }
-  },
-  'SubAgent'
-)
 
 const store = createNoteStore<SubAgent, SubAgentNote>({
   storeName: 'subAgent',
@@ -113,29 +77,41 @@ const store = createNoteStore<SubAgent, SubAgentNote>({
   }),
   getItemId: (item: SubAgent) => item.id,
   getItemName: (item: SubAgent) => item.name,
+  crudConfig: {
+    resourceType: 'SubAgent',
+    methodPrefix: 'subAgent',
+    toastCategory: 'SubAgent',
+    events: {
+      create: {
+        request: WebSocketRequestEvents.SUBAGENT_CREATE,
+        response: WebSocketResponseEvents.SUBAGENT_CREATED,
+      },
+      update: {
+        request: WebSocketRequestEvents.SUBAGENT_UPDATE,
+        response: WebSocketResponseEvents.SUBAGENT_UPDATED,
+      },
+      read: {
+        request: WebSocketRequestEvents.SUBAGENT_READ,
+        response: WebSocketResponseEvents.SUBAGENT_READ_RESULT,
+      },
+    },
+    payloadConfig: {
+      getUpdatePayload: (subAgentId, content) => ({ subAgentId, content }),
+      getReadPayload: (subAgentId) => ({ subAgentId }),
+      extractItemFromResponse: {
+        create: (response) => (response as SubAgentCreatedPayload).subAgent,
+        update: (response) => (response as SubAgentUpdatedPayload).subAgent,
+        read: (response) => (response as SubAgentReadResultPayload).subAgent,
+      },
+      updateItemsList: (items, subAgentId, newItem) => {
+        const index = items.findIndex(item => item.id === subAgentId)
+        if (index !== -1) {
+          items[index] = newItem as SubAgent
+        }
+      },
+    },
+  },
   customActions: {
-    async createSubAgent(this: NoteStoreContext<SubAgent>, name: string, content: string): Promise<{ success: boolean; subAgent?: { id: string; name: string }; error?: string }> {
-      const result = await subAgentCRUD.create(this.availableItems, name, content)
-      return result.success ? { success: true, subAgent: result.item } : { success: false, error: result.error }
-    },
-
-    async updateSubAgent(this: NoteStoreContext<SubAgent>, subAgentId: string, content: string): Promise<{ success: boolean; subAgent?: { id: string; name: string }; error?: string }> {
-      const result = await subAgentCRUD.update(this.availableItems, subAgentId, content)
-      return result.success ? { success: true, subAgent: result.item } : { success: false, error: result.error }
-    },
-
-    async readSubAgent(this: NoteStoreContext<SubAgent>, subAgentId: string): Promise<{ id: string; name: string; content: string } | null> {
-      return subAgentCRUD.read(subAgentId)
-    },
-
-    async deleteSubAgent(this: NoteStoreContext<SubAgent>, subAgentId: string): Promise<void> {
-      return this.deleteItem(subAgentId)
-    },
-
-    async loadSubAgents(this: NoteStoreContext<SubAgent>): Promise<void> {
-      return this.loadItems()
-    },
-
     loadGroups: subAgentGroupCRUD.loadGroups,
     createGroup: subAgentGroupCRUD.createGroup,
     deleteGroup: subAgentGroupCRUD.deleteGroup,

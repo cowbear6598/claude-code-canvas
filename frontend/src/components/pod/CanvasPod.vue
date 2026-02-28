@@ -123,31 +123,37 @@ onUnmounted(() => {
   cleanupEventListeners()
 })
 
+const SLOT_CLASSES = [
+  '.pod-output-style-slot',
+  '.pod-skill-slot',
+  '.pod-subagent-slot',
+  '.pod-repository-slot',
+  '.pod-command-slot',
+  '.pod-mcp-server-slot'
+]
+
+const shouldBlockForSlot = (target: HTMLElement): boolean => {
+  return SLOT_CLASSES.some(cls => target.closest(cls) !== null)
+}
+
+const handleCtrlClick = (): void => {
+  selectionStore.toggleElement({type: 'pod', id: props.pod.id})
+  podStore.setActivePod(props.pod.id)
+  connectionStore.selectConnection(null)
+}
+
 const handleMouseDown = (e: MouseEvent): void => {
-  const slotClasses = [
-    '.pod-output-style-slot',
-    '.pod-skill-slot',
-    '.pod-subagent-slot',
-    '.pod-repository-slot',
-    '.pod-command-slot',
-    '.pod-mcp-server-slot'
-  ]
   const target = e.target as HTMLElement
-  if (slotClasses.some(cls => target.closest(cls))) {
-    return
-  }
+
+  if (shouldBlockForSlot(target)) return
 
   if (isCtrlOrCmdPressed(e)) {
-    selectionStore.toggleElement({type: 'pod', id: props.pod.id})
-    podStore.setActivePod(props.pod.id)
-    connectionStore.selectConnection(null)
+    handleCtrlClick()
     return
   }
 
-  if (isElementSelected('pod', props.pod.id)) {
-    if (startBatchDrag(e)) {
-      return
-    }
+  if (isElementSelected('pod', props.pod.id) && startBatchDrag(e)) {
+    return
   }
 
   if (!isElementSelected('pod', props.pod.id)) {
@@ -155,9 +161,7 @@ const handleMouseDown = (e: MouseEvent): void => {
   }
 
   podStore.setActivePod(props.pod.id)
-
   connectionStore.selectConnection(null)
-
   cleanupEventListeners()
 
   isDragging.value = true
@@ -315,23 +319,29 @@ const noteStoreMap: Record<NoteType, NoteStoreMapping> = {
   }
 }
 
+const DUPLICATE_BIND_MESSAGES: Partial<Record<NoteType, string>> = {
+  skill: '此 Skill 已綁定到此 Pod',
+  subAgent: '此 SubAgent 已綁定到此 Pod',
+  mcpServer: '此 MCP Server 已綁定到此 Pod',
+}
+
+const isAlreadyBound = (mapping: NoteStoreMapping, note: NoteItem, podId: string): boolean => {
+  if (!mapping.isItemBoundToPod) return false
+  const itemId = mapping.getItemId(note)
+  return !!itemId && mapping.isItemBoundToPod(itemId, podId)
+}
+
 const handleNoteDrop = async (noteType: NoteType, noteId: string): Promise<void> => {
   const mapping = noteStoreMap[noteType]
   const note = mapping.getNoteById(noteId)
   if (!note) return
 
-  if (mapping.isItemBoundToPod) {
-    const itemId = mapping.getItemId(note)
-    if (itemId && mapping.isItemBoundToPod(itemId, props.pod.id)) {
-      if (noteType === 'skill') {
-        toast({title: '已存在，無法插入', description: '此 Skill 已綁定到此 Pod', duration: 3000})
-      } else if (noteType === 'subAgent') {
-        toast({title: '已存在，無法插入', description: '此 SubAgent 已綁定到此 Pod', duration: 3000})
-      } else if (noteType === 'mcpServer') {
-        toast({title: '已存在，無法插入', description: '此 MCP Server 已綁定到此 Pod', duration: 3000})
-      }
-      return
+  if (isAlreadyBound(mapping, note, props.pod.id)) {
+    const description = DUPLICATE_BIND_MESSAGES[noteType]
+    if (description) {
+      toast({title: '已存在，無法插入', description, duration: 3000})
     }
+    return
   }
 
   await mapping.bindToPod(noteId, props.pod.id)

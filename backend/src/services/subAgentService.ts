@@ -2,8 +2,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import {config} from '../config';
 import type {SubAgent} from '../types';
-import {validateSubAgentId, validatePodId} from '../utils/pathValidator.js';
-import {parseFrontmatterDescription} from './shared/fileResourceHelpers.js';
+import {validateSubAgentId, validatePodId, isPathWithinDirectory} from '../utils/pathValidator.js';
+import {parseFrontmatterDescription, copyResourceFile} from './shared/fileResourceHelpers.js';
 import {createMarkdownResourceService} from './shared/createMarkdownResourceService.js';
 
 const baseService = createMarkdownResourceService<SubAgent>({
@@ -61,42 +61,38 @@ class SubAgentService {
         return baseService.getFilePath(subAgentId);
     }
 
-    async copySubAgentToPod(subAgentId: string, podId: string, podWorkspacePath: string): Promise<void> {
+    private async findValidatedSubAgentSrcPath(subAgentId: string): Promise<string> {
         if (!validateSubAgentId(subAgentId)) {
             throw new Error('無效的子代理 ID 格式');
         }
+
+        const srcPath = await baseService.findFilePath(subAgentId);
+        if (!srcPath) {
+            throw new Error(`找不到子代理: ${subAgentId}`);
+        }
+
+        return srcPath;
+    }
+
+    async copySubAgentToPod(subAgentId: string, podId: string, podWorkspacePath: string): Promise<void> {
         if (!validatePodId(podId)) {
             throw new Error('無效的 Pod ID 格式');
         }
 
-        const srcPath = await baseService.findFilePath(subAgentId);
-        if (!srcPath) {
-            throw new Error(`找不到子代理: ${subAgentId}`);
-        }
-
-        const destPath = path.join(podWorkspacePath, '.claude', 'agents', `${subAgentId}.md`);
-
-        await fs.mkdir(path.dirname(destPath), {recursive: true});
-        await fs.copyFile(srcPath, destPath);
+        const srcPath = await this.findValidatedSubAgentSrcPath(subAgentId);
+        await copyResourceFile(srcPath, podWorkspacePath, 'agents', `${subAgentId}.md`);
     }
 
     async copySubAgentToRepository(subAgentId: string, repositoryPath: string): Promise<void> {
-        if (!validateSubAgentId(subAgentId)) {
-            throw new Error('無效的子代理 ID 格式');
-        }
-
-        const srcPath = await baseService.findFilePath(subAgentId);
-        if (!srcPath) {
-            throw new Error(`找不到子代理: ${subAgentId}`);
-        }
-
-        const destPath = path.join(repositoryPath, '.claude', 'agents', `${subAgentId}.md`);
-
-        await fs.mkdir(path.dirname(destPath), {recursive: true});
-        await fs.copyFile(srcPath, destPath);
+        const srcPath = await this.findValidatedSubAgentSrcPath(subAgentId);
+        await copyResourceFile(srcPath, repositoryPath, 'agents', `${subAgentId}.md`);
     }
 
     async deleteSubAgentsFromPath(basePath: string): Promise<void> {
+        if (!isPathWithinDirectory(basePath, config.canvasRoot) && !isPathWithinDirectory(basePath, config.repositoriesRoot)) {
+            throw new Error('無效的路徑');
+        }
+
         const agentsDir = path.join(basePath, '.claude', 'agents');
         await fs.rm(agentsDir, {recursive: true, force: true});
     }

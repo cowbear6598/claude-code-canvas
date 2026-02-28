@@ -69,9 +69,7 @@ export function useCheckoutProgress(): UseCheckoutProgressReturn {
 
         helpers.showSuccessToast('Git', '切換分支成功', payload.branchName)
 
-        setTimeout(() => {
-          helpers.removeTask(payload.requestId)
-        }, 1000)
+        helpers.scheduleRemove(payload.requestId, 1000)
       } else {
         const errorMessage = payload.error || '切換分支失敗'
         task.status = 'failed'
@@ -79,9 +77,7 @@ export function useCheckoutProgress(): UseCheckoutProgressReturn {
 
         helpers.showErrorToast('Git', '切換分支失敗', errorMessage)
 
-        setTimeout(() => {
-          helpers.removeTask(payload.requestId)
-        }, 2000)
+        helpers.scheduleRemove(payload.requestId, 2000)
       }
     },
 
@@ -89,9 +85,7 @@ export function useCheckoutProgress(): UseCheckoutProgressReturn {
       task.status = 'failed'
       task.message = '操作逾時，請重試'
 
-      setTimeout(() => {
-        helpers.removeTask(task.requestId)
-      }, 2000)
+      helpers.scheduleRemove(task.requestId, 2000)
     },
 
     toProgressTask: (task) => ({

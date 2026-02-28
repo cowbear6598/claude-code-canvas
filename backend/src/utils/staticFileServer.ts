@@ -131,7 +131,6 @@ async function serveFromFilesystem(request: Request): Promise<Response> {
 			});
 		}
 
-		// 如果連 index.html 都不存在，回傳 404
 		return new Response('Not Found', { status: 404 });
 	} catch (error) {
 		logger.error('Startup', 'Error', '靜態檔案服務錯誤', error);

@@ -5,7 +5,7 @@ import { useToast } from '@/composables/useToast'
 import type { WebSocketRequestEvents, WebSocketResponseEvents } from '@/types/websocket'
 import type { ToastCategory } from '@/composables/useToast'
 
-interface CRUDEventsConfig {
+export interface CRUDEventsConfig {
   create: {
     request: WebSocketRequestEvents
     response: WebSocketResponseEvents
@@ -20,37 +20,54 @@ interface CRUDEventsConfig {
   }
 }
 
-interface CRUDPayloadConfig<TItem> {
-  getUpdatePayload: (itemId: string, content: string) => Record<string, unknown>
+export interface CRUDPayloadConfig<
+  TItem,
+  TCreateInput = string,
+  TUpdateInput = string,
+  TReadResult extends { id: string; name: string } = { id: string; name: string; content: string }
+> {
+  // 若不提供，預設使用 { name, content: input }（適用於 TCreateInput = string 的情況）
+  getCreatePayload?: (name: string, input: TCreateInput) => Record<string, unknown>
+  getUpdatePayload: (itemId: string, input: TUpdateInput) => Record<string, unknown>
   getReadPayload: (itemId: string) => Record<string, unknown>
   extractItemFromResponse: {
     create: (response: unknown) => { id: string; name: string } | undefined
     update: (response: unknown) => { id: string; name: string } | undefined
-    read: (response: unknown) => { id: string; name: string; content: string } | undefined
+    read: (response: unknown) => TReadResult | undefined
   }
   updateItemsList: (items: TItem[], itemId: string, newItem: { id: string; name: string }) => void
 }
 
-interface ResourceCRUDActions<TItem> {
+export interface ResourceCRUDActions<
+  TItem,
+  TCreateInput = string,
+  TUpdateInput = string,
+  TReadResult extends { id: string; name: string } = { id: string; name: string; content: string }
+> {
   create: (
     items: TItem[],
     name: string,
-    content: string
+    input: TCreateInput
   ) => Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }>
   update: (
     items: TItem[],
     itemId: string,
-    content: string
+    input: TUpdateInput
   ) => Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }>
-  read: (itemId: string) => Promise<{ id: string; name: string; content: string } | null>
+  read: (itemId: string) => Promise<TReadResult | null>
 }
 
-export function createResourceCRUDActions<TItem extends { id: string; name: string }>(
+export function createResourceCRUDActions<
+  TItem extends { id: string; name: string },
+  TCreateInput = string,
+  TUpdateInput = string,
+  TReadResult extends { id: string; name: string } = { id: string; name: string; content: string }
+>(
   resourceType: string,
   events: CRUDEventsConfig,
-  config: CRUDPayloadConfig<TItem>,
+  config: CRUDPayloadConfig<TItem, TCreateInput, TUpdateInput, TReadResult>,
   toastCategory?: ToastCategory
-): ResourceCRUDActions<TItem> {
+): ResourceCRUDActions<TItem, TCreateInput, TUpdateInput, TReadResult> {
   const { wrapWebSocketRequest } = useWebSocketErrorHandler()
   const { showSuccessToast, showErrorToast } = useToast()
 
@@ -58,9 +75,13 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
     async create(
       items: TItem[],
       name: string,
-      content: string
+      input: TCreateInput
     ): Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }> {
       const canvasId = requireActiveCanvas()
+
+      const createPayload = config.getCreatePayload
+        ? config.getCreatePayload(name, input)
+        : { name, content: input }
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest({
@@ -68,8 +89,7 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
           responseEvent: events.create.response,
           payload: {
             canvasId,
-            name,
-            content
+            ...createPayload
           }
         })
       )
@@ -103,7 +123,7 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
     async update(
       items: TItem[],
       itemId: string,
-      content: string
+      input: TUpdateInput
     ): Promise<{ success: boolean; item?: { id: string; name: string }; error?: string }> {
       const canvasId = requireActiveCanvas()
 
@@ -113,7 +133,7 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
           responseEvent: events.update.response,
           payload: {
             canvasId,
-            ...config.getUpdatePayload(itemId, content)
+            ...config.getUpdatePayload(itemId, input)
           }
         })
       )
@@ -146,7 +166,7 @@ export function createResourceCRUDActions<TItem extends { id: string; name: stri
 
     async read(
       itemId: string
-    ): Promise<{ id: string; name: string; content: string } | null> {
+    ): Promise<TReadResult | null> {
       const canvasId = requireActiveCanvas()
 
       const response = await wrapWebSocketRequest(

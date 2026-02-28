@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import type { WebSocketMessage, WebSocketAckMessage } from '@/types/websocket'
+import { logger } from '@/utils/logger'
 
 type EventCallback<T> = (payload: T) => void
 type AckCallback = (response?: unknown) => void
@@ -8,6 +9,10 @@ type EventCallbackWithAck<T> = (payload: T, ack: AckCallback) => void
 const RECONNECT_INTERVAL_MS = 3000
 
 type EventHandler = EventCallback<unknown> | EventCallbackWithAck<unknown>
+
+function castToEventHandler<T>(callback: EventCallback<T> | EventCallbackWithAck<T>): EventHandler {
+    return callback as unknown as EventHandler
+}
 
 class WebSocketClient {
   private socket: WebSocket | null = null
@@ -72,7 +77,7 @@ class WebSocketClient {
     this.stopReconnect()
 
     this.reconnectTimer = setInterval(() => {
-      console.log('[WebSocket] 嘗試重新連線...')
+      logger.log('[WebSocket] 嘗試重新連線...')
       this.reconnectOnce()
     }, RECONNECT_INTERVAL_MS)
   }
@@ -96,14 +101,14 @@ class WebSocketClient {
   }
 
   private handleOpen(): void {
-    console.log('[WebSocket] 連線成功')
+    logger.log('[WebSocket] 連線成功')
     this.stopReconnect()
     this.disconnectReason.value = null
     this.isConnected.value = true
   }
 
   private handleClose(event: CloseEvent): void {
-    console.log('[WebSocket] 連線關閉:', event.code, event.reason)
+    logger.log('[WebSocket] 連線關閉:', event.code, event.reason)
     this.isConnected.value = false
     this.disconnectReason.value = event.reason || `關閉代碼: ${event.code}`
 
@@ -112,7 +117,7 @@ class WebSocketClient {
       try {
         callback(this.disconnectReason.value ?? '')
       } catch (error) {
-        console.error('[WebSocket] 斷線監聽器錯誤:', error)
+        logger.error('[WebSocket] 斷線監聽器錯誤:', error)
       }
     })
 
@@ -120,7 +125,7 @@ class WebSocketClient {
   }
 
   private handleError(event: Event): void {
-    console.error('[WebSocket] 連線錯誤:', event)
+    logger.error('[WebSocket] 連線錯誤:', event)
   }
 
   private handleMessage(event: MessageEvent): void {
@@ -155,18 +160,18 @@ class WebSocketClient {
               ;(callback as EventCallback<unknown>)(message.payload)
             }
           } catch (error) {
-            console.error('[WebSocket] 監聽器執行錯誤:', error)
+            logger.error('[WebSocket] 監聽器執行錯誤:', error)
           }
         })
       }
     } catch (error) {
-      console.error('[WebSocket] 訊息解析錯誤:', error)
+      logger.error('[WebSocket] 訊息解析錯誤:', error)
     }
   }
 
   emit<T>(event: string, payload: T): void {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      console.error('[WebSocket] 無法發送訊息，未連線:', event)
+      logger.error('[WebSocket] 無法發送訊息，未連線:', event)
       return
     }
 
@@ -184,13 +189,13 @@ class WebSocketClient {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set())
     }
-    this.eventListeners.get(event)!.add(callback as unknown as EventHandler)
+    this.eventListeners.get(event)!.add(castToEventHandler(callback))
   }
 
   off<T>(event: string, callback: EventCallback<T>): void {
     const listeners = this.eventListeners.get(event)
     if (listeners) {
-      listeners.delete(callback as unknown as EventHandler)
+      listeners.delete(castToEventHandler(callback))
       if (listeners.size === 0) {
         this.eventListeners.delete(event)
       }
@@ -201,13 +206,13 @@ class WebSocketClient {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set())
     }
-    this.eventListeners.get(event)!.add(callback as unknown as EventHandler)
+    this.eventListeners.get(event)!.add(castToEventHandler(callback))
   }
 
   offWithAck<T>(event: string, callback: EventCallbackWithAck<T>): void {
     const listeners = this.eventListeners.get(event)
     if (listeners) {
-      listeners.delete(callback as unknown as EventHandler)
+      listeners.delete(castToEventHandler(callback))
       if (listeners.size === 0) {
         this.eventListeners.delete(event)
       }

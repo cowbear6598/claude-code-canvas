@@ -2,6 +2,8 @@ import {v4 as uuidv4} from 'uuid';
 import {WebSocketResponseEvents} from '../schemas';
 import {Pod, PodStatus, PodColor, CreatePodRequest, Result, ok, err, ScheduleConfig} from '../types';
 import type {PersistedPod} from '../types';
+
+type PodUpdates = Partial<Omit<Pod, 'schedule'>> & { schedule?: ScheduleConfig | null };
 import {podPersistenceService} from './persistence/podPersistence.js';
 import {socketService} from './socketService.js';
 import {logger} from '../utils/logger.js';
@@ -123,18 +125,15 @@ class PodStore {
         return Array.from(pods.values());
     }
 
-    update(canvasId: string, id: string, updates: Partial<Omit<Pod, 'schedule'>> & {
-        schedule?: ScheduleConfig | null
-    }): Pod | undefined {
+    update(canvasId: string, id: string, updates: PodUpdates): Pod | undefined {
         const pods = this.getCanvasPods(canvasId);
         const pod = pods.get(id);
         if (!pod) {
             return undefined;
         }
 
-        type UpdatesWithSchedule = Partial<Omit<Pod, 'schedule'>> & { schedule?: ScheduleConfig | null };
         const safeUpdates = this.buildSafeUpdates(updates);
-        const updatedPod = this.handleScheduleUpdate(pod, updates as UpdatesWithSchedule, safeUpdates);
+        const updatedPod = this.handleScheduleUpdate(pod, updates, safeUpdates);
 
         pods.set(id, updatedPod);
         this.persistPodAsync(canvasId, updatedPod);
@@ -142,15 +141,15 @@ class PodStore {
         return updatedPod;
     }
 
-    private buildSafeUpdates(updates: Partial<Omit<Pod, 'schedule'>> & { schedule?: ScheduleConfig | null }): Partial<Omit<Pod, 'schedule'>> {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-        const {id, createdAt, workspacePath, schedule, ...safeUpdates} = updates as any;
+    private buildSafeUpdates(updates: PodUpdates): Partial<Omit<Pod, 'schedule'>> {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const {id, createdAt, workspacePath, schedule, ...safeUpdates} = updates as PodUpdates & Partial<Pod>;
         return safeUpdates;
     }
 
     private handleScheduleUpdate(
         pod: Pod,
-        updates: Partial<Omit<Pod, 'schedule'>> & { schedule?: ScheduleConfig | null },
+        updates: PodUpdates,
         safeUpdates: Partial<Omit<Pod, 'schedule'>>
     ): Pod {
         if ('schedule' in updates && updates.schedule === null) {
@@ -331,6 +330,17 @@ class PodStore {
         // 防禦性驗證：驗證必要欄位的型別和範圍，避免磁碟檔案被竄改時注入惡意值
         const validColors: PodColor[] = ['blue', 'coral', 'pink', 'yellow', 'green'];
         const validStatuses: PodStatus[] = ['idle', 'chatting', 'summarizing', 'error'];
+        const ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
+        const skillIds = persistedPod.skillIds ?? [];
+        const subAgentIds = persistedPod.subAgentIds ?? [];
+        const mcpServerIds = persistedPod.mcpServerIds ?? [];
+
+        const hasInvalidSkillIds = skillIds.some((id) => !ID_PATTERN.test(id));
+        const hasInvalidSubAgentIds = subAgentIds.some((id) => !ID_PATTERN.test(id));
+        const hasInvalidMcpServerIds = mcpServerIds.some((id) => !ID_PATTERN.test(id));
+        const hasInvalidRepositoryId = persistedPod.repositoryId !== null && !ID_PATTERN.test(persistedPod.repositoryId ?? '');
+        const hasInvalidCommandId = persistedPod.commandId != null && !ID_PATTERN.test(persistedPod.commandId);
 
         const rules: Array<{ check: boolean; errorMsg: string }> = [
             {check: persistedPod.id.trim() === '', errorMsg: '無效的 Pod ID'},
@@ -340,6 +350,11 @@ class PodStore {
             {check: !Number.isFinite(persistedPod.y), errorMsg: '無效的 Pod Y 座標'},
             {check: !Number.isFinite(persistedPod.rotation), errorMsg: '無效的 Pod 旋轉角度'},
             {check: !validStatuses.includes(persistedPod.status), errorMsg: '無效的 Pod 狀態'},
+            {check: hasInvalidSkillIds, errorMsg: '無效的 Skill ID 格式'},
+            {check: hasInvalidSubAgentIds, errorMsg: '無效的子代理 ID 格式'},
+            {check: hasInvalidMcpServerIds, errorMsg: '無效的 MCP Server ID 格式'},
+            {check: hasInvalidRepositoryId, errorMsg: '無效的 Repository ID 格式'},
+            {check: hasInvalidCommandId, errorMsg: '無效的 Command ID 格式'},
         ];
 
         for (const {check, errorMsg} of rules) {

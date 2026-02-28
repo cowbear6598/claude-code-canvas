@@ -15,7 +15,6 @@ import type {
     PodChatToolUsePayload,
     PodErrorPayload,
     PodMessagesClearedPayload,
-    TextContentBlock,
     WorkflowAutoClearedPayload
 } from '@/types/websocket'
 import type {Command} from '@/types/command'
@@ -38,12 +37,14 @@ function buildMessagePayload(
         return command ? `/${command.name} ${content}` : content
     }
 
-    const blocks = [...contentBlocks]
-    const firstTextBlock = blocks.find((block): block is TextContentBlock => block.type === 'text')
-
-    if (command && firstTextBlock) {
-        firstTextBlock.text = `/${command.name} ${firstTextBlock.text}`
-    }
+    let prefixApplied = false
+    const blocks = contentBlocks.map(block => {
+        if (block.type === 'text' && command && !prefixApplied) {
+            prefixApplied = true
+            return { ...block, text: `/${command.name} ${block.text}` }
+        }
+        return block
+    })
 
     return blocks
 }

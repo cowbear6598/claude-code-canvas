@@ -8,6 +8,7 @@ const TASK_TIMEOUT_MS = 60_000
 
 export interface ProgressTaskHelpers {
   removeTask: (requestId: string) => void
+  scheduleRemove: (requestId: string, delayMs: number) => void
   showSuccessToast: (category: ToastCategory, action: string, target?: string) => string
   showErrorToast: (category: ToastCategory, action: string, reason?: string) => string
 }
@@ -64,8 +65,15 @@ export function useProgressTracker<TTask, TProgressPayload, TResultPayload>(
     tasks.value = new Map(tasks.value)
   }
 
+  const scheduleRemove = (requestId: string, delayMs: number): void => {
+    setTimeout(() => {
+      removeTask(requestId)
+    }, delayMs)
+  }
+
   const helpers: ProgressTaskHelpers = {
     removeTask,
+    scheduleRemove,
     showSuccessToast,
     showErrorToast,
   }

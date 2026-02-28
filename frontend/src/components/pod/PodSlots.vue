@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import type { OutputStyleNote, SkillNote, SubAgentNote, RepositoryNote, CommandNote, McpServerNote } from '@/types'
-import PodOutputStyleSlot from '@/components/pod/PodOutputStyleSlot.vue'
-import PodSkillSlot from '@/components/pod/PodSkillSlot.vue'
-import PodSubAgentSlot from '@/components/pod/PodSubAgentSlot.vue'
-import PodRepositorySlot from '@/components/pod/PodRepositorySlot.vue'
-import PodCommandSlot from '@/components/pod/PodCommandSlot.vue'
-import PodMcpServerSlot from '@/components/pod/PodMcpServerSlot.vue'
+import PodMultiBindSlot from '@/components/pod/PodMultiBindSlot.vue'
+import PodSingleBindSlot from '@/components/pod/PodSingleBindSlot.vue'
+import { useSkillStore, useSubAgentStore, useMcpServerStore, useOutputStyleStore, useRepositoryStore, useCommandStore } from '@/stores/note'
 
 const {
   podId,
@@ -39,101 +36,102 @@ const emit = defineEmits<{
   'mcp-server-dropped': [noteId: string]
 }>()
 
-const handleOutputStyleDropped = (noteId: string): void => {
-  emit('output-style-dropped', noteId)
-}
-
-const handleOutputStyleRemoved = (): void => {
-  emit('output-style-removed')
-}
-
-const handleSkillDropped = (noteId: string): void => {
-  emit('skill-dropped', noteId)
-}
-
-const handleSubAgentDropped = (noteId: string): void => {
-  emit('subagent-dropped', noteId)
-}
-
-const handleRepositoryDropped = (noteId: string): void => {
-  emit('repository-dropped', noteId)
-}
-
-const handleRepositoryRemoved = (): void => {
-  emit('repository-removed')
-}
-
-const handleCommandDropped = (noteId: string): void => {
-  emit('command-dropped', noteId)
-}
-
-const handleCommandRemoved = (): void => {
-  emit('command-removed')
-}
-
-const handleMcpServerDropped = (noteId: string): void => {
-  emit('mcp-server-dropped', noteId)
-}
+const skillStore = useSkillStore()
+const subAgentStore = useSubAgentStore()
+const mcpServerStore = useMcpServerStore()
+const outputStyleStore = useOutputStyleStore()
+const repositoryStore = useRepositoryStore()
+const commandStore = useCommandStore()
 </script>
 
 <template>
   <!-- Output Style 凹槽 -->
   <div class="pod-notch-area-base pod-notch-area">
-    <PodOutputStyleSlot
+    <PodSingleBindSlot
       :pod-id="podId"
       :bound-note="boundOutputStyleNote"
+      :store="outputStyleStore"
+      label="Style"
+      slot-class="pod-output-style-slot"
       :pod-rotation="podRotation"
-      @note-dropped="handleOutputStyleDropped"
-      @note-removed="handleOutputStyleRemoved"
+      @note-dropped="(noteId) => emit('output-style-dropped', noteId)"
+      @note-removed="() => emit('output-style-removed')"
     />
   </div>
 
   <!-- Skill 凹槽 -->
   <div class="pod-notch-area-base pod-skill-notch-area">
-    <PodSkillSlot
+    <PodMultiBindSlot
       :pod-id="podId"
       :bound-notes="boundSkillNotes"
-      @note-dropped="handleSkillDropped"
+      :store="skillStore"
+      label="Skills"
+      duplicate-toast-title="已存在，無法插入"
+      duplicate-toast-description="此 Skill 已綁定到此 Pod"
+      slot-class="pod-skill-slot"
+      menu-scrollable-class="pod-skill-menu-scrollable"
+      item-id-field="skillId"
+      @note-dropped="(noteId) => emit('skill-dropped', noteId)"
     />
   </div>
 
   <!-- SubAgent 凹槽 -->
   <div class="pod-notch-area-base pod-subagent-notch-area">
-    <PodSubAgentSlot
+    <PodMultiBindSlot
       :pod-id="podId"
       :bound-notes="boundSubAgentNotes"
-      @note-dropped="handleSubAgentDropped"
+      :store="subAgentStore"
+      label="SubAgents"
+      duplicate-toast-title="已存在，無法插入"
+      duplicate-toast-description="此 SubAgent 已綁定到此 Pod"
+      slot-class="pod-subagent-slot"
+      menu-scrollable-class="pod-subagent-menu-scrollable"
+      item-id-field="subAgentId"
+      @note-dropped="(noteId) => emit('subagent-dropped', noteId)"
     />
   </div>
 
   <!-- Repository 凹槽（右側） -->
   <div class="pod-notch-area-base pod-repository-notch-area">
-    <PodRepositorySlot
+    <PodSingleBindSlot
       :pod-id="podId"
       :bound-note="boundRepositoryNote"
+      :store="repositoryStore"
+      label="Repo"
+      slot-class="pod-repository-slot"
       :pod-rotation="podRotation"
-      @note-dropped="handleRepositoryDropped"
-      @note-removed="handleRepositoryRemoved"
+      @note-dropped="(noteId) => emit('repository-dropped', noteId)"
+      @note-removed="() => emit('repository-removed')"
     />
   </div>
 
   <!-- Command 插槽（右側） -->
   <div class="pod-notch-area-base pod-command-notch-area">
-    <PodCommandSlot
+    <PodSingleBindSlot
       :pod-id="podId"
       :bound-note="boundCommandNote"
+      :store="commandStore"
+      label="Command"
+      slot-class="pod-command-slot"
       :pod-rotation="podRotation"
-      @note-dropped="handleCommandDropped"
-      @note-removed="handleCommandRemoved"
+      @note-dropped="(noteId) => emit('command-dropped', noteId)"
+      @note-removed="() => emit('command-removed')"
     />
   </div>
 
   <!-- MCP Server 凹槽 -->
   <div class="pod-notch-area-base pod-mcp-server-notch-area">
-    <PodMcpServerSlot
+    <PodMultiBindSlot
       :pod-id="podId"
       :bound-notes="boundMcpServerNotes"
-      @note-dropped="handleMcpServerDropped"
+      :store="mcpServerStore"
+      label="MCPs"
+      duplicate-toast-title="已存在，無法插入"
+      duplicate-toast-description="此 MCP Server 已綁定到此 Pod"
+      slot-class="pod-mcp-server-slot"
+      menu-scrollable-class="pod-mcp-server-menu-scrollable"
+      item-id-field="mcpServerId"
+      @note-dropped="(noteId) => emit('mcp-server-dropped', noteId)"
     />
   </div>
 </template>

@@ -94,17 +94,6 @@ describe('mcpServerStore', () => {
       expect(store.availableItems).toEqual(mcpServers)
     })
 
-    it('應委派到 loadItems', async () => {
-      const canvasStore = useCanvasStore()
-      canvasStore.activeCanvasId = 'canvas-1'
-      const store = useMcpServerStore()
-
-      const loadItemsSpy = vi.spyOn(store, 'loadItems')
-
-      await store.loadMcpServers()
-
-      expect(loadItemsSpy).toHaveBeenCalled()
-    })
   })
 
   describe('createMcpServer', () => {
@@ -116,9 +105,7 @@ describe('mcpServerStore', () => {
       const newMcpServer = { id: 'mcp-1', name: 'New MCP' }
       const config = { command: 'npx', args: ['-y', 'my-mcp'] }
 
-      mockCreateWebSocketRequest
-        .mockResolvedValueOnce({ mcpServer: newMcpServer })
-        .mockResolvedValueOnce({ mcpServers: [{ ...newMcpServer, config }] })
+      mockCreateWebSocketRequest.mockResolvedValueOnce({ mcpServer: newMcpServer })
 
       const result = await store.createMcpServer('New MCP', config)
 

@@ -23,7 +23,7 @@ import { subAgentService } from '../services/subAgentService.js';
 import { commandService } from '../services/commandService.js';
 import { emitError } from '../utils/websocketResponse.js';
 import { clearPodMessages } from './repository/repositoryBindHelpers.js';
-import { logger } from '../utils/logger.js';
+import { logger, type LogCategory, type LogAction } from '../utils/logger.js';
 import { createNoteHandlers } from './factories/createNoteHandlers.js';
 import { createListHandler } from './factories/createResourceHandlers.js';
 import { validatePod, handleResourceDelete, withCanvasId } from '../utils/handlerHelpers.js';
@@ -86,6 +86,33 @@ export async function handleRepositoryCreate(
   logger.log('Repository', 'Create', `Created repository ${repository.id}`);
 }
 
+async function cleanupOldWorkspaceResources(podWorkspacePath: string, podId: string): Promise<void> {
+  const deleteOperations = [
+    commandService.deleteCommandFromPath(podWorkspacePath),
+    skillService.deleteSkillsFromPath(podWorkspacePath),
+    subAgentService.deleteSubAgentsFromPath(podWorkspacePath),
+  ];
+
+  const results = await Promise.allSettled(deleteOperations);
+  const operationNames = ['commands', 'skills', 'subagents'];
+
+  logRejectedResults(results, operationNames, `Pod ${podId} workspace`, 'Repository', 'Bind');
+}
+
+function logRejectedResults(
+  results: PromiseSettledResult<unknown>[],
+  operationNames: string[],
+  context: string,
+  category: LogCategory,
+  action: LogAction
+): void {
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      logger.error(category, action, `Failed to delete ${operationNames[index]} from ${context}`, result.reason);
+    }
+  });
+}
+
 export const handlePodBindRepository = withCanvasId<PodBindRepositoryPayload>(
   WebSocketResponseEvents.POD_REPOSITORY_BOUND,
   async (connectionId: string, canvasId: string, payload: PodBindRepositoryPayload, requestId: string): Promise<void> => {
@@ -123,21 +150,7 @@ export const handlePodBindRepository = withCanvasId<PodBindRepositoryPayload>(
     }
 
     if (!oldRepositoryId) {
-      const podWorkspacePath = pod.workspacePath;
-      const deleteOperations = [
-        commandService.deleteCommandFromPath(podWorkspacePath),
-        skillService.deleteSkillsFromPath(podWorkspacePath),
-        subAgentService.deleteSubAgentsFromPath(podWorkspacePath),
-      ];
-
-      const results = await Promise.allSettled(deleteOperations);
-      const operationNames = ['commands', 'skills', 'subagents'];
-
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          logger.error('Repository', 'Bind', `Failed to delete ${operationNames[index]} from Pod ${podId} workspace`, result.reason);
-        }
-      });
+      await cleanupOldWorkspaceResources(pod.workspacePath, podId);
     }
 
     await clearPodMessages(connectionId, podId);
@@ -218,6 +231,33 @@ export const handlePodUnbindRepository = withCanvasId<PodUnbindRepositoryPayload
   }
 );
 
+async function cleanupWorktreeResources(
+  metadata: { parentRepoId: string; branchName?: string },
+  repositoryId: string
+): Promise<void> {
+  const parentExists = await repositoryService.exists(metadata.parentRepoId);
+
+  if (!parentExists) {
+    logger.log('Repository', 'Delete', `Parent repository ${metadata.parentRepoId} 不存在，跳過 worktree 清理`);
+    return;
+  }
+
+  const parentRepoPath = repositoryService.getRepositoryPath(metadata.parentRepoId);
+  const worktreePath = repositoryService.getRepositoryPath(repositoryId);
+
+  const removeResult = await gitService.removeWorktree(parentRepoPath, worktreePath);
+  if (!removeResult.success) {
+    logger.log('Repository', 'Delete', `警告：移除 worktree 註冊失敗: ${removeResult.error}`);
+  }
+
+  if (!metadata.branchName) return;
+
+  const deleteResult = await gitService.deleteBranch(parentRepoPath, metadata.branchName);
+  if (!deleteResult.success) {
+    logger.log('Repository', 'Delete', `警告：刪除分支失敗: ${deleteResult.error}`);
+  }
+}
+
 export async function handleRepositoryDelete(
   connectionId: string,
   payload: RepositoryDeletePayload,
@@ -238,25 +278,7 @@ export async function handleRepositoryDelete(
     deleteNotes: (canvasId: string) => repositoryNoteStore.deleteByForeignKey(canvasId, repositoryId),
     deleteResource: async () => {
       if (metadata?.parentRepoId) {
-        const parentExists = await repositoryService.exists(metadata.parentRepoId);
-        if (parentExists) {
-          const parentRepoPath = repositoryService.getRepositoryPath(metadata.parentRepoId);
-          const worktreePath = repositoryService.getRepositoryPath(repositoryId);
-
-          const removeResult = await gitService.removeWorktree(parentRepoPath, worktreePath);
-          if (!removeResult.success) {
-            logger.log('Repository', 'Delete', `警告：移除 worktree 註冊失敗: ${removeResult.error}`);
-          }
-
-          if (metadata.branchName) {
-            const deleteResult = await gitService.deleteBranch(parentRepoPath, metadata.branchName);
-            if (!deleteResult.success) {
-              logger.log('Repository', 'Delete', `警告：刪除分支失敗: ${deleteResult.error}`);
-            }
-          }
-        } else {
-          logger.log('Repository', 'Delete', `Parent repository ${metadata.parentRepoId} 不存在，跳過 worktree 清理`);
-        }
+        await cleanupWorktreeResources(metadata as { parentRepoId: string; branchName?: string }, repositoryId);
       }
 
       await repositoryService.delete(repositoryId);

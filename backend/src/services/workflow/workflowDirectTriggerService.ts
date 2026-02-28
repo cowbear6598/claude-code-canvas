@@ -26,7 +26,7 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
 
     private pendingResolvers: Map<string, (result: CollectSourcesResult) => void> = new Map();
 
-    // multi-direct 合併等待視窗
+    // 等待 10 秒讓多個 direct 輸入合併為一次觸發，避免重複執行
     private readonly MULTI_DIRECT_MERGE_WINDOW_MS = 10000;
 
     async decide(context: TriggerDecideContext): Promise<TriggerDecideResult[]> {

@@ -3,6 +3,7 @@ import type {Position} from '@/types'
 
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 3
+const INITIAL_ZOOM_LEVEL = 0.75
 
 interface ViewportState {
     offset: Position
@@ -52,7 +53,7 @@ export const useViewportStore = defineStore('viewport', {
         resetToCenter(): void {
             this.offset.x = window.innerWidth / 2
             this.offset.y = window.innerHeight / 2
-            this.zoom = 0.75
+            this.zoom = INITIAL_ZOOM_LEVEL
         },
     },
 })

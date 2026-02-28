@@ -44,6 +44,17 @@ function processImageBlock(block: Extract<ContentBlock, { type: 'image' }>): Cla
   };
 }
 
+function applyCommandPrefix(
+  text: string,
+  prefix: string,
+  prefixApplied: boolean
+): {text: string; prefixApplied: boolean} {
+  if (!prefix || prefixApplied) {
+    return {text, prefixApplied};
+  }
+  return {text: `${prefix}${text}`, prefixApplied: true};
+}
+
 export function buildClaudeContentBlocks(
   message: ContentBlock[],
   commandId: string | null
@@ -54,10 +65,8 @@ export function buildClaudeContentBlocks(
 
   for (const block of message) {
     if (block.type === 'text') {
-      const text = !prefixApplied && prefix ? `${prefix}${block.text}` : block.text;
-      if (!prefixApplied && prefix) {
-        prefixApplied = true;
-      }
+      const {text, prefixApplied: applied} = applyCommandPrefix(block.text, prefix, prefixApplied);
+      prefixApplied = applied;
       const result = processTextBlock(text);
       if (result) {
         contentArray.push(result);

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema, positionSchema, canvasIdSchema, resourceNameSchema } from './base.js';
+import { requestIdSchema, podIdSchema, positionSchema, canvasIdSchema, resourceNameSchema, resourceIdSchema, groupIdSchema } from './base.js';
 
 export const subAgentListSchema = z.object({
   requestId: requestIdSchema,
@@ -16,20 +16,20 @@ export const subAgentCreateSchema = z.object({
 export const subAgentUpdateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  subAgentId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  subAgentId: resourceIdSchema,
   content: z.string().max(10000000),
 });
 
 export const subAgentReadSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  subAgentId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  subAgentId: resourceIdSchema,
 });
 
 export const subAgentNoteCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  subAgentId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  subAgentId: resourceIdSchema,
   name: z.string().min(1).max(100),
   x: z.number(),
   y: z.number(),
@@ -62,20 +62,18 @@ export const podBindSubAgentSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   podId: podIdSchema,
-  subAgentId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  subAgentId: resourceIdSchema,
 });
 
 export const subAgentDeleteSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  subAgentId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  subAgentId: resourceIdSchema,
 });
-
-const groupIdSchema = z.string().regex(/^[a-zA-Z0-9-]+$/, '群組 ID 格式不正確，只能包含英文、數字、dash').nullable();
 
 export const subAgentMoveToGroupSchema = z.object({
   requestId: requestIdSchema,
-  itemId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  itemId: resourceIdSchema,
   groupId: groupIdSchema,
 });
 

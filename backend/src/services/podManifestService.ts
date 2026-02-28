@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {isPathWithinDirectory} from '../utils/pathValidator.js';
 import {logger} from '../utils/logger.js';
+import {fileExists} from './shared/fileResourceHelpers.js';
 
 interface PodManifest {
     managedFiles: string[];
@@ -17,12 +18,11 @@ class PodManifestService {
     async readManifest(repositoryPath: string, podId: string): Promise<string[]> {
         const manifestPath = this.getManifestPath(repositoryPath, podId);
 
-        let content: string;
-        try {
-            content = await fs.readFile(manifestPath, 'utf-8');
-        } catch {
+        if (!await fileExists(manifestPath)) {
             return [];
         }
+
+        const content = await fs.readFile(manifestPath, 'utf-8');
 
         try {
             const manifest = JSON.parse(content) as PodManifest;
@@ -46,7 +46,6 @@ class PodManifestService {
         const managedFiles = await this.readManifest(repositoryPath, podId);
         const claudeDir = path.join(repositoryPath, CLAUDE_DIR);
 
-        // 收集需要檢查清理的父目錄（不含 .claude 本身）
         const dirsToCheck = new Set<string>();
 
         for (const relPath of managedFiles) {
@@ -59,7 +58,6 @@ class PodManifestService {
 
             await fs.rm(absPath, {force: true});
 
-            // 記錄從檔案往上到 .claude 之間的所有目錄
             let dir = path.dirname(absPath);
             while (dir !== claudeDir && isPathWithinDirectory(dir, claudeDir)) {
                 dirsToCheck.add(dir);
@@ -67,7 +65,6 @@ class PodManifestService {
             }
         }
 
-        // 從最深層目錄往上清理空目錄
         const sortedDirs = [...dirsToCheck].sort((a, b) => b.length - a.length);
         for (const dir of sortedDirs) {
             try {
@@ -76,7 +73,7 @@ class PodManifestService {
                     await fs.rmdir(dir);
                 }
             } catch {
-                // 目錄已不存在，忽略
+                // 忽略
             }
         }
 

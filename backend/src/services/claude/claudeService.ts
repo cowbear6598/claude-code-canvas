@@ -486,24 +486,38 @@ export class ClaudeService {
         }
     }
 
+    private extractTextFromAssistantMessage(sdkMessage: SDKAssistantMessage): string {
+        if (!sdkMessage.message) return '';
+        let text = '';
+        for (const block of sdkMessage.message.content as AssistantContentBlock[]) {
+            if ('text' in block && block.text) {
+                text += block.text;
+            }
+        }
+        return text;
+    }
+
+    private processResultMessage(sdkMessage: SDKResultMessage): {success: boolean; content: string; error?: string} {
+        if (sdkMessage.subtype === 'success') {
+            return {success: true, content: sdkMessage.result ?? ''};
+        }
+        const errorMsg =
+            'errors' in sdkMessage && sdkMessage.errors
+                ? sdkMessage.errors.join(', ')
+                : '未知錯誤';
+        return {success: false, content: '', error: errorMsg};
+    }
+
     private async collectTextFromStream(stream: Query): Promise<{success: boolean; content: string; error?: string}> {
         let fullContent = '';
         for await (const sdkMessage of stream) {
-            if (sdkMessage.type === 'assistant' && sdkMessage.message) {
-                for (const block of sdkMessage.message.content as AssistantContentBlock[]) {
-                    if ('text' in block && block.text) {
-                        fullContent += block.text;
-                    }
-                }
-            } else if (sdkMessage.type === 'result') {
-                if (sdkMessage.subtype === 'success') {
-                    return {success: true, content: sdkMessage.result || fullContent};
-                }
-                const errorMsg =
-                    'errors' in sdkMessage && sdkMessage.errors
-                        ? sdkMessage.errors.join(', ')
-                        : '未知錯誤';
-                return {success: false, content: '', error: errorMsg};
+            if (sdkMessage.type === 'assistant') {
+                fullContent += this.extractTextFromAssistantMessage(sdkMessage as SDKAssistantMessage);
+                continue;
+            }
+            if (sdkMessage.type === 'result') {
+                const result = this.processResultMessage(sdkMessage as SDKResultMessage);
+                return result.success ? {success: true, content: result.content || fullContent} : result;
             }
         }
         return {success: true, content: fullContent};

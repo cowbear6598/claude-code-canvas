@@ -38,7 +38,6 @@ export const handleSkillList = createListHandler({
     responseKey: 'skills',
 });
 
-// 使用工廠函數建立 Skill 綁定處理器
 const skillBindHandler = createBindHandler({
     resourceName: 'Skill',
     idField: 'skillId',

@@ -2,7 +2,6 @@ import type { OutputStyleListItem, OutputStyleNote, Pod } from '@/types'
 import { createNoteStore, rebuildNotesFromPods } from './createNoteStore'
 import type { NoteStoreContext } from './createNoteStore'
 import { WebSocketRequestEvents, WebSocketResponseEvents } from '@/services/websocket'
-import { createResourceCRUDActions } from './createResourceCRUDActions'
 import { createGroupCRUDActions } from './createGroupCRUDActions'
 import type {
   OutputStyleCreatedPayload,
@@ -33,40 +32,6 @@ const outputStyleGroupCRUD = createGroupCRUDActions({
     response: WebSocketResponseEvents.OUTPUT_STYLE_MOVED_TO_GROUP,
   },
 })
-
-const outputStyleCRUD = createResourceCRUDActions<OutputStyleListItem>(
-  'Output Style',
-  {
-    create: {
-      request: WebSocketRequestEvents.OUTPUT_STYLE_CREATE,
-      response: WebSocketResponseEvents.OUTPUT_STYLE_CREATED
-    },
-    update: {
-      request: WebSocketRequestEvents.OUTPUT_STYLE_UPDATE,
-      response: WebSocketResponseEvents.OUTPUT_STYLE_UPDATED
-    },
-    read: {
-      request: WebSocketRequestEvents.OUTPUT_STYLE_READ,
-      response: WebSocketResponseEvents.OUTPUT_STYLE_READ_RESULT
-    }
-  },
-  {
-    getUpdatePayload: (outputStyleId, content) => ({ outputStyleId, content }),
-    getReadPayload: (outputStyleId) => ({ outputStyleId }),
-    extractItemFromResponse: {
-      create: (response) => (response as OutputStyleCreatedPayload).outputStyle,
-      update: (response) => (response as OutputStyleUpdatedPayload).outputStyle,
-      read: (response) => (response as OutputStyleReadResultPayload).outputStyle
-    },
-    updateItemsList: (items, outputStyleId, newItem) => {
-      const index = items.findIndex(item => item.id === outputStyleId)
-      if (index !== -1) {
-        items[index] = newItem as OutputStyleListItem
-      }
-    }
-  },
-  'OutputStyle'
-)
 
 const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
   storeName: 'outputStyle',
@@ -118,6 +83,40 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
   }),
   getItemId: (item: OutputStyleListItem) => item.id,
   getItemName: (item: OutputStyleListItem) => item.name,
+  crudConfig: {
+    resourceType: 'Output Style',
+    methodPrefix: 'outputStyle',
+    toastCategory: 'OutputStyle',
+    events: {
+      create: {
+        request: WebSocketRequestEvents.OUTPUT_STYLE_CREATE,
+        response: WebSocketResponseEvents.OUTPUT_STYLE_CREATED,
+      },
+      update: {
+        request: WebSocketRequestEvents.OUTPUT_STYLE_UPDATE,
+        response: WebSocketResponseEvents.OUTPUT_STYLE_UPDATED,
+      },
+      read: {
+        request: WebSocketRequestEvents.OUTPUT_STYLE_READ,
+        response: WebSocketResponseEvents.OUTPUT_STYLE_READ_RESULT,
+      },
+    },
+    payloadConfig: {
+      getUpdatePayload: (outputStyleId, content) => ({ outputStyleId, content }),
+      getReadPayload: (outputStyleId) => ({ outputStyleId }),
+      extractItemFromResponse: {
+        create: (response) => (response as OutputStyleCreatedPayload).outputStyle,
+        update: (response) => (response as OutputStyleUpdatedPayload).outputStyle,
+        read: (response) => (response as OutputStyleReadResultPayload).outputStyle,
+      },
+      updateItemsList: (items, outputStyleId, newItem) => {
+        const index = items.findIndex(item => item.id === outputStyleId)
+        if (index !== -1) {
+          items[index] = newItem as OutputStyleListItem
+        }
+      },
+    },
+  },
   customActions: {
     async rebuildNotesFromPods(this: NoteStoreContext<OutputStyleListItem>, pods: Pod[]): Promise<void> {
       await rebuildNotesFromPods(this, pods, {
@@ -128,28 +127,6 @@ const store = createNoteStore<OutputStyleListItem, OutputStyleNote>({
         requestEvent: WebSocketRequestEvents.NOTE_CREATE,
         responseEvent: WebSocketResponseEvents.NOTE_CREATED,
       })
-    },
-
-    async createOutputStyle(this: NoteStoreContext<OutputStyleListItem>, name: string, content: string): Promise<{ success: boolean; outputStyle?: { id: string; name: string }; error?: string }> {
-      const result = await outputStyleCRUD.create(this.availableItems, name, content)
-      return result.success ? { success: true, outputStyle: result.item } : { success: false, error: result.error }
-    },
-
-    async updateOutputStyle(this: NoteStoreContext<OutputStyleListItem>, outputStyleId: string, content: string): Promise<{ success: boolean; outputStyle?: { id: string; name: string }; error?: string }> {
-      const result = await outputStyleCRUD.update(this.availableItems, outputStyleId, content)
-      return result.success ? { success: true, outputStyle: result.item } : { success: false, error: result.error }
-    },
-
-    async readOutputStyle(this: NoteStoreContext<OutputStyleListItem>, outputStyleId: string): Promise<{ id: string; name: string; content: string } | null> {
-      return outputStyleCRUD.read(outputStyleId)
-    },
-
-    async deleteOutputStyle(this: NoteStoreContext<OutputStyleListItem>, outputStyleId: string): Promise<void> {
-      return this.deleteItem(outputStyleId)
-    },
-
-    async loadOutputStyles(this: NoteStoreContext<OutputStyleListItem>): Promise<void> {
-      return this.loadItems()
     },
 
     loadGroups: outputStyleGroupCRUD.loadGroups,

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema, canvasIdSchema, resourceNameSchema } from './base.js';
+import { requestIdSchema, podIdSchema, canvasIdSchema, resourceNameSchema, resourceIdSchema, groupIdSchema } from './base.js';
 
 export const outputStyleListSchema = z.object({
   requestId: requestIdSchema,
@@ -16,21 +16,21 @@ export const outputStyleCreateSchema = z.object({
 export const outputStyleUpdateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  outputStyleId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  outputStyleId: resourceIdSchema,
   content: z.string().max(10000000),
 });
 
 export const outputStyleReadSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  outputStyleId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  outputStyleId: resourceIdSchema,
 });
 
 export const podBindOutputStyleSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   podId: podIdSchema,
-  outputStyleId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  outputStyleId: resourceIdSchema,
 });
 
 export const podUnbindOutputStyleSchema = z.object({
@@ -42,14 +42,12 @@ export const podUnbindOutputStyleSchema = z.object({
 export const outputStyleDeleteSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
-  outputStyleId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  outputStyleId: resourceIdSchema,
 });
-
-const groupIdSchema = z.string().regex(/^[a-zA-Z0-9-]+$/, '群組 ID 格式不正確，只能包含英文、數字、dash').nullable();
 
 export const outputStyleMoveToGroupSchema = z.object({
   requestId: requestIdSchema,
-  itemId: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
+  itemId: resourceIdSchema,
   groupId: groupIdSchema,
 });
 

@@ -628,6 +628,27 @@ const handleMcpServerModalSubmit = async (payload: { name: string; config: McpSe
   mcpServerModal.value.visible = false
 }
 
+const handleMcpServerDoubleClick = async (noteId: string): Promise<void> => {
+  const note = mcpServerStore.typedNotes.find(n => n.id === noteId)
+  if (!note) return
+
+  const mcpServerId = note.mcpServerId
+  const mcpServerData = await mcpServerStore.readMcpServer(mcpServerId)
+
+  if (!mcpServerData) {
+    console.error(`無法讀取 MCP Server (id: ${mcpServerId})，請確認後端是否正常運作`)
+    return
+  }
+
+  mcpServerModal.value = {
+    visible: true,
+    mode: 'edit',
+    mcpServerId,
+    initialName: mcpServerData.name,
+    initialConfig: mcpServerData.config
+  }
+}
+
 const handleNoteDoubleClick = async (data: {
   noteId: string;
   noteType: 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | 'mcpServer'
@@ -635,24 +656,7 @@ const handleNoteDoubleClick = async (data: {
   const {noteId, noteType} = data
 
   if (noteType === 'mcpServer') {
-    const note = mcpServerStore.typedNotes.find(n => n.id === noteId)
-    if (!note) return
-
-    const mcpServerId = note.mcpServerId
-    const mcpServerData = await mcpServerStore.readMcpServer(mcpServerId)
-
-    if (!mcpServerData) {
-      console.error(`無法讀取 MCP Server (id: ${mcpServerId})，請確認後端是否正常運作`)
-      return
-    }
-
-    mcpServerModal.value = {
-      visible: true,
-      mode: 'edit',
-      mcpServerId,
-      initialName: mcpServerData.name,
-      initialConfig: mcpServerData.config
-    }
+    await handleMcpServerDoubleClick(noteId)
     return
   }
 

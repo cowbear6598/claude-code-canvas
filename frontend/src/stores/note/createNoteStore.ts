@@ -7,6 +7,9 @@ import {useToast} from '@/composables/useToast'
 import {requireActiveCanvas, getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
 import {createNoteBindingActions} from './noteBindingActions'
 import {createNotePositionActions} from './notePositionActions'
+import {createResourceCRUDActions} from './createResourceCRUDActions'
+import type {CRUDEventsConfig, CRUDPayloadConfig} from './createResourceCRUDActions'
+import type {ToastCategory} from '@/composables/useToast'
 
 const STORE_TO_CATEGORY_MAP: Record<string, string> = {
     'skill': 'Skill',
@@ -15,6 +18,14 @@ const STORE_TO_CATEGORY_MAP: Record<string, string> = {
     'command': 'Command',
     'outputStyle': 'OutputStyle',
     'mcpServer': 'McpServer'
+}
+
+function findItemById(items: unknown[], itemId: string): Record<string, unknown> | undefined {
+    return items.find(i => (i as Record<string, unknown>).id === itemId) as Record<string, unknown> | undefined
+}
+
+function getItemName(item: unknown): string | undefined {
+    return (item as Record<string, unknown>)?.name as string | undefined
 }
 
 interface BasePayload {
@@ -34,6 +45,15 @@ interface BaseResponse {
 
 interface NoteItem extends BaseNote {
     [key: string]: unknown
+}
+
+// crudConfig 設定：讓工廠自動產生 createXxx、updateXxx、readXxx、deleteXxx、loadXxxs 等 actions
+export interface NoteCRUDConfig<TItem extends { id: string; name: string }, TReadResult extends { id: string; name: string } = { id: string; name: string; content: string }> {
+    resourceType: string
+    methodPrefix: string
+    toastCategory: ToastCategory
+    events: CRUDEventsConfig
+    payloadConfig: CRUDPayloadConfig<TItem, string, string, TReadResult>
 }
 
 export interface NoteStoreConfig<TItem, TCustomActions extends object = object> {
@@ -69,6 +89,8 @@ export interface NoteStoreConfig<TItem, TCustomActions extends object = object> 
     createNotePayload: (item: TItem, x: number, y: number) => object
     getItemId: (item: TItem) => string
     getItemName: (item: TItem) => string
+    // 提供後工廠自動產生 createXxx、updateXxx、readXxx、deleteXxx、loadXxxs actions
+    crudConfig?: NoteCRUDConfig<{ id: string; name: string }>
     customActions?: TCustomActions
 }
 
@@ -100,10 +122,8 @@ export async function rebuildNotesFromPods(
         const existingNotes = context.getNotesByPodId(pod.id)
         if (existingNotes.length > 0) continue
 
-        const item = context.availableItems.find(
-            (i) => (i as Record<string, unknown>).id === itemId
-        )
-        const itemName = (item as Record<string, unknown> | undefined)?.name as string | undefined ?? itemId
+        const item = findItemById(context.availableItems, itemId)
+        const itemName = getItemName(item) ?? itemId
 
         const promise = createWebSocketRequest<BasePayload, Record<string, unknown>>({
             requestEvent: config.requestEvent,
@@ -236,7 +256,10 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
         },
 
         actions: {
-            async loadItems(): Promise<void> {
+            async _fetchWithCanvasId(
+                requestEvent: string,
+                responseEvent: string
+            ): Promise<BaseResponse | null> {
                 this.isLoading = true
                 this.error = null
 
@@ -245,16 +268,14 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
 
                 if (!canvasId) {
                     this.isLoading = false
-                    return
+                    return null
                 }
 
                 const response = await wrapWebSocketRequest(
                     createWebSocketRequest<BasePayload, BaseResponse>({
-                        requestEvent: config.events.listItems.request,
-                        responseEvent: config.events.listItems.response,
-                        payload: {
-                            canvasId
-                        }
+                        requestEvent,
+                        responseEvent,
+                        payload: {canvasId}
                     })
                 )
 
@@ -262,8 +283,18 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
 
                 if (!response) {
                     this.error = '載入失敗'
-                    return
                 }
+
+                return response ?? null
+            },
+
+            async loadItems(): Promise<void> {
+                const response = await this._fetchWithCanvasId(
+                    config.events.listItems.request,
+                    config.events.listItems.response
+                )
+
+                if (!response) return
 
                 if (response[config.responseItemsKey]) {
                     this.availableItems = response[config.responseItemsKey] as unknown[]
@@ -271,33 +302,12 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
             },
 
             async loadNotesFromBackend(): Promise<void> {
-                this.isLoading = true
-                this.error = null
-
-                const {wrapWebSocketRequest} = useWebSocketErrorHandler()
-                const canvasId = getActiveCanvasIdOrWarn(config.storeName)
-
-                if (!canvasId) {
-                    this.isLoading = false
-                    return
-                }
-
-                const response = await wrapWebSocketRequest(
-                    createWebSocketRequest<BasePayload, BaseResponse>({
-                        requestEvent: config.events.listNotes.request,
-                        responseEvent: config.events.listNotes.response,
-                        payload: {
-                            canvasId
-                        }
-                    })
+                const response = await this._fetchWithCanvasId(
+                    config.events.listNotes.request,
+                    config.events.listNotes.response
                 )
 
-                this.isLoading = false
-
-                if (!response) {
-                    this.error = '載入失敗'
-                    return
-                }
+                if (!response) return
 
                 if (response.notes) {
                     this.notes = response.notes as NoteItem[]
@@ -475,7 +485,81 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
                 }
             },
 
-            ...(config.customActions ?? {} as TCustomActions)
+            ...(config.customActions ?? {} as TCustomActions),
+            ...buildCRUDActions(config),
         },
     })
+}
+
+// 將首字母大寫，例如 'command' → 'Command'
+function capitalize(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
+type CRUDStoreContext = {
+    availableItems: { id: string; name: string }[]
+    deleteItem: (id: string) => Promise<void>
+    loadItems: () => Promise<void>
+}
+
+// 根據 crudConfig 自動產生 createXxx、updateXxx、readXxx、deleteXxx、loadXxxs actions
+function buildCRUDActions<TItem>(config: NoteStoreConfig<TItem>): Record<string, unknown> {
+    if (!config.crudConfig) return {}
+
+    const cc = config.crudConfig as NoteCRUDConfig<{ id: string; name: string }>
+    const prefix = cc.methodPrefix
+    const Prefix = capitalize(prefix)
+
+    const crud = createResourceCRUDActions(
+        cc.resourceType,
+        cc.events,
+        cc.payloadConfig,
+        cc.toastCategory
+    )
+
+    const actions: Record<string, unknown> = {}
+
+    actions[`create${Prefix}`] = async function(
+        this: CRUDStoreContext,
+        name: string,
+        content: string
+    ): Promise<{ success: boolean; [key: string]: unknown }> {
+        const result = await crud.create(this.availableItems, name, content)
+        return result.success
+            ? { success: true, [prefix]: result.item }
+            : { success: false, error: result.error }
+    }
+
+    actions[`update${Prefix}`] = async function(
+        this: CRUDStoreContext,
+        itemId: string,
+        content: string
+    ): Promise<{ success: boolean; [key: string]: unknown }> {
+        const result = await crud.update(this.availableItems, itemId, content)
+        return result.success
+            ? { success: true, [prefix]: result.item }
+            : { success: false, error: result.error }
+    }
+
+    actions[`read${Prefix}`] = async function(
+        this: CRUDStoreContext,
+        itemId: string
+    ): Promise<{ id: string; name: string; content: string } | null> {
+        return crud.read(itemId) as Promise<{ id: string; name: string; content: string } | null>
+    }
+
+    actions[`delete${Prefix}`] = async function(
+        this: CRUDStoreContext,
+        itemId: string
+    ): Promise<void> {
+        return this.deleteItem(itemId)
+    }
+
+    actions[`load${Prefix}s`] = async function(
+        this: CRUDStoreContext
+    ): Promise<void> {
+        return this.loadItems()
+    }
+
+    return actions
 }

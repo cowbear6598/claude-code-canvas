@@ -86,7 +86,6 @@ export const handleWorkflowClear = withCanvasId<WorkflowClearPayload>(
 
     socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, response);
 
-    // 發送 AI Decide Clear 事件
     if (result.clearedConnectionIds.length > 0) {
       workflowEventEmitter.emitAiDecideClear(canvasId, result.clearedConnectionIds);
     }

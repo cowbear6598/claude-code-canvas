@@ -88,7 +88,6 @@ class MessageStore {
      * 若需確保寫入完成，呼叫 await flushWrites(podId)
      */
     upsertMessage(canvasId: string, podId: string, message: PersistedMessage): void {
-        // 記憶體同步更新
         const messages = this.messagesByPodId.get(podId) ?? [];
         const existingIndex = messages.findIndex(msg => msg.id === message.id);
         if (existingIndex >= 0) {
@@ -98,7 +97,6 @@ class MessageStore {
         }
         this.messagesByPodId.set(podId, messages);
 
-        // 磁碟 fire-and-forget
         this.enqueueWrite(podId, async () => {
             const canvasDir = canvasStore.getCanvasDir(canvasId);
             if (!canvasDir) {

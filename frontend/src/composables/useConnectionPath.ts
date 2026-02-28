@@ -22,6 +22,8 @@ export interface BezierPathParams {
 const CURVE_MIDPOINT = 0.5
 const TANGENT_STEP = 0.01
 const BEZIER_LENGTH_ESTIMATION_FACTOR = 1.2
+const BEZIER_CONTROL_POINT_RATIO = 0.3
+const BEZIER_MAX_OFFSET_PX = 100
 
 function applyAnchorOffset(
   baseX: number,
@@ -56,7 +58,7 @@ export function useConnectionPath(): {
     const deltaX = end.x - start.x
     const deltaY = end.y - start.y
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
-    const offset = Math.min(distance * 0.3, 100)
+    const offset = Math.min(distance * BEZIER_CONTROL_POINT_RATIO, BEZIER_MAX_OFFSET_PX)
 
     const cp1 = applyAnchorOffset(start.x, start.y, sourceAnchor, offset)
     const cp2 = applyAnchorOffset(end.x, end.y, targetAnchor, offset)

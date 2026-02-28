@@ -34,11 +34,3 @@ export function fireAndForget(promise: Promise<unknown>, category: LogCategory, 
 }
 
 export type { Result };
-
-export function isSuccess<T>(result: Result<T>): result is { success: true; data: T } {
-  return result.success === true && result.data !== undefined;
-}
-
-export function isFailure<T>(result: Result<T>): result is { success: false; error: string } {
-  return result.success === false;
-}

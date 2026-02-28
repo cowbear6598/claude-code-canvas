@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { watch } from 'vue'
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import type { McpServerConfig } from '@/types'
+import { useModalForm } from '@/composables/useModalForm'
+import { RESOURCE_NAME_PATTERN } from '@/lib/validators'
 
 interface Props {
   open: boolean
@@ -28,9 +30,93 @@ const emit = defineEmits<{
   'submit': [payload: { name: string; config: McpServerConfig }]
 }>()
 
-const jsonText = ref('')
-const errorMessage = ref('')
 const jsonPlaceholder = '{"my-mcp-server": {"command": "npx", "args": ["-y", "my-mcp"]}}'
+
+const validateMcpServerName = (parsed: Record<string, unknown>): string | null => {
+  const keys = Object.keys(parsed)
+  if (keys.length === 0) return '請輸入至少一個 MCP Server 設定'
+
+  const name = keys[0] as string
+  if (!RESOURCE_NAME_PATTERN.test(name)) return '名稱只能包含英數字、底線和連字號'
+
+  return null
+}
+
+const validateMcpServerMode = (config: Record<string, unknown>): string | null => {
+  const isStdioMode = typeof config.command === 'string'
+  const isHttpMode = typeof config.type === 'string' && typeof config.url === 'string'
+
+  if (!isStdioMode && !isHttpMode) {
+    return '設定必須包含 command 欄位（stdio 模式）或 type + url 欄位（http/sse 模式）'
+  }
+
+  return null
+}
+
+const validateStdioConfig = (config: Record<string, unknown>): string | null => {
+  if (typeof config.command !== 'string') return null
+  if (config.command.trim() === '') return 'command 欄位不能為空'
+
+  return null
+}
+
+const validateHttpConfig = (config: Record<string, unknown>): string | null => {
+  const isHttpMode = typeof config.type === 'string' && typeof config.url === 'string'
+  if (!isHttpMode) return null
+
+  try {
+    new URL(config.url as string)
+  } catch {
+    return 'url 欄位格式不正確'
+  }
+
+  return null
+}
+
+const validateArgs = (config: Record<string, unknown>): string | null => {
+  if (config.args === undefined) return null
+
+  const isValidArgs =
+    Array.isArray(config.args) && config.args.every((arg) => typeof arg === 'string')
+  if (!isValidArgs) return 'args 欄位必須是字串陣列'
+
+  return null
+}
+
+const parseAndValidateJson = (jsonText: string): string | null => {
+  let parsed: Record<string, unknown>
+
+  try {
+    parsed = JSON.parse(jsonText) as Record<string, unknown>
+  } catch {
+    return 'JSON 格式錯誤，請檢查語法'
+  }
+
+  const nameError = validateMcpServerName(parsed)
+  if (nameError) return nameError
+
+  const name = Object.keys(parsed)[0] as string
+  const config = parsed[name] as Record<string, unknown>
+
+  return (
+    validateMcpServerMode(config) ??
+    validateStdioConfig(config) ??
+    validateHttpConfig(config) ??
+    validateArgs(config)
+  )
+}
+
+const { inputValue: jsonText, errorMessage, handleSubmit, handleClose, resetForm } = useModalForm<string>({
+  validator: parseAndValidateJson,
+  onSubmit: async (text) => {
+    const parsed = JSON.parse(text) as Record<string, unknown>
+    const name = Object.keys(parsed)[0] as string
+    const config = parsed[name] as McpServerConfig
+    emit('submit', { name, config })
+    return null
+  },
+  onClose: () => emit('update:open', false),
+})
 
 watch(
   () => props.open,
@@ -39,84 +125,11 @@ watch(
       if (props.mode === 'edit' && props.initialName && props.initialConfig) {
         jsonText.value = JSON.stringify({ [props.initialName]: props.initialConfig }, null, 2)
       } else {
-        jsonText.value = ''
+        resetForm()
       }
-      errorMessage.value = ''
     }
   }
 )
-
-// 複雜度高：涉及多層分支驗證（名稱格式、args 型別、stdio/http 模式各有規則），判斷式數量超過門檻
-const parseAndValidateJson = (): { name: string; config: McpServerConfig } | null => {
-  let parsed: Record<string, unknown>
-
-  try {
-    parsed = JSON.parse(jsonText.value) as Record<string, unknown>
-  } catch {
-    errorMessage.value = 'JSON 格式錯誤，請檢查語法'
-    return null
-  }
-
-  const keys = Object.keys(parsed)
-  if (keys.length === 0) {
-    errorMessage.value = '請輸入至少一個 MCP Server 設定'
-    return null
-  }
-
-  const name = keys[0] as string
-
-  if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
-    errorMessage.value = '名稱只能包含英數字、底線和連字號'
-    return null
-  }
-
-  const config = parsed[name] as Record<string, unknown>
-
-  const isStdioMode = typeof config.command === 'string'
-  const isHttpMode = typeof config.type === 'string' && typeof config.url === 'string'
-
-  if (!isStdioMode && !isHttpMode) {
-    errorMessage.value = '設定必須包含 command 欄位（stdio 模式）或 type + url 欄位（http/sse 模式）'
-    return null
-  }
-
-  if (isStdioMode && (config.command as string).trim() === '') {
-    errorMessage.value = 'command 欄位不能為空'
-    return null
-  }
-
-  if (isHttpMode) {
-    try {
-      new URL(config.url as string)
-    } catch {
-      errorMessage.value = 'url 欄位格式不正確'
-      return null
-    }
-  }
-
-  if (config.args !== undefined) {
-    const isValidArgs =
-      Array.isArray(config.args) && config.args.every((arg) => typeof arg === 'string')
-    if (!isValidArgs) {
-      errorMessage.value = 'args 欄位必須是字串陣列'
-      return null
-    }
-  }
-
-  errorMessage.value = ''
-  return { name, config: config as unknown as McpServerConfig }
-}
-
-const handleSubmit = (): void => {
-  const result = parseAndValidateJson()
-  if (!result) return
-
-  emit('submit', result)
-}
-
-const handleClose = (): void => {
-  emit('update:open', false)
-}
 </script>
 
 <template>

@@ -1,3 +1,7 @@
+const MIN_COLOR_BRIGHTNESS_SUM = 150
+const MAX_COLOR_BRIGHTNESS_SUM = 450
+const FALLBACK_NEUTRAL_COLOR = '#555555'
+
 const PREDEFINED_COLORS = [
   '#E05252',
   '#2BA89E',
@@ -48,21 +52,21 @@ class CursorColorManager {
     let blueChannel = parseInt(hex.slice(5, 7), 16);
     const sum = redChannel + greenChannel + blueChannel;
 
-    if (sum === 0) return '#555555';
-    if (sum >= 150 && sum <= 450) return hex;
+    if (sum === 0) return FALLBACK_NEUTRAL_COLOR;
+    if (sum >= MIN_COLOR_BRIGHTNESS_SUM && sum <= MAX_COLOR_BRIGHTNESS_SUM) return hex;
 
-    const factor = sum > 450 ? 450 / sum : 150 / sum;
-    const round = sum > 450 ? Math.floor : Math.ceil;
+    const factor = sum > MAX_COLOR_BRIGHTNESS_SUM ? MAX_COLOR_BRIGHTNESS_SUM / sum : MIN_COLOR_BRIGHTNESS_SUM / sum;
+    const round = sum > MAX_COLOR_BRIGHTNESS_SUM ? Math.floor : Math.ceil;
     let clampedRed = Math.min(255, round(redChannel * factor));
     let clampedGreen = Math.min(255, round(greenChannel * factor));
     let clampedBlue = Math.min(255, round(blueChannel * factor));
 
     // 浮點精度安全檢查：Math.floor/ceil 仍可能因浮點誤差導致總和超出範圍
     const newSum = clampedRed + clampedGreen + clampedBlue;
-    if (newSum > 450) {
-      [clampedRed, clampedGreen, clampedBlue] = this.fixOverflow(clampedRed, clampedGreen, clampedBlue, newSum - 450);
-    } else if (newSum < 150) {
-      [clampedRed, clampedGreen, clampedBlue] = this.fixDeficit(clampedRed, clampedGreen, clampedBlue, 150 - newSum);
+    if (newSum > MAX_COLOR_BRIGHTNESS_SUM) {
+      [clampedRed, clampedGreen, clampedBlue] = this.fixOverflow(clampedRed, clampedGreen, clampedBlue, newSum - MAX_COLOR_BRIGHTNESS_SUM);
+    } else if (newSum < MIN_COLOR_BRIGHTNESS_SUM) {
+      [clampedRed, clampedGreen, clampedBlue] = this.fixDeficit(clampedRed, clampedGreen, clampedBlue, MIN_COLOR_BRIGHTNESS_SUM - newSum);
     }
 
     return `#${this.toHexChannel(clampedRed)}${this.toHexChannel(clampedGreen)}${this.toHexChannel(clampedBlue)}`;

@@ -51,7 +51,7 @@ async function appendUserOutputToPod(podId: string, content: string): Promise<vo
     })
 }
 
-export function createMessageActions(store: ChatStoreInstance): {
+export interface ChatMessageActions {
     addUserMessage: (podId: string, content: string) => Promise<void>
     handleChatMessage: (payload: PodChatMessagePayload) => void
     addNewChatMessage: (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string) => Promise<void>
@@ -72,7 +72,9 @@ export function createMessageActions(store: ChatStoreInstance): {
     clearMessagesByPodIds: (podIds: string[]) => void
     handleMessagesClearedEvent: (payload: PodMessagesClearedPayload) => Promise<void>
     handleWorkflowAutoCleared: (payload: WorkflowAutoClearedPayload) => Promise<void>
-} {
+}
+
+export function createMessageActions(store: ChatStoreInstance): ChatMessageActions {
     const toolTrackingActions = createToolTrackingActions(store)
     const messageCompletionActions = createMessageCompletionActions(store)
 
