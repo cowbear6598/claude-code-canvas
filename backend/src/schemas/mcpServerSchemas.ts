@@ -23,7 +23,7 @@ export const mcpServerListSchema = z.object({
 export const mcpServerCreateSchema = z.object({
     requestId: requestIdSchema,
     canvasId: canvasIdSchema,
-    name: z.string().min(1).max(100),
+    name: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
     config: mcpServerConfigSchema,
 });
 
@@ -31,7 +31,7 @@ export const mcpServerUpdateSchema = z.object({
     requestId: requestIdSchema,
     canvasId: canvasIdSchema,
     mcpServerId: z.uuid(),
-    name: z.string().min(1).max(100),
+    name: z.string().regex(/^[a-zA-Z0-9_-]+$/).min(1).max(100),
     config: mcpServerConfigSchema,
 });
 

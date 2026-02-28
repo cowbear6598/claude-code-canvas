@@ -365,9 +365,25 @@ const handleCommandNoteDeleted = createUnifiedHandler<BasePayload & { noteId: st
   }
 )
 
+const validateMcpServer = (mcpServer: McpServer): boolean => {
+  const { id, name } = mcpServer
+
+  if (!id || typeof id !== 'string' || id.trim() === '') {
+    console.error('[Security] 無效的 mcpServer.id:', id)
+    return false
+  }
+
+  if (!name || typeof name !== 'string' || name.trim() === '') {
+    console.error('[Security] 無效的 mcpServer.name:', name)
+    return false
+  }
+
+  return true
+}
+
 const handleMcpServerCreated = createUnifiedHandler<BasePayload & { mcpServer?: McpServer; canvasId: string }>(
   (payload) => {
-    if (payload.mcpServer) {
+    if (payload.mcpServer && validateMcpServer(payload.mcpServer)) {
       useMcpServerStore().addItemFromEvent(payload.mcpServer)
     }
   },
@@ -376,7 +392,7 @@ const handleMcpServerCreated = createUnifiedHandler<BasePayload & { mcpServer?: 
 
 const handleMcpServerUpdated = createUnifiedHandler<BasePayload & { mcpServer?: McpServer; canvasId: string }>(
   (payload) => {
-    if (payload.mcpServer) {
+    if (payload.mcpServer && validateMcpServer(payload.mcpServer)) {
       useMcpServerStore().updateItemFromEvent(payload.mcpServer)
     }
   },
@@ -385,6 +401,10 @@ const handleMcpServerUpdated = createUnifiedHandler<BasePayload & { mcpServer?: 
 
 const handleMcpServerDeleted = createUnifiedHandler<BasePayload & { mcpServerId: string; deletedNoteIds?: string[]; canvasId: string }>(
   (payload) => {
+    if (!payload.mcpServerId || typeof payload.mcpServerId !== 'string') {
+      console.error('[Security] 無效的 mcpServerId:', payload.mcpServerId)
+      return
+    }
     useMcpServerStore().removeItemFromEvent(payload.mcpServerId, payload.deletedNoteIds)
   },
   { toastMessage: 'MCP Server 已刪除', skipCanvasCheck: true }

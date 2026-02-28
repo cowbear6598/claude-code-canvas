@@ -61,6 +61,28 @@ export class McpServerStore {
         });
     }
 
+    private validateServerData(server: unknown): server is McpServer {
+        if (!server || typeof server !== 'object') return false;
+
+        const s = server as Record<string, unknown>;
+
+        if (typeof s.id !== 'string' || s.id.trim() === '') return false;
+        if (typeof s.name !== 'string' || s.name.trim() === '') return false;
+        if (!/^[a-zA-Z0-9_-]+$/.test(s.name)) return false;
+        if (!s.config || typeof s.config !== 'object') return false;
+
+        const config = s.config as Record<string, unknown>;
+
+        if ('type' in config) {
+            if (config.type !== 'http' && config.type !== 'sse') return false;
+            if (typeof config.url !== 'string' || config.url.trim() === '') return false;
+        } else {
+            if (typeof config.command !== 'string' || config.command.trim() === '') return false;
+        }
+
+        return true;
+    }
+
     async loadFromDisk(dataDir: string): Promise<Result<void>> {
         this.dataDir = dataDir;
         const filePath = path.join(dataDir, MCP_SERVERS_FILE);
@@ -74,6 +96,10 @@ export class McpServerStore {
         this.servers.clear();
 
         for (const server of servers) {
+            if (!this.validateServerData(server)) {
+                logger.warn('McpServer', 'Load', `[McpServerStore] 跳過結構不合格的 MCP Server: ${JSON.stringify(server)}`);
+                continue;
+            }
             this.servers.set(server.id, server);
         }
 

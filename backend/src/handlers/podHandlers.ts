@@ -102,32 +102,22 @@ export async function handlePodGet(
 }
 
 function deleteAllPodNotes(canvasId: string, podId: string): PodDeletedPayload['deletedNoteIds'] {
-    const deletedNoteIds = noteStore.deleteByBoundPodId(canvasId, podId);
-    const deletedSkillNoteIds = skillNoteStore.deleteByBoundPodId(canvasId, podId);
-    const deletedRepositoryNoteIds = repositoryNoteStore.deleteByBoundPodId(canvasId, podId);
-    const deletedCommandNoteIds = commandNoteStore.deleteByBoundPodId(canvasId, podId);
-    const deletedSubAgentNoteIds = subAgentNoteStore.deleteByBoundPodId(canvasId, podId);
-    const deletedMcpServerNoteIds = mcpServerNoteStore.deleteByBoundPodId(canvasId, podId);
+    const noteStoreConfigs: Array<{store: {deleteByBoundPodId: (canvasId: string, podId: string) => string[]}; key: keyof NonNullable<PodDeletedPayload['deletedNoteIds']>}> = [
+        {store: noteStore, key: 'note'},
+        {store: skillNoteStore, key: 'skillNote'},
+        {store: repositoryNoteStore, key: 'repositoryNote'},
+        {store: commandNoteStore, key: 'commandNote'},
+        {store: subAgentNoteStore, key: 'subAgentNote'},
+        {store: mcpServerNoteStore, key: 'mcpServerNote'},
+    ];
 
     const result: PodDeletedPayload['deletedNoteIds'] = {};
 
-    if (deletedNoteIds.length > 0) {
-        result.note = deletedNoteIds;
-    }
-    if (deletedSkillNoteIds.length > 0) {
-        result.skillNote = deletedSkillNoteIds;
-    }
-    if (deletedRepositoryNoteIds.length > 0) {
-        result.repositoryNote = deletedRepositoryNoteIds;
-    }
-    if (deletedCommandNoteIds.length > 0) {
-        result.commandNote = deletedCommandNoteIds;
-    }
-    if (deletedSubAgentNoteIds.length > 0) {
-        result.subAgentNote = deletedSubAgentNoteIds;
-    }
-    if (deletedMcpServerNoteIds.length > 0) {
-        result.mcpServerNote = deletedMcpServerNoteIds;
+    for (const {store, key} of noteStoreConfigs) {
+        const ids = store.deleteByBoundPodId(canvasId, podId);
+        if (ids.length > 0) {
+            result[key] = ids;
+        }
     }
 
     return result;

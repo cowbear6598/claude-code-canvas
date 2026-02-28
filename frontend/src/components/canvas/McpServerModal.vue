@@ -46,6 +46,7 @@ watch(
   }
 )
 
+// 複雜度高：涉及多層分支驗證（名稱格式、args 型別、stdio/http 模式各有規則），判斷式數量超過門檻
 const parseAndValidateJson = (): { name: string; config: McpServerConfig } | null => {
   let parsed: Record<string, unknown>
 
@@ -63,14 +64,43 @@ const parseAndValidateJson = (): { name: string; config: McpServerConfig } | nul
   }
 
   const name = keys[0] as string
+
+  if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+    errorMessage.value = '名稱只能包含英數字、底線和連字號'
+    return null
+  }
+
   const config = parsed[name] as Record<string, unknown>
 
-  const hasCommand = typeof config.command === 'string'
-  const hasTypeAndUrl = typeof config.type === 'string' && typeof config.url === 'string'
+  const isStdioMode = typeof config.command === 'string'
+  const isHttpMode = typeof config.type === 'string' && typeof config.url === 'string'
 
-  if (!hasCommand && !hasTypeAndUrl) {
+  if (!isStdioMode && !isHttpMode) {
     errorMessage.value = '設定必須包含 command 欄位（stdio 模式）或 type + url 欄位（http/sse 模式）'
     return null
+  }
+
+  if (isStdioMode && (config.command as string).trim() === '') {
+    errorMessage.value = 'command 欄位不能為空'
+    return null
+  }
+
+  if (isHttpMode) {
+    try {
+      new URL(config.url as string)
+    } catch {
+      errorMessage.value = 'url 欄位格式不正確'
+      return null
+    }
+  }
+
+  if (config.args !== undefined) {
+    const isValidArgs =
+      Array.isArray(config.args) && config.args.every((arg) => typeof arg === 'string')
+    if (!isValidArgs) {
+      errorMessage.value = 'args 欄位必須是字串陣列'
+      return null
+    }
   }
 
   errorMessage.value = ''

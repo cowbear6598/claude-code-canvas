@@ -217,6 +217,56 @@ describe('mcpServerStore', () => {
     })
   })
 
+  describe('readMcpServer', () => {
+    it('成功時應回傳含 config 的完整資料', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useMcpServerStore()
+
+      const mcpServer = { id: 'mcp-1', name: 'Test MCP', config: { command: 'npx', args: ['-y', 'test-mcp'] } }
+      mockCreateWebSocketRequest.mockResolvedValueOnce({ mcpServer })
+
+      const result = await store.readMcpServer('mcp-1')
+
+      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestEvent: 'mcp-server:read',
+          responseEvent: 'mcp-server:read:result',
+          payload: expect.objectContaining({
+            canvasId: 'canvas-1',
+            mcpServerId: 'mcp-1',
+          }),
+        })
+      )
+      expect(result).toEqual(mcpServer)
+      expect(result?.config).toEqual({ command: 'npx', args: ['-y', 'test-mcp'] })
+    })
+
+    it('失敗時（response 為 null）應回傳 null', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useMcpServerStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce(null)
+
+      const result = await store.readMcpServer('mcp-1')
+
+      expect(result).toBeNull()
+    })
+
+    it('回應無 mcpServer 欄位時應回傳 null', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useMcpServerStore()
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({})
+
+      const result = await store.readMcpServer('mcp-1')
+
+      expect(result).toBeNull()
+    })
+  })
+
   describe('deleteMcpServer', () => {
     it('應呼叫 deleteItem 並移除 availableItems 與相關 notes', async () => {
       const canvasStore = useCanvasStore()
@@ -231,6 +281,24 @@ describe('mcpServerStore', () => {
       await store.deleteMcpServer('mcp-1')
 
       expect(deleteItemSpy).toHaveBeenCalledWith('mcp-1')
+    })
+
+    it('刪除後 availableItems 應確實移除對應項目', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = useMcpServerStore()
+
+      const mcpServer1 = createMockMcpServer({ id: 'mcp-1', name: 'MCP 1' })
+      const mcpServer2 = createMockMcpServer({ id: 'mcp-2', name: 'MCP 2' })
+      store.availableItems = [mcpServer1, mcpServer2]
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({ success: true })
+
+      await store.deleteMcpServer('mcp-1')
+
+      const items = store.availableItems as Array<{ id: string; name: string }>
+      expect(items.find(item => item.id === 'mcp-1')).toBeUndefined()
+      expect(items.find(item => item.id === 'mcp-2')).toBeDefined()
     })
   })
 

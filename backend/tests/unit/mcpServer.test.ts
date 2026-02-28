@@ -1,4 +1,4 @@
-import {describe, it, expect, beforeEach} from 'vitest';
+import {describe, it, expect, beforeEach, vi} from 'vitest';
 
 vi.mock('../../src/services/persistence/index.js', () => ({
     persistenceService: {
@@ -16,8 +16,10 @@ vi.mock('../../src/utils/logger.js', () => ({
 }));
 
 import {McpServerStore} from '../../src/services/mcpServerStore.js';
-import {mcpServerCreateSchema, podBindMcpServerSchema, podUnbindMcpServerSchema} from '../../src/schemas/mcpServerSchemas.js';
+import {mcpServerCreateSchema, mcpServerUpdateSchema, podBindMcpServerSchema, podUnbindMcpServerSchema} from '../../src/schemas/mcpServerSchemas.js';
 import type {StdioMcpServerConfig, HttpMcpServerConfig} from '../../src/types/mcpServer.js';
+import {persistenceService} from '../../src/services/persistence/index.js';
+import {logger} from '../../src/utils/logger.js';
 
 describe('McpServerStore', () => {
     let store: McpServerStore;
@@ -117,6 +119,11 @@ describe('McpServerStore', () => {
 
             expect(store.getById(server.id)).toBeUndefined();
         });
+
+        it('刪除不存在的 ID 回傳 false', () => {
+            const result = store.delete('non-existent-id');
+            expect(result).toBe(false);
+        });
     });
 
     describe('批次取得多個 MCP Server', () => {
@@ -129,6 +136,65 @@ describe('McpServerStore', () => {
             expect(results).toHaveLength(2);
             expect(results.map((s) => s.id)).toContain(s1.id);
             expect(results.map((s) => s.id)).toContain(s2.id);
+        });
+    });
+
+    describe('loadFromDisk', () => {
+        const mockReadJson = persistenceService.readJson as ReturnType<typeof vi.fn>;
+        const mockWarn = logger.warn as ReturnType<typeof vi.fn>;
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+        });
+
+        it('成功載入合格資料', async () => {
+            mockReadJson.mockResolvedValueOnce({
+                success: true,
+                data: [
+                    {id: 'id-1', name: 'server-1', config: {command: 'node'}},
+                    {id: 'id-2', name: 'server-2', config: {type: 'http', url: 'https://example.com'}},
+                ],
+            });
+
+            const result = await store.loadFromDisk('/data');
+
+            expect(result.success).toBe(true);
+            expect(store.list()).toHaveLength(2);
+        });
+
+        it('資料為 null 時載入空清單', async () => {
+            mockReadJson.mockResolvedValueOnce({success: true, data: null});
+
+            const result = await store.loadFromDisk('/data');
+
+            expect(result.success).toBe(true);
+            expect(store.list()).toHaveLength(0);
+        });
+
+        it('讀取失敗時回傳 err', async () => {
+            mockReadJson.mockResolvedValueOnce({success: false, error: '讀取檔案失敗'});
+
+            const result = await store.loadFromDisk('/data');
+
+            expect(result.success).toBe(false);
+        });
+
+        it('結構不合格的項目跳過並 log 警告', async () => {
+            mockReadJson.mockResolvedValueOnce({
+                success: true,
+                data: [
+                    {id: 'id-1', name: 'valid-server', config: {command: 'node'}},
+                    {id: '', name: 'invalid-id', config: {command: 'node'}},
+                    {id: 'id-3', name: '', config: {command: 'node'}},
+                    {id: 'id-4', name: 'invalid name!', config: {command: 'node'}},
+                    {id: 'id-5', name: 'no-config'},
+                ],
+            });
+
+            await store.loadFromDisk('/data');
+
+            expect(store.list()).toHaveLength(1);
+            expect(mockWarn).toHaveBeenCalledTimes(4);
         });
     });
 });
@@ -178,6 +244,69 @@ describe('Schema 驗證', () => {
             };
 
             const result = mcpServerCreateSchema.safeParse(payload);
+            expect(result.success).toBe(false);
+        });
+
+        it('name 為空字串時拒絕', () => {
+            const result = mcpServerCreateSchema.safeParse({
+                requestId: validRequestId,
+                canvasId: validCanvasId,
+                name: '',
+                config: {command: 'node'},
+            });
+            expect(result.success).toBe(false);
+        });
+
+        it('name 超過 100 字元時拒絕', () => {
+            const result = mcpServerCreateSchema.safeParse({
+                requestId: validRequestId,
+                canvasId: validCanvasId,
+                name: 'a'.repeat(101),
+                config: {command: 'node'},
+            });
+            expect(result.success).toBe(false);
+        });
+
+        it('name 含特殊字元時拒絕', () => {
+            const result = mcpServerCreateSchema.safeParse({
+                requestId: validRequestId,
+                canvasId: validCanvasId,
+                name: 'invalid name!',
+                config: {command: 'node'},
+            });
+            expect(result.success).toBe(false);
+        });
+    });
+
+    describe('mcpServerUpdateSchema', () => {
+        it('正確 payload 通過驗證', () => {
+            const result = mcpServerUpdateSchema.safeParse({
+                requestId: validRequestId,
+                canvasId: validCanvasId,
+                mcpServerId: validMcpServerId,
+                name: 'updated-server',
+                config: {command: 'python', args: ['server.py']},
+            });
+            expect(result.success).toBe(true);
+        });
+
+        it('缺少 mcpServerId 時拒絕', () => {
+            const result = mcpServerUpdateSchema.safeParse({
+                requestId: validRequestId,
+                canvasId: validCanvasId,
+                name: 'updated-server',
+                config: {command: 'python'},
+            });
+            expect(result.success).toBe(false);
+        });
+
+        it('缺少 config 時拒絕', () => {
+            const result = mcpServerUpdateSchema.safeParse({
+                requestId: validRequestId,
+                canvasId: validCanvasId,
+                mcpServerId: validMcpServerId,
+                name: 'updated-server',
+            });
             expect(result.success).toBe(false);
         });
     });

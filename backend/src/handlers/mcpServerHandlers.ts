@@ -125,7 +125,7 @@ export async function handleMcpServerDelete(
         existsCheck: () => mcpServerStore.exists(mcpServerId),
         findPodsUsing: (canvasId: string) => podStore.findByMcpServerId(canvasId, mcpServerId),
         deleteNotes: (canvasId: string) => mcpServerNoteStore.deleteByForeignKey(canvasId, mcpServerId),
-        deleteResource: async () => { mcpServerStore.delete(mcpServerId); },
+        deleteResource: () => { mcpServerStore.delete(mcpServerId); return Promise.resolve(); },
         idFieldName: 'mcpServerId',
     });
 }
