@@ -1591,4 +1591,184 @@ describe('connectionStore', () => {
       expect(store.isWorkflowRunning('pod-source')).toBe(false)
     })
   })
+
+  describe('isPartOfRunningWorkflow', () => {
+    it('所有 Pod 和連線都是 idle 時回傳 false', () => {
+      const store = useConnectionStore()
+      const podStore = usePodStore()
+      podStore.pods = [
+        createMockPod({ id: 'pod-head', status: 'idle' }),
+        createMockPod({ id: 'pod-tail', status: 'idle' }),
+      ]
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-head', targetPodId: 'pod-tail', status: 'idle' }),
+      ]
+
+      expect(store.isPartOfRunningWorkflow('pod-head')).toBe(false)
+    })
+
+    it('下游 Pod 在 chatting 時回傳 true（從頭 Pod 往下查）', () => {
+      const store = useConnectionStore()
+      const podStore = usePodStore()
+      podStore.pods = [
+        createMockPod({ id: 'pod-head', status: 'idle' }),
+        createMockPod({ id: 'pod-tail', status: 'chatting' }),
+      ]
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-head', targetPodId: 'pod-tail', status: 'idle' }),
+      ]
+
+      expect(store.isPartOfRunningWorkflow('pod-head')).toBe(true)
+    })
+
+    it('上游連線是 active 時回傳 true（從尾 Pod 往上查）', () => {
+      const store = useConnectionStore()
+      const podStore = usePodStore()
+      podStore.pods = [
+        createMockPod({ id: 'pod-head', status: 'idle' }),
+        createMockPod({ id: 'pod-tail', status: 'idle' }),
+      ]
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-head', targetPodId: 'pod-tail', status: 'active' }),
+      ]
+
+      expect(store.isPartOfRunningWorkflow('pod-tail')).toBe(true)
+    })
+
+    it('自己 Pod 在 chatting 時應回傳 true', () => {
+      const store = useConnectionStore()
+      const podStore = usePodStore()
+      podStore.pods = [
+        createMockPod({ id: 'pod-a', status: 'chatting' }),
+        createMockPod({ id: 'pod-b', status: 'idle' }),
+      ]
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-a', targetPodId: 'pod-b', status: 'idle' }),
+      ]
+
+      expect(store.isPartOfRunningWorkflow('pod-a')).toBe(true)
+    })
+
+    it('自己 Pod 在 summarizing 時應回傳 true', () => {
+      const store = useConnectionStore()
+      const podStore = usePodStore()
+      podStore.pods = [
+        createMockPod({ id: 'pod-a', status: 'summarizing' }),
+        createMockPod({ id: 'pod-b', status: 'idle' }),
+      ]
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-a', targetPodId: 'pod-b', status: 'idle' }),
+      ]
+
+      expect(store.isPartOfRunningWorkflow('pod-a')).toBe(true)
+    })
+
+    it('連線 status 為 queued 時應回傳 true', () => {
+      const store = useConnectionStore()
+      const podStore = usePodStore()
+      podStore.pods = [
+        createMockPod({ id: 'pod-a', status: 'idle' }),
+        createMockPod({ id: 'pod-b', status: 'idle' }),
+      ]
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-a', targetPodId: 'pod-b', status: 'queued' }),
+      ]
+
+      expect(store.isPartOfRunningWorkflow('pod-a')).toBe(true)
+    })
+
+    it('連線 status 為 waiting 時應回傳 true', () => {
+      const store = useConnectionStore()
+      const podStore = usePodStore()
+      podStore.pods = [
+        createMockPod({ id: 'pod-a', status: 'idle' }),
+        createMockPod({ id: 'pod-b', status: 'idle' }),
+      ]
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-a', targetPodId: 'pod-b', status: 'waiting' }),
+      ]
+
+      expect(store.isPartOfRunningWorkflow('pod-a')).toBe(true)
+    })
+
+    it('三層 BFS（A->B->C）從 A 查到 C 在 chatting 應回傳 true', () => {
+      const store = useConnectionStore()
+      const podStore = usePodStore()
+      podStore.pods = [
+        createMockPod({ id: 'pod-a', status: 'idle' }),
+        createMockPod({ id: 'pod-b', status: 'idle' }),
+        createMockPod({ id: 'pod-c', status: 'chatting' }),
+      ]
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-a', targetPodId: 'pod-b', status: 'idle' }),
+        createMockConnection({ sourcePodId: 'pod-b', targetPodId: 'pod-c', status: 'idle' }),
+      ]
+
+      expect(store.isPartOfRunningWorkflow('pod-a')).toBe(true)
+    })
+  })
+
+  describe('getPodWorkflowRole', () => {
+    it('獨立 Pod（無連線）回傳 independent', () => {
+      const store = useConnectionStore()
+      store.connections = []
+
+      expect(store.getPodWorkflowRole('pod-a')).toBe('independent')
+    })
+
+    it('頭 Pod（該 Pod 為 source，無上游）回傳 head', () => {
+      const store = useConnectionStore()
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-a', targetPodId: 'pod-b' }),
+      ]
+
+      expect(store.getPodWorkflowRole('pod-a')).toBe('head')
+    })
+
+    it('尾 Pod（該 Pod 為 target，無下游）回傳 tail', () => {
+      const store = useConnectionStore()
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-a', targetPodId: 'pod-b' }),
+      ]
+
+      expect(store.getPodWorkflowRole('pod-b')).toBe('tail')
+    })
+
+    it('中間 Pod（同時為 target 和 source）回傳 middle', () => {
+      const store = useConnectionStore()
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-a', targetPodId: 'pod-b' }),
+        createMockConnection({ sourcePodId: 'pod-b', targetPodId: 'pod-c' }),
+      ]
+
+      expect(store.getPodWorkflowRole('pod-b')).toBe('middle')
+    })
+
+    it('分支 Workflow（A->B, A->C, C->D）：A=head, B=tail, C=middle, D=tail', () => {
+      const store = useConnectionStore()
+      store.connections = [
+        createMockConnection({ sourcePodId: 'pod-a', targetPodId: 'pod-b' }),
+        createMockConnection({ sourcePodId: 'pod-a', targetPodId: 'pod-c' }),
+        createMockConnection({ sourcePodId: 'pod-c', targetPodId: 'pod-d' }),
+      ]
+
+      expect(store.getPodWorkflowRole('pod-a')).toBe('head')
+      expect(store.getPodWorkflowRole('pod-b')).toBe('tail')
+      expect(store.getPodWorkflowRole('pod-c')).toBe('middle')
+      expect(store.getPodWorkflowRole('pod-d')).toBe('tail')
+    })
+
+    it('動態刪除連線後角色更新：A->B->C 刪除 B->C 後 B 變成 tail', () => {
+      const store = useConnectionStore()
+      const connAB = createMockConnection({ id: 'conn-ab', sourcePodId: 'pod-a', targetPodId: 'pod-b' })
+      const connBC = createMockConnection({ id: 'conn-bc', sourcePodId: 'pod-b', targetPodId: 'pod-c' })
+      store.connections = [connAB, connBC]
+
+      expect(store.getPodWorkflowRole('pod-b')).toBe('middle')
+
+      store.connections = store.connections.filter(conn => conn.id !== 'conn-bc')
+
+      expect(store.getPodWorkflowRole('pod-b')).toBe('tail')
+    })
+  })
 })

@@ -57,6 +57,7 @@ interface ImageAttachment {
 
 const props = defineProps<{
   isTyping?: boolean
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -352,6 +353,7 @@ const handleAbort = (): void => {
 }
 
 const handleSend = (): void => {
+  if (props.disabled) return
   const blocks = buildContentBlocks()
   if (blocks.length === 0) return
 
@@ -401,6 +403,7 @@ const handleEnterKey = (e: KeyboardEvent): void => {
   e.preventDefault()
   // AI 回應中不允許 Enter 送出，避免誤觸暫停
   if (props.isTyping) return
+  if (props.disabled) return
   handleSend()
 }
 
@@ -441,6 +444,7 @@ const handleKeyDown = (e: KeyboardEvent): void => {
 }
 
 const toggleListening = (): void => {
+  if (props.disabled) return
   if (!recognition.value) {
     toast({
       title: '此瀏覽器不支援語音輸入功能',
@@ -534,8 +538,9 @@ onUnmounted(() => {
       >
         <div
           ref="editableRef"
-          contenteditable="true"
+          :contenteditable="!disabled"
           class="px-4 py-3 font-mono text-sm outline-none leading-5 chat-input-editable"
+          :class="{ 'opacity-50': disabled }"
           @input="handleInput"
           @keydown="handleKeyDown"
           @paste="handlePaste"
@@ -556,6 +561,7 @@ onUnmounted(() => {
       </button>
       <button
         v-else
+        :disabled="disabled"
         class="doodle-action-btn bg-doodle-green disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0"
         @click="handleSend"
       >
@@ -565,7 +571,8 @@ onUnmounted(() => {
         />
       </button>
       <button
-        class="doodle-action-btn"
+        :disabled="disabled"
+        class="doodle-action-btn disabled:opacity-50 disabled:cursor-not-allowed"
         :class="isListening ? 'bg-red-500' : 'bg-doodle-coral'"
         @click="toggleListening"
       >

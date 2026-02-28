@@ -26,20 +26,40 @@ vi.mock('@/components/chat/ChatMessages.vue', () => ({
 vi.mock('@/components/chat/ChatInput.vue', () => ({
   default: {
     name: 'ChatInput',
-    props: ['isTyping'],
+    props: ['isTyping', 'disabled'],
     emits: ['send', 'abort'],
-    template: '<div data-testid="chat-input"></div>',
+    template: '<div data-testid="chat-input" :data-disabled="disabled"></div>',
+  },
+}))
+
+// Mock ChatWorkflowBlockedHint
+vi.mock('@/components/chat/ChatWorkflowBlockedHint.vue', () => ({
+  default: {
+    name: 'ChatWorkflowBlockedHint',
+    template: '<div data-testid="workflow-blocked-hint"></div>',
   },
 }))
 
 // Mock chatStore，避免 websocket 依賴
+const mockIsTyping = vi.fn(() => false)
 vi.mock('@/stores/chat', () => ({
   useChatStore: () => ({
     getMessages: vi.fn(() => []),
-    isTyping: vi.fn(() => false),
+    isTyping: mockIsTyping,
     isHistoryLoading: vi.fn(() => false),
     sendMessage: vi.fn(),
     abortChat: vi.fn(),
+  }),
+}))
+
+// Mock connectionStore
+const mockGetPodWorkflowRole = vi.fn(() => 'independent')
+const mockIsPartOfRunningWorkflow = vi.fn(() => false)
+vi.mock('@/stores/connectionStore', () => ({
+  useConnectionStore: () => ({
+    getPodWorkflowRole: mockGetPodWorkflowRole,
+    isPartOfRunningWorkflow: mockIsPartOfRunningWorkflow,
+    connections: [],
   }),
 }))
 
@@ -117,5 +137,135 @@ describe('ChatModal ESC 鍵行為', () => {
 
     // unmount 後不應再有新的 close emit
     expect(emitSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('Workflow Input 限制', () => {
+  beforeEach(() => {
+    const pinia = setupTestPinia()
+    setActivePinia(pinia)
+    mockGetPodWorkflowRole.mockReturnValue('independent')
+    mockIsPartOfRunningWorkflow.mockReturnValue(false)
+    mockIsTyping.mockReturnValue(false)
+  })
+
+  it('getPodWorkflowRole 回傳 independent → 存在 ChatInput，不存在提示', () => {
+    mockGetPodWorkflowRole.mockReturnValue('independent')
+    const wrapper = mountChatModal()
+
+    expect(wrapper.find('[data-testid="chat-input"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="workflow-blocked-hint"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('getPodWorkflowRole 回傳 middle → 存在提示，不存在 ChatInput', () => {
+    mockGetPodWorkflowRole.mockReturnValue('middle')
+    const wrapper = mountChatModal()
+
+    expect(wrapper.find('[data-testid="workflow-blocked-hint"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="chat-input"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('getPodWorkflowRole 回傳 head → 存在 ChatInput', () => {
+    mockGetPodWorkflowRole.mockReturnValue('head')
+    const wrapper = mountChatModal()
+
+    expect(wrapper.find('[data-testid="chat-input"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="workflow-blocked-hint"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('getPodWorkflowRole 回傳 tail → 存在 ChatInput', () => {
+    mockGetPodWorkflowRole.mockReturnValue('tail')
+    const wrapper = mountChatModal()
+
+    expect(wrapper.find('[data-testid="chat-input"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="workflow-blocked-hint"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+})
+
+describe('isWorkflowBusy', () => {
+  beforeEach(() => {
+    const pinia = setupTestPinia()
+    setActivePinia(pinia)
+    mockIsTyping.mockReturnValue(false)
+    mockIsPartOfRunningWorkflow.mockReturnValue(false)
+    mockGetPodWorkflowRole.mockReturnValue('independent')
+  })
+
+  it('workflow 執行中且頭 Pod 自己不在 typing 時，ChatInput 收到 disabled=true', async () => {
+    mockGetPodWorkflowRole.mockReturnValue('head')
+    mockIsPartOfRunningWorkflow.mockReturnValue(true)
+    mockIsTyping.mockReturnValue(false)
+
+    const wrapper = mountChatModal()
+    await wrapper.vm.$nextTick()
+
+    const chatInput = wrapper.find('[data-testid="chat-input"]')
+    expect(chatInput.attributes('data-disabled')).toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('頭 Pod 自己在 typing 時（isTyping=true），ChatInput 不應收到 disabled（應顯示停止按鈕）', async () => {
+    mockGetPodWorkflowRole.mockReturnValue('head')
+    mockIsPartOfRunningWorkflow.mockReturnValue(true)
+    mockIsTyping.mockReturnValue(true)
+
+    const wrapper = mountChatModal()
+    await wrapper.vm.$nextTick()
+
+    const chatInput = wrapper.find('[data-testid="chat-input"]')
+    expect(chatInput.attributes('data-disabled')).not.toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('workflow 執行中且尾 Pod 自己不在 typing 時，ChatInput 收到 disabled=true', async () => {
+    mockGetPodWorkflowRole.mockReturnValue('tail')
+    mockIsPartOfRunningWorkflow.mockReturnValue(true)
+    mockIsTyping.mockReturnValue(false)
+
+    const wrapper = mountChatModal()
+    await wrapper.vm.$nextTick()
+
+    const chatInput = wrapper.find('[data-testid="chat-input"]')
+    expect(chatInput.attributes('data-disabled')).toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('independent Pod 在 workflow 執行中時，ChatInput 不應收到 disabled', async () => {
+    mockGetPodWorkflowRole.mockReturnValue('independent')
+    mockIsPartOfRunningWorkflow.mockReturnValue(true)
+    mockIsTyping.mockReturnValue(false)
+
+    const wrapper = mountChatModal()
+    await wrapper.vm.$nextTick()
+
+    const chatInput = wrapper.find('[data-testid="chat-input"]')
+    expect(chatInput.attributes('data-disabled')).not.toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('tail Pod 自己在 typing 時，ChatInput 不應收到 disabled=true', async () => {
+    mockGetPodWorkflowRole.mockReturnValue('tail')
+    mockIsPartOfRunningWorkflow.mockReturnValue(true)
+    mockIsTyping.mockReturnValue(true)
+
+    const wrapper = mountChatModal()
+    await wrapper.vm.$nextTick()
+
+    const chatInput = wrapper.find('[data-testid="chat-input"]')
+    expect(chatInput.attributes('data-disabled')).not.toBe('true')
+
+    wrapper.unmount()
   })
 })

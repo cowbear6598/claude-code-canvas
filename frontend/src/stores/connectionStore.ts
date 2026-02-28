@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import type {AnchorPosition, Connection, ConnectionStatus, DraggingConnection, TriggerMode} from '@/types/connection'
+import type {AnchorPosition, Connection, ConnectionStatus, DraggingConnection, TriggerMode, WorkflowRole} from '@/types/connection'
 import {usePodStore} from '@/stores/pod/podStore'
 import {
     createWebSocketRequest,
@@ -51,6 +51,36 @@ const RUNNING_CONNECTION_STATUSES = new Set<ConnectionStatus>([
 ])
 
 const RUNNING_POD_STATUSES = new Set(['chatting', 'summarizing'])
+
+/**
+ * 通用 BFS 遍歷，檢查 Workflow 鏈中是否有正在執行的節點或連線。
+ *
+ * @param startId - 起始 Pod 的 ID
+ * @param getNeighbors - 根據 podId 回傳鄰居清單（包含鄰居 ID 及對應連線）
+ * @param isRunningPod - 判斷特定 podId 的 Pod 是否正在執行中
+ */
+function runBFS(
+    startId: string,
+    getNeighbors: (podId: string) => { neighborId: string; conn: Connection }[],
+    isRunningPod: (podId: string) => boolean,
+): boolean {
+    const visited = new Set<string>([startId])
+    const queue: string[] = [startId]
+
+    while (queue.length > 0) {
+        const currentId = queue.shift()!
+        if (isRunningPod(currentId)) return true
+
+        for (const { neighborId, conn } of getNeighbors(currentId)) {
+            if (conn.status && RUNNING_CONNECTION_STATUSES.has(conn.status)) return true
+            if (!visited.has(neighborId)) {
+                visited.add(neighborId)
+                queue.push(neighborId)
+            }
+        }
+    }
+    return false
+}
 
 interface ConnectionState {
     connections: Connection[]
@@ -113,34 +143,65 @@ export const useConnectionStore = defineStore('connection', {
             )
         },
 
+        getPodWorkflowRole: (state) => (podId: string): WorkflowRole => {
+            const hasUpstream = state.connections.some(conn => conn.targetPodId === podId)
+            const hasDownstream = state.connections.some(conn => conn.sourcePodId === podId)
+
+            if (!hasUpstream && !hasDownstream) return 'independent'
+            if (!hasUpstream && hasDownstream) return 'head'
+            if (hasUpstream && !hasDownstream) return 'tail'
+            return 'middle'
+        },
+
+        /**
+         * 雙向 BFS 遍歷整條 Workflow 鏈（上游 + 下游），
+         * 讓 head、tail 或任何連線中的 Pod 都能感知整條鏈的執行狀態，
+         * 用於在 Workflow 執行中時封鎖對應 Pod 的輸入。
+         */
+        isPartOfRunningWorkflow: (state) => (podId: string): boolean => {
+            const podStore = usePodStore()
+
+            return runBFS(
+                podId,
+                (currentId) => {
+                    const neighbors: { neighborId: string; conn: Connection }[] = []
+                    for (const conn of state.connections) {
+                        if (conn.sourcePodId === currentId) {
+                            neighbors.push({ neighborId: conn.targetPodId, conn })
+                        }
+                        if (conn.targetPodId === currentId && conn.sourcePodId) {
+                            neighbors.push({ neighborId: conn.sourcePodId, conn })
+                        }
+                    }
+                    return neighbors
+                },
+                (currentId) => {
+                    const pod = podStore.getPodById(currentId)
+                    return pod !== undefined && RUNNING_POD_STATUSES.has(pod.status ?? '')
+                },
+            )
+        },
+
+        /**
+         * 單向下游 BFS，從指定 Pod 出發往下游遍歷，
+         * 用於判斷從某個 head Pod 觸發的 Workflow 是否仍在執行中，
+         * 以決定是否允許再次觸發。
+         */
         isWorkflowRunning: (state) => (sourcePodId: string): boolean => {
             const podStore = usePodStore()
 
-            const sourcePod = podStore.getPodById(sourcePodId)
-            if (sourcePod && RUNNING_POD_STATUSES.has(sourcePod.status ?? '')) return true
-
-            const visited = new Set<string>()
-            const queue: string[] = [sourcePodId]
-            visited.add(sourcePodId)
-
-            while (queue.length > 0) {
-                const currentPodId = queue.shift()!
-                const outgoing = state.connections.filter(conn => conn.sourcePodId === currentPodId)
-
-                for (const conn of outgoing) {
-                    if (conn.status && RUNNING_CONNECTION_STATUSES.has(conn.status)) return true
-
-                    const targetPod = podStore.getPodById(conn.targetPodId)
-                    if (targetPod && RUNNING_POD_STATUSES.has(targetPod.status ?? '')) return true
-
-                    if (!visited.has(conn.targetPodId)) {
-                        visited.add(conn.targetPodId)
-                        queue.push(conn.targetPodId)
-                    }
-                }
-            }
-
-            return false
+            return runBFS(
+                sourcePodId,
+                (currentId) => {
+                    return state.connections
+                        .filter(conn => conn.sourcePodId === currentId)
+                        .map(conn => ({ neighborId: conn.targetPodId, conn }))
+                },
+                (currentId) => {
+                    const pod = podStore.getPodById(currentId)
+                    return pod !== undefined && RUNNING_POD_STATUSES.has(pod.status ?? '')
+                },
+            )
         },
     },
 

@@ -747,6 +747,69 @@ describe('字數限制', () => {
   })
 })
 
+describe('disabled 狀態', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    clearSpeechRecognitionMock()
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+    clearSpeechRecognitionMock()
+  })
+
+  it('disabled=true 時送出按鈕有 disabled 屬性', async () => {
+    const wrapper = mountChatInput({ disabled: true })
+    await wrapper.vm.$nextTick()
+
+    const buttons = wrapper.findAll('button')
+    const sendButton = buttons[0]!
+    expect(sendButton.attributes('disabled')).toBeDefined()
+
+    wrapper.unmount()
+  })
+
+  it('disabled=true 時按 Enter 不應送出', async () => {
+    const wrapper = mountChatInput({ disabled: true })
+    const editable = wrapper.find('[contenteditable]').element as HTMLDivElement
+
+    editable.appendChild(document.createTextNode('hello'))
+    editable.dispatchEvent(new Event('input', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    editable.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('send')).toBeFalsy()
+    wrapper.unmount()
+  })
+
+  it('disabled=false 時點擊送出按鈕應正常 emit send', async () => {
+    const wrapper = mountChatInput({ disabled: false })
+    const editable = wrapper.find('[contenteditable]').element as HTMLDivElement
+
+    editable.appendChild(document.createTextNode('hello'))
+    editable.dispatchEvent(new Event('input', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    const buttons = wrapper.findAll('button')
+    const sendButton = buttons[0]!
+    await sendButton.trigger('click')
+
+    expect(wrapper.emitted('send')).toBeTruthy()
+    wrapper.unmount()
+  })
+
+  it('isTyping=true 時即使 disabled=true，應顯示停止按鈕而非送出按鈕', async () => {
+    const wrapper = mountChatInput({ isTyping: true, disabled: true })
+    await wrapper.vm.$nextTick()
+
+    const buttons = wrapper.findAll('button')
+    expect(buttons).toHaveLength(2)
+    wrapper.unmount()
+  })
+})
+
 describe('語音辨識', () => {
   beforeEach(() => {
     vi.clearAllMocks()
