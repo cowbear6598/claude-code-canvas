@@ -1,6 +1,7 @@
 import { query, type Options } from '@anthropic-ai/claude-agent-sdk';
 import { logger } from '../../utils/logger.js';
 import { getErrorMessage } from '../../utils/errorHelpers.js';
+import { getClaudeCodePath } from './claudePathResolver.js';
 
 export interface DisposableChatOptions {
   systemPrompt: string;
@@ -27,6 +28,7 @@ class DisposableChatService {
         allowedTools: [],
         permissionMode: 'acceptEdits',
         includePartialMessages: true,
+        pathToClaudeCodeExecutable: getClaudeCodePath(),
         systemPrompt,
       };
 

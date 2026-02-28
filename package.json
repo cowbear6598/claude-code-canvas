@@ -4,8 +4,8 @@
   "private": true,
   "description": "AI Agent 畫布工具",
   "scripts": {
+    "build": "bun run build:frontend && bun run build:compile",
     "build:frontend": "cd frontend && bun run build",
-    "build:compile": "bun scripts/compile.ts",
-    "build:all": "bun run build:frontend && bun run build:compile"
+    "build:compile": "bun scripts/compile.ts"
   }
 }

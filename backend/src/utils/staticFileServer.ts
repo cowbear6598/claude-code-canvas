@@ -1,115 +1,28 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from './logger.js';
+import { getMimeType } from './mimeTypes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FRONTEND_DIST_PATH = path.resolve(__dirname, '../../../frontend/dist');
 
-/**
- * 根據副檔名取得 MIME Type
- */
-function getMimeType(filePath: string): string {
-	const ext = path.extname(filePath).toLowerCase();
-	const mimeTypes: Record<string, string> = {
-		'.html': 'text/html',
-		'.js': 'application/javascript',
-		'.css': 'text/css',
-		'.json': 'application/json',
-		'.svg': 'image/svg+xml',
-		'.png': 'image/png',
-		'.jpg': 'image/jpeg',
-		'.jpeg': 'image/jpeg',
-		'.gif': 'image/gif',
-		'.ico': 'image/x-icon',
-		'.woff': 'font/woff',
-		'.woff2': 'font/woff2',
-		'.ttf': 'font/ttf',
-		'.eot': 'application/vnd.ms-fontobject',
-		'.webp': 'image/webp',
-		'.webm': 'video/webm',
-		'.mp4': 'video/mp4',
-	};
-	return mimeTypes[ext] || 'application/octet-stream';
-}
+type VFSData = Record<string, { content: string; mimeType: string }>;
 
-/**
- * 判斷目前是否為 compile 模式（bun build --compile 產出的單一執行檔）
- * 透過檢查 Bun.embeddedFiles 是否有內容來判斷
- */
-export function isCompiledMode(): boolean {
-	return Bun.embeddedFiles.length > 0;
-}
+let vfsData: VFSData | null = null;
 
-// Bun 的 embeddedFiles 在 runtime 中，每個 Blob 都有 name 屬性，
-// 但型別定義僅為標準 Blob，因此需要自訂介面來存取 name
-interface NamedBlob extends Blob {
-	readonly name: string;
-}
-
-/**
- * 從 Bun.embeddedFiles 建立 URL 路徑到 Blob 的 Map
- * key 為 URL 路徑（例如 /index.html、/assets/index-abc123.js）
- */
-export function buildEmbeddedFileMap(files: ReadonlyArray<Blob>): Map<string, Blob> {
-	const map = new Map<string, Blob>();
-
-	for (const blob of files) {
-		const namedBlob = blob as NamedBlob;
-		// namedBlob.name 為檔案名稱（可能含路徑），例如 index.html 或 assets/index-abc123.js
-		// 統一加上 / 前綴作為 URL 路徑的 key
-		const key = namedBlob.name.startsWith('/') ? namedBlob.name : `/${namedBlob.name}`;
-		map.set(key, blob);
-	}
-
-	return map;
-}
-
-// compile 模式下，在模組載入時建立嵌入檔案的 Map
-const embeddedFileMap = buildEmbeddedFileMap(Bun.embeddedFiles);
-
-/**
- * 從嵌入檔案 Map 中提供靜態檔案回應（compile 模式專用）
- */
-export function serveFromEmbeddedMap(request: Request, fileMap: Map<string, Blob>): Response {
-	const url = new URL(request.url);
-	const pathname = url.pathname === '/' ? '/index.html' : url.pathname;
-
-	const blob = fileMap.get(pathname);
-
-	if (blob) {
-		const headers = new Headers({
-			'Content-Type': getMimeType(pathname),
-			'X-Content-Type-Options': 'nosniff',
-		});
-
-		if (pathname.startsWith('/assets/')) {
-			headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-		}
-
-		return new Response(blob, { headers });
-	}
-
-	// SPA fallback：找不到的路徑回傳 index.html
-	const indexBlob = fileMap.get('/index.html');
-
-	if (indexBlob) {
-		return new Response(indexBlob, {
-			headers: {
-				'Content-Type': 'text/html',
-				'X-Content-Type-Options': 'nosniff',
-			},
-		});
-	}
-
-	return new Response('Not Found', { status: 404 });
+try {
+	const mod = await import('../generated/vfs.js');
+	vfsData = mod.VFS ?? null;
+} catch {
+	vfsData = null;
 }
 
 /**
  * 檢查靜態檔案是否可用
  */
 export async function isStaticFilesAvailable(): Promise<boolean> {
-	if (isCompiledMode()) {
-		return embeddedFileMap.has('/index.html');
+	if (vfsData !== null) {
+		return vfsData['/index.html'] !== undefined;
 	}
 
 	try {
@@ -126,11 +39,48 @@ export async function isStaticFilesAvailable(): Promise<boolean> {
  * @returns Response 回應
  */
 export async function serveStaticFile(request: Request): Promise<Response> {
-	if (isCompiledMode()) {
-		return serveFromEmbeddedMap(request, embeddedFileMap);
+	if (vfsData !== null) {
+		return serveFromVFS(request, vfsData);
 	}
 
 	return serveFromFilesystem(request);
+}
+
+export function serveFromVFS(
+	request: Request,
+	vfs: Record<string, { content: string; mimeType: string }>,
+): Response {
+	const url = new URL(request.url);
+	const pathname = url.pathname === '/' ? '/index.html' : url.pathname;
+
+	const entry = vfs[pathname];
+
+	if (entry) {
+		const headers = new Headers({
+			'Content-Type': entry.mimeType,
+			'X-Content-Type-Options': 'nosniff',
+		});
+
+		if (pathname.startsWith('/assets/')) {
+			headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+		}
+
+		return new Response(Buffer.from(entry.content, 'base64'), { headers });
+	}
+
+	// SPA fallback：找不到的路徑回傳 index.html
+	const indexEntry = vfs['/index.html'];
+
+	if (indexEntry) {
+		return new Response(Buffer.from(indexEntry.content, 'base64'), {
+			headers: {
+				'Content-Type': 'text/html',
+				'X-Content-Type-Options': 'nosniff',
+			},
+		});
+	}
+
+	return new Response('Not Found', { status: 404 });
 }
 
 async function serveFromFilesystem(request: Request): Promise<Response> {

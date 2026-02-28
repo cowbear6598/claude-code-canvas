@@ -1,5 +1,5 @@
-import {v4 as uuidv4} from 'uuid';
 import path from 'path';
+import {v4 as uuidv4} from 'uuid';
 import {type Options, type Query, query} from '@anthropic-ai/claude-agent-sdk';
 import type {SDKMessage, SDKSystemMessage, SDKAssistantMessage, SDKResultMessage, SDKUserMessage as SDKUserMessageType} from '@anthropic-ai/claude-agent-sdk';
 import {podStore} from '../podStore.js';
@@ -8,6 +8,8 @@ import {outputStyleService} from '../outputStyleService.js';
 import {Message, ToolUseInfo, ContentBlock, Pod} from '../../types';
 import {config} from '../../config';
 import {logger} from '../../utils/logger.js';
+import {getClaudeCodePath} from './claudePathResolver.js';
+import {isPathWithinDirectory} from '../../utils/pathValidator.js';
 import {
     buildClaudeContentBlocks,
     createUserMessageStream,
@@ -350,6 +352,7 @@ class ClaudeQueryService {
             allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Skill'],
             permissionMode: 'acceptEdits',
             includePartialMessages: true,
+            pathToClaudeCodeExecutable: getClaudeCodePath(),
             abortController,
         };
 
@@ -394,9 +397,17 @@ class ClaudeQueryService {
 
         try {
             const resumeSessionId = pod.claudeSessionId;
-            const cwd = pod.repositoryId
+            const rawCwd = pod.repositoryId
                 ? path.join(config.repositoriesRoot, pod.repositoryId)
                 : pod.workspacePath;
+
+            if (pod.repositoryId) {
+                const resolvedCwd = path.resolve(rawCwd);
+                if (!isPathWithinDirectory(resolvedCwd, path.resolve(config.repositoriesRoot))) {
+                    throw new Error(`非法的工作目錄路徑：${pod.repositoryId}`);
+                }
+            }
+            const cwd = path.resolve(rawCwd);
 
             const queryOptions = await this.buildQueryOptions(pod, cwd);
             const {abortController} = queryOptions;

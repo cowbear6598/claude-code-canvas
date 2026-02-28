@@ -82,7 +82,14 @@ export function readConfig(configPath: string): Record<string, string> {
 
 	try {
 		const content = fs.readFileSync(configPath, 'utf-8');
-		return JSON.parse(content) as Record<string, string>;
+		const raw = JSON.parse(content);
+		const config: Record<string, string> = {};
+		for (const [key, value] of Object.entries(raw)) {
+			if (typeof value === 'string') {
+				config[key] = value;
+			}
+		}
+		return config;
 	} catch {
 		return {};
 	}
@@ -91,7 +98,7 @@ export function readConfig(configPath: string): Record<string, string> {
 export function writeConfig(configPath: string, config: Record<string, string>): void {
 	const dir = path.dirname(configPath);
 	fs.mkdirSync(dir, { recursive: true });
-	fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+	fs.writeFileSync(configPath, JSON.stringify(config, null, 2), { encoding: 'utf-8', mode: 0o600 });
 }
 
 export function readPidFile(pidPath: string): { pid: number; port: number; startedAt: string } | null {
@@ -112,7 +119,7 @@ export function readPidFile(pidPath: string): { pid: number; port: number; start
 export function writePidFile(pidPath: string, data: { pid: number; port: number; startedAt: string }): void {
 	const dir = path.dirname(pidPath);
 	fs.mkdirSync(dir, { recursive: true });
-	fs.writeFileSync(pidPath, JSON.stringify(data, null, 2), 'utf-8');
+	fs.writeFileSync(pidPath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 });
 }
 
 export function isProcessAlive(pid: number): boolean {
@@ -122,6 +129,14 @@ export function isProcessAlive(pid: number): boolean {
 	} catch {
 		return false;
 	}
+}
+
+function validateConfigKey(key: string, usage: string): void {
+	if (VALID_CONFIG_KEYS.includes(key)) return;
+	console.error(`錯誤：不支援的設定 key「${key}」`);
+	console.error(`可用的 key：${VALID_CONFIG_KEYS.join('、')}`);
+	console.error(`使用方式：${usage}`);
+	process.exit(1);
 }
 
 function maskToken(value: string): string {
@@ -167,8 +182,15 @@ async function handleStart(flags: Record<string, string | boolean>): Promise<voi
 	fs.mkdirSync(LOG_DIR, { recursive: true });
 	const logFd = fs.openSync(LOG_FILE, 'a');
 
+	// compile 模式下，可執行檔本身就是入口，不需要 script 路徑
+	// 非 compile 模式下（bun cli.ts），需要 script 路徑
+	const isCompiled = !process.argv[1] || process.argv[1].includes('$bunfs');
+	const spawnArgs = isCompiled
+		? [process.execPath, '--daemon', '--port', String(port)]
+		: [process.execPath, process.argv[1], '--daemon', '--port', String(port)];
+
 	const child = Bun.spawn(
-		[process.execPath, process.argv[1], '--daemon', '--port', String(port)],
+		spawnArgs,
 		{
 			env: { ...process.env, ...envOverrides },
 			stdout: logFd,
@@ -248,11 +270,7 @@ function handleConfig(args: string[]): void {
 			process.exit(1);
 		}
 
-		if (!VALID_CONFIG_KEYS.includes(key)) {
-			console.error(`錯誤：不支援的設定 key「${key}」`);
-			console.error(`可用的 key：${VALID_CONFIG_KEYS.join('、')}`);
-			process.exit(1);
-		}
+		validateConfigKey(key, 'claude-canvas config set <key> <value>');
 
 		const config = readConfig(CONFIG_FILE);
 		config[key] = value;
@@ -269,11 +287,7 @@ function handleConfig(args: string[]): void {
 			process.exit(1);
 		}
 
-		if (!VALID_CONFIG_KEYS.includes(key)) {
-			console.error(`錯誤：不支援的設定 key「${key}」`);
-			console.error(`可用的 key：${VALID_CONFIG_KEYS.join('、')}`);
-			process.exit(1);
-		}
+		validateConfigKey(key, 'claude-canvas config get <key>');
 
 		const config = readConfig(CONFIG_FILE);
 		const value = config[key];
@@ -281,7 +295,8 @@ function handleConfig(args: string[]): void {
 		if (value === undefined) {
 			console.log('尚未設定');
 		} else {
-			console.log(value);
+			const isToken = key.endsWith('_TOKEN');
+			console.log(isToken ? maskToken(value) : value);
 		}
 		return;
 	}

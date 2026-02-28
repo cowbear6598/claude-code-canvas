@@ -1,4 +1,5 @@
 import {query, Query} from '@anthropic-ai/claude-agent-sdk';
+import {getClaudeCodePath} from './claudePathResolver.js';
 
 class ClaudeSessionManager {
     private sessions: Map<string, Query> = new Map();
@@ -16,6 +17,7 @@ class ClaudeSessionManager {
                 allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Skill'],
                 permissionMode: 'acceptEdits',
                 includePartialMessages: true,
+                pathToClaudeCodeExecutable: getClaudeCodePath(),
             },
         });
 
@@ -25,10 +27,7 @@ class ClaudeSessionManager {
     }
 
     async destroySession(podId: string): Promise<void> {
-        const session = this.sessions.get(podId);
-        if (session) {
-            this.sessions.delete(podId);
-        }
+        this.sessions.delete(podId);
     }
 }
 
