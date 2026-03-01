@@ -25,6 +25,7 @@
 - 因為使用 **Claude Agent SDK**，請確保此服務啟動在**已登入 Claude 的環境**，暫時不支援 API Key
 - 目前**僅在 macOS 上測試過**，其他作業系統可能會有未知問題
 - 畫布資料會存放在 `~/Documents/ClaudeCanvas`
+- 目前是以**最大權限**開放給 AI，請小心操作
 
 ## 安裝
 
@@ -62,7 +63,7 @@ claude-canvas stop
 
 ## 設定
 
-如果要使用 Clone 相關功能存取私有 Repository，請使用 `config` 指令設定：
+如果要使用 Clone 相關功能存取私有 Repository，請使用 `config` 指令設定。如果已經使用 `gh` 登入過，理論上可以不需要額外填寫 GitHub Token。
 
 ```bash
 # GitHub Token

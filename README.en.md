@@ -25,6 +25,7 @@ A canvas tool for visually designing and executing AI Agent workflows, powered b
 - Since it uses the **Claude Agent SDK**, make sure the service runs in an environment where **Claude is already logged in**. Not supported API Key now.
 - Currently **only tested on macOS**. Other operating systems may have unknown issues.
 - Canvas data is stored in `~/Documents/ClaudeCanvas`
+- AI is currently granted **maximum permissions**. Please be careful with operations.
 
 ## Installation
 
@@ -60,7 +61,7 @@ Open your browser and navigate to `http://localhost:3001` to get started.
 
 ## Configuration
 
-To use Clone features for accessing private repositories, use the `config` command:
+To use Clone features for accessing private repositories, use the `config` command. If you have already logged in with `gh`, you may not need to set the GitHub Token separately.
 
 ```bash
 # GitHub Token
