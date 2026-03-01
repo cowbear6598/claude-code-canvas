@@ -8,6 +8,7 @@ import type {
   CopiedCommandNote,
   CopiedConnection,
   AnchorPosition,
+  TriggerMode,
   Pod,
 } from '@/types'
 
@@ -133,7 +134,6 @@ export function collectSelectedPods(
         copiedPods.push({
           id: pod.id,
           name: pod.name,
-          color: pod.color,
           x: pod.x,
           y: pod.y,
           rotation: pod.rotation,
@@ -270,7 +270,7 @@ export function collectSelectedNotes(
 
 export function collectRelatedConnections(
   selectedPodIds: Set<string>,
-  connections: { id: string; sourcePodId?: string; targetPodId: string; sourceAnchor: AnchorPosition; targetAnchor: AnchorPosition }[]
+  connections: { id: string; sourcePodId?: string; targetPodId: string; sourceAnchor: AnchorPosition; targetAnchor: AnchorPosition; triggerMode: TriggerMode }[]
 ): CopiedConnection[] {
   const copiedConnections: CopiedConnection[] = []
 
@@ -285,6 +285,7 @@ export function collectRelatedConnections(
         sourceAnchor: connection.sourceAnchor,
         targetPodId: connection.targetPodId,
         targetAnchor: connection.targetAnchor,
+        triggerMode: connection.triggerMode,
       })
     }
   }

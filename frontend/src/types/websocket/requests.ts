@@ -1,4 +1,4 @@
-import type { PodColor, ModelType, Schedule } from '../pod'
+import type { ModelType, Schedule } from '../pod'
 import type { AnchorPosition } from '@/types'
 import type { McpServerConfig } from '../mcpServer'
 
@@ -8,7 +8,6 @@ export interface PodCreatePayload {
   requestId: string
   canvasId: string
   name: string
-  color: PodColor
   x: number
   y: number
   rotation: number
@@ -132,7 +131,6 @@ export interface WorkflowClearPayload {
 export interface PastePodItem {
   originalId: string
   name: string
-  color: PodColor
   x: number
   y: number
   rotation: number

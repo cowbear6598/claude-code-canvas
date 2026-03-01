@@ -809,13 +809,11 @@ function createMockPod(name: string, autoClear: boolean = false): Pod {
   return {
     id: uuidv4(),
     name: `Pod ${name}`,
-    color: 'blue',
     x: 0,
     y: 0,
     rotation: 0,
     status: 'idle',
     workspacePath: '/tmp/test',
-    gitUrl: null,
     claudeSessionId: null,
     outputStyleId: null,
     skillIds: [],
@@ -823,10 +821,7 @@ function createMockPod(name: string, autoClear: boolean = false): Pod {
     model: 'sonnet',
     repositoryId: null,
     commandId: null,
-    needsForkSession: false,
     autoClear,
-    createdAt: new Date(),
-    lastActiveAt: new Date(),
   };
 }
 
@@ -845,6 +840,5 @@ function createMockConnection(
     decideStatus: 'none',
     decideReason: null,
     connectionStatus: 'idle',
-    createdAt: new Date(),
   };
 }

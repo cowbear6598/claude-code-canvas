@@ -177,7 +177,6 @@ describe('Store 覆蓋率測試', () => {
       expect(() => {
         podStore.create(fakeCanvasId, {
           name: 'Test',
-          color: 'blue',
           x: 0,
           y: 0,
           rotation: 0,

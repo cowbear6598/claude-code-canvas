@@ -1,4 +1,4 @@
-import type { PodColor, PodStatus, ModelType } from './pod.js';
+import type { PodStatus, ModelType } from './pod.js';
 import type { AnchorPosition, ConnectionStatus } from './connection.js';
 import type { PersistedScheduleConfig } from './schedule.js';
 
@@ -41,11 +41,7 @@ export interface ChatHistory {
 export interface PersistedPod {
   id: string;
   name: string;
-  color: PodColor;
   status: PodStatus;
-  gitUrl: string | null;
-  createdAt: string;
-  updatedAt: string;
   x: number;
   y: number;
   rotation: number;
@@ -57,9 +53,8 @@ export interface PersistedPod {
   model: ModelType;
   repositoryId: string | null;
   commandId?: string | null;
-  needsForkSession?: boolean; // Flag to fork session on next query
-  autoClear?: boolean; // Auto-clear messages after workflow completion
-  schedule?: PersistedScheduleConfig; // Schedule configuration for automatic execution
+  autoClear?: boolean;
+  schedule?: PersistedScheduleConfig;
 }
 
 /**
@@ -75,5 +70,4 @@ export interface PersistedConnection {
   decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error';
   decideReason?: string | null;
   connectionStatus?: ConnectionStatus;
-  createdAt: string;
 }

@@ -250,7 +250,6 @@ export async function executeStreamingChat(
         }
 
         podStore.setStatus(canvasId, podId, 'idle');
-        podStore.updateLastActive(canvasId, podId);
 
         if (callbacks?.onComplete) {
             await callbacks.onComplete(canvasId, podId);

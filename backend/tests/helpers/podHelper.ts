@@ -40,7 +40,6 @@ export async function createPod(
     requestId: uuidv4(),
     canvasId,
     name: 'Test Pod',
-    color: 'blue',
     x: 0,
     y: 0,
     rotation: 0,

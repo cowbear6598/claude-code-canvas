@@ -28,7 +28,7 @@ export async function getCanvasId(client: TestWebSocketClient): Promise<string> 
 export async function createCanvas(
   client: TestWebSocketClient,
   name?: string
-): Promise<{ id: string; name: string; createdAt: string; sortIndex: number }> {
+): Promise<{ id: string; name: string; sortIndex: number }> {
   if (!client.id) {
     throw new Error('Socket not connected');
   }
@@ -50,7 +50,7 @@ export async function createCanvas(
 
 export async function listCanvases(
   client: TestWebSocketClient
-): Promise<{ id: string; name: string; createdAt: string; sortIndex: number }[]> {
+): Promise<{ id: string; name: string; sortIndex: number }[]> {
   if (!client.id) {
     throw new Error('Socket not connected');
   }

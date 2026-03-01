@@ -43,7 +43,6 @@ describe('Paste Helpers', () => {
       const mockPod = {
         id: newPodId,
         name: 'Test Pod',
-        color: 'blue' as const,
         x: 100,
         y: 100,
         rotation: 0,
@@ -55,12 +54,8 @@ describe('Paste Helpers', () => {
         commandId: null,
         model: 'sonnet' as const,
         status: 'idle' as const,
-        createdAt: new Date(),
         schedule: undefined,
-        gitUrl: null,
-        lastActiveAt: new Date(),
         claudeSessionId: null,
-        needsForkSession: false,
         autoClear: false,
       };
 
@@ -86,7 +81,6 @@ describe('Paste Helpers', () => {
         {
           originalId: originalPodId,
           name: 'Test Pod',
-          color: 'blue',
           x: 100,
           y: 100,
           rotation: 0,
@@ -121,7 +115,6 @@ describe('Paste Helpers', () => {
         {
           originalId: originalPodId,
           name: 'Test Pod with Invalid Repo',
-          color: 'blue',
           x: 100,
           y: 100,
           rotation: 0,
@@ -162,7 +155,6 @@ describe('Paste Helpers', () => {
       const mockPod = {
         id: newPodId,
         name: 'Test Pod',
-        color: 'blue' as const,
         x: 100,
         y: 100,
         rotation: 0,
@@ -174,12 +166,8 @@ describe('Paste Helpers', () => {
         commandId: null,
         model: 'sonnet' as const,
         status: 'idle' as const,
-        createdAt: new Date(),
         schedule: undefined,
-        gitUrl: null,
-        lastActiveAt: new Date(),
         claudeSessionId: null,
-        needsForkSession: false,
         autoClear: false,
       };
 
@@ -205,7 +193,6 @@ describe('Paste Helpers', () => {
         {
           originalId: originalPodId,
           name: 'Test Pod',
-          color: 'blue',
           x: 100,
           y: 100,
           rotation: 0,
@@ -248,7 +235,6 @@ describe('Paste Helpers', () => {
       const mockPod = {
         id: newPodId,
         name: 'Success Pod',
-        color: 'green' as const,
         x: 200,
         y: 200,
         rotation: 0,
@@ -260,12 +246,8 @@ describe('Paste Helpers', () => {
         commandId: null,
         model: 'sonnet' as const,
         status: 'idle' as const,
-        createdAt: new Date(),
         schedule: undefined,
-        gitUrl: null,
-        lastActiveAt: new Date(),
         claudeSessionId: null,
-        needsForkSession: false,
         autoClear: false,
       };
 
@@ -291,7 +273,6 @@ describe('Paste Helpers', () => {
         {
           originalId: failingPodId,
           name: 'Failing Pod',
-          color: 'coral',
           x: 100,
           y: 100,
           rotation: 0,
@@ -300,7 +281,6 @@ describe('Paste Helpers', () => {
         {
           originalId: successPodId,
           name: 'Success Pod',
-          color: 'green',
           x: 200,
           y: 200,
           rotation: 0,
@@ -348,7 +328,6 @@ describe('Paste Helpers', () => {
         decideStatus: 'none' as const,
         decideReason: null,
         connectionStatus: 'idle' as const,
-        createdAt: new Date(),
       };
 
       const createConnSpy = vi.spyOn(connectionStore, 'create').mockReturnValue(mockConnection);
@@ -488,7 +467,6 @@ describe('Paste Helpers', () => {
         decideStatus: 'none' as const,
         decideReason: null,
         connectionStatus: 'idle' as const,
-        createdAt: new Date(),
       };
 
       const mockConnection2 = {
@@ -501,7 +479,6 @@ describe('Paste Helpers', () => {
         decideStatus: 'none' as const,
         decideReason: null,
         connectionStatus: 'idle' as const,
-        createdAt: new Date(),
       };
 
       const createConnSpy = vi.spyOn(connectionStore, 'create')
@@ -570,7 +547,6 @@ describe('Paste Helpers', () => {
         decideStatus: 'none' as const,
         decideReason: null,
         connectionStatus: 'idle' as const,
-        createdAt: new Date(),
       };
 
       const createConnSpy = vi.spyOn(connectionStore, 'create').mockReturnValue(mockConnection);

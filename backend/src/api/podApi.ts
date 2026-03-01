@@ -1,6 +1,7 @@
 import { podStore } from '../services/podStore.js';
 import { jsonResponse, resolveCanvas } from './apiHelpers.js';
 import { createPodWithWorkspace } from '../services/podService.js';
+import { logger } from '../utils/logger.js';
 import type { ModelType } from '../types/pod.js';
 
 const VALID_MODELS: ModelType[] = ['opus', 'sonnet', 'haiku'];
@@ -73,7 +74,6 @@ export async function handleCreatePod(req: Request, params: Record<string, strin
 		canvas.id,
 		{
 			name: validated.name,
-			color: 'blue',
 			x: validated.x,
 			y: validated.y,
 			rotation: 0,
@@ -83,7 +83,8 @@ export async function handleCreatePod(req: Request, params: Record<string, strin
 	);
 
 	if (!result.success) {
-		return jsonResponse({ error: result.error }, 500);
+		logger.error('Pod', 'Error', '建立 Pod 失敗', result.error);
+		return jsonResponse({ error: '建立 Pod 時發生內部錯誤' }, 500);
 	}
 
 	return jsonResponse({ pod: result.data!.pod }, 201);

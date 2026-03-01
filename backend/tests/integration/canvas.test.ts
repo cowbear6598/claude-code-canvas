@@ -54,7 +54,6 @@ describe('Canvas 管理', () => {
 
             expect(canvas.id).toBeDefined();
             expect(canvas.name).toBe('Test Canvas');
-            expect(canvas.createdAt).toBeDefined();
         });
 
         it('空白名稱時建立失敗', async () => {

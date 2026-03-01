@@ -1,7 +1,5 @@
 import type { Component } from 'vue'
 
-export type PodColor = 'blue' | 'coral' | 'pink' | 'yellow' | 'green'
-
 export type ModelType = 'opus' | 'sonnet' | 'haiku'
 
 export type PodStatus = 'idle' | 'chatting' | 'summarizing' | 'error'
@@ -25,15 +23,11 @@ export interface Pod {
   name: string
   x: number
   y: number
-  color: PodColor
   /** 僅存在於前端狀態，由 chatMessageActions 動態建構，後端不持久化此欄位 */
   output: string[]
   rotation: number
   status?: PodStatus
-  gitUrl?: string
   workspacePath?: string
-  createdAt?: string
-  updatedAt?: string
   outputStyleId?: string | null
   skillIds?: string[]
   subAgentIds?: string[]
@@ -47,7 +41,6 @@ export interface Pod {
 
 export interface PodTypeConfig {
   icon: Component
-  color: PodColor
 }
 
 export interface Position {

@@ -1,10 +1,5 @@
-import type { Pod, PodColor } from '@/types'
+import type { Pod } from '@/types'
 import { validatePodName } from '@/lib/sanitize'
-
-/**
- * 合法的 Pod 顏色清單
- */
-const VALID_POD_COLORS: PodColor[] = ['blue', 'coral', 'pink', 'yellow', 'green']
 
 /**
  * 驗證 Pod 是否有效
@@ -17,7 +12,6 @@ export function isValidPod(pod: Pod): boolean {
     Array.isArray(pod.output) &&
     pod.output.every(item => typeof item === 'string') &&
     pod.id.trim() !== '' &&
-    VALID_POD_COLORS.includes(pod.color) &&
     isFinite(pod.x) &&
     isFinite(pod.y) &&
     isFinite(pod.rotation)

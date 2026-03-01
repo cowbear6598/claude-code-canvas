@@ -63,21 +63,15 @@ describe('GET /api/canvas/:id/pods', () => {
 
 		expect(typeof pod.id).toBe('string');
 		expect(typeof pod.name).toBe('string');
-		expect(typeof pod.color).toBe('string');
 		expect(typeof pod.status).toBe('string');
 		expect(typeof pod.workspacePath).toBe('string');
 		expect(typeof pod.x).toBe('number');
 		expect(typeof pod.y).toBe('number');
 		expect(typeof pod.rotation).toBe('number');
-		expect(typeof pod.createdAt).toBe('string');
-		expect(new Date(pod.createdAt).toISOString()).toBe(pod.createdAt);
-		expect(typeof pod.lastActiveAt).toBe('string');
-		expect(new Date(pod.lastActiveAt).toISOString()).toBe(pod.lastActiveAt);
 		expect(Array.isArray(pod.skillIds)).toBe(true);
 		expect(Array.isArray(pod.subAgentIds)).toBe(true);
 		expect(Array.isArray(pod.mcpServerIds)).toBe(true);
 		expect(typeof pod.model).toBe('string');
-		expect(typeof pod.needsForkSession).toBe('boolean');
 		expect(typeof pod.autoClear).toBe('boolean');
 	});
 
@@ -131,7 +125,6 @@ describe('POST /api/canvas/:id/pods', () => {
 		expect(body.pod.name).toBe('REST Pod');
 		expect(body.pod.x).toBe(100);
 		expect(body.pod.y).toBe(200);
-		expect(body.pod.color).toBe('blue');
 		expect(body.pod.rotation).toBe(0);
 		expect(body.pod.model).toBe('opus');
 	});
@@ -249,21 +242,15 @@ describe('POST /api/canvas/:id/pods', () => {
 
 		expect(typeof pod.id).toBe('string');
 		expect(typeof pod.name).toBe('string');
-		expect(pod.color).toBe('blue');
 		expect(pod.status).toBe('idle');
 		expect(typeof pod.workspacePath).toBe('string');
 		expect(typeof pod.x).toBe('number');
 		expect(typeof pod.y).toBe('number');
 		expect(pod.rotation).toBe(0);
 		expect(typeof pod.model).toBe('string');
-		expect(typeof pod.createdAt).toBe('string');
-		expect(new Date(pod.createdAt).toISOString()).toBe(pod.createdAt);
-		expect(typeof pod.lastActiveAt).toBe('string');
-		expect(new Date(pod.lastActiveAt).toISOString()).toBe(pod.lastActiveAt);
 		expect(Array.isArray(pod.skillIds)).toBe(true);
 		expect(Array.isArray(pod.subAgentIds)).toBe(true);
 		expect(Array.isArray(pod.mcpServerIds)).toBe(true);
-		expect(typeof pod.needsForkSession).toBe('boolean');
 		expect(typeof pod.autoClear).toBe('boolean');
 	});
 });

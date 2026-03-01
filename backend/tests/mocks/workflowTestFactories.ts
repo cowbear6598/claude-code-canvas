@@ -24,14 +24,9 @@ export function createMockPod(overrides?: Partial<Pod>): Pod {
     commandId: null,
     outputStyleId: null,
     status: 'idle',
-    color: 'blue',
     x: 0,
     y: 0,
     rotation: 0,
-    gitUrl: null,
-    createdAt: new Date(),
-    lastActiveAt: new Date(),
-    needsForkSession: false,
     autoClear: false,
     skillIds: [],
     subAgentIds: [],
@@ -51,7 +46,6 @@ export function createMockConnection(overrides?: Partial<Connection>): Connectio
     decideStatus: 'none',
     decideReason: null,
     connectionStatus: 'idle',
-    createdAt: new Date(),
     ...overrides,
   } as Connection;
 }

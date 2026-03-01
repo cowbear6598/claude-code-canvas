@@ -63,7 +63,6 @@ describe('Pod 管理', () => {
     it('成功建立 Pod', async () => {
       const pod = await createPod(client, {
         name: 'Created Pod',
-        color: 'blue',
         x: 100,
         y: 200,
         rotation: 5,
@@ -71,13 +70,10 @@ describe('Pod 管理', () => {
 
       expect(pod.id).toBeDefined();
       expect(pod.name).toBe('Created Pod');
-      expect(pod.color).toBe('blue');
       expect(pod.x).toBe(100);
       expect(pod.y).toBe(200);
       expect(pod.rotation).toBe(5);
       expect(pod.workspacePath).toBeDefined();
-      expect(pod.createdAt).toBeDefined();
-      expect(pod.lastActiveAt).toBeDefined();
       expect(pod.skillIds).toEqual([]);
       expect(pod.subAgentIds).toEqual([]);
     });

@@ -1,8 +1,7 @@
-import { Pod, PodColor, ModelType } from './pod.js';
+import { Pod, ModelType } from './pod.js';
 
 export interface CreatePodRequest {
   name: string;
-  color: PodColor;
   x: number;
   y: number;
   rotation: number;

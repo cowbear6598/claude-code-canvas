@@ -32,19 +32,15 @@ curl http://localhost:3001/api/canvas/my-canvas/pods
   "pod": {
     "id": "xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx",
     "name": "My Pod",
-    "color": "blue",
     "status": "idle",
     "workspacePath": "/path/to/workspace",
     "x": 100,
     "y": 200,
     "rotation": 0,
     "model": "opus",
-    "createdAt": "2026-03-01T00:00:00.000Z",
-    "lastActiveAt": "2026-03-01T00:00:00.000Z",
     "skillIds": [],
     "subAgentIds": [],
     "mcpServerIds": [],
-    "needsForkSession": false,
     "autoClear": false
   }
 }

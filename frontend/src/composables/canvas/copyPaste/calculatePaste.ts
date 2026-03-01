@@ -105,7 +105,6 @@ export function transformPods(
   return pods.map(pod => ({
     originalId: pod.id,
     name: pod.name,
-    color: pod.color,
     x: pod.x + offset.offsetX,
     y: pod.y + offset.offsetY,
     rotation: pod.rotation,
@@ -143,7 +142,7 @@ export function transformConnections(connections: CopiedConnection[]): PasteConn
     sourceAnchor: conn.sourceAnchor,
     originalTargetPodId: conn.targetPodId,
     targetAnchor: conn.targetAnchor,
-    autoTrigger: conn.autoTrigger,
+    triggerMode: conn.triggerMode,
   }))
 }
 

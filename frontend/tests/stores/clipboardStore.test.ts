@@ -51,7 +51,6 @@ describe('clipboardStore', () => {
       const mockPod: CopiedPod = {
         id: 'pod-1',
         name: 'Test Pod',
-        color: 'blue',
         x: 100,
         y: 200,
         rotation: 0,
@@ -164,7 +163,6 @@ describe('clipboardStore', () => {
       const mockPod: CopiedPod = {
         id: 'pod-1',
         name: 'Test Pod',
-        color: 'blue',
         x: 100,
         y: 200,
         rotation: 0,
@@ -189,7 +187,6 @@ describe('clipboardStore', () => {
       const mockPod: CopiedPod = {
         id: 'pod-1',
         name: 'Test Pod',
-        color: 'blue',
         x: 100,
         y: 200,
         rotation: 0,
@@ -300,7 +297,6 @@ describe('clipboardStore', () => {
       const mockPod1: CopiedPod = {
         id: 'pod-1',
         name: 'Test Pod 1',
-        color: 'blue',
         x: 100,
         y: 200,
         rotation: 0,
@@ -309,7 +305,6 @@ describe('clipboardStore', () => {
       const mockPod2: CopiedPod = {
         id: 'pod-2',
         name: 'Test Pod 2',
-        color: 'coral',
         x: 300,
         y: 400,
         rotation: 45,
@@ -329,7 +324,6 @@ describe('clipboardStore', () => {
         {
           id: 'pod-1',
           name: 'Test Pod 1',
-          color: 'blue',
           x: 100,
           y: 200,
           rotation: 0,
@@ -337,7 +331,6 @@ describe('clipboardStore', () => {
         {
           id: 'pod-2',
           name: 'Test Pod 2',
-          color: 'coral',
           x: 300,
           y: 400,
           rotation: 45,
@@ -358,7 +351,6 @@ describe('clipboardStore', () => {
       const mockPod: CopiedPod = {
         id: 'pod-1',
         name: 'Test Pod',
-        color: 'blue',
         x: 100,
         y: 200,
         rotation: 0,
@@ -395,7 +387,6 @@ describe('clipboardStore', () => {
       const mockPod: CopiedPod = {
         id: 'pod-1',
         name: 'Test Pod',
-        color: 'blue',
         x: 100,
         y: 200,
         rotation: 0,
@@ -417,7 +408,6 @@ describe('clipboardStore', () => {
       const mockPod: CopiedPod = {
         id: 'pod-1',
         name: 'Test Pod',
-        color: 'blue',
         x: 100,
         y: 200,
         rotation: 0,
@@ -523,7 +513,6 @@ describe('clipboardStore', () => {
       const mockPod: CopiedPod = {
         id: 'pod-1',
         name: 'Test Pod',
-        color: 'blue',
         x: 100,
         y: 200,
         rotation: 0,

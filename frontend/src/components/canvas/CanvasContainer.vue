@@ -278,7 +278,7 @@ const handleCanvasClick = (e: MouseEvent): void => {
   connectionStore.selectConnection(null)
 }
 
-const handleSelectType = async (config: PodTypeConfig): Promise<void> => {
+const handleSelectType = async (_config: PodTypeConfig): Promise<void> => {
   if (!podStore.typeMenu.position) return
 
   const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
@@ -289,7 +289,6 @@ const handleSelectType = async (config: PodTypeConfig): Promise<void> => {
     name: `Pod ${podStore.podCount + 1}`,
     x: canvasX - POD_MENU_X_OFFSET,
     y: canvasY - POD_MENU_Y_OFFSET,
-    color: config.color,
     output: [],
     rotation: Math.round(rotation * 10) / 10,
   }

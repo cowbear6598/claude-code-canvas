@@ -75,7 +75,6 @@ describe('AiDecideService', () => {
     decideStatus: 'none',
     decideReason: null,
     connectionStatus: 'idle',
-    createdAt: new Date(),
   };
 
   beforeEach(() => {

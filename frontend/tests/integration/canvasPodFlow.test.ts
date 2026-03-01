@@ -74,7 +74,6 @@ describe('Canvas/Pod 操作完整流程', () => {
       // Act - 建立 Pod
       const pod = await podStore.createPodWithBackend({
         name: 'Test Pod',
-        color: 'blue',
         x: 300,
         y: 400,
         rotation: 0,
@@ -128,7 +127,6 @@ describe('Canvas/Pod 操作完整流程', () => {
       // Act - 在 canvas-1 建立 Pod
       await podStore.createPodWithBackend({
         name: 'Pod 1',
-        color: 'blue',
         x: 100,
         y: 100,
         rotation: 0,
@@ -166,7 +164,6 @@ describe('Canvas/Pod 操作完整流程', () => {
 
       await podStore.createPodWithBackend({
         name: 'Pod 2',
-        color: 'coral',
         x: 200,
         y: 200,
         rotation: 0,
@@ -269,7 +266,6 @@ describe('Canvas/Pod 操作完整流程', () => {
       mockCreateWebSocketRequest.mockResolvedValueOnce({
         connection: {
           ...newConnection,
-          createdAt: newConnection.createdAt.toISOString(),
         },
       })
 
@@ -286,7 +282,6 @@ describe('Canvas/Pod 操作完整流程', () => {
       // Act - 模擬 WORKFLOW_AUTO_TRIGGERED
       connectionStore.addConnectionFromEvent({
         ...newConnection,
-        createdAt: newConnection.createdAt.toISOString(),
       })
       connectionStore.handleWorkflowAutoTriggered({
         connectionId: 'conn-1',

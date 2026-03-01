@@ -16,5 +16,4 @@ export interface Connection {
   decideStatus: DecideStatus;
   decideReason: string | null;
   connectionStatus: ConnectionStatus;
-  createdAt: Date;
 }

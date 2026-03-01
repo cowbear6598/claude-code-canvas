@@ -91,7 +91,6 @@ describe('ConnectionStatus 持久化', () => {
                     triggerMode: 'auto',
                     decideStatus: 'none',
                     decideReason: null,
-                    createdAt: new Date().toISOString(),
                     // 刻意不包含 connectionStatus 欄位
                 },
             ];

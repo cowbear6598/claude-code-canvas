@@ -30,11 +30,10 @@ describe('測試工具範例', () => {
     })
 
     it('應該建立 Mock Pod', () => {
-      const pod = createMockPod({ name: '測試 Pod', color: 'coral' })
+      const pod = createMockPod({ name: '測試 Pod' })
 
       expect(pod.id).toBe('pod-1')
       expect(pod.name).toBe('測試 Pod')
-      expect(pod.color).toBe('coral')
       expect(pod.output).toEqual([])
     })
 

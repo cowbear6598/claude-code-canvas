@@ -96,7 +96,6 @@ describe('複製貼上/批量操作完整流程', () => {
       const copiedPods = podStore.pods.filter(p => selectedPodIds.has(p.id)).map(p => ({
         id: p.id,
         name: p.name,
-        color: p.color,
         x: p.x,
         y: p.y,
         rotation: p.rotation,
@@ -222,7 +221,7 @@ describe('複製貼上/批量操作完整流程', () => {
           sourceAnchor: conn.sourceAnchor,
           targetPodId: conn.targetPodId,
           targetAnchor: conn.targetAnchor,
-          autoTrigger: conn.triggerMode === 'auto',
+          triggerMode: conn.triggerMode,
         }))
 
       clipboardStore.setCopy([], [], [], [], [], [], copiedConnections as any)
@@ -242,7 +241,6 @@ describe('複製貼上/批量操作完整流程', () => {
         [{
           id: pod.id,
           name: pod.name,
-          color: pod.color,
           x: pod.x,
           y: pod.y,
           rotation: pod.rotation,

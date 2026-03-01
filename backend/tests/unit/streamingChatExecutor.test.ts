@@ -23,7 +23,6 @@ vi.mock('../../src/services/messageStore.js', () => ({
 vi.mock('../../src/services/podStore.js', () => ({
     podStore: {
         setStatus: vi.fn(() => {}),
-        updateLastActive: vi.fn(() => {}),
     },
 }));
 
@@ -99,7 +98,6 @@ describe('executeStreamingChat', () => {
         asMock(messageStore.upsertMessage).mockClear();
         asMock(messageStore.flushWrites).mockClear();
         asMock(podStore.setStatus).mockClear();
-        asMock(podStore.updateLastActive).mockClear();
         asMock(logger.log).mockClear();
         asMock(logger.error).mockClear();
 
@@ -293,7 +291,7 @@ describe('executeStreamingChat', () => {
     });
 
     describe('成功完成', () => {
-        it('完成後正確呼叫 flushWrites + setStatus idle + updateLastActive', async () => {
+        it('完成後正確呼叫 flushWrites + setStatus idle', async () => {
             mockSendMessageWithEvents([
                 {type: 'text', content: 'Hello'},
                 {type: 'complete'},
@@ -314,9 +312,6 @@ describe('executeStreamingChat', () => {
 
             // 驗證 setStatus idle 被呼叫
             expect(podStore.setStatus).toHaveBeenCalledWith(canvasId, podId, 'idle');
-
-            // 驗證 updateLastActive 被呼叫
-            expect(podStore.updateLastActive).toHaveBeenCalledWith(canvasId, podId);
         });
 
         it('完成後正確呼叫 onComplete callback', async () => {
@@ -363,9 +358,6 @@ describe('executeStreamingChat', () => {
 
             // 驗證 setStatus idle 仍被呼叫
             expect(podStore.setStatus).toHaveBeenCalledWith(canvasId, podId, 'idle');
-
-            // 驗證 updateLastActive 仍被呼叫
-            expect(podStore.updateLastActive).toHaveBeenCalledWith(canvasId, podId);
         });
     });
 
@@ -404,9 +396,6 @@ describe('executeStreamingChat', () => {
 
             // 驗證 onAborted 被呼叫
             expect(onAborted).toHaveBeenCalledWith(canvasId, podId, expect.any(String));
-
-            // 驗證 updateLastActive 未被呼叫（中斷時不更新）
-            expect(podStore.updateLastActive).not.toHaveBeenCalled();
         });
 
         it('AbortError + supportAbort=false 時 re-throw', async () => {

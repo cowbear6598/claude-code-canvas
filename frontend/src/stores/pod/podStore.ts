@@ -114,7 +114,6 @@ export const usePodStore = defineStore('pod', {
                     payload: {
                         canvasId,
                         name: pod.name,
-                        color: pod.color,
                         x: pod.x,
                         y: pod.y,
                         rotation: pod.rotation

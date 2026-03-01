@@ -1,5 +1,5 @@
 import type { Canvas } from '@/types/canvas'
-import type { Pod, Schedule, PodColor, ModelType, PodStatus, FrequencyType } from '@/types/pod'
+import type { Pod, Schedule, ModelType, PodStatus, FrequencyType } from '@/types/pod'
 import type { Connection, TriggerMode, ConnectionStatus, AnchorPosition } from '@/types/connection'
 import type { Message, MessageRole, ToolUseInfo, ToolUseStatus } from '@/types/chat'
 import type { BaseNote } from '@/types/note'
@@ -29,7 +29,6 @@ export function createMockCanvas(overrides?: Partial<Canvas>): Canvas {
   return {
     id: `canvas-${++canvasCounter}`,
     name: `Canvas ${canvasCounter}`,
-    createdAt: new Date().toISOString(),
     sortIndex: canvasCounter,
     ...overrides,
   }
@@ -64,7 +63,6 @@ export function createMockPod(overrides?: Partial<Pod>): Pod {
     name: `Pod ${podCounter}`,
     x: 100 * podCounter,
     y: 100 * podCounter,
-    color: 'blue' as PodColor,
     output: [],
     rotation: 0,
     status: 'idle' as PodStatus,
@@ -92,7 +90,6 @@ export function createMockConnection(overrides?: Partial<Connection>): Connectio
     targetAnchor: 'top' as AnchorPosition,
     triggerMode: 'auto' as TriggerMode,
     status: 'idle' as ConnectionStatus,
-    createdAt: new Date(),
     ...overrides,
   }
 }

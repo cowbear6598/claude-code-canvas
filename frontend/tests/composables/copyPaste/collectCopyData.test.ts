@@ -72,7 +72,7 @@ describe('collectCopyData', () => {
         targetPodId: 'pod-2',
         sourceAnchor: 'bottom',
         targetAnchor: 'top',
-        autoTrigger: false,
+        triggerMode: 'auto',
       },
       {
         id: 'conn-2',
@@ -80,7 +80,7 @@ describe('collectCopyData', () => {
         targetPodId: 'pod-3',
         sourceAnchor: 'right',
         targetAnchor: 'left',
-        autoTrigger: false,
+        triggerMode: 'auto',
       },
     ]
 

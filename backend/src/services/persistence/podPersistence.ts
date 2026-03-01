@@ -15,11 +15,7 @@ class PodPersistenceService {
     const persisted: PersistedPod = {
       id: pod.id,
       name: pod.name,
-      color: pod.color,
       status: pod.status,
-      gitUrl: pod.gitUrl,
-      createdAt: pod.createdAt.toISOString(),
-      updatedAt: pod.lastActiveAt.toISOString(),
       x: pod.x,
       y: pod.y,
       rotation: pod.rotation,
@@ -32,7 +28,6 @@ class PodPersistenceService {
       commandId: pod.commandId,
       subAgentIds: pod.subAgentIds,
       mcpServerIds: pod.mcpServerIds,
-      needsForkSession: pod.needsForkSession,
     };
 
     if (pod.schedule) {

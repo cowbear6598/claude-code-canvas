@@ -20,3 +20,6 @@ backend/src/generated/vfs.ts
 
 # Release 暫存檔
 .release-notes.tmp
+
+# 測試產生的臨時資料夾
+backend/tests/unit/temp-*/

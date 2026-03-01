@@ -1,10 +1,9 @@
-import type { PodColor, ModelType } from './pod'
-import type { AnchorPosition } from './connection'
+import type { ModelType } from './pod'
+import type { AnchorPosition, TriggerMode } from './connection'
 
 export interface CopiedPod {
   id: string
   name: string
-  color: PodColor
   x: number
   y: number
   rotation: number
@@ -69,5 +68,5 @@ export interface CopiedConnection {
   sourceAnchor: AnchorPosition
   targetPodId: string
   targetAnchor: AnchorPosition
-  autoTrigger?: boolean
+  triggerMode?: TriggerMode
 }

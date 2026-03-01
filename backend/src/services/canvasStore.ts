@@ -32,7 +32,6 @@ class CanvasStore {
         return {
             id: canvas.id,
             name: canvas.name,
-            createdAt: canvas.createdAt.toISOString(),
             sortIndex: canvas.sortIndex,
         };
     }
@@ -95,7 +94,6 @@ class CanvasStore {
 
         const id = uuidv4();
         const trimmedName = name.trim();
-        const createdAt = new Date();
 
         const maxSortIndex = Math.max(0, ...Array.from(this.canvases.values()).map(c => c.sortIndex));
         const sortIndex = this.canvases.size === 0 ? 0 : maxSortIndex + 1;
@@ -103,7 +101,6 @@ class CanvasStore {
         const canvas: Canvas = {
             id,
             name: trimmedName,
-            createdAt,
             sortIndex,
         };
 
@@ -291,7 +288,6 @@ class CanvasStore {
             return {
                 id: persistedCanvas.id,
                 name: persistedCanvas.name,
-                createdAt: new Date(persistedCanvas.createdAt),
                 sortIndex: persistedCanvas.sortIndex,
             };
         } catch (error) {

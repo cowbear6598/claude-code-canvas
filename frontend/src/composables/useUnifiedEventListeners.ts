@@ -149,7 +149,7 @@ const handlePodStateUpdated = createUnifiedHandler<BasePayload & { pod?: Pod; ca
   }
 )
 
-type RawConnectionFromEvent = Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }
+type RawConnectionFromEvent = Omit<Connection, 'status'>
 
 const handleConnectionCreated = createUnifiedHandler<BasePayload & { connection?: RawConnectionFromEvent; canvasId: string }>(
   (payload) => {

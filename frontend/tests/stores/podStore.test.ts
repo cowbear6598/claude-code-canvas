@@ -184,7 +184,6 @@ describe('podStore', () => {
       const pod = createMockPod({
         id: 'pod-1',
         name: 'Valid Pod',
-        color: 'blue',
         x: 100,
         y: 200,
         rotation: 0.5,
@@ -211,13 +210,6 @@ describe('podStore', () => {
     it('名稱超長時應回傳 false', () => {
       const store = usePodStore()
       const pod = createMockPod({ name: 'a'.repeat(MAX_POD_NAME_LENGTH + 1) })
-
-      expect(store.isValidPod(pod)).toBe(false)
-    })
-
-    it('顏色不在合法清單中時應回傳 false', () => {
-      const store = usePodStore()
-      const pod = createMockPod({ color: 'invalid-color' as any })
 
       expect(store.isValidPod(pod)).toBe(false)
     })
@@ -271,15 +263,6 @@ describe('podStore', () => {
       expect(store.isValidPod(pod)).toBe(false)
     })
 
-    it('合法顏色清單應包含 blue, coral, pink, yellow, green', () => {
-      const store = usePodStore()
-      const colors = ['blue', 'coral', 'pink', 'yellow', 'green'] as const
-
-      for (const color of colors) {
-        const pod = createMockPod({ color })
-        expect(store.isValidPod(pod)).toBe(true)
-      }
-    })
   })
 
   describe('enrichPod', () => {
@@ -288,7 +271,6 @@ describe('podStore', () => {
       const pod = {
         id: 'pod-1',
         name: 'Test Pod',
-        color: 'blue' as const,
       } as Pod
 
       const result = store.enrichPod(pod)
@@ -337,7 +319,7 @@ describe('podStore', () => {
 
       // 測試多次確認範圍
       for (let i = 0; i < 10; i++) {
-        const pod = { id: 'pod-1', name: 'Test', color: 'blue' as const } as Pod
+        const pod = { id: 'pod-1', name: 'Test' } as Pod
         const result = store.enrichPod(pod)
         results.push(result.rotation)
       }
@@ -489,7 +471,6 @@ describe('podStore', () => {
 
       const result = await store.createPodWithBackend({
         name: 'New Pod',
-        color: 'blue',
         x: 300,
         y: 400,
         rotation: 0.5,
@@ -511,7 +492,6 @@ describe('podStore', () => {
         payload: {
           canvasId: 'canvas-1',
           name: 'New Pod',
-          color: 'blue',
           x: 300,
           y: 400,
           rotation: 0.5,
@@ -534,7 +514,6 @@ describe('podStore', () => {
       await expect(
         store.createPodWithBackend({
           name: 'Pod',
-          color: 'blue',
           x: 100,
           y: 100,
           rotation: 0,
@@ -562,7 +541,6 @@ describe('podStore', () => {
       await expect(
         store.createPodWithBackend({
           name: 'Pod',
-          color: 'blue',
           x: 100,
           y: 100,
           rotation: 0,
@@ -592,7 +570,6 @@ describe('podStore', () => {
       await expect(
         store.createPodWithBackend({
           name: 'Pod',
-          color: 'blue',
           x: 100,
           y: 100,
           rotation: 0,
@@ -1075,7 +1052,6 @@ describe('podStore', () => {
         const incompletePod = {
           id: 'pod-1',
           name: 'Incomplete',
-          color: 'blue' as const,
         } as Pod
 
         store.addPodFromEvent(incompletePod)
@@ -1378,9 +1354,9 @@ describe('podStore', () => {
 
     it('應使用 index 計算自動偏移座標', () => {
       const store = usePodStore()
-      const pod1 = { id: 'pod-1', name: 'Pod 1', color: 'blue' as const } as Pod
-      const pod2 = { id: 'pod-2', name: 'Pod 2', color: 'coral' as const } as Pod
-      const pod3 = { id: 'pod-3', name: 'Pod 3', color: 'pink' as const } as Pod
+      const pod1 = { id: 'pod-1', name: 'Pod 1' } as Pod
+      const pod2 = { id: 'pod-2', name: 'Pod 2' } as Pod
+      const pod3 = { id: 'pod-3', name: 'Pod 3' } as Pod
 
       store.syncPodsFromBackend([pod1, pod2, pod3])
 

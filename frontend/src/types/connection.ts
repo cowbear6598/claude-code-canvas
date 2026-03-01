@@ -12,7 +12,6 @@ export interface Connection {
   sourceAnchor: AnchorPosition
   targetPodId: string
   targetAnchor: AnchorPosition
-  createdAt: Date
   status?: ConnectionStatus
   triggerMode: TriggerMode
   decideReason?: string

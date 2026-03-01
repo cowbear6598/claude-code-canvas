@@ -1,6 +1,6 @@
 import {v4 as uuidv4} from 'uuid';
 import {WebSocketResponseEvents} from '../schemas';
-import {Pod, PodStatus, PodColor, CreatePodRequest, Result, ok, err, ScheduleConfig} from '../types';
+import {Pod, PodStatus, CreatePodRequest, Result, ok, err, ScheduleConfig} from '../types';
 import type {PersistedPod} from '../types';
 
 type PodUpdates = Partial<Omit<Pod, 'schedule'>> & { schedule?: ScheduleConfig | null };
@@ -67,7 +67,6 @@ class PodStore {
 
     create(canvasId: string, data: CreatePodRequest): Pod {
         const id = uuidv4();
-        const now = new Date();
         const canvasDir = canvasStore.getCanvasDir(canvasId);
 
         if (!canvasDir) {
@@ -77,12 +76,8 @@ class PodStore {
         const pod: Pod = {
             id,
             name: data.name,
-            color: data.color,
             status: 'idle',
             workspacePath: `${canvasDir}/pod-${id}`,
-            gitUrl: null,
-            createdAt: now,
-            lastActiveAt: now,
             x: data.x,
             y: data.y,
             rotation: data.rotation,
@@ -94,7 +89,6 @@ class PodStore {
             model: data.model ?? 'opus',
             repositoryId: data.repositoryId ?? null,
             commandId: data.commandId ?? null,
-            needsForkSession: false,
             autoClear: false,
         };
 
@@ -143,7 +137,7 @@ class PodStore {
 
     private buildSafeUpdates(updates: PodUpdates): Partial<Omit<Pod, 'schedule'>> {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const {id, createdAt, workspacePath, schedule, ...safeUpdates} = updates as PodUpdates & Partial<Pod>;
+        const {id, workspacePath, schedule, ...safeUpdates} = updates as PodUpdates & Partial<Pod>;
         return safeUpdates;
     }
 
@@ -217,10 +211,6 @@ class PodStore {
         socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_STATUS_CHANGED, payload);
     }
 
-    updateLastActive(canvasId: string, id: string): void {
-        this.modifyPod(canvasId, id, {lastActiveAt: new Date()});
-    }
-
     setClaudeSessionId(canvasId: string, id: string, sessionId: string): void {
         this.modifyPod(canvasId, id, {claudeSessionId: sessionId}, true, sessionId);
     }
@@ -274,7 +264,7 @@ class PodStore {
     }
 
     setRepositoryId(canvasId: string, id: string, repositoryId: string | null): void {
-        this.modifyPod(canvasId, id, {repositoryId, needsForkSession: true});
+        this.modifyPod(canvasId, id, {repositoryId});
     }
 
     setAutoClear(canvasId: string, id: string, autoClear: boolean): void {
@@ -328,7 +318,6 @@ class PodStore {
 
     private validatePodData(persistedPod: PersistedPod): Result<void> {
         // 防禦性驗證：驗證必要欄位的型別和範圍，避免磁碟檔案被竄改時注入惡意值
-        const validColors: PodColor[] = ['blue', 'coral', 'pink', 'yellow', 'green'];
         const validStatuses: PodStatus[] = ['idle', 'chatting', 'summarizing', 'error'];
         const ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
@@ -345,7 +334,6 @@ class PodStore {
         const rules: Array<{ check: boolean; errorMsg: string }> = [
             {check: persistedPod.id.trim() === '', errorMsg: '無效的 Pod ID'},
             {check: persistedPod.name.trim() === '', errorMsg: '無效的 Pod 名稱'},
-            {check: !validColors.includes(persistedPod.color), errorMsg: '無效的 Pod 顏色'},
             {check: !Number.isFinite(persistedPod.x), errorMsg: '無效的 Pod X 座標'},
             {check: !Number.isFinite(persistedPod.y), errorMsg: '無效的 Pod Y 座標'},
             {check: !Number.isFinite(persistedPod.rotation), errorMsg: '無效的 Pod 旋轉角度'},
@@ -377,13 +365,9 @@ class PodStore {
         const pod: Pod = {
             id: persistedPod.id,
             name: persistedPod.name,
-            color: persistedPod.color,
             // 載入時重置為 idle，避免程式重啟後保留舊的忙碌狀態
             status: loadedStatus === 'busy' ? 'idle' : persistedPod.status,
             workspacePath: `${canvasDir}/pod-${persistedPod.id}`,
-            gitUrl: persistedPod.gitUrl,
-            createdAt: new Date(persistedPod.createdAt),
-            lastActiveAt: new Date(persistedPod.updatedAt),
             x: persistedPod.x,
             y: persistedPod.y,
             rotation: persistedPod.rotation,
@@ -395,7 +379,6 @@ class PodStore {
             model: persistedPod.model ?? 'opus',
             repositoryId: persistedPod.repositoryId ?? null,
             commandId: persistedPod.commandId ?? null,
-            needsForkSession: persistedPod.needsForkSession ?? false,
             autoClear: persistedPod.autoClear ?? false,
         };
 

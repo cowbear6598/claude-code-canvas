@@ -2,17 +2,14 @@ import { z } from 'zod';
 import { requestIdSchema, podIdSchema, canvasIdSchema } from './base.js';
 import { scheduleConfigSchema } from './scheduleSchemas.js';
 
-export const podColorSchema = z.enum(['blue', 'coral', 'pink', 'yellow', 'green']);
-
 export const modelTypeSchema = z.enum(['opus', 'sonnet', 'haiku']);
 
 export const podCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   name: z.string().min(1).max(100),
-  color: podColorSchema,
-  x: z.number(),
-  y: z.number(),
+  x: z.number().finite().min(-100000).max(100000),
+  y: z.number().finite().min(-100000).max(100000),
   rotation: z.number(),
 });
 
@@ -31,8 +28,8 @@ export const podMoveSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   podId: podIdSchema,
-  x: z.number(),
-  y: z.number(),
+  x: z.number().finite().min(-100000).max(100000),
+  y: z.number().finite().min(-100000).max(100000),
 });
 
 export const podRenameSchema = z.object({

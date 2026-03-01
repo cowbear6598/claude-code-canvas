@@ -4,7 +4,6 @@ export interface CanvasCreatedPayload {
   canvas?: {
     id: string;
     name: string;
-    createdAt: string;
     sortIndex: number;
   };
   error?: string;
@@ -16,7 +15,6 @@ export interface CanvasListResultPayload {
   canvases?: Array<{
     id: string;
     name: string;
-    createdAt: string;
     sortIndex: number;
   }>;
   error?: string;

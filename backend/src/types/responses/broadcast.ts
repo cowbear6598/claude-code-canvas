@@ -106,7 +106,6 @@ export interface BroadcastCanvasCreatedPayload {
   canvas: {
     id: string;
     name: string;
-    createdAt: string;
     sortIndex: number;
   };
 }

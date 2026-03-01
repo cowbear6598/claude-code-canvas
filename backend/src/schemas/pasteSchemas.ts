@@ -1,15 +1,14 @@
 import { z } from 'zod';
 import { requestIdSchema, positionSchema, canvasIdSchema } from './base.js';
-import { podColorSchema, modelTypeSchema } from './podSchemas.js';
+import { modelTypeSchema } from './podSchemas.js';
 import { anchorPositionSchema } from './connectionSchemas.js';
 
 export const pastePodItemSchema = z.object({
   originalId: z.uuid(),
   name: z.string().min(1).max(100),
-  color: podColorSchema,
-  x: z.number(),
-  y: z.number(),
-  rotation: z.number(),
+  x: z.number().finite().min(-100000).max(100000),
+  y: z.number().finite().min(-100000).max(100000),
+  rotation: z.number().finite(),
   outputStyleId: z.string().nullable().optional(),
   skillIds: z.array(z.string()).optional(),
   subAgentIds: z.array(z.string()).optional(),
@@ -68,7 +67,7 @@ export const pasteConnectionItemSchema = z.object({
   sourceAnchor: anchorPositionSchema,
   originalTargetPodId: z.uuid(),
   targetAnchor: anchorPositionSchema,
-  triggerMode: z.enum(['auto', 'ai-decide']).optional(),
+  triggerMode: z.enum(['auto', 'ai-decide', 'direct']).optional(),
 });
 
 export const canvasPasteSchema = z.object({

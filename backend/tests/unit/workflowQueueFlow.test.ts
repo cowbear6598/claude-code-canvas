@@ -67,7 +67,6 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 decideStatus: 'none',
                 decideReason: null,
                 connectionStatus: 'idle',
-                createdAt: new Date(),
             };
 
             expect(workflowQueueService.getQueueSize(targetPodId)).toBe(0);
@@ -234,7 +233,6 @@ describe('WorkflowQueueFlow - Queue 處理、混合場景、錯誤恢復', () =>
                 decideStatus: 'none',
                 decideReason: null,
                 connectionStatus: 'queued',
-                createdAt: new Date(),
             };
 
             workflowQueueService.enqueue({

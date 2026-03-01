@@ -36,9 +36,9 @@ import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';
 export const handlePodCreate = withCanvasId<PodCreatePayload>(
     WebSocketResponseEvents.POD_CREATED,
     async (connectionId: string, canvasId: string, payload: PodCreatePayload, requestId: string): Promise<void> => {
-        const {name, color, x, y, rotation} = payload;
+        const {name, x, y, rotation} = payload;
 
-        const result = await createPodWithWorkspace(canvasId, {name, color, x, y, rotation}, requestId);
+        const result = await createPodWithWorkspace(canvasId, {name, x, y, rotation}, requestId);
 
         if (!result.success) {
             emitError(

@@ -1,7 +1,6 @@
 export interface Canvas {
   id: string
   name: string
-  createdAt: string
   sortIndex: number
 }
 

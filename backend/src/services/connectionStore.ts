@@ -61,14 +61,8 @@ class ConnectionStore {
 
         if (typeof obj.id !== 'string' || typeof obj.sourcePodId !== 'string' ||
             typeof obj.targetPodId !== 'string' || typeof obj.sourceAnchor !== 'string' ||
-            typeof obj.targetAnchor !== 'string' || typeof obj.createdAt !== 'string') {
+            typeof obj.targetAnchor !== 'string') {
             logger.warn('Connection', 'Load', '跳過無效的 connection 資料：缺少必要欄位');
-            return null;
-        }
-
-        const createdAt = new Date(obj.createdAt);
-        if (isNaN(createdAt.getTime())) {
-            logger.warn('Connection', 'Load', `跳過無效的 connection 資料：日期格式錯誤 (${obj.id})`);
             return null;
         }
 
@@ -82,7 +76,6 @@ class ConnectionStore {
             decideStatus: this.parseStringField(obj, 'decideStatus', 'none') as DecideStatus,
             decideReason: ('decideReason' in obj && obj.decideReason !== undefined) ? obj.decideReason as string | null : null,
             connectionStatus: this.parseStringField(obj, 'connectionStatus', 'idle') as ConnectionStatus,
-            createdAt,
         };
     }
 
@@ -99,7 +92,6 @@ class ConnectionStore {
             decideStatus: 'none',
             decideReason: null,
             connectionStatus: 'idle',
-            createdAt: new Date(),
         };
 
         const connectionsMap = this.getOrCreateCanvasMap(canvasId);
@@ -244,7 +236,6 @@ class ConnectionStore {
             decideStatus: connection.decideStatus,
             decideReason: connection.decideReason,
             connectionStatus: connection.connectionStatus,
-            createdAt: connection.createdAt.toISOString(),
         }));
 
         return persistenceService.writeJson(connectionsFilePath, persistedConnections);

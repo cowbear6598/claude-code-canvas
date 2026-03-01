@@ -44,12 +44,7 @@ describe('Canvas REST API', () => {
 			const canvas = body.canvases[0];
 			expect(typeof canvas.id).toBe('string');
 			expect(typeof canvas.name).toBe('string');
-			expect(typeof canvas.createdAt).toBe('string');
 			expect(typeof canvas.sortIndex).toBe('number');
-
-			// 驗證 createdAt 為有效的 ISO 8601 字串
-			expect(() => new Date(canvas.createdAt)).not.toThrow();
-			expect(new Date(canvas.createdAt).toISOString()).toBe(canvas.createdAt);
 		});
 
 		it('回傳資料按 sortIndex 排序', async () => {
@@ -75,8 +70,6 @@ describe('Canvas REST API', () => {
 			expect(body.canvas.id).toBeTypeOf('string');
 			expect(body.canvas.name).toBe('rest-api-test');
 			expect(body.canvas.sortIndex).toBeTypeOf('number');
-			// 驗證 ISO 8601 格式
-			expect(() => new Date(body.canvas.createdAt).toISOString()).not.toThrow();
 		});
 
 		it('成功建立後透過 WebSocket 廣播 canvas:created 事件', async () => {

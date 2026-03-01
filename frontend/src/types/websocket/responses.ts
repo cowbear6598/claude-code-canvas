@@ -178,7 +178,6 @@ export interface ConnectionCreatedPayload {
         sourceAnchor: AnchorPosition
         targetPodId: string
         targetAnchor: AnchorPosition
-        createdAt: string
         triggerMode?: 'auto' | 'ai-decide' | 'direct'
         decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'
         connectionStatus?: 'idle' | 'active' | 'queued' | 'waiting' | 'ai-deciding' | 'ai-approved' | 'ai-rejected' | 'ai-error'
@@ -196,7 +195,6 @@ export interface ConnectionListResultPayload {
         sourceAnchor: AnchorPosition
         targetPodId: string
         targetAnchor: AnchorPosition
-        createdAt: string
         triggerMode?: 'auto' | 'ai-decide' | 'direct'
         decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'
         connectionStatus?: 'idle' | 'active' | 'queued' | 'waiting' | 'ai-deciding' | 'ai-approved' | 'ai-rejected' | 'ai-error'
@@ -265,7 +263,6 @@ export interface CanvasPasteResultPayload {
         sourceAnchor: AnchorPosition
         targetPodId: string
         targetAnchor: AnchorPosition
-        createdAt: string
         triggerMode?: 'auto' | 'ai-decide' | 'direct'
         decideStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'error'
         decideReason?: string | null

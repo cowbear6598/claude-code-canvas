@@ -290,7 +290,6 @@ describe('connectionStore', () => {
       mockCreateWebSocketRequest.mockResolvedValueOnce({
         connection: {
           ...newConnection,
-          createdAt: newConnection.createdAt.toISOString(),
         },
       })
 
@@ -376,7 +375,6 @@ describe('connectionStore', () => {
           sourceAnchor: 'bottom',
           targetPodId: 'pod-b',
           targetAnchor: 'top',
-          createdAt: new Date().toISOString(),
           triggerMode: 'ai-decide',
           connectionStatus: 'ai-approved',
         },
@@ -399,7 +397,6 @@ describe('connectionStore', () => {
           sourceAnchor: 'bottom',
           targetPodId: 'pod-b',
           targetAnchor: 'top',
-          createdAt: new Date().toISOString(),
         },
       })
 
@@ -419,7 +416,6 @@ describe('connectionStore', () => {
           targetPodId: 'pod-b',
           targetAnchor: 'top',
           sourceAnchor: 'bottom',
-          createdAt: new Date().toISOString(),
         },
       })
 
@@ -514,7 +510,6 @@ describe('connectionStore', () => {
       mockCreateWebSocketRequest.mockResolvedValueOnce({
         connection: {
           ...updatedConnection,
-          createdAt: updatedConnection.createdAt.toISOString(),
         },
       })
 
@@ -566,7 +561,6 @@ describe('connectionStore', () => {
           sourceAnchor: 'bottom',
           targetPodId: 'pod-b',
           targetAnchor: 'top',
-          createdAt: new Date().toISOString(),
           triggerMode: 'ai-decide',
           connectionStatus: 'ai-rejected',
           decideReason: '不符合條件',
@@ -590,7 +584,6 @@ describe('connectionStore', () => {
           sourceAnchor: 'bottom',
           targetPodId: 'pod-b',
           targetAnchor: 'top',
-          createdAt: new Date().toISOString(),
           triggerMode: 'direct',
         },
       })
@@ -1055,7 +1048,7 @@ describe('connectionStore', () => {
 
   describe('事件處理', () => {
     describe('addConnectionFromEvent', () => {
-      it('應新增不重複的 Connection、createdAt 轉為 Date、status 預設 idle', () => {
+      it('應新增不重複的 Connection，status 預設 idle', () => {
         const store = useConnectionStore()
 
         const connEvent = {
@@ -1064,7 +1057,6 @@ describe('connectionStore', () => {
           sourceAnchor: 'bottom' as const,
           targetPodId: 'pod-b',
           targetAnchor: 'top' as const,
-          createdAt: '2024-01-01T00:00:00.000Z',
           triggerMode: 'auto' as TriggerMode,
         }
 
@@ -1078,7 +1070,6 @@ describe('connectionStore', () => {
           triggerMode: 'auto',
           status: 'idle',
         })
-        expect(store.connections[0]?.createdAt).toBeInstanceOf(Date)
       })
 
       it('已存在的 Connection 不應重複新增', () => {
@@ -1091,7 +1082,6 @@ describe('connectionStore', () => {
           sourceAnchor: 'bottom' as const,
           targetPodId: 'pod-b',
           targetAnchor: 'top' as const,
-          createdAt: '2024-01-01T00:00:00.000Z',
           triggerMode: 'auto' as TriggerMode,
         }
 
@@ -1108,7 +1098,6 @@ describe('connectionStore', () => {
           sourceAnchor: 'bottom' as const,
           targetPodId: 'pod-b',
           targetAnchor: 'top' as const,
-          createdAt: '2024-01-01T00:00:00.000Z',
         }
 
         store.addConnectionFromEvent(connEvent as any)
@@ -1134,7 +1123,6 @@ describe('connectionStore', () => {
           sourceAnchor: 'left' as const,
           targetPodId: 'pod-b',
           targetAnchor: 'right' as const,
-          createdAt: '2024-01-01T00:00:00.000Z',
           triggerMode: 'direct' as TriggerMode,
         }
 
@@ -1158,7 +1146,6 @@ describe('connectionStore', () => {
           sourceAnchor: 'bottom' as const,
           targetPodId: 'pod-b',
           targetAnchor: 'top' as const,
-          createdAt: '2024-01-01T00:00:00.000Z',
           triggerMode: 'auto' as TriggerMode,
         }
 
@@ -1180,7 +1167,6 @@ describe('connectionStore', () => {
           sourceAnchor: 'bottom' as const,
           targetPodId: 'pod-b',
           targetAnchor: 'top' as const,
-          createdAt: '2024-01-01T00:00:00.000Z',
           triggerMode: 'ai-decide' as TriggerMode,
           decideReason: 'new reason',
         }
@@ -1220,7 +1206,6 @@ describe('connectionStore', () => {
             sourceAnchor: 'bottom',
             targetPodId: 'pod-b',
             targetAnchor: 'top',
-            createdAt: '2024-01-01T00:00:00.000Z',
             triggerMode: 'auto',
             connectionStatus: 'idle',
           },
@@ -1230,7 +1215,6 @@ describe('connectionStore', () => {
             sourceAnchor: 'bottom',
             targetPodId: 'pod-c',
             targetAnchor: 'top',
-            createdAt: '2024-01-02T00:00:00.000Z',
             connectionStatus: 'ai-approved',
           },
         ],
@@ -1249,7 +1233,6 @@ describe('connectionStore', () => {
         triggerMode: 'auto', // 預設
         status: 'ai-approved', // 直接使用後端回傳的 connectionStatus
       })
-      expect(store.connections[0]?.createdAt).toBeInstanceOf(Date)
     })
 
     it('無 activeCanvasId 時不應載入', async () => {
@@ -1275,7 +1258,6 @@ describe('connectionStore', () => {
             sourceAnchor: 'bottom',
             targetPodId: 'pod-b',
             targetAnchor: 'top',
-            createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
       })
@@ -1297,7 +1279,6 @@ describe('connectionStore', () => {
             sourceAnchor: 'bottom',
             targetPodId: 'pod-b',
             targetAnchor: 'top',
-            createdAt: '2024-01-01T00:00:00.000Z',
             connectionStatus: 'ai-deciding',
           },
         ],
@@ -1320,7 +1301,6 @@ describe('connectionStore', () => {
             sourceAnchor: 'bottom',
             targetPodId: 'pod-b',
             targetAnchor: 'top',
-            createdAt: '2024-01-01T00:00:00.000Z',
             connectionStatus: 'ai-rejected',
             decideReason: 'Not relevant',
           },

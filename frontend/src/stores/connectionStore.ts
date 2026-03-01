@@ -26,7 +26,6 @@ interface RawConnection {
     sourceAnchor: AnchorPosition
     targetPodId: string
     targetAnchor: AnchorPosition
-    createdAt: string
     triggerMode?: 'auto' | 'ai-decide' | 'direct'
     connectionStatus?: string
     decideReason?: string | null
@@ -39,7 +38,6 @@ function castHandler<T>(handler: (payload: T) => void): (payload: unknown) => vo
 function normalizeConnection(raw: RawConnection): Connection {
     return {
         ...raw,
-        createdAt: new Date(raw.createdAt),
         triggerMode: (raw.triggerMode ?? 'auto') as TriggerMode,
         status: (raw.connectionStatus as ConnectionStatus) ?? 'idle',
         decideReason: raw.decideReason ?? undefined,
@@ -466,10 +464,9 @@ export const useConnectionStore = defineStore('connection', {
             this.getWorkflowHandlers().clearAiDecideStatusByConnectionIds(connectionIds)
         },
 
-        addConnectionFromEvent(connection: Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }): void {
+        addConnectionFromEvent(connection: Omit<Connection, 'status'>): void {
             const enrichedConnection: Connection = {
                 ...connection,
-                createdAt: new Date(connection.createdAt),
                 triggerMode: connection.triggerMode ?? 'auto',
                 status: 'idle' as ConnectionStatus
             }
@@ -480,11 +477,10 @@ export const useConnectionStore = defineStore('connection', {
             }
         },
 
-        updateConnectionFromEvent(connection: Omit<Connection, 'createdAt' | 'status'> & { createdAt: string }): void {
+        updateConnectionFromEvent(connection: Omit<Connection, 'status'>): void {
             const existingConnection = this.connections.find(conn => conn.id === connection.id)
             const enrichedConnection: Connection = {
                 ...connection,
-                createdAt: new Date(connection.createdAt),
                 triggerMode: connection.triggerMode ?? 'auto',
                 status: existingConnection?.status ?? 'idle' as ConnectionStatus,
                 decideReason: connection.decideReason ?? existingConnection?.decideReason

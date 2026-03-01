@@ -237,7 +237,7 @@ const { menuStyle } = useMenuPosition({ position: computed(() => props.position)
     >
       <span
         class="w-8 h-8 rounded-full flex items-center justify-center border border-doodle-ink"
-        :style="{ backgroundColor: `var(--doodle-${podTypes[0].color})` }"
+        style="background-color: var(--doodle-blue)"
       >
         <component
           :is="podTypes[0].icon"

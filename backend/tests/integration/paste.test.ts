@@ -64,11 +64,10 @@ describe('貼上功能', () => {
             const podId2 = uuidv4();
 
             const pods: PastePodItem[] = [
-                {originalId: podId1, name: 'Paste Pod 1', color: 'blue', x: 0, y: 0, rotation: 0},
+                {originalId: podId1, name: 'Paste Pod 1', x: 0, y: 0, rotation: 0},
                 {
                     originalId: podId2,
                     name: 'Paste Pod 2',
-                    color: 'blue',
                     x: 100,
                     y: 100,
                     rotation: 0
@@ -98,7 +97,7 @@ describe('貼上功能', () => {
             const podId = uuidv4();
 
             const pods: PastePodItem[] = [
-                {originalId: podId, name: 'Note Pod', color: 'blue', x: 0, y: 0, rotation: 0},
+                {originalId: podId, name: 'Note Pod', x: 0, y: 0, rotation: 0},
             ];
 
             const outputStyleNotes: PasteOutputStyleNoteItem[] = [
@@ -143,7 +142,7 @@ describe('貼上功能', () => {
         it('成功回報無效項目的錯誤', async () => {
             const validPodId = uuidv4();
             const pods: PastePodItem[] = [
-                {originalId: validPodId, name: 'Valid', color: 'blue', x: 0, y: 0, rotation: 0},
+                {originalId: validPodId, name: 'Valid', x: 0, y: 0, rotation: 0},
             ];
 
             // Connection with nonexistent source should fail silently (no mapping)
@@ -168,6 +167,71 @@ describe('貼上功能', () => {
             expect(response.createdPods).toHaveLength(1);
             // Connection should not be created because source pod is not in the mapping
             expect(response.createdConnections).toHaveLength(0);
+        });
+
+        describe('connection triggerMode 驗證', () => {
+            const triggerModes = ['auto', 'ai-decide', 'direct'] as const;
+
+            it.each(triggerModes)('貼上 connection 時帶 triggerMode: %s 能成功', async (triggerMode) => {
+                const podId1 = uuidv4();
+                const podId2 = uuidv4();
+
+                const pods: PastePodItem[] = [
+                    {originalId: podId1, name: 'Pod 1', x: 0, y: 0, rotation: 0},
+                    {originalId: podId2, name: 'Pod 2', x: 100, y: 100, rotation: 0},
+                ];
+
+                const connections: PasteConnectionItem[] = [
+                    {
+                        originalSourcePodId: podId1,
+                        sourceAnchor: 'right',
+                        originalTargetPodId: podId2,
+                        targetAnchor: 'left',
+                        triggerMode,
+                    },
+                ];
+
+                const payload: CanvasPastePayload = {...await emptyPastePayload(), pods, connections};
+
+                const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
+                    client,
+                    WebSocketRequestEvents.CANVAS_PASTE,
+                    WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+                    payload
+                );
+
+                expect(response.createdConnections).toHaveLength(1);
+            });
+
+            it('貼上 connection 時不帶 triggerMode 能成功', async () => {
+                const podId1 = uuidv4();
+                const podId2 = uuidv4();
+
+                const pods: PastePodItem[] = [
+                    {originalId: podId1, name: 'Pod 1', x: 0, y: 0, rotation: 0},
+                    {originalId: podId2, name: 'Pod 2', x: 100, y: 100, rotation: 0},
+                ];
+
+                const connections: PasteConnectionItem[] = [
+                    {
+                        originalSourcePodId: podId1,
+                        sourceAnchor: 'right',
+                        originalTargetPodId: podId2,
+                        targetAnchor: 'left',
+                    },
+                ];
+
+                const payload: CanvasPastePayload = {...await emptyPastePayload(), pods, connections};
+
+                const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
+                    client,
+                    WebSocketRequestEvents.CANVAS_PASTE,
+                    WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+                    payload
+                );
+
+                expect(response.createdConnections).toHaveLength(1);
+            });
         });
 
         it('成功貼上並建立技能註記', async () => {
@@ -256,7 +320,7 @@ describe('貼上功能', () => {
             const originalPodId = uuidv4();
 
             const pods: PastePodItem[] = [
-                {originalId: originalPodId, name: 'Command Pod', color: 'blue', x: 0, y: 0, rotation: 0},
+                {originalId: originalPodId, name: 'Command Pod', x: 0, y: 0, rotation: 0},
             ];
 
             const commandNotes: PasteCommandNoteItem[] = [

@@ -630,7 +630,6 @@ describe('WorkflowExecutionService', () => {
         decideStatus: 'none',
         decideReason: null,
         connectionStatus: 'idle',
-        createdAt: new Date(),
       };
 
       (connectionStore.findBySourcePodId as any).mockReturnValue([conn1]);
@@ -714,7 +713,6 @@ describe('WorkflowExecutionService', () => {
         decideStatus: 'none',
         decideReason: null,
         connectionStatus: 'idle',
-        createdAt: new Date(),
       };
 
       (connectionStore.findBySourcePodId as any).mockReturnValue([aiConn]);
