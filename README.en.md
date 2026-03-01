@@ -55,6 +55,12 @@ claude-canvas status
 
 # Stop service
 claude-canvas stop
+
+# View latest logs (default 50 lines)
+claude-canvas logs
+
+# View specific number of log lines
+claude-canvas logs -n 100
 ```
 
 Open your browser and navigate to `http://localhost:3001` to get started.

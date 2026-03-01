@@ -57,6 +57,12 @@ claude-canvas status
 
 # サービスを停止
 claude-canvas stop
+
+# 最新ログを表示（デフォルト 50 行）
+claude-canvas logs
+
+# 指定行数のログを表示
+claude-canvas logs -n 100
 ```
 
 起動後、ブラウザで `http://localhost:3001` にアクセスすると使用できます。

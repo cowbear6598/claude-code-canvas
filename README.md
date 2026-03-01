@@ -57,6 +57,12 @@ claude-canvas status
 
 # 停止服務
 claude-canvas stop
+
+# 查看最新日誌（預設 50 行）
+claude-canvas logs
+
+# 查看指定行數的日誌
+claude-canvas logs -n 100
 ```
 
 啟動後開啟瀏覽器前往 `http://localhost:3001` 即可使用。
