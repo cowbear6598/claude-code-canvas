@@ -139,7 +139,7 @@ console.log(data.canvases);
 
 ```json
 {
-  "requestId": "",
+  "requestId": "system",
   "success": true,
   "canvas": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -168,4 +168,68 @@ const response = await fetch('http://localhost:3001/api/canvas', {
 });
 const data = await response.json();
 console.log(data.canvas);
+```
+
+---
+
+## DELETE /api/canvas/:id
+
+刪除指定的 Canvas。
+
+**路徑參數：**
+
+| 參數 | 類型 | 說明 |
+|------|------|------|
+| id | string (UUID) | 要刪除的 Canvas ID |
+
+**成功回應 200：**
+
+```json
+{
+  "success": true
+}
+```
+
+**失敗回應 404：**
+
+```json
+{
+  "error": "找不到 Canvas"
+}
+```
+
+**錯誤處理：**
+
+| 狀態碼 | 說明 |
+|--------|------|
+| 404 | Canvas 不存在 |
+| 500 | 刪除失敗 |
+
+**副作用：**
+
+成功刪除後，伺服器會透過 WebSocket 廣播 `canvas:deleted` 事件給所有已連線的 client：
+
+```json
+{
+  "requestId": "system",
+  "success": true,
+  "canvasId": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+**curl 範例：**
+
+```bash
+curl -X DELETE http://localhost:3001/api/canvas/550e8400-e29b-41d4-a716-446655440000
+```
+
+**JavaScript fetch 範例：**
+
+```javascript
+const canvasId = '550e8400-e29b-41d4-a716-446655440000';
+const response = await fetch(`http://localhost:3001/api/canvas/${canvasId}`, {
+  method: 'DELETE',
+});
+const data = await response.json();
+console.log(data.success);
 ```

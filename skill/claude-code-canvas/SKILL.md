@@ -34,6 +34,8 @@ claude-code-canvas 是一個 Agent 畫布系統，後端使用 **Bun + TypeScrip
 | 方法 | 路徑 | 說明 |
 |------|------|------|
 | GET | /api/canvas/list | 列出所有畫布 |
+| POST | /api/canvas | 建立新畫布 |
+| DELETE | /api/canvas/:id | 刪除指定畫布 |
 
 詳細格式與範例：[references/canvas-api.md](references/canvas-api.md)
 

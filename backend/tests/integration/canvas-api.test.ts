@@ -203,6 +203,88 @@ describe('Canvas REST API', () => {
 		});
 	});
 
+	describe('DELETE /api/canvas/:id', () => {
+		it('成功刪除 Canvas 回傳 200', async () => {
+			const createResponse = await postCanvas(server.baseUrl, { name: 'delete-test-canvas' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			const response = await fetch(`${server.baseUrl}/api/canvas/${canvasId}`, { method: 'DELETE' });
+			expect(response.status).toBe(200);
+			const body = await response.json();
+			expect(body.success).toBe(true);
+		});
+
+		it('成功刪除後透過 WebSocket 廣播 canvas:deleted 事件', async () => {
+			const createResponse = await postCanvas(server.baseUrl, { name: 'delete-ws-test' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			const eventPromise = waitForEvent(client, 'canvas:deleted', 5000);
+			const response = await fetch(`${server.baseUrl}/api/canvas/${canvasId}`, { method: 'DELETE' });
+			expect(response.status).toBe(200);
+
+			const event = await eventPromise;
+			expect(event.success).toBe(true);
+			expect(event.canvasId).toBe(canvasId);
+			expect(event.requestId).toBe('system');
+		});
+
+		it('刪除後 GET /api/canvas/list 不包含已刪除的 Canvas', async () => {
+			const createResponse = await postCanvas(server.baseUrl, { name: 'delete-list-verify' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			await fetch(`${server.baseUrl}/api/canvas/${canvasId}`, { method: 'DELETE' });
+
+			const listResponse = await fetch(`${server.baseUrl}/api/canvas/list`);
+			const listBody = await listResponse.json();
+			const found = listBody.canvases.find((c: { id: string }) => c.id === canvasId);
+			expect(found).toBeUndefined();
+		});
+
+		it('刪除不存在的 Canvas 回傳 404', async () => {
+			const response = await fetch(`${server.baseUrl}/api/canvas/00000000-0000-4000-8000-000000000000`, { method: 'DELETE' });
+			expect(response.status).toBe(404);
+			const body = await response.json();
+			expect(body.error).toBe('找不到 Canvas');
+		});
+
+		it('無效的 Canvas ID 格式回傳 400', async () => {
+			const response = await fetch(`${server.baseUrl}/api/canvas/non-existent-id`, { method: 'DELETE' });
+			expect(response.status).toBe(400);
+			const body = await response.json();
+			expect(body.error).toBe('無效的 Canvas ID 格式');
+		});
+
+		it('canvasStore.delete 失敗時回傳 500', async () => {
+			const created = await createCanvas(client, 'delete-error-test');
+			const spy = vi.spyOn(canvasStore, 'delete').mockResolvedValueOnce({ success: false, error: '模擬刪除失敗' });
+
+			const response = await fetch(`${server.baseUrl}/api/canvas/${created.id}`, { method: 'DELETE' });
+			expect(response.status).toBe(500);
+			const body = await response.json();
+			expect(body.error).toBe('刪除 Canvas 時發生錯誤');
+
+			spy.mockRestore();
+		});
+
+		it('重複刪除同一個 Canvas 回傳 404', async () => {
+			const created = await createCanvas(client, 'double-delete-test');
+
+			const first = await fetch(`${server.baseUrl}/api/canvas/${created.id}`, { method: 'DELETE' });
+			expect(first.status).toBe(200);
+
+			const second = await fetch(`${server.baseUrl}/api/canvas/${created.id}`, { method: 'DELETE' });
+			expect(second.status).toBe(404);
+			const body = await second.json();
+			expect(body.error).toBe('找不到 Canvas');
+		});
+	});
+
 	describe('錯誤處理', () => {
 		it('呼叫錯誤路徑回傳 404', async () => {
 			const response = await fetch(`${server.baseUrl}/api/canvas`);

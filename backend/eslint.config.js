@@ -32,6 +32,7 @@ export default [
         structuredClone: 'readonly',
         Blob: 'readonly',
         Headers: 'readonly',
+        URLPattern: 'readonly',
       },
     },
     plugins: {
