@@ -4,6 +4,8 @@
 
 AI Agent ワークフローを視覚的にデザインして実行するためのキャンバスツールです。Claude Agent SDK を使用して Agent の実行を駆動し、チームでの共同作業もサポートします。
 
+<video src="tutorials/demo-ja.mp4" controls width="100%"></video>
+
 ## 目次
 
 - [注意事項](#注意事項)

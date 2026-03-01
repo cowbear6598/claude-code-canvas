@@ -4,6 +4,8 @@
 
 A canvas tool for visually designing and executing AI Agent workflows, powered by Claude Agent SDK for agent execution. Also supports team collaboration.
 
+<video src="tutorials/demo.mp4" controls width="100%"></video>
+
 ## Table of Contents
 
 - [Important Notes](#important-notes)

@@ -4,6 +4,8 @@
 
 視覺化設計與執行 AI Agent 工作流程的畫布工具，串接 Claude Agent SDK 驅動 Agent 執行，也可支援團隊多人協作。
 
+<video src="tutorials/demo.mp4" controls width="100%"></video>
+
 ## 目錄
 
 - [注意事項](#注意事項)
