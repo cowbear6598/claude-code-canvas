@@ -69,6 +69,14 @@ export async function listCanvases(
   return response.canvases || [];
 }
 
+export async function postCanvas(baseUrl: string, body: unknown, contentType = 'application/json') {
+  return fetch(`${baseUrl}/api/canvas`, {
+    method: 'POST',
+    headers: { 'Content-Type': contentType },
+    body: contentType === 'application/json' ? JSON.stringify(body) : String(body),
+  });
+}
+
 export async function reorderCanvases(
   client: TestWebSocketClient,
   canvasIds: string[]

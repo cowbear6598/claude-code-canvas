@@ -126,6 +126,10 @@ class CanvasStore {
         return this.canvases.get(id);
     }
 
+    getByName(name: string): Canvas | undefined {
+        return Array.from(this.canvases.values()).find(c => c.name === name);
+    }
+
     getNameById(canvasId: string): string {
         return this.canvases.get(canvasId)?.name ?? canvasId;
     }

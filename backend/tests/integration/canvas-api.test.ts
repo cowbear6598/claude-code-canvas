@@ -6,17 +6,9 @@ import {
 	waitForEvent,
 	type TestServerInstance,
 } from '../setup';
-import { createCanvas } from '../helpers';
+import { createCanvas, postCanvas } from '../helpers';
 import type { TestWebSocketClient } from '../setup';
 import { canvasStore } from '../../src/services/canvasStore.js';
-
-async function postCanvas(baseUrl: string, body: unknown, contentType = 'application/json') {
-	return fetch(`${baseUrl}/api/canvas`, {
-		method: 'POST',
-		headers: { 'Content-Type': contentType },
-		body: contentType === 'application/json' ? JSON.stringify(body) : String(body),
-	});
-}
 
 describe('Canvas REST API', () => {
 	let server: TestServerInstance;
@@ -188,7 +180,7 @@ describe('Canvas REST API', () => {
 
 			const listResponse = await fetch(`${server.baseUrl}/api/canvas/list`);
 			const listBody = await listResponse.json();
-			const found = listBody.canvases.find((c: any) => c.id === created.canvas.id);
+			const found = listBody.canvases.find((c: { id: string }) => c.id === created.canvas.id);
 			expect(found).toBeDefined();
 			expect(found.name).toBe('list-verify-test');
 		});
@@ -253,11 +245,21 @@ describe('Canvas REST API', () => {
 			expect(body.error).toBe('找不到 Canvas');
 		});
 
-		it('無效的 Canvas ID 格式回傳 400', async () => {
-			const response = await fetch(`${server.baseUrl}/api/canvas/non-existent-id`, { method: 'DELETE' });
-			expect(response.status).toBe(400);
+		it('用 canvas name 刪除 Canvas 成功', async () => {
+			const createResponse = await postCanvas(server.baseUrl, { name: 'delete-by-name-test' });
+			expect(createResponse.status).toBe(201);
+
+			const response = await fetch(`${server.baseUrl}/api/canvas/delete-by-name-test`, { method: 'DELETE' });
+			expect(response.status).toBe(200);
 			const body = await response.json();
-			expect(body.error).toBe('無效的 Canvas ID 格式');
+			expect(body.success).toBe(true);
+		});
+
+		it('找不到的 canvas name 回傳 404', async () => {
+			const response = await fetch(`${server.baseUrl}/api/canvas/non-existent-canvas`, { method: 'DELETE' });
+			expect(response.status).toBe(404);
+			const body = await response.json();
+			expect(body.error).toBe('找不到 Canvas');
 		});
 
 		it('canvasStore.delete 失敗時回傳 500', async () => {

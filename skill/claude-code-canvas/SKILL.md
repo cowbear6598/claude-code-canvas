@@ -25,9 +25,21 @@ claude-code-canvas 是一個 Agent 畫布系統，後端使用 **Bun + TypeScrip
 
 ---
 
-## REST API 端點快速索引
+## 通用規則
 
-基底 URL：`http://localhost:3001`
+- 基底 URL：`http://localhost:3001`
+- 所有錯誤回應格式：`{ "error": "訊息" }`
+- 路徑參數 `:id` 支援 UUID 或 canvas name，伺服器自動判斷：符合 UUID v4 格式則用 id 查詢，否則當作 name 查詢
+- 通用錯誤碼：
+
+| 狀態碼 | 說明 |
+|--------|------|
+| 404 | 找不到資源 |
+| 500 | 伺服器錯誤 |
+
+---
+
+## REST API 端點快速索引
 
 ### Canvas
 
@@ -35,9 +47,17 @@ claude-code-canvas 是一個 Agent 畫布系統，後端使用 **Bun + TypeScrip
 |------|------|------|
 | GET | /api/canvas/list | 列出所有畫布 |
 | POST | /api/canvas | 建立新畫布 |
-| DELETE | /api/canvas/:id | 刪除指定畫布 |
+| DELETE | /api/canvas/:id | 刪除指定畫布（支援 UUID 或 name） |
 
 詳細格式與範例：[references/canvas-api.md](references/canvas-api.md)
+
+### Pod
+
+| 方法 | 路徑 | 說明 |
+|------|------|------|
+| GET | /api/canvas/:id/pods | 取得指定畫布的所有 Pod（:id 支援 UUID 或 name） |
+
+詳細格式與範例：[references/pod-api.md](references/pod-api.md)
 
 ---
 
