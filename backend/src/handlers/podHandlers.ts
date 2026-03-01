@@ -1,7 +1,6 @@
 import {existsSync} from 'fs';
 import {WebSocketResponseEvents} from '../schemas';
 import type {
-    PodCreatedPayload,
     PodListResultPayload,
     PodGetResultPayload,
     PodScheduleSetPayload,
@@ -22,6 +21,7 @@ import type {
 import type {Pod} from '../types';
 import {podStore} from '../services/podStore.js';
 import {workspaceService} from '../services/workspace';
+import {createPodWithWorkspace} from '../services/podService.js';
 import {noteStore, skillNoteStore, repositoryNoteStore, commandNoteStore, subAgentNoteStore, mcpServerNoteStore} from '../services/noteStores.js';
 import {connectionStore} from '../services/connectionStore.js';
 import {socketService} from '../services/socketService.js';
@@ -38,31 +38,21 @@ export const handlePodCreate = withCanvasId<PodCreatePayload>(
     async (connectionId: string, canvasId: string, payload: PodCreatePayload, requestId: string): Promise<void> => {
         const {name, color, x, y, rotation} = payload;
 
-        const pod = podStore.create(canvasId, {name, color, x, y, rotation});
+        const result = await createPodWithWorkspace(canvasId, {name, color, x, y, rotation}, requestId);
 
-    const workspaceResult = await workspaceService.createWorkspace(pod.workspacePath);
-    if (!workspaceResult.success) {
-        emitError(
-            connectionId,
-            WebSocketResponseEvents.POD_CREATED,
-            `建立工作區失敗 (Pod ${pod.id})`,
-            requestId,
-            pod.id,
-            'INTERNAL_ERROR'
-        );
-        return;
-    }
+        if (!result.success) {
+            emitError(
+                connectionId,
+                WebSocketResponseEvents.POD_CREATED,
+                result.error ?? '建立 Pod 失敗',
+                requestId,
+                '',
+                'INTERNAL_ERROR'
+            );
+            return;
+        }
 
-    const response: PodCreatedPayload = {
-        requestId,
-        canvasId,
-        success: true,
-        pod,
-    };
-
-    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_CREATED, response);
-
-    logger.log('Pod', 'Create', `Created Pod ${pod.id} (${pod.name})`);
+        logger.log('Pod', 'Create', `Created Pod ${result.data!.pod.id} (${result.data!.pod.name})`);
     }
 );
 

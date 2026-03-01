@@ -1,25 +1,9 @@
 import { canvasStore } from '../services/canvasStore.js';
-import { podStore } from '../services/podStore.js';
 import { socketService } from '../services/socketService.js';
 import { cursorColorManager } from '../services/cursorColorManager.js';
 import { WebSocketResponseEvents } from '../schemas/index.js';
-import { JSON_HEADERS } from './constants.js';
 import { toCanvasDto } from '../utils/canvasDto.js';
-import type { Canvas } from '../types/index.js';
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function jsonResponse(body: unknown, status: number): Response {
-	return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
-}
-
-function resolveCanvas(idOrName: string): Canvas | undefined {
-	if (!idOrName) return undefined;
-	if (UUID_REGEX.test(idOrName)) {
-		return canvasStore.getById(idOrName);
-	}
-	return canvasStore.getByName(idOrName);
-}
+import { jsonResponse, resolveCanvas } from './apiHelpers.js';
 
 export async function handleDeleteCanvas(_req: Request, params: Record<string, string>): Promise<Response> {
 	const canvas = resolveCanvas(params.id);
@@ -47,16 +31,6 @@ function isValidCreateCanvasBody(body: unknown): body is { name: string } {
 		'name' in body &&
 		typeof (body as Record<string, unknown>).name === 'string'
 	);
-}
-
-export function handleListPods(_req: Request, params: Record<string, string>): Response {
-	const canvas = resolveCanvas(params.id);
-	if (!canvas) {
-		return jsonResponse({ error: '找不到 Canvas' }, 404);
-	}
-
-	const pods = podStore.getAll(canvas.id);
-	return jsonResponse({ pods }, 200);
 }
 
 export function handleListCanvases(_req: Request, _params: Record<string, string>): Response {

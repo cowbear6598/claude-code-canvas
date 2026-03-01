@@ -77,6 +77,14 @@ export async function postCanvas(baseUrl: string, body: unknown, contentType = '
   });
 }
 
+export async function postPod(baseUrl: string, canvasId: string, body: unknown, contentType = 'application/json') {
+  return fetch(`${baseUrl}/api/canvas/${canvasId}/pods`, {
+    method: 'POST',
+    headers: { 'Content-Type': contentType },
+    body: contentType === 'application/json' ? JSON.stringify(body) : String(body),
+  });
+}
+
 export async function reorderCanvases(
   client: TestWebSocketClient,
   canvasIds: string[]

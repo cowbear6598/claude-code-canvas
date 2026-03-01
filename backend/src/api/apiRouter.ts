@@ -1,4 +1,5 @@
-import { handleListCanvases, handleCreateCanvas, handleDeleteCanvas, handleListPods } from './canvasApi.js';
+import { handleListCanvases, handleCreateCanvas, handleDeleteCanvas } from './canvasApi.js';
+import { handleListPods, handleCreatePod } from './podApi.js';
 import { JSON_HEADERS } from './constants.js';
 import { logger } from '../utils/logger.js';
 
@@ -14,6 +15,7 @@ const ROUTES: Route[] = [
 	{ method: 'GET', pattern: new URLPattern({ pathname: '/api/canvas/list' }), handler: handleListCanvases },
 	{ method: 'POST', pattern: new URLPattern({ pathname: '/api/canvas' }), handler: handleCreateCanvas },
 	{ method: 'GET', pattern: new URLPattern({ pathname: '/api/canvas/:id/pods' }), handler: handleListPods },
+	{ method: 'POST', pattern: new URLPattern({ pathname: '/api/canvas/:id/pods' }), handler: handleCreatePod },
 	{ method: 'DELETE', pattern: new URLPattern({ pathname: '/api/canvas/:id' }), handler: handleDeleteCanvas },
 ];
 

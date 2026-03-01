@@ -3,10 +3,12 @@ import {
 	closeTestServer,
 	createSocketClient,
 	disconnectSocket,
+	waitForEvent,
 	type TestServerInstance,
 } from '../setup';
-import { createPod, postCanvas } from '../helpers';
+import { createPod, postCanvas, postPod } from '../helpers';
 import type { TestWebSocketClient } from '../setup';
+import { WebSocketResponseEvents } from '../../src/schemas';
 
 async function fetchPods(baseUrl: string, canvasId: string) {
 	return fetch(`${baseUrl}/api/canvas/${canvasId}/pods`);
@@ -103,5 +105,165 @@ describe('GET /api/canvas/:id/pods', () => {
 		expect(response.status).toBe(404);
 		const body = await response.json();
 		expect(body.error).toBe('找不到 Canvas');
+	});
+});
+
+describe('POST /api/canvas/:id/pods', () => {
+	let server: TestServerInstance;
+	let client: TestWebSocketClient;
+
+	beforeAll(async () => {
+		server = await createTestServer();
+		client = await createSocketClient(server.baseUrl, server.canvasId);
+	});
+
+	afterAll(async () => {
+		if (client?.connected) await disconnectSocket(client);
+		if (server) await closeTestServer(server);
+	});
+
+	it('成功建立 Pod（只傳 name, x, y），預設 model 為 opus', async () => {
+		const response = await postPod(server.baseUrl, server.canvasId, { name: 'REST Pod', x: 100, y: 200 });
+		expect(response.status).toBe(201);
+
+		const body = await response.json();
+		expect(body.pod).toBeDefined();
+		expect(body.pod.name).toBe('REST Pod');
+		expect(body.pod.x).toBe(100);
+		expect(body.pod.y).toBe(200);
+		expect(body.pod.color).toBe('blue');
+		expect(body.pod.rotation).toBe(0);
+		expect(body.pod.model).toBe('opus');
+	});
+
+	it('成功建立 Pod 並指定 model 為 sonnet', async () => {
+		const response = await postPod(server.baseUrl, server.canvasId, { name: 'Sonnet Pod', x: 0, y: 0, model: 'sonnet' });
+		expect(response.status).toBe(201);
+
+		const body = await response.json();
+		expect(body.pod.model).toBe('sonnet');
+	});
+
+	it('用 canvas name 建立 Pod', async () => {
+		const createResponse = await postCanvas(server.baseUrl, { name: 'post-pod-name-canvas' });
+		expect(createResponse.status).toBe(201);
+
+		const response = await postPod(server.baseUrl, 'post-pod-name-canvas', { name: 'Named Canvas Pod', x: 0, y: 0 });
+		expect(response.status).toBe(201);
+	});
+
+	it('缺少 name 回傳 400', async () => {
+		const response = await postPod(server.baseUrl, server.canvasId, { x: 0, y: 0 });
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('Pod 名稱不能為空');
+	});
+
+	it('name 為空字串回傳 400', async () => {
+		const response = await postPod(server.baseUrl, server.canvasId, { name: '', x: 0, y: 0 });
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('Pod 名稱不能為空');
+	});
+
+	it('name 超過 100 字元回傳 400', async () => {
+		const response = await postPod(server.baseUrl, server.canvasId, { name: 'a'.repeat(101), x: 0, y: 0 });
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('Pod 名稱不能超過 100 個字元');
+	});
+
+	it('缺少 x 回傳 400', async () => {
+		const response = await postPod(server.baseUrl, server.canvasId, { name: 'Pod', y: 0 });
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('必須提供有效的 x 和 y 座標');
+	});
+
+	it('缺少 y 回傳 400', async () => {
+		const response = await postPod(server.baseUrl, server.canvasId, { name: 'Pod', x: 0 });
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('必須提供有效的 x 和 y 座標');
+	});
+
+	it('無效 model 回傳 400', async () => {
+		const response = await postPod(server.baseUrl, server.canvasId, { name: 'Pod', x: 0, y: 0, model: 'gpt-4' });
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('無效的模型類型');
+	});
+
+	it('Canvas 不存在回傳 404', async () => {
+		const response = await postPod(server.baseUrl, 'non-existent-canvas', { name: 'Pod', x: 0, y: 0 });
+		expect(response.status).toBe(404);
+
+		const body = await response.json();
+		expect(body.error).toBe('找不到 Canvas');
+	});
+
+	it('無效 JSON body 回傳 400', async () => {
+		const response = await postPod(server.baseUrl, server.canvasId, 'not json', 'text/plain');
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('無效的請求格式');
+	});
+
+	it('用不存在的 UUID 建立 Pod 回傳 404', async () => {
+		const response = await postPod(server.baseUrl, '00000000-0000-4000-8000-000000000000', {
+			name: 'Test', x: 0, y: 0,
+		});
+		expect(response.status).toBe(404);
+		const body = await response.json();
+		expect(body.error).toBe('找不到 Canvas');
+	});
+
+	it('建立 Pod 成功後 WebSocket client 收到 pod:created 事件', async () => {
+		const eventPromise = waitForEvent<{ pod: { name: string; x: number; y: number } }>(
+			client,
+			WebSocketResponseEvents.POD_CREATED,
+		);
+
+		await postPod(server.baseUrl, server.canvasId, { name: 'WS Broadcast Pod', x: 10, y: 20 });
+
+		const payload = await eventPromise;
+		expect(payload.pod).toBeDefined();
+		expect(payload.pod.name).toBe('WS Broadcast Pod');
+		expect(payload.pod.x).toBe(10);
+		expect(payload.pod.y).toBe(20);
+	});
+
+	it('回傳的 Pod 包含完整欄位', async () => {
+		const response = await postPod(server.baseUrl, server.canvasId, { name: 'Full Field Pod', x: 50, y: 75 });
+		expect(response.status).toBe(201);
+
+		const body = await response.json();
+		const pod = body.pod;
+
+		expect(typeof pod.id).toBe('string');
+		expect(typeof pod.name).toBe('string');
+		expect(pod.color).toBe('blue');
+		expect(pod.status).toBe('idle');
+		expect(typeof pod.workspacePath).toBe('string');
+		expect(typeof pod.x).toBe('number');
+		expect(typeof pod.y).toBe('number');
+		expect(pod.rotation).toBe(0);
+		expect(typeof pod.model).toBe('string');
+		expect(typeof pod.createdAt).toBe('string');
+		expect(new Date(pod.createdAt).toISOString()).toBe(pod.createdAt);
+		expect(typeof pod.lastActiveAt).toBe('string');
+		expect(new Date(pod.lastActiveAt).toISOString()).toBe(pod.lastActiveAt);
+		expect(Array.isArray(pod.skillIds)).toBe(true);
+		expect(Array.isArray(pod.subAgentIds)).toBe(true);
+		expect(Array.isArray(pod.mcpServerIds)).toBe(true);
+		expect(typeof pod.needsForkSession).toBe('boolean');
+		expect(typeof pod.autoClear).toBe('boolean');
 	});
 });
