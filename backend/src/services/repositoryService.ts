@@ -130,7 +130,13 @@ class RepositoryService {
   }
 
   getRepositoryPath(repositoryId: string): string {
-    return path.join(config.repositoriesRoot, repositoryId);
+    const repositoryPath = path.join(config.repositoriesRoot, repositoryId);
+
+    if (!isPathWithinDirectory(repositoryPath, config.repositoriesRoot)) {
+      throw new Error('無效的 Repository 路徑');
+    }
+
+    return repositoryPath;
   }
 
   getParentDirectory(): string {

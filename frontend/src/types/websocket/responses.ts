@@ -574,3 +574,10 @@ export interface McpServerReadResultPayload {
 export interface CursorLeftPayload {
     connectionId: string
 }
+
+export interface PodDirectoryOpenedPayload {
+    requestId: string
+    success: boolean
+    path?: string
+    error?: string
+}

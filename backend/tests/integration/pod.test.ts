@@ -1,3 +1,4 @@
+import { spyOn } from 'bun:test';
 import type { TestWebSocketClient } from '../setup';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -10,7 +11,7 @@ import {
 } from '../setup';
 import { createPod, createPodPair, movePod, renamePod, setPodModel, setPodSchedule, FAKE_UUID, getCanvasId} from '../helpers';
 import { createConnection } from '../helpers';
-import { createOutputStyle, createMcpServer, createMcpServerNote } from '../helpers';
+import { createOutputStyle, createMcpServer, createMcpServerNote, createRepository } from '../helpers';
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
@@ -25,6 +26,8 @@ import {
   type NoteCreatePayload,
   type NoteListPayload,
   type McpServerNoteListPayload,
+  type PodOpenDirectoryPayload,
+  type PodBindRepositoryPayload,
 } from '../../src/schemas';
 import {
   type PodListResultPayload,
@@ -38,6 +41,8 @@ import {
   type NoteCreatedPayload,
   type NoteListResultPayload,
   type McpServerNoteListResultPayload,
+  type PodDirectoryOpenedPayload,
+  type PodRepositoryBoundPayload,
 } from '../../src/types';
 
 describe('Pod 管理', () => {
@@ -553,6 +558,86 @@ describe('Pod 管理', () => {
             enabled: true,
           },
         }
+      );
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('找不到');
+    });
+  });
+
+  describe('Pod 打開工作目錄', () => {
+    let spawnSpy: ReturnType<typeof spyOn>;
+
+    beforeEach(() => {
+      spawnSpy = spyOn(Bun, 'spawn').mockReturnValue({
+        exited: Promise.resolve(0),
+        pid: 0,
+        stdin: null,
+        stdout: null,
+        stderr: null,
+        readable: null,
+        killed: false,
+        exitCode: null,
+        signalCode: null,
+        kill: () => {},
+        ref: () => {},
+        unref: () => {},
+      } as any);
+    });
+
+    afterEach(() => {
+      spawnSpy.mockRestore();
+    });
+
+    it('成功打開沒有綁定 Repository 的 Pod 工作目錄', async () => {
+      const pod = await createPod(client, { name: 'Open Directory Pod' });
+
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<PodOpenDirectoryPayload, PodDirectoryOpenedPayload>(
+        client,
+        WebSocketRequestEvents.POD_OPEN_DIRECTORY,
+        WebSocketResponseEvents.POD_DIRECTORY_OPENED,
+        { requestId: uuidv4(), canvasId, podId: pod.id }
+      );
+
+      expect(response.success).toBe(true);
+      expect(response.path).toContain(pod.workspacePath);
+      expect(spawnSpy).toHaveBeenCalledTimes(1);
+      expect(spawnSpy).toHaveBeenCalledWith([expect.any(String), pod.workspacePath]);
+    });
+
+    it('成功打開有綁定 Repository 的 Pod 工作目錄', async () => {
+      const repo = await createRepository(client, `open-dir-repo-${uuidv4()}`);
+      const pod = await createPod(client, { name: 'Open Directory Repo Pod' });
+
+      const canvasId = await getCanvasId(client);
+      await emitAndWaitResponse<PodBindRepositoryPayload, PodRepositoryBoundPayload>(
+        client,
+        WebSocketRequestEvents.POD_BIND_REPOSITORY,
+        WebSocketResponseEvents.POD_REPOSITORY_BOUND,
+        { requestId: uuidv4(), canvasId, podId: pod.id, repositoryId: repo.id }
+      );
+
+      const response = await emitAndWaitResponse<PodOpenDirectoryPayload, PodDirectoryOpenedPayload>(
+        client,
+        WebSocketRequestEvents.POD_OPEN_DIRECTORY,
+        WebSocketResponseEvents.POD_DIRECTORY_OPENED,
+        { requestId: uuidv4(), canvasId, podId: pod.id }
+      );
+
+      expect(response.success).toBe(true);
+      expect(response.path).toContain(repo.id);
+      expect(spawnSpy).toHaveBeenCalledTimes(1);
+      expect(spawnSpy).toHaveBeenCalledWith([expect.any(String), expect.stringContaining(repo.id)]);
+    });
+
+    it('打開不存在的 Pod 的工作目錄時失敗', async () => {
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<PodOpenDirectoryPayload, PodDirectoryOpenedPayload>(
+        client,
+        WebSocketRequestEvents.POD_OPEN_DIRECTORY,
+        WebSocketResponseEvents.POD_DIRECTORY_OPENED,
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID }
       );
 
       expect(response.success).toBe(false);

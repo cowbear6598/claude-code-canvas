@@ -1,3 +1,4 @@
+import {existsSync} from 'fs';
 import {WebSocketResponseEvents} from '../schemas';
 import type {
     PodCreatedPayload,
@@ -5,6 +6,7 @@ import type {
     PodGetResultPayload,
     PodScheduleSetPayload,
     PodDeletedPayload,
+    PodDirectoryOpenedPayload,
 } from '../types';
 import type {
     PodCreatePayload,
@@ -15,6 +17,7 @@ import type {
     PodSetModelPayload,
     PodSetSchedulePayload,
     PodDeletePayload,
+    PodOpenDirectoryPayload,
 } from '../schemas';
 import type {Pod} from '../types';
 import {podStore} from '../services/podStore.js';
@@ -315,5 +318,81 @@ export const handlePodSetSchedule = withCanvasId<PodSetSchedulePayload>(
         };
 
         socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_SCHEDULE_SET, response);
+    }
+);
+
+const PLATFORM_COMMANDS: Record<string, string> = {
+    darwin: 'open',
+    linux: 'xdg-open',
+    win32: 'explorer',
+};
+
+function getOpenCommand(platform: string): string | null {
+    return PLATFORM_COMMANDS[platform] ?? null;
+}
+
+export const handlePodOpenDirectory = withCanvasId<PodOpenDirectoryPayload>(
+    WebSocketResponseEvents.POD_DIRECTORY_OPENED,
+    async (connectionId: string, canvasId: string, payload: PodOpenDirectoryPayload, requestId: string): Promise<void> => {
+        const {podId} = payload;
+
+        const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_DIRECTORY_OPENED, requestId);
+        if (!pod) {
+            return;
+        }
+
+        const targetPath = pod.repositoryId
+            ? repositoryService.getRepositoryPath(pod.repositoryId)
+            : pod.workspacePath;
+
+        if (!existsSync(targetPath)) {
+            emitError(
+                connectionId,
+                WebSocketResponseEvents.POD_DIRECTORY_OPENED,
+                '目標目錄不存在',
+                requestId,
+                podId,
+                'INTERNAL_ERROR'
+            );
+            return;
+        }
+
+        const command = getOpenCommand(process.platform);
+        if (!command) {
+            emitError(
+                connectionId,
+                WebSocketResponseEvents.POD_DIRECTORY_OPENED,
+                `不支援的作業系統: ${process.platform}`,
+                requestId,
+                podId,
+                'INTERNAL_ERROR'
+            );
+            return;
+        }
+
+        const proc = Bun.spawn([command, targetPath]);
+        const exitCode = await proc.exited;
+
+        if (exitCode !== 0) {
+            emitError(
+                connectionId,
+                WebSocketResponseEvents.POD_DIRECTORY_OPENED,
+                '打開目錄失敗',
+                requestId,
+                podId,
+                'INTERNAL_ERROR'
+            );
+            return;
+        }
+
+        const response: PodDirectoryOpenedPayload = {
+            requestId,
+            success: true,
+            path: targetPath,
+        };
+
+        emitSuccess(connectionId, WebSocketResponseEvents.POD_DIRECTORY_OPENED, response);
+
+        logger.log('Pod', 'Load', `已打開目錄: ${targetPath}`);
     }
 );

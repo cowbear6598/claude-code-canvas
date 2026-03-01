@@ -74,6 +74,7 @@ const emit = defineEmits<{
   delete: [id: string]
   'drag-end': [data: { id: string; x: number; y: number }]
   'drag-complete': [data: { id: string }]
+  contextmenu: [data: { podId: string; event: MouseEvent }]
 }>()
 
 const isDragging = ref(false)
@@ -513,6 +514,11 @@ const handleToggleAutoClear = async (): Promise<void> => {
 const handleClearScheduleFiredAnimation = (): void => {
   podStore.clearScheduleFiredAnimation(props.pod.id)
 }
+
+const handleContextMenu = (e: MouseEvent): void => {
+  e.preventDefault()
+  emit('contextmenu', { podId: props.pod.id, event: e })
+}
 </script>
 
 <template>
@@ -564,6 +570,7 @@ const handleClearScheduleFiredAnimation = (): void => {
         class="pod-doodle w-56 overflow-visible relative"
         :class="[podStatusClass, { selected: isSelected, dragging: isDragging || isBatchDragging }]"
         @dblclick="handleDblClick"
+        @contextmenu="handleContextMenu"
       >
         <!-- Model 凹槽 -->
         <div class="model-notch" />

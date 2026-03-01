@@ -99,6 +99,7 @@ export const WebSocketRequestEvents = {
   OUTPUT_STYLE_MOVE_TO_GROUP: 'output-style:move-to-group',
   SUBAGENT_MOVE_TO_GROUP: 'subagent:move-to-group',
   CURSOR_MOVE: 'cursor:move',
+  POD_OPEN_DIRECTORY: 'pod:open-directory',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -234,6 +235,7 @@ export const WebSocketResponseEvents = {
   HEARTBEAT_PING: 'heartbeat:ping',
   CURSOR_MOVED: 'cursor:moved',
   CURSOR_LEFT: 'cursor:left',
+  POD_DIRECTORY_OPENED: 'pod:directory:opened',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]

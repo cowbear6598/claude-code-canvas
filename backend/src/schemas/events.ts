@@ -99,6 +99,7 @@ export enum WebSocketRequestEvents {
   MCP_SERVER_NOTE_DELETE = 'mcp-server-note:delete',
   POD_BIND_MCP_SERVER = 'pod:bind-mcp-server',
   POD_UNBIND_MCP_SERVER = 'pod:unbind-mcp-server',
+  POD_OPEN_DIRECTORY = 'pod:open-directory',
 }
 
 export enum WebSocketResponseEvents {
@@ -235,4 +236,5 @@ export enum WebSocketResponseEvents {
   MCP_SERVER_NOTE_DELETED = 'mcp-server-note:deleted',
   POD_MCP_SERVER_BOUND = 'pod:mcp-server:bound',
   POD_MCP_SERVER_UNBOUND = 'pod:mcp-server:unbound',
+  POD_DIRECTORY_OPENED = 'pod:directory:opened',
 }

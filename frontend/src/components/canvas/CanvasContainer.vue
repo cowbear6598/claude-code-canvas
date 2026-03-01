@@ -18,6 +18,7 @@ import ConnectionLayer from './ConnectionLayer.vue'
 import SelectionBox from './SelectionBox.vue'
 import RepositoryContextMenu from './RepositoryContextMenu.vue'
 import ConnectionContextMenu from './ConnectionContextMenu.vue'
+import PodContextMenu from './PodContextMenu.vue'
 import CreateRepositoryModal from './CreateRepositoryModal.vue'
 import CloneRepositoryModal from './CloneRepositoryModal.vue'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
@@ -105,6 +106,16 @@ const connectionContextMenu = ref<{
   position: {x: 0, y: 0},
   connectionId: '',
   triggerMode: 'auto'
+})
+
+const podContextMenu = ref<{
+  visible: boolean
+  position: { x: number; y: number }
+  podId: string
+}>({
+  visible: false,
+  position: {x: 0, y: 0},
+  podId: ''
 })
 
 const showCreateRepositoryModal = ref(false)
@@ -380,6 +391,21 @@ const handleConnectionContextMenu = (data: { connectionId: string; event: MouseE
 
 const handleConnectionContextMenuClose = (): void => {
   connectionContextMenu.value.visible = false
+}
+
+const handlePodContextMenu = (data: { podId: string; event: MouseEvent }): void => {
+  const pod = podStore.getPodById(data.podId)
+  if (!pod) return
+
+  podContextMenu.value = {
+    visible: true,
+    position: {x: data.event.clientX, y: data.event.clientY},
+    podId: pod.id
+  }
+}
+
+const handlePodContextMenuClose = (): void => {
+  podContextMenu.value.visible = false
 }
 
 const handleCloneStarted = (payload: { requestId: string; repoName: string }): void => {
@@ -701,6 +727,7 @@ onUnmounted(() => {
       @delete="handleDeletePod"
       @drag-end="handleDragEnd"
       @drag-complete="handlePodDragComplete"
+      @contextmenu="handlePodContextMenu"
     />
 
     <!-- Output Style Notes -->
@@ -813,6 +840,14 @@ onUnmounted(() => {
     ref="trashZoneRef"
     :visible="showTrashZone"
     :is-highlighted="isTrashHighlighted"
+  />
+
+  <!-- Pod Context Menu -->
+  <PodContextMenu
+    v-if="podContextMenu.visible"
+    :position="podContextMenu.position"
+    :pod-id="podContextMenu.podId"
+    @close="handlePodContextMenuClose"
   />
 
   <!-- Repository Context Menu -->

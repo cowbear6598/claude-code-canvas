@@ -224,3 +224,10 @@ export interface PodStatusChangedPayload {
 export interface PodMessagesClearedPayload {
   podId: string;
 }
+
+export interface PodDirectoryOpenedPayload {
+  requestId: string;
+  success: boolean;
+  path?: string;
+  error?: string;
+}
