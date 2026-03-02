@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { PodSlackBinding } from './slack'
 
 export type ModelType = 'opus' | 'sonnet' | 'haiku'
 
@@ -37,6 +38,7 @@ export interface Pod {
   autoClear?: boolean
   commandId?: string | null
   schedule?: Schedule | null
+  slackBinding?: PodSlackBinding | null
 }
 
 export interface PodTypeConfig {

@@ -100,6 +100,15 @@ export const WebSocketRequestEvents = {
   SUBAGENT_MOVE_TO_GROUP: 'subagent:move-to-group',
   CURSOR_MOVE: 'cursor:move',
   POD_OPEN_DIRECTORY: 'pod:open-directory',
+  // Slack
+  SLACK_APP_CREATE: 'slack:app:create',
+  SLACK_APP_DELETE: 'slack:app:delete',
+  SLACK_APP_LIST: 'slack:app:list',
+  SLACK_APP_GET: 'slack:app:get',
+  SLACK_APP_CHANNELS: 'slack:app:channels',
+  SLACK_APP_CHANNELS_REFRESH: 'slack:app:channels:refresh',
+  POD_BIND_SLACK: 'pod:bind-slack',
+  POD_UNBIND_SLACK: 'pod:unbind-slack',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -236,6 +245,18 @@ export const WebSocketResponseEvents = {
   CURSOR_MOVED: 'cursor:moved',
   CURSOR_LEFT: 'cursor:left',
   POD_DIRECTORY_OPENED: 'pod:directory:opened',
+  // Slack
+  SLACK_APP_CREATED: 'slack:app:created',
+  SLACK_APP_DELETED: 'slack:app:deleted',
+  SLACK_APP_LIST_RESULT: 'slack:app:list:result',
+  SLACK_APP_GET_RESULT: 'slack:app:get:result',
+  SLACK_APP_CHANNELS_RESULT: 'slack:app:channels:result',
+  SLACK_APP_CHANNELS_REFRESHED: 'slack:app:channels:refreshed',
+  POD_SLACK_BOUND: 'pod:slack:bound',
+  POD_SLACK_UNBOUND: 'pod:slack:unbound',
+  SLACK_CONNECTION_STATUS_CHANGED: 'slack:connection:status:changed',
+  SLACK_MESSAGE_RECEIVED: 'slack:message:received',
+  SLACK_MESSAGE_QUEUED: 'slack:message:queued',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]

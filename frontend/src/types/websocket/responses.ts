@@ -1,4 +1,5 @@
 import type {Pod, PodStatus} from '../pod'
+import type {SlackApp, SlackChannel, SlackAppConnectionStatus} from '../slack'
 import type {OutputStyleNote} from '@/types'
 import type {SkillNote} from '@/types'
 import type {Repository, RepositoryNote} from '@/types'
@@ -576,5 +577,87 @@ export interface PodDirectoryOpenedPayload {
     requestId: string
     success: boolean
     path?: string
+    error?: string
+}
+
+// Slack
+export interface SlackAppCreatedPayload {
+    requestId: string
+    success: boolean
+    slackApp?: SlackApp
+    error?: string
+}
+
+export interface SlackAppDeletedPayload {
+    requestId: string
+    success: boolean
+    slackAppId?: string
+    error?: string
+}
+
+export interface SlackAppListResultPayload {
+    requestId: string
+    success: boolean
+    slackApps?: SlackApp[]
+    error?: string
+}
+
+export interface SlackAppGetResultPayload {
+    requestId: string
+    success: boolean
+    slackApp?: SlackApp
+    error?: string
+}
+
+export interface SlackAppChannelsResultPayload {
+    requestId: string
+    success: boolean
+    channels?: SlackChannel[]
+    error?: string
+}
+
+export interface SlackAppChannelsRefreshedPayload {
+    requestId: string
+    success: boolean
+    channels?: SlackChannel[]
+    error?: string
+}
+
+export interface SlackConnectionStatusChangedPayload {
+    slackAppId: string
+    connectionStatus: SlackAppConnectionStatus
+    channels?: SlackChannel[]
+}
+
+export interface SlackMessageReceivedPayload {
+    canvasId: string
+    podId: string
+    slackAppId: string
+    channelId: string
+    userName: string
+    text: string
+}
+
+export interface SlackMessageQueuedPayload {
+    canvasId: string
+    podId: string
+    queueSize: number
+    userName: string
+    text: string
+}
+
+export interface PodSlackBoundPayload {
+    requestId: string
+    canvasId: string
+    success: boolean
+    pod?: Pod
+    error?: string
+}
+
+export interface PodSlackUnboundPayload {
+    requestId: string
+    canvasId: string
+    success: boolean
+    pod?: Pod
     error?: string
 }

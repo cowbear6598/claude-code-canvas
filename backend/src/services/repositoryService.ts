@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { config } from '../config';
 import { isPathWithinDirectory } from '../utils/pathValidator.js';
-import {fileExists} from './shared/fileResourceHelpers.js';
+import {fileExists, directoryExists} from './shared/fileResourceHelpers.js';
 
 interface RepositoryMetadata {
   parentRepoId?: string;
@@ -126,7 +126,7 @@ class RepositoryService {
 
   async exists(repositoryId: string): Promise<boolean> {
     const repositoryPath = this.getRepositoryPath(repositoryId);
-    return fileExists(repositoryPath);
+    return directoryExists(repositoryPath);
   }
 
   getRepositoryPath(repositoryId: string): string {

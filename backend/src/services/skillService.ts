@@ -4,7 +4,7 @@ import {unzipSync} from 'fflate';
 import {config} from '../config';
 import type {Skill} from '../types';
 import {isPathWithinDirectory, validatePodId, validateSkillId} from '../utils/pathValidator.js';
-import {fileExists, parseFrontmatterDescription} from './shared/fileResourceHelpers.js';
+import {fileExists, directoryExists, parseFrontmatterDescription} from './shared/fileResourceHelpers.js';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_TOTAL_UNZIPPED_SIZE = 10 * 1024 * 1024;
@@ -58,7 +58,7 @@ class SkillService {
         const srcDir = this.getSkillDirectoryPath(skillId);
         const destDir = path.join(podWorkspacePath, '.claude', 'skills', skillId);
 
-        const exists = await fileExists(srcDir);
+        const exists = await directoryExists(srcDir);
         if (!exists) {
             throw new Error(`找不到技能目錄: ${skillId}`);
         }
@@ -75,7 +75,7 @@ class SkillService {
         const srcDir = this.getSkillDirectoryPath(skillId);
         const destDir = path.join(repositoryPath, '.claude', 'skills', skillId);
 
-        const exists = await fileExists(srcDir);
+        const exists = await directoryExists(srcDir);
         if (!exists) {
             throw new Error(`找不到技能目錄: ${skillId}`);
         }

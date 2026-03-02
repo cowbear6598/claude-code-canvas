@@ -357,3 +357,49 @@ export interface PodOpenDirectoryPayload {
   canvasId: string
   podId: string
 }
+
+// Slack
+export interface SlackAppCreatePayload {
+  requestId: string
+  name: string
+  botToken: string
+  appLevelToken: string
+}
+
+export interface SlackAppDeletePayload {
+  requestId: string
+  slackAppId: string
+}
+
+export interface SlackAppListPayload {
+  requestId: string
+}
+
+export interface SlackAppGetPayload {
+  requestId: string
+  slackAppId: string
+}
+
+export interface SlackAppChannelsPayload {
+  requestId: string
+  slackAppId: string
+}
+
+export interface SlackAppChannelsRefreshPayload {
+  requestId: string
+  slackAppId: string
+}
+
+export interface PodBindSlackPayload {
+  requestId: string
+  canvasId: string
+  podId: string
+  slackAppId: string
+  slackChannelId: string
+}
+
+export interface PodUnbindSlackPayload {
+  requestId: string
+  canvasId: string
+  podId: string
+}

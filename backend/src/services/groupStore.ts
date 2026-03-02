@@ -4,7 +4,7 @@ import { Group, GroupType } from '../types';
 import { logger } from '../utils/logger.js';
 import { config } from '../config';
 import { sanitizePathSegment } from '../utils/pathValidator.js';
-import { fileExists } from './shared/fileResourceHelpers.js';
+import { directoryExists } from './shared/fileResourceHelpers.js';
 import { fsOperation } from '../utils/operationHelpers.js';
 
 class GroupStore {
@@ -25,7 +25,7 @@ class GroupStore {
   async exists(name: string, type: GroupType): Promise<boolean> {
     const safeName = sanitizePathSegment(name);
     const dirPath = path.join(this.getBasePath(type), safeName);
-    return fileExists(dirPath);
+    return directoryExists(dirPath);
   }
 
   async list(type: GroupType): Promise<Group[]> {

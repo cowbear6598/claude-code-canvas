@@ -2,7 +2,6 @@ import {simpleGit, SimpleGitProgressEvent} from 'simple-git';
 import {Result, ok, err} from '../../types';
 import {config} from '../../config';
 import {logger} from '../../utils/logger.js';
-import {fileExists} from '../shared/fileResourceHelpers.js';
 import {isPathWithinDirectory} from '../../utils/pathValidator.js';
 import {gitOperation} from '../../utils/operationHelpers.js';
 import path from 'path';
@@ -234,8 +233,9 @@ class GitService {
 
     async isGitRepository(workspacePath: string): Promise<Result<boolean>> {
         const gitPath = path.join(workspacePath, '.git');
-        const exists = await fileExists(gitPath);
-        return ok(exists);
+        // 一般 repo 的 .git 是目錄，worktree 的 .git 是指向主 repo 的檔案
+        const stat = await fs.stat(gitPath).catch(() => null);
+        return ok(stat !== null);
     }
 
     async hasCommits(workspacePath: string): Promise<Result<boolean>> {

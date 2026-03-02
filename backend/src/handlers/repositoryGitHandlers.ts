@@ -28,7 +28,7 @@ import { emitSuccess, emitError } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { validateRepositoryExists, getValidatedGitRepository } from '../utils/validators.js';
 import { throttle } from '../utils/throttle.js';
-import { fileExists } from '../services/shared/fileResourceHelpers.js';
+import { directoryExists } from '../services/shared/fileResourceHelpers.js';
 import { isPathWithinDirectory } from '../utils/pathValidator.js';
 import { config } from '../config';
 import path from 'path';
@@ -320,7 +320,7 @@ async function validateWorktreePrerequisites(
     return { error: '無效的 worktree 路徑', errorCode: 'INVALID_PATH' };
   }
 
-  const targetExists = await fileExists(targetPath);
+  const targetExists = await directoryExists(targetPath);
   if (targetExists) {
     return { error: `資料夾已存在: ${newRepositoryId}`, errorCode: 'ALREADY_EXISTS' };
   }

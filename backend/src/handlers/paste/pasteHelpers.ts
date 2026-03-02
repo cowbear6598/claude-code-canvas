@@ -21,7 +21,7 @@ import { getErrorMessage } from '../../utils/websocketResponse.js';
 import { logger } from '../../utils/logger.js';
 import fs from 'fs/promises';
 import path from 'path';
-import { fileExists } from '../../services/shared/fileResourceHelpers.js';
+import { directoryExists } from '../../services/shared/fileResourceHelpers.js';
 import { fsOperation } from '../../utils/operationHelpers.js';
 
 function resolveBoundPodId(
@@ -48,7 +48,7 @@ async function copyClaudeDir(srcCwd: string, destCwd: string): Promise<void> {
   const srcClaudeDir = path.join(srcCwd, '.claude');
   const destClaudeDir = path.join(destCwd, '.claude');
 
-  const exists = await fileExists(srcClaudeDir);
+  const exists = await directoryExists(srcClaudeDir);
   if (!exists) {
     return;
   }
