@@ -161,6 +161,49 @@ describe('podStore', () => {
       })
     })
 
+    describe('getNextPodName', () => {
+      it('沒有 pods 時應回傳 "Pod 1"', () => {
+        const store = usePodStore()
+        store.pods = []
+
+        expect(store.getNextPodName()).toBe('Pod 1')
+      })
+
+      it('有 "Pod 1" 時應回傳 "Pod 2"', () => {
+        const store = usePodStore()
+        store.pods = [createMockPod({ name: 'Pod 1' })]
+
+        expect(store.getNextPodName()).toBe('Pod 2')
+      })
+
+      it('有 "Pod 1" 和 "Pod 2" 時應回傳 "Pod 3"', () => {
+        const store = usePodStore()
+        store.pods = [
+          createMockPod({ name: 'Pod 1' }),
+          createMockPod({ name: 'Pod 2' }),
+        ]
+
+        expect(store.getNextPodName()).toBe('Pod 3')
+      })
+
+      it('有 "Pod 1" 和 "Pod 3"（缺 Pod 2）時，應回傳最小可用數字 "Pod 2"', () => {
+        const store = usePodStore()
+        store.pods = [
+          createMockPod({ name: 'Pod 1' }),
+          createMockPod({ name: 'Pod 3' }),
+        ]
+
+        expect(store.getNextPodName()).toBe('Pod 2')
+      })
+
+      it('有 "Pod 2" 但沒有 "Pod 1" 時應回傳 "Pod 1"', () => {
+        const store = usePodStore()
+        store.pods = [createMockPod({ name: 'Pod 2' })]
+
+        expect(store.getNextPodName()).toBe('Pod 1')
+      })
+    })
+
     describe('isScheduleFiredAnimating', () => {
       it('podId 在 scheduleFiredPodIds 中時應回傳 true', () => {
         const store = usePodStore()
@@ -795,6 +838,71 @@ describe('podStore', () => {
 
       await expect(store.renamePodWithBackend('pod-1', 'New Name')).rejects.toThrow('Rename failed')
       expect(mockShowErrorToast).toHaveBeenCalledWith('Pod', '重新命名失敗', 'Rename failed')
+    })
+  })
+
+  describe('handleUpdatePod 回滾邏輯', () => {
+    /**
+     * 此 describe 模擬 CanvasContainer.vue 中 handleUpdatePod 的邏輯：
+     * 1. 先樂觀更新本地狀態
+     * 2. 若名稱有變更，呼叫 renamePodWithBackend
+     * 3. 若後端失敗，回滾本地名稱
+     */
+    const simulateHandleUpdatePod = async (store: ReturnType<typeof usePodStore>, pod: import('@/types').Pod): Promise<void> => {
+      const oldPod = store.getPodById(pod.id)
+      if (!oldPod) return
+
+      const oldName = oldPod.name
+      store.updatePod(pod)
+
+      if (oldName !== pod.name) {
+        try {
+          await store.renamePodWithBackend(pod.id, pod.name)
+        } catch {
+          store.updatePod({ ...pod, name: oldName })
+        }
+      }
+    }
+
+    it('重命名成功時本地狀態應更新為新名稱', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', name: '舊名稱' })
+      store.pods = [pod]
+
+      mockCreateWebSocketRequest.mockResolvedValueOnce({ success: true })
+
+      await simulateHandleUpdatePod(store, { ...pod, name: '新名稱' })
+
+      expect(store.getPodById('pod-1')?.name).toBe('新名稱')
+    })
+
+    it('重命名失敗時應回滾本地名稱', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', name: '舊名稱' })
+      store.pods = [pod]
+
+      mockCreateWebSocketRequest.mockRejectedValueOnce(new Error('後端錯誤'))
+
+      await simulateHandleUpdatePod(store, { ...pod, name: '新名稱' })
+
+      expect(store.getPodById('pod-1')?.name).toBe('舊名稱')
+    })
+
+    it('名稱沒有改變時不應呼叫 renamePodWithBackend', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = usePodStore()
+      const pod = createMockPod({ id: 'pod-1', name: '相同名稱' })
+      store.pods = [pod]
+
+      await simulateHandleUpdatePod(store, { ...pod, x: 999 })
+
+      expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
+      expect(store.getPodById('pod-1')?.x).toBe(999)
     })
   })
 

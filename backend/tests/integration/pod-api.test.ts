@@ -6,9 +6,10 @@ import {
 	waitForEvent,
 	type TestServerInstance,
 } from '../setup';
-import { createPod, postCanvas, postPod } from '../helpers';
+import { createPod, deletePod, postCanvas, postPod } from '../helpers';
 import type { TestWebSocketClient } from '../setup';
 import { WebSocketResponseEvents } from '../../src/schemas';
+import { v4 as uuidv4 } from 'uuid';
 
 async function fetchPods(baseUrl: string, canvasId: string) {
 	return fetch(`${baseUrl}/api/canvas/${canvasId}/pods`);
@@ -252,5 +253,131 @@ describe('POST /api/canvas/:id/pods', () => {
 		expect(Array.isArray(pod.subAgentIds)).toBe(true);
 		expect(Array.isArray(pod.mcpServerIds)).toBe(true);
 		expect(typeof pod.autoClear).toBe('boolean');
+	});
+});
+
+describe('DELETE /api/canvas/:id/pods/:podId', () => {
+	let server: TestServerInstance;
+	let client: TestWebSocketClient;
+
+	beforeAll(async () => {
+		server = await createTestServer();
+		client = await createSocketClient(server.baseUrl, server.canvasId);
+	});
+
+	afterAll(async () => {
+		if (client?.connected) await disconnectSocket(client);
+		if (server) await closeTestServer(server);
+	});
+
+	it('成功刪除 Pod 回傳 200，再次 GET 確認已移除', async () => {
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Delete Pod', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const deleteResponse = await deletePod(server.baseUrl, server.canvasId, pod.id);
+		expect(deleteResponse.status).toBe(200);
+
+		const body = await deleteResponse.json();
+		expect(body.success).toBe(true);
+
+		const listResponse = await fetch(`${server.baseUrl}/api/canvas/${server.canvasId}/pods`);
+		const listBody = await listResponse.json();
+		const found = listBody.pods.some((p: { id: string }) => p.id === pod.id);
+		expect(found).toBe(false);
+	});
+
+	it('用 Canvas name 刪除 Pod 成功', async () => {
+		const canvasResponse = await postCanvas(server.baseUrl, { name: 'delete-pod-by-name-canvas' });
+		expect(canvasResponse.status).toBe(201);
+		const { canvas } = await canvasResponse.json();
+
+		const createResponse = await postPod(server.baseUrl, canvas.id, { name: 'Pod by Name', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const deleteResponse = await deletePod(server.baseUrl, 'delete-pod-by-name-canvas', pod.id);
+		expect(deleteResponse.status).toBe(200);
+
+		const body = await deleteResponse.json();
+		expect(body.success).toBe(true);
+	});
+
+	it('刪除後透過 WebSocket 廣播 pod:deleted 事件', async () => {
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'WS Delete Pod', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const eventPromise = waitForEvent<{ success: boolean; podId: string }>(
+			client,
+			WebSocketResponseEvents.POD_DELETED,
+		);
+
+		await deletePod(server.baseUrl, server.canvasId, pod.id);
+
+		const payload = await eventPromise;
+		expect(payload.success).toBe(true);
+		expect(payload.podId).toBe(pod.id);
+	});
+
+	it('Canvas 不存在回傳 404', async () => {
+		const nonExistentCanvasId = uuidv4();
+		const nonExistentPodId = uuidv4();
+
+		const response = await deletePod(server.baseUrl, nonExistentCanvasId, nonExistentPodId);
+		expect(response.status).toBe(404);
+
+		const body = await response.json();
+		expect(body.error).toBe('找不到 Canvas');
+	});
+
+	it('Pod 不存在回傳 404', async () => {
+		const nonExistentPodId = uuidv4();
+
+		const response = await deletePod(server.baseUrl, server.canvasId, nonExistentPodId);
+		expect(response.status).toBe(404);
+
+		const body = await response.json();
+		expect(body.error).toBe('找不到 Pod');
+	});
+
+	it('用 Pod 名稱刪除成功回傳 200', async () => {
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Delete By Name Pod', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const deleteResponse = await deletePod(server.baseUrl, server.canvasId, 'Delete By Name Pod');
+		expect(deleteResponse.status).toBe(200);
+
+		const body = await deleteResponse.json();
+		expect(body.success).toBe(true);
+
+		const listResponse = await fetch(`${server.baseUrl}/api/canvas/${server.canvasId}/pods`);
+		const listBody = await listResponse.json();
+		const found = listBody.pods.some((p: { id: string }) => p.id === pod.id);
+		expect(found).toBe(false);
+	});
+
+	it('用不存在 Pod 名稱刪除回傳 404', async () => {
+		const response = await deletePod(server.baseUrl, server.canvasId, 'Non Existent Pod Name');
+		expect(response.status).toBe(404);
+
+		const body = await response.json();
+		expect(body.error).toBe('找不到 Pod');
+	});
+
+	it('重複刪除同一個 Pod 回傳 404', async () => {
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Duplicate Delete Pod', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const firstDelete = await deletePod(server.baseUrl, server.canvasId, pod.id);
+		expect(firstDelete.status).toBe(200);
+
+		const secondDelete = await deletePod(server.baseUrl, server.canvasId, pod.id);
+		expect(secondDelete.status).toBe(404);
+
+		const body = await secondDelete.json();
+		expect(body.error).toBe('找不到 Pod');
 	});
 });

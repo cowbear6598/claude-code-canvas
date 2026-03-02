@@ -281,12 +281,11 @@ const handleCanvasClick = (e: MouseEvent): void => {
 const handleSelectType = async (_config: PodTypeConfig): Promise<void> => {
   if (!podStore.typeMenu.position) return
 
-  const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
-  const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
+  const { x: canvasX, y: canvasY } = screenToCanvasPosition(podStore.typeMenu.position)
 
   const rotation = Math.random() * DEFAULT_POD_ROTATION_RANGE - (DEFAULT_POD_ROTATION_RANGE / 2)
   const newPod = {
-    name: `Pod ${podStore.podCount + 1}`,
+    name: podStore.getNextPodName(),
     x: canvasX - POD_MENU_X_OFFSET,
     y: canvasY - POD_MENU_Y_OFFSET,
     output: [],
@@ -306,10 +305,16 @@ const handleUpdatePod = async (pod: Pod): Promise<void> => {
   const oldPod = podStore.getPodById(pod.id)
   if (!oldPod) return
 
+  const oldName = oldPod.name
   podStore.updatePod(pod)
 
-  if (oldPod.name !== pod.name) {
-    await podStore.renamePodWithBackend(pod.id, pod.name)
+  if (oldName !== pod.name) {
+    try {
+      await podStore.renamePodWithBackend(pod.id, pod.name)
+    } catch {
+      // 重命名失敗，回滾本地名稱
+      podStore.updatePod({ ...pod, name: oldName })
+    }
   }
 }
 

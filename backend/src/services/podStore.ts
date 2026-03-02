@@ -104,6 +104,26 @@ class PodStore {
         return pods.get(id);
     }
 
+    getByName(canvasId: string, name: string): Pod | undefined {
+        const pods = this.getCanvasPods(canvasId);
+        for (const pod of pods.values()) {
+            if (pod.name === name) {
+                return pod;
+            }
+        }
+        return undefined;
+    }
+
+    hasName(canvasId: string, name: string, excludePodId?: string): boolean {
+        const pods = this.getCanvasPods(canvasId);
+        for (const [id, pod] of pods.entries()) {
+            if (pod.name === name && id !== excludePodId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     getByIdGlobal(podId: string): { canvasId: string; pod: Pod } | undefined {
         for (const [canvasId, pods] of this.podsByCanvas.entries()) {
             const pod = pods.get(podId);

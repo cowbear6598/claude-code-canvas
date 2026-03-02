@@ -52,6 +52,7 @@ curl http://localhost:3001/api/canvas/my-canvas/pods
 |--------|------|
 | 400 | 無效的請求格式 / 驗證失敗 |
 | 404 | 找不到 Canvas |
+| 409 | 同一 Canvas 下已存在相同名稱的 Pod |
 
 ### curl 範例
 
@@ -65,4 +66,38 @@ curl -X POST http://localhost:3001/api/canvas/my-canvas/pods \
 curl -X POST http://localhost:3001/api/canvas/my-canvas/pods \
   -H "Content-Type: application/json" \
   -d '{"name": "Sonnet Pod", "x": 244, "y": 200, "model": "sonnet"}'
+```
+
+---
+
+## DELETE /api/canvas/:id/pods/:podId
+
+刪除指定 Canvas 下的 Pod。`:id` 支援 UUID 或 name，`:podId` 支援 UUID 或 name。
+
+### 成功回應 200
+
+```json
+{
+  "success": true
+}
+```
+
+### 錯誤回應
+
+| 狀態碼 | 說明 |
+|--------|------|
+| 404 | 找不到 Canvas 或找不到 Pod |
+| 500 | 刪除 Pod 時發生錯誤 |
+
+### curl 範例
+
+```bash
+# 用 canvas name 刪除 Pod（podId 為 UUID）
+curl -X DELETE http://localhost:3001/api/canvas/my-canvas/pods/xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx
+
+# 用 canvas UUID 刪除 Pod（podId 為 UUID）
+curl -X DELETE http://localhost:3001/api/canvas/xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx/pods/yyyyyyyy-yyyy-4yyy-yyyy-yyyyyyyyyyyy
+
+# 用 Pod 名稱刪除 Pod
+curl -X DELETE http://localhost:3001/api/canvas/my-canvas/pods/My%20Pod
 ```

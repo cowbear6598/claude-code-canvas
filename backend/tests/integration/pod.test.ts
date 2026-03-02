@@ -191,6 +191,37 @@ describe('Pod 管理', () => {
       expect(response.success).toBe(false);
       expect(response.error).toContain('找不到');
     });
+
+    it('重命名為已存在的名稱應回傳錯誤', async () => {
+      const podA = await createPod(client, { name: `rename-conflict-a-${uuidv4()}` });
+      const podB = await createPod(client, { name: `rename-conflict-b-${uuidv4()}` });
+
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<PodRenamePayload, PodRenamedPayload>(
+        client,
+        WebSocketRequestEvents.POD_RENAME,
+        WebSocketResponseEvents.POD_RENAMED,
+        { requestId: uuidv4(), canvasId, podId: podB.id, name: podA.name }
+      );
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('已存在相同名稱');
+    });
+
+    it('重命名為自己目前的名稱應成功', async () => {
+      const pod = await createPod(client, { name: `rename-self-${uuidv4()}` });
+
+      const canvasId = await getCanvasId(client);
+      const response = await emitAndWaitResponse<PodRenamePayload, PodRenamedPayload>(
+        client,
+        WebSocketRequestEvents.POD_RENAME,
+        WebSocketResponseEvents.POD_RENAMED,
+        { requestId: uuidv4(), canvasId, podId: pod.id, name: pod.name }
+      );
+
+      expect(response.success).toBe(true);
+      expect(response.pod!.name).toBe(pod.name);
+    });
   });
 
   describe('Pod 設定模型', () => {

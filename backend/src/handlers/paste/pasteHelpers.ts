@@ -116,7 +116,7 @@ export async function createPastedPods(
       createdPods.push(pod);
       podIdMapping[originalId] = pod.id;
 
-      logger.log('Paste', 'Create', `Created Pod ${pod.id} (${pod.name})`);
+      logger.log('Paste', 'Create', `已建立 Pod「${pod.name}」`);
     } catch (error) {
       recordError(errors, 'pod', podItem.originalId, error, '建立 Pod 失敗');
     }

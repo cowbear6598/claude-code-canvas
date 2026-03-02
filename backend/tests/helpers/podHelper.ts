@@ -39,7 +39,7 @@ export async function createPod(
   const payload: PodCreatePayload = {
     requestId: uuidv4(),
     canvasId,
-    name: 'Test Pod',
+    name: `test-pod-${uuidv4()}`,
     x: 0,
     y: 0,
     rotation: 0,
@@ -59,8 +59,9 @@ export async function createPod(
 export async function createPodPair(
   client: TestWebSocketClient
 ): Promise<{ podA: Pod; podB: Pod }> {
-  const podA = await createPod(client, { name: 'Pod A' });
-  const podB = await createPod(client, { name: 'Pod B' });
+  const id = uuidv4();
+  const podA = await createPod(client, { name: `pod-a-${id}` });
+  const podB = await createPod(client, { name: `pod-b-${id}` });
   return { podA, podB };
 }
 

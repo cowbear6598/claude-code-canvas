@@ -9,6 +9,7 @@ import {
 import {createPod, getCanvasId} from '../helpers';
 import {createConnection} from '../helpers';
 import {seedPodMessages} from '../helpers';
+import { v4 as uuidv4 } from 'uuid';
 import {WebSocketResponseEvents} from '../../src/schemas';
 import type {
     WorkflowAutoTriggeredPayload,
@@ -145,8 +146,9 @@ describe('WorkflowExecution 服務', () => {
             const canvasId = await getCanvasId(client);
 
             // 準備：建立 sourcePod、targetPod
-            const sourcePod = await createPod(client, {name: 'Source Pod', x: 0, y: 0});
-            const targetPod = await createPod(client, {name: 'Target Pod', x: 300, y: 0});
+            const id = uuidv4();
+            const sourcePod = await createPod(client, {name: `source-pod-${id}`, x: 0, y: 0});
+            const targetPod = await createPod(client, {name: `target-pod-${id}`, x: 300, y: 0});
 
             // 設定 auto trigger mode connection
             await createConnection(client, sourcePod.id, targetPod.id, {
@@ -181,9 +183,10 @@ describe('WorkflowExecution 服務', () => {
             await getCanvasId(client);
 
             // 準備：建立 sourceA、sourceB、targetPod
-            const sourceA = await createPod(client, {name: 'Source A', x: 0, y: 0});
-            const sourceB = await createPod(client, {name: 'Source B', x: 0, y: 200});
-            const targetPod = await createPod(client, {name: 'Target Pod', x: 400, y: 100});
+            const id = uuidv4();
+            const sourceA = await createPod(client, {name: `source-a-${id}`, x: 0, y: 0});
+            const sourceB = await createPod(client, {name: `source-b-${id}`, x: 0, y: 200});
+            const targetPod = await createPod(client, {name: `target-pod-${id}`, x: 400, y: 100});
 
             // 設定兩個 auto trigger mode connections
             await createConnection(client, sourceA.id, targetPod.id, {
@@ -248,9 +251,10 @@ describe('WorkflowExecution 服務', () => {
             const canvasId = await getCanvasId(client);
 
             // 準備：建立 sourceA、sourceB、targetPod
-            const sourceA = await createPod(client, {name: 'Source A', x: 0, y: 0});
-            const sourceB = await createPod(client, {name: 'Source B', x: 0, y: 200});
-            const targetPod = await createPod(client, {name: 'Target Pod', x: 400, y: 100});
+            const id = uuidv4();
+            const sourceA = await createPod(client, {name: `source-a-${id}`, x: 0, y: 0});
+            const sourceB = await createPod(client, {name: `source-b-${id}`, x: 0, y: 200});
+            const targetPod = await createPod(client, {name: `target-pod-${id}`, x: 400, y: 100});
 
             // 設定兩個 auto trigger mode connections
             await createConnection(client, sourceA.id, targetPod.id, {
@@ -363,10 +367,11 @@ describe('WorkflowExecution 服務', () => {
             await getCanvasId(client);
 
             // 準備：建立分支結構 (A -> B, A -> C, B -> D)
-            const podA = await createPod(client, {name: 'Pod A', x: 0, y: 0});
-            const podB = await createPod(client, {name: 'Pod B', x: 300, y: -100});
-            const podC = await createPod(client, {name: 'Pod C', x: 300, y: 100});
-            const podD = await createPod(client, {name: 'Pod D', x: 600, y: -100});
+            const id = uuidv4();
+            const podA = await createPod(client, {name: `pod-a-${id}`, x: 0, y: 0});
+            const podB = await createPod(client, {name: `pod-b-${id}`, x: 300, y: -100});
+            const podC = await createPod(client, {name: `pod-c-${id}`, x: 300, y: 100});
+            const podD = await createPod(client, {name: `pod-d-${id}`, x: 600, y: -100});
 
             await createConnection(client, podA.id, podB.id, {triggerMode: 'auto'});
             await createConnection(client, podA.id, podC.id, {triggerMode: 'auto'});
@@ -414,8 +419,9 @@ describe('WorkflowExecution 服務', () => {
             const canvasId = await getCanvasId(client);
 
             // 準備：建立 connection，準備 mock summary
-            const sourcePod = await createPod(client, {name: 'Source Pod', x: 0, y: 0});
-            const targetPod = await createPod(client, {name: 'Target Pod', x: 300, y: 0});
+            const id = uuidv4();
+            const sourcePod = await createPod(client, {name: `source-pod-${id}`, x: 0, y: 0});
+            const targetPod = await createPod(client, {name: `target-pod-${id}`, x: 300, y: 0});
             const connection = await createConnection(client, sourcePod.id, targetPod.id, {
                 triggerMode: 'auto',
             });
@@ -467,9 +473,10 @@ describe('WorkflowExecution 服務', () => {
             const canvasId = await getCanvasId(client);
 
             // 準備：建立多個 source 連接到同一 target
-            const sourceA = await createPod(client, {name: 'Source A', x: 0, y: 0});
-            const sourceB = await createPod(client, {name: 'Source B', x: 0, y: 200});
-            const targetPod = await createPod(client, {name: 'Target Pod', x: 400, y: 100});
+            const id = uuidv4();
+            const sourceA = await createPod(client, {name: `source-a-${id}`, x: 0, y: 0});
+            const sourceB = await createPod(client, {name: `source-b-${id}`, x: 0, y: 200});
+            const targetPod = await createPod(client, {name: `target-pod-${id}`, x: 400, y: 100});
 
             const connA = await createConnection(client, sourceA.id, targetPod.id, {
                 triggerMode: 'auto',

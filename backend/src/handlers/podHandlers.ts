@@ -4,7 +4,6 @@ import type {
     PodListResultPayload,
     PodGetResultPayload,
     PodScheduleSetPayload,
-    PodDeletedPayload,
     PodDirectoryOpenedPayload,
 } from '../types';
 import type {
@@ -20,15 +19,9 @@ import type {
 } from '../schemas';
 import type {Pod} from '../types';
 import {podStore} from '../services/podStore.js';
-import {workspaceService} from '../services/workspace';
-import {createPodWithWorkspace} from '../services/podService.js';
-import {noteStore, skillNoteStore, repositoryNoteStore, commandNoteStore, subAgentNoteStore, mcpServerNoteStore} from '../services/noteStores.js';
-import {connectionStore} from '../services/connectionStore.js';
+import {createPodWithWorkspace, deletePodWithCleanup} from '../services/podService.js';
 import {socketService} from '../services/socketService.js';
-import {workflowStateService} from '../services/workflow';
-import {repositorySyncService} from '../services/repositorySyncService.js';
 import {repositoryService} from '../services/repositoryService.js';
-import {podManifestService} from '../services/podManifestService.js';
 import {emitSuccess, emitError} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {validatePod, withCanvasId} from '../utils/handlerHelpers.js';
@@ -52,7 +45,7 @@ export const handlePodCreate = withCanvasId<PodCreatePayload>(
             return;
         }
 
-        logger.log('Pod', 'Create', `Created Pod ${result.data!.pod.id} (${result.data!.pod.name})`);
+        logger.log('Pod', 'Create', `已建立 Pod「${result.data!.pod.name}」`);
     }
 );
 
@@ -94,87 +87,22 @@ export async function handlePodGet(
     emitSuccess(connectionId, WebSocketResponseEvents.POD_GET_RESULT, response);
 }
 
-function deleteAllPodNotes(canvasId: string, podId: string): PodDeletedPayload['deletedNoteIds'] {
-    const noteStoreConfigs: Array<{store: {deleteByBoundPodId: (canvasId: string, podId: string) => string[]}; key: keyof NonNullable<PodDeletedPayload['deletedNoteIds']>}> = [
-        {store: noteStore, key: 'note'},
-        {store: skillNoteStore, key: 'skillNote'},
-        {store: repositoryNoteStore, key: 'repositoryNote'},
-        {store: commandNoteStore, key: 'commandNote'},
-        {store: subAgentNoteStore, key: 'subAgentNote'},
-        {store: mcpServerNoteStore, key: 'mcpServerNote'},
-    ];
-
-    const result: PodDeletedPayload['deletedNoteIds'] = {};
-
-    for (const {store, key} of noteStoreConfigs) {
-        const ids = store.deleteByBoundPodId(canvasId, podId);
-        if (ids.length > 0) {
-            result[key] = ids;
-        }
-    }
-
-    return result;
-}
-
 export const handlePodDelete = withCanvasId<PodDeletePayload>(
     WebSocketResponseEvents.POD_DELETED,
     async (connectionId: string, canvasId: string, payload: PodDeletePayload, requestId: string): Promise<void> => {
         const {podId} = payload;
 
-        const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_DELETED, requestId);
-        if (!pod) {
-            return;
-        }
-
-        workflowStateService.handleSourceDeletion(canvasId, podId);
-
-        const deleteResult = await workspaceService.deleteWorkspace(pod.workspacePath);
-        if (!deleteResult.success) {
-            logger.error('Pod', 'Delete', `無法刪除 Pod ${podId} 的工作區`, deleteResult.error);
-        }
-
-        const deletedNoteIdsPayload = deleteAllPodNotes(canvasId, podId);
-        connectionStore.deleteByPodId(canvasId, podId);
-
-        const repositoryId = pod.repositoryId;
-
-        if (repositoryId) {
-            const repositoryPath = repositoryService.getRepositoryPath(repositoryId);
-            await podManifestService.deleteManagedFiles(repositoryPath, podId);
-        }
-
-        const deleted = podStore.delete(canvasId, podId);
-        if (!deleted) {
+        const result = await deletePodWithCleanup(canvasId, podId, requestId);
+        if (!result.success) {
             emitError(
                 connectionId,
                 WebSocketResponseEvents.POD_DELETED,
-                `無法從 store 刪除 Pod: ${podId}`,
+                result.error ?? '刪除 Pod 失敗',
                 requestId,
                 podId,
                 'INTERNAL_ERROR'
             );
-            return;
         }
-
-        if (repositoryId) {
-            try {
-                await repositorySyncService.syncRepositoryResources(repositoryId);
-            } catch (error) {
-                logger.error('Pod', 'Delete', `刪除 Pod 後無法同步 repository ${repositoryId}`, error);
-            }
-        }
-
-        const response: PodDeletedPayload = {
-            requestId,
-            canvasId,
-            success: true,
-            podId,
-            ...(deletedNoteIdsPayload && Object.keys(deletedNoteIdsPayload).length > 0 && {deletedNoteIds: deletedNoteIdsPayload}),
-        };
-
-        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_DELETED, response);
-
-        logger.log('Pod', 'Delete', `Deleted Pod ${podId}`);
     }
 );
 
@@ -223,16 +151,24 @@ export const handlePodRename = withCanvasId<PodRenamePayload>(
     WebSocketResponseEvents.POD_RENAMED,
     async (connectionId: string, canvasId: string, payload: PodRenamePayload, requestId: string): Promise<void> => {
         const {podId, name} = payload;
+        const trimmedName = name.trim();
+
+        if (podStore.hasName(canvasId, trimmedName, podId)) {
+            emitError(connectionId, WebSocketResponseEvents.POD_RENAMED, '同一 Canvas 下已存在相同名稱的 Pod', requestId, podId, 'DUPLICATE_NAME');
+            return;
+        }
+
+        const oldName = podStore.getById(canvasId, podId)?.name;
 
         handlePodUpdate(
             connectionId,
             canvasId,
             podId,
-            {name},
+            {name: trimmedName},
             requestId,
             WebSocketResponseEvents.POD_RENAMED,
             (pod) => {
-                logger.log('Pod', 'Rename', `Renamed Pod ${pod.id} to ${pod.name}`);
+                logger.log('Pod', 'Rename', `已重命名 Pod「${oldName ?? podId}」為「${pod.name}」`);
                 return {requestId, canvasId, success: true, pod, podId: pod.id, name: pod.name};
             }
         );

@@ -1,6 +1,6 @@
 import { podStore } from '../services/podStore.js';
-import { jsonResponse, resolveCanvas } from './apiHelpers.js';
-import { createPodWithWorkspace } from '../services/podService.js';
+import { jsonResponse, resolveCanvas, resolvePod } from './apiHelpers.js';
+import { createPodWithWorkspace, deletePodWithCleanup } from '../services/podService.js';
 import { logger } from '../utils/logger.js';
 import type { ModelType } from '../types/pod.js';
 
@@ -70,6 +70,10 @@ export async function handleCreatePod(req: Request, params: Record<string, strin
 		return jsonResponse({ error: validated.error }, 400);
 	}
 
+	if (podStore.hasName(canvas.id, validated.name)) {
+		return jsonResponse({ error: '同一 Canvas 下已存在相同名稱的 Pod' }, 409);
+	}
+
 	const result = await createPodWithWorkspace(
 		canvas.id,
 		{
@@ -88,4 +92,24 @@ export async function handleCreatePod(req: Request, params: Record<string, strin
 	}
 
 	return jsonResponse({ pod: result.data!.pod }, 201);
+}
+
+export async function handleDeletePod(_req: Request, params: Record<string, string>): Promise<Response> {
+	const canvas = resolveCanvas(params.id);
+	if (!canvas) {
+		return jsonResponse({ error: '找不到 Canvas' }, 404);
+	}
+
+	const pod = resolvePod(canvas.id, decodeURIComponent(params.podId));
+	if (!pod) {
+		return jsonResponse({ error: '找不到 Pod' }, 404);
+	}
+
+	const result = await deletePodWithCleanup(canvas.id, pod.id, 'system');
+	if (!result.success) {
+		logger.error('Pod', 'Error', '刪除 Pod 失敗', result.error);
+		return jsonResponse({ error: '刪除 Pod 時發生錯誤' }, 500);
+	}
+
+	return jsonResponse({ success: true }, 200);
 }

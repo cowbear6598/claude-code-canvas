@@ -1,6 +1,7 @@
 import { canvasStore } from '../services/canvasStore.js';
+import { podStore } from '../services/podStore.js';
 import { JSON_HEADERS } from './constants.js';
-import type { Canvas } from '../types/index.js';
+import type { Canvas, Pod } from '../types/index.js';
 
 export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -14,4 +15,13 @@ export function resolveCanvas(idOrName: string): Canvas | undefined {
 		return canvasStore.getById(idOrName);
 	}
 	return canvasStore.getByName(idOrName);
+}
+
+export function resolvePod(canvasId: string, idOrName: string): Pod | undefined {
+	if (!idOrName) return undefined;
+	if (UUID_REGEX.test(idOrName)) {
+		return podStore.getById(canvasId, idOrName);
+	}
+	if (idOrName.length > 100) return undefined;
+	return podStore.getByName(canvasId, idOrName);
 }

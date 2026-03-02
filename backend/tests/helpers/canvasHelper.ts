@@ -85,6 +85,10 @@ export async function postPod(baseUrl: string, canvasId: string, body: unknown, 
   });
 }
 
+export async function deletePod(baseUrl: string, canvasId: string, podId: string): Promise<Response> {
+  return fetch(`${baseUrl}/api/canvas/${canvasId}/pods/${encodeURIComponent(podId)}`, { method: 'DELETE' });
+}
+
 export async function reorderCanvases(
   client: TestWebSocketClient,
   canvasIds: string[]

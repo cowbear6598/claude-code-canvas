@@ -54,6 +54,7 @@ claude-code-canvas 是一個 Agent 畫布系統，後端使用 **Bun + TypeScrip
 |------|------|------|
 | GET | /api/canvas/:id/pods | 取得指定畫布的所有 Pod（:id 支援 UUID 或 name） |
 | POST | /api/canvas/:id/pods | 在指定畫布建立新 Pod（:id 支援 UUID 或 name） |
+| DELETE | /api/canvas/:id/pods/:podId | 刪除指定 Pod（:id 支援 UUID 或 name，:podId 支援 UUID 或 name） |
 
 詳細格式與範例：[references/pod-api.md](references/pod-api.md)
 

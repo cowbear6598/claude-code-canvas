@@ -66,6 +66,15 @@ export const usePodStore = defineStore('pod', {
             return state.pods.find((p) => p.id === id)
         },
 
+        getNextPodName: (state) => (): string => {
+            const existingNames = new Set(state.pods.map(p => p.name))
+            let i = 1
+            while (existingNames.has(`Pod ${i}`)) {
+                i++
+            }
+            return `Pod ${i}`
+        },
+
         isScheduleFiredAnimating: (state) => (podId: string): boolean => {
             return state.scheduleFiredPodIds.has(podId)
         },
