@@ -85,33 +85,43 @@ export function useBatchDrag(): {
 } {
   const { podStore, viewportStore, selectionStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore } = useCanvasContext()
 
-  let startX = 0
-  let startY = 0
+  const dragState = {
+    startX: 0,
+    startY: 0,
+    movedPods: new Set<string>(),
+    movedOutputStyleNotes: new Set<string>(),
+    movedSkillNotes: new Set<string>(),
+    movedRepositoryNotes: new Set<string>(),
+    movedSubAgentNotes: new Set<string>(),
+    movedCommandNotes: new Set<string>(),
+  }
 
-  const movedPods = new Set<string>()
-  const movedOutputStyleNotes = new Set<string>()
-  const movedSkillNotes = new Set<string>()
-  const movedRepositoryNotes = new Set<string>()
-  const movedSubAgentNotes = new Set<string>()
-  const movedCommandNotes = new Set<string>()
+  const clearDragState = (): void => {
+    dragState.movedPods.clear()
+    dragState.movedOutputStyleNotes.clear()
+    dragState.movedSkillNotes.clear()
+    dragState.movedRepositoryNotes.clear()
+    dragState.movedSubAgentNotes.clear()
+    dragState.movedCommandNotes.clear()
+  }
 
   const noteMovedSets: { set: Set<string>; store: NoteStore }[] = [
-    { set: movedOutputStyleNotes, store: outputStyleStore },
-    { set: movedSkillNotes, store: skillStore },
-    { set: movedRepositoryNotes, store: repositoryStore },
-    { set: movedSubAgentNotes, store: subAgentStore },
-    { set: movedCommandNotes, store: commandStore },
+    { set: dragState.movedOutputStyleNotes, store: outputStyleStore },
+    { set: dragState.movedSkillNotes, store: skillStore },
+    { set: dragState.movedRepositoryNotes, store: repositoryStore },
+    { set: dragState.movedSubAgentNotes, store: subAgentStore },
+    { set: dragState.movedCommandNotes, store: commandStore },
   ]
 
   const { isDragging: isBatchDragging, startDrag } = useDragHandler({
     onMove: (moveEvent: MouseEvent): void => {
-      const deltaXInCanvasCoords = (moveEvent.clientX - startX) / viewportStore.zoom
-      const deltaYInCanvasCoords = (moveEvent.clientY - startY) / viewportStore.zoom
+      const deltaXInCanvasCoords = (moveEvent.clientX - dragState.startX) / viewportStore.zoom
+      const deltaYInCanvasCoords = (moveEvent.clientY - dragState.startY) / viewportStore.zoom
 
       moveSelectedElements(deltaXInCanvasCoords, deltaYInCanvasCoords)
 
-      startX = moveEvent.clientX
-      startY = moveEvent.clientY
+      dragState.startX = moveEvent.clientX
+      dragState.startY = moveEvent.clientY
     },
     onEnd: async (): Promise<void> => {
       await syncElementsToBackend()
@@ -123,13 +133,10 @@ export function useBatchDrag(): {
 
     if (!selectionStore.hasSelection) return false
 
-    startX = e.clientX
-    startY = e.clientY
+    dragState.startX = e.clientX
+    dragState.startY = e.clientY
 
-    movedPods.clear()
-    for (const { set } of noteMovedSets) {
-      set.clear()
-    }
+    clearDragState()
 
     startDrag(e)
 
@@ -151,12 +158,12 @@ export function useBatchDrag(): {
     const storeConfigMap = createStoreConfigMap(
       { podStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore },
       {
-        movedPodIds: movedPods,
-        movedOutputStyleNoteIds: movedOutputStyleNotes,
-        movedSkillNoteIds: movedSkillNotes,
-        movedRepositoryNoteIds: movedRepositoryNotes,
-        movedSubAgentNoteIds: movedSubAgentNotes,
-        movedCommandNoteIds: movedCommandNotes,
+        movedPodIds: dragState.movedPods,
+        movedOutputStyleNoteIds: dragState.movedOutputStyleNotes,
+        movedSkillNoteIds: dragState.movedSkillNotes,
+        movedRepositoryNoteIds: dragState.movedRepositoryNotes,
+        movedSubAgentNoteIds: dragState.movedSubAgentNotes,
+        movedCommandNoteIds: dragState.movedCommandNotes,
       }
     )
 
@@ -191,7 +198,7 @@ export function useBatchDrag(): {
   }
 
   const syncElementsToBackend = async (): Promise<void> => {
-    for (const podId of movedPods) {
+    for (const podId of dragState.movedPods) {
       podStore.syncPodPosition(podId)
     }
 
@@ -199,10 +206,7 @@ export function useBatchDrag(): {
       await syncNotesByType(set, store)
     }
 
-    movedPods.clear()
-    for (const { set } of noteMovedSets) {
-      set.clear()
-    }
+    clearDragState()
   }
 
   const isElementSelected = (type: 'pod' | 'outputStyleNote' | 'skillNote' | 'repositoryNote' | 'subAgentNote' | 'commandNote' | 'mcpServerNote', id: string): boolean => {

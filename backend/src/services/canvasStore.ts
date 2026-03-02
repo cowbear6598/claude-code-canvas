@@ -6,7 +6,7 @@ import {Result, ok, err} from '../types';
 import {config} from '../config';
 import {logger} from '../utils/logger.js';
 import {fsOperation} from '../utils/operationHelpers.js';
-import {fileExists} from './shared/fileResourceHelpers.js';
+import {fileExists, safeJsonParse} from './shared/fileResourceHelpers.js';
 
 class CanvasStore {
     private canvases: Map<string, Canvas> = new Map();
@@ -277,23 +277,23 @@ class CanvasStore {
             return null;
         }
 
-        try {
-            const persistedCanvas: PersistedCanvas = JSON.parse(readResult.data!);
+        const persistedCanvas = safeJsonParse<PersistedCanvas>(readResult.data!);
 
-            if (persistedCanvas.sortIndex === undefined) {
-                logger.error('Canvas', 'Load', `Missing sortIndex in canvas.json for ${dirName}`);
-                return null;
-            }
-
-            return {
-                id: persistedCanvas.id,
-                name: persistedCanvas.name,
-                sortIndex: persistedCanvas.sortIndex,
-            };
-        } catch (error) {
-            logger.error('Canvas', 'Load', `Failed to parse canvas.json in ${dirName}`, error);
+        if (!persistedCanvas) {
+            logger.error('Canvas', 'Load', `Failed to parse canvas.json in ${dirName}`);
             return null;
         }
+
+        if (persistedCanvas.sortIndex === undefined) {
+            logger.error('Canvas', 'Load', `Missing sortIndex in canvas.json for ${dirName}`);
+            return null;
+        }
+
+        return {
+            id: persistedCanvas.id,
+            name: persistedCanvas.name,
+            sortIndex: persistedCanvas.sortIndex,
+        };
     }
 
     async loadFromDisk(): Promise<Result<void>> {

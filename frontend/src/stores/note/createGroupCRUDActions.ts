@@ -1,6 +1,5 @@
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
 import { createWebSocketRequest } from '@/services/websocket'
-import { useCanvasStore } from '@/stores/canvasStore'
 import { useToast } from '@/composables/useToast'
 import { getActiveCanvasIdOrWarn } from '@/utils/canvasGuard'
 import type { ToastCategory } from '@/composables/useToast'
@@ -76,11 +75,10 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
         return { success: false, error: '群組名稱不能為空' }
       }
 
-      const canvasStore = useCanvasStore()
-      if (!canvasStore.activeCanvasId) {
+      const canvasId = getActiveCanvasIdOrWarn(config.storeName)
+      if (!canvasId) {
         return { success: false, error: '無作用中的畫布' }
       }
-      const canvasId = canvasStore.activeCanvasId
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<GroupCreatePayload, GroupCreatedPayload>({
@@ -116,11 +114,10 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
         return { success: false, error: '無效的群組 ID' }
       }
 
-      const canvasStore = useCanvasStore()
-      if (!canvasStore.activeCanvasId) {
+      const canvasId = getActiveCanvasIdOrWarn(config.storeName)
+      if (!canvasId) {
         return { success: false, error: '無作用中的畫布' }
       }
-      const canvasId = canvasStore.activeCanvasId
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<GroupDeletePayload, GroupDeletedPayload>({
@@ -154,11 +151,10 @@ export function createGroupCRUDActions(config: GroupCRUDConfig): GroupCRUDAction
         return { success: false, error: '無效的項目 ID' }
       }
 
-      const canvasStore = useCanvasStore()
-      if (!canvasStore.activeCanvasId) {
+      const canvasId = getActiveCanvasIdOrWarn(config.storeName)
+      if (!canvasId) {
         return { success: false, error: '無作用中的畫布' }
       }
-      const canvasId = canvasStore.activeCanvasId
 
       const response = await wrapWebSocketRequest(
         createWebSocketRequest<MoveToGroupPayload, MovedToGroupPayload>({

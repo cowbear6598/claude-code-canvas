@@ -1,31 +1,14 @@
 import { z } from 'zod';
-import { requestIdSchema, positionSchema, canvasIdSchema } from './base.js';
+import { requestIdSchema, canvasIdSchema, noteUpdateBaseSchema, createNoteCreateSchema } from './base.js';
 
-export const noteCreateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  outputStyleId: z.string(),
-  name: z.string().min(1).max(100),
-  x: z.number(),
-  y: z.number(),
-  boundToPodId: z.uuid().nullable(),
-  originalPosition: positionSchema.nullable(),
-});
+export const noteCreateSchema = createNoteCreateSchema({ outputStyleId: z.string() });
 
 export const noteListSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
 });
 
-export const noteUpdateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  noteId: z.uuid(),
-  x: z.number().optional(),
-  y: z.number().optional(),
-  boundToPodId: z.uuid().nullable().optional(),
-  originalPosition: positionSchema.nullable().optional(),
-});
+export const noteUpdateSchema = noteUpdateBaseSchema;
 
 export const noteDeleteSchema = z.object({
   requestId: requestIdSchema,

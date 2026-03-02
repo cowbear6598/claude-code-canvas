@@ -3,13 +3,11 @@ import { socketService } from '../services/socketService.js';
 import { cursorColorManager } from '../services/cursorColorManager.js';
 import { WebSocketResponseEvents } from '../schemas/index.js';
 import { toCanvasDto } from '../utils/canvasDto.js';
-import { jsonResponse, resolveCanvas } from './apiHelpers.js';
+import { jsonResponse, requireCanvas } from './apiHelpers.js';
 
 export async function handleDeleteCanvas(_req: Request, params: Record<string, string>): Promise<Response> {
-	const canvas = resolveCanvas(params.id);
-	if (!canvas) {
-		return jsonResponse({ error: '找不到 Canvas' }, 404);
-	}
+	const { canvas, error } = requireCanvas(params.id);
+	if (error) return error;
 
 	const { id: canvasId } = canvas;
 

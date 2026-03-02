@@ -244,7 +244,7 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
           );
           this.scheduleNextInQueue(canvasId, targetPodId);
         },
-        onError: async (_ignoredCanvasId, _ignoredPodId, error) => {
+        onError: async (_canvasId, _podId, error) => {
           const errorMessage = error.message;
           strategy.onError(
             { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode, participatingConnectionIds },

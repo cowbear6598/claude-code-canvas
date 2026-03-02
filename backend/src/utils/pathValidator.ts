@@ -15,7 +15,6 @@ export function validateResourceId(id: string): boolean {
 export const validateSkillId = validateResourceId;
 export const validateSubAgentId = validateResourceId;
 export const validateCommandId = validateResourceId;
-export const validateOutputStyleId = validateResourceId;
 
 export function validatePodId(podId: string): boolean {
   if (!podId) {

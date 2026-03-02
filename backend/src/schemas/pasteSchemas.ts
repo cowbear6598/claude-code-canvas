@@ -1,13 +1,13 @@
 import { z } from 'zod';
-import { requestIdSchema, positionSchema, canvasIdSchema } from './base.js';
+import { requestIdSchema, canvasIdSchema, coordinateSchema, createPasteNoteItemSchema } from './base.js';
 import { modelTypeSchema } from './podSchemas.js';
 import { anchorPositionSchema } from './connectionSchemas.js';
 
 export const pastePodItemSchema = z.object({
   originalId: z.uuid(),
   name: z.string().min(1).max(100),
-  x: z.number().finite().min(-100000).max(100000),
-  y: z.number().finite().min(-100000).max(100000),
+  x: coordinateSchema,
+  y: coordinateSchema,
   rotation: z.number().finite(),
   outputStyleId: z.string().nullable().optional(),
   skillIds: z.array(z.string()).optional(),
@@ -17,50 +17,15 @@ export const pastePodItemSchema = z.object({
   commandId: z.string().nullable().optional(),
 });
 
-export const pasteOutputStyleNoteItemSchema = z.object({
-  outputStyleId: z.string(),
-  name: z.string().min(1).max(100),
-  x: z.number(),
-  y: z.number(),
-  boundToOriginalPodId: z.uuid().nullable(),
-  originalPosition: positionSchema.nullable(),
-});
+export const pasteOutputStyleNoteItemSchema = createPasteNoteItemSchema({ outputStyleId: z.string() });
 
-export const pasteSkillNoteItemSchema = z.object({
-  skillId: z.string(),
-  name: z.string().min(1).max(100),
-  x: z.number(),
-  y: z.number(),
-  boundToOriginalPodId: z.uuid().nullable(),
-  originalPosition: positionSchema.nullable(),
-});
+export const pasteSkillNoteItemSchema = createPasteNoteItemSchema({ skillId: z.string() });
 
-export const pasteRepositoryNoteItemSchema = z.object({
-  repositoryId: z.string(),
-  name: z.string().min(1).max(100),
-  x: z.number(),
-  y: z.number(),
-  boundToOriginalPodId: z.uuid().nullable(),
-  originalPosition: positionSchema.nullable(),
-});
+export const pasteRepositoryNoteItemSchema = createPasteNoteItemSchema({ repositoryId: z.string() });
 
-export const pasteSubAgentNoteItemSchema = z.object({
-  subAgentId: z.string(),
-  name: z.string().min(1).max(100),
-  x: z.number(),
-  y: z.number(),
-  boundToOriginalPodId: z.uuid().nullable(),
-  originalPosition: positionSchema.nullable(),
-});
+export const pasteSubAgentNoteItemSchema = createPasteNoteItemSchema({ subAgentId: z.string() });
 
-export const pasteCommandNoteItemSchema = z.object({
-  commandId: z.string(),
-  name: z.string().min(1).max(100),
-  x: z.number(),
-  y: z.number(),
-  boundToOriginalPodId: z.uuid().nullable(),
-  originalPosition: positionSchema.nullable(),
-});
+export const pasteCommandNoteItemSchema = createPasteNoteItemSchema({ commandId: z.string() });
 
 export const pasteConnectionItemSchema = z.object({
   originalSourcePodId: z.uuid(),

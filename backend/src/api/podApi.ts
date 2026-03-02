@@ -1,5 +1,5 @@
 import { podStore } from '../services/podStore.js';
-import { jsonResponse, resolveCanvas, resolvePod } from './apiHelpers.js';
+import { jsonResponse, requireCanvas, resolvePod } from './apiHelpers.js';
 import { createPodWithWorkspace, deletePodWithCleanup } from '../services/podService.js';
 import { logger } from '../utils/logger.js';
 import type { ModelType } from '../types/pod.js';
@@ -13,39 +13,53 @@ interface ValidatedCreatePodBody {
 	model: ModelType;
 }
 
-function validateCreatePodBody(data: Record<string, unknown>): { error: string } | ValidatedCreatePodBody {
+function validatePodName(data: Record<string, unknown>): string | null {
 	if (!data.name || typeof data.name !== 'string' || data.name.trim() === '') {
-		return { error: 'Pod 名稱不能為空' };
+		return 'Pod 名稱不能為空';
 	}
-
-	const name = data.name.trim();
-
-	if (name.length > 100) {
-		return { error: 'Pod 名稱不能超過 100 個字元' };
+	if (data.name.trim().length > 100) {
+		return 'Pod 名稱不能超過 100 個字元';
 	}
+	return null;
+}
 
+function validatePodCoordinates(data: Record<string, unknown>): string | null {
 	if (
 		typeof data.x !== 'number' || typeof data.y !== 'number' ||
 		!Number.isFinite(data.x) || !Number.isFinite(data.y) ||
 		data.x < -100000 || data.x > 100000 || data.y < -100000 || data.y > 100000
 	) {
-		return { error: '必須提供有效的 x 和 y 座標' };
+		return '必須提供有效的 x 和 y 座標';
 	}
+	return null;
+}
 
+function validatePodModel(data: Record<string, unknown>): string | null {
 	if (data.model !== undefined && !VALID_MODELS.includes(data.model as ModelType)) {
-		return { error: '無效的模型類型' };
+		return '無效的模型類型';
 	}
+	return null;
+}
 
+function validateCreatePodBody(data: Record<string, unknown>): { error: string } | ValidatedCreatePodBody {
+	const nameError = validatePodName(data);
+	if (nameError) return { error: nameError };
+
+	const coordinatesError = validatePodCoordinates(data);
+	if (coordinatesError) return { error: coordinatesError };
+
+	const modelError = validatePodModel(data);
+	if (modelError) return { error: modelError };
+
+	const name = (data.name as string).trim();
 	const model = (data.model as ModelType) ?? 'opus';
 
-	return { name, x: data.x, y: data.y, model };
+	return { name, x: data.x as number, y: data.y as number, model };
 }
 
 export function handleListPods(_req: Request, params: Record<string, string>): Response {
-	const canvas = resolveCanvas(params.id);
-	if (!canvas) {
-		return jsonResponse({ error: '找不到 Canvas' }, 404);
-	}
+	const { canvas, error } = requireCanvas(params.id);
+	if (error) return error;
 
 	const pods = podStore.getAll(canvas.id);
 	return jsonResponse({ pods }, 200);
@@ -60,10 +74,8 @@ export async function handleCreatePod(req: Request, params: Record<string, strin
 		return jsonResponse({ error: '無效的請求格式' }, 400);
 	}
 
-	const canvas = resolveCanvas(params.id);
-	if (!canvas) {
-		return jsonResponse({ error: '找不到 Canvas' }, 404);
-	}
+	const { canvas, error } = requireCanvas(params.id);
+	if (error) return error;
 
 	const validated = validateCreatePodBody(body as Record<string, unknown>);
 	if ('error' in validated) {
@@ -95,10 +107,8 @@ export async function handleCreatePod(req: Request, params: Record<string, strin
 }
 
 export async function handleDeletePod(_req: Request, params: Record<string, string>): Promise<Response> {
-	const canvas = resolveCanvas(params.id);
-	if (!canvas) {
-		return jsonResponse({ error: '找不到 Canvas' }, 404);
-	}
+	const { canvas, error } = requireCanvas(params.id);
+	if (error) return error;
 
 	const pod = resolvePod(canvas.id, decodeURIComponent(params.podId));
 	if (!pod) {

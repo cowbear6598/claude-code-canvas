@@ -293,14 +293,23 @@ export class ClaudeService {
             return;
         }
 
-        const handlers: Record<string, (msg: SDKMessage, s: QueryState, cb: StreamCallback) => void> = {
-            assistant: (msg, s, cb) => this.handleAssistantMessage(msg as SDKAssistantMessage, s, cb),
-            user: (msg, s, cb) => this.handleUserMessage(msg as SDKUserMessageType, s, cb),
-            tool_progress: (msg, s, cb) => this.handleToolProgressMessage(msg as unknown as SDKToolProgressWithOutput, s, cb),
-            result: (msg, s, cb) => this.handleResultMessage(msg as SDKResultMessage, s, cb),
-        };
-
-        handlers[sdkMessage.type]?.(sdkMessage, state, onStream);
+        switch (sdkMessage.type) {
+            case 'assistant':
+                this.handleAssistantMessage(sdkMessage as SDKAssistantMessage, state, onStream);
+                break;
+            case 'user':
+                this.handleUserMessage(sdkMessage as SDKUserMessageType, state, onStream);
+                break;
+            case 'tool_progress':
+                this.handleToolProgressMessage(sdkMessage as unknown as SDKToolProgressWithOutput, state, onStream);
+                break;
+            case 'result':
+                this.handleResultMessage(sdkMessage as SDKResultMessage, state, onStream);
+                break;
+            default:
+                // 其他 type（如 'system' 的非 init subtype）靜默忽略
+                break;
+        }
     }
 
     private shouldRetrySession(error: unknown, pod: Pod, isRetry: boolean): boolean {

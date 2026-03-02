@@ -175,6 +175,23 @@ function parseCloneErrorMessage(error: unknown, source: GitSource): string {
     return cloneErrorPatterns.find(({ match }) => errorMessage.includes(match))?.getMessage(source) ?? '複製儲存庫失敗';
 }
 
+function buildCheckoutArgs(branchName: string, force?: boolean): string[] {
+    return force ? [branchName, '--force'] : [branchName];
+}
+
+function parseWorktreeLine(line: string, realWorkspacePath: string): string | null {
+    const pathMatch = line.match(/^(.+?)\s+/);
+    if (!pathMatch) return null;
+
+    const worktreePath = path.normalize(pathMatch[1]);
+    if (worktreePath === realWorkspacePath) return null;
+
+    const branchMatch = line.match(/\[(.+?)]/);
+    if (!branchMatch || !branchMatch[1]) return null;
+
+    return branchMatch[1];
+}
+
 class GitService {
     async clone(
         repoUrl: string,
@@ -268,15 +285,16 @@ class GitService {
         }, '移除 Worktree 失敗');
     }
 
-    async deleteBranch(workspacePath: string, branchName: string, force?: boolean): Promise<Result<void>> {
+    private async validateBranchForDeletion(workspacePath: string, branchName: string): Promise<string | null> {
         const currentBranchResult = await this.getCurrentBranch(workspacePath);
-        if (!currentBranchResult.success) {
-            return err(currentBranchResult.error!);
-        }
+        if (!currentBranchResult.success) return currentBranchResult.error!;
+        if (currentBranchResult.data === branchName) return '無法刪除目前所在的分支';
+        return null;
+    }
 
-        if (currentBranchResult.data === branchName) {
-            return err('無法刪除目前所在的分支');
-        }
+    async deleteBranch(workspacePath: string, branchName: string, force?: boolean): Promise<Result<void>> {
+        const validationError = await this.validateBranchForDeletion(workspacePath, branchName);
+        if (validationError) return err(validationError);
 
         try {
             const git = simpleGit(workspacePath);
@@ -286,12 +304,9 @@ class GitService {
         } catch (error) {
             const errorMessage = parseGitErrorMessage(error);
             const errorText = getBranchDeletionError(errorMessage, branchName);
-
-            if (errorText !== '刪除分支失敗') {
-                return err(errorText);
+            if (errorText === '刪除分支失敗') {
+                logger.error('Git', 'Error', `[Git] Failed to delete branch`, error);
             }
-
-            logger.error('Git', 'Error', `[Git] Failed to delete branch`, error);
             return err(errorText);
         }
     }
@@ -311,21 +326,15 @@ class GitService {
 
         try {
             const git = simpleGit(workspacePath);
-            if (force) {
-                await git.checkout([branchName, '--force']);
-            } else {
-                await git.checkout(branchName);
-            }
+            const args = buildCheckoutArgs(branchName, force);
+            await git.checkout(args);
             return ok(undefined);
         } catch (error) {
             const errorMessage = parseGitErrorMessage(error);
             const errorText = getCheckoutError(errorMessage, branchName);
-
-            if (errorText !== '切換分支失敗') {
-                return err(errorText);
+            if (errorText === '切換分支失敗') {
+                logger.error('Git', 'Error', `[Git] Failed to checkout branch`, error);
             }
-
-            logger.error('Git', 'Error', `[Git] Failed to checkout branch`, error);
             return err(errorText);
         }
     }
@@ -335,26 +344,14 @@ class GitService {
             const git = simpleGit(workspacePath);
             const worktreeList = await git.raw(['worktree', 'list']);
 
-            const worktreeBranches: string[] = [];
             const lines = worktreeList.trim().split('\n');
 
             // macOS 上 /tmp 是 /private/tmp 的 symlink，需要解析真實路徑才能正確比較
             const realWorkspacePath = await fs.realpath(workspacePath);
 
-            for (const line of lines) {
-                const pathMatch = line.match(/^(.+?)\s+/);
-                if (!pathMatch) continue;
-
-                const worktreePath = path.normalize(pathMatch[1]);
-                if (worktreePath === realWorkspacePath) continue;
-
-                const branchMatch = line.match(/\[(.+?)]/);
-                if (branchMatch && branchMatch[1]) {
-                    worktreeBranches.push(branchMatch[1]);
-                }
-            }
-
-            return worktreeBranches;
+            return lines
+                .map(line => parseWorktreeLine(line, realWorkspacePath))
+                .filter((branch): branch is string => branch !== null);
         }, '取得 Worktree 分支列表失敗');
     }
 

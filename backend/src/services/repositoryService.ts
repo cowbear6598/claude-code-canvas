@@ -26,17 +26,17 @@ function isValidRepositoryMetadata(value: unknown): value is Record<string, Repo
       return false;
     }
 
-    const m = metadata as Record<string, unknown>;
+    const metadataRecord = metadata as Record<string, unknown>;
 
-    if (m.parentRepoId !== undefined && (typeof m.parentRepoId !== 'string' || !VALID_ID_PATTERN.test(m.parentRepoId))) {
+    if (metadataRecord.parentRepoId !== undefined && (typeof metadataRecord.parentRepoId !== 'string' || !VALID_ID_PATTERN.test(metadataRecord.parentRepoId))) {
       return false;
     }
 
-    if (m.branchName !== undefined && typeof m.branchName !== 'string') {
+    if (metadataRecord.branchName !== undefined && typeof metadataRecord.branchName !== 'string') {
       return false;
     }
 
-    if (m.currentBranch !== undefined && typeof m.currentBranch !== 'string') {
+    if (metadataRecord.currentBranch !== undefined && typeof metadataRecord.currentBranch !== 'string') {
       return false;
     }
   }

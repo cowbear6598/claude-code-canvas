@@ -1,6 +1,5 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { logger } from './logger.js';
 import { getMimeType } from './mimeTypes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -25,12 +24,8 @@ export async function isStaticFilesAvailable(): Promise<boolean> {
 		return vfsData['/index.html'] !== undefined;
 	}
 
-	try {
-		const indexFile = Bun.file(path.join(FRONTEND_DIST_PATH, 'index.html'));
-		return await indexFile.exists();
-	} catch {
-		return false;
-	}
+	const indexFile = Bun.file(path.join(FRONTEND_DIST_PATH, 'index.html'));
+	return indexFile.exists();
 }
 
 /**
@@ -84,56 +79,51 @@ export function serveFromVFS(
 }
 
 async function serveFromFilesystem(request: Request): Promise<Response> {
-	try {
-		const url = new URL(request.url);
-		let pathname = url.pathname;
+	const url = new URL(request.url);
+	let pathname = url.pathname;
 
-		if (pathname === '/') {
-			pathname = '/index.html';
-		}
-
-		// 防止路徑穿越攻擊
-		const safePath = path.normalize(pathname).replace(/^(\.\.(\/|\\|$))+/, '');
-		const filePath = path.join(FRONTEND_DIST_PATH, safePath);
-		const resolvedPath = path.resolve(filePath);
-
-		if (!resolvedPath.startsWith(FRONTEND_DIST_PATH)) {
-			return new Response('Forbidden', { status: 403 });
-		}
-
-		const file = Bun.file(resolvedPath);
-		const exists = await file.exists();
-
-		if (exists) {
-			const headers = new Headers({
-				'Content-Type': getMimeType(resolvedPath),
-				'X-Content-Type-Options': 'nosniff',
-			});
-
-			// 對 /assets/ 下的檔案加上快取 header（Vite 會在檔名加 hash）
-			if (pathname.startsWith('/assets/')) {
-				headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-			}
-
-			return new Response(file, { headers });
-		}
-
-		// SPA fallback：對於不存在的路徑，回傳 index.html
-		const indexFile = Bun.file(path.join(FRONTEND_DIST_PATH, 'index.html'));
-		const indexExists = await indexFile.exists();
-
-		if (indexExists) {
-			return new Response(indexFile, {
-				headers: {
-					'Content-Type': 'text/html',
-					'X-Content-Type-Options': 'nosniff',
-				},
-			});
-		}
-
-		return new Response('Not Found', { status: 404 });
-	} catch (error) {
-		logger.error('Startup', 'Error', '靜態檔案服務錯誤', error);
-		return new Response('Internal Server Error', { status: 500 });
+	if (pathname === '/') {
+		pathname = '/index.html';
 	}
+
+	// 防止路徑穿越攻擊
+	const safePath = path.normalize(pathname).replace(/^(\.\.(\/|\\|$))+/, '');
+	const filePath = path.join(FRONTEND_DIST_PATH, safePath);
+	const resolvedPath = path.resolve(filePath);
+
+	if (!resolvedPath.startsWith(FRONTEND_DIST_PATH)) {
+		return new Response('Forbidden', { status: 403 });
+	}
+
+	const file = Bun.file(resolvedPath);
+	const exists = await file.exists();
+
+	if (exists) {
+		const headers = new Headers({
+			'Content-Type': getMimeType(resolvedPath),
+			'X-Content-Type-Options': 'nosniff',
+		});
+
+		// 對 /assets/ 下的檔案加上快取 header（Vite 會在檔名加 hash）
+		if (pathname.startsWith('/assets/')) {
+			headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+		}
+
+		return new Response(file, { headers });
+	}
+
+	// SPA fallback：對於不存在的路徑，回傳 index.html
+	const indexFile = Bun.file(path.join(FRONTEND_DIST_PATH, 'index.html'));
+	const indexExists = await indexFile.exists();
+
+	if (indexExists) {
+		return new Response(indexFile, {
+			headers: {
+				'Content-Type': 'text/html',
+				'X-Content-Type-Options': 'nosniff',
+			},
+		});
+	}
+
+	return new Response('Not Found', { status: 404 });
 }

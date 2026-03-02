@@ -109,7 +109,7 @@ export function createNoteHandlers<TNote extends BaseNote>(
 
   const handleNoteList = withCanvasId<ListNotePayload>(
     events.listResult,
-    async (connectionId: string, canvasId: string, _: ListNotePayload, requestId: string): Promise<void> => {
+    async (connectionId: string, canvasId: string, _payload: ListNotePayload, requestId: string): Promise<void> => {
       const notes = noteStore.list(canvasId);
 
       const response: BaseNoteResponse & { notes: TNote[] } = {

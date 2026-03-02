@@ -64,14 +64,14 @@ export class McpServerStore {
     private validateServerData(server: unknown): server is McpServer {
         if (!server || typeof server !== 'object') return false;
 
-        const s = server as Record<string, unknown>;
+        const serverRecord = server as Record<string, unknown>;
 
-        if (typeof s.id !== 'string' || s.id.trim() === '') return false;
-        if (typeof s.name !== 'string' || s.name.trim() === '') return false;
-        if (!/^[a-zA-Z0-9_-]+$/.test(s.name)) return false;
-        if (!s.config || typeof s.config !== 'object') return false;
+        if (typeof serverRecord.id !== 'string' || serverRecord.id.trim() === '') return false;
+        if (typeof serverRecord.name !== 'string' || serverRecord.name.trim() === '') return false;
+        if (!/^[a-zA-Z0-9_-]+$/.test(serverRecord.name)) return false;
+        if (!serverRecord.config || typeof serverRecord.config !== 'object') return false;
 
-        const config = s.config as Record<string, unknown>;
+        const config = serverRecord.config as Record<string, unknown>;
 
         if ('type' in config) {
             if (config.type !== 'http' && config.type !== 'sse') return false;

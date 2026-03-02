@@ -1,36 +1,19 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema, positionSchema, canvasIdSchema } from './base.js';
+import { requestIdSchema, podIdSchema, canvasIdSchema, noteUpdateBaseSchema, createNoteCreateSchema } from './base.js';
 
 export const skillListSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
 });
 
-export const skillNoteCreateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  skillId: z.string(),
-  name: z.string().min(1).max(100),
-  x: z.number(),
-  y: z.number(),
-  boundToPodId: z.uuid().nullable(),
-  originalPosition: positionSchema.nullable(),
-});
+export const skillNoteCreateSchema = createNoteCreateSchema({ skillId: z.string() });
 
 export const skillNoteListSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
 });
 
-export const skillNoteUpdateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  noteId: z.uuid(),
-  x: z.number().optional(),
-  y: z.number().optional(),
-  boundToPodId: z.uuid().nullable().optional(),
-  originalPosition: positionSchema.nullable().optional(),
-});
+export const skillNoteUpdateSchema = noteUpdateBaseSchema;
 
 export const skillNoteDeleteSchema = z.object({
   requestId: requestIdSchema,

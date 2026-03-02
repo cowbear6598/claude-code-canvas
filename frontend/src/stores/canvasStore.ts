@@ -83,9 +83,6 @@ export const useCanvasStore = defineStore('canvas', {
         } else {
           console.warn('[CanvasStore] No canvases returned from backend')
         }
-      } catch (error) {
-        console.error('[CanvasStore] Failed to load canvases:', error)
-        throw error
       } finally {
         this.isLoading = false
       }

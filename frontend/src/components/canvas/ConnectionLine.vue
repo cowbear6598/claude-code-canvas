@@ -72,7 +72,6 @@ function getAiDecideColor(status: string): string {
   if (status === 'ai-approved') return 'oklch(0.65 0.12 300 / 0.7)'
   if (status === 'active') return 'oklch(0.7 0.15 50)'
   if (status === 'queued') return 'oklch(0.7 0.12 230 / 0.8)'
-  // idle、waiting 狀態使用預設淡紫色
   return 'oklch(0.65 0.12 300 / 0.7)'
 }
 
@@ -95,22 +94,18 @@ const lineColor = computed(() => {
 })
 
 const midLabel = computed(() => {
-  // Auto 模式不顯示標籤
   if (props.triggerMode === 'auto') {
     return null
   }
 
-  // Direct 模式顯示 D 標籤
   if (props.triggerMode === 'direct') {
     return { type: 'direct', text: 'D', class: 'direct-label' }
   }
 
-  // AI Decide 模式
   if (props.status === 'ai-deciding') {
     return { type: 'deciding', text: '', class: 'deciding-label' }
   }
 
-  // rejected 時不顯示 foreignObject 標籤（改用 X marker）
   if (props.status === 'ai-rejected') {
     return null
   }
@@ -119,7 +114,6 @@ const midLabel = computed(() => {
     return { type: 'error', text: '!', class: 'error-label' }
   }
 
-  // idle, ai-approved
   return { type: 'ai', text: 'AI', class: 'ai-label' }
 })
 
@@ -170,16 +164,17 @@ const arrowPositions = computed(() => {
   }, 160)
 })
 
-// 是否使用 X marker（rejected 狀態）
 const useXMarker = computed(() => {
   return props.triggerMode === 'ai-decide' && props.status === 'ai-rejected'
 })
 
-// Path element ref，用於計算 X marker 位置
 const pathRef = ref<SVGPathElement | null>(null)
 
-// X marker 位置（沿路徑等距分佈）
 const xMarkerPositions = ref<Array<{ x: number; y: number; angle: number }>>([])
+
+const MARKER_SPACING_PX = 50
+const MIN_MARKERS = 2
+const MAX_MARKERS = 8
 
 const calculateXMarkerPositions = (): void => {
   if (!pathRef.value || !useXMarker.value) {
@@ -190,9 +185,7 @@ const calculateXMarkerPositions = (): void => {
   const path = pathRef.value
   const totalLength = path.getTotalLength()
 
-  // 每 50px 一個 X，至少 2 個，最多 8 個
-  const spacing = 50
-  const count = Math.max(2, Math.min(8, Math.floor(totalLength / spacing)))
+  const count = Math.max(MIN_MARKERS, Math.min(MAX_MARKERS, Math.floor(totalLength / MARKER_SPACING_PX)))
 
   const positions: Array<{ x: number; y: number; angle: number }> = []
 
@@ -212,7 +205,6 @@ const calculateXMarkerPositions = (): void => {
   xMarkerPositions.value = positions
 }
 
-// 監聽路徑和 useXMarker 變化，重新計算位置
 watch([pathData, useXMarker], () => {
   // 使用 nextTick 確保 DOM 已更新
   setTimeout(() => {

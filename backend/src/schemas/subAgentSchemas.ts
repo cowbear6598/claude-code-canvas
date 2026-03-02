@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema, positionSchema, canvasIdSchema, resourceNameSchema, resourceIdSchema, groupIdSchema } from './base.js';
+import { requestIdSchema, podIdSchema, canvasIdSchema, resourceNameSchema, resourceIdSchema, groupIdSchema, noteUpdateBaseSchema, createNoteCreateSchema } from './base.js';
 
 export const subAgentListSchema = z.object({
   requestId: requestIdSchema,
@@ -26,31 +26,14 @@ export const subAgentReadSchema = z.object({
   subAgentId: resourceIdSchema,
 });
 
-export const subAgentNoteCreateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  subAgentId: resourceIdSchema,
-  name: z.string().min(1).max(100),
-  x: z.number(),
-  y: z.number(),
-  boundToPodId: z.uuid().nullable(),
-  originalPosition: positionSchema.nullable(),
-});
+export const subAgentNoteCreateSchema = createNoteCreateSchema({ subAgentId: resourceIdSchema });
 
 export const subAgentNoteListSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
 });
 
-export const subAgentNoteUpdateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  noteId: z.uuid(),
-  x: z.number().optional(),
-  y: z.number().optional(),
-  boundToPodId: z.uuid().nullable().optional(),
-  originalPosition: positionSchema.nullable().optional(),
-});
+export const subAgentNoteUpdateSchema = noteUpdateBaseSchema;
 
 export const subAgentNoteDeleteSchema = z.object({
   requestId: requestIdSchema,

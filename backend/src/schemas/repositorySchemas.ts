@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, positionSchema, canvasIdSchema } from './base.js';
+import { requestIdSchema, canvasIdSchema, noteUpdateBaseSchema, createNoteCreateSchema } from './base.js';
 
 const RESERVED_NAMES = ['.git', 'HEAD', 'FETCH_HEAD', 'ORIG_HEAD', 'MERGE_HEAD', 'CHERRY_PICK_HEAD'];
 
@@ -21,31 +21,14 @@ export const repositoryCreateSchema = z.object({
   name: z.string().regex(/^[a-zA-Z0-9_-]+$/, 'Repository name must contain only alphanumeric characters, underscores, and hyphens'),
 });
 
-export const repositoryNoteCreateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  repositoryId: repositoryIdSchema,
-  name: z.string().min(1).max(100),
-  x: z.number(),
-  y: z.number(),
-  boundToPodId: z.uuid().nullable(),
-  originalPosition: positionSchema.nullable(),
-});
+export const repositoryNoteCreateSchema = createNoteCreateSchema({ repositoryId: repositoryIdSchema });
 
 export const repositoryNoteListSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
 });
 
-export const repositoryNoteUpdateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  noteId: z.uuid(),
-  x: z.number().optional(),
-  y: z.number().optional(),
-  boundToPodId: z.uuid().nullable().optional(),
-  originalPosition: positionSchema.nullable().optional(),
-});
+export const repositoryNoteUpdateSchema = noteUpdateBaseSchema;
 
 export const repositoryNoteDeleteSchema = z.object({
   requestId: requestIdSchema,

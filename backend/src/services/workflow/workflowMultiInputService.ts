@@ -2,7 +2,6 @@ import {WebSocketResponseEvents} from '../../schemas/index.js';
 import type {
   WorkflowSourcesMergedPayload,
   Connection,
-  TriggerMode,
 } from '../../types/index.js';
 import type { ExecutionServiceMethods, TriggerStrategy } from './types.js';
 import {podStore} from '../podStore.js';
@@ -13,29 +12,15 @@ import {workflowStateService} from './workflowStateService.js';
 import {logger} from '../../utils/logger.js';
 import {formatMergedSummaries} from './workflowHelpers.js';
 import {autoClearService} from '../autoClear/autoClearService.js';
+import { LazyInitializable } from './lazyInitializable.js';
+import { MERGED_CONTENT_PREVIEW_MAX_LENGTH } from './constants.js';
 
-class WorkflowMultiInputService {
-  private executionService!: ExecutionServiceMethods;
-  private strategies?: { auto: TriggerStrategy; direct: TriggerStrategy; 'ai-decide': TriggerStrategy };
+interface MultiInputServiceDeps {
+  executionService: ExecutionServiceMethods;
+  strategies: { auto: TriggerStrategy; direct: TriggerStrategy; 'ai-decide': TriggerStrategy };
+}
 
-  private getStrategy(triggerMode: TriggerMode): TriggerStrategy {
-    if (!this.strategies) {
-      throw new Error('WorkflowMultiInputService 尚未初始化');
-    }
-    return this.strategies[triggerMode];
-  }
-
-  /**
-   * 初始化依賴注入
-   */
-  init(dependencies: {
-    executionService: ExecutionServiceMethods;
-    strategies: { auto: TriggerStrategy; direct: TriggerStrategy; 'ai-decide': TriggerStrategy };
-  }): void {
-    this.executionService = dependencies.executionService;
-    this.strategies = dependencies.strategies;
-  }
-
+class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps> {
   private isTargetPodBusy(targetPod: ReturnType<typeof podStore.getById>): boolean {
     return !!targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing');
   }
@@ -119,6 +104,8 @@ class WorkflowMultiInputService {
     connection: Connection,
     triggerMode: 'auto' | 'ai-decide'
   ): void {
+    this.ensureInitialized();
+
     const completedSummaries = pendingTargetStore.getCompletedSummaries(connection.targetPodId);
     if (!completedSummaries) {
       logger.error('Workflow', 'Error', '無法取得已完成的摘要');
@@ -131,7 +118,7 @@ class WorkflowMultiInputService {
       completedSummaries,
       (podId) => podStore.getById(canvasId, podId)
     );
-    const mergedPreview = mergedContent.substring(0, 200);
+    const mergedPreview = mergedContent.substring(0, MERGED_CONTENT_PREVIEW_MAX_LENGTH);
 
     const sourcePodIds = Array.from(completedSummaries.keys());
     const mergedPayload: WorkflowSourcesMergedPayload = {
@@ -147,8 +134,8 @@ class WorkflowMultiInputService {
       mergedPayload
     );
 
-    const strategy = this.getStrategy(triggerMode);
-    this.executionService.triggerWorkflowWithSummary(canvasId, connection.id, mergedContent, true, undefined, strategy).catch((error) => {
+    const strategy = this.deps.strategies[triggerMode];
+    this.deps.executionService.triggerWorkflowWithSummary(canvasId, connection.id, mergedContent, true, undefined, strategy).catch((error) => {
       logger.error('Workflow', 'Error', `觸發合併工作流程失敗 ${connection.id}`, error);
       podStore.setStatus(canvasId, connection.targetPodId, 'idle');
     });

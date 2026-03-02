@@ -10,26 +10,25 @@ export async function readFileOrNull(filePath: string): Promise<string | null> {
 }
 
 export async function fileExists(filePath: string): Promise<boolean> {
-    try {
-        await fs.access(filePath);
-        return true;
-    } catch {
-        return false;
-    }
+    return Bun.file(filePath).exists();
 }
 
 export async function directoryExists(dirPath: string): Promise<boolean> {
-    try {
-        const stat = await fs.stat(dirPath);
-        return stat.isDirectory();
-    } catch {
-        return false;
-    }
+    const stat = await fs.stat(dirPath).catch(() => null);
+    return stat?.isDirectory() ?? false;
 }
 
 export async function ensureDirectoryAndWriteFile(filePath: string, content: string): Promise<void> {
     await fs.mkdir(path.dirname(filePath), {recursive: true});
     await fs.writeFile(filePath, content, 'utf-8');
+}
+
+export function safeJsonParse<T>(data: string): T | null {
+    try {
+        return JSON.parse(data) as T;
+    } catch {
+        return null;
+    }
 }
 
 export async function readJsonFileOrDefault<T>(filePath: string): Promise<T[] | null> {
@@ -39,13 +38,14 @@ export async function readJsonFileOrDefault<T>(filePath: string): Promise<T[] | 
     }
 
     const data = await fs.readFile(filePath, 'utf-8');
+    const parsed = safeJsonParse<T[]>(data);
 
-    try {
-        return JSON.parse(data) as T[];
-    } catch (error) {
-        logger.error('Startup', 'Error', `[FileResource] 無效的 JSON 檔案 ${filePath}`, error);
+    if (parsed === null) {
+        logger.error('Startup', 'Error', `[FileResource] 無效的 JSON 檔案 ${filePath}`);
         return null;
     }
+
+    return parsed;
 }
 
 export async function copyResourceFile(srcPath: string, destBasePath: string, subDir: string, fileName: string): Promise<void> {

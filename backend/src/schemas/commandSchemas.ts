@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema, positionSchema, canvasIdSchema, resourceNameSchema, resourceIdSchema, groupIdSchema } from './base.js';
+import { requestIdSchema, podIdSchema, canvasIdSchema, resourceNameSchema, resourceIdSchema, groupIdSchema, noteUpdateBaseSchema, createNoteCreateSchema } from './base.js';
 
 export const commandListSchema = z.object({
   requestId: requestIdSchema,
@@ -26,31 +26,14 @@ export const commandReadSchema = z.object({
   commandId: resourceIdSchema,
 });
 
-export const commandNoteCreateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  commandId: resourceIdSchema,
-  name: z.string().min(1).max(100),
-  x: z.number(),
-  y: z.number(),
-  boundToPodId: z.uuid().nullable(),
-  originalPosition: positionSchema.nullable(),
-});
+export const commandNoteCreateSchema = createNoteCreateSchema({ commandId: resourceIdSchema });
 
 export const commandNoteListSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
 });
 
-export const commandNoteUpdateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  noteId: z.uuid(),
-  x: z.number().optional(),
-  y: z.number().optional(),
-  boundToPodId: z.uuid().nullable().optional(),
-  originalPosition: positionSchema.nullable().optional(),
-});
+export const commandNoteUpdateSchema = noteUpdateBaseSchema;
 
 export const commandNoteDeleteSchema = z.object({
   requestId: requestIdSchema,

@@ -48,9 +48,12 @@ function isResourceAlreadyBound(
 ): boolean {
     if (isMultiBind) {
         return Array.isArray(boundIds) && boundIds.includes(resourceId);
-    } else {
-        return boundIds === resourceId || boundIds !== null;
     }
+
+    const currentBoundId = boundIds as string | null;
+    const isAlreadyBoundToSameResource = currentBoundId === resourceId;
+    const isAlreadyBoundToDifferentResource = currentBoundId !== null;
+    return isAlreadyBoundToSameResource || isAlreadyBoundToDifferentResource;
 }
 
 /**

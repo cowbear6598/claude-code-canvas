@@ -239,22 +239,26 @@ class PodStore {
         this.modifyPod(canvasId, id, {outputStyleId});
     }
 
-    addSkillId(canvasId: string, podId: string, skillId: string): void {
+    private addIdToArrayField(
+        canvasId: string,
+        podId: string,
+        fieldName: 'skillIds' | 'subAgentIds' | 'mcpServerIds',
+        id: string
+    ): void {
         const pod = this.getById(canvasId, podId);
-        if (!pod || pod.skillIds.includes(skillId)) {
+        if (!pod || pod[fieldName].includes(id)) {
             return;
         }
 
-        this.modifyPod(canvasId, podId, {skillIds: [...pod.skillIds, skillId]});
+        this.modifyPod(canvasId, podId, {[fieldName]: [...pod[fieldName], id]});
+    }
+
+    addSkillId(canvasId: string, podId: string, skillId: string): void {
+        this.addIdToArrayField(canvasId, podId, 'skillIds', skillId);
     }
 
     addSubAgentId(canvasId: string, podId: string, subAgentId: string): void {
-        const pod = this.getById(canvasId, podId);
-        if (!pod || pod.subAgentIds.includes(subAgentId)) {
-            return;
-        }
-
-        this.modifyPod(canvasId, podId, {subAgentIds: [...pod.subAgentIds, subAgentId]});
+        this.addIdToArrayField(canvasId, podId, 'subAgentIds', subAgentId);
     }
 
     findBySubAgentId(canvasId: string, subAgentId: string): Pod[] {
@@ -262,12 +266,7 @@ class PodStore {
     }
 
     addMcpServerId(canvasId: string, podId: string, mcpServerId: string): void {
-        const pod = this.getById(canvasId, podId);
-        if (!pod || pod.mcpServerIds.includes(mcpServerId)) {
-            return;
-        }
-
-        this.modifyPod(canvasId, podId, {mcpServerIds: [...pod.mcpServerIds, mcpServerId]});
+        this.addIdToArrayField(canvasId, podId, 'mcpServerIds', mcpServerId);
     }
 
     removeMcpServerId(canvasId: string, podId: string, mcpServerId: string): void {

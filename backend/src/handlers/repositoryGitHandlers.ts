@@ -142,6 +142,44 @@ function parseRepoName(repoUrl: string): string {
   return repoName;
 }
 
+async function executeAndValidateClone(
+  repoUrl: string,
+  repoName: string,
+  branch: string | undefined,
+  emitProgress: (progress: number, message: string) => void
+): Promise<{ success: true } | { success: false; error: string }> {
+  const targetPath = repositoryService.getRepositoryPath(repoName);
+  const throttledEmit = throttle(emitProgress, 500);
+
+  const cloneResult = await gitService.clone(repoUrl, targetPath, {
+    branch,
+    onProgress: (progressData) => {
+      const mappedProgress = Math.floor(10 + (progressData.progress * 0.8));
+      const stageMessage = getStageMessage(progressData.stage);
+      throttledEmit(mappedProgress, stageMessage);
+    },
+  });
+
+  if (!cloneResult.success) {
+    throttledEmit.cancel();
+    await repositoryService.delete(repoName);
+    return { success: false, error: cloneResult.error! };
+  }
+
+  throttledEmit.flush();
+  return { success: true };
+}
+
+async function registerCloneMetadata(repoName: string): Promise<void> {
+  const targetPath = repositoryService.getRepositoryPath(repoName);
+  const currentBranchResult = await gitService.getCurrentBranch(targetPath);
+  if (currentBranchResult.success) {
+    await repositoryService.registerMetadata(repoName, {
+      currentBranch: currentBranchResult.data
+    });
+  }
+}
+
 export async function handleRepositoryGitClone(
   connectionId: string,
   payload: RepositoryGitClonePayload,
@@ -186,29 +224,14 @@ export async function handleRepositoryGitClone(
   }
 
   await repositoryService.create(repoName);
-
   emitCloneProgress(5, 'Repository 已建立，開始 clone...');
 
-  const targetPath = repositoryService.getRepositoryPath(repoName);
-
-  const throttledEmit = throttle(emitCloneProgress, 500);
-
-  const cloneResult = await gitService.clone(repoUrl, targetPath, {
-    branch,
-    onProgress: (progressData) => {
-      const mappedProgress = Math.floor(10 + (progressData.progress * 0.8));
-      const stageMessage = getStageMessage(progressData.stage);
-      throttledEmit(mappedProgress, stageMessage);
-    },
-  });
-
+  const cloneResult = await executeAndValidateClone(repoUrl, repoName, branch, emitCloneProgress);
   if (!cloneResult.success) {
-    throttledEmit.cancel();
-    await repositoryService.delete(repoName);
     emitError(
       connectionId,
       WebSocketResponseEvents.REPOSITORY_GIT_CLONE_RESULT,
-      cloneResult.error!,
+      cloneResult.error,
       requestId,
       undefined,
       'INTERNAL_ERROR'
@@ -216,16 +239,8 @@ export async function handleRepositoryGitClone(
     return;
   }
 
-  throttledEmit.flush();
   emitCloneProgress(95, '完成中...');
-
-  const currentBranchResult = await gitService.getCurrentBranch(targetPath);
-  if (currentBranchResult.success) {
-    await repositoryService.registerMetadata(repoName, {
-      currentBranch: currentBranchResult.data
-    });
-  }
-
+  await registerCloneMetadata(repoName);
   emitCloneProgress(100, 'Clone 完成!');
 
   const response: RepositoryGitCloneResultPayload = {

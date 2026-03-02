@@ -125,7 +125,6 @@ onUnmounted(() => {
 // 2. 需要計算相對於 viewport 的坐標變化
 // 3. 需要在 unmount 時精確清理監聽器以防記憶體洩漏
 const handleMouseDown = (e: MouseEvent): void => {
-  // 點擊 Note 時取消 Connection 選取
   connectionStore.selectConnection(null)
 
   const selectionType = selectionTypeMap[props.noteType]

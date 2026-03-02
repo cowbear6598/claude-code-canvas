@@ -64,7 +64,7 @@ export function createListHandler<T>(config: {
   event: WebSocketResponseEvents;
   responseKey: string;
 }): (connectionId: string, payload: unknown, requestId: string) => Promise<void> {
-  return async function (connectionId: string, _: unknown, requestId: string): Promise<void> {
+  return async function (connectionId: string, _payload: unknown, requestId: string): Promise<void> {
     const items = await config.service.list();
 
     // [key: string]: unknown — computed property key（config.responseKey）的 TypeScript 限制，

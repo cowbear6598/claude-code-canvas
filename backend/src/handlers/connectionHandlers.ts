@@ -141,7 +141,7 @@ export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
 
 export const handleConnectionList = withCanvasId<ConnectionListPayload>(
   WebSocketResponseEvents.CONNECTION_LIST_RESULT,
-  async (connectionId: string, canvasId: string, _: ConnectionListPayload, requestId: string): Promise<void> => {
+  async (connectionId: string, canvasId: string, _payload: ConnectionListPayload, requestId: string): Promise<void> => {
     const connections = connectionStore.list(canvasId);
 
     const response: ConnectionListResultPayload = {

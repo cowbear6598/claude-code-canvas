@@ -20,6 +20,7 @@ import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {logger} from '../../utils/logger.js';
 import {formatMergedSummaries} from './workflowHelpers.js';
 import {connectionStore} from '../connectionStore.js';
+import {MERGED_CONTENT_PREVIEW_MAX_LENGTH} from './constants.js';
 
 class WorkflowDirectTriggerService implements TriggerStrategy {
     readonly mode = 'direct' as const;
@@ -118,16 +119,11 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
             return;
         }
 
-        try {
-            const result = this.processTimerResult(canvasId, targetPodId);
-            resolver(result);
-        } catch (error) {
-            logger.error('Workflow', 'Error', `Direct trigger timer 處理失敗: ${targetPodId}`, error);
-            resolver({ready: false});
-        } finally {
-            this.pendingResolvers.delete(targetPodId);
-            directTriggerStore.clearDirectPending(targetPodId);
-        }
+        const result = this.processTimerResult(canvasId, targetPodId);
+        resolver(result);
+
+        this.pendingResolvers.delete(targetPodId);
+        directTriggerStore.clearDirectPending(targetPodId);
     }
 
     private findConnectionIdsBySourcePodIds(canvasId: string, targetPodId: string, sourcePodIds: string[]): string[] {
@@ -159,7 +155,7 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
             canvasId,
             targetPodId,
             sourcePodIds,
-            mergedContentPreview: mergedContent.substring(0, 200),
+            mergedContentPreview: mergedContent.substring(0, MERGED_CONTENT_PREVIEW_MAX_LENGTH),
             countdownSeconds: 0,
         };
 

@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import type {BaseNote, Pod, Group} from '@/types'
+import type {BaseNote, Pod, Group, BasePayload, BaseResponse} from '@/types'
 import {createWebSocketRequest} from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import {useDeleteItem} from '@/composables/useDeleteItem'
@@ -26,21 +26,6 @@ function findItemById(items: unknown[], itemId: string): Record<string, unknown>
 
 function getItemName(item: unknown): string | undefined {
     return (item as Record<string, unknown>)?.name as string | undefined
-}
-
-interface BasePayload {
-    requestId: string
-
-    // 允許各 store 傳入不同 payload 欄位（如 canvasId、noteId 等）。
-    // 型別安全由各呼叫端的 createWebSocketRequest<TReq, TRes> 泛型參數保障。
-    [key: string]: unknown
-}
-
-interface BaseResponse {
-    requestId: string
-    success: boolean
-
-    [key: string]: unknown
 }
 
 interface NoteItem extends BaseNote {

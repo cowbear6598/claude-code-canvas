@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema, canvasIdSchema } from './base.js';
+import { requestIdSchema, podIdSchema, canvasIdSchema, coordinateSchema } from './base.js';
 import { scheduleConfigSchema } from './scheduleSchemas.js';
 
 export const modelTypeSchema = z.enum(['opus', 'sonnet', 'haiku']);
@@ -8,8 +8,8 @@ export const podCreateSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   name: z.string().min(1).max(100),
-  x: z.number().finite().min(-100000).max(100000),
-  y: z.number().finite().min(-100000).max(100000),
+  x: coordinateSchema,
+  y: coordinateSchema,
   rotation: z.number(),
 });
 
@@ -28,8 +28,8 @@ export const podMoveSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   podId: podIdSchema,
-  x: z.number().finite().min(-100000).max(100000),
-  y: z.number().finite().min(-100000).max(100000),
+  x: coordinateSchema,
+  y: coordinateSchema,
 });
 
 export const podRenameSchema = z.object({

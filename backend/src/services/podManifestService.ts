@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {isPathWithinDirectory} from '../utils/pathValidator.js';
 import {logger} from '../utils/logger.js';
-import {fileExists} from './shared/fileResourceHelpers.js';
+import {fileExists, safeJsonParse} from './shared/fileResourceHelpers.js';
 
 interface PodManifest {
     managedFiles: string[];
@@ -23,14 +23,14 @@ class PodManifestService {
         }
 
         const content = await fs.readFile(manifestPath, 'utf-8');
+        const manifest = safeJsonParse<PodManifest>(content);
 
-        try {
-            const manifest = JSON.parse(content) as PodManifest;
-            return manifest.managedFiles ?? [];
-        } catch {
+        if (!manifest) {
             logger.warn('Pod', 'Warn', `manifest 解析失敗，路徑: ${manifestPath}`);
             return [];
         }
+
+        return manifest.managedFiles ?? [];
     }
 
     async writeManifest(repositoryPath: string, podId: string, managedFiles: string[]): Promise<void> {

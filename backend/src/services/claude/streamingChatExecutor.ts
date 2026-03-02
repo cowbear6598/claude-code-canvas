@@ -55,15 +55,8 @@ interface StreamContext {
     persistStreamingMessage: () => void;
 }
 
-function createStreamingCallback(
-    canvasId: string,
-    podId: string,
-    messageId: string,
-    accumulatedContentRef: {value: string},
-    subMessageState: ReturnType<typeof createSubMessageState>,
-    flushCurrentSubMessage: () => void,
-    persistStreamingMessage: () => void
-): (event: StreamEvent) => void {
+function createStreamingCallback(context: StreamContext): (event: StreamEvent) => void {
+    const {canvasId, podId, messageId, accumulatedContentRef, subMessageState, flushCurrentSubMessage, persistStreamingMessage} = context;
     return (event: StreamEvent) => {
         switch (event.type) {
             case 'text': {
@@ -230,15 +223,7 @@ export async function executeStreamingChat(
         persistStreamingMessage,
     };
 
-    const streamingCallback = createStreamingCallback(
-        canvasId,
-        podId,
-        messageId,
-        accumulatedContentRef,
-        subMessageState,
-        flushCurrentSubMessage,
-        persistStreamingMessage
-    );
+    const streamingCallback = createStreamingCallback(streamContext);
 
     try {
         await claudeService.sendMessage(podId, message, streamingCallback);

@@ -17,6 +17,16 @@ export function resolveCanvas(idOrName: string): Canvas | undefined {
 	return canvasStore.getByName(idOrName);
 }
 
+type RequireCanvasResult = { canvas: Canvas; error: null } | { canvas: null; error: Response };
+
+export function requireCanvas(idOrName: string): RequireCanvasResult {
+	const canvas = resolveCanvas(idOrName);
+	if (!canvas) {
+		return { canvas: null, error: jsonResponse({ error: '找不到 Canvas' }, 404) };
+	}
+	return { canvas, error: null };
+}
+
 export function resolvePod(canvasId: string, idOrName: string): Pod | undefined {
 	if (!idOrName) return undefined;
 	if (UUID_REGEX.test(idOrName)) {

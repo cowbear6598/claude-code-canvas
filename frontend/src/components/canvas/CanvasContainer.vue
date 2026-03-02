@@ -312,7 +312,6 @@ const handleUpdatePod = async (pod: Pod): Promise<void> => {
     try {
       await podStore.renamePodWithBackend(pod.id, pod.name)
     } catch {
-      // 重命名失敗，回滾本地名稱
       podStore.updatePod({ ...pod, name: oldName })
     }
   }
@@ -522,7 +521,6 @@ const handleDeleteConfirm = async (): Promise<void> => {
 
   const result = await deleteActions[type]()
 
-  // 如果是 group 刪除且失敗（有項目），顯示錯誤
   if (result && typeof result === 'object' && !result.success) {
     console.error('刪除失敗:', result.error)
     // 保持 modal 開啟讓使用者知道失敗

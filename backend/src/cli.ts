@@ -355,9 +355,9 @@ export function handleConfig(args: string[]): void {
 }
 
 export function handleLogs(flags: Record<string, string | boolean>, logFile = LOG_FILE): void {
-	const nStr = typeof flags.n === 'string' ? flags.n : '50';
-	const n = Number(nStr);
-	const lines = Math.min(Number.isInteger(n) && n > 0 ? n : 50, MAX_LOG_LINES);
+	const requestedLineCountStr = typeof flags.n === 'string' ? flags.n : '50';
+	const requestedLineCount = Number(requestedLineCountStr);
+	const lines = Math.min(Number.isInteger(requestedLineCount) && requestedLineCount > 0 ? requestedLineCount : 50, MAX_LOG_LINES);
 
 	if (!fs.existsSync(logFile)) {
 		console.log('尚無日誌檔案，請先啟動服務');

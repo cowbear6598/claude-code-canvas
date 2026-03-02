@@ -81,6 +81,10 @@ export const usePodStore = defineStore('pod', {
     },
 
     actions: {
+        findPodById(podId: string): Pod | undefined {
+            return this.pods.find((p) => p.id === podId)
+        },
+
         enrichPod(pod: Pod, existingOutput?: string[]): Pod {
             return enrichPodFn(pod, existingOutput)
         },
@@ -153,7 +157,7 @@ export const usePodStore = defineStore('pod', {
             const canvasId = requireActiveCanvas()
             const { showSuccessToast, showErrorToast } = useToast()
 
-            const pod = this.pods.find((p) => p.id === id)
+            const pod = this.findPodById(id)
             const podName = pod?.name || 'Pod'
 
             try {
@@ -204,14 +208,14 @@ export const usePodStore = defineStore('pod', {
         },
 
         updatePodStatus(id: string, status: PodStatus): void {
-            const pod = this.pods.find((p) => p.id === id)
+            const pod = this.findPodById(id)
             if (pod) {
                 pod.status = status
             }
         },
 
         movePod(id: string, x: number, y: number): void {
-            const pod = this.pods.find((p) => p.id === id)
+            const pod = this.findPodById(id)
             if (!pod) return
 
             const safeX = Number.isFinite(x) ? Math.max(-MAX_COORD, Math.min(MAX_COORD, x)) : pod.x
@@ -222,7 +226,7 @@ export const usePodStore = defineStore('pod', {
         },
 
         syncPodPosition(id: string): void {
-            const pod = this.pods.find((p) => p.id === id)
+            const pod = this.findPodById(id)
             if (!pod) return
 
             const canvasId = getActiveCanvasIdOrWarn('PodStore')
@@ -310,7 +314,7 @@ export const usePodStore = defineStore('pod', {
         },
 
         updatePodOutputStyle(podId: string, outputStyleId: string | null): void {
-            const pod = this.pods.find((p) => p.id === podId)
+            const pod = this.findPodById(podId)
             if (pod) {
                 pod.outputStyleId = outputStyleId
             }
@@ -318,7 +322,7 @@ export const usePodStore = defineStore('pod', {
 
         clearPodOutputsByIds(podIds: string[]): void {
             for (const podId of podIds) {
-                const pod = this.pods.find((p) => p.id === podId)
+                const pod = this.findPodById(podId)
                 if (pod) {
                     pod.output = []
                 }
@@ -326,21 +330,21 @@ export const usePodStore = defineStore('pod', {
         },
 
         updatePodModel(podId: string, model: ModelType): void {
-            const pod = this.pods.find((p) => p.id === podId)
+            const pod = this.findPodById(podId)
             if (pod) {
                 pod.model = model
             }
         },
 
         updatePodRepository(podId: string, repositoryId: string | null): void {
-            const pod = this.pods.find((p) => p.id === podId)
+            const pod = this.findPodById(podId)
             if (!pod) return
 
             pod.repositoryId = repositoryId
         },
 
         updatePodCommand(podId: string, commandId: string | null): void {
-            const pod = this.pods.find((p) => p.id === podId)
+            const pod = this.findPodById(podId)
             if (!pod) return
 
             pod.commandId = commandId
@@ -392,7 +396,7 @@ export const usePodStore = defineStore('pod', {
         },
 
         updatePodPosition(podId: string, x: number, y: number): void {
-            const pod = this.pods.find((p) => p.id === podId)
+            const pod = this.findPodById(podId)
             if (pod) {
                 pod.x = x
                 pod.y = y
@@ -400,7 +404,7 @@ export const usePodStore = defineStore('pod', {
         },
 
         updatePodName(podId: string, name: string): void {
-            const pod = this.pods.find((p) => p.id === podId)
+            const pod = this.findPodById(podId)
             if (pod) {
                 pod.name = name
             }

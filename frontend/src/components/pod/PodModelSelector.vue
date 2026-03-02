@@ -30,7 +30,6 @@ const sortedOptions = computed(() => {
 })
 
 const handleMouseEnter = (): void => {
-  // 動畫中不允許 hover
   if (isAnimating.value) return
 
   if (hoverTimeoutId.value !== null) {
@@ -41,7 +40,6 @@ const handleMouseEnter = (): void => {
 }
 
 const handleMouseLeave = (): void => {
-  // 動畫中不處理 leave
   if (isAnimating.value) return
 
   hoverTimeoutId.value = window.setTimeout(() => {
@@ -51,10 +49,8 @@ const handleMouseLeave = (): void => {
 }
 
 const selectModel = (model: ModelType): void => {
-  // 動畫中不允許點擊
   if (isAnimating.value || isCollapsing.value) return
 
-  // 如果選的是同一個，直接收起
   if (model === props.currentModel) {
     isCollapsing.value = true
     setTimeout(() => {
@@ -64,18 +60,13 @@ const selectModel = (model: ModelType): void => {
     return
   }
 
-  // 開始動畫，禁止 hover
   isAnimating.value = true
 
-  // 直接更新，讓 TransitionGroup 處理滑動動畫
   emit('update:model', model)
 
-  // 延遲後開始收起動畫
   setTimeout(() => {
-    // 先觸發淡出
     isCollapsing.value = true
 
-    // 淡出完成後再完全收起
     setTimeout(() => {
       isHovered.value = false
       isCollapsing.value = false

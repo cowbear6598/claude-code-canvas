@@ -2,18 +2,7 @@ import {createWebSocketRequest} from '@/services/websocket'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import {requireActiveCanvas} from '@/utils/canvasGuard'
 import type {NoteStoreConfig} from './createNoteStore'
-
-interface BasePayload {
-    requestId: string
-    [key: string]: unknown
-}
-
-interface BaseResponse {
-    requestId: string
-    success: boolean
-    note?: unknown
-    [key: string]: unknown
-}
+import type {BasePayload, BaseResponse} from '@/types'
 
 interface NoteItem {
     id: string

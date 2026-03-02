@@ -143,20 +143,13 @@ const handleCtrlClick = (): void => {
   connectionStore.selectConnection(null)
 }
 
-const handleMouseDown = (e: MouseEvent): void => {
-  const target = e.target as HTMLElement
+const handleCtrlOrModifierClick = (e: MouseEvent): boolean => {
+  if (!isCtrlOrCmdPressed(e)) return false
+  handleCtrlClick()
+  return true
+}
 
-  if (shouldBlockForSlot(target)) return
-
-  if (isCtrlOrCmdPressed(e)) {
-    handleCtrlClick()
-    return
-  }
-
-  if (isElementSelected('pod', props.pod.id) && startBatchDrag(e)) {
-    return
-  }
-
+const initiateSingleDrag = (e: MouseEvent): void => {
   if (!isElementSelected('pod', props.pod.id)) {
     selectionStore.setSelectedElements([{type: 'pod', id: props.pod.id}])
   }
@@ -199,6 +192,16 @@ const handleMouseDown = (e: MouseEvent): void => {
 
   document.addEventListener('mousemove', handleMouseMove)
   document.addEventListener('mouseup', handleMouseUp)
+}
+
+const handleMouseDown = (e: MouseEvent): void => {
+  const target = e.target as HTMLElement
+
+  if (shouldBlockForSlot(target)) return
+  if (handleCtrlOrModifierClick(e)) return
+  if (isElementSelected('pod', props.pod.id) && startBatchDrag(e)) return
+
+  initiateSingleDrag(e)
 }
 
 const handleRename = (): void => {

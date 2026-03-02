@@ -40,7 +40,6 @@ class WebSocketClient {
       : window.location.origin
     this.wsUrl = url || import.meta.env.VITE_WS_URL || defaultUrl
 
-    // 將 http:// 或 https:// 改為 ws:// 或 wss://
     const wsProtocol = this.wsUrl.replace(/^http/, 'ws')
 
     this.socket = new WebSocket(wsProtocol)
@@ -112,7 +111,6 @@ class WebSocketClient {
     this.isConnected.value = false
     this.disconnectReason.value = event.reason || `關閉代碼: ${event.code}`
 
-    // 觸發斷線監聽器
     this.disconnectListeners.forEach(callback => {
       try {
         callback(this.disconnectReason.value ?? '')

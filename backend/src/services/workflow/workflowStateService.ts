@@ -10,6 +10,7 @@ import {
   type WorkflowSourcesMergedPayload,
 } from '../../types/index.js';
 import { logger } from '../../utils/logger.js';
+import { MERGED_CONTENT_PREVIEW_MAX_LENGTH } from './constants.js';
 
 function emitMergedIfAllComplete(
   canvasId: string,
@@ -44,7 +45,7 @@ function emitMergedIfAllComplete(
     canvasId,
     targetPodId,
     sourcePodIds,
-    mergedContentPreview: mergedContent.substring(0, 200),
+    mergedContentPreview: mergedContent.substring(0, MERGED_CONTENT_PREVIEW_MAX_LENGTH),
   };
 
   workflowEventEmitter.emitWorkflowSourcesMerged(canvasId, targetPodId, sourcePodIds, mergedPayload);
