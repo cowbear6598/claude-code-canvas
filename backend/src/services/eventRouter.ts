@@ -27,8 +27,8 @@ class EventRouter {
 		const handler = this.handlers.get(message.type);
 
 		if (!handler) {
-			logger.log('WebSocket', 'Error', `Unknown event type: ${message.type}`);
-			throw new Error(`未知的事件類型: ${message.type}`);
+			logger.log('WebSocket', 'Error', `未知的事件類型：${message.type}`);
+			throw new Error(`未知的事件類型：${message.type}`);
 		}
 
 		await handler(connectionId, message.payload, message.requestId);

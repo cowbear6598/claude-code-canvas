@@ -14,7 +14,7 @@ class WorkspaceService {
   async createWorkspace(workspacePath: string): Promise<Result<string>> {
     if (!this.validatePath(workspacePath)) {
       logger.error('Workspace', 'Error', `路徑驗證失敗：${workspacePath}`);
-      return err('Invalid workspace path');
+      return err('無效的工作區路徑');
     }
     await fs.mkdir(workspacePath, { recursive: true });
     return ok(workspacePath);
@@ -23,7 +23,7 @@ class WorkspaceService {
   async deleteWorkspace(workspacePath: string): Promise<Result<void>> {
     if (!this.validatePath(workspacePath)) {
       logger.error('Workspace', 'Error', `路徑驗證失敗：${workspacePath}`);
-      return err('Invalid workspace path');
+      return err('無效的工作區路徑');
     }
     await fs.rm(workspacePath, { recursive: true, force: true });
     return ok(undefined);

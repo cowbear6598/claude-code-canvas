@@ -183,7 +183,7 @@ const readFileAsDataURL = (file: File): Promise<string> => {
 const insertImageAtCursor = async (file: File): Promise<void> => {
   if (file.size > MAX_IMAGE_SIZE_BYTES) {
     toast({title: '圖片大小超過 5MB 限制'})
-    throw new Error('Image size exceeds limit')
+    throw new Error('圖片大小超過限制')
   }
 
   if (!isValidImageType(file.type)) {
@@ -191,7 +191,7 @@ const insertImageAtCursor = async (file: File): Promise<void> => {
       title: '不支援的圖片格式',
       description: '僅支援 JPEG/PNG/GIF/WebP',
     })
-    throw new Error('Unsupported image type')
+    throw new Error('不支援的圖片格式')
   }
 
   let result: string
@@ -199,16 +199,16 @@ const insertImageAtCursor = async (file: File): Promise<void> => {
     result = await readFileAsDataURL(file)
   } catch {
     toast({title: '圖片讀取失敗'})
-    throw new Error('FileReader error')
+    throw new Error('圖片讀取失敗')
   }
 
   if (!/^data:image\/(jpeg|png|gif|webp);base64,/.test(result)) {
-    throw new Error('Invalid DataURL format')
+    throw new Error('DataURL 格式無效')
   }
 
   const base64Data = result.split(',')[1]
   if (!base64Data) {
-    throw new Error('Invalid base64 data')
+    throw new Error('Base64 資料無效')
   }
 
   const imageAtom = createImageAtom(file.type as ImageMediaType, base64Data)
@@ -602,7 +602,7 @@ onUnmounted(() => {
 }
 
 .chat-input-editable:empty::before {
-  content: 'Type your message...';
+  content: '輸入訊息...';
   color: oklch(0.55 0.02 50);
   pointer-events: none;
 }

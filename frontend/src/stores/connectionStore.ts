@@ -245,7 +245,7 @@ export const useConnectionStore = defineStore('connection', {
 
         validateNewConnection(sourcePodId: string | undefined | null, targetPodId: string): boolean {
             if (sourcePodId === targetPodId) {
-                console.warn('[ConnectionStore] Cannot connect pod to itself')
+                console.warn('[ConnectionStore] 無法將 Pod 連接到自身')
                 return false
             }
 

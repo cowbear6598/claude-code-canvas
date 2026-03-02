@@ -96,7 +96,7 @@ class RepositorySyncService {
     const totalSkills = [...podResourcesMap.values()].reduce((sum, r) => sum + r.skillIds.length, 0);
     const totalSubAgents = [...podResourcesMap.values()].reduce((sum, r) => sum + r.subAgentIds.length, 0);
 
-    logger.log('Repository', 'Update', `Synced repository ${repositoryId} with ${totalCommands} commands, ${totalSkills} skills, ${totalSubAgents} subagents`);
+    logger.log('Repository', 'Update', `已同步 Repository ${repositoryId}：${totalCommands} 個 Command、${totalSkills} 個 Skill、${totalSubAgents} 個 SubAgent`);
   }
 
   private async cleanOrphanManifests(repositoryPath: string, activePodResourcesMap: Map<string, PodResources>): Promise<void> {

@@ -346,7 +346,7 @@ describe('chatStore', () => {
       const store = useChatStore()
       store.connectionStatus = 'disconnected'
 
-      await expect(store.sendMessage('pod-1', 'Hello')).rejects.toThrow('WebSocket not connected')
+      await expect(store.sendMessage('pod-1', 'Hello')).rejects.toThrow('WebSocket 尚未連線')
     })
   })
 

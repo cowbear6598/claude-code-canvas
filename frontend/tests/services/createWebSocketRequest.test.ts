@@ -174,7 +174,7 @@ describe('createWebSocketRequest', () => {
         success: false,
       })
 
-      await expect(promise).rejects.toThrow('Unknown error')
+      await expect(promise).rejects.toThrow('未知錯誤')
     })
 
     it('應該在失敗後清除 listener', async () => {
@@ -220,7 +220,7 @@ describe('createWebSocketRequest', () => {
 
       vi.advanceTimersByTime(5000)
 
-      await expect(promise).rejects.toThrow('Request timeout: test:request')
+      await expect(promise).rejects.toThrow('請求逾時：test:request')
 
       vi.useRealTimers()
     })
@@ -270,7 +270,7 @@ describe('createWebSocketRequest', () => {
 
       vi.advanceTimersByTime(1)
 
-      await expect(promise).rejects.toThrow('Request timeout: test:request')
+      await expect(promise).rejects.toThrow('請求逾時：test:request')
 
       vi.useRealTimers()
     })
@@ -319,7 +319,7 @@ describe('createWebSocketRequest', () => {
       }
 
       await expect(createWebSocketRequest(config)).rejects.toThrow(
-        'WebSocket not connected'
+        'WebSocket 尚未連線'
       )
 
       expect(mockEmit).not.toHaveBeenCalled()
@@ -350,7 +350,7 @@ describe('createWebSocketRequest', () => {
 
       vi.advanceTimersByTime(5000)
 
-      await expect(promise).rejects.toThrow('Request timeout: test:request')
+      await expect(promise).rejects.toThrow('請求逾時：test:request')
 
       vi.useRealTimers()
     })

@@ -181,7 +181,7 @@ describe('Store 覆蓋率測試', () => {
           y: 0,
           rotation: 0,
         });
-      }).toThrow('Canvas not found');
+      }).toThrow('找不到 Canvas：');
     });
   });
 

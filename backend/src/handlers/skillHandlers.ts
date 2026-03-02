@@ -90,7 +90,7 @@ export async function handleSkillImport(
 
     const result = await skillService.import(fileName, fileData, fileSize);
 
-    logger.log('Skill', 'Create', `Skill import - connectionId: ${connectionId}, fileName: ${fileName}, fileSize: ${fileSize}, skillId: ${result.skill.id}, isOverwrite: ${result.isOverwrite}`);
+    logger.log('Skill', 'Create', `匯入 Skill - connectionId: ${connectionId}, 檔案名稱: ${fileName}, 檔案大小: ${fileSize}, skillId: ${result.skill.id}, 是否覆寫: ${result.isOverwrite}`);
 
     const response: SkillImportedPayload = {
         requestId,

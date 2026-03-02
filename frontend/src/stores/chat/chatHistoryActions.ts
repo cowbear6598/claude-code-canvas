@@ -41,7 +41,7 @@ export function createHistoryActions(store: ChatStoreInstance, messageActions: M
         }
 
         if (!store.isConnected) {
-            const error = 'WebSocket not connected'
+            const error = 'WebSocket 尚未連線'
             setHistoryLoadingStatus(podId, 'error')
             setHistoryLoadingError(podId, error)
             throw new Error(error)

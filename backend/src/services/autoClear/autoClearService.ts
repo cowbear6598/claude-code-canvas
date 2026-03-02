@@ -130,7 +130,7 @@ class AutoClearService {
         const result = await workflowClearService.clearWorkflow(canvasId, sourcePodId);
 
         if (!result.success) {
-            logger.error('AutoClear', 'Error', `Failed to execute auto-clear: ${result.error}`);
+            logger.error('AutoClear', 'Error', `執行自動清除失敗：${result.error}`);
             return;
         }
 

@@ -37,7 +37,7 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
             emitError(
                 connectionId,
                 WebSocketResponseEvents.POD_ERROR,
-                `Pod ${podId} is currently ${pod.status}, please wait`,
+                `Pod ${podId} 目前正在 ${pod.status}，請稍後再試`,
                 requestId,
                 podId,
                 'POD_BUSY'
@@ -70,12 +70,12 @@ export const handleChatSend = withCanvasId<ChatSendPayload>(
                     fireAndForget(
                         autoClearService.onPodComplete(canvasId, podId),
                         'AutoClear',
-                        `Failed to check auto-clear for Pod ${podId}`
+                        `檢查 Pod「${podId}」自動清除失敗`
                     );
                     fireAndForget(
                         workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId),
                         'Workflow',
-                        `Failed to check auto-trigger workflows for Pod ${podId}`
+                        `檢查 Pod「${podId}」自動觸發 Workflow 失敗`
                     );
                 },
                 onAborted: async (canvasId, podId, messageId) => {
@@ -135,7 +135,7 @@ export const handleChatHistory = withCanvasId<ChatHistoryPayload>(
             socketService.emitToConnection(connectionId, WebSocketResponseEvents.POD_CHAT_HISTORY_RESULT, {
                 requestId,
                 success: false,
-                error: `Pod 找不到: ${podId}`,
+                error: `找不到 Pod：${podId}`,
             });
             return;
         }

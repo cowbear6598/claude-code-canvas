@@ -638,7 +638,7 @@ describe('canvasStore', () => {
       store.reorderCanvases(999, 0)
 
       expect(store.canvases[0]?.id).toBe('canvas-1')
-      expect(console.warn).toHaveBeenCalledWith('[CanvasStore] Canvas not found at index:', 999)
+      expect(console.warn).toHaveBeenCalledWith('[CanvasStore] 找不到索引位置的 Canvas:', 999)
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
   })

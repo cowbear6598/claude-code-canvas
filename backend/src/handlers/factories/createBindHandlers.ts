@@ -137,15 +137,15 @@ export function createUnbindHandler<TService>(
     config: BindResourceConfig<TService>
 ): ReturnType<typeof withCanvasId<{podId: string}>> {
     if (config.isMultiBind) {
-        throw new Error('Unbind handler is only for single bind mode');
+        throw new Error('解綁處理器僅限單一綁定模式使用');
     }
 
     if (!config.events.unbound) {
-        throw new Error('Unbind event is required for unbind handler');
+        throw new Error('解綁處理器必須提供解綁事件');
     }
 
     if (!config.podStoreMethod.unbind) {
-        throw new Error('Unbind method is required for unbind handler');
+        throw new Error('解綁處理器必須提供解綁方法');
     }
 
     return withCanvasId<{podId: string}>(

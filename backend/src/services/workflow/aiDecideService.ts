@@ -122,7 +122,7 @@ class AiDecideService {
       } else {
         errors.push({
           connectionId: conn.id,
-          error: 'No decision returned for this connection',
+          error: '此連線未獲得 AI 決策結果',
         });
       }
     }
@@ -140,17 +140,17 @@ class AiDecideService {
   > {
     const sourceSummary = await this.generateSourceSummary(canvasId, sourcePodId);
     if (!sourceSummary) {
-      return { valid: false, error: this.buildDecisionErrors(connections, 'Failed to generate source summary') };
+      return { valid: false, error: this.buildDecisionErrors(connections, '無法生成來源 Pod 摘要') };
     }
 
     const sourcePod = podStore.getById(canvasId, sourcePodId);
     if (!sourcePod) {
-      return { valid: false, error: this.buildDecisionErrors(connections, 'Source Pod not found') };
+      return { valid: false, error: this.buildDecisionErrors(connections, '找不到來源 Pod') };
     }
 
     const targets = await this.buildTargetInfos(canvasId, connections);
     if (targets.length === 0) {
-      return { valid: false, error: this.buildDecisionErrors(connections, 'No valid target pods found') };
+      return { valid: false, error: this.buildDecisionErrors(connections, '找不到有效的目標 Pod') };
     }
 
     return { valid: true, sourcePod, sourceSummary, targets };
@@ -176,18 +176,18 @@ class AiDecideService {
     try {
       decisionResults = await this.executeDecision(sourcePod, sourceSummary, targets);
     } catch (error) {
-      logger.error('Workflow', 'Error', '[AiDecideService] Claude API request failed', error);
+      logger.error('Workflow', 'Error', '[AiDecideService] Claude API 請求失敗', error);
       return this.buildDecisionErrors(connections, getErrorMessage(error));
     }
 
     if (!decisionResults) {
-      logger.error('Workflow', 'Error', '[AiDecideService] Custom Tool handler was not called');
-      return this.buildDecisionErrors(connections, 'AI decision tool was not executed');
+      logger.error('Workflow', 'Error', '[AiDecideService] Custom Tool handler 未被呼叫');
+      return this.buildDecisionErrors(connections, 'AI 決策工具未被執行');
     }
 
     if (!decisionResults.decisions || !Array.isArray(decisionResults.decisions)) {
-      logger.error('Workflow', 'Error', '[AiDecideService] Invalid decision results format');
-      return this.buildDecisionErrors(connections, 'Invalid AI decision format');
+      logger.error('Workflow', 'Error', '[AiDecideService] 決策結果格式無效');
+      return this.buildDecisionErrors(connections, 'AI 決策結果格式無效');
     }
 
     return this.mapDecisionResults(connections, decisionResults);
@@ -223,7 +223,7 @@ class AiDecideService {
     for (const conn of connections) {
       const targetPod = podStore.getById(canvasId, conn.targetPodId);
       if (!targetPod) {
-        logger.log('Workflow', 'Update', `[AiDecideService] Target Pod ${conn.targetPodId} not found`);
+        logger.log('Workflow', 'Update', `[AiDecideService] 找不到目標 Pod ${conn.targetPodId}`);
         continue;
       }
 
@@ -261,7 +261,7 @@ ${conversationHistory}
     });
 
     if (!result.success) {
-      logger.log('Workflow', 'Update', `[AiDecideService] Failed to generate summary, using fallback`);
+      logger.log('Workflow', 'Update', `[AiDecideService] 生成摘要失敗，使用備用內容`);
       return getLastAssistantMessage(sourcePodId);
     }
 

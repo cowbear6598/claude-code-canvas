@@ -147,7 +147,7 @@ class RepositoryService {
     const repositoryPath = this.getRepositoryPath(repositoryId);
 
     if (!isPathWithinDirectory(repositoryPath, config.repositoriesRoot)) {
-      throw new Error(`Invalid repository path: ${repositoryId}`);
+      throw new Error(`無效的 Repository 路徑：${repositoryId}`);
     }
 
     await fs.rm(repositoryPath, { recursive: true, force: true });

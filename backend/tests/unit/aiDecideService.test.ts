@@ -316,7 +316,7 @@ describe('AiDecideService', () => {
       expect(result.results).toHaveLength(2);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].connectionId).toBe('conn-3');
-      expect(result.errors[0].error).toBe('No decision returned for this connection');
+      expect(result.errors[0].error).toBe('此連線未獲得 AI 決策結果');
     });
   });
 
@@ -349,7 +349,7 @@ describe('AiDecideService', () => {
       expect(result.results).toHaveLength(0);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].connectionId).toBe('conn-1');
-      expect(result.errors[0].error).toBe('AI decision tool was not executed');
+      expect(result.errors[0].error).toBe('AI 決策工具未被執行');
     });
   });
 

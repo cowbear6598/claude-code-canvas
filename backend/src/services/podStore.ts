@@ -31,7 +31,7 @@ class PodStore {
     private persistPodAsync(canvasId: string, pod: Pod, claudeSessionId?: string): void {
         const canvasDir = canvasStore.getCanvasDir(canvasId);
         if (!canvasDir) {
-            logger.error('Pod', 'Error', `[PodStore] Canvas not found for Pod ${pod.id}`);
+            logger.error('Pod', 'Error', `[PodStore] 找不到 Pod ${pod.id} 所屬的 Canvas`);
             return;
         }
 
@@ -70,7 +70,7 @@ class PodStore {
         const canvasDir = canvasStore.getCanvasDir(canvasId);
 
         if (!canvasDir) {
-            throw new Error(`Canvas not found: ${canvasId}`);
+            throw new Error(`找不到 Canvas：${canvasId}`);
         }
 
         const pod: Pod = {
@@ -191,7 +191,7 @@ class PodStore {
 
         const canvasDir = canvasStore.getCanvasDir(canvasId);
         if (!canvasDir) {
-            logger.error('Pod', 'Delete', `[PodStore] Canvas not found for Pod ${id}`);
+            logger.error('Pod', 'Delete', `[PodStore] 找不到 Pod ${id} 所屬的 Canvas`);
             return false;
         }
 

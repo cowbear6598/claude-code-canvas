@@ -227,7 +227,7 @@ describe('WorkflowAiDecideTriggerService', () => {
       expect(logger.log).toHaveBeenCalledWith(
         'Workflow',
         'Create',
-        expect.stringContaining('AI Decide approved connection conn-ai-1')
+        expect.stringContaining('AI Decide 核准連線 conn-ai-1')
       );
     });
 
@@ -266,7 +266,7 @@ describe('WorkflowAiDecideTriggerService', () => {
       expect(logger.log).toHaveBeenCalledWith(
         'Workflow',
         'Update',
-        expect.stringContaining('AI Decide rejected connection conn-ai-1')
+        expect.stringContaining('AI Decide 拒絕連線 conn-ai-1')
       );
     });
 
@@ -304,7 +304,7 @@ describe('WorkflowAiDecideTriggerService', () => {
       expect(logger.error).toHaveBeenCalledWith(
         'Workflow',
         'Error',
-        expect.stringContaining('AI Decide error for connection conn-ai-1')
+        expect.stringContaining('AI Decide 發生錯誤，連線 conn-ai-1')
       );
     });
 
@@ -560,7 +560,7 @@ describe('WorkflowAiDecideTriggerService', () => {
       expect(logger.error).toHaveBeenCalledWith(
         'Workflow',
         'Error',
-        expect.stringContaining('Failed to execute AI-decided workflow'),
+        expect.stringContaining('AI Decide Workflow 執行失敗，連線'),
         pipelineError
       );
 

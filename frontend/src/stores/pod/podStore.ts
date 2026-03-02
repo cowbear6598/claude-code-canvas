@@ -134,7 +134,7 @@ export const usePodStore = defineStore('pod', {
                 })
 
                 if (!response.pod) {
-                    throw new Error('Pod creation failed: no pod returned')
+                    throw new Error('Pod 建立失敗：後端未回傳 Pod 資料')
                 }
 
                 showSuccessToast('Pod', '建立成功', pod.name)

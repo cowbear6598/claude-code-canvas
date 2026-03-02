@@ -598,8 +598,8 @@ describe('podStore', () => {
           commandId: null,
           schedule: null,
         })
-      ).rejects.toThrow('Pod creation failed: no pod returned')
-      expect(mockShowErrorToast).toHaveBeenCalledWith('Pod', '建立失敗', 'Pod creation failed: no pod returned')
+      ).rejects.toThrow('Pod 建立失敗：後端未回傳 Pod 資料')
+      expect(mockShowErrorToast).toHaveBeenCalledWith('Pod', '建立失敗', 'Pod 建立失敗：後端未回傳 Pod 資料')
     })
 
     it('失敗時應顯示錯誤 Toast 並 throw', async () => {

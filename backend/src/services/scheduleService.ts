@@ -96,7 +96,7 @@ class ScheduleService {
 
   start(): void {
     if (this.tickInterval) {
-      logger.log('Schedule', 'Update', 'Scheduler already running');
+      logger.log('Schedule', 'Update', '排程器已在運行中');
       return;
     }
 
@@ -111,7 +111,7 @@ class ScheduleService {
     if (this.tickInterval) {
       clearInterval(this.tickInterval);
       this.tickInterval = null;
-      logger.log('Schedule', 'Delete', 'Schedule scheduler stopped');
+      logger.log('Schedule', 'Delete', '排程器已停止');
     }
   }
 
@@ -124,7 +124,7 @@ class ScheduleService {
         fireAndForget(
           this.fireSchedule(canvasId, pod, now),
           'Schedule',
-          `Failed to fire schedule for Pod ${pod.id}`
+          `觸發 Pod「${pod.id}」排程失敗`
         );
       }
     }
@@ -137,7 +137,7 @@ class ScheduleService {
 
   private async fireSchedule(canvasId: string, pod: Pod, now: Date): Promise<void> {
     if (pod.status !== 'idle') {
-      logger.log('Schedule', 'Update', `Pod ${pod.id} is busy, skipping schedule fire`);
+      logger.log('Schedule', 'Update', `Pod「${pod.id}」正忙碌，跳過排程觸發`);
       return;
     }
 
@@ -148,7 +148,7 @@ class ScheduleService {
       timestamp: now.toISOString(),
     });
 
-    logger.log('Schedule', 'Update', `Schedule fired for Pod ${pod.id}`);
+    logger.log('Schedule', 'Update', `Pod「${pod.id}」排程已觸發`);
 
     await this.sendScheduleMessage(canvasId, pod.id);
   }
@@ -177,7 +177,7 @@ class ScheduleService {
         }
       );
     } catch (error) {
-      logger.error('Schedule', 'Error', `Failed to execute schedule message for Pod ${podId}`, error);
+      logger.error('Schedule', 'Error', `執行 Pod「${podId}」排程訊息失敗`, error);
       throw error;
     }
   }

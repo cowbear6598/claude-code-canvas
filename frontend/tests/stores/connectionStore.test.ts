@@ -318,7 +318,7 @@ describe('connectionStore', () => {
       const result = await store.createConnection('pod-a', 'bottom', 'pod-a', 'top')
 
       expect(result).toBeNull()
-      expect(console.warn).toHaveBeenCalledWith('[ConnectionStore] Cannot connect pod to itself')
+      expect(console.warn).toHaveBeenCalledWith('[ConnectionStore] 無法將 Pod 連接到自身')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 

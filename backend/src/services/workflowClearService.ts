@@ -70,7 +70,7 @@ class WorkflowClearService {
         clearedPodIds: [],
         clearedPodNames: [],
         clearedConnectionIds: [],
-        error: `Canvas not found: ${canvasId}`,
+        error: `找不到 Canvas：${canvasId}`,
       };
     }
 
@@ -95,7 +95,7 @@ class WorkflowClearService {
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      logger.error('AutoClear', 'Error', `[WorkflowClear] Failed to clear workflow: ${errorMessage}`);
+      logger.error('AutoClear', 'Error', `[WorkflowClear] 清除 Workflow 失敗：${errorMessage}`);
 
       return {
         success: false,
@@ -119,7 +119,7 @@ class WorkflowClearService {
 
     const clearResult = await chatPersistenceService.clearChatHistory(canvasDir, podId);
     if (!clearResult.success) {
-      logger.error('AutoClear', 'Error', `[WorkflowClear] Error clearing chat history for Pod ${podId}: ${clearResult.error}`);
+      logger.error('AutoClear', 'Error', `[WorkflowClear] 清除 Pod ${podId} 的聊天紀錄時發生錯誤：${clearResult.error}`);
     }
 
     podStore.setClaudeSessionId(canvasId, podId, '');

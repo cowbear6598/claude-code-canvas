@@ -73,7 +73,7 @@ class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps>
 
     if (hasRejection) {
       const targetPod = podStore.getById(canvasId, connection.targetPodId);
-      logger.log('Workflow', 'Update', `Target "${targetPod?.name ?? connection.targetPodId}" has rejected sources, not triggering`);
+      logger.log('Workflow', 'Update', `目標「${targetPod?.name ?? connection.targetPodId}」有被拒絕的來源，不觸發`);
       workflowStateService.emitPendingStatus(canvasId, connection.targetPodId);
       await autoClearService.onGroupNotTriggered(canvasId, connection.targetPodId);
       return;

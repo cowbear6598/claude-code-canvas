@@ -52,7 +52,7 @@ export async function createWebSocketRequest<TPayload extends { requestId: strin
 
     return new Promise<TResult>((resolve, reject) => {
         if (!websocketClient.isConnected.value) {
-            reject(new Error('WebSocket not connected'))
+            reject(new Error('WebSocket 尚未連線'))
             return
         }
 
@@ -76,7 +76,7 @@ export async function createWebSocketRequest<TPayload extends { requestId: strin
             websocketClient.off(responseEvent, handleResponse)
 
             if (responseWithBase.success === false) {
-                const error = responseWithBase.error || 'Unknown error'
+                const error = responseWithBase.error || '未知錯誤'
                 reject(new Error(error))
                 return
             }
@@ -93,7 +93,7 @@ export async function createWebSocketRequest<TPayload extends { requestId: strin
 
         timeoutId = setTimeout(() => {
             websocketClient.off(responseEvent, handleResponse)
-            reject(new Error(`Request timeout: ${requestEvent}`))
+            reject(new Error(`請求逾時：${requestEvent}`))
         }, timeout)
     })
 }

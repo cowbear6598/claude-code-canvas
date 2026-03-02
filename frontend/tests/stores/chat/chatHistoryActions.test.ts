@@ -175,10 +175,10 @@ describe('chatHistoryActions', () => {
       mockWebSocketClient.isConnected.value = false
       chatStore.connectionStatus = 'disconnected'
 
-      await expect(chatStore.loadPodChatHistory('pod-1')).rejects.toThrow('WebSocket not connected')
+      await expect(chatStore.loadPodChatHistory('pod-1')).rejects.toThrow('WebSocket 尚未連線')
 
       expect(chatStore.getHistoryLoadingStatus('pod-1')).toBe('error')
-      expect(chatStore.historyLoadingError.get('pod-1')).toBe('WebSocket not connected')
+      expect(chatStore.historyLoadingError.get('pod-1')).toBe('WebSocket 尚未連線')
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
 

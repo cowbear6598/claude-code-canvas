@@ -51,17 +51,17 @@ class SummaryService {
   async generateSummaryForTarget(canvasId: string, sourcePodId: string, targetPodId: string): Promise<TargetSummaryResult> {
     const sourcePod = podStore.getById(canvasId, sourcePodId);
     if (!sourcePod) {
-      return { targetPodId, summary: '', success: false, error: `Source Pod ${sourcePodId} not found` };
+      return { targetPodId, summary: '', success: false, error: `找不到來源 Pod：${sourcePodId}` };
     }
 
     const targetPod = podStore.getById(canvasId, targetPodId);
     if (!targetPod) {
-      return { targetPodId, summary: '', success: false, error: `Target Pod ${targetPodId} not found` };
+      return { targetPodId, summary: '', success: false, error: `找不到目標 Pod：${targetPodId}` };
     }
 
     const messages = messageStore.getMessages(sourcePodId);
     if (messages.length === 0) {
-      return { targetPodId, summary: '', success: false, error: `Source Pod ${sourcePodId} has no messages` };
+      return { targetPodId, summary: '', success: false, error: `來源 Pod ${sourcePodId} 沒有訊息記錄` };
     }
 
     const context = await buildSummaryContext(sourcePod, targetPod, messages);
@@ -75,7 +75,7 @@ class SummaryService {
     });
 
     if (!result.success) {
-      logger.error('Workflow', 'Error', `[SummaryService] Failed to generate summary for target ${targetPodId}: ${result.error}`);
+      logger.error('Workflow', 'Error', `[SummaryService] 無法為目標 ${targetPodId} 生成摘要：${result.error}`);
 
       const fallbackContent = getLastAssistantMessage(sourcePodId);
       if (fallbackContent !== null) {

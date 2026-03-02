@@ -81,7 +81,7 @@ export const useCanvasStore = defineStore('canvas', {
             this.activeCanvasId = firstCanvas.id
           }
         } else {
-          console.warn('[CanvasStore] No canvases returned from backend')
+          console.warn('[CanvasStore] 後端未回傳任何 Canvas')
         }
       } finally {
         this.isLoading = false
@@ -244,7 +244,7 @@ export const useCanvasStore = defineStore('canvas', {
     reorderCanvases(fromIndex: number, toIndex: number): void {
       const canvas = this.canvases[fromIndex]
       if (!canvas) {
-        console.warn('[CanvasStore] Canvas not found at index:', fromIndex)
+        console.warn('[CanvasStore] 找不到索引位置的 Canvas:', fromIndex)
         return
       }
 

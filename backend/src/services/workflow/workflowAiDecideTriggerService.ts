@@ -245,7 +245,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     );
     const sourcePod = this.deps.podStore.getById(canvasId, sourcePodId);
     const targetPod = this.deps.podStore.getById(canvasId, conn.targetPodId);
-    logger.error('Workflow', 'Error', `AI Decide error for connection ${conn.id} ("${sourcePod?.name ?? sourcePodId}" → "${targetPod?.name ?? conn.targetPodId}"): ${errorMessage}`);
+    logger.error('Workflow', 'Error', `AI Decide 發生錯誤，連線 ${conn.id}（「${sourcePod?.name ?? sourcePodId}」→「${targetPod?.name ?? conn.targetPodId}」）：${errorMessage}`);
   }
 
   private handleApprovedConnection(
@@ -267,7 +267,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     );
     const sourcePod = this.deps.podStore.getById(canvasId, sourcePodId);
     const targetPod = this.deps.podStore.getById(canvasId, conn.targetPodId);
-    logger.log('Workflow', 'Create', `AI Decide approved connection ${conn.id} ("${sourcePod?.name ?? sourcePodId}" → "${targetPod?.name ?? conn.targetPodId}"): ${decideResult.reason}`);
+    logger.log('Workflow', 'Create', `AI Decide 核准連線 ${conn.id}（「${sourcePod?.name ?? sourcePodId}」→「${targetPod?.name ?? conn.targetPodId}」）：${decideResult.reason}`);
 
     const pipelineContext: PipelineContext = {
       canvasId,
@@ -278,7 +278,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     };
 
     this.deps.pipeline.execute(pipelineContext, this).catch((error: unknown) => {
-      logger.error('Workflow', 'Error', `Failed to execute AI-decided workflow ${conn.id}`, error);
+      logger.error('Workflow', 'Error', `AI Decide Workflow 執行失敗，連線 ${conn.id}`, error);
       this.deps.eventEmitter.emitWorkflowComplete(
         canvasId,
         conn.id,
@@ -310,7 +310,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     );
     const sourcePod = this.deps.podStore.getById(canvasId, sourcePodId);
     const targetPod = this.deps.podStore.getById(canvasId, conn.targetPodId);
-    logger.log('Workflow', 'Update', `AI Decide rejected connection ${conn.id} ("${sourcePod?.name ?? sourcePodId}" → "${targetPod?.name ?? conn.targetPodId}"): ${decideResult.reason}`);
+    logger.log('Workflow', 'Update', `AI Decide 拒絕連線 ${conn.id}（「${sourcePod?.name ?? sourcePodId}」→「${targetPod?.name ?? conn.targetPodId}」）：${decideResult.reason}`);
 
     const { isMultiInput } = this.deps.stateService.checkMultiInputScenario(canvasId, conn.targetPodId);
     if (isMultiInput && this.deps.pendingTargetStore.hasPendingTarget(conn.targetPodId)) {

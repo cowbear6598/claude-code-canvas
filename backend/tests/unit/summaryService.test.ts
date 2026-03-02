@@ -184,7 +184,7 @@ describe('SummaryService', () => {
       const result = await summaryService.generateSummaryForTarget('canvas-1', 'nonexistent', 'target-pod');
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Source Pod nonexistent not found');
+      expect(result.error).toContain('找不到來源 Pod：nonexistent');
     });
 
     it('Target Pod 不存在時回傳錯誤', async () => {
@@ -196,7 +196,7 @@ describe('SummaryService', () => {
       const result = await summaryService.generateSummaryForTarget('canvas-1', 'source-pod', 'nonexistent');
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Target Pod nonexistent not found');
+      expect(result.error).toContain('找不到目標 Pod：nonexistent');
     });
 
     it('Source Pod 沒有訊息時回傳錯誤', async () => {
@@ -205,7 +205,57 @@ describe('SummaryService', () => {
       const result = await summaryService.generateSummaryForTarget('canvas-1', 'source-pod', 'target-pod');
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('has no messages');
+      expect(result.error).toContain('沒有訊息記錄');
+    });
+
+    it('claude 執行失敗但有 fallback 訊息時，應回傳 success: true 並使用 fallback 內容', async () => {
+      (claudeService.executeDisposableChat as any).mockResolvedValue({
+        success: false,
+        error: 'claude 發生錯誤',
+      });
+
+      const messagesWithAssistant: any[] = [
+        {
+          id: 'msg-1',
+          role: 'user' as const,
+          content: 'Hello',
+          timestamp: new Date().toISOString(),
+        },
+        {
+          id: 'msg-2',
+          role: 'assistant' as const,
+          content: 'fallback content',
+          timestamp: new Date().toISOString(),
+        },
+      ];
+      (messageStore.getMessages as any).mockReturnValue(messagesWithAssistant);
+
+      const result = await summaryService.generateSummaryForTarget('canvas-1', 'source-pod', 'target-pod');
+
+      expect(result.success).toBe(true);
+      expect(result.summary).toBe('fallback content');
+    });
+
+    it('claude 執行失敗且無 fallback 訊息時，應回傳 success: false', async () => {
+      (claudeService.executeDisposableChat as any).mockResolvedValue({
+        success: false,
+        error: 'some error',
+      });
+
+      const messagesWithoutAssistant: any[] = [
+        {
+          id: 'msg-1',
+          role: 'user' as const,
+          content: 'Hello',
+          timestamp: new Date().toISOString(),
+        },
+      ];
+      (messageStore.getMessages as any).mockReturnValue(messagesWithoutAssistant);
+
+      const result = await summaryService.generateSummaryForTarget('canvas-1', 'source-pod', 'target-pod');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('some error');
     });
   });
 });

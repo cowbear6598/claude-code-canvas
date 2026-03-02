@@ -174,7 +174,7 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
   async saveToDisk(canvasId: string): Promise<Result<void>> {
     const canvasDataDir = canvasStore.getCanvasDataDir(canvasId);
     if (!canvasDataDir) {
-      return err('Canvas not found');
+      return err('找不到 Canvas');
     }
 
     const notesFilePath = path.join(canvasDataDir, this.config.fileName);

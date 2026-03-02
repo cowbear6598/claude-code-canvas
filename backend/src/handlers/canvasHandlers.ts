@@ -50,7 +50,7 @@ export async function handleCanvasCreate(
 ): Promise<void> {
   const result = await canvasStore.create(payload.name);
 
-  const success = handleCanvasResult(
+  handleCanvasResult(
     connectionId,
     result,
     WebSocketResponseEvents.CANVAS_CREATED,
@@ -62,8 +62,6 @@ export async function handleCanvasCreate(
     }),
     true
   );
-
-  if (!success) return;
 }
 
 export async function handleCanvasList(
@@ -86,7 +84,7 @@ export async function handleCanvasRename(
 ): Promise<void> {
   const result = await canvasStore.rename(payload.canvasId, payload.newName);
 
-  const success = handleCanvasResult(
+  handleCanvasResult(
     connectionId,
     result,
     WebSocketResponseEvents.CANVAS_RENAMED,
@@ -103,8 +101,6 @@ export async function handleCanvasRename(
     }),
     true
   );
-
-  if (!success) return;
 }
 
 export async function handleCanvasDelete(
@@ -202,5 +198,5 @@ export async function handleCanvasReorder(
 
   if (!success) return;
 
-  logger.log('Canvas', 'Reorder', `Canvases reordered: ${payload.canvasIds.length} items`);
+  logger.log('Canvas', 'Reorder', `已重新排序 Canvas：${payload.canvasIds.length} 個`);
 }

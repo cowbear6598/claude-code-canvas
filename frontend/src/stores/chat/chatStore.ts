@@ -186,7 +186,7 @@ export const useChatStore = defineStore('chat', {
 
         async sendMessage(podId: string, content: string, contentBlocks?: ContentBlock[]): Promise<void> {
             if (!this.isConnected) {
-                throw new Error('WebSocket not connected')
+                throw new Error('WebSocket 尚未連線')
             }
 
             const podStore = usePodStore()

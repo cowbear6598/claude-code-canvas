@@ -219,7 +219,7 @@ class ConnectionStore {
     async saveToDisk(canvasId: string): Promise<Result<void>> {
         const canvasDataDir = canvasStore.getCanvasDataDir(canvasId);
         if (!canvasDataDir) {
-            return err('Canvas not found');
+            return err('找不到 Canvas');
         }
 
         const connectionsFilePath = path.join(canvasDataDir, 'connections.json');
