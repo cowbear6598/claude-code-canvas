@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.3.0] - 2026-03-03
+
+### 新增
+- Slack 整合（型別定義、資料層、連線層、MCP Server、事件串接）
+- slack_reply tool 參數驗證加強
+- GitHub Actions CI/CD 流程
+- REST API 端點（Canvas 刪除、Pod 查詢/建立/刪除）
+- Pod 名稱唯一性檢查與自動編號
+- WebSocket ResultPayload 通用介面
+
+### 修正
+- 修正 handleNullResponse 行為變更與型別安全問題
+- 修正 claudeService 雙重型別轉換
+- 修正 fileExists 對目錄路徑永遠回傳 false 的 bug
+- 新增 VFS 型別宣告 stub（修復 TS2307 錯誤）
+- Logger 訊息改為中文並顯示 entity name
+
+### 重構
+- 大規模程式碼品質提升（邏輯優化、重複程式碼消除、型別安全改善）
+- 統一錯誤訊息與 logger 為繁體中文
+- 抽取共用函式與工廠模式，消除重複程式碼
+- 合併共用 Zod Schema，消除重複定義
+- 移除不必要的資料欄位，修正前後端欄位不匹配
+- 刪除無意義註解與過時文件
+
 ## [0.2.2] - 2026-03-01
 
 ### 新增
