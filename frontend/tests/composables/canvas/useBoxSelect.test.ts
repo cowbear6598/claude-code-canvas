@@ -7,7 +7,7 @@ import { useBoxSelect } from '@/composables/canvas/useBoxSelect'
 import { useSelectionStore } from '@/stores/pod/selectionStore'
 import { useViewportStore } from '@/stores/pod/viewportStore'
 import { usePodStore } from '@/stores/pod/podStore'
-import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore } from '@/stores/note'
+import { useOutputStyleStore, useSkillStore, useSubAgentStore, useRepositoryStore, useCommandStore, useMcpServerStore } from '@/stores/note'
 
 // Mock useCanvasContext
 vi.mock('@/composables/canvas/useCanvasContext', () => ({
@@ -20,6 +20,7 @@ vi.mock('@/composables/canvas/useCanvasContext', () => ({
     subAgentStore: useSubAgentStore(),
     repositoryStore: useRepositoryStore(),
     commandStore: useCommandStore(),
+    mcpServerStore: useMcpServerStore(),
   }),
 }))
 
@@ -518,6 +519,7 @@ describe('useBoxSelect', () => {
       const repositoryStore = useRepositoryStore()
       const subAgentStore = useSubAgentStore()
       const commandStore = useCommandStore()
+      const mcpServerStore = useMcpServerStore()
 
       viewportStore.zoom = 2
       viewportStore.offset = { x: 50, y: 100 }
@@ -567,7 +569,8 @@ describe('useBoxSelect', () => {
         skillStore.notes,
         repositoryStore.notes,
         subAgentStore.notes,
-        commandStore.notes
+        commandStore.notes,
+        mcpServerStore.notes
       )
     })
   })

@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import {requestIdSchema, podIdSchema, canvasIdSchema, resourceIdSchema, noteUpdateBaseSchema, createNoteCreateSchema} from './base.js';
+import {requestIdSchema, podIdSchema, canvasIdSchema, resourceIdSchema, noteUpdateBaseSchema, createNoteCreateSchema, canvasRequestSchema, noteDeleteBaseSchema, podUnbindBaseSchema} from './base.js';
 
 const stdioMcpServerConfigSchema = z.object({
     command: z.string().min(1),
@@ -15,10 +15,7 @@ const httpMcpServerConfigSchema = z.object({
 
 const mcpServerConfigSchema = z.union([stdioMcpServerConfigSchema, httpMcpServerConfigSchema]);
 
-export const mcpServerListSchema = z.object({
-    requestId: requestIdSchema,
-    canvasId: canvasIdSchema,
-});
+export const mcpServerListSchema = canvasRequestSchema;
 
 export const mcpServerCreateSchema = z.object({
     requestId: requestIdSchema,
@@ -49,18 +46,11 @@ export const mcpServerDeleteSchema = z.object({
 
 export const mcpServerNoteCreateSchema = createNoteCreateSchema({ mcpServerId: z.uuid() });
 
-export const mcpServerNoteListSchema = z.object({
-    requestId: requestIdSchema,
-    canvasId: canvasIdSchema,
-});
+export const mcpServerNoteListSchema = canvasRequestSchema;
 
 export const mcpServerNoteUpdateSchema = noteUpdateBaseSchema;
 
-export const mcpServerNoteDeleteSchema = z.object({
-    requestId: requestIdSchema,
-    canvasId: canvasIdSchema,
-    noteId: z.uuid(),
-});
+export const mcpServerNoteDeleteSchema = noteDeleteBaseSchema;
 
 export const podBindMcpServerSchema = z.object({
     requestId: requestIdSchema,
@@ -70,9 +60,7 @@ export const podBindMcpServerSchema = z.object({
 });
 
 export const podUnbindMcpServerSchema = z.object({
-    requestId: requestIdSchema,
-    canvasId: canvasIdSchema,
-    podId: podIdSchema,
+    ...podUnbindBaseSchema.shape,
     mcpServerId: z.uuid(),
 });
 

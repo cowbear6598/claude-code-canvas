@@ -226,7 +226,7 @@ describe('Group 管理', () => {
             );
 
             expect(response.success).toBe(false);
-            expect(response.error).toContain('不存在');
+            expect(response.error).toContain('找不到');
         });
     });
 

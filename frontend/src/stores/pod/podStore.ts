@@ -34,6 +34,11 @@ const MAX_COORD = 100000
 /** 選單關閉後的冷卻時間（毫秒），防止同一次滑鼠操作關閉後立刻重開 */
 const TYPE_MENU_COOLDOWN_MS = 300
 
+const POD_FALLBACK_INITIAL_X = 100
+const POD_FALLBACK_X_SPACING = 300
+const POD_FALLBACK_INITIAL_Y = 150
+const POD_FALLBACK_Y_STAGGER = 100
+
 interface PodStoreState {
     pods: Pod[]
     selectedPodId: string | null
@@ -187,8 +192,8 @@ export const usePodStore = defineStore('pod', {
                 const enriched = this.enrichPod(pod)
                 return {
                     ...enriched,
-                    x: pod.x ?? 100 + (index * 300),
-                    y: pod.y ?? 150 + (index % 2) * 100,
+                    x: pod.x ?? POD_FALLBACK_INITIAL_X + (index * POD_FALLBACK_X_SPACING),
+                    y: pod.y ?? POD_FALLBACK_INITIAL_Y + (index % 2) * POD_FALLBACK_Y_STAGGER,
                 }
             })
             this.pods = enrichedPods.filter(pod => this.isValidPod(pod))

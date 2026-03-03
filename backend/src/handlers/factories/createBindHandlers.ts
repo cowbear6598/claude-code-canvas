@@ -54,6 +54,82 @@ function isResourceAlreadyBound(
     return isAlreadyBoundToSameResource || isAlreadyBoundToDifferentResource;
 }
 
+async function validatePodAndResource<TService extends {exists: (id: string) => Promise<boolean>}, TIdField extends string>(
+    connectionId: string,
+    podId: string,
+    resourceId: string,
+    config: BindResourceConfig<TService, TIdField>,
+    requestId: string
+): Promise<Pod | undefined> {
+    const pod = validatePod(connectionId, podId, config.events.bound, requestId);
+    if (!pod) {
+        return undefined;
+    }
+
+    const resourceExists = await config.service.exists(resourceId);
+    if (!resourceExists) {
+        emitError(
+            connectionId,
+            config.events.bound,
+            `${config.resourceName} 找不到: ${resourceId}`,
+            requestId,
+            podId,
+            'NOT_FOUND'
+        );
+        return undefined;
+    }
+
+    return pod;
+}
+
+function checkConflict<TService, TIdField extends string>(
+    connectionId: string,
+    podId: string,
+    resourceId: string,
+    pod: Pod,
+    config: BindResourceConfig<TService, TIdField>,
+    requestId: string
+): boolean {
+    if (config.skipConflictCheck) {
+        return false;
+    }
+
+    const boundIds = config.getPodResourceIds(pod);
+    if (!isResourceAlreadyBound(boundIds, resourceId, config.isMultiBind)) {
+        return false;
+    }
+
+    const conflictMessage = config.isMultiBind
+        ? `${config.resourceName} ${resourceId} 已綁定到 Pod ${podId}`
+        : `Pod ${podId} 已有 ${config.resourceName.toLowerCase()} ${boundIds} 綁定，請先解綁`;
+
+    emitError(connectionId, config.events.bound, conflictMessage, requestId, podId, 'CONFLICT');
+    return true;
+}
+
+async function performBind<TService, TIdField extends string>(
+    canvasId: string,
+    podId: string,
+    resourceId: string,
+    pod: Pod,
+    config: BindResourceConfig<TService, TIdField>,
+    requestId: string
+): Promise<void> {
+    if (config.copyResourceToPod) {
+        await config.copyResourceToPod(resourceId, pod);
+    }
+
+    config.podStoreMethod.bind(canvasId, podId, resourceId);
+
+    if (!config.skipRepositorySync && pod.repositoryId) {
+        await repositorySyncService.syncRepositoryResources(pod.repositoryId);
+    }
+
+    emitPodUpdated(canvasId, podId, requestId, config.events.bound);
+
+    logger.log(config.resourceName as LogCategory, 'Bind', `已將 ${config.resourceName.toLowerCase()}「${resourceId}」綁定到 Pod「${pod.name}」`);
+}
+
 /**
  * 建立資源綁定處理器
  */
@@ -66,66 +142,24 @@ export function createBindHandler<TService extends {exists: (id: string) => Prom
             const {podId} = payload;
             const resourceId = payload[config.idField];
 
-            const pod = validatePod(connectionId, podId, config.events.bound, requestId);
+            const pod = await validatePodAndResource(connectionId, podId, resourceId, config, requestId);
             if (!pod) {
                 return;
             }
 
-            const resourceExists = await config.service.exists(resourceId);
-            if (!resourceExists) {
-                emitError(
-                    connectionId,
-                    config.events.bound,
-                    `${config.resourceName} 找不到: ${resourceId}`,
-                    requestId,
-                    podId,
-                    'NOT_FOUND'
-                );
+            const hasConflict = checkConflict(connectionId, podId, resourceId, pod, config, requestId);
+            if (hasConflict) {
                 return;
             }
 
-            if (!config.skipConflictCheck) {
-                const boundIds = config.getPodResourceIds(pod);
-                if (isResourceAlreadyBound(boundIds, resourceId, config.isMultiBind)) {
-                    const conflictMessage = config.isMultiBind
-                        ? `${config.resourceName} ${resourceId} 已綁定到 Pod ${podId}`
-                        : `Pod ${podId} 已有 ${config.resourceName.toLowerCase()} ${boundIds} 綁定，請先解綁`;
-
-                    emitError(
-                        connectionId,
-                        config.events.bound,
-                        conflictMessage,
-                        requestId,
-                        podId,
-                        'CONFLICT'
-                    );
-                    return;
-                }
-            }
-
-            if (config.copyResourceToPod) {
-                await config.copyResourceToPod(resourceId, pod);
-            }
-
-            config.podStoreMethod.bind(canvasId, podId, resourceId);
-
-            if (!config.skipRepositorySync && pod.repositoryId) {
-                await repositorySyncService.syncRepositoryResources(pod.repositoryId);
-            }
-
-            emitPodUpdated(canvasId, podId, requestId, config.events.bound);
-
-            logger.log(config.resourceName as LogCategory, 'Bind', `已將 ${config.resourceName.toLowerCase()}「${resourceId}」綁定到 Pod「${pod.name}」`);
+            await performBind(canvasId, podId, resourceId, pod, config, requestId);
         }
     );
 }
 
-/**
- * 建立資源解綁處理器（僅用於單一綁定模式，如 Command）
- */
-export function createUnbindHandler<TService, TIdField extends string>(
+function assertUnbindConfig<TService, TIdField extends string>(
     config: BindResourceConfig<TService, TIdField>
-): ReturnType<typeof withCanvasId<{podId: string}>> {
+): void {
     if (config.isMultiBind) {
         throw new Error('解綁處理器僅限單一綁定模式使用');
     }
@@ -137,6 +171,15 @@ export function createUnbindHandler<TService, TIdField extends string>(
     if (!config.podStoreMethod.unbind) {
         throw new Error('解綁處理器必須提供解綁方法');
     }
+}
+
+/**
+ * 建立資源解綁處理器（僅用於單一綁定模式，如 Command）
+ */
+export function createUnbindHandler<TService, TIdField extends string>(
+    config: BindResourceConfig<TService, TIdField>
+): ReturnType<typeof withCanvasId<{podId: string}>> {
+    assertUnbindConfig(config);
 
     return withCanvasId<{podId: string}>(
         config.events.unbound!,

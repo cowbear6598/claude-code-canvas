@@ -11,7 +11,7 @@ import { workflowClearService } from '../services/workflowClearService.js';
 import { podStore } from '../services/podStore.js';
 import { socketService } from '../services/socketService.js';
 import { workflowEventEmitter } from '../services/workflow';
-import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { emitSuccess, emitError, emitNotFound } from '../utils/websocketResponse.js';
 import { withCanvasId } from '../utils/handlerHelpers.js';
 
 export const handleWorkflowGetDownstreamPods = withCanvasId<WorkflowGetDownstreamPodsPayload>(
@@ -21,14 +21,7 @@ export const handleWorkflowGetDownstreamPods = withCanvasId<WorkflowGetDownstrea
 
     const sourcePod = podStore.getById(canvasId, sourcePodId);
     if (!sourcePod) {
-      emitError(
-        connectionId,
-        WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
-        `找不到來源 Pod: ${sourcePodId}`,
-        requestId,
-        undefined,
-        'NOT_FOUND'
-      );
+      emitNotFound(connectionId, WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT, '來源 Pod', sourcePodId, requestId);
       return;
     }
 
@@ -51,14 +44,7 @@ export const handleWorkflowClear = withCanvasId<WorkflowClearPayload>(
 
     const sourcePod = podStore.getById(canvasId, sourcePodId);
     if (!sourcePod) {
-      emitError(
-        connectionId,
-        WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
-        `找不到來源 Pod: ${sourcePodId}`,
-        requestId,
-        undefined,
-        'NOT_FOUND'
-      );
+      emitNotFound(connectionId, WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, '來源 Pod', sourcePodId, requestId);
       return;
     }
 

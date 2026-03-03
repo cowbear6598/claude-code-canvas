@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { BaseNote } from '@/types'
 import { useSlotDropTarget } from '@/composables/pod/useSlotDropTarget'
 import { useToast } from '@/composables/useToast'
+import { DEFAULT_TOAST_DURATION_MS } from '@/lib/constants'
 
 interface MultiBindNoteResult {
   id: string
@@ -52,7 +53,7 @@ const { isDropTarget, isInserting } = useSlotDropTarget({
       toast({
         title: props.duplicateToastTitle,
         description: props.duplicateToastDescription,
-        duration: 3000,
+        duration: DEFAULT_TOAST_DURATION_MS,
       })
       return false
     }

@@ -1,7 +1,7 @@
 import { WebSocketResponseEvents } from '../../schemas';
 import { groupStore } from '../../services/groupStore.js';
 import { GroupType } from '../../types';
-import { emitError } from '../../utils/websocketResponse.js';
+import { emitNotFound } from '../../utils/websocketResponse.js';
 import { socketService } from '../../services/socketService.js';
 
 interface MoveToGroupConfig<TIdField extends string = string> {
@@ -24,14 +24,14 @@ export function createMoveToGroupHandler<TIdField extends string>(config: MoveTo
 
     const resourceExists = await config.service.exists(resourceId);
     if (!resourceExists) {
-      emitError(connectionId, config.events.moved, `${config.resourceName} 不存在`, requestId, undefined, 'NOT_FOUND');
+      emitNotFound(connectionId, config.events.moved, config.resourceName, resourceId, requestId);
       return;
     }
 
     if (groupId !== null) {
       const groupExists = await groupStore.exists(groupId, config.groupType);
       if (!groupExists) {
-        emitError(connectionId, config.events.moved, 'Group 不存在', requestId, undefined, 'NOT_FOUND');
+        emitNotFound(connectionId, config.events.moved, 'Group', groupId, requestId);
         return;
       }
     }

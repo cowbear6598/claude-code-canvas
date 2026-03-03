@@ -426,6 +426,18 @@ describe('selectionStore', () => {
         expect(store.selectedElements).toEqual([{ type: 'commandNote', id: 'note-1' }])
       })
 
+      it('McpServerNote 與框選範圍相交時應被選中', () => {
+        const store = useSelectionStore()
+        const note = createMockNote('mcpServer', { id: 'note-1', x: 100, y: 100 })
+
+        store.startSelection(50, 50)
+        store.updateSelection(150, 150)
+
+        store.calculateSelectedElements([], [], [], [], [], [], [note])
+
+        expect(store.selectedElements).toEqual([{ type: 'mcpServerNote', id: 'note-1' }])
+      })
+
       it('已綁定的 Note (boundToPodId !== null) 不應被選中', () => {
         const store = useSelectionStore()
         const boundNote = createMockNote('outputStyle', {

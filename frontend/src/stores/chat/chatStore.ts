@@ -28,6 +28,19 @@ import {getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
 
 const ABORT_SAFETY_TIMEOUT_MS = 10_000
 
+function hasMessageContent(content: string, contentBlocks: ContentBlock[] | undefined): boolean {
+    return (contentBlocks?.length ?? 0) > 0 || content.trim().length > 0
+}
+
+function resolveCommand(podId: string): Command | null | undefined {
+    const podStore = usePodStore()
+    const commandStore = useCommandStore()
+    const pod = podStore.pods.find(p => p.id === podId)
+    return pod?.commandId
+        ? commandStore.typedAvailableItems.find(c => c.id === pod.commandId)
+        : null
+}
+
 function buildMessagePayload(
     content: string,
     contentBlocks: ContentBlock[] | undefined,
@@ -189,18 +202,9 @@ export const useChatStore = defineStore('chat', {
                 throw new Error('WebSocket 尚未連線')
             }
 
-            const podStore = usePodStore()
-            const commandStore = useCommandStore()
+            if (!hasMessageContent(content, contentBlocks)) return
 
-            const pod = podStore.pods.find(pod => pod.id === podId)
-            const command = pod?.commandId
-                ? commandStore.typedAvailableItems.find(command => command.id === pod.commandId)
-                : null
-
-            const hasContentBlocks = contentBlocks && contentBlocks.length > 0
-            const hasTextContent = content.trim().length > 0
-            if (!hasContentBlocks && !hasTextContent) return
-
+            const command = resolveCommand(podId)
             const messagePayload = buildMessagePayload(content, contentBlocks, command)
 
             const canvasId = getActiveCanvasIdOrWarn('ChatStore')

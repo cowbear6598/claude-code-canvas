@@ -2,6 +2,10 @@
 import { ref, watch, onUnmounted } from 'vue'
 import { useChatStore } from '@/stores/chat'
 
+const JITTER_REFRESH_INTERVAL_MS = 100
+const TURN_OFF_ANIMATION_DURATION_MS = 500
+const TURN_ON_ANIMATION_DURATION_MS = 600
+
 const chatStore = useChatStore()
 const showOverlay = ref(false)
 const isTurningOn = ref(false)
@@ -42,7 +46,7 @@ const startJitter = (): void => {
     pathData1.value = generateJitterPath(-0.5)
     pathData2.value = generateJitterPath(0)
     pathData3.value = generateJitterPath(0.8)
-  }, 100)
+  }, JITTER_REFRESH_INTERVAL_MS)
 }
 
 const stopJitter = (): void => {
@@ -60,14 +64,14 @@ watch(() => chatStore.connectionStatus, (newStatus) => {
 
     turnOffTimer = setTimeout(() => {
       isTurningOff.value = false
-    }, 500)
+    }, TURN_OFF_ANIMATION_DURATION_MS)
   } else if (newStatus === 'connected' && showOverlay.value) {
     isTurningOn.value = true
     stopJitter()
     turnOnTimer = setTimeout(() => {
       showOverlay.value = false
       isTurningOn.value = false
-    }, 600)
+    }, TURN_ON_ANIMATION_DURATION_MS)
   }
 })
 

@@ -10,7 +10,7 @@ import {mcpServerNoteStore} from '../services/noteStores.js';
 import type {McpServerConfig} from '../types/mcpServer.js';
 import {podStore} from '../services/podStore.js';
 import {socketService} from '../services/socketService.js';
-import {emitError} from '../utils/websocketResponse.js';
+import {emitNotFound} from '../utils/websocketResponse.js';
 import {createNoteHandlers} from './factories/createNoteHandlers.js';
 import {createBindHandler} from './factories/createBindHandlers.js';
 import {createDeleteHandler} from './factories/createResourceHandlers.js';
@@ -73,7 +73,7 @@ export async function handleMcpServerUpdate(
 
     const existing = mcpServerStore.getById(mcpServerId);
     if (!existing) {
-        emitError(connectionId, WebSocketResponseEvents.MCP_SERVER_UPDATED, `MCP Server 找不到: ${mcpServerId}`, requestId, undefined, 'NOT_FOUND');
+        emitNotFound(connectionId, WebSocketResponseEvents.MCP_SERVER_UPDATED, 'MCP Server', mcpServerId, requestId);
         return;
     }
 
@@ -97,7 +97,7 @@ export async function handleMcpServerRead(
 
     const server = mcpServerStore.getById(mcpServerId);
     if (!server) {
-        emitError(connectionId, WebSocketResponseEvents.MCP_SERVER_READ_RESULT, `MCP Server 找不到: ${mcpServerId}`, requestId, undefined, 'NOT_FOUND');
+        emitNotFound(connectionId, WebSocketResponseEvents.MCP_SERVER_READ_RESULT, 'MCP Server', mcpServerId, requestId);
         return;
     }
 

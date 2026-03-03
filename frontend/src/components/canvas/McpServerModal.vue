@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import type { McpServerConfig } from '@/types'
 import { useModalForm } from '@/composables/useModalForm'
 import { RESOURCE_NAME_PATTERN } from '@/lib/validators'
+import { safeJsonParse } from '@/utils/safeJsonParse'
 
 interface Props {
   open: boolean
@@ -81,14 +82,11 @@ const validateArgs = (config: Record<string, unknown>): string | null => {
   return null
 }
 
-const parseAndValidateJson = (jsonText: string): string | null => {
-  let parsed: Record<string, unknown>
+const lastParsed = ref<Record<string, unknown> | null>(null)
 
-  try {
-    parsed = JSON.parse(jsonText) as Record<string, unknown>
-  } catch {
-    return 'JSON 格式錯誤，請檢查語法'
-  }
+const parseAndValidateJson = (jsonText: string): string | null => {
+  const parsed = safeJsonParse<Record<string, unknown>>(jsonText)
+  if (!parsed) return 'JSON 格式錯誤，請檢查語法'
 
   const nameError = validateMcpServerName(parsed)
   if (nameError) return nameError
@@ -96,18 +94,23 @@ const parseAndValidateJson = (jsonText: string): string | null => {
   const name = Object.keys(parsed)[0] as string
   const config = parsed[name] as Record<string, unknown>
 
-  return (
+  const configError =
     validateMcpServerMode(config) ??
     validateStdioConfig(config) ??
     validateHttpConfig(config) ??
     validateArgs(config)
-  )
+
+  if (configError) return configError
+
+  lastParsed.value = parsed
+  return null
 }
 
 const { inputValue: jsonText, errorMessage, handleSubmit, handleClose, resetForm } = useModalForm<string>({
   validator: parseAndValidateJson,
-  onSubmit: async (text) => {
-    const parsed = JSON.parse(text) as Record<string, unknown>
+  onSubmit: async () => {
+    const parsed = lastParsed.value
+    if (!parsed) return '解析結果遺失，請重新提交'
     const name = Object.keys(parsed)[0] as string
     const config = parsed[name] as McpServerConfig
     emit('submit', { name, config })

@@ -254,16 +254,15 @@ export async function handleRepositoryCheckGit(
 
 type WorktreeValidationError = { error: string; errorCode: string } | null;
 
-async function validateWorktreePrerequisites(
-  repositoryPath: string,
-  repositoryId: string,
-  worktreeName: string
-): Promise<WorktreeValidationError> {
+async function checkHasCommits(repositoryPath: string): Promise<WorktreeValidationError> {
   const hasCommitsResult = await gitService.hasCommits(repositoryPath);
   if (!hasCommitsResult.success || !hasCommitsResult.data) {
     return { error: 'Repository 沒有任何 commit，無法建立 Worktree', errorCode: 'INVALID_STATE' };
   }
+  return null;
+}
 
+async function checkTargetPathSafety(repositoryId: string, worktreeName: string): Promise<WorktreeValidationError> {
   const parentDirectory = repositoryService.getParentDirectory();
   const newRepositoryId = `${repositoryId}-${worktreeName}`;
   const targetPath = path.join(parentDirectory, newRepositoryId);
@@ -277,6 +276,10 @@ async function validateWorktreePrerequisites(
     return { error: `資料夾已存在: ${newRepositoryId}`, errorCode: 'ALREADY_EXISTS' };
   }
 
+  return null;
+}
+
+async function checkBranchAvailability(repositoryPath: string, worktreeName: string): Promise<WorktreeValidationError> {
   const branchExistsResult = await gitService.branchExists(repositoryPath, worktreeName);
   if (!branchExistsResult.success) {
     return { error: branchExistsResult.error, errorCode: 'INTERNAL_ERROR' };
@@ -287,6 +290,18 @@ async function validateWorktreePrerequisites(
   }
 
   return null;
+}
+
+async function validateWorktreePrerequisites(
+  repositoryPath: string,
+  repositoryId: string,
+  worktreeName: string
+): Promise<WorktreeValidationError> {
+  return (
+    (await checkHasCommits(repositoryPath)) ??
+    (await checkTargetPathSafety(repositoryId, worktreeName)) ??
+    (await checkBranchAvailability(repositoryPath, worktreeName))
+  );
 }
 
 export async function handleRepositoryWorktreeCreate(
@@ -521,28 +536,27 @@ export const handleRepositoryPullLatest = withValidatedGitRepository<RepositoryP
 
     emitPullProgress(0, '準備 Pull...');
 
-    try {
-      const pullResult = await gitService.pullLatest(repositoryPath, (progress, message) => throttledEmit(progress, message));
-      if (!pullResult.success) {
-        throttledEmit.cancel();
-        handleResultError(pullResult, connectionId, WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT, requestId, 'Pull 失敗');
-        return;
-      }
-
-      throttledEmit.flush();
-      emitPullProgress(100, 'Pull 完成');
-
-      const response: RepositoryPullLatestResultPayload = {
-        requestId,
-        success: true,
-        repositoryId,
-      };
-
-      emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT, response);
-
-      logger.log('Repository', 'Update', `已 Pull「${repositoryId}」的最新版本`);
-    } finally {
+    const pullResult = await gitService.pullLatest(repositoryPath, (progress, message) => throttledEmit(progress, message)).finally(() => {
       pullingRepositories.delete(repositoryId);
+    });
+
+    if (!pullResult.success) {
+      throttledEmit.cancel();
+      handleResultError(pullResult, connectionId, WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT, requestId, 'Pull 失敗');
+      return;
     }
+
+    throttledEmit.flush();
+    emitPullProgress(100, 'Pull 完成');
+
+    const response: RepositoryPullLatestResultPayload = {
+      requestId,
+      success: true,
+      repositoryId,
+    };
+
+    emitSuccess(connectionId, WebSocketResponseEvents.REPOSITORY_PULL_LATEST_RESULT, response);
+
+    logger.log('Repository', 'Update', `已 Pull「${repositoryId}」的最新版本`);
   }
 );

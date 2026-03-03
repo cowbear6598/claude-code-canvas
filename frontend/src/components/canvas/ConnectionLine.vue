@@ -65,22 +65,22 @@ const pathData = computed(() => {
   })
 })
 
+const AI_DECIDE_COLOR_DEFAULT = 'oklch(0.65 0.12 300 / 0.7)'
+
+const AI_DECIDE_COLOR_MAP: Record<string, string> = {
+  'ai-deciding': 'oklch(0.65 0.14 300 / 0.8)',
+  'ai-rejected': 'oklch(0.65 0.15 20)',
+  'ai-error': 'oklch(0.7 0.15 60 / 0.8)',
+  'ai-approved': AI_DECIDE_COLOR_DEFAULT,
+  'active': 'oklch(0.7 0.15 50)',
+  'queued': 'oklch(0.7 0.12 230 / 0.8)',
+}
+
 function getAiDecideColor(status: string): string {
-  if (status === 'ai-deciding') return 'oklch(0.65 0.14 300 / 0.8)'
-  if (status === 'ai-rejected') return 'oklch(0.65 0.15 20)'
-  if (status === 'ai-error') return 'oklch(0.7 0.15 60 / 0.8)'
-  if (status === 'ai-approved') return 'oklch(0.65 0.12 300 / 0.7)'
-  if (status === 'active') return 'oklch(0.7 0.15 50)'
-  if (status === 'queued') return 'oklch(0.7 0.12 230 / 0.8)'
-  return 'oklch(0.65 0.12 300 / 0.7)'
+  return AI_DECIDE_COLOR_MAP[status] ?? AI_DECIDE_COLOR_DEFAULT
 }
 
-function getDirectColor(status: string): string {
-  if (status === 'idle') return 'oklch(0.6 0.02 50 / 0.5)'
-  return 'oklch(0.7 0.15 50)'
-}
-
-function getAutoColor(status: string): string {
+function getStatusColor(status: string): string {
   if (status === 'idle') return 'oklch(0.6 0.02 50 / 0.5)'
   return 'oklch(0.7 0.15 50)'
 }
@@ -89,32 +89,28 @@ const lineColor = computed(() => {
   if (props.triggerMode === 'ai-decide') return getAiDecideColor(props.status)
   if (props.status === 'queued') return 'oklch(0.7 0.12 230 / 0.8)'
   if (props.status === 'waiting') return 'oklch(0.7 0.15 155 / 0.8)'
-  if (props.triggerMode === 'direct') return getDirectColor(props.status)
-  return getAutoColor(props.status)
+  return getStatusColor(props.status)
 })
 
-const midLabel = computed(() => {
-  if (props.triggerMode === 'auto') {
-    return null
-  }
+type MidLabelEntry = { type: string; text: string; class: string } | null
 
-  if (props.triggerMode === 'direct') {
-    return { type: 'direct', text: 'D', class: 'direct-label' }
-  }
+const MID_LABEL_DIRECT: MidLabelEntry = { type: 'direct', text: 'D', class: 'direct-label' }
+const MID_LABEL_AI_DEFAULT: MidLabelEntry = { type: 'ai', text: 'AI', class: 'ai-label' }
 
-  if (props.status === 'ai-deciding') {
-    return { type: 'deciding', text: '', class: 'deciding-label' }
-  }
+const AI_DECIDE_STATUS_LABEL_MAP: Record<string, MidLabelEntry> = {
+  'ai-deciding': { type: 'deciding', text: '', class: 'deciding-label' },
+  'ai-rejected': null,
+  'ai-error': { type: 'error', text: '!', class: 'error-label' },
+}
 
-  if (props.status === 'ai-rejected') {
-    return null
-  }
+const midLabel = computed((): MidLabelEntry => {
+  if (props.triggerMode === 'auto') return null
+  if (props.triggerMode === 'direct') return MID_LABEL_DIRECT
 
-  if (props.status === 'ai-error') {
-    return { type: 'error', text: '!', class: 'error-label' }
-  }
-
-  return { type: 'ai', text: 'AI', class: 'ai-label' }
+  const statusKey = props.status
+  return statusKey in AI_DECIDE_STATUS_LABEL_MAP
+    ? AI_DECIDE_STATUS_LABEL_MAP[statusKey] ?? null
+    : MID_LABEL_AI_DEFAULT
 })
 
 const tooltipText = computed(() => {

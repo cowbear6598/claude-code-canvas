@@ -5,6 +5,7 @@ import { Result, ok, err } from '../../types';
 import { logger } from '../../utils/logger.js';
 import { fsOperation } from '../../utils/operationHelpers.js';
 import { fileExists } from '../shared/fileResourceHelpers.js';
+import { safeJsonParse } from '../../utils/safeJsonParse.js';
 
 class PersistenceService {
   async readJson<T>(filePath: string): Promise<Result<T | null>> {
@@ -22,24 +23,21 @@ class PersistenceService {
       return err(readResult.error);
     }
 
-    try {
-      const data = JSON.parse(readResult.data as string);
-      return ok(data as T);
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        logger.error('Startup', 'Error', `[Persistence] 無效的 JSON 檔案 ${filePath}: ${error.message}`);
-        const backupPath = `${filePath}.corrupted.${Date.now()}`;
-        const backupResult = await fsOperation(
-          () => fs.copyFile(filePath, backupPath),
-          `[Persistence] 備份損壞檔案失敗`
-        );
-        if (backupResult.success) {
-          logger.log('Startup', 'Save', `[Persistence] 已備份損壞的檔案至 ${backupPath}`);
-        }
-        return err(`JSON 檔案格式錯誤: ${filePath}`);
+    const data = safeJsonParse<T>(readResult.data as string);
+    if (data === null) {
+      logger.error('Startup', 'Error', `[Persistence] 無效的 JSON 檔案 ${filePath}`);
+      const backupPath = `${filePath}.corrupted.${Date.now()}`;
+      const backupResult = await fsOperation(
+        () => fs.copyFile(filePath, backupPath),
+        `[Persistence] 備份損壞檔案失敗`
+      );
+      if (backupResult.success) {
+        logger.log('Startup', 'Save', `[Persistence] 已備份損壞的檔案至 ${backupPath}`);
       }
-      return err(`讀取檔案失敗: ${filePath}`);
+      return err(`JSON 檔案格式錯誤: ${filePath}`);
     }
+
+    return ok(data);
   }
 
   async writeJson<T>(filePath: string, data: T): Promise<Result<void>> {

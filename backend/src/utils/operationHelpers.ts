@@ -2,18 +2,18 @@ import { simpleGit } from 'simple-git';
 import { Result, ok, err } from '../types';
 import { logger, type LogCategory } from './logger.js';
 
-export async function gitOperation<T>(
-  operation: () => Promise<T>,
-  errorContext: string
-): Promise<Result<T>> {
-  try {
-    const data = await operation();
-    return ok(data);
-  } catch (error) {
-    logger.error('Git', 'Error', `[Git] ${errorContext}`, error);
-    return err(errorContext);
-  }
+function createOperationRunner(logCategory: LogCategory, logPrefix: string) {
+  return async function<T>(operation: () => Promise<T>, errorContext: string): Promise<Result<T>> {
+    try {
+      return ok(await operation());
+    } catch (error) {
+      logger.error(logCategory, 'Error', `[${logPrefix}] ${errorContext}`, error);
+      return err(errorContext);
+    }
+  };
 }
+
+export const gitOperation = createOperationRunner('Git', 'Git');
 
 export async function gitOperationWithPath<T>(
   workspacePath: string,
@@ -30,18 +30,7 @@ export function resultOrDefault<T>(result: Result<T>, defaultValue: T): Result<T
   return ok(result.data);
 }
 
-export async function fsOperation<T>(
-  operation: () => Promise<T>,
-  errorContext: string
-): Promise<Result<T>> {
-  try {
-    const data = await operation();
-    return ok(data);
-  } catch (error) {
-    logger.error('Workspace', 'Error', `[FS] ${errorContext}`, error);
-    return err(errorContext);
-  }
-}
+export const fsOperation = createOperationRunner('Workspace', 'FS');
 
 export function getGitStageMessage(stage: string): string {
   const stageMessages: Record<string, string> = {

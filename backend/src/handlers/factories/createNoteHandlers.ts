@@ -1,7 +1,7 @@
 import type { GenericNoteStore, BaseNote } from '../../services/GenericNoteStore.js';
 import type { WebSocketResponseEvents } from '../../schemas';
 import { socketService } from '../../services/socketService.js';
-import { emitError } from '../../utils/websocketResponse.js';
+import { emitError, emitNotFound } from '../../utils/websocketResponse.js';
 import { logger } from '../../utils/logger.js';
 import { withCanvasId } from '../../utils/handlerHelpers.js';
 
@@ -72,14 +72,7 @@ export function createNoteHandlers<TNote extends BaseNote, TForeignKey extends s
       if (config.validateBeforeCreate) {
         const isValid = await config.validateBeforeCreate(foreignKeyValue);
         if (!isValid) {
-          emitError(
-            connectionId,
-            events.created,
-            `${entityName} 找不到: ${foreignKeyValue}`,
-            requestId,
-            undefined,
-            'NOT_FOUND'
-          );
+          emitNotFound(connectionId, events.created, entityName, foreignKeyValue, requestId);
           return;
         }
       }
@@ -133,14 +126,7 @@ export function createNoteHandlers<TNote extends BaseNote, TForeignKey extends s
 
       const existingNote = noteStore.getById(canvasId, noteId);
       if (!existingNote) {
-        emitError(
-          connectionId,
-          events.updated,
-          `Note 找不到: ${noteId}`,
-          requestId,
-          undefined,
-          'NOT_FOUND'
-        );
+        emitNotFound(connectionId, events.updated, 'Note', noteId, requestId);
         return;
       }
 
@@ -182,14 +168,7 @@ export function createNoteHandlers<TNote extends BaseNote, TForeignKey extends s
 
       const note = noteStore.getById(canvasId, noteId);
       if (!note) {
-        emitError(
-          connectionId,
-          events.deleted,
-          `Note 找不到: ${noteId}`,
-          requestId,
-          undefined,
-          'NOT_FOUND'
-        );
+        emitNotFound(connectionId, events.deleted, 'Note', noteId, requestId);
         return;
       }
 

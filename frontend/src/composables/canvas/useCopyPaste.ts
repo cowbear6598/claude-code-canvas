@@ -13,6 +13,15 @@ import type {
 import { collectSelectedPods, collectSelectedNotes, collectRelatedConnections } from './copyPaste/collectCopyData'
 import { calculatePastePositions } from './copyPaste/calculatePaste'
 
+function collectUnboundCreatedElements(
+  noteType: SelectableElement['type'],
+  notes: Array<{ id: string; boundToPodId: string | null }>
+): SelectableElement[] {
+  return notes
+    .filter(note => note.boundToPodId === null)
+    .map(note => ({ type: noteType, id: note.id }))
+}
+
 export function useCopyPaste(): void {
   const {
     podStore,
@@ -93,21 +102,11 @@ export function useCopyPaste(): void {
 
     const newSelectedElements: SelectableElement[] = [
       ...response.createdPods.map(pod => ({ type: 'pod' as const, id: pod.id })),
-      ...response.createdOutputStyleNotes
-        .filter(note => note.boundToPodId === null)
-        .map(note => ({ type: 'outputStyleNote' as const, id: note.id })),
-      ...response.createdSkillNotes
-        .filter(note => note.boundToPodId === null)
-        .map(note => ({ type: 'skillNote' as const, id: note.id })),
-      ...response.createdRepositoryNotes
-        .filter(note => note.boundToPodId === null)
-        .map(note => ({ type: 'repositoryNote' as const, id: note.id })),
-      ...response.createdSubAgentNotes
-        .filter(note => note.boundToPodId === null)
-        .map(note => ({ type: 'subAgentNote' as const, id: note.id })),
-      ...response.createdCommandNotes
-        .filter(note => note.boundToPodId === null)
-        .map(note => ({ type: 'commandNote' as const, id: note.id })),
+      ...collectUnboundCreatedElements('outputStyleNote', response.createdOutputStyleNotes),
+      ...collectUnboundCreatedElements('skillNote', response.createdSkillNotes),
+      ...collectUnboundCreatedElements('repositoryNote', response.createdRepositoryNotes),
+      ...collectUnboundCreatedElements('subAgentNote', response.createdSubAgentNotes),
+      ...collectUnboundCreatedElements('commandNote', response.createdCommandNotes),
     ]
 
     selectionStore.setSelectedElements(newSelectedElements)

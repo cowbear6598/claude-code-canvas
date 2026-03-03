@@ -20,8 +20,12 @@ const STORE_TO_CATEGORY_MAP: Record<string, string> = {
     'mcpServer': 'McpServer'
 }
 
+function extractErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : '未知錯誤'
+}
+
 function findItemById(items: unknown[], itemId: string): Record<string, unknown> | undefined {
-    return items.find(i => (i as Record<string, unknown>).id === itemId) as Record<string, unknown> | undefined
+    return items.find(candidate => (candidate as Record<string, unknown>).id === itemId) as Record<string, unknown> | undefined
 }
 
 function getItemName(item: unknown): string | undefined {
@@ -238,7 +242,7 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
         },
 
         actions: {
-            async _fetchWithCanvasId(
+            async fetchWithCanvasIdInternal(
                 requestEvent: string,
                 responseEvent: string
             ): Promise<BaseResponse | null> {
@@ -271,7 +275,7 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
             },
 
             async loadItems(): Promise<void> {
-                const response = await this._fetchWithCanvasId(
+                const response = await this.fetchWithCanvasIdInternal(
                     config.events.listItems.request,
                     config.events.listItems.response
                 )
@@ -284,7 +288,7 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
             },
 
             async loadNotesFromBackend(): Promise<void> {
-                const response = await this._fetchWithCanvasId(
+                const response = await this.fetchWithCanvasIdInternal(
                     config.events.listNotes.request,
                     config.events.listNotes.response
                 )
@@ -297,7 +301,7 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
             },
 
             async createNote(itemId: string, x: number, y: number): Promise<void> {
-                const item = this.availableItems.find(i => config.getItemId(i as TItem) === itemId)
+                const item = this.availableItems.find(candidate => config.getItemId(candidate as TItem) === itemId)
                 if (!item) return
 
                 const itemName = config.getItemName(item as TItem)
@@ -367,7 +371,7 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
                 const canvasId = requireActiveCanvas()
                 const {showSuccessToast, showErrorToast} = useToast()
 
-                const item = this.availableItems.find(i => config.getItemId(i as TItem) === itemId)
+                const item = this.availableItems.find(candidate => config.getItemId(candidate as TItem) === itemId)
                 const itemName = item ? config.getItemName(item as TItem) : undefined
                 const category = (STORE_TO_CATEGORY_MAP[config.storeName] || 'Note') as 'Skill' | 'Repository' | 'SubAgent' | 'Command' | 'OutputStyle' | 'Note'
 
@@ -395,8 +399,7 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
                         onSuccess: removeItemFromState
                     })
                 } catch (error) {
-                    const message = error instanceof Error ? error.message : '未知錯誤'
-                    showErrorToast(category, '刪除失敗', message)
+                    showErrorToast(category, '刪除失敗', extractErrorMessage(error))
                     throw error
                 }
             },
@@ -457,11 +460,11 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
             },
 
             removeGroupFromEvent(groupId: string): void {
-                this.groups = this.groups.filter(g => g.id !== groupId)
+                this.groups = this.groups.filter(existingGroup => existingGroup.id !== groupId)
             },
 
             updateItemGroupId(itemId: string, groupId: string | null): void {
-                const item = this.availableItems.find(i => config.getItemId(i as TItem) === itemId)
+                const item = this.availableItems.find(candidate => config.getItemId(candidate as TItem) === itemId)
                 if (item) {
                     (item as Record<string, unknown>).groupId = groupId
                 }
@@ -486,56 +489,56 @@ type CRUDStoreContext = {
 function buildCRUDActions<TItem>(config: NoteStoreConfig<TItem>): Record<string, unknown> {
     if (!config.crudConfig) return {}
 
-    const cc = config.crudConfig as NoteCRUDConfig<{ id: string; name: string }>
-    const prefix = cc.methodPrefix
-    const Prefix = capitalize(prefix)
+    const crudConfig = config.crudConfig as NoteCRUDConfig<{ id: string; name: string }>
+    const methodPrefix = crudConfig.methodPrefix
+    const capitalizedMethodPrefix = capitalize(methodPrefix)
 
     const crud = createResourceCRUDActions(
-        cc.resourceType,
-        cc.events,
-        cc.payloadConfig,
-        cc.toastCategory
+        crudConfig.resourceType,
+        crudConfig.events,
+        crudConfig.payloadConfig,
+        crudConfig.toastCategory
     )
 
     const actions: Record<string, unknown> = {}
 
-    actions[`create${Prefix}`] = async function(
+    actions[`create${capitalizedMethodPrefix}`] = async function(
         this: CRUDStoreContext,
         name: string,
         content: string
     ): Promise<{ success: boolean; [key: string]: unknown }> {
         const result = await crud.create(this.availableItems, name, content)
         return result.success
-            ? { success: true, [prefix]: result.item }
+            ? { success: true, [methodPrefix]: result.item }
             : { success: false, error: result.error }
     }
 
-    actions[`update${Prefix}`] = async function(
+    actions[`update${capitalizedMethodPrefix}`] = async function(
         this: CRUDStoreContext,
         itemId: string,
         content: string
     ): Promise<{ success: boolean; [key: string]: unknown }> {
         const result = await crud.update(this.availableItems, itemId, content)
         return result.success
-            ? { success: true, [prefix]: result.item }
+            ? { success: true, [methodPrefix]: result.item }
             : { success: false, error: result.error }
     }
 
-    actions[`read${Prefix}`] = async function(
+    actions[`read${capitalizedMethodPrefix}`] = async function(
         this: CRUDStoreContext,
         itemId: string
     ): Promise<{ id: string; name: string; content: string } | null> {
         return crud.read(itemId) as Promise<{ id: string; name: string; content: string } | null>
     }
 
-    actions[`delete${Prefix}`] = async function(
+    actions[`delete${capitalizedMethodPrefix}`] = async function(
         this: CRUDStoreContext,
         itemId: string
     ): Promise<void> {
         return this.deleteItem(itemId)
     }
 
-    actions[`load${Prefix}s`] = async function(
+    actions[`load${capitalizedMethodPrefix}s`] = async function(
         this: CRUDStoreContext
     ): Promise<void> {
         return this.loadItems()

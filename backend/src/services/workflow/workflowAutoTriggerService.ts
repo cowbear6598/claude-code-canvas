@@ -77,11 +77,7 @@ class WorkflowAutoTriggerService implements TriggerStrategy {
       },
     };
 
-    try {
-      await this.pipeline.execute(pipelineContext, this);
-    } catch (error) {
-      logger.error('Workflow', 'Error', `自動觸發工作流程 ${connection.id} 失敗`, error);
-    }
+    await this.pipeline.execute(pipelineContext, this);
   }
 
   onTrigger(context: TriggerLifecycleContext): void {

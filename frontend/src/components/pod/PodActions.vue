@@ -50,6 +50,8 @@ const emit = defineEmits<{
 
 const chatStore = useChatStore()
 
+const AUTO_CLEAR_ANIMATION_DURATION_MS = 600
+const SCHEDULE_FIRED_ANIMATION_DURATION_MS = 1800
 const TOGGLE_DEBOUNCE_GUARD_MS = 5000
 
 const longPressTimer = ref<ReturnType<typeof setTimeout> | null>(null)
@@ -81,14 +83,14 @@ const cleanupLongPress = (): void => {
   }
 }
 
-const handleEraserMouseDown = (e: MouseEvent): void => {
-  e.stopPropagation()
+const handleEraserMouseDown = (event: MouseEvent): void => {
+  event.stopPropagation()
   isLongPress.value = false
   isLongPressing.value = true
   longPressProgress.value = 0
   longPressStartTime = performance.now()
 
-  mousePosition.value = { x: e.clientX, y: e.clientY }
+  mousePosition.value = { x: event.clientX, y: event.clientY }
 
   const updateProgress = (): void => {
     if (!longPressStartTime || !isLongPressing.value) return
@@ -168,7 +170,7 @@ watch(() => props.isAutoClearAnimating, (newValue) => {
     autoClearAnimationTimer = setTimeout(() => {
       chatStore.clearAutoClearAnimation()
       autoClearAnimationTimer = null
-    }, 600)
+    }, AUTO_CLEAR_ANIMATION_DURATION_MS)
   }
 })
 
@@ -179,7 +181,7 @@ watch(() => props.isScheduleFiredAnimating, (newValue) => {
     }
     scheduleFiredAnimationTimer = setTimeout(() => {
       emit('clear-schedule-fired-animation')
-    }, 1800)
+    }, SCHEDULE_FIRED_ANIMATION_DURATION_MS)
   }
 })
 </script>

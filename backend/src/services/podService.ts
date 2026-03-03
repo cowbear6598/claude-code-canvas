@@ -54,11 +54,7 @@ async function syncRepositoryAfterDelete(repositoryId: string | null | undefined
     if (!repositoryId) {
         return;
     }
-    try {
-        await repositorySyncService.syncRepositoryResources(repositoryId);
-    } catch (error) {
-        logger.error('Pod', 'Delete', `刪除 Pod 後無法同步 repository ${repositoryId}`, error);
-    }
+    await repositorySyncService.syncRepositoryResources(repositoryId);
 }
 
 export async function deletePodWithCleanup(canvasId: string, podId: string, requestId: string): Promise<Result<void>> {

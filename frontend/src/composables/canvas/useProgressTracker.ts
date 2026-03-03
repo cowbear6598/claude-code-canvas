@@ -3,14 +3,42 @@ import { websocketClient } from '@/services/websocket'
 import { useToast, type ToastCategory } from '@/composables/useToast'
 import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
 import type { ProgressTask } from '@/components/canvas/ProgressNote.vue'
+import { PROGRESS_REMOVE_DELAY_ON_ERROR_MS } from '@/lib/constants'
 
 const TASK_TIMEOUT_MS = 60_000
 
 export interface ProgressTaskHelpers {
   removeTask: (requestId: string) => void
-  scheduleRemove: (requestId: string, delayMs: number) => void
+  scheduleRemove: (requestId: string, delayMs: number) => ReturnType<typeof setTimeout>
   showSuccessToast: (category: ToastCategory, action: string, target?: string) => string
   showErrorToast: (category: ToastCategory, action: string, reason?: string) => string
+}
+
+export interface ProgressErrorOptions {
+  category: ToastCategory
+  action: string
+  defaultMessage: string
+}
+
+export interface ProgressErrorTask {
+  status: string
+  message: string
+}
+
+export function handleProgressError<TTask extends ProgressErrorTask>(
+  task: TTask,
+  helpers: ProgressTaskHelpers,
+  requestId: string,
+  errorPayload: string | undefined,
+  options: ProgressErrorOptions,
+  transformError?: (error: string) => string,
+): void {
+  const rawError = errorPayload || options.defaultMessage
+  const errorMessage = transformError ? transformError(rawError) : rawError
+  task.status = 'failed'
+  task.message = errorMessage
+  helpers.showErrorToast(options.category, options.action, errorMessage)
+  helpers.scheduleRemove(requestId, PROGRESS_REMOVE_DELAY_ON_ERROR_MS)
 }
 
 export interface ProgressTrackerOptions<TTask, TProgressPayload, TResultPayload> {
@@ -65,8 +93,8 @@ export function useProgressTracker<TTask, TProgressPayload, TResultPayload>(
     tasks.value = new Map(tasks.value)
   }
 
-  const scheduleRemove = (requestId: string, delayMs: number): void => {
-    setTimeout(() => {
+  const scheduleRemove = (requestId: string, delayMs: number): ReturnType<typeof setTimeout> => {
+    return setTimeout(() => {
       removeTask(requestId)
     }, delayMs)
   }

@@ -43,11 +43,11 @@ export const useViewportStore = defineStore('viewport', {
             const oldZoom = this.zoom
             const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom))
 
-            const dx = centerX - this.offset.x
-            const dy = centerY - this.offset.y
+            const distanceFromCenterX = centerX - this.offset.x
+            const distanceFromCenterY = centerY - this.offset.y
 
-            this.offset.x = centerX - (dx * newZoom) / oldZoom
-            this.offset.y = centerY - (dy * newZoom) / oldZoom
+            this.offset.x = centerX - (distanceFromCenterX * newZoom) / oldZoom
+            this.offset.y = centerY - (distanceFromCenterY * newZoom) / oldZoom
             this.zoom = newZoom
         },
         resetToCenter(): void {

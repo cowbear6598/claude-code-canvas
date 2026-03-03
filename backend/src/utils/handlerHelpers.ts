@@ -3,7 +3,7 @@ import type { Pod, Result } from '../types/index.js';
 import { podStore } from '../services/podStore.js';
 import { canvasStore } from '../services/canvasStore.js';
 import { socketService } from '../services/socketService.js';
-import { emitError } from './websocketResponse.js';
+import { emitError, emitNotFound } from './websocketResponse.js';
 import { logger, type LogCategory } from './logger.js';
 
 export function handleResultError<T>(
@@ -77,7 +77,7 @@ export function validatePod(
 	const pod = podStore.getById(canvasId, podId);
 
 	if (!pod) {
-		emitError(connectionId, responseEvent, `Pod 找不到: ${podId}`, requestId, podId, 'NOT_FOUND');
+		emitNotFound(connectionId, responseEvent, 'Pod', podId, requestId);
 		return undefined;
 	}
 
@@ -128,14 +128,7 @@ export async function handleResourceDelete(config: ResourceDeleteConfig): Promis
 
 	const exists = await existsCheck();
 	if (!exists) {
-		emitError(
-			connectionId,
-			responseEvent,
-			`${resourceName} 找不到: ${resourceId}`,
-			requestId,
-			undefined,
-			'NOT_FOUND'
-		);
+		emitNotFound(connectionId, responseEvent, resourceName, resourceId, requestId);
 		return;
 	}
 

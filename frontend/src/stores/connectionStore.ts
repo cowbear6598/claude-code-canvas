@@ -9,6 +9,7 @@ import {
 } from '@/services/websocket'
 import {useToast} from '@/composables/useToast'
 import {requireActiveCanvas, getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
+import {DEFAULT_TOAST_DURATION_MS} from '@/lib/constants'
 import {createWorkflowEventHandlers} from './workflowEventHandlers'
 import type {
     ConnectionCreatedPayload,
@@ -50,6 +51,14 @@ const RUNNING_CONNECTION_STATUSES = new Set<ConnectionStatus>([
 
 const RUNNING_POD_STATUSES = new Set(['chatting', 'summarizing'])
 
+function shouldUpdateConnection(conn: Connection, targetPodId: string, status: ConnectionStatus): boolean {
+    if (conn.targetPodId !== targetPodId) return false
+    if (conn.triggerMode !== 'auto' && conn.triggerMode !== 'ai-decide') return false
+    // ai-deciding 表示 AI 仍在判斷中，不應被強制設為 active（事件亂序保護）
+    if (conn.status === 'ai-deciding' && status === 'active') return false
+    return true
+}
+
 /**
  * 通用 BFS 遍歷，檢查 Workflow 鏈中是否有正在執行的節點或連線。
  *
@@ -57,6 +66,21 @@ const RUNNING_POD_STATUSES = new Set(['chatting', 'summarizing'])
  * @param getNeighbors - 根據 podId 回傳鄰居清單（包含鄰居 ID 及對應連線）
  * @param isRunningPod - 判斷特定 podId 的 Pod 是否正在執行中
  */
+function isAnyNeighborRunning(
+    neighbors: { neighborId: string; conn: Connection }[],
+    visited: Set<string>,
+    queue: string[],
+): boolean {
+    for (const { neighborId, conn } of neighbors) {
+        if (conn.status && RUNNING_CONNECTION_STATUSES.has(conn.status)) return true
+        if (!visited.has(neighborId)) {
+            visited.add(neighborId)
+            queue.push(neighborId)
+        }
+    }
+    return false
+}
+
 function runBFS(
     startId: string,
     getNeighbors: (podId: string) => { neighborId: string; conn: Connection }[],
@@ -68,14 +92,7 @@ function runBFS(
     while (queue.length > 0) {
         const currentId = queue.shift()!
         if (isRunningPod(currentId)) return true
-
-        for (const { neighborId, conn } of getNeighbors(currentId)) {
-            if (conn.status && RUNNING_CONNECTION_STATUSES.has(conn.status)) return true
-            if (!visited.has(neighborId)) {
-                visited.add(neighborId)
-                queue.push(neighborId)
-            }
-        }
+        if (isAnyNeighborRunning(getNeighbors(currentId), visited, queue)) return true
     }
     return false
 }
@@ -259,7 +276,7 @@ export const useConnectionStore = defineStore('connection', {
                 toast({
                     title: '連線已存在',
                     description: '這兩個 Pod 之間已經有連線了',
-                    duration: 3000
+                    duration: DEFAULT_TOAST_DURATION_MS
                 })
                 return false
             }
@@ -369,12 +386,7 @@ export const useConnectionStore = defineStore('connection', {
 
         updateAutoGroupStatus(targetPodId: string, status: ConnectionStatus): void {
             this.connections.forEach(conn => {
-                if (conn.targetPodId === targetPodId &&
-                    (conn.triggerMode === 'auto' || conn.triggerMode === 'ai-decide')) {
-                    // ai-deciding 表示 AI 仍在判斷中，不應被強制設為 active（事件亂序保護）
-                    if (conn.status === 'ai-deciding' && status === 'active') {
-                        return
-                    }
+                if (shouldUpdateConnection(conn, targetPodId, status)) {
                     conn.status = status
                 }
             })

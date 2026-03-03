@@ -2,8 +2,9 @@ import { type Ref, type ComputedRef } from 'vue'
 import { WebSocketResponseEvents } from '@/types/websocket'
 import type { RepositoryCheckoutBranchProgressPayload, RepositoryBranchCheckedOutPayload } from '@/types/websocket'
 import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
-import { useProgressTracker } from '@/composables/canvas/useProgressTracker'
+import { useProgressTracker, handleProgressError } from '@/composables/canvas/useProgressTracker'
 import type { ProgressTask } from '@/components/canvas/ProgressNote.vue'
+import { PROGRESS_REMOVE_DELAY_MS, PROGRESS_REMOVE_DELAY_ON_ERROR_MS } from '@/lib/constants'
 
 export type CheckoutStatus = 'checking-out' | 'completed' | 'failed'
 
@@ -69,15 +70,13 @@ export function useCheckoutProgress(): UseCheckoutProgressReturn {
 
         helpers.showSuccessToast('Git', '切換分支成功', payload.branchName)
 
-        helpers.scheduleRemove(payload.requestId, 1000)
+        helpers.scheduleRemove(payload.requestId, PROGRESS_REMOVE_DELAY_MS)
       } else {
-        const errorMessage = payload.error || '切換分支失敗'
-        task.status = 'failed'
-        task.message = errorMessage
-
-        helpers.showErrorToast('Git', '切換分支失敗', errorMessage)
-
-        helpers.scheduleRemove(payload.requestId, 2000)
+        handleProgressError(task, helpers, payload.requestId, payload.error, {
+          category: 'Git',
+          action: '切換分支失敗',
+          defaultMessage: '切換分支失敗',
+        })
       }
     },
 
@@ -85,7 +84,7 @@ export function useCheckoutProgress(): UseCheckoutProgressReturn {
       task.status = 'failed'
       task.message = '操作逾時，請重試'
 
-      helpers.scheduleRemove(task.requestId, 2000)
+      helpers.scheduleRemove(task.requestId, PROGRESS_REMOVE_DELAY_ON_ERROR_MS)
     },
 
     toProgressTask: (task) => ({

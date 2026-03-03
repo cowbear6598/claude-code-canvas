@@ -37,3 +37,9 @@ export const DEGREES_TO_RADIANS = Math.PI / 180
 export const MS_PER_SECOND = 1000
 export const MS_PER_MINUTE = 60_000
 export const MS_PER_HOUR = 3_600_000
+
+export const DEFAULT_TOAST_DURATION_MS = 3000
+export const SHORT_TOAST_DURATION_MS = 2000
+
+export const PROGRESS_REMOVE_DELAY_MS = 1000
+export const PROGRESS_REMOVE_DELAY_ON_ERROR_MS = 2000

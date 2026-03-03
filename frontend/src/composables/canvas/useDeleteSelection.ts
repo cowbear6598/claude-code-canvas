@@ -2,6 +2,7 @@ import { onMounted, onUnmounted } from 'vue'
 import { useCanvasContext } from './useCanvasContext'
 import { useToast } from '@/composables/useToast'
 import { isEditingElement } from '@/utils/domHelpers'
+import { DEFAULT_TOAST_DURATION_MS } from '@/lib/constants'
 
 async function deleteSelectedElements(): Promise<void> {
   const { podStore, selectionStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore } = useCanvasContext()
@@ -75,7 +76,7 @@ async function deleteSelectedElements(): Promise<void> {
     toast({
       title: '刪除部分失敗',
       description: `${failedCount} 個物件刪除失敗`,
-      duration: 3000
+      duration: DEFAULT_TOAST_DURATION_MS
     })
   }
 

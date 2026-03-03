@@ -22,6 +22,31 @@ interface NoteBindingStore {
     unbindFromPod?: (podId: string, returnToOriginal?: boolean, targetPosition?: Position) => Promise<void>
 }
 
+function resolveUnbindPosition(
+    note: NoteItem,
+    returnToOriginal: boolean,
+    targetPosition: Position | undefined,
+    canvasId: string,
+    noteId: string,
+): Record<string, unknown> {
+    const base: Record<string, unknown> = {
+        canvasId,
+        noteId,
+        boundToPodId: null,
+        originalPosition: null,
+    }
+
+    if (returnToOriginal && note.originalPosition) {
+        base.x = note.originalPosition.x
+        base.y = note.originalPosition.y
+    } else if (targetPosition) {
+        base.x = targetPosition.x
+        base.y = targetPosition.y
+    }
+
+    return base
+}
+
 export function createNoteBindingActions<TItem>(config: NoteStoreConfig<TItem>): {
     bindToPod: (this: NoteBindingStore, noteId: string, podId: string) => Promise<void>
     unbindFromPod: (this: NoteBindingStore, podId: string, returnToOriginal?: boolean, targetPosition?: Position) => Promise<void>
@@ -75,23 +100,8 @@ export function createNoteBindingActions<TItem>(config: NoteStoreConfig<TItem>):
             if (!note) return
 
             const noteId = note.id
-
             const canvasId = requireActiveCanvas()
-
-            const updatePayload: Record<string, unknown> = {
-                canvasId,
-                noteId,
-                boundToPodId: null,
-                originalPosition: null,
-            }
-
-            if (returnToOriginal && note.originalPosition) {
-                updatePayload.x = note.originalPosition.x
-                updatePayload.y = note.originalPosition.y
-            } else if (targetPosition) {
-                updatePayload.x = targetPosition.x
-                updatePayload.y = targetPosition.y
-            }
+            const updatePayload = resolveUnbindPosition(note, returnToOriginal, targetPosition, canvasId, noteId)
 
             await Promise.all([
                 createWebSocketRequest<BasePayload, BaseResponse>({

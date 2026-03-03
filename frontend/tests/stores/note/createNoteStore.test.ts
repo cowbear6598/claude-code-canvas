@@ -992,6 +992,35 @@ describe('createNoteStore', () => {
 
       expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
     })
+
+    it('拋出 Error 物件時應呼叫 showErrorToast 並帶入 error.message', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const config = createTestConfig()
+      const store = createNoteStore<TestItem, TestNote>(config)()
+      const item: TestItem = { id: 'item-1', name: 'Item 1' }
+      store.availableItems = [item] as unknown[]
+
+      const error = new Error('刪除時發生錯誤')
+      mockCreateWebSocketRequest.mockImplementationOnce(() => { throw error })
+
+      await expect(store.deleteItem('item-1')).rejects.toThrow('刪除時發生錯誤')
+      expect(mockShowErrorToast).toHaveBeenCalledWith(expect.any(String), '刪除失敗', '刪除時發生錯誤')
+    })
+
+    it('拋出非 Error 物件時應呼叫 showErrorToast 並帶入 未知錯誤', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const config = createTestConfig()
+      const store = createNoteStore<TestItem, TestNote>(config)()
+      const item: TestItem = { id: 'item-1', name: 'Item 1' }
+      store.availableItems = [item] as unknown[]
+
+      mockCreateWebSocketRequest.mockImplementationOnce(() => { throw 'unknown' })
+
+      await expect(store.deleteItem('item-1')).rejects.toBe('unknown')
+      expect(mockShowErrorToast).toHaveBeenCalledWith(expect.any(String), '刪除失敗', '未知錯誤')
+    })
   })
 
   describe('事件處理 FromEvent', () => {

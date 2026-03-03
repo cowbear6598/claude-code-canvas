@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestIdSchema, canvasIdSchema, noteUpdateBaseSchema, createNoteCreateSchema } from './base.js';
+import { requestIdSchema, canvasIdSchema, noteUpdateBaseSchema, createNoteCreateSchema, canvasRequestSchema, noteDeleteBaseSchema, podUnbindBaseSchema } from './base.js';
 
 const RESERVED_NAMES = ['.git', 'HEAD', 'FETCH_HEAD', 'ORIG_HEAD', 'MERGE_HEAD', 'CHERRY_PICK_HEAD'];
 
@@ -10,10 +10,7 @@ function isValidGitUrl(url: string): boolean {
   return gitUrlPattern.test(url);
 }
 
-export const repositoryListSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-});
+export const repositoryListSchema = canvasRequestSchema;
 
 export const repositoryCreateSchema = z.object({
   requestId: requestIdSchema,
@@ -23,18 +20,11 @@ export const repositoryCreateSchema = z.object({
 
 export const repositoryNoteCreateSchema = createNoteCreateSchema({ repositoryId: repositoryIdSchema });
 
-export const repositoryNoteListSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-});
+export const repositoryNoteListSchema = canvasRequestSchema;
 
 export const repositoryNoteUpdateSchema = noteUpdateBaseSchema;
 
-export const repositoryNoteDeleteSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  noteId: z.uuid(),
-});
+export const repositoryNoteDeleteSchema = noteDeleteBaseSchema;
 
 export const podBindRepositorySchema = z.object({
   requestId: requestIdSchema,
@@ -43,11 +33,7 @@ export const podBindRepositorySchema = z.object({
   repositoryId: repositoryIdSchema,
 });
 
-export const podUnbindRepositorySchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  podId: z.uuid(),
-});
+export const podUnbindRepositorySchema = podUnbindBaseSchema;
 
 export const repositoryDeleteSchema = z.object({
   requestId: requestIdSchema,
@@ -100,7 +86,7 @@ export const repositoryCheckoutBranchSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   repositoryId: repositoryIdSchema,
-  branchName: z.string().regex(/^[a-zA-Z0-9_\-/]+$/, '分支名稱只能包含英文字母、數字、底線、連字號和斜線'),
+  branchName: z.string().max(200, '分支名稱過長').regex(/^[a-zA-Z0-9_\-/]+$/, '分支名稱只能包含英文字母、數字、底線、連字號和斜線'),
   force: z.boolean().default(false),
 });
 
@@ -108,7 +94,7 @@ export const repositoryDeleteBranchSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   repositoryId: repositoryIdSchema,
-  branchName: z.string().regex(/^[a-zA-Z0-9_\-/]+$/, '分支名稱只能包含英文字母、數字、底線、連字號和斜線'),
+  branchName: z.string().max(200, '分支名稱過長').regex(/^[a-zA-Z0-9_\-/]+$/, '分支名稱只能包含英文字母、數字、底線、連字號和斜線'),
   force: z.boolean().default(false),
 });
 

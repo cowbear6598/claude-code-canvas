@@ -11,6 +11,8 @@ import {WebSocketResponseEvents} from '../../schemas/events.js';
 const MAX_RECONNECT_ATTEMPTS = 10;
 const HEALTH_CHECK_INTERVAL_MS = 30000;
 const SLACK_CHANNEL_LIST_PAGE_SIZE = 200;
+const BASE_RETRY_DELAY_MS = 1000;
+const MAX_RETRY_DELAY_MS = 30000;
 
 class SlackConnectionManager {
     private boltApps: Map<string, App> = new Map();
@@ -208,7 +210,7 @@ class SlackConnectionManager {
             return;
         }
 
-        const delayMs = Math.min(1000 * Math.pow(2, attempts), 30000);
+        const delayMs = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, attempts), MAX_RETRY_DELAY_MS);
 
         logger.log('Slack', 'Complete', `Slack App ${slackAppId} 將在 ${delayMs}ms 後進行第 ${attempts + 1} 次重連`);
 

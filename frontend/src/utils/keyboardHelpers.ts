@@ -1,3 +1,3 @@
-export function isCtrlOrCmdPressed(e: MouseEvent | KeyboardEvent): boolean {
-  return e.ctrlKey || e.metaKey
+export function isCtrlOrCmdPressed(event: MouseEvent | KeyboardEvent): boolean {
+  return event.ctrlKey || event.metaKey
 }

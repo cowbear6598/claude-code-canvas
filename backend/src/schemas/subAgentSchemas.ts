@@ -1,17 +1,9 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema, canvasIdSchema, resourceNameSchema, resourceIdSchema, groupIdSchema, noteUpdateBaseSchema, createNoteCreateSchema } from './base.js';
+import { requestIdSchema, podIdSchema, canvasIdSchema, resourceIdSchema, noteUpdateBaseSchema, createNoteCreateSchema, canvasRequestSchema, noteDeleteBaseSchema, moveToGroupSchema, createResourceReadSchema, createResourceCreateSchema } from './base.js';
 
-export const subAgentListSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-});
+export const subAgentListSchema = canvasRequestSchema;
 
-export const subAgentCreateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  name: resourceNameSchema,
-  content: z.string().max(10000000),
-});
+export const subAgentCreateSchema = createResourceCreateSchema();
 
 export const subAgentUpdateSchema = z.object({
   requestId: requestIdSchema,
@@ -20,26 +12,15 @@ export const subAgentUpdateSchema = z.object({
   content: z.string().max(10000000),
 });
 
-export const subAgentReadSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  subAgentId: resourceIdSchema,
-});
+export const subAgentReadSchema = createResourceReadSchema('subAgentId');
 
 export const subAgentNoteCreateSchema = createNoteCreateSchema({ subAgentId: resourceIdSchema });
 
-export const subAgentNoteListSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-});
+export const subAgentNoteListSchema = canvasRequestSchema;
 
 export const subAgentNoteUpdateSchema = noteUpdateBaseSchema;
 
-export const subAgentNoteDeleteSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  noteId: z.uuid(),
-});
+export const subAgentNoteDeleteSchema = noteDeleteBaseSchema;
 
 export const podBindSubAgentSchema = z.object({
   requestId: requestIdSchema,
@@ -54,11 +35,7 @@ export const subAgentDeleteSchema = z.object({
   subAgentId: resourceIdSchema,
 });
 
-export const subAgentMoveToGroupSchema = z.object({
-  requestId: requestIdSchema,
-  itemId: resourceIdSchema,
-  groupId: groupIdSchema,
-});
+export const subAgentMoveToGroupSchema = moveToGroupSchema;
 
 export type SubAgentListPayload = z.infer<typeof subAgentListSchema>;
 export type PodBindSubAgentPayload = z.infer<typeof podBindSubAgentSchema>;

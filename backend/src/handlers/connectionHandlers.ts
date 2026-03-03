@@ -19,73 +19,50 @@ import { connectionStore } from '../services/connectionStore.js';
 import { podStore } from '../services/podStore.js';
 import { workflowStateService } from '../services/workflow';
 import { socketService } from '../services/socketService.js';
-import { emitSuccess, emitError } from '../utils/websocketResponse.js';
+import { emitSuccess, emitError, emitNotFound } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { withCanvasId } from '../utils/handlerHelpers.js';
 
-function withConnection(
+function findConnectionOrEmitError(
   wsConnectionId: string,
   canvasId: string,
-  connId: string,
+  connectionId: string,
   responseEvent: WebSocketResponseEvents,
   requestId: string,
-  callback: (connection: Connection) => void | Promise<void>
-): void {
-  const connection = connectionStore.getById(canvasId, connId);
+): Connection | undefined {
+  const connection = connectionStore.getById(canvasId, connectionId);
 
   if (!connection) {
-    emitError(
-      wsConnectionId,
-      responseEvent,
-      `Connection 找不到: ${connId}`,
-      requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
+    emitNotFound(wsConnectionId, responseEvent, 'Connection', connectionId, requestId);
+    return undefined;
   }
 
-  callback(connection);
+  return connection;
 }
 
-function withPods(
-  connectionId: string,
+function findPodsOrEmitError(
+  wsConnectionId: string,
   canvasId: string,
   sourcePodId: string,
   targetPodId: string,
   responseEvent: WebSocketResponseEvents,
   requestId: string,
-  callback: (sourcePod: Pod, targetPod: Pod) => void | Promise<void>
-): void {
+): { sourcePod: Pod; targetPod: Pod } | undefined {
   const sourcePod = podStore.getById(canvasId, sourcePodId);
 
   if (!sourcePod) {
-    emitError(
-      connectionId,
-      responseEvent,
-      `來源 Pod 找不到: ${sourcePodId}`,
-      requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
+    emitError(wsConnectionId, responseEvent, `來源 Pod 找不到: ${sourcePodId}`, requestId, undefined, 'NOT_FOUND');
+    return undefined;
   }
 
   const targetPod = podStore.getById(canvasId, targetPodId);
 
   if (!targetPod) {
-    emitError(
-      connectionId,
-      responseEvent,
-      `目標 Pod 找不到: ${targetPodId}`,
-      requestId,
-      undefined,
-      'NOT_FOUND'
-    );
-    return;
+    emitError(wsConnectionId, responseEvent, `目標 Pod 找不到: ${targetPodId}`, requestId, undefined, 'NOT_FOUND');
+    return undefined;
   }
 
-  callback(sourcePod, targetPod);
+  return { sourcePod, targetPod };
 }
 
 export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
@@ -93,49 +70,51 @@ export const handleConnectionCreate = withCanvasId<ConnectionCreatePayload>(
   async (connectionId: string, canvasId: string, payload: ConnectionCreatePayload, requestId: string): Promise<void> => {
     const { sourcePodId, sourceAnchor, targetPodId, targetAnchor } = payload;
 
-    withPods(
+    const pods = findPodsOrEmitError(
       connectionId,
       canvasId,
       sourcePodId,
       targetPodId,
       WebSocketResponseEvents.CONNECTION_CREATED,
       requestId,
-      (sourcePod, targetPod) => {
-        const connection = connectionStore.create(canvasId, {
-          sourcePodId,
-          sourceAnchor,
-          targetPodId,
-          targetAnchor,
-        });
+    );
+    if (!pods) return;
 
-        const response: ConnectionCreatedPayload = {
-          requestId,
+    const { sourcePod, targetPod } = pods;
+
+    const connection = connectionStore.create(canvasId, {
+      sourcePodId,
+      sourceAnchor,
+      targetPodId,
+      targetAnchor,
+    });
+
+    const response: ConnectionCreatedPayload = {
+      requestId,
+      canvasId,
+      success: true,
+      connection,
+    };
+
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.CONNECTION_CREATED, response);
+
+    if (targetPod.schedule) {
+      const updatedPod = podStore.update(canvasId, targetPodId, { schedule: null });
+
+      if (updatedPod) {
+        const podSchedulePayload: PodScheduleSetPayload = {
+          requestId: '',
           canvasId,
           success: true,
-          connection,
+          pod: updatedPod,
         };
+        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_SCHEDULE_SET, podSchedulePayload);
 
-        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.CONNECTION_CREATED, response);
-
-        if (targetPod.schedule) {
-          const updatedPod = podStore.update(canvasId, targetPodId, { schedule: null });
-
-          if (updatedPod) {
-            const podSchedulePayload: PodScheduleSetPayload = {
-              requestId: '',
-              canvasId,
-              success: true,
-              pod: updatedPod,
-            };
-            socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_SCHEDULE_SET, podSchedulePayload);
-
-            logger.log('Connection', 'Create', `已清除目標 Pod「${targetPod.name}」的排程（現為下游節點）`);
-          }
-        }
-
-        logger.log('Connection', 'Create', `已建立連線「${sourcePod.name} → ${targetPod.name}」`);
+        logger.log('Connection', 'Create', `已清除目標 Pod「${targetPod.name}」的排程（現為下游節點）`);
       }
-    );
+    }
+
+    logger.log('Connection', 'Create', `已建立連線「${sourcePod.name} → ${targetPod.name}」`);
   }
 );
 
@@ -159,43 +138,43 @@ export const handleConnectionDelete = withCanvasId<ConnectionDeletePayload>(
   async (wsConnectionId: string, canvasId: string, payload: ConnectionDeletePayload, requestId: string): Promise<void> => {
     const { connectionId: connId } = payload;
 
-    withConnection(
+    const connection = findConnectionOrEmitError(
       wsConnectionId,
       canvasId,
       connId,
       WebSocketResponseEvents.CONNECTION_DELETED,
       requestId,
-      (connection) => {
-        workflowStateService.handleConnectionDeletion(canvasId, connId);
-
-        const deleted = connectionStore.delete(canvasId, connId);
-
-        if (!deleted) {
-          emitError(
-            wsConnectionId,
-            WebSocketResponseEvents.CONNECTION_DELETED,
-            `無法從 store 刪除 connection: ${connId}`,
-            requestId,
-            undefined,
-            'INTERNAL_ERROR'
-          );
-          return;
-        }
-
-        const response: ConnectionDeletedPayload = {
-          requestId,
-          canvasId,
-          success: true,
-          connectionId: connId,
-        };
-
-        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.CONNECTION_DELETED, response);
-
-        const srcName = podStore.getById(canvasId, connection.sourcePodId)?.name ?? connection.sourcePodId;
-        const tgtName = podStore.getById(canvasId, connection.targetPodId)?.name ?? connection.targetPodId;
-        logger.log('Connection', 'Delete', `已刪除連線「${srcName} → ${tgtName}」`);
-      }
     );
+    if (!connection) return;
+
+    workflowStateService.handleConnectionDeletion(canvasId, connId);
+
+    const deleted = connectionStore.delete(canvasId, connId);
+
+    if (!deleted) {
+      emitError(
+        wsConnectionId,
+        WebSocketResponseEvents.CONNECTION_DELETED,
+        `無法從 store 刪除 connection: ${connId}`,
+        requestId,
+        undefined,
+        'INTERNAL_ERROR'
+      );
+      return;
+    }
+
+    const response: ConnectionDeletedPayload = {
+      requestId,
+      canvasId,
+      success: true,
+      connectionId: connId,
+    };
+
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.CONNECTION_DELETED, response);
+
+    const sourcePodName = podStore.getById(canvasId, connection.sourcePodId)?.name ?? connection.sourcePodId;
+    const targetPodName = podStore.getById(canvasId, connection.targetPodId)?.name ?? connection.targetPodId;
+    logger.log('Connection', 'Delete', `已刪除連線「${sourcePodName} → ${targetPodName}」`);
   }
 );
 
@@ -204,41 +183,41 @@ export const handleConnectionUpdate = withCanvasId<ConnectionUpdatePayload>(
   async (wsConnectionId: string, canvasId: string, payload: ConnectionUpdatePayload, requestId: string): Promise<void> => {
     const { connectionId: connId, triggerMode } = payload;
 
-    withConnection(
+    const connection = findConnectionOrEmitError(
       wsConnectionId,
       canvasId,
       connId,
       WebSocketResponseEvents.CONNECTION_UPDATED,
       requestId,
-      () => {
-        const updates: Partial<{ triggerMode: TriggerMode }> = {};
-        if (triggerMode !== undefined) {
-          updates.triggerMode = triggerMode;
-        }
-
-        const updatedConnection = connectionStore.update(canvasId, connId, updates);
-
-        if (!updatedConnection) {
-          emitError(
-            wsConnectionId,
-            WebSocketResponseEvents.CONNECTION_UPDATED,
-            `無法更新 connection: ${connId}`,
-            requestId,
-            undefined,
-            'INTERNAL_ERROR'
-          );
-          return;
-        }
-
-        const response: ConnectionUpdatedPayload = {
-          requestId,
-          canvasId,
-          success: true,
-          connection: updatedConnection,
-        };
-
-        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.CONNECTION_UPDATED, response);
-      }
     );
+    if (!connection) return;
+
+    const updates: Partial<{ triggerMode: TriggerMode }> = {};
+    if (triggerMode !== undefined) {
+      updates.triggerMode = triggerMode;
+    }
+
+    const updatedConnection = connectionStore.update(canvasId, connId, updates);
+
+    if (!updatedConnection) {
+      emitError(
+        wsConnectionId,
+        WebSocketResponseEvents.CONNECTION_UPDATED,
+        `無法更新 connection: ${connId}`,
+        requestId,
+        undefined,
+        'INTERNAL_ERROR'
+      );
+      return;
+    }
+
+    const response: ConnectionUpdatedPayload = {
+      requestId,
+      canvasId,
+      success: true,
+      connection: updatedConnection,
+    };
+
+    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.CONNECTION_UPDATED, response);
   }
 );

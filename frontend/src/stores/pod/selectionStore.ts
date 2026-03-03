@@ -13,6 +13,12 @@ type NoteType =
 
 type SelectionBox = {minX: number; maxX: number; minY: number; maxY: number}
 
+function selectIdsByType(elements: {type: string; id: string}[], type: string): string[] {
+    return elements
+        .filter(el => el.type === type)
+        .map(el => el.id)
+}
+
 function findPodsInSelectionBox(
     pods: Array<{id: string; x: number; y: number}>,
     box: SelectionBox
@@ -74,58 +80,37 @@ export const useSelectionStore = defineStore('selection', {
         /**
          * 取得選中的 Pod ID 列表
          */
-        selectedPodIds: (state): string[] =>
-            state.selectedElements
-                .filter(el => el.type === 'pod')
-                .map(el => el.id),
+        selectedPodIds: (state): string[] => selectIdsByType(state.selectedElements, 'pod'),
 
         /**
          * 取得選中的 OutputStyleNote ID 列表
          */
-        selectedOutputStyleNoteIds: (state): string[] =>
-            state.selectedElements
-                .filter(el => el.type === 'outputStyleNote')
-                .map(el => el.id),
+        selectedOutputStyleNoteIds: (state): string[] => selectIdsByType(state.selectedElements, 'outputStyleNote'),
 
         /**
          * 取得選中的 SkillNote ID 列表
          */
-        selectedSkillNoteIds: (state): string[] =>
-            state.selectedElements
-                .filter(el => el.type === 'skillNote')
-                .map(el => el.id),
+        selectedSkillNoteIds: (state): string[] => selectIdsByType(state.selectedElements, 'skillNote'),
 
         /**
          * 取得選中的 RepositoryNote ID 列表
          */
-        selectedRepositoryNoteIds: (state): string[] =>
-            state.selectedElements
-                .filter(el => el.type === 'repositoryNote')
-                .map(el => el.id),
+        selectedRepositoryNoteIds: (state): string[] => selectIdsByType(state.selectedElements, 'repositoryNote'),
 
         /**
          * 取得選中的 SubAgentNote ID 列表
          */
-        selectedSubAgentNoteIds: (state): string[] =>
-            state.selectedElements
-                .filter(el => el.type === 'subAgentNote')
-                .map(el => el.id),
+        selectedSubAgentNoteIds: (state): string[] => selectIdsByType(state.selectedElements, 'subAgentNote'),
 
         /**
          * 取得選中的 CommandNote ID 列表
          */
-        selectedCommandNoteIds: (state): string[] =>
-            state.selectedElements
-                .filter(el => el.type === 'commandNote')
-                .map(el => el.id),
+        selectedCommandNoteIds: (state): string[] => selectIdsByType(state.selectedElements, 'commandNote'),
 
         /**
          * 取得選中的 McpServerNote ID 列表
          */
-        selectedMcpServerNoteIds: (state): string[] =>
-            state.selectedElements
-                .filter(el => el.type === 'mcpServerNote')
-                .map(el => el.id),
+        selectedMcpServerNoteIds: (state): string[] => selectIdsByType(state.selectedElements, 'mcpServerNote'),
 
         /**
          * 是否有選中的元素
@@ -227,7 +212,8 @@ export const useSelectionStore = defineStore('selection', {
             skillNotes: NoteItem[],
             repositoryNotes: NoteItem[] = [],
             subAgentNotes: NoteItem[] = [],
-            commandNotes: NoteItem[] = []
+            commandNotes: NoteItem[] = [],
+            mcpServerNotes: NoteItem[] = []
         ): void {
             if (!this.box) return
 
@@ -244,6 +230,7 @@ export const useSelectionStore = defineStore('selection', {
                 {notes: repositoryNotes, type: 'repositoryNote'},
                 {notes: subAgentNotes, type: 'subAgentNote'},
                 {notes: commandNotes, type: 'commandNote'},
+                {notes: mcpServerNotes, type: 'mcpServerNote'},
             ]
 
             const selected = [

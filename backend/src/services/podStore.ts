@@ -262,8 +262,16 @@ class PodStore extends CanvasMapStore<Pod> {
         this.addIdToArrayField(canvasId, podId, 'subAgentIds', subAgentId);
     }
 
+    private findByArrayField(canvasId: string, field: 'skillIds' | 'subAgentIds' | 'mcpServerIds', targetId: string): Pod[] {
+        return this.findByPredicate(canvasId, (pod) => pod[field].includes(targetId));
+    }
+
+    private findBySingleField(canvasId: string, field: 'commandId' | 'outputStyleId' | 'repositoryId', targetId: string): Pod[] {
+        return this.findByPredicate(canvasId, (pod) => pod[field] === targetId);
+    }
+
     findBySubAgentId(canvasId: string, subAgentId: string): Pod[] {
-        return this.findByPredicate(canvasId, (pod) => pod.subAgentIds.includes(subAgentId));
+        return this.findByArrayField(canvasId, 'subAgentIds', subAgentId);
     }
 
     addMcpServerId(canvasId: string, podId: string, mcpServerId: string): void {
@@ -280,7 +288,7 @@ class PodStore extends CanvasMapStore<Pod> {
     }
 
     findByMcpServerId(canvasId: string, mcpServerId: string): Pod[] {
-        return this.findByPredicate(canvasId, (pod) => pod.mcpServerIds.includes(mcpServerId));
+        return this.findByArrayField(canvasId, 'mcpServerIds', mcpServerId);
     }
 
     setRepositoryId(canvasId: string, id: string, repositoryId: string | null): void {
@@ -296,19 +304,19 @@ class PodStore extends CanvasMapStore<Pod> {
     }
 
     findByCommandId(canvasId: string, commandId: string): Pod[] {
-        return this.findByPredicate(canvasId, (pod) => pod.commandId === commandId);
+        return this.findBySingleField(canvasId, 'commandId', commandId);
     }
 
     findByOutputStyleId(canvasId: string, outputStyleId: string): Pod[] {
-        return this.findByPredicate(canvasId, (pod) => pod.outputStyleId === outputStyleId);
+        return this.findBySingleField(canvasId, 'outputStyleId', outputStyleId);
     }
 
     findBySkillId(canvasId: string, skillId: string): Pod[] {
-        return this.findByPredicate(canvasId, (pod) => pod.skillIds.includes(skillId));
+        return this.findByArrayField(canvasId, 'skillIds', skillId);
     }
 
     findByRepositoryId(canvasId: string, repositoryId: string): Pod[] {
-        return this.findByPredicate(canvasId, (pod) => pod.repositoryId === repositoryId);
+        return this.findBySingleField(canvasId, 'repositoryId', repositoryId);
     }
 
     setSlackBinding(canvasId: string, podId: string, binding: PodSlackBinding | null): void {
@@ -378,13 +386,9 @@ class PodStore extends CanvasMapStore<Pod> {
         return ok(undefined);
     }
 
-    private deserializePod(persistedPod: PersistedPod, canvasDir: string): Pod | null {
-        const validation = this.validatePodData(persistedPod);
-        if (!validation.success) {
-            return null;
-        }
-
+    private applyPodDefaults(persistedPod: PersistedPod, canvasDir: string): Pod {
         const loadedStatus = persistedPod.status as string;
+
         const pod: Pod = {
             id: persistedPod.id,
             name: persistedPod.name,
@@ -419,6 +423,15 @@ class PodStore extends CanvasMapStore<Pod> {
         }
 
         return pod;
+    }
+
+    private deserializePod(persistedPod: PersistedPod, canvasDir: string): Pod | null {
+        const validation = this.validatePodData(persistedPod);
+        if (!validation.success) {
+            return null;
+        }
+
+        return this.applyPodDefaults(persistedPod, canvasDir);
     }
 
     private async loadSinglePod(podId: string, canvasDir: string, pods: Map<string, Pod>): Promise<void> {

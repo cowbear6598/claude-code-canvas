@@ -1,4 +1,4 @@
-import { requireActiveCanvas } from '@/utils/canvasGuard'
+import { getActiveCanvasIdOrWarn } from '@/utils/canvasGuard'
 import { createWebSocketRequest } from '@/services/websocket'
 import type { WebSocketRequestConfig } from '@/services/websocket/createWebSocketRequest'
 import { useWebSocketErrorHandler } from '@/composables/useWebSocketErrorHandler'
@@ -32,10 +32,8 @@ export function useCanvasWebSocketAction(): {
     },
     options: CanvasWebSocketActionOptions
   ): Promise<WebSocketActionResult<TResponse>> => {
-    let canvasId: string
-    try {
-      canvasId = requireActiveCanvas()
-    } catch {
+    const canvasId = getActiveCanvasIdOrWarn('useCanvasWebSocketAction')
+    if (!canvasId) {
       return { success: false, error: '沒有啟用的畫布' }
     }
 

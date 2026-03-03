@@ -2,7 +2,7 @@ interface PendingTarget {
   targetPodId: string;
   requiredSourcePodIds: string[];
   completedSources: Map<string, string>;
-  rejectedSources: Map<string, string>; // key: 來源 Pod ID，value: 拒絕原因
+  rejectedSources: Map<string, string>;
   createdAt: Date;
 }
 

@@ -12,6 +12,41 @@ export interface AiDecidePromptContext {
   targets: AiDecideTargetInfo[];
 }
 
+function buildSourceSection(context: AiDecidePromptContext): string {
+  return `# 上游任務資訊
+
+**Pod 名稱**：${context.sourcePodName}
+
+**執行摘要**：
+${context.sourceSummary}
+
+---
+
+# 下游任務清單
+
+`;
+}
+
+function buildTargetSection(target: AiDecideTargetInfo): string {
+  let section = `## Target Pod: ${target.targetPodName}\n`;
+  section += `- Connection ID: ${target.connectionId}\n`;
+
+  if (target.targetPodOutputStyle) {
+    section += `- OutputStyle：\n\`\`\`\n${target.targetPodOutputStyle}\n\`\`\`\n`;
+  } else {
+    section += `- OutputStyle：無\n`;
+  }
+
+  if (target.targetPodCommand) {
+    section += `- Command：\n\`\`\`\n${target.targetPodCommand}\n\`\`\`\n`;
+  } else {
+    section += `- Command：無\n`;
+  }
+
+  section += `\n`;
+  return section;
+}
+
 class AiDecidePromptBuilder {
   buildSystemPrompt(): string {
     return `你是一個 Workflow 觸發判斷者。
@@ -27,36 +62,10 @@ class AiDecidePromptBuilder {
   }
 
   buildUserPrompt(context: AiDecidePromptContext): string {
-    let prompt = `# 上游任務資訊
-
-**Pod 名稱**：${context.sourcePodName}
-
-**執行摘要**：
-${context.sourceSummary}
-
----
-
-# 下游任務清單
-
-`;
+    let prompt = buildSourceSection(context);
 
     for (const target of context.targets) {
-      prompt += `## Target Pod: ${target.targetPodName}\n`;
-      prompt += `- Connection ID: ${target.connectionId}\n`;
-
-      if (target.targetPodOutputStyle) {
-        prompt += `- OutputStyle：\n\`\`\`\n${target.targetPodOutputStyle}\n\`\`\`\n`;
-      } else {
-        prompt += `- OutputStyle：無\n`;
-      }
-
-      if (target.targetPodCommand) {
-        prompt += `- Command：\n\`\`\`\n${target.targetPodCommand}\n\`\`\`\n`;
-      } else {
-        prompt += `- Command：無\n`;
-      }
-
-      prompt += `\n`;
+      prompt += buildTargetSection(target);
     }
 
     prompt += `---

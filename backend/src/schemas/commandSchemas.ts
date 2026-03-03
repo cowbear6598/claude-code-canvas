@@ -1,17 +1,9 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema, canvasIdSchema, resourceNameSchema, resourceIdSchema, groupIdSchema, noteUpdateBaseSchema, createNoteCreateSchema } from './base.js';
+import { requestIdSchema, podIdSchema, canvasIdSchema, resourceIdSchema, noteUpdateBaseSchema, createNoteCreateSchema, canvasRequestSchema, noteDeleteBaseSchema, podUnbindBaseSchema, moveToGroupSchema, createResourceReadSchema, createResourceCreateSchema } from './base.js';
 
-export const commandListSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-});
+export const commandListSchema = canvasRequestSchema;
 
-export const commandCreateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  name: resourceNameSchema,
-  content: z.string().max(10000000),
-});
+export const commandCreateSchema = createResourceCreateSchema();
 
 export const commandUpdateSchema = z.object({
   requestId: requestIdSchema,
@@ -20,26 +12,15 @@ export const commandUpdateSchema = z.object({
   content: z.string().max(10000000),
 });
 
-export const commandReadSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  commandId: resourceIdSchema,
-});
+export const commandReadSchema = createResourceReadSchema('commandId');
 
 export const commandNoteCreateSchema = createNoteCreateSchema({ commandId: resourceIdSchema });
 
-export const commandNoteListSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-});
+export const commandNoteListSchema = canvasRequestSchema;
 
 export const commandNoteUpdateSchema = noteUpdateBaseSchema;
 
-export const commandNoteDeleteSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  noteId: z.uuid(),
-});
+export const commandNoteDeleteSchema = noteDeleteBaseSchema;
 
 export const podBindCommandSchema = z.object({
   requestId: requestIdSchema,
@@ -48,11 +29,7 @@ export const podBindCommandSchema = z.object({
   commandId: resourceIdSchema,
 });
 
-export const podUnbindCommandSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  podId: podIdSchema,
-});
+export const podUnbindCommandSchema = podUnbindBaseSchema;
 
 export const commandDeleteSchema = z.object({
   requestId: requestIdSchema,
@@ -60,11 +37,7 @@ export const commandDeleteSchema = z.object({
   commandId: resourceIdSchema,
 });
 
-export const commandMoveToGroupSchema = z.object({
-  requestId: requestIdSchema,
-  itemId: resourceIdSchema,
-  groupId: groupIdSchema,
-});
+export const commandMoveToGroupSchema = moveToGroupSchema;
 
 export type CommandListPayload = z.infer<typeof commandListSchema>;
 export type PodBindCommandPayload = z.infer<typeof podBindCommandSchema>;

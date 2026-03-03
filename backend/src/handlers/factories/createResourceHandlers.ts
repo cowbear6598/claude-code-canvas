@@ -1,7 +1,7 @@
 import type { WebSocketResponseEvents } from '../../schemas';
 import type { Pod } from '../../types/index.js';
 import { socketService } from '../../services/socketService.js';
-import { emitError } from '../../utils/websocketResponse.js';
+import { emitError, emitNotFound } from '../../utils/websocketResponse.js';
 import { logger, type LogCategory } from '../../utils/logger.js';
 import { handleResourceDelete } from '../../utils/handlerHelpers.js';
 
@@ -54,6 +54,10 @@ interface BaseResponse {
   success: true;
 }
 
+// [key: string]: unknown — computed property key 的 TypeScript 限制，
+// 無法用字面量型別約束。response 物件僅用於序列化傳送，不再讀取。
+type DynamicResponse = BaseResponse & { [key: string]: unknown };
+
 export function createListHandler<T>(config: {
   service: { list(): Promise<T[]> };
   event: WebSocketResponseEvents;
@@ -62,9 +66,7 @@ export function createListHandler<T>(config: {
   return async function (connectionId: string, _payload: unknown, requestId: string): Promise<void> {
     const items = await config.service.list();
 
-    // [key: string]: unknown — computed property key（config.responseKey）的 TypeScript 限制，
-    // 無法用字面量型別約束。response 物件僅用於序列化傳送，不再讀取。
-    const response: BaseResponse & { [key: string]: unknown } = {
+    const response: DynamicResponse = {
       requestId,
       success: true,
       [config.responseKey]: items,
@@ -138,7 +140,7 @@ export function createResourceHandlers<T extends { id: string; name: string }, T
 
     const resource = await service.create(name, content);
 
-    const response: BaseResponse & { [key: string]: unknown } = {
+    const response: DynamicResponse = {
       requestId,
       success: true,
       [responseKey]: resource,
@@ -159,20 +161,13 @@ export function createResourceHandlers<T extends { id: string; name: string }, T
 
     const exists = await service.exists(resourceId);
     if (!exists) {
-      emitError(
-        connectionId,
-        events.updated,
-        `${resourceName} 找不到: ${resourceId}`,
-        requestId,
-        undefined,
-        'NOT_FOUND'
-      );
+      emitNotFound(connectionId, events.updated, resourceName, resourceId, requestId);
       return;
     }
 
     const resource = await service.update(resourceId, content);
 
-    const response: BaseResponse & { [key: string]: unknown } = {
+    const response: DynamicResponse = {
       requestId,
       success: true,
       [responseKey]: {
@@ -195,18 +190,11 @@ export function createResourceHandlers<T extends { id: string; name: string }, T
 
     const content = await service.getContent(resourceId);
     if (!content) {
-      emitError(
-        connectionId,
-        events.readResult,
-        `${resourceName} 找不到: ${resourceId}`,
-        requestId,
-        undefined,
-        'NOT_FOUND'
-      );
+      emitNotFound(connectionId, events.readResult, resourceName, resourceId, requestId);
       return;
     }
 
-    const response: BaseResponse & { [key: string]: unknown } = {
+    const response: DynamicResponse = {
       requestId,
       success: true,
       [responseKey]: {

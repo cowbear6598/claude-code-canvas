@@ -6,13 +6,13 @@ import { MOUSE_BUTTON } from '@/lib/constants'
 const MIN_PAN_DISTANCE = 3
 
 interface CanvasPanOptions {
-  onRightClick?: (e: MouseEvent) => void
+  onRightClick?: (mouseEvent: MouseEvent) => void
 }
 
 export function useCanvasPan(options?: CanvasPanOptions): {
   isPanning: import('vue').Ref<boolean>
   hasPanned: import('vue').Ref<boolean>
-  startPan: (e: MouseEvent) => void
+  startPan: (mouseEvent: MouseEvent) => void
   resetPanState: () => void
 } {
   const { viewportStore } = useCanvasContext()
@@ -26,34 +26,34 @@ export function useCanvasPan(options?: CanvasPanOptions): {
 
   const { isDragging: isPanning, startDrag } = useDragHandler({
     button: MOUSE_BUTTON.RIGHT,
-    onMove: (e: MouseEvent): void => {
-      const dx = e.clientX - startX
-      const dy = e.clientY - startY
+    onMove: (mouseEvent: MouseEvent): void => {
+      const horizontalDelta = mouseEvent.clientX - startX
+      const verticalDelta = mouseEvent.clientY - startY
 
-      if (!hasPanned.value && (Math.abs(dx) > MIN_PAN_DISTANCE || Math.abs(dy) > MIN_PAN_DISTANCE)) {
+      if (!hasPanned.value && (Math.abs(horizontalDelta) > MIN_PAN_DISTANCE || Math.abs(verticalDelta) > MIN_PAN_DISTANCE)) {
         hasPanned.value = true
       }
 
-      viewportStore.setOffset(startOffsetX + dx, startOffsetY + dy)
+      viewportStore.setOffset(startOffsetX + horizontalDelta, startOffsetY + verticalDelta)
     },
     onEnd: (): void => {
       const didPan = hasPanned.value
-      const event = panStartEvent
+      const panEvent = panStartEvent
 
       panStartEvent = null
 
       // Mac 上 contextmenu 事件可能早於 mouseup 觸發，
       // 改在 mouseup 時判斷是否為單純右鍵點擊，才觸發選單
-      if (!didPan && options?.onRightClick && event) {
-        options.onRightClick(event)
+      if (!didPan && options?.onRightClick && panEvent) {
+        options.onRightClick(panEvent)
       }
     }
   })
 
-  const startPan = (e: MouseEvent): void => {
-    if (e.button !== MOUSE_BUTTON.RIGHT) return
+  const startPan = (mouseEvent: MouseEvent): void => {
+    if (mouseEvent.button !== MOUSE_BUTTON.RIGHT) return
 
-    const target = e.target as HTMLElement
+    const target = mouseEvent.target as HTMLElement
 
     if (
       target.id === 'canvas' ||
@@ -61,13 +61,13 @@ export function useCanvasPan(options?: CanvasPanOptions): {
       target.classList.contains('canvas-content')
     ) {
       hasPanned.value = false
-      startX = e.clientX
-      startY = e.clientY
+      startX = mouseEvent.clientX
+      startY = mouseEvent.clientY
       startOffsetX = viewportStore.offset.x
       startOffsetY = viewportStore.offset.y
-      panStartEvent = e
+      panStartEvent = mouseEvent
 
-      startDrag(e)
+      startDrag(mouseEvent)
     }
   }
 

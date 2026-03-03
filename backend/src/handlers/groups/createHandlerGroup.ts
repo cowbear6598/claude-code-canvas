@@ -11,7 +11,6 @@ export interface HandlerConfig {
   responseEvent: string;
 }
 
-// 用於建構個別 HandlerConfig，在建構時進行型別推導與檢查
 export function defineHandlerConfig<TSchema extends z.ZodType>(config: {
   event: string;
   handler: ValidatedHandler<z.infer<TSchema>>;

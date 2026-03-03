@@ -19,40 +19,48 @@ export function detectGitPlatform(url: string): GitPlatform {
   return 'other'
 }
 
+function defaultResult(platform: GitPlatform): GitUrlParseResult {
+  return { platform, owner: null, repoName: null, isValid: false }
+}
+
+function parseHttpsUrl(url: string, platform: GitPlatform): GitUrlParseResult {
+  const httpsPattern = /^https:\/\/([^/]+)\/([^/]+)\/(.+?)(?:\.git)?$/
+  const match = url.match(httpsPattern)
+
+  if (!match) return defaultResult(platform)
+
+  return {
+    platform,
+    owner: match[2] ?? null,
+    repoName: match[3] ?? null,
+    isValid: true,
+  }
+}
+
+function parseSshUrl(url: string, platform: GitPlatform): GitUrlParseResult {
+  const sshPattern = /^git@([^:]+):([^/]+)\/(.+?)(?:\.git)?$/
+  const match = url.match(sshPattern)
+
+  if (!match) return defaultResult(platform)
+
+  return {
+    platform,
+    owner: match[2] ?? null,
+    repoName: match[3] ?? null,
+    isValid: true,
+  }
+}
+
 export function parseGitUrl(url: string): GitUrlParseResult {
   const trimmedUrl = url.trim()
   const platform = detectGitPlatform(trimmedUrl)
 
-  let owner: string | null = null
-  let repoName: string | null = null
-  let isValid = false
-
   // 檢查 URL 長度，防止 ReDoS 攻擊
-  if (!trimmedUrl || trimmedUrl.length > MAX_URL_LENGTH) {
-    return { platform, owner, repoName, isValid }
-  }
+  if (!trimmedUrl || trimmedUrl.length > MAX_URL_LENGTH) return defaultResult(platform)
+  if (trimmedUrl.startsWith('https://')) return parseHttpsUrl(trimmedUrl, platform)
+  if (trimmedUrl.startsWith('git@')) return parseSshUrl(trimmedUrl, platform)
 
-  if (trimmedUrl.startsWith('https://')) {
-    const httpsPattern = /^https:\/\/([^/]+)\/([^/]+)\/(.+?)(?:\.git)?$/
-    const match = trimmedUrl.match(httpsPattern)
-
-    if (match) {
-      owner = match[2] ?? null
-      repoName = match[3] ?? null
-      isValid = true
-    }
-  } else if (trimmedUrl.startsWith('git@')) {
-    const sshPattern = /^git@([^:]+):([^/]+)\/(.+?)(?:\.git)?$/
-    const match = trimmedUrl.match(sshPattern)
-
-    if (match) {
-      owner = match[2] ?? null
-      repoName = match[3] ?? null
-      isValid = true
-    }
-  }
-
-  return { platform, owner, repoName, isValid }
+  return defaultResult(platform)
 }
 
 export function getPlatformDisplayName(platform: GitPlatform): string {

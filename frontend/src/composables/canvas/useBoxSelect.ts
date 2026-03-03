@@ -7,9 +7,9 @@ const BOX_SELECT_THRESHOLD = 5
 
 export function useBoxSelect(): {
   isBoxSelecting: import('vue').Ref<boolean>
-  startBoxSelect: (e: MouseEvent) => void
+  startBoxSelect: (event: MouseEvent) => void
 } {
-  const { viewportStore, selectionStore, podStore, outputStyleStore, skillStore, subAgentStore, repositoryStore, commandStore } = useCanvasContext()
+  const { viewportStore, selectionStore, podStore, outputStyleStore, skillStore, subAgentStore, repositoryStore, commandStore, mcpServerStore } = useCanvasContext()
 
   const isBoxSelecting = ref(false)
 
@@ -27,7 +27,8 @@ export function useBoxSelect(): {
         skillStore.notes,
         repositoryStore.notes,
         subAgentStore.notes,
-        commandStore.notes
+        commandStore.notes,
+        mcpServerStore.notes
       )
     },
     onEnd: (upEvent: MouseEvent): void => {
@@ -45,35 +46,35 @@ export function useBoxSelect(): {
     }
   })
 
-  const shouldStartBoxSelect = (e: MouseEvent, target: HTMLElement): boolean => {
-    if (e.button !== 0) return false
+  const shouldStartBoxSelect = (event: MouseEvent, target: HTMLElement): boolean => {
+    if (event.button !== 0) return false
     if (!target.classList.contains('canvas-grid') && !target.classList.contains('canvas-content')) return false
     if (viewportStore.zoom === 0) return false
     return true
   }
 
-  const startBoxSelect = (e: MouseEvent): void => {
-    const target = e.target as HTMLElement
+  const startBoxSelect = (event: MouseEvent): void => {
+    const target = event.target as HTMLElement
 
-    if (!shouldStartBoxSelect(e, target)) return
+    if (!shouldStartBoxSelect(event, target)) return
 
     if (document.activeElement instanceof HTMLInputElement ||
         document.activeElement instanceof HTMLTextAreaElement) {
       document.activeElement.blur()
     }
 
-    e.preventDefault()
+    event.preventDefault()
 
-    startClientX = e.clientX
-    startClientY = e.clientY
-    const canvasX = (e.clientX - viewportStore.offset.x) / viewportStore.zoom
-    const canvasY = (e.clientY - viewportStore.offset.y) / viewportStore.zoom
+    startClientX = event.clientX
+    startClientY = event.clientY
+    const canvasX = (event.clientX - viewportStore.offset.x) / viewportStore.zoom
+    const canvasY = (event.clientY - viewportStore.offset.y) / viewportStore.zoom
 
-    const isCtrlPressed = isCtrlOrCmdPressed(e)
+    const isCtrlPressed = isCtrlOrCmdPressed(event)
     selectionStore.startSelection(canvasX, canvasY, isCtrlPressed)
     isBoxSelecting.value = true
 
-    startDrag(e)
+    startDrag(event)
   }
 
   return {

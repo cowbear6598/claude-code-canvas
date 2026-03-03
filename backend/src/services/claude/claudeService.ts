@@ -87,11 +87,11 @@ export class ClaudeService {
         abortController: AbortController;
     }>();
 
-    private readonly sdkMessageHandlers: Record<string, (msg: SDKMessage, state: QueryState, onStream: StreamCallback) => void> = {
-        assistant: (msg, state, onStream) => this.handleAssistantMessage(msg as SDKAssistantMessage, state, onStream),
-        user: (msg, state, onStream) => this.handleUserMessage(msg as SDKUserMessageType, state, onStream),
-        tool_progress: (msg, state, onStream) => this.handleToolProgressMessage(msg as SDKToolProgressWithOutput, state, onStream),
-        result: (msg, state, onStream) => this.handleResultMessage(msg as SDKResultMessage, state, onStream),
+    private readonly sdkMessageHandlers: Record<string, (sdkMessage: SDKMessage, state: QueryState, onStream: StreamCallback) => void> = {
+        assistant: (sdkMessage, state, onStream) => this.handleAssistantMessage(sdkMessage as SDKAssistantMessage, state, onStream),
+        user: (sdkMessage, state, onStream) => this.handleUserMessage(sdkMessage as SDKUserMessageType, state, onStream),
+        tool_progress: (sdkMessage, state, onStream) => this.handleToolProgressMessage(sdkMessage as SDKToolProgressWithOutput, state, onStream),
+        result: (sdkMessage, state, onStream) => this.handleResultMessage(sdkMessage as SDKResultMessage, state, onStream),
     };
 
     private buildBaseOptions(cwd: string): Partial<Options> {

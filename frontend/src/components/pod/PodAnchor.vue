@@ -32,9 +32,9 @@ onUnmounted(() => {
   cleanupEventListeners()
 })
 
-const handleMouseDown = (e: MouseEvent): void => {
-  e.stopPropagation()
-  e.preventDefault()
+const handleMouseDown = (mouseEvent: MouseEvent): void => {
+  mouseEvent.stopPropagation()
+  mouseEvent.preventDefault()
 
   isDragging.value = true
   cleanupEventListeners()
@@ -42,8 +42,8 @@ const handleMouseDown = (e: MouseEvent): void => {
   emit('dragStart', {
     podId: props.podId,
     anchor: props.position,
-    screenX: e.clientX,
-    screenY: e.clientY,
+    screenX: mouseEvent.clientX,
+    screenY: mouseEvent.clientY,
   })
 
   const handleMouseMove = (moveEvent: MouseEvent): void => {

@@ -28,20 +28,15 @@ export function emitError(
 	});
 }
 
+export function emitNotFound(
+	connectionId: string,
+	responseEvent: WebSocketResponseEvents,
+	entityName: string,
+	resourceId: string,
+	requestId: string
+): void {
+	emitError(connectionId, responseEvent, `${entityName} 找不到: ${resourceId}`, requestId, undefined, 'NOT_FOUND');
+}
+
 export { getErrorMessage } from './errorHelpers.js';
 
-export function sendErrorResponse(
-	connectionId: string,
-	requestId: string,
-	code: string,
-	message: string
-): void {
-	socketService.emitToConnection(connectionId, 'error', {
-		requestId,
-		success: false,
-		error: {
-			code,
-			message,
-		},
-	});
-}

@@ -3,6 +3,7 @@ import type { TriggerMode } from '@/types/connection'
 import { Zap, Brain, ArrowRight } from 'lucide-vue-next'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useToast } from '@/composables/useToast'
+import { DEFAULT_TOAST_DURATION_MS, SHORT_TOAST_DURATION_MS } from '@/lib/constants'
 
 interface Props {
   position: { x: number; y: number }
@@ -37,7 +38,7 @@ const handleSetTriggerMode = async (targetMode: TriggerMode): Promise<void> => {
     toast({
       title: '觸發模式已變更',
       description: `已切換為${modeTextMap[targetMode]}模式`,
-      duration: 2000
+      duration: SHORT_TOAST_DURATION_MS
     })
     emit('trigger-mode-changed')
     emit('close')
@@ -45,7 +46,7 @@ const handleSetTriggerMode = async (targetMode: TriggerMode): Promise<void> => {
     toast({
       title: '變更失敗',
       description: '無法變更觸發模式',
-      duration: 3000
+      duration: DEFAULT_TOAST_DURATION_MS
     })
   }
 }

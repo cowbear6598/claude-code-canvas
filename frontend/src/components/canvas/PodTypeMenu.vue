@@ -54,15 +54,15 @@ const menuRef = ref<HTMLElement | null>(null)
 const openMenuType = ref<'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | 'mcpServer' | null>(null)
 const hoveredItemId = ref<string | null>(null)
 
-const handleOutsideMouseDown = (e: MouseEvent): void => {
-  if (!e.target) return
+const handleOutsideMouseDown = (event: MouseEvent): void => {
+  if (!event.target) return
 
   const menuEl = menuRef.value
-  if (menuEl && !menuEl.contains(e.target as Node)) {
+  if (menuEl && !menuEl.contains(event.target as Node)) {
     podStore.hideTypeMenu()
 
-    if (e.button !== 2) {
-      e.stopPropagation()
+    if (event.button !== 2) {
+      event.stopPropagation()
     }
   }
 }

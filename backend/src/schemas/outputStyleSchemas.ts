@@ -1,17 +1,9 @@
 import { z } from 'zod';
-import { requestIdSchema, podIdSchema, canvasIdSchema, resourceNameSchema, resourceIdSchema, groupIdSchema } from './base.js';
+import { requestIdSchema, podIdSchema, canvasIdSchema, resourceIdSchema, canvasRequestSchema, podUnbindBaseSchema, moveToGroupSchema, createResourceReadSchema, createResourceCreateSchema } from './base.js';
 
-export const outputStyleListSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-});
+export const outputStyleListSchema = canvasRequestSchema;
 
-export const outputStyleCreateSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  name: resourceNameSchema,
-  content: z.string().max(10000000),
-});
+export const outputStyleCreateSchema = createResourceCreateSchema();
 
 export const outputStyleUpdateSchema = z.object({
   requestId: requestIdSchema,
@@ -20,11 +12,7 @@ export const outputStyleUpdateSchema = z.object({
   content: z.string().max(10000000),
 });
 
-export const outputStyleReadSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  outputStyleId: resourceIdSchema,
-});
+export const outputStyleReadSchema = createResourceReadSchema('outputStyleId');
 
 export const podBindOutputStyleSchema = z.object({
   requestId: requestIdSchema,
@@ -33,11 +21,7 @@ export const podBindOutputStyleSchema = z.object({
   outputStyleId: resourceIdSchema,
 });
 
-export const podUnbindOutputStyleSchema = z.object({
-  requestId: requestIdSchema,
-  canvasId: canvasIdSchema,
-  podId: podIdSchema,
-});
+export const podUnbindOutputStyleSchema = podUnbindBaseSchema;
 
 export const outputStyleDeleteSchema = z.object({
   requestId: requestIdSchema,
@@ -45,11 +29,7 @@ export const outputStyleDeleteSchema = z.object({
   outputStyleId: resourceIdSchema,
 });
 
-export const outputStyleMoveToGroupSchema = z.object({
-  requestId: requestIdSchema,
-  itemId: resourceIdSchema,
-  groupId: groupIdSchema,
-});
+export const outputStyleMoveToGroupSchema = moveToGroupSchema;
 
 export type OutputStyleListPayload = z.infer<typeof outputStyleListSchema>;
 export type PodBindOutputStylePayload = z.infer<typeof podBindOutputStyleSchema>;

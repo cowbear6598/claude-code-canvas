@@ -13,7 +13,7 @@ import { slackAppStore } from '../services/slack/slackAppStore.js';
 import { slackConnectionManager } from '../services/slack/slackConnectionManager.js';
 import { podStore } from '../services/podStore.js';
 import { socketService } from '../services/socketService.js';
-import { emitError } from '../utils/websocketResponse.js';
+import { emitError, emitNotFound } from '../utils/websocketResponse.js';
 import { logger } from '../utils/logger.js';
 import { fireAndForget } from '../utils/operationHelpers.js';
 import { emitPodUpdated, handleResultError } from '../utils/handlerHelpers.js';
@@ -33,7 +33,7 @@ function sanitizeSlackApp(app: SlackApp): SanitizedSlackApp {
 function getSlackAppOrEmitError(connectionId: string, slackAppId: string, responseEvent: WebSocketResponseEvents, requestId: string): SlackApp | null {
     const app = slackAppStore.getById(slackAppId);
     if (!app) {
-        emitError(connectionId, responseEvent, `找不到 Slack App：${slackAppId}`, requestId, undefined, 'NOT_FOUND');
+        emitNotFound(connectionId, responseEvent, 'Slack App', slackAppId, requestId);
         return null;
     }
     return app;
@@ -185,13 +185,13 @@ export async function handlePodBindSlack(
 
     const pod = podStore.getById(canvasId, podId);
     if (!pod) {
-        emitError(connectionId, WebSocketResponseEvents.POD_SLACK_BOUND, `找不到 Pod：${podId}`, requestId, undefined, 'NOT_FOUND');
+        emitNotFound(connectionId, WebSocketResponseEvents.POD_SLACK_BOUND, 'Pod', podId, requestId);
         return;
     }
 
     const app = slackAppStore.getById(slackAppId);
     if (!app) {
-        emitError(connectionId, WebSocketResponseEvents.POD_SLACK_BOUND, `找不到 Slack App：${slackAppId}`, requestId, undefined, 'NOT_FOUND');
+        emitNotFound(connectionId, WebSocketResponseEvents.POD_SLACK_BOUND, 'Slack App', slackAppId, requestId);
         return;
     }
 
@@ -202,7 +202,7 @@ export async function handlePodBindSlack(
 
     const channel = app.channels.find((ch) => ch.id === slackChannelId);
     if (!channel) {
-        emitError(connectionId, WebSocketResponseEvents.POD_SLACK_BOUND, `找不到頻道：${slackChannelId}`, requestId, undefined, 'NOT_FOUND');
+        emitNotFound(connectionId, WebSocketResponseEvents.POD_SLACK_BOUND, '頻道', slackChannelId, requestId);
         return;
     }
 
@@ -222,7 +222,7 @@ export async function handlePodUnbindSlack(
 
     const pod = podStore.getById(canvasId, podId);
     if (!pod) {
-        emitError(connectionId, WebSocketResponseEvents.POD_SLACK_UNBOUND, `找不到 Pod：${podId}`, requestId, undefined, 'NOT_FOUND');
+        emitNotFound(connectionId, WebSocketResponseEvents.POD_SLACK_UNBOUND, 'Pod', podId, requestId);
         return;
     }
 

@@ -49,7 +49,7 @@ async function startServer(): Promise<void> {
 			const upgradeHeader = req.headers.get('upgrade');
 			if (upgradeHeader?.toLowerCase() === 'websocket') {
 				const success = server.upgrade(req, {
-					data: { connectionId: '' }, // 將在 open 時設置
+					data: { connectionId: '' },
 				});
 				if (success) return undefined;
 			}

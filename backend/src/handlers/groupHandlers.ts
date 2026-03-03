@@ -1,7 +1,7 @@
 import { WebSocketResponseEvents, GroupCreatePayload, GroupListPayload, GroupDeletePayload } from '../schemas';
 import { groupStore } from '../services/groupStore.js';
 import { GroupType, GROUP_TYPES } from '../types';
-import { emitError, emitSuccess } from '../utils/websocketResponse.js';
+import { emitError, emitSuccess, emitNotFound } from '../utils/websocketResponse.js';
 import { socketService } from '../services/socketService.js';
 
 export async function handleGroupCreate(connectionId: string, payload: GroupCreatePayload, requestId: string): Promise<void> {
@@ -39,7 +39,7 @@ export async function handleGroupDelete(connectionId: string, payload: GroupDele
 
   const type = await findGroupType(groupId);
   if (!type) {
-    emitError(connectionId, WebSocketResponseEvents.GROUP_DELETED, 'Group 不存在', requestId, undefined, 'NOT_FOUND');
+    emitNotFound(connectionId, WebSocketResponseEvents.GROUP_DELETED, 'Group', groupId, requestId);
     return;
   }
 
@@ -51,7 +51,7 @@ export async function handleGroupDelete(connectionId: string, payload: GroupDele
 
   const deleted = await groupStore.delete(groupId, type);
   if (!deleted) {
-    emitError(connectionId, WebSocketResponseEvents.GROUP_DELETED, 'Group 不存在', requestId, undefined, 'NOT_FOUND');
+    emitNotFound(connectionId, WebSocketResponseEvents.GROUP_DELETED, 'Group', groupId, requestId);
     return;
   }
 

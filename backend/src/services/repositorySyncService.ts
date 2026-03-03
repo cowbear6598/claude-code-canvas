@@ -27,15 +27,14 @@ class RepositorySyncService {
       return;
     }
 
-    const syncPromise = this.performSync(repositoryId);
+    const syncPromise = this.performSync(repositoryId).catch((error) => {
+      logger.error('Repository', 'Error', `同步 repository ${repositoryId} 資源失敗`, error);
+    });
     this.locks.set(repositoryId, syncPromise);
 
-    try {
-      await syncPromise;
-    } finally {
-      if (this.locks.get(repositoryId) === syncPromise) {
-        this.locks.delete(repositoryId);
-      }
+    await syncPromise;
+    if (this.locks.get(repositoryId) === syncPromise) {
+      this.locks.delete(repositoryId);
     }
   }
 

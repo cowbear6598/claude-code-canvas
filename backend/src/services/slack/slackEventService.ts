@@ -123,7 +123,7 @@ class SlackEventService {
         return false;
     }
 
-    // BFS 雙向遍歷 Workflow 鏈，對每個非起始節點執行 predicate
+    // 需要雙向遍歷才能檢測到 Workflow 中間節點的狀態變化，單向遍歷會遺漏反向依賴
     private traverseWorkflowChain(canvasId: string, startPodId: string, predicate: (podId: string) => boolean): boolean {
         const visited = new Set<string>([startPodId]);
         const queue = this.getAdjacentPodIds(canvasId, startPodId).filter(id => !visited.has(id));

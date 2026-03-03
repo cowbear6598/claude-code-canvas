@@ -20,10 +20,10 @@ export function useSlotDropTarget(options: UseSlotDropTargetOptions): UseSlotDro
   const isInserting = ref(false)
   const lastDraggedNoteId = ref<string | null>(null)
 
-  let mouseMoveHandler: ((e: MouseEvent) => void) | null = null
+  let mouseMoveHandler: ((mouseEvent: MouseEvent) => void) | null = null
   let mouseUpHandler: (() => void) | null = null
 
-  const checkDropTarget = (e: MouseEvent): void => {
+  const checkDropTarget = (mouseEvent: MouseEvent): void => {
     if (!slotRef.value) {
       isDropTarget.value = false
       return
@@ -31,10 +31,10 @@ export function useSlotDropTarget(options: UseSlotDropTargetOptions): UseSlotDro
 
     const rect = slotRef.value.getBoundingClientRect()
 
-    isDropTarget.value = e.clientX >= rect.left &&
-      e.clientX <= rect.right &&
-      e.clientY >= rect.top &&
-      e.clientY <= rect.bottom
+    isDropTarget.value = mouseEvent.clientX >= rect.left &&
+      mouseEvent.clientX <= rect.right &&
+      mouseEvent.clientY >= rect.top &&
+      mouseEvent.clientY <= rect.bottom
   }
 
   const handleDrop = (): void => {

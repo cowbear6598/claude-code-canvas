@@ -155,18 +155,18 @@ export function useBatchDrag(): {
     return true
   }
 
-  const movePodElement = (config: StoreConfigEntry, id: string, item: { x: number; y: number }, dx: number, dy: number): void => {
-    config.moveItem(id, item.x + dx, item.y + dy)
+  const movePodElement = (config: StoreConfigEntry, id: string, item: { x: number; y: number }, deltaX: number, deltaY: number): void => {
+    config.moveItem(id, item.x + deltaX, item.y + deltaY)
     config.movedSet.add(id)
   }
 
-  const moveNoteElement = (config: StoreConfigEntry, id: string, item: { x: number; y: number; boundToPodId?: string | null }, dx: number, dy: number): void => {
+  const moveNoteElement = (config: StoreConfigEntry, id: string, item: { x: number; y: number; boundToPodId?: string | null }, deltaX: number, deltaY: number): void => {
     if (item.boundToPodId) return
-    config.moveItem(id, item.x + dx, item.y + dy)
+    config.moveItem(id, item.x + deltaX, item.y + deltaY)
     config.movedSet.add(id)
   }
 
-  const moveSelectedElements = (dx: number, dy: number): void => {
+  const moveSelectedElements = (deltaX: number, deltaY: number): void => {
     const storeConfigMap = createStoreConfigMap(
       { podStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore, mcpServerStore },
       {
@@ -188,9 +188,9 @@ export function useBatchDrag(): {
       if (!item) continue
 
       if (config.isPod) {
-        movePodElement(config, element.id, item, dx, dy)
+        movePodElement(config, element.id, item, deltaX, deltaY)
       } else {
-        moveNoteElement(config, element.id, item, dx, dy)
+        moveNoteElement(config, element.id, item, deltaX, deltaY)
       }
     }
   }

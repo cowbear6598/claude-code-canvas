@@ -4,6 +4,7 @@ import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
 import {useDeleteSelection, useGitCloneProgress, useCheckoutProgress, usePullProgress, useNoteEventHandlers} from '@/composables/canvas'
 import {useRemoteCursors} from '@/composables/canvas/useRemoteCursors'
 import {useCursorTracker} from '@/composables/canvas/useCursorTracker'
+import {useContextMenu} from '@/composables/canvas/useContextMenu'
 import {isCtrlOrCmdPressed} from '@/utils/keyboardHelpers'
 import CanvasViewport from './CanvasViewport.vue'
 import RemoteCursorLayer from './RemoteCursorLayer.vue'
@@ -82,42 +83,32 @@ const pullProgress = usePullProgress()
 
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
 
-const repositoryContextMenu = ref<{
-  visible: boolean
-  position: { x: number; y: number }
-  repositoryId: string
-  repositoryName: string
-  notePosition: { x: number; y: number }
-  isWorktree: boolean
-}>({
-  visible: false,
-  position: {x: 0, y: 0},
+const {
+  state: repositoryContextMenu,
+  open: openRepositoryContextMenu,
+  close: closeRepositoryContextMenu,
+} = useContextMenu({
   repositoryId: '',
   repositoryName: '',
   notePosition: {x: 0, y: 0},
-  isWorktree: false
+  isWorktree: false,
 })
 
-const connectionContextMenu = ref<{
-  visible: boolean
-  position: { x: number; y: number }
-  connectionId: string
-  triggerMode: TriggerMode
-}>({
-  visible: false,
-  position: {x: 0, y: 0},
+const {
+  state: connectionContextMenu,
+  open: openConnectionContextMenu,
+  close: closeConnectionContextMenu,
+} = useContextMenu({
   connectionId: '',
-  triggerMode: 'auto'
+  triggerMode: 'auto' as TriggerMode,
 })
 
-const podContextMenu = ref<{
-  visible: boolean
-  position: { x: number; y: number }
-  podId: string
-}>({
-  visible: false,
-  position: {x: 0, y: 0},
-  podId: ''
+const {
+  state: podContextMenu,
+  open: openPodContextMenu,
+  close: closePodContextMenu,
+} = useContextMenu({
+  podId: '',
 })
 
 const showCreateRepositoryModal = ref(false)
@@ -373,49 +364,31 @@ const handleRepositoryContextMenu = (data: { noteId: string; event: MouseEvent }
   const repository = repositoryStore.typedAvailableItems.find(r => r.id === note.repositoryId)
   if (!repository) return
 
-  repositoryContextMenu.value = {
-    visible: true,
-    position: {x: data.event.clientX, y: data.event.clientY},
+  openRepositoryContextMenu(data.event, {
     repositoryId: repository.id,
     repositoryName: repository.name,
     notePosition: {x: note.x, y: note.y},
-    isWorktree: !!repository.parentRepoId
-  }
-}
-
-const handleRepositoryContextMenuClose = (): void => {
-  repositoryContextMenu.value.visible = false
+    isWorktree: !!repository.parentRepoId,
+  })
 }
 
 const handleConnectionContextMenu = (data: { connectionId: string; event: MouseEvent }): void => {
   const connection = connectionStore.connections.find(connection => connection.id === data.connectionId)
   if (!connection) return
 
-  connectionContextMenu.value = {
-    visible: true,
-    position: {x: data.event.clientX, y: data.event.clientY},
+  openConnectionContextMenu(data.event, {
     connectionId: connection.id,
-    triggerMode: connection.triggerMode
-  }
-}
-
-const handleConnectionContextMenuClose = (): void => {
-  connectionContextMenu.value.visible = false
+    triggerMode: connection.triggerMode,
+  })
 }
 
 const handlePodContextMenu = (data: { podId: string; event: MouseEvent }): void => {
   const pod = podStore.getPodById(data.podId)
   if (!pod) return
 
-  podContextMenu.value = {
-    visible: true,
-    position: {x: data.event.clientX, y: data.event.clientY},
-    podId: pod.id
-  }
-}
-
-const handlePodContextMenuClose = (): void => {
-  podContextMenu.value.visible = false
+  openPodContextMenu(data.event, {
+    podId: pod.id,
+  })
 }
 
 const handleConnectSlack = (podId: string): void => {
@@ -847,8 +820,8 @@ onUnmounted(() => {
   <PodContextMenu
     v-if="podContextMenu.visible"
     :position="podContextMenu.position"
-    :pod-id="podContextMenu.podId"
-    @close="handlePodContextMenuClose"
+    :pod-id="podContextMenu.data.podId"
+    @close="closePodContextMenu"
     @connect-slack="handleConnectSlack"
     @disconnect-slack="handleDisconnectSlack"
   />
@@ -856,22 +829,22 @@ onUnmounted(() => {
   <RepositoryContextMenu
     v-if="repositoryContextMenu.visible"
     :position="repositoryContextMenu.position"
-    :repository-id="repositoryContextMenu.repositoryId"
-    :repository-name="repositoryContextMenu.repositoryName"
-    :note-position="repositoryContextMenu.notePosition"
-    :is-worktree="repositoryContextMenu.isWorktree"
-    @close="handleRepositoryContextMenuClose"
-    @worktree-created="handleRepositoryContextMenuClose"
+    :repository-id="repositoryContextMenu.data.repositoryId"
+    :repository-name="repositoryContextMenu.data.repositoryName"
+    :note-position="repositoryContextMenu.data.notePosition"
+    :is-worktree="repositoryContextMenu.data.isWorktree"
+    @close="closeRepositoryContextMenu"
+    @worktree-created="closeRepositoryContextMenu"
     @pull-started="handlePullStarted"
   />
 
   <ConnectionContextMenu
     v-if="connectionContextMenu.visible"
     :position="connectionContextMenu.position"
-    :connection-id="connectionContextMenu.connectionId"
-    :current-trigger-mode="connectionContextMenu.triggerMode"
-    @close="handleConnectionContextMenuClose"
-    @trigger-mode-changed="handleConnectionContextMenuClose"
+    :connection-id="connectionContextMenu.data.connectionId"
+    :current-trigger-mode="connectionContextMenu.data.triggerMode"
+    @close="closeConnectionContextMenu"
+    @trigger-mode-changed="closeConnectionContextMenu"
   />
 
   <CreateRepositoryModal

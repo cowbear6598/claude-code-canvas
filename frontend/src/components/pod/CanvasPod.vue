@@ -7,6 +7,7 @@ import {useAnchorDetection} from '@/composables/useAnchorDetection'
 import {useBatchDrag} from '@/composables/canvas'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
 import {useToast} from '@/composables/useToast'
+import {DEFAULT_TOAST_DURATION_MS} from '@/lib/constants'
 import {isCtrlOrCmdPressed} from '@/utils/keyboardHelpers'
 import {createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
 import type {
@@ -344,7 +345,7 @@ const handleNoteDrop = async (noteType: NoteType, noteId: string): Promise<void>
   if (isAlreadyBound(mapping, note, props.pod.id)) {
     const description = DUPLICATE_BIND_MESSAGES[noteType]
     if (description) {
-      toast({title: '已存在，無法插入', description, duration: 3000})
+      toast({title: '已存在，無法插入', description, duration: DEFAULT_TOAST_DURATION_MS})
     }
     return
   }

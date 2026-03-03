@@ -54,3 +54,48 @@ export function createPasteNoteItemSchema<T extends z.ZodRawShape>(foreignKey: T
     originalPosition: positionSchema.nullable(),
   }) as ReturnType<typeof createPasteNoteItemSchema<T>>;
 }
+
+export const canvasRequestSchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+});
+
+export const noteDeleteBaseSchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+  noteId: z.uuid(),
+});
+
+export const podUnbindBaseSchema = z.object({
+  requestId: requestIdSchema,
+  canvasId: canvasIdSchema,
+  podId: podIdSchema,
+});
+
+export const moveToGroupSchema = z.object({
+  requestId: requestIdSchema,
+  itemId: resourceIdSchema,
+  groupId: groupIdSchema,
+});
+
+export function createResourceReadSchema(idFieldName: string): z.ZodObject<z.ZodRawShape> {
+  return z.object({
+    requestId: requestIdSchema,
+    canvasId: canvasIdSchema,
+    [idFieldName]: resourceIdSchema,
+  });
+}
+
+export function createResourceCreateSchema(): z.ZodObject<{
+  requestId: typeof requestIdSchema;
+  canvasId: typeof canvasIdSchema;
+  name: typeof resourceNameSchema;
+  content: z.ZodString;
+}> {
+  return z.object({
+    requestId: requestIdSchema,
+    canvasId: canvasIdSchema,
+    name: resourceNameSchema,
+    content: z.string().max(10000000),
+  });
+}

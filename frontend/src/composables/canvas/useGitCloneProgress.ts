@@ -2,8 +2,9 @@ import { type Ref, type ComputedRef } from 'vue'
 import { WebSocketResponseEvents } from '@/types/websocket'
 import type { RepositoryGitCloneProgressPayload, RepositoryGitCloneResultPayload } from '@/types/websocket'
 import { useCanvasContext } from '@/composables/canvas/useCanvasContext'
-import { useProgressTracker } from '@/composables/canvas/useProgressTracker'
+import { useProgressTracker, handleProgressError } from '@/composables/canvas/useProgressTracker'
 import type { ProgressTask } from '@/components/canvas/ProgressNote.vue'
+import { PROGRESS_REMOVE_DELAY_MS } from '@/lib/constants'
 
 export type CloneStatus = 'cloning' | 'completed' | 'failed'
 
@@ -95,15 +96,13 @@ export function useGitCloneProgress(): UseGitCloneProgressReturn {
 
         await repositoryStore.loadRepositories()
 
-        helpers.scheduleRemove(payload.requestId, 1000)
+        helpers.scheduleRemove(payload.requestId, PROGRESS_REMOVE_DELAY_MS)
       } else {
-        const errorMessage = payload.error ? getErrorMessage(payload.error) : '未知錯誤'
-        task.status = 'failed'
-        task.message = errorMessage
-
-        helpers.showErrorToast('Repository', 'Clone 失敗', errorMessage)
-
-        helpers.scheduleRemove(payload.requestId, 2000)
+        handleProgressError(task, helpers, payload.requestId, payload.error, {
+          category: 'Repository',
+          action: 'Clone 失敗',
+          defaultMessage: '未知錯誤',
+        }, getErrorMessage)
       }
     },
 

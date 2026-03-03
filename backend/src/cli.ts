@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import pkg from '../../package.json';
+import { safeJsonParse } from './utils/safeJsonParse.js';
 
 const APP_DATA_DIR = path.join(os.homedir(), 'Documents', 'ClaudeCanvas');
 const PID_FILE = path.join(APP_DATA_DIR, 'claude-canvas.pid');
@@ -97,19 +98,17 @@ export function validatePort(value: string): number | null {
 export function readConfig(configPath: string): Record<string, string> {
 	if (!fs.existsSync(configPath)) return {};
 
-	try {
-		const content = fs.readFileSync(configPath, 'utf-8');
-		const raw = JSON.parse(content);
-		const config: Record<string, string> = {};
-		for (const [key, value] of Object.entries(raw)) {
-			if (typeof value === 'string') {
-				config[key] = value;
-			}
+	const content = fs.readFileSync(configPath, 'utf-8');
+	const raw = safeJsonParse<Record<string, unknown>>(content);
+	if (!raw) return {};
+
+	const config: Record<string, string> = {};
+	for (const [key, value] of Object.entries(raw)) {
+		if (typeof value === 'string') {
+			config[key] = value;
 		}
-		return config;
-	} catch {
-		return {};
 	}
+	return config;
 }
 
 export function writeConfig(configPath: string, config: Record<string, string>): void {
@@ -121,16 +120,14 @@ export function writeConfig(configPath: string, config: Record<string, string>):
 export function readPidFile(pidPath: string): { pid: number; port: number; startedAt: string } | null {
 	if (!fs.existsSync(pidPath)) return null;
 
-	try {
-		const content = fs.readFileSync(pidPath, 'utf-8');
-		const data = JSON.parse(content) as { pid: number; port: number; startedAt: string };
-		if (typeof data.pid !== 'number' || typeof data.port !== 'number' || typeof data.startedAt !== 'string') {
-			return null;
-		}
-		return data;
-	} catch {
+	const content = fs.readFileSync(pidPath, 'utf-8');
+	const data = safeJsonParse<{ pid: number; port: number; startedAt: string }>(content);
+	if (!data) return null;
+
+	if (typeof data.pid !== 'number' || typeof data.port !== 'number' || typeof data.startedAt !== 'string') {
 		return null;
 	}
+	return data;
 }
 
 export function writePidFile(pidPath: string, data: { pid: number; port: number; startedAt: string }): void {
@@ -177,7 +174,7 @@ function formatUptime(startedAt: string): string {
 	return `${days}d ${hours}h ${minutes}m`;
 }
 
-async function handleStart(flags: Record<string, string | boolean>): Promise<void> {
+function resolvePort(flags: Record<string, string | boolean>): number {
 	const portStr = typeof flags.port === 'string' ? flags.port : '3001';
 	const port = validatePort(portStr);
 
@@ -186,19 +183,34 @@ async function handleStart(flags: Record<string, string | boolean>): Promise<voi
 		process.exit(1);
 	}
 
-	const existingPid = readPidFile(PID_FILE);
+	return port!;
+}
+
+function checkAlreadyRunning(pidPath: string): void {
+	const existingPid = readPidFile(pidPath);
 	if (existingPid && isProcessAlive(existingPid.pid)) {
 		console.error(`服務已在運行中（PID: ${existingPid.pid}, Port: ${existingPid.port}）`);
 		process.exit(1);
 	}
+}
 
-	const config = readConfig(CONFIG_FILE);
+function buildEnvOverrides(config: Record<string, string>): Record<string, string> {
 	const envOverrides: Record<string, string> = {};
 	for (const key of VALID_CONFIG_KEYS) {
 		if (config[key]) {
 			envOverrides[key] = config[key];
 		}
 	}
+	return envOverrides;
+}
+
+async function handleStart(flags: Record<string, string | boolean>): Promise<void> {
+	const port = resolvePort(flags);
+
+	checkAlreadyRunning(PID_FILE);
+
+	const config = readConfig(CONFIG_FILE);
+	const envOverrides = buildEnvOverrides(config);
 
 	fs.mkdirSync(LOG_DIR, { recursive: true });
 	const logFd = fs.openSync(LOG_FILE, 'a');

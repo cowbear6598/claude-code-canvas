@@ -107,8 +107,8 @@ const textLengthHandlers: DOMNodeHandlers<number> = {
 
 const countTextLength = (node: Node): number => walkDOM(node, textLengthHandlers)
 
-const handleInput = (e: Event): void => {
-  const target = e.target as HTMLDivElement
+const handleInput = (event: Event): void => {
+  const target = event.target as HTMLDivElement
   const innerText = target.innerText
 
   let textLength = 0
@@ -164,18 +164,14 @@ const insertNodeAtCursor = (node: Node): void => {
   element.dispatchEvent(new Event('input', {bubbles: true}))
 }
 
-const readFileAsDataURL = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
+const readFileAsDataURL = (file: File): Promise<string | null> => {
+  return new Promise((resolve) => {
     const reader = new FileReader()
-    reader.onload = (e): void => {
-      const result = e.target?.result
-      if (typeof result === 'string') {
-        resolve(result)
-      } else {
-        reject(new Error('讀取檔案失敗'))
-      }
+    reader.onload = (event): void => {
+      const result = event.target?.result
+      resolve(typeof result === 'string' ? result : null)
     }
-    reader.onerror = (): void => reject(new Error('FileReader 錯誤'))
+    reader.onerror = (): void => resolve(null)
     reader.readAsDataURL(file)
   })
 }
@@ -194,10 +190,8 @@ const insertImageAtCursor = async (file: File): Promise<void> => {
     return
   }
 
-  let result: string
-  try {
-    result = await readFileAsDataURL(file)
-  } catch {
+  const result = await readFileAsDataURL(file)
+  if (!result) {
     toast({title: '圖片讀取失敗'})
     return
   }
@@ -222,38 +216,45 @@ const findImageFile = (files: FileList | null): File | undefined => {
   return Array.from(files).find(file => file.type.startsWith('image/'))
 }
 
-const handlePaste = async (e: ClipboardEvent): Promise<void> => {
-  const imageFile = findImageFile(e.clipboardData?.files ?? null)
+const handleImagePaste = async (imageFile: File): Promise<void> => {
+  await insertImageAtCursor(imageFile)
+}
+
+const handleTextPaste = (event: ClipboardEvent): void => {
+  const text = event.clipboardData?.getData('text/plain')
+  if (!text) return
+
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0) return
+
+  const range = selection.getRangeAt(0)
+  range.deleteContents()
+  const textNode = document.createTextNode(text)
+  range.insertNode(textNode)
+  range.setStartAfter(textNode)
+  range.setEndAfter(textNode)
+  selection.removeAllRanges()
+  selection.addRange(range)
+  // 同步更新 input.value，避免貼上後送出時檢查失敗
+  input.value = editableRef.value?.innerText ?? ''
+}
+
+const handlePaste = async (event: ClipboardEvent): Promise<void> => {
+  event.preventDefault()
+  const imageFile = findImageFile(event.clipboardData?.files ?? null)
 
   if (imageFile) {
-    e.preventDefault()
-    await insertImageAtCursor(imageFile)
+    await handleImagePaste(imageFile)
     return
   }
 
-  e.preventDefault()
-  const text = e.clipboardData?.getData('text/plain')
-  if (text) {
-    const selection = window.getSelection()
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0)
-      range.deleteContents()
-      const textNode = document.createTextNode(text)
-      range.insertNode(textNode)
-      range.setStartAfter(textNode)
-      range.setEndAfter(textNode)
-      selection.removeAllRanges()
-      selection.addRange(range)
-      // 同步更新 input.value，避免貼上後送出時檢查失敗
-      input.value = editableRef.value?.innerText ?? ''
-    }
-  }
+  handleTextPaste(event)
 }
 
-const handleDrop = async (e: DragEvent): Promise<void> => {
-  e.preventDefault()
+const handleDrop = async (event: DragEvent): Promise<void> => {
+  event.preventDefault()
 
-  const files = e.dataTransfer?.files
+  const files = event.dataTransfer?.files
   if (!files || files.length === 0) return
 
   const imageFiles = Array.from(files).filter(file => isValidImageType(file.type))
@@ -374,24 +375,25 @@ const deleteImageAtom = (element: HTMLElement): void => {
   editableRef.value?.dispatchEvent(new Event('input', {bubbles: true}))
 }
 
-const handleEnterKey = (e: KeyboardEvent): void => {
-  if (e.ctrlKey || e.shiftKey) {
-    e.preventDefault()
-    const selection = window.getSelection()
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0)
-      range.deleteContents()
-      const br = document.createElement('br')
-      range.insertNode(br)
-      range.setStartAfter(br)
-      range.collapse(true)
-      selection.removeAllRanges()
-      selection.addRange(range)
-      editableRef.value?.dispatchEvent(new Event('input', {bubbles: true}))
-    }
-    return
-  }
-  e.preventDefault()
+const insertLineBreak = (event: KeyboardEvent): void => {
+  event.preventDefault()
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0) return
+
+  const range = selection.getRangeAt(0)
+  range.deleteContents()
+  const br = document.createElement('br')
+  range.insertNode(br)
+  range.setStartAfter(br)
+  range.collapse(true)
+  selection.removeAllRanges()
+  selection.addRange(range)
+  editableRef.value?.dispatchEvent(new Event('input', {bubbles: true}))
+}
+
+const handleEnterKey = (event: KeyboardEvent): void => {
+  if (event.ctrlKey || event.shiftKey) return insertLineBreak(event)
+  event.preventDefault()
   if (props.isTyping) return
   if (props.disabled) return
   handleSend()
@@ -413,7 +415,7 @@ const findImageAtomBefore = (range: Range): HTMLElement | null => {
   return null
 }
 
-const handleBackspaceKey = (e: KeyboardEvent): void => {
+const handleBackspaceKey = (event: KeyboardEvent): void => {
   const selection = window.getSelection()
   if (!selection || selection.rangeCount === 0) return
 
@@ -422,15 +424,15 @@ const handleBackspaceKey = (e: KeyboardEvent): void => {
 
   const imageAtom = findImageAtomBefore(range)
   if (imageAtom) {
-    e.preventDefault()
+    event.preventDefault()
     deleteImageAtom(imageAtom)
   }
 }
 
-const handleKeyDown = (e: KeyboardEvent): void => {
-  if (e.isComposing || e.keyCode === 229) return
-  if (e.key === 'Enter') return handleEnterKey(e)
-  if (e.key === 'Backspace') return handleBackspaceKey(e)
+const handleKeyDown = (event: KeyboardEvent): void => {
+  if (event.isComposing || event.keyCode === 229) return
+  if (event.key === 'Enter') return handleEnterKey(event)
+  if (event.key === 'Backspace') return handleBackspaceKey(event)
 }
 
 const toggleListening = (): void => {
@@ -452,6 +454,29 @@ const toggleListening = (): void => {
   }
 }
 
+const createOnResultHandler = () => (event: SpeechRecognitionEventMap['result']): void => {
+  const lastResult = event.results[event.results.length - 1]
+  if (!lastResult) return
+  const transcript = lastResult[0]?.transcript
+  if (!transcript) return
+
+  if (input.value.length + transcript.length > MAX_MESSAGE_LENGTH) {
+    updateText((input.value + transcript).slice(0, MAX_MESSAGE_LENGTH))
+    recognition.value?.stop()
+    toast({title: '已達到最大文字長度限制'})
+    return
+  }
+
+  updateText(input.value + transcript)
+}
+
+const createOnErrorHandler = () => (event: SpeechRecognitionEventMap['error']): void => {
+  isListening.value = false
+  if (import.meta.env.DEV) {
+    console.warn('語音辨識錯誤：', event.error)
+  }
+}
+
 const initializeSpeechRecognition = (): void => {
   const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition
 
@@ -465,34 +490,9 @@ const initializeSpeechRecognition = (): void => {
   recognition.value.interimResults = false
   recognition.value.continuous = true
 
-  recognition.value.onresult = (event): void => {
-    const lastResult = event.results[event.results.length - 1]
-    if (!lastResult) return
-    const transcript = lastResult[0]?.transcript
-    if (!transcript) return
-
-    if (input.value.length + transcript.length > MAX_MESSAGE_LENGTH) {
-      updateText((input.value + transcript).slice(0, MAX_MESSAGE_LENGTH))
-      recognition.value?.stop()
-      toast({
-        title: '已達到最大文字長度限制',
-      })
-      return
-    }
-
-    updateText(input.value + transcript)
-  }
-
-  recognition.value.onend = (): void => {
-    isListening.value = false
-  }
-
-  recognition.value.onerror = (event): void => {
-    isListening.value = false
-    if (import.meta.env.DEV) {
-      console.warn('語音辨識錯誤：', event.error)
-    }
-  }
+  recognition.value.onresult = createOnResultHandler()
+  recognition.value.onend = (): void => { isListening.value = false }
+  recognition.value.onerror = createOnErrorHandler()
 }
 
 const cleanupSpeechRecognition = (): void => {
