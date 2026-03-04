@@ -397,6 +397,120 @@ describe('貼上功能', () => {
             expect(pod?.mcpServerIds).toContain(mcpServer.id);
         });
 
+        it('Command Note 未綁定 Pod 時可獨立貼上，且不建立任何 Pod', async () => {
+            const command = await createCommand(client, `command-unbound-${uuidv4()}`, '# Test Command');
+
+            const commandNotes: PasteCommandNoteItem[] = [
+                {
+                    commandId: command.id,
+                    name: 'Unbound Command Note',
+                    x: 10,
+                    y: 10,
+                    boundToOriginalPodId: null,
+                    originalPosition: {x: 10, y: 10},
+                },
+            ];
+
+            const payload: CanvasPastePayload = {...await emptyPastePayload(), commandNotes};
+
+            const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
+                client,
+                WebSocketRequestEvents.CANVAS_PASTE,
+                WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+                payload
+            );
+
+            expect(response.createdCommandNotes).toHaveLength(1);
+            expect(response.createdCommandNotes[0].boundToPodId).toBeNull();
+            expect(response.createdPods).toHaveLength(0);
+        });
+
+        it('貼上 Command Note 時，若 Pod 已有 commandId，不覆蓋原本的 commandId', async () => {
+            const command1 = await createCommand(client, `command-existing-${uuidv4()}`, '# Existing Command');
+            const command2 = await createCommand(client, `command-new-${uuidv4()}`, '# New Command');
+            const originalPodId = uuidv4();
+
+            // 先貼上一個 Pod，並綁定 command1
+            const pods: PastePodItem[] = [
+                {originalId: originalPodId, name: 'Command Pod', x: 0, y: 0, rotation: 0},
+            ];
+            const firstCommandNotes: PasteCommandNoteItem[] = [
+                {
+                    commandId: command1.id,
+                    name: 'Command Note 1',
+                    x: 10,
+                    y: 10,
+                    boundToOriginalPodId: originalPodId,
+                    originalPosition: {x: 10, y: 10},
+                },
+            ];
+            const firstPayload: CanvasPastePayload = {...await emptyPastePayload(), pods, commandNotes: firstCommandNotes};
+            const firstResponse = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
+                client,
+                WebSocketRequestEvents.CANVAS_PASTE,
+                WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+                firstPayload
+            );
+
+            const newPodId = firstResponse.podIdMapping[originalPodId];
+            const canvasId = await getCanvasId(client);
+            const {podStore} = await import('../../src/services/podStore.js');
+
+            const podAfterFirst = podStore.getById(canvasId, newPodId);
+            expect(podAfterFirst?.commandId).toBe(command1.id);
+
+            // 再貼上一個 commandNote（綁定到已建立的 Pod），commandId 為 command2
+            // Pod 已有 commandId（command1），不應被覆蓋
+            const secondCommandNotes: PasteCommandNoteItem[] = [
+                {
+                    commandId: command2.id,
+                    name: 'Command Note 2',
+                    x: 20,
+                    y: 20,
+                    boundToOriginalPodId: newPodId,
+                    originalPosition: {x: 20, y: 20},
+                },
+            ];
+            const secondPayload: CanvasPastePayload = {
+                ...await emptyPastePayload(),
+                commandNotes: secondCommandNotes,
+            };
+
+            await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
+                client,
+                WebSocketRequestEvents.CANVAS_PASTE,
+                WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+                secondPayload
+            );
+
+            const podAfterSecond = podStore.getById(canvasId, newPodId);
+            expect(podAfterSecond?.commandId).toBe(command1.id);
+        });
+
+        it('Pod 的 repositoryId 指向不存在的 UUID 時，回報錯誤且不建立該 Pod', async () => {
+            const nonExistentRepositoryId = uuidv4();
+            const originalPodId = uuidv4();
+
+            const pods: PastePodItem[] = [
+                {originalId: originalPodId, name: 'Invalid Repo Pod', x: 0, y: 0, rotation: 0, repositoryId: nonExistentRepositoryId},
+            ];
+
+            const payload: CanvasPastePayload = {...await emptyPastePayload(), pods};
+
+            const response = await emitAndWaitResponse<CanvasPastePayload, CanvasPasteResultPayload>(
+                client,
+                WebSocketRequestEvents.CANVAS_PASTE,
+                WebSocketResponseEvents.CANVAS_PASTE_RESULT,
+                payload
+            );
+
+            expect(response.success).toBe(false);
+            expect(response.errors).toHaveLength(1);
+            expect(response.createdPods).not.toContainEqual(
+                expect.objectContaining({id: originalPodId})
+            );
+        });
+
         it('MCP Server Note 未綁定 Pod 時可獨立貼上，且不影響任何 Pod 的 mcpServerIds', async () => {
             const mcpServer = await createMcpServer(client, `mcp-unbound-${uuidv4()}`);
 

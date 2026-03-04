@@ -9,11 +9,5 @@ export {
 export type { BoundNotesByType, NoteStores } from './collectCopyData'
 
 export {
-  updateBoundingBox,
-  calculateBoundingBox,
-  calculateOffsets,
-  transformPods,
-  transformNotes,
-  transformConnections,
   calculatePastePositions,
 } from './calculatePaste'

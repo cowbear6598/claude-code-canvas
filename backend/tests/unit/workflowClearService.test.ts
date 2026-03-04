@@ -309,6 +309,44 @@ describe('WorkflowClearService', () => {
       expect(result).toContain(SOURCE_POD_ID);
       expect(result).toContain(TARGET_POD_ID);
     });
+
+    it('循環拓撲時，BFS visited 保護正常運作，不會無窮迴圈', () => {
+      // A → B → A 的循環
+      (connectionStore.findBySourcePodId as any).mockImplementation((_cId: string, podId: string) => {
+        if (podId === SOURCE_POD_ID) {
+          return [{ id: 'conn-ab', sourcePodId: SOURCE_POD_ID, targetPodId: TARGET_POD_ID, triggerMode: 'auto', decideStatus: 'none' }];
+        }
+        if (podId === TARGET_POD_ID) {
+          return [{ id: 'conn-ba', sourcePodId: TARGET_POD_ID, targetPodId: SOURCE_POD_ID, triggerMode: 'auto', decideStatus: 'none' }];
+        }
+        return [];
+      });
+
+      const result = workflowClearService.getDownstreamPodIds(CANVAS_ID, SOURCE_POD_ID);
+
+      expect(result).toContain(SOURCE_POD_ID);
+      expect(result).toContain(TARGET_POD_ID);
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('clearWorkflow chatPersistence 失敗處理', () => {
+    it('clearChatHistory 回傳失敗時，流程不中斷，仍回傳 success: true 且清除所有 pod', async () => {
+      (chatPersistenceService.clearChatHistory as any).mockResolvedValue({ success: false, error: '測試錯誤' });
+
+      const result = await workflowClearService.clearWorkflow(CANVAS_ID, SOURCE_POD_ID);
+
+      expect(result.success).toBe(true);
+      expect(result.clearedPodIds).toContain(SOURCE_POD_ID);
+      expect(result.clearedPodIds).toContain(TARGET_POD_ID);
+      expect(result.clearedPodIds).toContain(DOWNSTREAM_POD_ID);
+      expect(messageStore.clearMessages).toHaveBeenCalledWith(SOURCE_POD_ID);
+      expect(messageStore.clearMessages).toHaveBeenCalledWith(TARGET_POD_ID);
+      expect(messageStore.clearMessages).toHaveBeenCalledWith(DOWNSTREAM_POD_ID);
+      expect(podStore.resetClaudeSession).toHaveBeenCalledWith(CANVAS_ID, SOURCE_POD_ID);
+      expect(podStore.resetClaudeSession).toHaveBeenCalledWith(CANVAS_ID, TARGET_POD_ID);
+      expect(podStore.resetClaudeSession).toHaveBeenCalledWith(CANVAS_ID, DOWNSTREAM_POD_ID);
+    });
   });
 
   describe('clearWorkflow direct connection 下游清除', () => {
