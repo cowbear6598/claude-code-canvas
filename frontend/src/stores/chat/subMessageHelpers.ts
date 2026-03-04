@@ -1,6 +1,6 @@
 import type {Message, SubMessage, ToolUseInfo} from '@/types/chat'
 
-function markToolCompleted(tool: ToolUseInfo): ToolUseInfo {
+export function markToolCompleted(tool: ToolUseInfo): ToolUseInfo {
     return {...tool, status: 'completed'}
 }
 
@@ -95,11 +95,16 @@ function updateSingleSubToolUse(sub: SubMessage, toolUseId: string, output: stri
         tool => tool.status === 'completed' || tool.status === 'error'
     )
 
-    return {
+    const updatedSub: SubMessage = {
         ...sub,
         toolUse: updatedSubToolUse,
-        ...(allToolsCompleted && { isPartial: false })
     }
+
+    if (allToolsCompleted) {
+        updatedSub.isPartial = false
+    }
+
+    return updatedSub
 }
 
 export function updateSubMessagesToolUseResult(
@@ -143,12 +148,20 @@ export function updateMainMessageState(
     updatedToolUse: ToolUseInfo[] | undefined,
     finalizedSubMessages: SubMessage[] | undefined
 ): Message {
-    return {
+    const updated: Message = {
         ...message,
         content: fullContent,
         isPartial: false,
-        ...(updatedToolUse && {toolUse: updatedToolUse}),
-        ...(finalizedSubMessages && {subMessages: finalizedSubMessages}),
         expectingNewBlock: undefined
     }
+
+    if (updatedToolUse !== undefined) {
+        updated.toolUse = updatedToolUse
+    }
+
+    if (finalizedSubMessages !== undefined) {
+        updated.subMessages = finalizedSubMessages
+    }
+
+    return updated
 }

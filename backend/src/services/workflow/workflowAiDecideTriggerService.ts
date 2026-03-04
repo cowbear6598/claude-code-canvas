@@ -17,8 +17,9 @@ import { workflowStateService } from './workflowStateService.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
 import { workflowPipeline } from './workflowPipeline.js';
 import { workflowMultiInputService } from './workflowMultiInputService.js';
-import { forEachMultiInputGroupConnection, formatConnLog, completeMultiInputConnections, buildQueuedPayload, isAutoTriggerable } from './workflowHelpers.js';
+import { forEachMultiInputGroupConnection, formatConnLog, buildQueuedPayload, isAutoTriggerable, createMultiInputCompletionHandlers, emitQueueProcessed } from './workflowHelpers.js';
 import { logger } from '../../utils/logger.js';
+import type { LogAction } from '../../utils/logger.js';
 import { getErrorMessage } from '../../utils/errorHelpers.js';
 import { LazyInitializable } from './lazyInitializable.js';
 import { autoClearService } from '../autoClear/autoClearService.js';
@@ -58,12 +59,14 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     );
   }
 
+  private readonly completionHandlers = createMultiInputCompletionHandlers();
+
   onComplete(context: CompletionContext, success: boolean, error?: string): void {
-    completeMultiInputConnections(context, success, error);
+    this.completionHandlers.onComplete(context, success, error);
   }
 
   onError(context: CompletionContext, errorMessage: string): void {
-    completeMultiInputConnections(context, false, errorMessage);
+    this.completionHandlers.onError(context, errorMessage);
   }
 
   onQueued(context: QueuedContext): void {
@@ -78,15 +81,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
   }
 
   onQueueProcessed(context: QueueProcessedContext): void {
-    this.ensureInitialized();
-    this.deps.eventEmitter.emitWorkflowQueueProcessed(context.canvasId, {
-      canvasId: context.canvasId,
-      targetPodId: context.targetPodId,
-      connectionId: context.connectionId,
-      sourcePodId: context.sourcePodId,
-      remainingQueueSize: context.remainingQueueSize,
-      triggerMode: context.triggerMode,
-    });
+    emitQueueProcessed(context);
   }
 
   async decide(context: TriggerDecideContext): Promise<TriggerDecideResult[]> {
@@ -180,6 +175,23 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     }
   }
 
+  private logConnectionEvent(
+    level: 'log' | 'error',
+    action: LogAction,
+    canvasId: string,
+    sourcePodId: string,
+    connection: Connection,
+    message: string,
+    suffix?: string
+  ): void {
+    this.ensureInitialized();
+    const sourcePod = this.deps.podStore.getById(canvasId, sourcePodId);
+    const targetPod = this.deps.podStore.getById(canvasId, connection.targetPodId);
+    const connLog = formatConnLog({connId: connection.id, sourceName: sourcePod?.name, sourcePodId, targetName: targetPod?.name, targetPodId: connection.targetPodId});
+    const fullMessage = suffix ? `${message}${connLog}：${suffix}` : `${message}${connLog}`;
+    logger[level]('Workflow', action, fullMessage);
+  }
+
   private handleErrorConnection(
     canvasId: string,
     sourcePodId: string,
@@ -197,9 +209,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
       targetPodId: connection.targetPodId,
       error: errorMessage,
     });
-    const sourcePod = this.deps.podStore.getById(canvasId, sourcePodId);
-    const targetPod = this.deps.podStore.getById(canvasId, connection.targetPodId);
-    logger.error('Workflow', 'Error', `AI Decide 發生錯誤，${formatConnLog({connId: connection.id, sourceName: sourcePod?.name, sourcePodId, targetName: targetPod?.name, targetPodId: connection.targetPodId})}：${errorMessage}`);
+    this.logConnectionEvent('error', 'Error', canvasId, sourcePodId, connection, `AI Decide 發生錯誤，`, errorMessage);
   }
 
   private handleApprovedConnection(
@@ -219,9 +229,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
       shouldTrigger: true,
       reason: decideResult.reason ?? '',
     });
-    const sourcePod = this.deps.podStore.getById(canvasId, sourcePodId);
-    const targetPod = this.deps.podStore.getById(canvasId, connection.targetPodId);
-    logger.log('Workflow', 'Create', `AI Decide 核准${formatConnLog({connId: connection.id, sourceName: sourcePod?.name, sourcePodId, targetName: targetPod?.name, targetPodId: connection.targetPodId})}：${decideResult.reason}`);
+    this.logConnectionEvent('log', 'Create', canvasId, sourcePodId, connection, `AI Decide 核准`, decideResult.reason ?? undefined);
 
     const pipelineContext: PipelineContext = {
       canvasId,
@@ -260,9 +268,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
       shouldTrigger: false,
       reason,
     });
-    const sourcePod = this.deps.podStore.getById(canvasId, sourcePodId);
-    const targetPod = this.deps.podStore.getById(canvasId, connection.targetPodId);
-    logger.log('Workflow', 'Update', `AI Decide 拒絕${formatConnLog({connId: connection.id, sourceName: sourcePod?.name, sourcePodId, targetName: targetPod?.name, targetPodId: connection.targetPodId})}：${reason}`);
+    this.logConnectionEvent('log', 'Update', canvasId, sourcePodId, connection, `AI Decide 拒絕`, reason);
   }
 
   private shouldDeferToMultiInput(canvasId: string, targetPodId: string): boolean {
@@ -312,16 +318,10 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     reason: string
   ): Promise<void> {
     this.ensureInitialized();
-    this.deps.pendingTargetStore.recordSourceRejection(connection.targetPodId, sourcePodId, reason);
+    const { allSourcesResponded } = this.deps.pendingTargetStore.recordSourceRejection(connection.targetPodId, sourcePodId, reason);
     this.deps.stateService.emitPendingStatus(canvasId, connection.targetPodId);
 
-    const pending = this.deps.pendingTargetStore.getPendingTarget(connection.targetPodId);
-    if (!pending) {
-      return;
-    }
-
-    const allSourcesResponded = pending.completedSources.size + pending.rejectedSources.size >= pending.requiredSourcePodIds.length;
-    if (allSourcesResponded && pending.rejectedSources.size > 0) {
+    if (allSourcesResponded) {
       await this.deps.autoClearService.onGroupNotTriggered(canvasId, connection.targetPodId);
     }
   }

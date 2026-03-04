@@ -3,7 +3,7 @@ import { setActivePinia } from 'pinia'
 import { setupTestPinia } from '../../helpers/mockStoreFactory'
 import { mockWebSocketModule, resetMockWebSocket } from '../../helpers/mockWebSocket'
 import { createMockPod, createMockMessage } from '../../helpers/factories'
-import { useChatStore } from '@/stores/chat/chatStore'
+import { useChatStore, resetChatActionsCache } from '@/stores/chat/chatStore'
 import { usePodStore } from '@/stores/pod/podStore'
 import { createAssistantMessageShape } from '@/stores/chat/chatMessageActions'
 import type {
@@ -42,6 +42,7 @@ describe('chatMessageActions', () => {
     const pinia = setupTestPinia()
     setActivePinia(pinia)
     resetMockWebSocket()
+    resetChatActionsCache()
     vi.clearAllMocks()
   })
 

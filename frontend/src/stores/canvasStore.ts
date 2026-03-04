@@ -6,6 +6,7 @@ import {
 } from '@/services/websocket'
 import {useToast} from '@/composables/useToast'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
+import {removeById} from '@/lib/arrayHelpers'
 import type {
   Canvas,
   CanvasCreatePayload,
@@ -237,7 +238,7 @@ export const useCanvasStore = defineStore('canvas', {
         }
       }
 
-      this.canvases = this.canvases.filter(canvas => canvas.id !== canvasId)
+      this.canvases = removeById(this.canvases, canvasId)
 
       if (this.activeCanvasId === canvasId) {
         await this.handleActiveCanvasDeletion()

@@ -26,7 +26,13 @@ export interface SmartCheckoutOptions {
 
 type GitSource = 'github' | 'gitlab' | 'other';
 
-const BRANCH_NAME_PATTERN = /^[a-zA-Z0-9_\-/]+$/;
+const BRANCH_NAME_PATTERN = /^[a-zA-Z0-9_.\-/]+$/;
+
+const PULL_FETCH_PROGRESS_START = 10
+const PULL_FETCH_PROGRESS_WEIGHT = 0.7
+
+const FETCH_CHECKOUT_PROGRESS_START = 20
+const FETCH_CHECKOUT_PROGRESS_WEIGHT = 0.6
 
 function isValidBranchName(branchName: string): boolean {
     if (!BRANCH_NAME_PATTERN.test(branchName)) {
@@ -47,8 +53,14 @@ function parseGitErrorMessage(error: unknown): string {
     return maskTokenInError(message);
 }
 
+function extractRawErrorMessage(error: unknown): string {
+    if (typeof error === 'string') return error;
+    if (error instanceof Error) return error.message;
+    return String(error);
+}
+
 function maskTokenInError(error: unknown): string {
-    const message = typeof error === 'string' ? error : (error instanceof Error ? error.message : String(error));
+    const message = extractRawErrorMessage(error);
     return message.replace(/https?:\/\/[^@\s]*@/g, 'https://***@');
 }
 
@@ -426,7 +438,7 @@ class GitService {
                 baseDir: workspacePath,
                 progress: onProgress
                     ? (event: SimpleGitProgressEvent): void => {
-                        const mappedProgress = Math.floor(10 + event.progress * 0.7);
+                        const mappedProgress = Math.floor(PULL_FETCH_PROGRESS_START + event.progress * PULL_FETCH_PROGRESS_WEIGHT);
                         const stageMessage = getGitStageMessage(event.stage);
                         onProgress(mappedProgress, stageMessage);
                     }
@@ -480,7 +492,7 @@ class GitService {
         onProgress?: CheckoutProgressCallback
     ): Promise<Result<'fetched'>> {
         const fetchResult = await this.fetchRemoteBranch(workspacePath, branchName, (progressData) => {
-            const mappedProgress = Math.floor(20 + progressData.progress * 0.6);
+            const mappedProgress = Math.floor(FETCH_CHECKOUT_PROGRESS_START + progressData.progress * FETCH_CHECKOUT_PROGRESS_WEIGHT);
             const stageMessage = getGitStageMessage(progressData.stage);
             onProgress?.(mappedProgress, stageMessage);
         });

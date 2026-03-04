@@ -170,7 +170,7 @@ describe('PodContextMenu', () => {
 
   describe('Slack 按鈕', () => {
     it('Pod 沒有 slackBinding 時應顯示「連接 Slack」按鈕', () => {
-      mockGetPodById.mockReturnValue({ id: 'pod-123', slackBinding: null })
+      mockGetPodById.mockReturnValue({ id: 'pod-123', slackBinding: undefined })
 
       const wrapper = mountMenu()
       const buttons = wrapper.findAll('button')
@@ -195,7 +195,7 @@ describe('PodContextMenu', () => {
     })
 
     it('點擊「連接 Slack」應 emit connect-slack 事件', async () => {
-      mockGetPodById.mockReturnValue({ id: 'pod-123', slackBinding: null })
+      mockGetPodById.mockReturnValue({ id: 'pod-123', slackBinding: undefined })
 
       const wrapper = mountMenu()
       const buttons = wrapper.findAll('button')

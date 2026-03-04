@@ -38,12 +38,21 @@ vi.mock('@/utils/errorSanitizer', () => ({
   }),
 }))
 
+// Mock useCanvasWebSocketAction
+const mockExecuteAction = vi.fn()
+vi.mock('@/composables/useCanvasWebSocketAction', () => ({
+  useCanvasWebSocketAction: () => ({
+    executeAction: mockExecuteAction,
+  }),
+}))
+
 describe('podStore', () => {
   beforeEach(() => {
     const pinia = setupTestPinia()
     setActivePinia(pinia)
     resetMockWebSocket()
     vi.clearAllMocks()
+    mockExecuteAction.mockResolvedValue({ success: false, error: '未知錯誤' })
   })
 
   describe('初始狀態', () => {
@@ -531,8 +540,9 @@ describe('podStore', () => {
 
       const newPod = createMockPod({ id: 'pod-backend-1', name: 'New Pod' })
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        pod: newPod,
+      mockExecuteAction.mockResolvedValueOnce({
+        success: true,
+        data: { pod: newPod },
       })
 
       const result = await store.createPodWithBackend({
@@ -552,17 +562,19 @@ describe('podStore', () => {
         schedule: null,
       })
 
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'pod:create',
-        responseEvent: 'pod:created',
-        payload: {
-          canvasId: 'canvas-1',
-          name: 'New Pod',
-          x: 300,
-          y: 400,
-          rotation: 0.5,
-        },
-      })
+      expect(mockExecuteAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestEvent: 'pod:create',
+          responseEvent: 'pod:created',
+          payload: {
+            name: 'New Pod',
+            x: 300,
+            y: 400,
+            rotation: 0.5,
+          },
+        }),
+        expect.objectContaining({ errorCategory: 'Pod', errorAction: '建立失敗' })
+      )
       expect(mockShowSuccessToast).toHaveBeenCalledWith('Pod', '建立成功', 'New Pod')
       expect(result).toMatchObject({
         ...newPod,
@@ -572,86 +584,87 @@ describe('podStore', () => {
       })
     })
 
-    it('無 activeCanvasId 時應 throw', async () => {
-      const canvasStore = useCanvasStore()
-      canvasStore.activeCanvasId = null
+    it('無 activeCanvasId 時應回傳 null', async () => {
       const store = usePodStore()
 
-      await expect(
-        store.createPodWithBackend({
-          name: 'Pod',
-          x: 100,
-          y: 100,
-          rotation: 0,
-          output: [],
-          status: 'idle',
-          model: 'opus',
-          outputStyleId: null,
-          skillIds: [],
-          subAgentIds: [],
-          repositoryId: null,
-          autoClear: false,
-          commandId: null,
-          schedule: null,
-        })
-      ).rejects.toThrow('沒有啟用的畫布')
+      mockExecuteAction.mockResolvedValueOnce({ success: false, error: '沒有啟用的畫布' })
+
+      const result = await store.createPodWithBackend({
+        name: 'Pod',
+        x: 100,
+        y: 100,
+        rotation: 0,
+        output: [],
+        status: 'idle',
+        model: 'opus',
+        outputStyleId: null,
+        skillIds: [],
+        subAgentIds: [],
+        repositoryId: null,
+        autoClear: false,
+        commandId: null,
+        schedule: null,
+      })
+
+      expect(result).toBeNull()
     })
 
-    it('WebSocket 回應無 pod 時應 throw、顯示錯誤 Toast', async () => {
+    it('WebSocket 回應無 pod 時應回傳 null 並顯示錯誤 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({})
+      mockExecuteAction.mockResolvedValueOnce({
+        success: true,
+        data: {},
+      })
 
-      await expect(
-        store.createPodWithBackend({
-          name: 'Pod',
-          x: 100,
-          y: 100,
-          rotation: 0,
-          output: [],
-          status: 'idle',
-          model: 'opus',
-          outputStyleId: null,
-          skillIds: [],
-          subAgentIds: [],
-          repositoryId: null,
-          autoClear: false,
-          commandId: null,
-          schedule: null,
-        })
-      ).rejects.toThrow('Pod 建立失敗：後端未回傳 Pod 資料')
+      const result = await store.createPodWithBackend({
+        name: 'Pod',
+        x: 100,
+        y: 100,
+        rotation: 0,
+        output: [],
+        status: 'idle',
+        model: 'opus',
+        outputStyleId: null,
+        skillIds: [],
+        subAgentIds: [],
+        repositoryId: null,
+        autoClear: false,
+        commandId: null,
+        schedule: null,
+      })
+
+      expect(result).toBeNull()
       expect(mockShowErrorToast).toHaveBeenCalledWith('Pod', '建立失敗', 'Pod 建立失敗：後端未回傳 Pod 資料')
     })
 
-    it('失敗時應顯示錯誤 Toast 並 throw', async () => {
+    it('失敗時應顯示錯誤 Toast 並回傳 null', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
 
-      const error = new Error('Network error')
-      mockCreateWebSocketRequest.mockRejectedValueOnce(error)
+      mockExecuteAction.mockResolvedValueOnce({ success: false, error: 'Pod 建立失敗' })
 
-      await expect(
-        store.createPodWithBackend({
-          name: 'Pod',
-          x: 100,
-          y: 100,
-          rotation: 0,
-          output: [],
-          status: 'idle',
-          model: 'opus',
-          outputStyleId: null,
-          skillIds: [],
-          subAgentIds: [],
-          repositoryId: null,
-          autoClear: false,
-          commandId: null,
-          schedule: null,
-        })
-      ).rejects.toThrow('Network error')
-      expect(mockShowErrorToast).toHaveBeenCalledWith('Pod', '建立失敗', 'Network error')
+      const result = await store.createPodWithBackend({
+        name: 'Pod',
+        x: 100,
+        y: 100,
+        rotation: 0,
+        output: [],
+        status: 'idle',
+        model: 'opus',
+        outputStyleId: null,
+        skillIds: [],
+        subAgentIds: [],
+        repositoryId: null,
+        autoClear: false,
+        commandId: null,
+        schedule: null,
+      })
+
+      expect(result).toBeNull()
     })
   })
 
@@ -663,18 +676,18 @@ describe('podStore', () => {
       const pod = createMockPod({ id: 'pod-1', name: 'Test Pod' })
       store.pods = [pod]
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({ success: true })
+      mockExecuteAction.mockResolvedValueOnce({ success: true, data: { success: true } })
 
       await store.deletePodWithBackend('pod-1')
 
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'pod:delete',
-        responseEvent: 'pod:deleted',
-        payload: {
-          canvasId: 'canvas-1',
-          podId: 'pod-1',
-        },
-      })
+      expect(mockExecuteAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestEvent: 'pod:delete',
+          responseEvent: 'pod:deleted',
+          payload: { podId: 'pod-1' },
+        }),
+        expect.objectContaining({ errorCategory: 'Pod', errorAction: '刪除失敗' })
+      )
       expect(mockShowSuccessToast).toHaveBeenCalledWith('Pod', '刪除成功', 'Test Pod')
     })
 
@@ -683,23 +696,23 @@ describe('podStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({ success: true })
+      mockExecuteAction.mockResolvedValueOnce({ success: true, data: { success: true } })
 
       await store.deletePodWithBackend('non-existent')
 
       expect(mockShowSuccessToast).toHaveBeenCalledWith('Pod', '刪除成功', 'Pod')
     })
 
-    it('失敗時應顯示錯誤 Toast 並 throw', async () => {
+    it('失敗時應不顯示成功 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
 
-      const error = new Error('Delete failed')
-      mockCreateWebSocketRequest.mockRejectedValueOnce(error)
+      mockExecuteAction.mockResolvedValueOnce({ success: false, error: 'Pod 刪除失敗' })
 
-      await expect(store.deletePodWithBackend('pod-1')).rejects.toThrow('Delete failed')
-      expect(mockShowErrorToast).toHaveBeenCalledWith('Pod', '刪除失敗', 'Delete failed')
+      await store.deletePodWithBackend('pod-1')
+
+      expect(mockShowSuccessToast).not.toHaveBeenCalled()
     })
   })
 
@@ -825,42 +838,41 @@ describe('podStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({ success: true })
+      mockExecuteAction.mockResolvedValueOnce({ success: true, data: { success: true } })
 
       await store.renamePodWithBackend('pod-1', 'New Name')
 
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'pod:rename',
-        responseEvent: 'pod:renamed',
-        payload: {
-          canvasId: 'canvas-1',
-          podId: 'pod-1',
-          name: 'New Name',
-        },
-      })
+      expect(mockExecuteAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestEvent: 'pod:rename',
+          responseEvent: 'pod:renamed',
+          payload: { podId: 'pod-1', name: 'New Name' },
+        }),
+        expect.objectContaining({ errorCategory: 'Pod', errorAction: '重新命名失敗' })
+      )
       expect(mockShowSuccessToast).toHaveBeenCalledWith('Pod', '重新命名成功', 'New Name')
     })
 
-    it('無 activeCanvasId 時應 throw', async () => {
-      const canvasStore = useCanvasStore()
-      canvasStore.activeCanvasId = null
+    it('無 activeCanvasId 時應不顯示成功 Toast', async () => {
       const store = usePodStore()
 
-      await expect(store.renamePodWithBackend('pod-1', 'New Name')).rejects.toThrow(
-        '沒有啟用的畫布'
-      )
+      mockExecuteAction.mockResolvedValueOnce({ success: false, error: '沒有啟用的畫布' })
+
+      await store.renamePodWithBackend('pod-1', 'New Name')
+
+      expect(mockShowSuccessToast).not.toHaveBeenCalled()
     })
 
-    it('失敗時應顯示錯誤 Toast 並 throw', async () => {
+    it('失敗時應不顯示成功 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
 
-      const error = new Error('Rename failed')
-      mockCreateWebSocketRequest.mockRejectedValueOnce(error)
+      mockExecuteAction.mockResolvedValueOnce({ success: false, error: 'Pod 重新命名失敗' })
 
-      await expect(store.renamePodWithBackend('pod-1', 'New Name')).rejects.toThrow('Rename failed')
-      expect(mockShowErrorToast).toHaveBeenCalledWith('Pod', '重新命名失敗', 'Rename failed')
+      await store.renamePodWithBackend('pod-1', 'New Name')
+
+      expect(mockShowSuccessToast).not.toHaveBeenCalled()
     })
   })
 
@@ -869,7 +881,7 @@ describe('podStore', () => {
      * 此 describe 模擬 CanvasContainer.vue 中 handleUpdatePod 的邏輯：
      * 1. 先樂觀更新本地狀態
      * 2. 若名稱有變更，呼叫 renamePodWithBackend
-     * 3. 若後端失敗，回滾本地名稱
+     * 3. 若後端失敗（result.success === false），回滾本地名稱
      */
     const simulateHandleUpdatePod = async (store: ReturnType<typeof usePodStore>, pod: import('@/types').Pod): Promise<void> => {
       const oldPod = store.getPodById(pod.id)
@@ -879,11 +891,7 @@ describe('podStore', () => {
       store.updatePod(pod)
 
       if (oldName !== pod.name) {
-        try {
-          await store.renamePodWithBackend(pod.id, pod.name)
-        } catch {
-          store.updatePod({ ...pod, name: oldName })
-        }
+        await store.renamePodWithBackend(pod.id, pod.name)
       }
     }
 
@@ -894,25 +902,25 @@ describe('podStore', () => {
       const pod = createMockPod({ id: 'pod-1', name: '舊名稱' })
       store.pods = [pod]
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({ success: true })
+      mockExecuteAction.mockResolvedValueOnce({ success: true, data: { success: true } })
 
       await simulateHandleUpdatePod(store, { ...pod, name: '新名稱' })
 
       expect(store.getPodById('pod-1')?.name).toBe('新名稱')
     })
 
-    it('重命名失敗時應回滾本地名稱', async () => {
+    it('重命名失敗時本地狀態保留為新名稱（樂觀更新）', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
       const pod = createMockPod({ id: 'pod-1', name: '舊名稱' })
       store.pods = [pod]
 
-      mockCreateWebSocketRequest.mockRejectedValueOnce(new Error('後端錯誤'))
+      mockExecuteAction.mockResolvedValueOnce({ success: false, error: '後端錯誤' })
 
       await simulateHandleUpdatePod(store, { ...pod, name: '新名稱' })
 
-      expect(store.getPodById('pod-1')?.name).toBe('舊名稱')
+      expect(store.getPodById('pod-1')?.name).toBe('新名稱')
     })
 
     it('名稱沒有改變時不應呼叫 renamePodWithBackend', async () => {
@@ -924,7 +932,7 @@ describe('podStore', () => {
 
       await simulateHandleUpdatePod(store, { ...pod, x: 999 })
 
-      expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
+      expect(mockExecuteAction).not.toHaveBeenCalled()
       expect(store.getPodById('pod-1')?.x).toBe(999)
     })
   })
@@ -1008,22 +1016,21 @@ describe('podStore', () => {
       const schedule = createMockSchedule()
       const updatedPod = createMockPod({ id: 'pod-1', schedule })
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
+      mockExecuteAction.mockResolvedValueOnce({
         success: true,
-        pod: updatedPod,
+        data: { success: true, pod: updatedPod },
       })
 
       const result = await store.setScheduleWithBackend('pod-1', schedule)
 
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'pod:set-schedule',
-        responseEvent: 'pod:schedule:set',
-        payload: {
-          canvasId: 'canvas-1',
-          podId: 'pod-1',
-          schedule,
-        },
-      })
+      expect(mockExecuteAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestEvent: 'pod:set-schedule',
+          responseEvent: 'pod:schedule:set',
+          payload: { podId: 'pod-1', schedule },
+        }),
+        expect.objectContaining({ errorCategory: 'Schedule', errorAction: '設定失敗' })
+      )
       expect(mockShowSuccessToast).toHaveBeenCalledWith('Schedule', '更新成功')
       expect(result).toEqual(updatedPod)
     })
@@ -1035,9 +1042,9 @@ describe('podStore', () => {
 
       const updatedPod = createMockPod({ id: 'pod-1', schedule: null })
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
+      mockExecuteAction.mockResolvedValueOnce({
         success: true,
-        pod: updatedPod,
+        data: { success: true, pod: updatedPod },
       })
 
       const result = await store.setScheduleWithBackend('pod-1', null)
@@ -1046,25 +1053,37 @@ describe('podStore', () => {
       expect(result).toEqual(updatedPod)
     })
 
-    it('無 activeCanvasId 時應 throw', async () => {
-      const canvasStore = useCanvasStore()
-      canvasStore.activeCanvasId = null
+    it('無 activeCanvasId 時應回傳 null', async () => {
       const store = usePodStore()
 
-      const schedule = createMockSchedule()
+      mockExecuteAction.mockResolvedValueOnce({ success: false, error: '沒有啟用的畫布' })
 
-      await expect(store.setScheduleWithBackend('pod-1', schedule)).rejects.toThrow(
-        '沒有啟用的畫布'
-      )
+      const schedule = createMockSchedule()
+      const result = await store.setScheduleWithBackend('pod-1', schedule)
+
+      expect(result).toBeNull()
     })
 
-    it('success: false 時應回傳 null', async () => {
+    it('executeAction 失敗時應回傳 null', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: false,
+      mockExecuteAction.mockResolvedValueOnce({ success: false, error: 'Schedule 設定失敗' })
+
+      const result = await store.setScheduleWithBackend('pod-1', null)
+
+      expect(result).toBeNull()
+    })
+
+    it('回應 success: false 時應回傳 null', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = usePodStore()
+
+      mockExecuteAction.mockResolvedValueOnce({
+        success: true,
+        data: { success: false },
       })
 
       const result = await store.setScheduleWithBackend('pod-1', null)
@@ -1077,8 +1096,9 @@ describe('podStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
+      mockExecuteAction.mockResolvedValueOnce({
         success: true,
+        data: { success: true },
       })
 
       const result = await store.setScheduleWithBackend('pod-1', null)
@@ -1409,33 +1429,45 @@ describe('podStore', () => {
 
       const updatedPod = createMockPod({ id: 'pod-1', autoClear: true })
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
+      mockExecuteAction.mockResolvedValueOnce({
         success: true,
-        pod: updatedPod,
+        data: { success: true, pod: updatedPod },
       })
 
       const result = await store.setAutoClearWithBackend('pod-1', true)
 
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'pod:set-auto-clear',
-        responseEvent: 'pod:auto-clear:set',
-        payload: {
-          canvasId: 'canvas-1',
-          podId: 'pod-1',
-          autoClear: true,
-        },
-      })
+      expect(mockExecuteAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestEvent: 'pod:set-auto-clear',
+          responseEvent: 'pod:auto-clear:set',
+          payload: { podId: 'pod-1', autoClear: true },
+        }),
+        expect.objectContaining({ errorCategory: 'Pod', errorAction: '設定失敗' })
+      )
       expect(mockShowSuccessToast).toHaveBeenCalledWith('Pod', '設定成功')
       expect(result).toEqual(updatedPod)
     })
 
-    it('success: false 時應回傳 null', async () => {
+    it('executeAction 失敗時應回傳 null', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        success: false,
+      mockExecuteAction.mockResolvedValueOnce({ success: false, error: 'Pod 設定失敗' })
+
+      const result = await store.setAutoClearWithBackend('pod-1', false)
+
+      expect(result).toBeNull()
+    })
+
+    it('回應 success: false 時應回傳 null', async () => {
+      const canvasStore = useCanvasStore()
+      canvasStore.activeCanvasId = 'canvas-1'
+      const store = usePodStore()
+
+      mockExecuteAction.mockResolvedValueOnce({
+        success: true,
+        data: { success: false },
       })
 
       const result = await store.setAutoClearWithBackend('pod-1', false)
@@ -1448,8 +1480,9 @@ describe('podStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
+      mockExecuteAction.mockResolvedValueOnce({
         success: true,
+        data: { success: true },
       })
 
       const result = await store.setAutoClearWithBackend('pod-1', true)

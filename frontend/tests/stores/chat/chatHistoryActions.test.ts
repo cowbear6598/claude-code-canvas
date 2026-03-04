@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia } from 'pinia'
 import { setupTestPinia } from '../../helpers/mockStoreFactory'
 import { mockWebSocketModule, mockCreateWebSocketRequest, resetMockWebSocket, mockWebSocketClient } from '../../helpers/mockWebSocket'
-import { useChatStore } from '@/stores/chat/chatStore'
+import { useChatStore, resetChatActionsCache } from '@/stores/chat/chatStore'
 import { useCanvasStore } from '@/stores/canvasStore'
 import type { PodChatHistoryResultPayload, PersistedMessage } from '@/types/websocket/responses'
 
@@ -47,6 +47,7 @@ describe('chatHistoryActions', () => {
     const pinia = setupTestPinia()
     setActivePinia(pinia)
     resetMockWebSocket()
+    resetChatActionsCache()
     vi.clearAllMocks()
 
     mockWebSocketClient.isConnected.value = true

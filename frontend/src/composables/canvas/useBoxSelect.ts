@@ -21,15 +21,17 @@ export function useBoxSelect(): {
       const moveCanvasX = (moveEvent.clientX - viewportStore.offset.x) / viewportStore.zoom
       const moveCanvasY = (moveEvent.clientY - viewportStore.offset.y) / viewportStore.zoom
       selectionStore.updateSelection(moveCanvasX, moveCanvasY)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes,
-        mcpServerStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' as const },
+          { notes: skillStore.notes, type: 'skillNote' as const },
+          { notes: repositoryStore.notes, type: 'repositoryNote' as const },
+          { notes: subAgentStore.notes, type: 'subAgentNote' as const },
+          { notes: commandStore.notes, type: 'commandNote' as const },
+          { notes: mcpServerStore.notes, type: 'mcpServerNote' as const },
+        ],
+      })
     },
     onEnd: (upEvent: MouseEvent): void => {
       const deltaX = Math.abs(upEvent.clientX - startClientX)

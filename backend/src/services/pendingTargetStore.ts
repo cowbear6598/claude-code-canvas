@@ -19,7 +19,11 @@ class PendingTargetStore {
     });
   }
 
-  recordSourceCompletion(targetPodId: string, sourcePodId: string, summaryContent: string): { allSourcesResponded: boolean; hasRejection: boolean } {
+  recordSourceCompletion(targetPodId: string, sourcePodId: string, summaryContent: string, requiredSourcePodIds?: string[]): { allSourcesResponded: boolean; hasRejection: boolean } {
+    if (!this.pendingTargets.has(targetPodId) && requiredSourcePodIds) {
+      this.initializePendingTarget(targetPodId, requiredSourcePodIds);
+    }
+
     const pending = this.pendingTargets.get(targetPodId);
     if (!pending) {
       return { allSourcesResponded: false, hasRejection: false };
@@ -34,13 +38,18 @@ class PendingTargetStore {
     return { allSourcesResponded, hasRejection };
   }
 
-  recordSourceRejection(targetPodId: string, sourcePodId: string, reason: string): void {
+  recordSourceRejection(targetPodId: string, sourcePodId: string, reason: string): { allSourcesResponded: boolean } {
     const pending = this.pendingTargets.get(targetPodId);
     if (!pending) {
-      return;
+      return { allSourcesResponded: false };
     }
 
     pending.rejectedSources.set(sourcePodId, reason);
+
+    const allSourcesResponded =
+      pending.completedSources.size + pending.rejectedSources.size >= pending.requiredSourcePodIds.length;
+
+    return { allSourcesResponded };
   }
 
   hasAnyRejectedSource(targetPodId: string): boolean {

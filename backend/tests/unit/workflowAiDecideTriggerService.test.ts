@@ -630,11 +630,7 @@ describe('WorkflowAiDecideTriggerService', () => {
       (pendingTargetStore.hasPendingTarget as any).mockReturnValue(true);
 
       // 模擬所有來源都已回應且有拒絕（拒絕是最後一個回應）
-      (pendingTargetStore.getPendingTarget as any).mockReturnValue({
-        completedSources: new Set(['other-source']),
-        rejectedSources: new Set([sourcePodId]),
-        requiredSourcePodIds: [sourcePodId, 'other-source'],
-      });
+      (pendingTargetStore.recordSourceRejection as any).mockReturnValue({ allSourcesResponded: true });
 
       (autoClearService.onGroupNotTriggered as any).mockResolvedValue(undefined);
 
@@ -663,11 +659,7 @@ describe('WorkflowAiDecideTriggerService', () => {
       (pendingTargetStore.hasPendingTarget as any).mockReturnValue(true);
 
       // 只有一個 source 回應，其他還未回應
-      (pendingTargetStore.getPendingTarget as any).mockReturnValue({
-        completedSources: new Set([]),
-        rejectedSources: new Set([sourcePodId]),
-        requiredSourcePodIds: [sourcePodId, 'other-source', 'another-source'],
-      });
+      (pendingTargetStore.recordSourceRejection as any).mockReturnValue({ allSourcesResponded: false });
 
       await workflowAiDecideTriggerService.processAiDecideConnections(
         canvasId,

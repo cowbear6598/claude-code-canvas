@@ -170,12 +170,10 @@ class PodStore extends CanvasMapStore<Pod> {
         safeUpdates: Partial<Omit<Pod, 'schedule'>>
     ): Pod {
         if ('schedule' in updates && updates.schedule === null) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const {schedule, ...restPod} = pod;
-            return {...restPod, ...safeUpdates} as Pod;
+            return {...pod, ...safeUpdates, schedule: undefined};
         }
 
-        const updatedPod = {...pod, ...safeUpdates};
+        const updatedPod: Pod = {...pod, ...safeUpdates};
 
         if (updates.schedule) {
             updatedPod.schedule = updates.schedule.lastTriggeredAt
@@ -183,7 +181,7 @@ class PodStore extends CanvasMapStore<Pod> {
                 : {...updates.schedule, lastTriggeredAt: null};
         }
 
-        return updatedPod as Pod;
+        return updatedPod;
     }
 
     delete(canvasId: string, id: string): boolean {

@@ -104,11 +104,16 @@ export function buildPersistedMessage(
         });
     }
 
-    return {
+    const result: PersistedMessage = {
         id: messageId,
         role: 'assistant',
         content: accumulatedContent,
         timestamp: new Date().toISOString(),
-        ...(subMessages.length > 0 && { subMessages }),
     };
+
+    if (subMessages.length > 0) {
+        result.subMessages = subMessages;
+    }
+
+    return result;
 }

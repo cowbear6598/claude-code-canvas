@@ -29,6 +29,17 @@ import {getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
 
 const ABORT_SAFETY_TIMEOUT_MS = 10_000
 
+// 單例 store 的 actions 快取，避免每次呼叫都重新建立物件
+let cachedConnectionActions: ReturnType<typeof createConnectionActions> | null = null
+let cachedMessageActions: ReturnType<typeof createMessageActions> | null = null
+let cachedHistoryActions: ReturnType<typeof createHistoryActions> | null = null
+
+export function resetChatActionsCache(): void {
+    cachedConnectionActions = null
+    cachedMessageActions = null
+    cachedHistoryActions = null
+}
+
 function hasMessageContent(content: string, contentBlocks: ContentBlock[] | undefined): boolean {
     return (contentBlocks?.length ?? 0) > 0 || content.trim().length > 0
 }
@@ -105,13 +116,13 @@ export const useChatStore = defineStore('chat', {
     getters: {
         getMessages: (state) => {
             return (podId: string): Message[] => {
-                return state.messagesByPodId.get(podId) || []
+                return state.messagesByPodId.get(podId) ?? []
             }
         },
 
         isTyping: (state) => {
             return (podId: string): boolean => {
-                return state.isTypingByPodId.get(podId) || false
+                return state.isTypingByPodId.get(podId) ?? false
             }
         },
 
@@ -121,7 +132,7 @@ export const useChatStore = defineStore('chat', {
 
         getHistoryLoadingStatus: (state) => {
             return (podId: string): HistoryLoadingStatus => {
-                return state.historyLoadingStatus.get(podId) || 'idle'
+                return state.historyLoadingStatus.get(podId) ?? 'idle'
             }
         },
 
@@ -329,16 +340,25 @@ export const useChatStore = defineStore('chat', {
         },
 
         getConnectionActions() {
-            return createConnectionActions(this)
+            if (!cachedConnectionActions) {
+                cachedConnectionActions = createConnectionActions(this)
+            }
+            return cachedConnectionActions
         },
 
         getMessageActions() {
-            return createMessageActions(this)
+            if (!cachedMessageActions) {
+                cachedMessageActions = createMessageActions(this)
+            }
+            return cachedMessageActions
         },
 
         getHistoryActions() {
-            const messageActions = this.getMessageActions()
-            return createHistoryActions(this, messageActions)
+            if (!cachedHistoryActions) {
+                const messageActions = this.getMessageActions()
+                cachedHistoryActions = createHistoryActions(this, messageActions)
+            }
+            return cachedHistoryActions
         }
     }
 })

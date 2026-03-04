@@ -12,7 +12,7 @@ const DISCONNECT_REASON_MAP: Record<string, string> = {
 }
 
 const getDisconnectMessage = (reason: string): string => {
-    return DISCONNECT_REASON_MAP[reason] || '未知原因'
+    return DISCONNECT_REASON_MAP[reason] ?? '未知原因'
 }
 
 const HEARTBEAT_CHECK_INTERVAL_MS = 5000
@@ -49,7 +49,7 @@ export function createConnectionActions(store: ChatStoreInstance): {
         startHeartbeatCheck()
     }
 
-    const handleHeartbeatPing = (_: HeartbeatPingPayload, ack: (response?: unknown) => void): void => {
+    const handleHeartbeatPing = (_payload: HeartbeatPingPayload, ack: (response?: unknown) => void): void => {
         store.lastHeartbeatAt = Date.now()
 
         ack({timestamp: Date.now()})

@@ -55,11 +55,11 @@ class SocketService {
 		};
 
 		const serialized = serialize(response);
-		try {
-			connection.webSocket.send(serialized);
-		} catch (error) {
-			logger.log('Connection', 'Error', `訊息傳送失敗，連線 ${connectionId}: ${error}`);
+		if (connection.webSocket.readyState !== 1) {
+			logger.log('Connection', 'Error', `訊息傳送失敗，連線 ${connectionId}: WebSocket 未開啟 (readyState: ${connection.webSocket.readyState})`);
+			return;
 		}
+		connection.webSocket.send(serialized);
 	}
 
 	emitConnectionReady(connectionId: string, payload: ConnectionReadyPayload): void {
@@ -149,12 +149,11 @@ class SocketService {
 		};
 
 		const serialized = serialize(response);
-		try {
-			connection.webSocket.send(serialized);
-		} catch (error) {
-			logger.log('Connection', 'Error', `心跳傳送失敗，連線 ${connectionId}: ${error}`);
+		if (connection.webSocket.readyState !== 1) {
+			logger.log('Connection', 'Error', `心跳傳送失敗，連線 ${connectionId}: WebSocket 未開啟 (readyState: ${connection.webSocket.readyState})`);
 			return;
 		}
+		connection.webSocket.send(serialized);
 
 		const timeout = setTimeout(() => this.handleHeartbeatTimeout(connectionId), this.HEARTBEAT_TIMEOUT);
 

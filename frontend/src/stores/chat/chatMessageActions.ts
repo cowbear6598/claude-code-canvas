@@ -127,7 +127,7 @@ export function createMessageActions(store: ChatStoreInstance): ChatMessageActio
         const messages = getMessages(store, podId)
         const messageIndex = findMessageIndex(messages, messageId)
 
-        const lastLength = store.accumulatedLengthByMessageId.get(messageId) || 0
+        const lastLength = store.accumulatedLengthByMessageId.get(messageId) ?? 0
         const delta = content.slice(lastLength)
         store.accumulatedLengthByMessageId.set(messageId, content.length)
 
@@ -218,15 +218,20 @@ export function createMessageActions(store: ChatStoreInstance): ChatMessageActio
         const allToolUse = collectToolUseFromSubMessages(persistedMessage.subMessages)
 
         // 確保歷史載入後 tool 標籤位置與即時串流一致
-        return {
+        const result: Pick<Message, 'subMessages' | 'toolUse'> = {
             subMessages: persistedMessage.subMessages.map((sub, index) => ({
                 id: sub.id,
                 content: sub.content,
                 isPartial: false,
                 toolUse: index === 0 && allToolUse.length > 0 ? allToolUse : undefined,
             })),
-            ...(allToolUse.length > 0 && { toolUse: allToolUse })
         }
+
+        if (allToolUse.length > 0) {
+            result.toolUse = allToolUse
+        }
+
+        return result
     }
 
     const convertPersistedToMessage = (persistedMessage: PersistedMessage): Message => {

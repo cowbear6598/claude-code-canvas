@@ -2,6 +2,11 @@ import {WebSocketResponseEvents} from '../schemas';
 import type {
     CanvasPasteResultPayload,
     PasteError,
+    OutputStyleNote,
+    SkillNote,
+    RepositoryNote,
+    SubAgentNote,
+    CommandNote,
 } from '../types';
 import type {CanvasPastePayload} from '../schemas';
 import {socketService} from '../services/socketService.js';
@@ -11,6 +16,7 @@ import {
     createPastedPods,
     createPastedNotesByType,
     createPastedConnections,
+    type NotePasteType,
 } from './paste/pasteHelpers.js';
 import {podStore} from '../services/podStore.js';
 
@@ -24,25 +30,26 @@ export const handleCanvasPaste = withCanvasId<CanvasPastePayload>(
 
         const createdPods = await createPastedPods(canvasId, pods, podIdMapping, errors);
 
-        const outputStyleNotesResult = createPastedNotesByType('outputStyle', canvasId, outputStyleNotes, podIdMapping);
-        const createdOutputStyleNotes = outputStyleNotesResult.notes;
-        errors.push(...outputStyleNotesResult.errors);
+        type NoteTypeInput = { type: NotePasteType; notes: Parameters<typeof createPastedNotesByType>[2] }
 
-        const skillNotesResult = createPastedNotesByType('skill', canvasId, skillNotes, podIdMapping);
-        const createdSkillNotes = skillNotesResult.notes;
-        errors.push(...skillNotesResult.errors);
+        const noteTypeInputs: NoteTypeInput[] = [
+            { type: 'outputStyle', notes: outputStyleNotes },
+            { type: 'skill', notes: skillNotes },
+            { type: 'repository', notes: repositoryNotes },
+            { type: 'subAgent', notes: subAgentNotes },
+            { type: 'command', notes: commandNotes ?? [] },
+        ]
 
-        const repositoryNotesResult = createPastedNotesByType('repository', canvasId, repositoryNotes, podIdMapping);
-        const createdRepositoryNotes = repositoryNotesResult.notes;
-        errors.push(...repositoryNotesResult.errors);
+        const noteResults = noteTypeInputs.map(({ type, notes }) =>
+            createPastedNotesByType(type, canvasId, notes, podIdMapping)
+        )
+        errors.push(...noteResults.flatMap(r => r.errors))
 
-        const subAgentNotesResult = createPastedNotesByType('subAgent', canvasId, subAgentNotes, podIdMapping);
-        const createdSubAgentNotes = subAgentNotesResult.notes;
-        errors.push(...subAgentNotesResult.errors);
-
-        const commandNotesResult = createPastedNotesByType('command', canvasId, commandNotes ?? [], podIdMapping);
-        const createdCommandNotes = commandNotesResult.notes;
-        errors.push(...commandNotesResult.errors);
+        const createdOutputStyleNotes = noteResults[0]!.notes as OutputStyleNote[]
+        const createdSkillNotes = noteResults[1]!.notes as SkillNote[]
+        const createdRepositoryNotes = noteResults[2]!.notes as RepositoryNote[]
+        const createdSubAgentNotes = noteResults[3]!.notes as SubAgentNote[]
+        const createdCommandNotes = noteResults[4]!.notes as CommandNote[]
 
         const createdConnections = createPastedConnections(canvasId, connections, podIdMapping);
 

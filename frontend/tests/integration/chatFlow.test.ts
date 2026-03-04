@@ -3,7 +3,7 @@ import { setActivePinia } from 'pinia'
 import { setupTestPinia } from '../helpers/mockStoreFactory'
 import { mockWebSocketModule, mockCreateWebSocketRequest, resetMockWebSocket, mockWebSocketClient } from '../helpers/mockWebSocket'
 import { createMockPod } from '../helpers/factories'
-import { useChatStore } from '@/stores/chat/chatStore'
+import { useChatStore, resetChatActionsCache } from '@/stores/chat/chatStore'
 import { usePodStore } from '@/stores/pod/podStore'
 import { useCanvasStore } from '@/stores/canvasStore'
 import type {
@@ -54,6 +54,7 @@ describe('Chat 對話完整流程', () => {
     const pinia = setupTestPinia()
     setActivePinia(pinia)
     resetMockWebSocket()
+    resetChatActionsCache()
     vi.clearAllMocks()
 
     mockWebSocketClient.isConnected.value = true

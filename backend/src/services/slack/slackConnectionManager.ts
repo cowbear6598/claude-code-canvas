@@ -226,16 +226,16 @@ class SlackConnectionManager {
                 return;
             }
 
-            try {
-                await this.connect(slackApp);
+            await this.connect(slackApp);
+            const updatedStatus = slackAppStore.getById(slackAppId)?.connectionStatus;
+            if (updatedStatus === 'connected') {
                 this.reconnectAttempts.set(slackAppId, 0);
                 logger.log('Slack', 'Complete', `Slack App ${slackAppId} 重連成功`);
-            } catch (error) {
-                logger.error('Slack', 'Error', `Slack App ${slackAppId} 重連失敗`, error);
-                const currentAttempts = this.reconnectAttempts.get(slackAppId) ?? 0;
-                this.reconnectAttempts.set(slackAppId, currentAttempts + 1);
-                this.handleReconnect(slackAppId);
+                return;
             }
+            const currentAttempts = this.reconnectAttempts.get(slackAppId) ?? 0;
+            this.reconnectAttempts.set(slackAppId, currentAttempts + 1);
+            this.handleReconnect(slackAppId);
         }, delayMs);
 
         this.reconnectTimeouts.set(slackAppId, timeout);

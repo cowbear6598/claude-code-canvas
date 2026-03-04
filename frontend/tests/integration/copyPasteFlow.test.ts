@@ -79,14 +79,16 @@ describe('複製貼上/批量操作完整流程', () => {
 
       selectionStore.startSelection(0, 0)
       selectionStore.updateSelection(500, 500)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
 
       const selectedElements = selectionStore.selectedElements
       const selectedPodIds = new Set(selectedElements.filter(el => el.type === 'pod').map(el => el.id))
@@ -148,14 +150,16 @@ describe('複製貼上/批量操作完整流程', () => {
 
       selectionStore.startSelection(0, 0)
       selectionStore.updateSelection(500, 500)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
 
       const selectedElements = selectionStore.selectedElements
       const copiedOutputStyleNotes = outputStyleStore.notes
@@ -192,14 +196,16 @@ describe('複製貼上/批量操作完整流程', () => {
 
       selectionStore.startSelection(0, 0)
       selectionStore.updateSelection(500, 500)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
 
       const selectedElements = selectionStore.selectedElements
       const selectedPodIds = new Set(selectedElements.filter(el => el.type === 'pod').map(el => el.id))
@@ -270,14 +276,16 @@ describe('複製貼上/批量操作完整流程', () => {
 
       selectionStore.startSelection(0, 0)
       selectionStore.updateSelection(500, 500)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
 
       const dx = 50
       const dy = 50
@@ -310,14 +318,16 @@ describe('複製貼上/批量操作完整流程', () => {
 
       selectionStore.startSelection(0, 0)
       selectionStore.updateSelection(500, 500)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
 
       const dx = 30
       const dy = 40
@@ -387,14 +397,16 @@ describe('複製貼上/批量操作完整流程', () => {
 
       selectionStore.startSelection(0, 0)
       selectionStore.updateSelection(500, 500)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
 
       expect(selectionStore.selectedPodIds).toHaveLength(2)
 
@@ -418,14 +430,16 @@ describe('複製貼上/批量操作完整流程', () => {
 
       selectionStore.startSelection(0, 0)
       selectionStore.updateSelection(500, 500)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
 
       const deletePromises: Promise<void>[] = []
 
@@ -486,14 +500,16 @@ describe('複製貼上/批量操作完整流程', () => {
 
       selectionStore.startSelection(0, 0)
       selectionStore.updateSelection(300, 300)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
       selectionStore.endSelection()
 
       expect(selectionStore.selectedPodIds).toEqual(['pod-1', 'pod-2'])
@@ -508,28 +524,32 @@ describe('複製貼上/批量操作完整流程', () => {
 
       selectionStore.startSelection(0, 0)
       selectionStore.updateSelection(350, 350)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
       selectionStore.endSelection()
 
       expect(selectionStore.selectedPodIds).toEqual(['pod-1', 'pod-2'])
 
       selectionStore.startSelection(350, 350, true)
       selectionStore.updateSelection(700, 700)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
       selectionStore.endSelection()
 
       expect(selectionStore.selectedPodIds).toEqual(['pod-1', 'pod-3'])
@@ -545,14 +565,16 @@ describe('複製貼上/批量操作完整流程', () => {
 
       selectionStore.startSelection(0, 0, true)
       selectionStore.updateSelection(300, 300)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
       selectionStore.endSelection()
 
       expect(selectionStore.selectedPodIds).toEqual([])
@@ -568,14 +590,16 @@ describe('複製貼上/批量操作完整流程', () => {
 
       selectionStore.startSelection(400, 400, true)
       selectionStore.updateSelection(600, 600)
-      selectionStore.calculateSelectedElements(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes
-      )
+      selectionStore.calculateSelectedElements({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+        ],
+      })
       selectionStore.endSelection()
 
       expect(selectionStore.selectedPodIds).toEqual(['pod-1', 'pod-2'])

@@ -1,7 +1,128 @@
-import { describe, it, expect } from 'vitest';
-import { buildTransferMessage, isAutoTriggerable } from '../../src/services/workflow/workflowHelpers.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createWorkflowEventEmitterMock, createConnectionStoreMock, createLoggerMock } from '../mocks/workflowModuleMocks.js';
+
+vi.mock('../../src/services/workflow/workflowEventEmitter.js', () => createWorkflowEventEmitterMock());
+vi.mock('../../src/services/connectionStore.js', () => createConnectionStoreMock());
+vi.mock('../../src/utils/logger.js', () => createLoggerMock());
+
+import { buildTransferMessage, isAutoTriggerable, buildQueueProcessedPayload, emitQueueProcessed, createMultiInputCompletionHandlers } from '../../src/services/workflow/workflowHelpers.js';
+import { workflowEventEmitter } from '../../src/services/workflow/workflowEventEmitter.js';
+import { connectionStore } from '../../src/services/connectionStore.js';
+import type { QueueProcessedContext, CompletionContext } from '../../src/services/workflow/types.js';
+
+const makeQueueProcessedContext = (overrides?: Partial<QueueProcessedContext>): QueueProcessedContext => ({
+  canvasId: 'canvas-1',
+  targetPodId: 'target-pod',
+  connectionId: 'conn-1',
+  sourcePodId: 'source-pod',
+  remainingQueueSize: 2,
+  triggerMode: 'auto',
+  participatingConnectionIds: ['conn-1'],
+  ...overrides,
+});
+
+const makeCompletionContext = (overrides?: Partial<CompletionContext>): CompletionContext => ({
+  canvasId: 'canvas-1',
+  targetPodId: 'target-pod',
+  connectionId: 'conn-1',
+  sourcePodId: 'source-pod',
+  triggerMode: 'auto',
+  participatingConnectionIds: ['conn-1'],
+  ...overrides,
+});
 
 describe('workflowHelpers', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('buildQueueProcessedPayload', () => {
+    it('從 QueueProcessedContext 正確建立 payload', () => {
+      const context = makeQueueProcessedContext();
+
+      const payload = buildQueueProcessedPayload(context);
+
+      expect(payload).toEqual({
+        canvasId: 'canvas-1',
+        targetPodId: 'target-pod',
+        connectionId: 'conn-1',
+        sourcePodId: 'source-pod',
+        remainingQueueSize: 2,
+        triggerMode: 'auto',
+      });
+    });
+
+    it('payload 不含 participatingConnectionIds', () => {
+      const context = makeQueueProcessedContext();
+
+      const payload = buildQueueProcessedPayload(context);
+
+      expect('participatingConnectionIds' in payload).toBe(false);
+    });
+  });
+
+  describe('emitQueueProcessed', () => {
+    it('呼叫 workflowEventEmitter.emitWorkflowQueueProcessed 帶入正確參數', () => {
+      const context = makeQueueProcessedContext({triggerMode: 'ai-decide', remainingQueueSize: 5});
+
+      emitQueueProcessed(context);
+
+      expect(workflowEventEmitter.emitWorkflowQueueProcessed).toHaveBeenCalledWith(
+        'canvas-1',
+        {
+          canvasId: 'canvas-1',
+          targetPodId: 'target-pod',
+          connectionId: 'conn-1',
+          sourcePodId: 'source-pod',
+          remainingQueueSize: 5,
+          triggerMode: 'ai-decide',
+        }
+      );
+    });
+  });
+
+  describe('createMultiInputCompletionHandlers', () => {
+    it('onComplete(success=true) 呼叫 workflowEventEmitter.emitWorkflowComplete 並設定 connection 為 idle', () => {
+      vi.mocked(connectionStore.findByTargetPodId).mockReturnValue([
+        {id: 'conn-1', sourcePodId: 'source-pod', targetPodId: 'target-pod', triggerMode: 'auto'} as never,
+      ]);
+      const handlers = createMultiInputCompletionHandlers();
+
+      handlers.onComplete(makeCompletionContext(), true);
+
+      expect(workflowEventEmitter.emitWorkflowComplete).toHaveBeenCalledWith(
+        expect.objectContaining({canvasId: 'canvas-1', success: true})
+      );
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith('canvas-1', 'conn-1', 'idle');
+    });
+
+    it('onComplete(success=false, error) 帶入錯誤訊息', () => {
+      vi.mocked(connectionStore.findByTargetPodId).mockReturnValue([
+        {id: 'conn-1', sourcePodId: 'source-pod', targetPodId: 'target-pod', triggerMode: 'auto'} as never,
+      ]);
+      const handlers = createMultiInputCompletionHandlers();
+
+      handlers.onComplete(makeCompletionContext(), false, '發生錯誤');
+
+      expect(workflowEventEmitter.emitWorkflowComplete).toHaveBeenCalledWith(
+        expect.objectContaining({success: false, error: '發生錯誤'})
+      );
+    });
+
+    it('onError 等同於 onComplete(success=false)', () => {
+      vi.mocked(connectionStore.findByTargetPodId).mockReturnValue([
+        {id: 'conn-1', sourcePodId: 'source-pod', targetPodId: 'target-pod', triggerMode: 'auto'} as never,
+      ]);
+      const handlers = createMultiInputCompletionHandlers();
+
+      handlers.onError(makeCompletionContext(), '錯誤訊息');
+
+      expect(workflowEventEmitter.emitWorkflowComplete).toHaveBeenCalledWith(
+        expect.objectContaining({success: false, error: '錯誤訊息'})
+      );
+    });
+  });
+
   describe('buildTransferMessage', () => {
     it('正常內容包裝在 source-summary 標籤中', () => {
       const result = buildTransferMessage('這是正常內容');

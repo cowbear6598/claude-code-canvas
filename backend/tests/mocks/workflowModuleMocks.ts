@@ -49,7 +49,7 @@ export function createPendingTargetStoreMock() {
       clearPendingTarget: vi.fn(),
       initializePendingTarget: vi.fn(),
       recordSourceCompletion: vi.fn(),
-      recordSourceRejection: vi.fn(),
+      recordSourceRejection: vi.fn().mockReturnValue({ allSourcesResponded: false }),
       getCompletedSummaries: vi.fn(),
     },
   };

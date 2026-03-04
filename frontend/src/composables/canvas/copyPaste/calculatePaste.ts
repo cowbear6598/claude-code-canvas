@@ -167,6 +167,14 @@ type ClipboardData = {
   connections: CopiedConnection[]
 }
 
+type CopiedNote = CopiedOutputStyleNote | CopiedSkillNote | CopiedRepositoryNote | CopiedSubAgentNote | CopiedCommandNote
+
+type NoteTransformConfig<TSource extends CopiedNote, TResult> = {
+  notes: TSource[]
+  getBoundKey: (note: TSource) => string | null
+  mapFn: (note: TSource, position: { x: number; y: number }) => TResult
+}
+
 function isEmptyClipboard(clipboardData: ClipboardData): boolean {
   const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, commandNotes } = clipboardData
   return (
@@ -213,83 +221,78 @@ export function calculatePastePositions(
 
   const offset = calculateOffsets(boundingBox, targetPosition)
 
-  const newOutputStyleNotes = transformNotes(
-    outputStyleNotes,
-    offset,
-    note => note.boundToPodId,
-    (note, position) => ({
+  const outputStyleConfig: NoteTransformConfig<CopiedOutputStyleNote, PasteOutputStyleNoteItem> = {
+    notes: outputStyleNotes,
+    getBoundKey: note => note.boundToPodId,
+    mapFn: (note, position) => ({
       outputStyleId: note.outputStyleId,
       name: note.name,
       x: position.x,
       y: position.y,
       boundToOriginalPodId: note.boundToPodId,
       originalPosition: note.originalPosition,
-    })
-  )
+    }),
+  }
 
-  const newSkillNotes = transformNotes(
-    skillNotes,
-    offset,
-    note => note.boundToPodId,
-    (note, position) => ({
+  const skillConfig: NoteTransformConfig<CopiedSkillNote, PasteSkillNoteItem> = {
+    notes: skillNotes,
+    getBoundKey: note => note.boundToPodId,
+    mapFn: (note, position) => ({
       skillId: note.skillId,
       name: note.name,
       x: position.x,
       y: position.y,
       boundToOriginalPodId: note.boundToPodId,
       originalPosition: note.originalPosition,
-    })
-  )
+    }),
+  }
 
-  const newRepositoryNotes = transformNotes(
-    repositoryNotes,
-    offset,
-    note => note.boundToOriginalPodId,
-    (note, position) => ({
+  const repositoryConfig: NoteTransformConfig<CopiedRepositoryNote, PasteRepositoryNoteItem> = {
+    notes: repositoryNotes,
+    getBoundKey: note => note.boundToOriginalPodId,
+    mapFn: (note, position) => ({
       repositoryId: note.repositoryId,
       name: note.name,
       x: position.x,
       y: position.y,
       boundToOriginalPodId: note.boundToOriginalPodId,
       originalPosition: note.originalPosition,
-    })
-  )
+    }),
+  }
 
-  const newSubAgentNotes = transformNotes(
-    subAgentNotes,
-    offset,
-    note => note.boundToPodId,
-    (note, position) => ({
+  const subAgentConfig: NoteTransformConfig<CopiedSubAgentNote, PasteSubAgentNoteItem> = {
+    notes: subAgentNotes,
+    getBoundKey: note => note.boundToPodId,
+    mapFn: (note, position) => ({
       subAgentId: note.subAgentId,
       name: note.name,
       x: position.x,
       y: position.y,
       boundToOriginalPodId: note.boundToPodId,
       originalPosition: note.originalPosition,
-    })
-  )
+    }),
+  }
 
-  const newCommandNotes = transformNotes(
-    commandNotes,
-    offset,
-    note => note.boundToOriginalPodId,
-    (note, position) => ({
+  const commandConfig: NoteTransformConfig<CopiedCommandNote, PasteCommandNoteItem> = {
+    notes: commandNotes,
+    getBoundKey: note => note.boundToOriginalPodId,
+    mapFn: (note, position) => ({
       commandId: note.commandId,
       name: note.name,
       x: position.x,
       y: position.y,
       boundToOriginalPodId: note.boundToOriginalPodId,
       originalPosition: note.originalPosition,
-    })
-  )
+    }),
+  }
 
   return {
     pods: transformPods(pods, offset),
-    outputStyleNotes: newOutputStyleNotes,
-    skillNotes: newSkillNotes,
-    repositoryNotes: newRepositoryNotes,
-    subAgentNotes: newSubAgentNotes,
-    commandNotes: newCommandNotes,
+    outputStyleNotes: transformNotes(outputStyleConfig.notes, offset, outputStyleConfig.getBoundKey, outputStyleConfig.mapFn),
+    skillNotes: transformNotes(skillConfig.notes, offset, skillConfig.getBoundKey, skillConfig.mapFn),
+    repositoryNotes: transformNotes(repositoryConfig.notes, offset, repositoryConfig.getBoundKey, repositoryConfig.mapFn),
+    subAgentNotes: transformNotes(subAgentConfig.notes, offset, subAgentConfig.getBoundKey, subAgentConfig.mapFn),
+    commandNotes: transformNotes(commandConfig.notes, offset, commandConfig.getBoundKey, commandConfig.mapFn),
     connections: transformConnections(connections),
   }
 }

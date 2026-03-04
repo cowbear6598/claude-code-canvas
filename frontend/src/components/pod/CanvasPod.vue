@@ -1,26 +1,22 @@
 <script setup lang="ts">
-import {ref, computed, onUnmounted} from 'vue'
+import {ref, computed} from 'vue'
 import type {Pod, ModelType, Schedule} from '@/types'
-import type {UnbindBehavior} from '@/stores/note/noteBindingActions'
 import type {AnchorPosition} from '@/types/connection'
 import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
 import {useAnchorDetection} from '@/composables/useAnchorDetection'
 import {useBatchDrag} from '@/composables/canvas'
 import {useWebSocketErrorHandler} from '@/composables/useWebSocketErrorHandler'
-import {useToast} from '@/composables/useToast'
-import {DEFAULT_TOAST_DURATION_MS} from '@/lib/constants'
 import {isCtrlOrCmdPressed} from '@/utils/keyboardHelpers'
 import {createWebSocketRequest, WebSocketRequestEvents, WebSocketResponseEvents} from '@/services/websocket'
 import type {
-  WorkflowGetDownstreamPodsResultPayload,
-  WorkflowClearResultPayload,
   PodSetModelPayload,
   PodModelSetPayload,
-  WorkflowGetDownstreamPodsPayload,
-  WorkflowClearPayload
 } from '@/types/websocket'
 import {formatScheduleTooltip} from '@/utils/scheduleUtils'
 import {getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
+import {usePodDrag} from '@/composables/pod/usePodDrag'
+import {usePodNoteBinding} from '@/composables/pod/usePodNoteBinding'
+import {useWorkflowClear} from '@/composables/pod/useWorkflowClear'
 import PodHeader from '@/components/pod/PodHeader.vue'
 import PodMiniScreen from '@/components/pod/PodMiniScreen.vue'
 import PodSlots from '@/components/pod/PodSlots.vue'
@@ -48,7 +44,6 @@ const {
   chatStore,
 } = useCanvasContext()
 const {detectTargetAnchor} = useAnchorDetection()
-const {toast} = useToast()
 const {startBatchDrag, isElementSelected, isBatchDragging} = useBatchDrag()
 
 const isActive = computed(() => props.pod.id === podStore.activePodId)
@@ -80,19 +75,7 @@ const emit = defineEmits<{
   contextmenu: [data: { podId: string; event: MouseEvent }]
 }>()
 
-const isDragging = ref(false)
 const isEditing = ref(false)
-const dragRef = ref<{
-  startX: number
-  startY: number
-  podX: number
-  podY: number
-} | null>(null)
-
-const showClearDialog = ref(false)
-const downstreamPods = ref<Array<{ id: string; name: string }>>([])
-const isLoadingDownstream = ref(false)
-const isClearing = ref(false)
 const showDeleteDialog = ref(false)
 const showScheduleModal = ref(false)
 
@@ -109,23 +92,41 @@ const scheduleTooltip = computed(() => {
 const isScheduleFiredAnimating = computed(() => podStore.isScheduleFiredAnimating(props.pod.id))
 const isWorkflowRunning = computed(() => connectionStore.isWorkflowRunning(props.pod.id))
 
-let currentMouseMoveHandler: ((e: MouseEvent) => void) | null = null
-let currentMouseUpHandler: (() => void) | null = null
+const computedPodId = computed(() => props.pod.id)
 
-const cleanupEventListeners = (): void => {
-  if (currentMouseMoveHandler) {
-    document.removeEventListener('mousemove', currentMouseMoveHandler)
-    currentMouseMoveHandler = null
-  }
-  if (currentMouseUpHandler) {
-    document.removeEventListener('mouseup', currentMouseUpHandler)
-    currentMouseUpHandler = null
-  }
-}
+const {isDragging, startSingleDrag} = usePodDrag(
+  computedPodId,
+  () => ({ x: props.pod.x, y: props.pod.y }),
+  isElementSelected,
+  emit,
+  { viewportStore, selectionStore, podStore, connectionStore }
+)
 
-onUnmounted(() => {
-  cleanupEventListeners()
-})
+const {handleNoteDrop, handleNoteRemove} = usePodNoteBinding(
+  computedPodId,
+  {
+    outputStyleStore,
+    skillStore,
+    subAgentStore,
+    repositoryStore,
+    commandStore,
+    mcpServerStore,
+    podStore
+  }
+)
+
+const {
+  showClearDialog,
+  downstreamPods,
+  isLoadingDownstream,
+  isClearing,
+  handleClearWorkflow,
+  handleConfirmClear,
+  handleCancelClear,
+} = useWorkflowClear(
+  computedPodId,
+  { chatStore, podStore, connectionStore }
+)
 
 const SLOT_CLASSES = [
   '.pod-output-style-slot',
@@ -152,51 +153,6 @@ const handleCtrlOrModifierClick = (e: MouseEvent): boolean => {
   return true
 }
 
-const initiateSingleDrag = (e: MouseEvent): void => {
-  if (!isElementSelected('pod', props.pod.id)) {
-    selectionStore.setSelectedElements([{type: 'pod', id: props.pod.id}])
-  }
-
-  podStore.setActivePod(props.pod.id)
-  connectionStore.selectConnection(null)
-  cleanupEventListeners()
-
-  isDragging.value = true
-  dragRef.value = {
-    startX: e.clientX,
-    startY: e.clientY,
-    podX: props.pod.x,
-    podY: props.pod.y,
-  }
-
-  const handleMouseMove = (moveEvent: MouseEvent): void => {
-    if (!dragRef.value) return
-
-    const dx = (moveEvent.clientX - dragRef.value.startX) / viewportStore.zoom
-    const dy = (moveEvent.clientY - dragRef.value.startY) / viewportStore.zoom
-
-    emit('drag-end', {
-      id: props.pod.id,
-      x: dragRef.value.podX + dx,
-      y: dragRef.value.podY + dy,
-    })
-  }
-
-  const handleMouseUp = (): void => {
-    emit('drag-complete', { id: props.pod.id })
-
-    isDragging.value = false
-    dragRef.value = null
-    cleanupEventListeners()
-  }
-
-  currentMouseMoveHandler = handleMouseMove
-  currentMouseUpHandler = handleMouseUp
-
-  document.addEventListener('mousemove', handleMouseMove)
-  document.addEventListener('mouseup', handleMouseUp)
-}
-
 const handleMouseDown = (e: MouseEvent): void => {
   const target = e.target as HTMLElement
 
@@ -204,7 +160,7 @@ const handleMouseDown = (e: MouseEvent): void => {
   if (handleCtrlOrModifierClick(e)) return
   if (isElementSelected('pod', props.pod.id) && startBatchDrag(e)) return
 
-  initiateSingleDrag(e)
+  startSingleDrag(e)
 }
 
 const handleRename = (): void => {
@@ -264,112 +220,6 @@ const handleDblClick = (e: MouseEvent): void => {
   handleSelectPod()
 }
 
-type NoteType = 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | 'mcpServer'
-
-interface NoteItem {
-  outputStyleId?: string
-  skillId?: string
-  subAgentId?: string
-  repositoryId?: string
-  commandId?: string
-  mcpServerId?: string
-}
-
-interface NoteStoreMapping {
-  bindToPod: (noteId: string, podId: string) => Promise<void>
-  getNoteById: (noteId: string) => NoteItem | undefined
-  isItemBoundToPod?: (itemId: string, podId: string) => boolean
-  unbindFromPod?: (podId: string, behavior: UnbindBehavior) => Promise<void>
-  getItemId: (note: NoteItem) => string | undefined
-  updatePodField?: (podId: string, itemId: string | null) => void
-}
-
-const noteStoreMap: Record<NoteType, NoteStoreMapping> = {
-  outputStyle: {
-    bindToPod: (noteId, podId) => outputStyleStore.bindToPod(noteId, podId),
-    getNoteById: (noteId) => outputStyleStore.getNoteById(noteId),
-    unbindFromPod: (podId, behavior) => outputStyleStore.unbindFromPod(podId, behavior),
-    getItemId: (note) => note.outputStyleId,
-    updatePodField: (podId, itemId) => podStore.updatePodOutputStyle(podId, itemId)
-  },
-  skill: {
-    bindToPod: (noteId, podId) => skillStore.bindToPod(noteId, podId),
-    getNoteById: (noteId) => skillStore.getNoteById(noteId),
-    isItemBoundToPod: (itemId, podId) => skillStore.isItemBoundToPod(itemId, podId),
-    getItemId: (note) => note.skillId
-  },
-  subAgent: {
-    bindToPod: (noteId, podId) => subAgentStore.bindToPod(noteId, podId),
-    getNoteById: (noteId) => subAgentStore.getNoteById(noteId),
-    isItemBoundToPod: (itemId, podId) => subAgentStore.isItemBoundToPod(itemId, podId),
-    getItemId: (note) => note.subAgentId
-  },
-  repository: {
-    bindToPod: (noteId, podId) => repositoryStore.bindToPod(noteId, podId),
-    getNoteById: (noteId) => repositoryStore.getNoteById(noteId),
-    unbindFromPod: (podId, behavior) => repositoryStore.unbindFromPod(podId, behavior),
-    getItemId: (note) => note.repositoryId,
-    updatePodField: (podId, itemId) => podStore.updatePodRepository(podId, itemId)
-  },
-  command: {
-    bindToPod: (noteId, podId) => commandStore.bindToPod(noteId, podId),
-    getNoteById: (noteId) => commandStore.getNoteById(noteId),
-    unbindFromPod: (podId, behavior) => commandStore.unbindFromPod(podId, behavior),
-    getItemId: (note) => note.commandId,
-    updatePodField: (podId, itemId) => podStore.updatePodCommand(podId, itemId)
-  },
-  mcpServer: {
-    bindToPod: (noteId, podId) => mcpServerStore.bindToPod(noteId, podId),
-    getNoteById: (noteId) => mcpServerStore.getNoteById(noteId),
-    isItemBoundToPod: (itemId, podId) => mcpServerStore.isItemBoundToPod(itemId, podId),
-    getItemId: (note) => note.mcpServerId
-  }
-}
-
-const DUPLICATE_BIND_MESSAGES: Partial<Record<NoteType, string>> = {
-  skill: '此 Skill 已綁定到此 Pod',
-  subAgent: '此 SubAgent 已綁定到此 Pod',
-  mcpServer: '此 MCP Server 已綁定到此 Pod',
-}
-
-const isAlreadyBound = (mapping: NoteStoreMapping, note: NoteItem, podId: string): boolean => {
-  if (!mapping.isItemBoundToPod) return false
-  const itemId = mapping.getItemId(note)
-  return !!itemId && mapping.isItemBoundToPod(itemId, podId)
-}
-
-const handleNoteDrop = async (noteType: NoteType, noteId: string): Promise<void> => {
-  const mapping = noteStoreMap[noteType]
-  const note = mapping.getNoteById(noteId)
-  if (!note) return
-
-  if (isAlreadyBound(mapping, note, props.pod.id)) {
-    const description = DUPLICATE_BIND_MESSAGES[noteType]
-    if (description) {
-      toast({title: '已存在，無法插入', description, duration: DEFAULT_TOAST_DURATION_MS})
-    }
-    return
-  }
-
-  await mapping.bindToPod(noteId, props.pod.id)
-
-  if (mapping.updatePodField) {
-    const itemId = mapping.getItemId(note)
-    mapping.updatePodField(props.pod.id, itemId ?? null)
-  }
-}
-
-const handleNoteRemove = async (noteType: NoteType): Promise<void> => {
-  const mapping = noteStoreMap[noteType]
-  if (!mapping.unbindFromPod) return
-
-  await mapping.unbindFromPod(props.pod.id, { mode: 'return-to-original' })
-
-  if (mapping.updatePodField) {
-    mapping.updatePodField(props.pod.id, null)
-  }
-}
-
 const handleAnchorDragStart = (data: {
   podId: string
   anchor: AnchorPosition
@@ -412,82 +262,6 @@ const handleAnchorDragEnd = async (): Promise<void> => {
   connectionStore.endDragging()
 }
 
-const handleClearWorkflow = async (): Promise<void> => {
-  const canvasId = getActiveCanvasIdOrWarn('CanvasPod')
-  if (!canvasId) return
-
-  isLoadingDownstream.value = true
-
-  const {wrapWebSocketRequest} = useWebSocketErrorHandler()
-
-  const response = await wrapWebSocketRequest(
-      createWebSocketRequest<WorkflowGetDownstreamPodsPayload, WorkflowGetDownstreamPodsResultPayload>({
-        requestEvent: WebSocketRequestEvents.WORKFLOW_GET_DOWNSTREAM_PODS,
-        responseEvent: WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
-        payload: {
-          canvasId,
-          sourcePodId: props.pod.id
-        }
-      })
-  )
-
-  isLoadingDownstream.value = false
-
-  if (!response) return
-
-  if (!response.pods) return
-
-  downstreamPods.value = response.pods
-  showClearDialog.value = true
-}
-
-const handleConfirmClear = async (): Promise<void> => {
-  const canvasId = getActiveCanvasIdOrWarn('CanvasPod')
-  if (!canvasId) return
-
-  isClearing.value = true
-
-  const {wrapWebSocketRequest} = useWebSocketErrorHandler()
-
-  const response = await wrapWebSocketRequest(
-      createWebSocketRequest<WorkflowClearPayload, WorkflowClearResultPayload>({
-        requestEvent: WebSocketRequestEvents.WORKFLOW_CLEAR,
-        responseEvent: WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT,
-        payload: {
-          canvasId,
-          sourcePodId: props.pod.id
-        }
-      })
-  )
-
-  isClearing.value = false
-
-  if (!response) return
-
-  if (!response.clearedPodIds) return
-
-  chatStore.clearMessagesByPodIds(response.clearedPodIds)
-  podStore.clearPodOutputsByIds(response.clearedPodIds)
-
-  const downstreamAiDecideConnectionIds: string[] = []
-  response.clearedPodIds.forEach(podId => {
-    const connections = connectionStore.getAiDecideConnectionsBySourcePodId(podId)
-    downstreamAiDecideConnectionIds.push(...connections.map(connection => connection.id))
-  })
-
-  if (downstreamAiDecideConnectionIds.length > 0) {
-    connectionStore.clearAiDecideStatusByConnectionIds(downstreamAiDecideConnectionIds)
-  }
-
-  showClearDialog.value = false
-  downstreamPods.value = []
-}
-
-const handleCancelClear = (): void => {
-  showClearDialog.value = false
-  downstreamPods.value = []
-}
-
 const handleModelChange = async (model: ModelType): Promise<void> => {
   const canvasId = getActiveCanvasIdOrWarn('CanvasPod')
   if (!canvasId) return
@@ -507,7 +281,6 @@ const handleModelChange = async (model: ModelType): Promise<void> => {
   )
 
   if (!response) return
-
   if (!response.pod) return
 
   podStore.updatePodModel(props.pod.id, response.pod.model ?? 'opus')

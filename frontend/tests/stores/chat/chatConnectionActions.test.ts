@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { setActivePinia } from 'pinia'
 import { setupTestPinia } from '../../helpers/mockStoreFactory'
 import { mockWebSocketModule, resetMockWebSocket, mockWebSocketClient } from '../../helpers/mockWebSocket'
-import { useChatStore } from '@/stores/chat/chatStore'
+import { useChatStore, resetChatActionsCache } from '@/stores/chat/chatStore'
 import type { HeartbeatPingPayload, PodErrorPayload } from '@/types/websocket'
 
 // Mock WebSocket
@@ -35,6 +35,7 @@ describe('chatConnectionActions', () => {
     const pinia = setupTestPinia()
     setActivePinia(pinia)
     resetMockWebSocket()
+    resetChatActionsCache()
     vi.clearAllMocks()
     vi.useRealTimers()
   })

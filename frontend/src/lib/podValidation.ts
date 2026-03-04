@@ -17,6 +17,12 @@ export function isValidPod(pod: Pod): boolean {
   return hasValidIdentity(pod) && hasValidPosition(pod) && hasValidOutput(pod)
 }
 
+function resolveOutputArray(existingOutput: string[] | undefined, podOutput: string[] | undefined): string[] {
+  if (Array.isArray(existingOutput)) return existingOutput
+  if (Array.isArray(podOutput)) return podOutput
+  return []
+}
+
 /**
  * 補全 Pod 缺少的欄位
  * @param pod Pod 物件
@@ -29,7 +35,7 @@ export function enrichPod(pod: Pod, existingOutput?: string[]): Pod {
     x: pod.x ?? 100,
     y: pod.y ?? 150,
     rotation: pod.rotation ?? (Math.random() * 2 - 1),
-    output: Array.isArray(existingOutput) ? existingOutput : (Array.isArray(pod.output) ? pod.output : []),
+    output: resolveOutputArray(existingOutput, pod.output),
     outputStyleId: pod.outputStyleId ?? null,
     model: pod.model ?? 'opus',
     autoClear: pod.autoClear ?? false,

@@ -38,12 +38,21 @@ vi.mock('@/composables/useToast', () => ({
   }),
 }))
 
+// Mock useCanvasWebSocketAction
+const mockExecuteAction = vi.fn()
+vi.mock('@/composables/useCanvasWebSocketAction', () => ({
+  useCanvasWebSocketAction: () => ({
+    executeAction: mockExecuteAction,
+  }),
+}))
+
 describe('connectionStore', () => {
   beforeEach(() => {
     const pinia = setupTestPinia()
     setActivePinia(pinia)
     resetMockWebSocket()
     vi.clearAllMocks()
+    mockExecuteAction.mockResolvedValue({ success: false, error: '未知錯誤' })
   })
 
   describe('初始狀態', () => {
@@ -287,27 +296,27 @@ describe('connectionStore', () => {
         triggerMode: 'auto',
       })
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        connection: {
-          ...newConnection,
-        },
+      mockExecuteAction.mockResolvedValueOnce({
+        success: true,
+        data: { connection: { ...newConnection } },
       })
 
       const result = await store.createConnection('pod-a', 'bottom', 'pod-b', 'top')
 
       expect(result).toEqual(newConnection)
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'connection:create',
-        responseEvent: 'connection:created',
-        payload: {
-          requestId: '',
-          canvasId: 'canvas-1',
-          sourcePodId: 'pod-a',
-          sourceAnchor: 'bottom',
-          targetPodId: 'pod-b',
-          targetAnchor: 'top',
-        },
-      })
+      expect(mockExecuteAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestEvent: 'connection:create',
+          responseEvent: 'connection:created',
+          payload: {
+            sourcePodId: 'pod-a',
+            sourceAnchor: 'bottom',
+            targetPodId: 'pod-b',
+            targetAnchor: 'top',
+          },
+        }),
+        expect.objectContaining({ errorCategory: 'Connection', errorAction: '建立失敗' })
+      )
     })
 
     it('自我連接時應回傳 null', async () => {
@@ -319,7 +328,7 @@ describe('connectionStore', () => {
 
       expect(result).toBeNull()
       expect(console.warn).toHaveBeenCalledWith('[ConnectionStore] 無法將 Pod 連接到自身')
-      expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
+      expect(mockExecuteAction).not.toHaveBeenCalled()
     })
 
     it('重複連接時應回傳 null 並顯示 Toast', async () => {
@@ -338,17 +347,17 @@ describe('connectionStore', () => {
         description: '這兩個 Pod 之間已經有連線了',
         duration: 3000,
       })
-      expect(mockCreateWebSocketRequest).not.toHaveBeenCalled()
+      expect(mockExecuteAction).not.toHaveBeenCalled()
     })
 
-    it('無 activeCanvasId 時應 throw', async () => {
-      const canvasStore = useCanvasStore()
-      canvasStore.activeCanvasId = null
+    it('無 activeCanvasId 時應回傳 null', async () => {
       const store = useConnectionStore()
 
-      await expect(store.createConnection('pod-a', 'bottom', 'pod-b', 'top')).rejects.toThrow(
-        '沒有啟用的畫布'
-      )
+      mockExecuteAction.mockResolvedValueOnce({ success: false, error: '沒有啟用的畫布' })
+
+      const result = await store.createConnection('pod-a', 'bottom', 'pod-b', 'top')
+
+      expect(result).toBeNull()
     })
 
     it('WebSocket 回應無 connection 時應回傳 null', async () => {
@@ -356,7 +365,7 @@ describe('connectionStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useConnectionStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({})
+      mockExecuteAction.mockResolvedValueOnce({ success: true, data: {} })
 
       const result = await store.createConnection('pod-a', 'bottom', 'pod-b', 'top')
 
@@ -368,15 +377,18 @@ describe('connectionStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useConnectionStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        connection: {
-          id: 'conn-1',
-          sourcePodId: 'pod-a',
-          sourceAnchor: 'bottom',
-          targetPodId: 'pod-b',
-          targetAnchor: 'top',
-          triggerMode: 'ai-decide',
-          connectionStatus: 'ai-approved',
+      mockExecuteAction.mockResolvedValueOnce({
+        success: true,
+        data: {
+          connection: {
+            id: 'conn-1',
+            sourcePodId: 'pod-a',
+            sourceAnchor: 'bottom',
+            targetPodId: 'pod-b',
+            targetAnchor: 'top',
+            triggerMode: 'ai-decide',
+            connectionStatus: 'ai-approved',
+          },
         },
       })
 
@@ -390,13 +402,16 @@ describe('connectionStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useConnectionStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        connection: {
-          id: 'conn-1',
-          sourcePodId: 'pod-a',
-          sourceAnchor: 'bottom',
-          targetPodId: 'pod-b',
-          targetAnchor: 'top',
+      mockExecuteAction.mockResolvedValueOnce({
+        success: true,
+        data: {
+          connection: {
+            id: 'conn-1',
+            sourcePodId: 'pod-a',
+            sourceAnchor: 'bottom',
+            targetPodId: 'pod-b',
+            targetAnchor: 'top',
+          },
         },
       })
 
@@ -410,29 +425,31 @@ describe('connectionStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useConnectionStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        connection: {
-          id: 'conn-1',
-          targetPodId: 'pod-b',
-          targetAnchor: 'top',
-          sourceAnchor: 'bottom',
+      mockExecuteAction.mockResolvedValueOnce({
+        success: true,
+        data: {
+          connection: {
+            id: 'conn-1',
+            targetPodId: 'pod-b',
+            targetAnchor: 'top',
+            sourceAnchor: 'bottom',
+          },
         },
       })
 
       await store.createConnection(null, 'bottom', 'pod-b', 'top')
 
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'connection:create',
-        responseEvent: 'connection:created',
-        payload: {
-          requestId: '',
-          canvasId: 'canvas-1',
-          sourceAnchor: 'bottom',
-          targetPodId: 'pod-b',
-          targetAnchor: 'top',
-          // 注意：sourcePodId 不存在
-        },
-      })
+      expect(mockExecuteAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: {
+            sourceAnchor: 'bottom',
+            targetPodId: 'pod-b',
+            targetAnchor: 'top',
+            // 注意：sourcePodId 不存在
+          },
+        }),
+        expect.anything()
+      )
     })
   })
 
@@ -442,18 +459,18 @@ describe('connectionStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useConnectionStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({ success: true })
+      mockExecuteAction.mockResolvedValueOnce({ success: true, data: { success: true } })
 
       await store.deleteConnection('conn-1')
 
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'connection:delete',
-        responseEvent: 'connection:deleted',
-        payload: {
-          canvasId: 'canvas-1',
-          connectionId: 'conn-1',
-        },
-      })
+      expect(mockExecuteAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestEvent: 'connection:delete',
+          responseEvent: 'connection:deleted',
+          payload: { connectionId: 'conn-1' },
+        }),
+        expect.objectContaining({ errorCategory: 'Connection', errorAction: '刪除失敗' })
+      )
     })
   })
 
@@ -507,34 +524,32 @@ describe('connectionStore', () => {
         triggerMode: 'ai-decide',
       })
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        connection: {
-          ...updatedConnection,
-        },
+      mockExecuteAction.mockResolvedValueOnce({
+        success: true,
+        data: { connection: { ...updatedConnection } },
       })
 
       const result = await store.updateConnectionTriggerMode('conn-1', 'ai-decide')
 
       expect(result).toEqual(updatedConnection)
-      expect(mockCreateWebSocketRequest).toHaveBeenCalledWith({
-        requestEvent: 'connection:update',
-        responseEvent: 'connection:updated',
-        payload: {
-          canvasId: 'canvas-1',
-          connectionId: 'conn-1',
-          triggerMode: 'ai-decide',
-        },
-      })
+      expect(mockExecuteAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestEvent: 'connection:update',
+          responseEvent: 'connection:updated',
+          payload: { connectionId: 'conn-1', triggerMode: 'ai-decide' },
+        }),
+        expect.objectContaining({ errorCategory: 'Connection', errorAction: '更新失敗' })
+      )
     })
 
-    it('無 activeCanvasId 時應 throw', async () => {
-      const canvasStore = useCanvasStore()
-      canvasStore.activeCanvasId = null
+    it('無 activeCanvasId 時應回傳 null', async () => {
       const store = useConnectionStore()
 
-      await expect(store.updateConnectionTriggerMode('conn-1', 'direct')).rejects.toThrow(
-        '沒有啟用的畫布'
-      )
+      mockExecuteAction.mockResolvedValueOnce({ success: false, error: '沒有啟用的畫布' })
+
+      const result = await store.updateConnectionTriggerMode('conn-1', 'direct')
+
+      expect(result).toBeNull()
     })
 
     it('WebSocket 回應無 connection 時應回傳 null', async () => {
@@ -542,7 +557,7 @@ describe('connectionStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useConnectionStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({})
+      mockExecuteAction.mockResolvedValueOnce({ success: true, data: {} })
 
       const result = await store.updateConnectionTriggerMode('conn-1', 'direct')
 
@@ -554,16 +569,19 @@ describe('connectionStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useConnectionStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        connection: {
-          id: 'conn-1',
-          sourcePodId: 'pod-a',
-          sourceAnchor: 'bottom',
-          targetPodId: 'pod-b',
-          targetAnchor: 'top',
-          triggerMode: 'ai-decide',
-          connectionStatus: 'ai-rejected',
-          decideReason: '不符合條件',
+      mockExecuteAction.mockResolvedValueOnce({
+        success: true,
+        data: {
+          connection: {
+            id: 'conn-1',
+            sourcePodId: 'pod-a',
+            sourceAnchor: 'bottom',
+            targetPodId: 'pod-b',
+            targetAnchor: 'top',
+            triggerMode: 'ai-decide',
+            connectionStatus: 'ai-rejected',
+            decideReason: '不符合條件',
+          },
         },
       })
 
@@ -577,14 +595,17 @@ describe('connectionStore', () => {
       canvasStore.activeCanvasId = 'canvas-1'
       const store = useConnectionStore()
 
-      mockCreateWebSocketRequest.mockResolvedValueOnce({
-        connection: {
-          id: 'conn-1',
-          sourcePodId: 'pod-a',
-          sourceAnchor: 'bottom',
-          targetPodId: 'pod-b',
-          targetAnchor: 'top',
-          triggerMode: 'direct',
+      mockExecuteAction.mockResolvedValueOnce({
+        success: true,
+        data: {
+          connection: {
+            id: 'conn-1',
+            sourcePodId: 'pod-a',
+            sourceAnchor: 'bottom',
+            targetPodId: 'pod-b',
+            targetAnchor: 'top',
+            triggerMode: 'direct',
+          },
         },
       })
 

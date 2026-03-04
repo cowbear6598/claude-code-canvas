@@ -8,9 +8,11 @@ import {
     WebSocketResponseEvents
 } from '@/services/websocket'
 import {useToast} from '@/composables/useToast'
-import {requireActiveCanvas, getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
+import {useCanvasWebSocketAction} from '@/composables/useCanvasWebSocketAction'
+import {getActiveCanvasIdOrWarn} from '@/utils/canvasGuard'
 import {DEFAULT_TOAST_DURATION_MS} from '@/lib/constants'
 import {createWorkflowEventHandlers} from './workflowEventHandlers'
+import {removeById} from '@/lib/arrayHelpers'
 import type {
     ConnectionCreatedPayload,
     ConnectionCreatePayload,
@@ -298,44 +300,40 @@ export const useConnectionStore = defineStore('connection', {
         ): Promise<Connection | null> {
             if (!this.validateNewConnection(sourcePodId, targetPodId)) return null
 
-            const canvasId = requireActiveCanvas()
+            const { executeAction } = useCanvasWebSocketAction()
 
-            const payload: ConnectionCreatePayload = {
-                requestId: '',
-                canvasId,
+            const basePayload = {
                 sourceAnchor,
                 targetPodId,
                 targetAnchor,
+                ...(sourcePodId ? { sourcePodId } : {}),
             }
 
-            if (sourcePodId) {
-                payload.sourcePodId = sourcePodId
-            }
+            const result = await executeAction<ConnectionCreatePayload, ConnectionCreatedPayload>(
+                {
+                    requestEvent: WebSocketRequestEvents.CONNECTION_CREATE,
+                    responseEvent: WebSocketResponseEvents.CONNECTION_CREATED,
+                    payload: basePayload,
+                },
+                { errorCategory: 'Connection', errorAction: '建立失敗', errorMessage: '連線建立失敗' }
+            )
 
-            const response = await createWebSocketRequest<ConnectionCreatePayload, ConnectionCreatedPayload>({
-                requestEvent: WebSocketRequestEvents.CONNECTION_CREATE,
-                responseEvent: WebSocketResponseEvents.CONNECTION_CREATED,
-                payload
-            })
+            if (!result.success || !result.data.connection) return null
 
-            if (!response.connection) {
-                return null
-            }
-
-            return normalizeConnection(response.connection)
+            return normalizeConnection(result.data.connection)
         },
 
         async deleteConnection(connectionId: string): Promise<void> {
-            const canvasId = requireActiveCanvas()
+            const { executeAction } = useCanvasWebSocketAction()
 
-            await createWebSocketRequest<ConnectionDeletePayload, ConnectionDeletedPayload>({
-                requestEvent: WebSocketRequestEvents.CONNECTION_DELETE,
-                responseEvent: WebSocketResponseEvents.CONNECTION_DELETED,
-                payload: {
-                    canvasId,
-                    connectionId
-                }
-            })
+            await executeAction<ConnectionDeletePayload, ConnectionDeletedPayload>(
+                {
+                    requestEvent: WebSocketRequestEvents.CONNECTION_DELETE,
+                    responseEvent: WebSocketResponseEvents.CONNECTION_DELETED,
+                    payload: { connectionId },
+                },
+                { errorCategory: 'Connection', errorAction: '刪除失敗', errorMessage: '連線刪除失敗' }
+            )
         },
 
         deleteConnectionsByPodId(podId: string): void {
@@ -380,11 +378,7 @@ export const useConnectionStore = defineStore('connection', {
 
         updateConnectionStatusByTargetPod(targetPodId: string, status: ConnectionStatus): void {
             this.connections.forEach(connection => {
-                if (connection.targetPodId === targetPodId) {
-                    // ai-deciding 表示 AI 仍在判斷中，不應被強制設為 active（事件亂序保護）
-                    if (connection.status === 'ai-deciding' && status === 'active') {
-                        return
-                    }
+                if (shouldUpdateConnection(connection, targetPodId, status)) {
                     connection.status = status
                 }
             })
@@ -406,23 +400,20 @@ export const useConnectionStore = defineStore('connection', {
         },
 
         async updateConnectionTriggerMode(connectionId: string, triggerMode: TriggerMode): Promise<Connection | null> {
-            const canvasId = requireActiveCanvas()
+            const { executeAction } = useCanvasWebSocketAction()
 
-            const response = await createWebSocketRequest<ConnectionUpdatePayload, ConnectionCreatedPayload>({
-                requestEvent: WebSocketRequestEvents.CONNECTION_UPDATE,
-                responseEvent: WebSocketResponseEvents.CONNECTION_UPDATED,
-                payload: {
-                    canvasId,
-                    connectionId,
-                    triggerMode
-                }
-            })
+            const result = await executeAction<ConnectionUpdatePayload, ConnectionCreatedPayload>(
+                {
+                    requestEvent: WebSocketRequestEvents.CONNECTION_UPDATE,
+                    responseEvent: WebSocketResponseEvents.CONNECTION_UPDATED,
+                    payload: { connectionId, triggerMode },
+                },
+                { errorCategory: 'Connection', errorAction: '更新失敗', errorMessage: '連線更新失敗' }
+            )
 
-            if (!response.connection) {
-                return null
-            }
+            if (!result.success || !result.data.connection) return null
 
-            return normalizeConnection(response.connection)
+            return normalizeConnection(result.data.connection)
         },
 
         getWorkflowHandlers() {
@@ -496,14 +487,17 @@ export const useConnectionStore = defineStore('connection', {
                 status: 'idle' as ConnectionStatus
             }
 
-            const exists = this.connections.some(connection => connection.id === enrichedConnection.id)
+            const exists = this.connections.some(existingConnection => existingConnection.id === enrichedConnection.id)
             if (!exists) {
                 this.connections.push(enrichedConnection)
             }
         },
 
         updateConnectionFromEvent(connection: Omit<Connection, 'status'>): void {
-            const existingConnection = this.connections.find(existingConn => existingConn.id === connection.id)
+            const index = this.connections.findIndex(conn => conn.id === connection.id)
+            if (index === -1) return
+
+            const existingConnection = this.connections[index]
             const enrichedConnection: Connection = {
                 ...connection,
                 triggerMode: connection.triggerMode ?? 'auto',
@@ -511,14 +505,11 @@ export const useConnectionStore = defineStore('connection', {
                 decideReason: connection.decideReason ?? existingConnection?.decideReason
             }
 
-            const index = this.connections.findIndex(existingConn => existingConn.id === enrichedConnection.id)
-            if (index !== -1) {
-                this.connections.splice(index, 1, enrichedConnection)
-            }
+            this.connections.splice(index, 1, enrichedConnection)
         },
 
         removeConnectionFromEvent(connectionId: string): void {
-            this.connections = this.connections.filter(connection => connection.id !== connectionId)
+            this.connections = removeById(this.connections, connectionId)
         },
     },
 })

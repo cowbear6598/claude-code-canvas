@@ -13,6 +13,12 @@ function isFulfilledCanvas(r: PromiseSettledResult<Canvas | null>): r is Promise
     return r.status === 'fulfilled' && r.value !== null;
 }
 
+function calculateNextSortIndex(canvases: Map<string, Canvas>): number {
+    if (canvases.size === 0) return 0
+    const maxSortIndex = Math.max(...Array.from(canvases.values()).map(canvas => canvas.sortIndex))
+    return maxSortIndex + 1
+}
+
 class CanvasStore {
     private canvases: Map<string, Canvas> = new Map();
     private activeCanvasMap: Map<string, string> = new Map();
@@ -100,8 +106,7 @@ class CanvasStore {
         const id = uuidv4();
         const trimmedName = name.trim();
 
-        const maxSortIndex = Math.max(0, ...Array.from(this.canvases.values()).map(canvas => canvas.sortIndex));
-        const sortIndex = this.canvases.size === 0 ? 0 : maxSortIndex + 1;
+        const sortIndex = calculateNextSortIndex(this.canvases);
 
         const canvas: Canvas = {
             id,

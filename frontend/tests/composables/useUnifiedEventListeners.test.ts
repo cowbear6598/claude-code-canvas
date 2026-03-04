@@ -4,6 +4,7 @@ import { setupTestPinia } from '../helpers/mockStoreFactory'
 import { mockWebSocketModule, mockWebSocketClient, resetMockWebSocket, simulateEvent } from '../helpers/mockWebSocket'
 import { createMockPod, createMockConnection, createMockNote, createMockCanvas } from '../helpers/factories'
 import { useUnifiedEventListeners, listeners } from '@/composables/useUnifiedEventListeners'
+import { resetChatActionsCache } from '@/stores/chat/chatStore'
 import { usePodStore } from '@/stores/pod/podStore'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useOutputStyleStore } from '@/stores/note/outputStyleStore'
@@ -49,6 +50,7 @@ describe('useUnifiedEventListeners', () => {
   beforeEach(async () => {
     const pinia = setupTestPinia()
     setActivePinia(pinia)
+    resetChatActionsCache()
 
     const createWebSocketRequestModule = await import('@/services/websocket/createWebSocketRequest')
     mockTryResolvePendingRequest = vi.mocked(createWebSocketRequestModule.tryResolvePendingRequest)

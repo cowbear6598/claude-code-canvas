@@ -22,6 +22,7 @@ export type ToastCategory =
   | 'Paste'
   | 'WebSocket'
   | 'McpServer'
+  | 'Connection'
   | 'Slack'
 
 interface ToastOptions {

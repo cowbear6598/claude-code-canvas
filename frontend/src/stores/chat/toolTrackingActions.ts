@@ -1,7 +1,7 @@
-import type {Message, ToolUseInfo, ToolUseStatus} from '@/types/chat'
+import type {Message, ToolUseInfo} from '@/types/chat'
 import type {PodChatToolResultPayload, PodChatToolUsePayload} from '@/types/websocket'
 import type {ChatStoreInstance} from './chatStore'
-import {appendToolUseToLastSub, updateSubMessagesToolUseResult} from './subMessageHelpers'
+import {appendToolUseToLastSub, markToolCompleted, updateSubMessagesToolUseResult} from './subMessageHelpers'
 import {getMessages, findMessageIndex} from './chatStoreHelpers'
 
 export function createToolTrackingActions(store: ChatStoreInstance): {
@@ -55,14 +55,17 @@ export function createToolTrackingActions(store: ChatStoreInstance): {
         const toolUseInfo: ToolUseInfo = {toolUseId, toolName, input, status: 'running'}
         const updatedToolUse = toolIndex === -1 ? [...toolUse, toolUseInfo] : toolUse
 
-        updatedMessages[messageIndex] = {
+        const updatedMessage: Message = {
             ...message,
             toolUse: updatedToolUse,
             expectingNewBlock: true,
-            ...(message.subMessages?.length && {
-                subMessages: appendToolUseToLastSub(message.subMessages, toolUseInfo)
-            })
         }
+
+        if (message.subMessages !== undefined && message.subMessages.length > 0) {
+            updatedMessage.subMessages = appendToolUseToLastSub(message.subMessages, toolUseInfo)
+        }
+
+        updatedMessages[messageIndex] = updatedMessage
 
         store.messagesByPodId.set(podId, updatedMessages)
     }
@@ -94,7 +97,7 @@ export function createToolTrackingActions(store: ChatStoreInstance): {
 
         const updatedToolUse = message.toolUse.map(tool =>
             tool.toolUseId === toolUseId
-                ? {...tool, output, status: 'completed' as ToolUseStatus}
+                ? {...markToolCompleted(tool), output}
                 : tool
         )
 

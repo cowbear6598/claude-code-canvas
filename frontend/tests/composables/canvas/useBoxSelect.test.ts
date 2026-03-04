@@ -563,15 +563,17 @@ describe('useBoxSelect', () => {
       // moveCanvasX = (450 - 50) / 2 = 200
       // moveCanvasY = (500 - 100) / 2 = 200
       expect(updateSelectionSpy).toHaveBeenCalledWith(200, 200)
-      expect(calculateSelectedElementsSpy).toHaveBeenCalledWith(
-        podStore.pods,
-        outputStyleStore.notes,
-        skillStore.notes,
-        repositoryStore.notes,
-        subAgentStore.notes,
-        commandStore.notes,
-        mcpServerStore.notes
-      )
+      expect(calculateSelectedElementsSpy).toHaveBeenCalledWith({
+        pods: podStore.pods,
+        noteGroups: [
+          { notes: outputStyleStore.notes, type: 'outputStyleNote' },
+          { notes: skillStore.notes, type: 'skillNote' },
+          { notes: repositoryStore.notes, type: 'repositoryNote' },
+          { notes: subAgentStore.notes, type: 'subAgentNote' },
+          { notes: commandStore.notes, type: 'commandNote' },
+          { notes: mcpServerStore.notes, type: 'mcpServerNote' },
+        ],
+      })
     })
   })
 

@@ -2,7 +2,7 @@ import {defineStore} from 'pinia'
 import type {BaseNote, SelectableElement, SelectionState} from '@/types'
 import {POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT} from '@/lib/constants'
 
-type NoteType =
+export type NoteType =
     | 'outputStyleNote'
     | 'skillNote'
     | 'repositoryNote'
@@ -64,6 +64,11 @@ function applyCtrlModeToggle(
     }
 
     return result
+}
+
+export interface CalculateSelectionParams {
+    pods: Array<{id: string; x: number; y: number}>
+    noteGroups: Array<{notes: BaseNote[]; type: NoteType}>
 }
 
 export const useSelectionStore = defineStore('selection', {
@@ -206,15 +211,7 @@ export const useSelectionStore = defineStore('selection', {
                 this.selectedElements.push(element)
             }
         },
-        calculateSelectedElements(
-            pods: Array<{id: string; x: number; y: number}>,
-            outputStyleNotes: BaseNote[],
-            skillNotes: BaseNote[],
-            repositoryNotes: BaseNote[] = [],
-            subAgentNotes: BaseNote[] = [],
-            commandNotes: BaseNote[] = [],
-            mcpServerNotes: BaseNote[] = []
-        ): void {
+        calculateSelectedElements(params: CalculateSelectionParams): void {
             if (!this.box) return
 
             const box: SelectionBox = {
@@ -224,18 +221,9 @@ export const useSelectionStore = defineStore('selection', {
                 maxY: Math.max(this.box.startY, this.box.endY),
             }
 
-            const noteGroups: Array<{notes: BaseNote[]; type: NoteType}> = [
-                {notes: outputStyleNotes, type: 'outputStyleNote'},
-                {notes: skillNotes, type: 'skillNote'},
-                {notes: repositoryNotes, type: 'repositoryNote'},
-                {notes: subAgentNotes, type: 'subAgentNote'},
-                {notes: commandNotes, type: 'commandNote'},
-                {notes: mcpServerNotes, type: 'mcpServerNote'},
-            ]
-
             const selected = [
-                ...findPodsInSelectionBox(pods, box),
-                ...findNotesInSelectionBox(noteGroups, box),
+                ...findPodsInSelectionBox(params.pods, box),
+                ...findNotesInSelectionBox(params.noteGroups, box),
             ]
 
             this.selectedElements = this.isCtrlMode

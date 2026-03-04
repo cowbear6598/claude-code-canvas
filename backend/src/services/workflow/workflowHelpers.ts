@@ -2,11 +2,11 @@ import type {Pod, Command, Connection} from '../../types/index.js';
 
 const WORKFLOW_SOURCE_HEADING = '## Source:';
 const WORKFLOW_SECTION_SEPARATOR = '---';
-import type {WorkflowQueuedPayload} from '../../types/responses/workflow.js';
+import type {WorkflowQueuedPayload, WorkflowQueueProcessedPayload} from '../../types/responses/workflow.js';
 import {connectionStore} from '../connectionStore.js';
 import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {logger} from '../../utils/logger.js';
-import type {CompletionContext, QueuedContext} from './types.js';
+import type {CompletionContext, QueuedContext, QueueProcessedContext} from './types.js';
 
 export function isAutoTriggerable(triggerMode: string): boolean {
     return triggerMode === 'auto' || triggerMode === 'ai-decide';
@@ -111,6 +111,38 @@ export function buildQueuedPayload(
         queueSize: context.queueSize,
         triggerMode: context.triggerMode,
     };
+}
+
+export function createMultiInputCompletionHandlers(): {
+    onComplete(context: CompletionContext, success: boolean, error?: string): void;
+    onError(context: CompletionContext, errorMessage: string): void;
+} {
+    return {
+        onComplete(context: CompletionContext, success: boolean, error?: string): void {
+            completeMultiInputConnections(context, success, error);
+        },
+        onError(context: CompletionContext, errorMessage: string): void {
+            completeMultiInputConnections(context, false, errorMessage);
+        },
+    };
+}
+
+export function buildQueueProcessedPayload(context: QueueProcessedContext): WorkflowQueueProcessedPayload {
+    return {
+        canvasId: context.canvasId,
+        targetPodId: context.targetPodId,
+        connectionId: context.connectionId,
+        sourcePodId: context.sourcePodId,
+        remainingQueueSize: context.remainingQueueSize,
+        triggerMode: context.triggerMode,
+    };
+}
+
+export function emitQueueProcessed(context: QueueProcessedContext): void {
+    workflowEventEmitter.emitWorkflowQueueProcessed(
+        context.canvasId,
+        buildQueueProcessedPayload(context)
+    );
 }
 
 export function buildMessageWithCommand(

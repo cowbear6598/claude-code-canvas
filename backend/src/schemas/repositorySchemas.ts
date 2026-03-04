@@ -46,7 +46,7 @@ export const repositoryGitCloneSchema = z.object({
   repoUrl: z.string().min(1).refine(isValidGitUrl, {
     message: '無效的 Git 儲存庫 URL',
   }),
-  branch: z.string().optional(),
+  branch: z.string().regex(/^[a-zA-Z0-9_.\-/]+$/, '分支名稱格式不正確').max(200).optional(),
 });
 
 export const repositoryCheckGitSchema = z.object({

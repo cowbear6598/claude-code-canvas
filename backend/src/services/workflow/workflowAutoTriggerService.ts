@@ -13,7 +13,7 @@ import { podStore } from '../podStore.js';
 import { messageStore } from '../messageStore.js';
 import { connectionStore } from '../connectionStore.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
-import { forEachMultiInputGroupConnection, completeMultiInputConnections, buildQueuedPayload } from './workflowHelpers.js';
+import { forEachMultiInputGroupConnection, buildQueuedPayload, createMultiInputCompletionHandlers, emitQueueProcessed } from './workflowHelpers.js';
 import { logger } from '../../utils/logger.js';
 
 interface Pipeline {
@@ -91,12 +91,14 @@ class WorkflowAutoTriggerService implements TriggerStrategy {
     workflowEventEmitter.emitWorkflowAutoTriggered(context.canvasId, payload);
   }
 
+  private readonly completionHandlers = createMultiInputCompletionHandlers();
+
   onComplete(context: CompletionContext, success: boolean, error?: string): void {
-    completeMultiInputConnections(context, success, error);
+    this.completionHandlers.onComplete(context, success, error);
   }
 
   onError(context: CompletionContext, errorMessage: string): void {
-    completeMultiInputConnections(context, false, errorMessage);
+    this.completionHandlers.onError(context, errorMessage);
   }
 
   onQueued(context: QueuedContext): void {
@@ -110,14 +112,7 @@ class WorkflowAutoTriggerService implements TriggerStrategy {
   }
 
   onQueueProcessed(context: QueueProcessedContext): void {
-    workflowEventEmitter.emitWorkflowQueueProcessed(context.canvasId, {
-      canvasId: context.canvasId,
-      targetPodId: context.targetPodId,
-      connectionId: context.connectionId,
-      sourcePodId: context.sourcePodId,
-      remainingQueueSize: context.remainingQueueSize,
-      triggerMode: context.triggerMode,
-    });
+    emitQueueProcessed(context);
   }
 }
 

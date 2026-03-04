@@ -26,7 +26,7 @@ const emit = defineEmits<{
 const { toast } = useToast()
 
 const pod = computed(() => usePodStore().getPodById(props.podId))
-const isSlackBound = computed(() => !!pod.value?.slackBinding)
+const isSlackBound = computed(() => pod.value?.slackBinding !== undefined)
 
 const handleOpenDirectory = async (): Promise<void> => {
   const canvasId = getActiveCanvasIdOrWarn('PodContextMenu')

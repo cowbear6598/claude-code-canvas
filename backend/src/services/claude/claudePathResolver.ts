@@ -5,9 +5,6 @@
  */
 export function getClaudeCodePath(): string | undefined {
     if (process.env.CLAUDE_CODE_PATH) return process.env.CLAUDE_CODE_PATH
-    try {
-        return Bun.which('claude') ?? undefined
-    } catch {
-        return undefined
-    }
+    const claudePath = Bun.which('claude')
+    return claudePath ?? undefined
 }

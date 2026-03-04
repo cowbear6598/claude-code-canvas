@@ -308,7 +308,10 @@ describe('selectionStore', () => {
         store.startSelection(50, 50)
         store.updateSelection(200, 200)
 
-        store.calculateSelectedElements([pod], [], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod],
+          noteGroups: [],
+        })
 
         expect(store.selectedElements).toEqual([{ type: 'pod', id: 'pod-1' }])
       })
@@ -322,7 +325,10 @@ describe('selectionStore', () => {
         store.startSelection(0, 0)
         store.updateSelection(500, 500)
 
-        store.calculateSelectedElements([pod], [], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod],
+          noteGroups: [],
+        })
 
         expect(store.selectedElements).toEqual([{ type: 'pod', id: 'pod-1' }])
       })
@@ -337,7 +343,10 @@ describe('selectionStore', () => {
         store.startSelection(0, 0)
         store.updateSelection(100, 100)
 
-        store.calculateSelectedElements([pod], [], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod],
+          noteGroups: [],
+        })
 
         expect(store.selectedElements).toEqual([])
       })
@@ -353,7 +362,10 @@ describe('selectionStore', () => {
         store.startSelection(0, 0)
         store.updateSelection(500, 500)
 
-        store.calculateSelectedElements([pod1, pod2, pod3], [], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod1, pod2, pod3],
+          noteGroups: [],
+        })
 
         expect(store.selectedElements).toEqual([
           { type: 'pod', id: 'pod-1' },
@@ -373,7 +385,10 @@ describe('selectionStore', () => {
         store.startSelection(50, 50)
         store.updateSelection(150, 150)
 
-        store.calculateSelectedElements([], [note], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [],
+          noteGroups: [{ notes: [note], type: 'outputStyleNote' }],
+        })
 
         expect(store.selectedElements).toEqual([{ type: 'outputStyleNote', id: 'note-1' }])
       })
@@ -385,7 +400,10 @@ describe('selectionStore', () => {
         store.startSelection(50, 50)
         store.updateSelection(150, 150)
 
-        store.calculateSelectedElements([], [], [note], [], [], [])
+        store.calculateSelectedElements({
+          pods: [],
+          noteGroups: [{ notes: [note], type: 'skillNote' }],
+        })
 
         expect(store.selectedElements).toEqual([{ type: 'skillNote', id: 'note-1' }])
       })
@@ -397,7 +415,10 @@ describe('selectionStore', () => {
         store.startSelection(50, 50)
         store.updateSelection(150, 150)
 
-        store.calculateSelectedElements([], [], [], [note], [], [])
+        store.calculateSelectedElements({
+          pods: [],
+          noteGroups: [{ notes: [note], type: 'repositoryNote' }],
+        })
 
         expect(store.selectedElements).toEqual([{ type: 'repositoryNote', id: 'note-1' }])
       })
@@ -409,7 +430,10 @@ describe('selectionStore', () => {
         store.startSelection(50, 50)
         store.updateSelection(150, 150)
 
-        store.calculateSelectedElements([], [], [], [], [note], [])
+        store.calculateSelectedElements({
+          pods: [],
+          noteGroups: [{ notes: [note], type: 'subAgentNote' }],
+        })
 
         expect(store.selectedElements).toEqual([{ type: 'subAgentNote', id: 'note-1' }])
       })
@@ -421,7 +445,10 @@ describe('selectionStore', () => {
         store.startSelection(50, 50)
         store.updateSelection(150, 150)
 
-        store.calculateSelectedElements([], [], [], [], [], [note])
+        store.calculateSelectedElements({
+          pods: [],
+          noteGroups: [{ notes: [note], type: 'commandNote' }],
+        })
 
         expect(store.selectedElements).toEqual([{ type: 'commandNote', id: 'note-1' }])
       })
@@ -433,7 +460,10 @@ describe('selectionStore', () => {
         store.startSelection(50, 50)
         store.updateSelection(150, 150)
 
-        store.calculateSelectedElements([], [], [], [], [], [], [note])
+        store.calculateSelectedElements({
+          pods: [],
+          noteGroups: [{ notes: [note], type: 'mcpServerNote' }],
+        })
 
         expect(store.selectedElements).toEqual([{ type: 'mcpServerNote', id: 'note-1' }])
       })
@@ -456,7 +486,10 @@ describe('selectionStore', () => {
         store.startSelection(0, 0)
         store.updateSelection(300, 300)
 
-        store.calculateSelectedElements([], [boundNote, unboundNote], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [],
+          noteGroups: [{ notes: [boundNote, unboundNote], type: 'outputStyleNote' }],
+        })
 
         // 只有未綁定的 note 被選中
         expect(store.selectedElements).toEqual([{ type: 'outputStyleNote', id: 'note-2' }])
@@ -472,7 +505,10 @@ describe('selectionStore', () => {
         store.startSelection(0, 0)
         store.updateSelection(100, 100)
 
-        store.calculateSelectedElements([], [note], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [],
+          noteGroups: [{ notes: [note], type: 'outputStyleNote' }],
+        })
 
         expect(store.selectedElements).toEqual([])
       })
@@ -489,14 +525,14 @@ describe('selectionStore', () => {
         store.startSelection(0, 0)
         store.updateSelection(400, 400)
 
-        store.calculateSelectedElements(
-          [pod],
-          [outputNote],
-          [skillNote],
-          [repoNote],
-          [],
-          []
-        )
+        store.calculateSelectedElements({
+          pods: [pod],
+          noteGroups: [
+            { notes: [outputNote], type: 'outputStyleNote' },
+            { notes: [skillNote], type: 'skillNote' },
+            { notes: [repoNote], type: 'repositoryNote' },
+          ],
+        })
 
         expect(store.selectedElements).toEqual([
           { type: 'pod', id: 'pod-1' },
@@ -516,7 +552,10 @@ describe('selectionStore', () => {
         store.startSelection(0, 0)
         store.updateSelection(500, 500)
 
-        store.calculateSelectedElements([pod1, pod2], [note1, note2], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod1, pod2],
+          noteGroups: [{ notes: [note1, note2], type: 'outputStyleNote' }],
+        })
 
         expect(store.selectedElements).toEqual([
           { type: 'pod', id: 'pod-1' },
@@ -535,7 +574,10 @@ describe('selectionStore', () => {
         store.startSelection(400, 0)
         store.updateSelection(0, 300)
 
-        store.calculateSelectedElements([pod], [], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod],
+          noteGroups: [],
+        })
 
         expect(store.selectedElements).toEqual([{ type: 'pod', id: 'pod-1' }])
       })
@@ -549,7 +591,10 @@ describe('selectionStore', () => {
         store.startSelection(0, 400)
         store.updateSelection(300, 0)
 
-        store.calculateSelectedElements([pod], [], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod],
+          noteGroups: [],
+        })
 
         expect(store.selectedElements).toEqual([{ type: 'pod', id: 'pod-1' }])
       })
@@ -562,7 +607,10 @@ describe('selectionStore', () => {
         store.startSelection(400, 400)
         store.updateSelection(0, 0)
 
-        store.calculateSelectedElements([pod], [], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod],
+          noteGroups: [],
+        })
 
         expect(store.selectedElements).toEqual([{ type: 'pod', id: 'pod-1' }])
       })
@@ -581,7 +629,10 @@ describe('selectionStore', () => {
         store.startSelection(0, 0, true)
         store.updateSelection(500, 500)
 
-        store.calculateSelectedElements([pod1, pod2], [], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod1, pod2],
+          noteGroups: [],
+        })
 
         // pod-1 已在 initialSelectedElements 中，被 toggle 移除
         // pod-2 是新選中的，被加入
@@ -603,7 +654,10 @@ describe('selectionStore', () => {
         store.startSelection(350, 350, true)
         store.updateSelection(700, 700)
 
-        store.calculateSelectedElements([pod1, pod2], [], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod1, pod2],
+          noteGroups: [],
+        })
 
         // pod-1 在 initialSelectedElements 中，但不在新框選中，保留
         // pod-2 是新選中的，被加入
@@ -630,7 +684,10 @@ describe('selectionStore', () => {
         store.startSelection(0, 0, true)
         store.updateSelection(600, 600)
 
-        store.calculateSelectedElements([pod1, pod2, pod3], [note1], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod1, pod2, pod3],
+          noteGroups: [{ notes: [note1], type: 'outputStyleNote' }],
+        })
 
         // pod-1 被 toggle 移除（已在 initial 中，又被框選到）
         // note-1 被 toggle 移除（已在 initial 中，又被框選到）
@@ -657,7 +714,10 @@ describe('selectionStore', () => {
         store.startSelection(350, 350, false)
         store.updateSelection(700, 700)
 
-        store.calculateSelectedElements([pod1, pod2], [], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod1, pod2],
+          noteGroups: [],
+        })
 
         // 只保留框選範圍內的 pod-2
         expect(store.selectedElements).toEqual([{ type: 'pod', id: 'pod-2' }])
@@ -671,7 +731,10 @@ describe('selectionStore', () => {
         store.box = null
         store.selectedElements = [{ type: 'pod', id: 'existing' }]
 
-        store.calculateSelectedElements([pod], [], [], [], [], [])
+        store.calculateSelectedElements({
+          pods: [pod],
+          noteGroups: [],
+        })
 
         // selectedElements 保持不變
         expect(store.selectedElements).toEqual([{ type: 'pod', id: 'existing' }])

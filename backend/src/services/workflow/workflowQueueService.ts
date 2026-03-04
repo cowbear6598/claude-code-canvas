@@ -37,7 +37,7 @@ class WorkflowQueueService extends LazyInitializable<QueueServiceDeps> {
       enqueuedAt: new Date(),
     };
 
-    const queue = this.queues.get(item.targetPodId) || [];
+    const queue = this.queues.get(item.targetPodId) ?? [];
     queue.push(queueItem);
     this.queues.set(item.targetPodId, queue);
 

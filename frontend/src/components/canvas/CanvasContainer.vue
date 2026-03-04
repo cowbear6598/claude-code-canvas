@@ -5,6 +5,8 @@ import {useDeleteSelection, useGitCloneProgress, useCheckoutProgress, usePullPro
 import {useRemoteCursors} from '@/composables/canvas/useRemoteCursors'
 import {useCursorTracker} from '@/composables/canvas/useCursorTracker'
 import {useContextMenu} from '@/composables/canvas/useContextMenu'
+import {useEditModal} from '@/composables/canvas/useEditModal'
+import {useDeleteResource} from '@/composables/canvas/useDeleteResource'
 import {isCtrlOrCmdPressed} from '@/utils/keyboardHelpers'
 import CanvasViewport from './CanvasViewport.vue'
 import RemoteCursorLayer from './RemoteCursorLayer.vue'
@@ -26,36 +28,16 @@ import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 import CreateEditModal from './CreateEditModal.vue'
 import McpServerModal from './McpServerModal.vue'
 import SlackConnectModal from '@/components/slack/SlackConnectModal.vue'
-import type {Pod, PodTypeConfig, Position, Group, TriggerMode, McpServerConfig} from '@/types'
+import type {Pod, PodTypeConfig, Position, McpServerConfig, TriggerMode} from '@/types'
 import {
   POD_MENU_X_OFFSET,
   POD_MENU_Y_OFFSET,
   DEFAULT_POD_ROTATION_RANGE,
 } from '@/lib/constants'
+import { screenToCanvasPosition } from '@/lib/canvasCoordinateUtils'
 import { useSlackStore } from '@/stores/slackStore'
 
-type ItemType = 'outputStyle' | 'skill' | 'repository' | 'subAgent' | 'command' | 'mcpServer'
-type ResourceType = 'outputStyle' | 'subAgent' | 'command'
-type GroupType = 'outputStyleGroup' | 'subAgentGroup' | 'commandGroup'
-type ExtendedResourceType = ResourceType | GroupType
-type ExtendedItemType = ItemType | GroupType
-
-interface DeleteTarget {
-  type: ExtendedItemType
-  id: string
-  name: string
-}
-
-interface EditModalState {
-  visible: boolean
-  mode: 'create' | 'edit'
-  title: string
-  initialName: string
-  initialContent: string
-  resourceType: ExtendedResourceType
-  itemId: string
-  showContent: boolean
-}
+type EditableNoteType = 'outputStyle' | 'subAgent' | 'command'
 
 const {
   podStore,
@@ -113,60 +95,41 @@ const {
 
 const showCreateRepositoryModal = ref(false)
 const showCloneRepositoryModal = ref(false)
-const showDeleteModal = ref(false)
-const deleteTarget = ref<DeleteTarget | null>(null)
 const lastMenuPosition = ref<Position | null>(null)
-
-const editModal = ref<EditModalState>({
-  visible: false,
-  mode: 'create',
-  title: '',
-  initialName: '',
-  initialContent: '',
-  resourceType: 'outputStyle',
-  itemId: '',
-  showContent: true
-})
-
-interface McpServerModalState {
-  visible: boolean
-  mode: 'create' | 'edit'
-  mcpServerId: string
-  initialName: string
-  initialConfig: McpServerConfig | undefined
-}
-
-const mcpServerModal = ref<McpServerModalState>({
-  visible: false,
-  mode: 'create',
-  mcpServerId: '',
-  initialName: '',
-  initialConfig: undefined
-})
 
 const slackConnectModal = ref<{ visible: boolean; podId: string }>({
   visible: false,
   podId: ''
 })
 
-const isDeleteTargetInUse = computed(() => {
-  if (!deleteTarget.value) return false
+const {
+  editModal,
+  mcpServerModal,
+  handleOpenCreateModal,
+  handleOpenCreateGroupModal,
+  handleOpenEditModal,
+  handleCreateEditSubmit,
+  handleOpenMcpServerModal: openMcpServerModal,
+  handleMcpServerModalSubmit: submitMcpServerModal,
+} = useEditModal(
+  { outputStyleStore, subAgentStore, commandStore, viewportStore },
+  lastMenuPosition
+)
 
-  const {type, id} = deleteTarget.value
-
-  const inUseChecks: Record<ExtendedItemType, () => boolean> = {
-    outputStyle: (): boolean => outputStyleStore.isItemInUse(id),
-    skill: (): boolean => skillStore.isItemInUse(id),
-    subAgent: (): boolean => subAgentStore.isItemInUse(id),
-    repository: (): boolean => repositoryStore.isItemInUse(id),
-    command: (): boolean => commandStore.isItemInUse(id),
-    mcpServer: (): boolean => mcpServerStore.isItemInUse(id),
-    outputStyleGroup: (): boolean => false,
-    subAgentGroup: (): boolean => false,
-    commandGroup: (): boolean => false,
-  }
-
-  return inUseChecks[type]()
+const {
+  showDeleteModal,
+  deleteTarget,
+  isDeleteTargetInUse,
+  handleOpenDeleteModal,
+  handleOpenDeleteGroupModal,
+  handleConfirmDelete: handleDeleteConfirm,
+} = useDeleteResource({
+  outputStyleStore,
+  skillStore,
+  subAgentStore,
+  repositoryStore,
+  commandStore,
+  mcpServerStore,
 })
 
 /**
@@ -192,48 +155,18 @@ const isCanvasEmpty = computed(() =>
     mcpServerStore.notes.length === 0
 )
 
-const resourceTitleMap = {
-  outputStyle: 'Output Style',
-  subAgent: 'SubAgent',
-  command: 'Command'
-} as const
+const noteConfigs = [
+  { store: outputStyleStore, type: 'outputStyle' as const },
+  { store: skillStore, type: 'skill' as const },
+  { store: subAgentStore, type: 'subAgent' as const },
+  { store: repositoryStore, type: 'repository' as const },
+  { store: commandStore, type: 'command' as const },
+  { store: mcpServerStore, type: 'mcpServer' as const },
+] as const
 
-const readActions: Record<ResourceType, (id: string) => Promise<{
-  id: string;
-  name: string;
-  content: string
-} | null>> = {
-  outputStyle: (id) => outputStyleStore.readOutputStyle(id),
-  subAgent: (id) => subAgentStore.readSubAgent(id),
-  command: (id) => commandStore.readCommand(id)
-}
-
-const CANVAS_COORDINATE_MIN = -100000
-const CANVAS_COORDINATE_MAX = 100000
-
-/**
- * 驗證並限制座標值在有效範圍內
- * @param value - 原始座標值
- * @returns 有效的座標值（限制在 -100000 ~ 100000 之間）
- */
-const validateCoordinate = (value: number): number => {
-  if (!Number.isFinite(value)) {
-    return 0
-  }
-  return Math.max(CANVAS_COORDINATE_MIN, Math.min(CANVAS_COORDINATE_MAX, value))
-}
-
-/**
- * 將螢幕座標轉換為畫布座標
- * @param screenPos - 螢幕座標（例如滑鼠點擊位置）
- * @returns 畫布座標（考慮 offset 和 zoom）
- */
-const screenToCanvasPosition = (screenPos: Position): Position => {
-  return {
-    x: validateCoordinate((screenPos.x - viewportStore.offset.x) / viewportStore.zoom),
-    y: validateCoordinate((screenPos.y - viewportStore.offset.y) / viewportStore.zoom)
-  }
-}
+const noteHandlerMap = Object.fromEntries(
+  noteConfigs.map(config => [config.type, useNoteEventHandlers({ store: config.store, trashZoneRef })])
+) as Record<typeof noteConfigs[number]['type'], ReturnType<typeof useNoteEventHandlers>>
 
 const handleContextMenu = (e: MouseEvent): void => {
   e.preventDefault()
@@ -279,7 +212,7 @@ const handleCanvasClick = (e: MouseEvent): void => {
 const handleSelectType = async (_config: PodTypeConfig): Promise<void> => {
   if (!podStore.typeMenu.position) return
 
-  const { x: canvasX, y: canvasY } = screenToCanvasPosition(podStore.typeMenu.position)
+  const { x: canvasX, y: canvasY } = screenToCanvasPosition(podStore.typeMenu.position, viewportStore)
 
   const rotation = Math.random() * DEFAULT_POD_ROTATION_RANGE - (DEFAULT_POD_ROTATION_RANGE / 2)
   const newPod = {
@@ -331,10 +264,9 @@ const createNoteHandler = (store: { createNote: (id: string, x: number, y: numbe
   return (itemId: string): void => {
     if (!podStore.typeMenu.position) return
 
-    const canvasX = validateCoordinate((podStore.typeMenu.position.x - viewportStore.offset.x) / viewportStore.zoom)
-    const canvasY = validateCoordinate((podStore.typeMenu.position.y - viewportStore.offset.y) / viewportStore.zoom)
+    const { x, y } = screenToCanvasPosition(podStore.typeMenu.position, viewportStore)
 
-    store.createNote(itemId, canvasX, canvasY)
+    store.createNote(itemId, x, y)
   }
 }
 
@@ -344,13 +276,6 @@ const handleCreateSubAgentNote = createNoteHandler(subAgentStore)
 const handleCreateRepositoryNote = createNoteHandler(repositoryStore)
 const handleCreateCommandNote = createNoteHandler(commandStore)
 const handleCreateMcpServerNote = createNoteHandler(mcpServerStore)
-
-const outputStyleHandlers = useNoteEventHandlers({store: outputStyleStore, trashZoneRef})
-const skillHandlers = useNoteEventHandlers({store: skillStore, trashZoneRef})
-const subAgentHandlers = useNoteEventHandlers({store: subAgentStore, trashZoneRef})
-const repositoryHandlers = useNoteEventHandlers({store: repositoryStore, trashZoneRef})
-const commandHandlers = useNoteEventHandlers({store: commandStore, trashZoneRef})
-const mcpServerHandlers = useNoteEventHandlers({store: mcpServerStore, trashZoneRef})
 
 const getRepositoryBranchName = (repositoryId: string): string | undefined => {
   const repository = repositoryStore.typedAvailableItems.find(r => r.id === repositoryId)
@@ -421,66 +346,6 @@ const allProgressTasks = computed<Map<string, ProgressTask>>(() => {
   return result
 })
 
-const handleOpenCreateModal = (resourceType: ResourceType, title: string): void => {
-  lastMenuPosition.value = podStore.typeMenu.position
-  editModal.value = {
-    visible: true,
-    mode: 'create',
-    title,
-    initialName: '',
-    initialContent: '',
-    resourceType,
-    itemId: '',
-    showContent: true
-  }
-}
-
-const handleOpenCreateGroupModal = (groupType: GroupType, title: string): void => {
-  lastMenuPosition.value = podStore.typeMenu.position
-  editModal.value = {
-    visible: true,
-    mode: 'create',
-    title,
-    initialName: '',
-    initialContent: '',
-    resourceType: groupType,
-    itemId: '',
-    showContent: false
-  }
-}
-
-const handleOpenEditModal = async (resourceType: ResourceType, id: string): Promise<void> => {
-  lastMenuPosition.value = podStore.typeMenu.position
-
-  const data = await readActions[resourceType](id)
-
-  if (!data) {
-    console.error(`無法讀取 ${resourceTitleMap[resourceType]} (id: ${id})，請確認後端是否正常運作`)
-    return
-  }
-
-  editModal.value = {
-    visible: true,
-    mode: 'edit',
-    title: `編輯 ${resourceTitleMap[resourceType]}`,
-    initialName: data.name,
-    initialContent: data.content,
-    resourceType,
-    itemId: id,
-    showContent: true
-  }
-}
-
-const handleOpenDeleteModal = (type: ExtendedItemType, id: string, name: string): void => {
-  deleteTarget.value = {type, id, name}
-  showDeleteModal.value = true
-}
-
-const handleOpenDeleteGroupModal = (groupType: GroupType, groupId: string, name: string): void => {
-  deleteTarget.value = {type: groupType, id: groupId, name}
-  showDeleteModal.value = true
-}
-
 const handleOpenCreateRepositoryModal = (): void => {
   lastMenuPosition.value = podStore.typeMenu.position
   showCreateRepositoryModal.value = true
@@ -490,116 +355,13 @@ const handleOpenCloneRepositoryModal = (): void => {
   showCloneRepositoryModal.value = true
 }
 
-const handleDeleteConfirm = async (): Promise<void> => {
-  if (!deleteTarget.value) return
-
-  const {type, id} = deleteTarget.value
-
-  const deleteActions: Record<ExtendedItemType, () => Promise<void | { success: boolean; error?: string }>> = {
-    outputStyle: (): Promise<void> => outputStyleStore.deleteOutputStyle(id),
-    skill: (): Promise<void> => skillStore.deleteSkill(id),
-    subAgent: (): Promise<void> => subAgentStore.deleteSubAgent(id),
-    repository: (): Promise<void> => repositoryStore.deleteRepository(id),
-    command: (): Promise<void> => commandStore.deleteCommand(id),
-    mcpServer: (): Promise<void> => mcpServerStore.deleteMcpServer(id),
-    outputStyleGroup: () => outputStyleStore.deleteGroup(id),
-    subAgentGroup: () => subAgentStore.deleteGroup(id),
-    commandGroup: () => commandStore.deleteGroup(id),
-  }
-
-  const result = await deleteActions[type]()
-
-  if (result && typeof result === 'object' && !result.success) {
-    console.error('刪除失敗:', result.error)
-    return
-  }
-
-  showDeleteModal.value = false
-  deleteTarget.value = null
-}
-
-const createResourceWithNote = async (
-  name: string,
-  content: string,
-  createFn: (name: string, content: string) => Promise<{ success: boolean; [key: string]: unknown }>,
-  storeName: string
-): Promise<void> => {
-  const result = await createFn(name, content)
-
-  if (!result.success || !lastMenuPosition.value) return
-
-  const resource = result[storeName]
-  if (!resource || typeof resource !== 'object' || !('id' in resource)) return
-
-  const {x, y} = screenToCanvasPosition(lastMenuPosition.value)
-  const store = {
-    outputStyle: outputStyleStore,
-    subAgent: subAgentStore,
-    command: commandStore
-  }[storeName]
-
-  if (store && 'createNote' in store) {
-    await store.createNote(resource.id as string, x, y)
-  }
-}
-
-const handleCreateEditSubmit = async (payload: { name: string; content: string }): Promise<void> => {
-  const {name, content} = payload
-  const {mode, resourceType, itemId} = editModal.value
-
-  if (mode === 'edit') {
-    const updateActions: Partial<Record<ExtendedResourceType, () => Promise<unknown>>> = {
-      outputStyle: () => outputStyleStore.updateOutputStyle(itemId, content),
-      subAgent: () => subAgentStore.updateSubAgent(itemId, content),
-      command: () => commandStore.updateCommand(itemId, content)
-    }
-
-    const action = updateActions[resourceType]
-    if (action) {
-      await action()
-    }
-
-    editModal.value.visible = false
-    return
-  }
-
-  const createActions: Record<ExtendedResourceType, () => Promise<void | { success: boolean; group?: Group; error?: string }>> = {
-    outputStyle: () => createResourceWithNote(
-      name,
-      content,
-      (n, c) => outputStyleStore.createOutputStyle(n, c),
-      'outputStyle'
-    ),
-    subAgent: () => createResourceWithNote(
-      name,
-      content,
-      (n, c) => subAgentStore.createSubAgent(n, c),
-      'subAgent'
-    ),
-    command: () => createResourceWithNote(
-      name,
-      content,
-      (n, c) => commandStore.createCommand(n, c),
-      'command'
-    ),
-    outputStyleGroup: () => outputStyleStore.createGroup(name),
-    subAgentGroup: () => subAgentStore.createGroup(name),
-    commandGroup: () => commandStore.createGroup(name)
-  }
-
-  await createActions[resourceType]()
-  editModal.value.visible = false
-}
-
 const handleRepositoryCreated = (repository: { id: string; name: string }): void => {
   if (!lastMenuPosition.value) return
 
-  const {x, y} = screenToCanvasPosition(lastMenuPosition.value)
+  const {x, y} = screenToCanvasPosition(lastMenuPosition.value, viewportStore)
 
   repositoryStore.createNote(repository.id, x, y)
 }
-
-type EditableNoteType = 'outputStyle' | 'subAgent' | 'command'
 
 const editableNoteResourceIdGetters: Record<EditableNoteType, (noteId: string) => string | undefined> = {
   outputStyle: (noteId) => outputStyleStore.typedNotes.find(note => note.id === noteId)?.outputStyleId,
@@ -609,38 +371,11 @@ const editableNoteResourceIdGetters: Record<EditableNoteType, (noteId: string) =
 
 const handleOpenMcpServerModal = (mode: 'create' | 'edit', mcpServerId?: string): void => {
   lastMenuPosition.value = podStore.typeMenu.position
-  mcpServerModal.value = {
-    visible: true,
-    mode,
-    mcpServerId: mcpServerId ?? '',
-    initialName: '',
-    initialConfig: undefined
-  }
+  openMcpServerModal(mode, mcpServerId)
 }
 
 const handleMcpServerModalSubmit = async (payload: { name: string; config: McpServerConfig }): Promise<void> => {
-  const { name, config } = payload
-  const { mode, mcpServerId } = mcpServerModal.value
-
-  if (mode === 'edit') {
-    await mcpServerStore.updateMcpServer(mcpServerId, name, config)
-    mcpServerModal.value.visible = false
-    return
-  }
-
-  const result = await mcpServerStore.createMcpServer(name, config)
-
-  if (!result.success || !lastMenuPosition.value) {
-    mcpServerModal.value.visible = false
-    return
-  }
-
-  if (result.mcpServer) {
-    const { x, y } = screenToCanvasPosition(lastMenuPosition.value)
-    await mcpServerStore.createNote(result.mcpServer.id, x, y)
-  }
-
-  mcpServerModal.value.visible = false
+  await submitMcpServerModal(payload, mcpServerStore)
 }
 
 const handleMcpServerDoubleClick = async (noteId: string): Promise<void> => {
@@ -687,6 +422,21 @@ const handleNoteDoubleClick = async (data: {
   }
 }
 
+const wrappedHandleOpenCreateModal = (resourceType: 'outputStyle' | 'subAgent' | 'command', title: string): void => {
+  lastMenuPosition.value = podStore.typeMenu.position
+  handleOpenCreateModal(resourceType, title)
+}
+
+const wrappedHandleOpenCreateGroupModal = (groupType: 'outputStyleGroup' | 'subAgentGroup' | 'commandGroup', title: string): void => {
+  lastMenuPosition.value = podStore.typeMenu.position
+  handleOpenCreateGroupModal(groupType, title)
+}
+
+const wrappedHandleOpenEditModal = async (resourceType: 'outputStyle' | 'subAgent' | 'command', id: string): Promise<void> => {
+  lastMenuPosition.value = podStore.typeMenu.position
+  await handleOpenEditModal(resourceType, id)
+}
+
 onUnmounted(() => {
   gitCloneProgress.cleanupListeners()
   checkoutProgress.cleanupListeners()
@@ -721,9 +471,9 @@ onUnmounted(() => {
       :key="note.id"
       :note="note"
       note-type="outputStyle"
-      @drag-end="outputStyleHandlers.handleDragEnd"
-      @drag-move="outputStyleHandlers.handleDragMove"
-      @drag-complete="outputStyleHandlers.handleDragComplete"
+      @drag-end="noteHandlerMap.outputStyle.handleDragEnd"
+      @drag-move="noteHandlerMap.outputStyle.handleDragMove"
+      @drag-complete="noteHandlerMap.outputStyle.handleDragComplete"
       @dblclick="handleNoteDoubleClick"
     />
 
@@ -732,9 +482,9 @@ onUnmounted(() => {
       :key="note.id"
       :note="note"
       note-type="skill"
-      @drag-end="skillHandlers.handleDragEnd"
-      @drag-move="skillHandlers.handleDragMove"
-      @drag-complete="skillHandlers.handleDragComplete"
+      @drag-end="noteHandlerMap.skill.handleDragEnd"
+      @drag-move="noteHandlerMap.skill.handleDragMove"
+      @drag-complete="noteHandlerMap.skill.handleDragComplete"
     />
 
     <GenericNote
@@ -742,9 +492,9 @@ onUnmounted(() => {
       :key="note.id"
       :note="note"
       note-type="subAgent"
-      @drag-end="subAgentHandlers.handleDragEnd"
-      @drag-move="subAgentHandlers.handleDragMove"
-      @drag-complete="subAgentHandlers.handleDragComplete"
+      @drag-end="noteHandlerMap.subAgent.handleDragEnd"
+      @drag-move="noteHandlerMap.subAgent.handleDragMove"
+      @drag-complete="noteHandlerMap.subAgent.handleDragComplete"
       @dblclick="handleNoteDoubleClick"
     />
 
@@ -754,9 +504,9 @@ onUnmounted(() => {
       :note="note"
       note-type="repository"
       :branch-name="getRepositoryBranchName(note.repositoryId as string)"
-      @drag-end="repositoryHandlers.handleDragEnd"
-      @drag-move="repositoryHandlers.handleDragMove"
-      @drag-complete="repositoryHandlers.handleDragComplete"
+      @drag-end="noteHandlerMap.repository.handleDragEnd"
+      @drag-move="noteHandlerMap.repository.handleDragMove"
+      @drag-complete="noteHandlerMap.repository.handleDragComplete"
       @contextmenu="handleRepositoryContextMenu"
     />
 
@@ -765,9 +515,9 @@ onUnmounted(() => {
       :key="note.id"
       :note="note"
       note-type="command"
-      @drag-end="commandHandlers.handleDragEnd"
-      @drag-move="commandHandlers.handleDragMove"
-      @drag-complete="commandHandlers.handleDragComplete"
+      @drag-end="noteHandlerMap.command.handleDragEnd"
+      @drag-move="noteHandlerMap.command.handleDragMove"
+      @drag-complete="noteHandlerMap.command.handleDragComplete"
       @dblclick="handleNoteDoubleClick"
     />
 
@@ -776,9 +526,9 @@ onUnmounted(() => {
       :key="note.id"
       :note="note"
       note-type="mcpServer"
-      @drag-end="mcpServerHandlers.handleDragEnd"
-      @drag-move="mcpServerHandlers.handleDragMove"
-      @drag-complete="mcpServerHandlers.handleDragComplete"
+      @drag-end="noteHandlerMap.mcpServer.handleDragEnd"
+      @drag-move="noteHandlerMap.mcpServer.handleDragMove"
+      @drag-complete="noteHandlerMap.mcpServer.handleDragComplete"
       @dblclick="handleNoteDoubleClick"
     />
 
@@ -801,9 +551,9 @@ onUnmounted(() => {
     @create-mcp-server-note="handleCreateMcpServerNote"
     @open-mcp-server-modal="handleOpenMcpServerModal"
     @clone-started="handleCloneStarted"
-    @open-create-modal="handleOpenCreateModal"
-    @open-create-group-modal="handleOpenCreateGroupModal"
-    @open-edit-modal="handleOpenEditModal"
+    @open-create-modal="wrappedHandleOpenCreateModal"
+    @open-create-group-modal="wrappedHandleOpenCreateGroupModal"
+    @open-edit-modal="wrappedHandleOpenEditModal"
     @open-delete-modal="handleOpenDeleteModal"
     @open-delete-group-modal="handleOpenDeleteGroupModal"
     @open-create-repository-modal="handleOpenCreateRepositoryModal"

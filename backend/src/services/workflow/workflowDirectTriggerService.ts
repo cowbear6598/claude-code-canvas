@@ -18,7 +18,7 @@ import {directTriggerStore} from '../directTriggerStore.js';
 import {workflowStateService} from './workflowStateService.js';
 import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {logger} from '../../utils/logger.js';
-import {formatMergedSummaries, buildQueuedPayload} from './workflowHelpers.js';
+import {formatMergedSummaries, buildQueuedPayload, buildQueueProcessedPayload} from './workflowHelpers.js';
 import {connectionStore} from '../connectionStore.js';
 import {MERGED_CONTENT_PREVIEW_MAX_LENGTH} from './constants.js';
 
@@ -238,14 +238,10 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         );
 
         for (const conn of connections) {
-            workflowEventEmitter.emitWorkflowQueueProcessed(context.canvasId, {
-                canvasId: context.canvasId,
-                targetPodId: context.targetPodId,
-                connectionId: conn.id,
-                sourcePodId: conn.sourcePodId,
-                remainingQueueSize: context.remainingQueueSize,
-                triggerMode: context.triggerMode,
-            });
+            workflowEventEmitter.emitWorkflowQueueProcessed(
+                context.canvasId,
+                buildQueueProcessedPayload({...context, connectionId: conn.id, sourcePodId: conn.sourcePodId})
+            );
         }
     }
 }

@@ -24,7 +24,8 @@ interface MultiInputServiceDeps {
 
 class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps> {
   private isTargetPodBusy(targetPod: ReturnType<typeof podStore.getById>): boolean {
-    return !!targetPod && (targetPod.status === 'chatting' || targetPod.status === 'summarizing');
+    if (targetPod === undefined) return false;
+    return targetPod.status === 'chatting' || targetPod.status === 'summarizing';
   }
 
   private enqueueIfBusy(
@@ -58,14 +59,11 @@ class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps>
     requiredSourcePodIds: string[],
     summary: string
   ): { ready: boolean; hasRejection: boolean } {
-    if (!pendingTargetStore.hasPendingTarget(targetPodId)) {
-      pendingTargetStore.initializePendingTarget(targetPodId, requiredSourcePodIds);
-    }
-
     const { allSourcesResponded, hasRejection } = pendingTargetStore.recordSourceCompletion(
       targetPodId,
       sourcePodId,
-      summary
+      summary,
+      requiredSourcePodIds
     );
 
     return { ready: allSourcesResponded, hasRejection };

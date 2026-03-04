@@ -46,7 +46,7 @@ class MessageStore {
     }
 
     getMessages(podId: string): PersistedMessage[] {
-        return this.messagesByPodId.get(podId) || [];
+        return this.messagesByPodId.get(podId) ?? [];
     }
 
     async loadMessagesFromDisk(canvasDir: string, podId: string): Promise<Result<PersistedMessage[]>> {

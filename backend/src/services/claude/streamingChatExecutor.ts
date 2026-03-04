@@ -161,7 +161,7 @@ async function handleStreamAbort(
 
     flushCurrentSubMessage();
 
-    const hasAssistantContent = contentBuffer.value || subMessageState.subMessages.length > 0;
+    const hasAssistantContent = contentBuffer.value.length > 0 || subMessageState.subMessages.length > 0;
     if (hasAssistantContent) {
         persistStreamingMessage();
         await messageStore.flushWrites(podId);
@@ -176,7 +176,7 @@ async function handleStreamAbort(
     return {
         messageId,
         content: contentBuffer.value,
-        hasContent: !!hasAssistantContent,
+        hasContent: hasAssistantContent,
         aborted: true,
     };
 }
@@ -228,7 +228,7 @@ export async function executeStreamingChat(
     try {
         await claudeService.sendMessage(podId, message, streamingCallback);
 
-        const hasAssistantContent = contentBuffer.value || subMessageState.subMessages.length > 0;
+        const hasAssistantContent = contentBuffer.value.length > 0 || subMessageState.subMessages.length > 0;
         if (hasAssistantContent) {
             persistStreamingMessage();
         }
@@ -250,7 +250,7 @@ export async function executeStreamingChat(
         return {
             messageId,
             content: contentBuffer.value,
-            hasContent: !!hasAssistantContent,
+            hasContent: hasAssistantContent,
             aborted: false,
         };
     } catch (error) {

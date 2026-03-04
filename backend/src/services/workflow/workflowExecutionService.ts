@@ -47,18 +47,11 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     targetPodId: string
   ): Promise<{ content: string; isSummarized: boolean } | null> {
     podStore.setStatus(canvasId, sourcePodId, 'summarizing');
-    let summaryResult: Awaited<ReturnType<typeof summaryService.generateSummaryForTarget>>;
-    try {
-      summaryResult = await summaryService.generateSummaryForTarget(
-        canvasId,
-        sourcePodId,
-        targetPodId
-      );
-    } catch (error) {
-      logger.error('Workflow', 'Error', '生成摘要失敗', error);
-      podStore.setStatus(canvasId, sourcePodId, 'idle');
-      return this.getLastAssistantFallback(sourcePodId);
-    }
+    const summaryResult = await summaryService.generateSummaryForTarget(
+      canvasId,
+      sourcePodId,
+      targetPodId
+    );
 
     if (summaryResult.success) {
       podStore.setStatus(canvasId, sourcePodId, 'idle');

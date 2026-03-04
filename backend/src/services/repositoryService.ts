@@ -63,13 +63,22 @@ class RepositoryService {
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const metadata = this.metadataStore.get(entry.name);
-        repositories.push({
+        const repositoryEntry: { id: string; name: string; parentRepoId?: string; branchName?: string; currentBranch?: string } = {
           id: entry.name,
           name: entry.name,
-          ...(metadata?.parentRepoId && { parentRepoId: metadata.parentRepoId }),
-          ...(metadata?.branchName && { branchName: metadata.branchName }),
-          ...(metadata?.currentBranch && { currentBranch: metadata.currentBranch }),
-        });
+        };
+
+        if (metadata?.parentRepoId) {
+          repositoryEntry.parentRepoId = metadata.parentRepoId;
+        }
+        if (metadata?.branchName) {
+          repositoryEntry.branchName = metadata.branchName;
+        }
+        if (metadata?.currentBranch) {
+          repositoryEntry.currentBranch = metadata.currentBranch;
+        }
+
+        repositories.push(repositoryEntry);
       }
     }
 

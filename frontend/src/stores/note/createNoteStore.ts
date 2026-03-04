@@ -12,8 +12,9 @@ import {createResourceCRUDActions} from './createResourceCRUDActions'
 import type {CRUDEventsConfig, CRUDPayloadConfig} from './createResourceCRUDActions'
 import type {ToastCategory} from '@/composables/useToast'
 import {capitalizeFirstLetter} from '@/lib/utils'
+import {removeById} from '@/lib/arrayHelpers'
 
-const STORE_TO_CATEGORY_MAP: Record<string, string> = {
+const STORE_TO_CATEGORY_MAP: Record<string, ToastCategory> = {
     'skill': 'Skill',
     'repository': 'Repository',
     'subAgent': 'SubAgent',
@@ -379,7 +380,7 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
 
                 const item = this.availableItems.find(candidate => getItemId(candidate as TItem) === itemId)
                 const itemName = item ? getItemName(item as TItem) : undefined
-                const category = (STORE_TO_CATEGORY_MAP[config.storeName] || 'Note') as 'Skill' | 'Repository' | 'SubAgent' | 'Command' | 'OutputStyle' | 'Note'
+                const category: ToastCategory = STORE_TO_CATEGORY_MAP[config.storeName] ?? 'Note'
 
                 const response = await deleteItem<Record<string, unknown>, BaseResponse>({
                     requestEvent: config.deleteItemEvents.request,
@@ -419,7 +420,7 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
             },
 
             removeNoteFromEvent(noteId: string): void {
-                this.notes = this.notes.filter(note => note.id !== noteId)
+                this.notes = removeById(this.notes, noteId)
             },
 
             addItemFromEvent(item: TItem): void {
@@ -460,7 +461,7 @@ export function createNoteStore<TItem, TNote extends BaseNote, TCustomActions ex
             },
 
             removeGroupFromEvent(groupId: string): void {
-                this.groups = this.groups.filter(existingGroup => existingGroup.id !== groupId)
+                this.groups = removeById(this.groups, groupId)
             },
 
             updateItemGroupId(itemId: string, groupId: string | null): void {

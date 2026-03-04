@@ -3,7 +3,7 @@ import { connectionManager } from '../../src/services/connectionManager.js';
 import { socketService } from '../../src/services/socketService.js';
 
 function createMockWs() {
-	return { send: vi.fn() } as unknown as Parameters<typeof connectionManager.add>[0];
+	return { send: vi.fn(), readyState: 1 } as unknown as Parameters<typeof connectionManager.add>[0];
 }
 
 function addConnection(ws: ReturnType<typeof createMockWs>): string {
