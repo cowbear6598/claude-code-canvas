@@ -85,7 +85,8 @@ export function useCopyPaste(): void {
 
     const canvasPos = viewportStore.screenToCanvas(mousePosition.value.x, mousePosition.value.y)
     const clipboardData = clipboardStore.getCopiedData()
-    const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, commandNotes, mcpServerNotes, connections } = calculatePastePositions(canvasPos, clipboardData)
+    const existingNames = new Set(podStore.pods.map(p => p.name))
+    const { pods, outputStyleNotes, skillNotes, repositoryNotes, subAgentNotes, commandNotes, mcpServerNotes, connections } = calculatePastePositions(canvasPos, clipboardData, existingNames)
 
     const { wrapWebSocketRequest } = useWebSocketErrorHandler()
 

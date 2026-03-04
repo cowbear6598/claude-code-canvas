@@ -37,16 +37,15 @@ const generateJitterPath = (yOffset: number = 0): string => {
   return path
 }
 
-const startJitter = (): void => {
+const refreshPaths = (): void => {
   pathData1.value = generateJitterPath(-0.5)
   pathData2.value = generateJitterPath(0)
   pathData3.value = generateJitterPath(0.8)
+}
 
-  jitterInterval = setInterval(() => {
-    pathData1.value = generateJitterPath(-0.5)
-    pathData2.value = generateJitterPath(0)
-    pathData3.value = generateJitterPath(0.8)
-  }, JITTER_REFRESH_INTERVAL_MS)
+const startJitter = (): void => {
+  refreshPaths()
+  jitterInterval = setInterval(refreshPaths, JITTER_REFRESH_INTERVAL_MS)
 }
 
 const stopJitter = (): void => {
@@ -73,7 +72,7 @@ watch(() => chatStore.connectionStatus, (newStatus) => {
       isTurningOn.value = false
     }, TURN_ON_ANIMATION_DURATION_MS)
   }
-})
+}, { immediate: true })
 
 onUnmounted(() => {
   if (turnOnTimer) clearTimeout(turnOnTimer)

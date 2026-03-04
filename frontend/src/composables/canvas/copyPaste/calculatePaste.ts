@@ -1,4 +1,4 @@
-import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT } from '@/lib/constants'
+import { POD_WIDTH, POD_HEIGHT, NOTE_WIDTH, NOTE_HEIGHT, MAX_POD_NAME_LENGTH } from '@/lib/constants'
 import type {
   CopiedPod,
   CopiedOutputStyleNote,
@@ -115,23 +115,51 @@ export function calculateOffsets(
   }
 }
 
+const PASTE_NAME_MAX_COUNTER = 9999
+// " (9999)" 最長 7 字元
+const SUFFIX_MAX_LENGTH = 7
+
+/** 產生貼上時的 Pod 名稱，遞增避免衝突 */
+export function generatePasteName(originalName: string, existingNames: Set<string>): string {
+  const suffixPattern = / \((\d+)\)$/
+  const match = originalName.match(suffixPattern)
+  const baseName = match ? originalName.slice(0, -match[0].length) : originalName
+
+  const maxBaseLength = MAX_POD_NAME_LENGTH - SUFFIX_MAX_LENGTH
+  const safeBaseName = baseName.length > maxBaseLength ? baseName.slice(0, maxBaseLength) : baseName
+
+  let counter = 1
+  let candidate = `${safeBaseName} (${counter})`
+  while (existingNames.has(candidate) && counter < PASTE_NAME_MAX_COUNTER) {
+    counter++
+    candidate = `${safeBaseName} (${counter})`
+  }
+  return candidate
+}
+
 export function transformPods(
   pods: CopiedPod[],
-  offset: { offsetX: number; offsetY: number }
+  offset: { offsetX: number; offsetY: number },
+  existingNames: Set<string>
 ): PastePodItem[] {
-  return pods.map(pod => ({
-    originalId: pod.id,
-    name: pod.name,
-    x: pod.x + offset.offsetX,
-    y: pod.y + offset.offsetY,
-    rotation: pod.rotation,
-    outputStyleId: pod.outputStyleId,
-    skillIds: pod.skillIds,
-    subAgentIds: pod.subAgentIds,
-    model: pod.model,
-    repositoryId: pod.repositoryId,
-    commandId: pod.commandId,
-  }))
+  const nameSet = new Set(existingNames)
+  return pods.map(pod => {
+    const newName = generatePasteName(pod.name, nameSet)
+    nameSet.add(newName)
+    return {
+      originalId: pod.id,
+      name: newName,
+      x: pod.x + offset.offsetX,
+      y: pod.y + offset.offsetY,
+      rotation: pod.rotation,
+      outputStyleId: pod.outputStyleId,
+      skillIds: pod.skillIds,
+      subAgentIds: pod.subAgentIds,
+      model: pod.model,
+      repositoryId: pod.repositoryId,
+      commandId: pod.commandId,
+    }
+  })
 }
 
 export function transformNotes<
@@ -197,7 +225,8 @@ function isEmptyClipboard(clipboardData: ClipboardData): boolean {
 
 export function calculatePastePositions(
   targetPosition: { x: number; y: number },
-  clipboardData: ClipboardData
+  clipboardData: ClipboardData,
+  existingNames: Set<string>
 ): {
   pods: PastePodItem[]
   outputStyleNotes: PasteOutputStyleNoteItem[]
@@ -237,7 +266,7 @@ export function calculatePastePositions(
   }
 
   return {
-    pods: transformPods(pods, offset),
+    pods: transformPods(pods, offset, existingNames),
     outputStyleNotes: applyTransform<CopiedOutputStyleNote, PasteOutputStyleNoteItem>({
       notes: outputStyleNotes,
       getBoundKey: note => note.boundToPodId,
