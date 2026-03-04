@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.1] - 2026-03-04
+
+### 修正
+- Direct connection 清理訊息時，下游 POD 也納入清理範圍
+- MCP server note 支援 Delete 刪除和 Ctrl+C/V 複製貼上
+- MCP server note 貼上後前端即時顯示與 Pod mcpServerIds 同步
+- cli.ts handleLogs 錯誤處理修復
+
+### 重構
+- CanvasContainer.vue 拆分 composable（695→310 行）
+- CanvasPod.vue 拆分 composable（528→300 行）
+- repositoryGitHandlers.ts 拆分為 5 個獨立檔案
+- 前端 store 統一採用 useCanvasWebSocketAction
+- NoteStore 架構重複消除
+- Slack 整合流程最佳化與 MessageQueue 移除
+- 安全性加強（Schema uuid 驗證、錯誤訊息保護、Prompt Injection 轉義、XSS 檢查統一）
+- 複雜度降低與重複程式碼消除
+- 變數命名統一與 AI 可讀性改善
+- 測試大量補齊
+
 ## [0.3.0] - 2026-03-03
 
 ### 新增
