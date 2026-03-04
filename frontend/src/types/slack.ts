@@ -1,4 +1,4 @@
-export type SlackAppConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'error'
+export type SlackAppConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'reconnecting' | 'error'
 
 export interface SlackChannel {
   id: string

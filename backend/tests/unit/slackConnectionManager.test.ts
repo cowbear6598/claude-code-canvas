@@ -4,6 +4,29 @@ import {describe, it, expect, beforeEach, vi, afterEach} from 'vitest';
 // 使用 module-level 變數搭配 function 建構式，在 bun vitest 環境下可正常共享
 let _lastAppInstance: any = null;
 
+function createMockSocketModeClient() {
+    const listeners: Map<string, Function[]> = new Map();
+    return {
+        websocket: {} as object,
+        on(event: string, handler: Function) {
+            if (!listeners.has(event)) {
+                listeners.set(event, []);
+            }
+            listeners.get(event)!.push(handler);
+        },
+        emit(event: string, ...args: unknown[]) {
+            const handlers = listeners.get(event) ?? [];
+            for (const handler of handlers) {
+                handler(...args);
+            }
+        },
+        removeAllListeners() {
+            listeners.clear();
+        },
+        _listeners: listeners,
+    };
+}
+
 vi.mock('@slack/bolt', () => {
     // 必須使用 function 關鍵字而非箭頭函式，才能讓 Reflect.construct 正確呼叫
     function MockApp(this: any) {
@@ -28,6 +51,9 @@ vi.mock('@slack/bolt', () => {
             },
         };
         this.event = vi.fn();
+        this.receiver = {
+            client: createMockSocketModeClient(),
+        };
         _lastAppInstance = this;
     }
     return {App: vi.fn().mockImplementation(MockApp)};
@@ -64,11 +90,28 @@ vi.mock('../../src/services/slack/slackAppStore.js', () => ({
     },
 }));
 
+vi.mock('../../src/services/slack/slackEventService.js', () => ({
+    slackEventService: {
+        handleAppMention: vi.fn().mockResolvedValue(undefined),
+    },
+}));
+
 import {App} from '@slack/bolt';
 import {SlackConnectionManager} from '../../src/services/slack/slackConnectionManager.js';
 import {slackAppStore} from '../../src/services/slack/slackAppStore.js';
 import {socketService} from '../../src/services/socketService.js';
+import {slackEventService} from '../../src/services/slack/slackEventService.js';
 import type {SlackApp} from '../../src/types/index.js';
+
+const DEFAULT_MOCK_SLACK_APP = {
+    id: 'app-001',
+    name: 'test',
+    botToken: 'xoxb-test',
+    appToken: 'xapp-test',
+    connectionStatus: 'connected' as const,
+    channels: [],
+    botUserId: 'U123456',
+};
 
 function getLastAppInstance(): any {
     return _lastAppInstance;
@@ -99,15 +142,7 @@ describe('SlackConnectionManager', () => {
         vi.mocked(slackAppStore.updateBotUserId).mockClear();
         vi.mocked(slackAppStore.updateChannels).mockClear();
         vi.mocked(socketService.emitToAll).mockClear();
-        vi.mocked(slackAppStore.getById).mockClear().mockReturnValue({
-            id: 'app-001',
-            name: 'test',
-            botToken: 'xoxb-test',
-            appToken: 'xapp-test',
-            connectionStatus: 'connected' as const,
-            channels: [],
-            botUserId: 'U123456',
-        });
+        vi.mocked(slackAppStore.getById).mockClear().mockReturnValue(DEFAULT_MOCK_SLACK_APP);
     });
 
     afterEach(async () => {
@@ -194,6 +229,7 @@ describe('SlackConnectionManager', () => {
                     chat: {postMessage: vi.fn()},
                 };
                 this.event = vi.fn();
+                this.receiver = {client: createMockSocketModeClient()};
                 _lastAppInstance = this;
             }
             vi.mocked(App).mockImplementationOnce(FailMockApp as any);
@@ -202,9 +238,77 @@ describe('SlackConnectionManager', () => {
 
             expect(slackAppStore.updateStatus).toHaveBeenCalledWith(slackApp.id, 'error');
         });
+
+        it('connect 成功後註冊 SocketModeClient 斷線事件監聽', async () => {
+            const slackApp = createMockSlackApp();
+
+            await manager.connect(slackApp);
+
+            const client = getLastAppInstance().receiver.client;
+            const registeredEvents = Array.from(client._listeners.keys());
+            expect(registeredEvents).toContain('disconnected');
+            expect(registeredEvents).toContain('close');
+            expect(registeredEvents).toContain('reconnecting');
+            expect(registeredEvents).toContain('connected');
+            expect(registeredEvents).toContain('error');
+        });
+
+        it('connect 成功後註冊 app_mention 事件處理器', async () => {
+            const slackApp = createMockSlackApp();
+
+            await manager.connect(slackApp);
+
+            const inst = getLastAppInstance();
+            expect(inst.event).toHaveBeenCalled();
+            const firstCall = vi.mocked(inst.event).mock.calls[0];
+            expect(firstCall[0]).toBe('app_mention');
+        });
+
+        it('app_mention 事件觸發時呼叫 slackEventService.handleAppMention', async () => {
+            const slackApp = createMockSlackApp();
+
+            await manager.connect(slackApp);
+
+            const inst = getLastAppInstance();
+            const appMentionHandler = vi.mocked(inst.event).mock.calls[0][1];
+            const mockEvent = {channel: 'C001', event_ts: '1234567890.000001'};
+
+            await appMentionHandler({event: mockEvent});
+
+            expect(slackEventService.handleAppMention).toHaveBeenCalledWith(slackApp.id, mockEvent);
+        });
     });
 
     describe('disconnect', () => {
+        it('主動斷線後已排程的 debounce timer 不觸發重連', async () => {
+            const slackApp = createMockSlackApp();
+            vi.useFakeTimers();
+
+            // 先用真實 timer 完成 connect，再切換回 fake timer 操作
+            vi.useRealTimers();
+            await manager.connect(slackApp);
+            vi.useFakeTimers();
+
+            const inst = getLastAppInstance();
+            vi.mocked(slackAppStore.updateStatus).mockClear();
+
+            // 觸發斷線事件讓 debounce timer 排程
+            inst.receiver.client.emit('disconnected');
+
+            // 立即主動 disconnect，應清除 debounce timer
+            await manager.disconnect(slackApp.id);
+
+            // 推進超過 debounce 時間，重連不應被觸發
+            await vi.advanceTimersByTimeAsync(2000);
+
+            const reconnectingCalls = vi.mocked(slackAppStore.updateStatus).mock.calls.filter(
+                ([, status]) => status === 'reconnecting',
+            );
+            expect(reconnectingCalls.length).toBe(0);
+
+            vi.useRealTimers();
+        });
+
         it('斷開連線後更新狀態為 disconnected', async () => {
             const slackApp = createMockSlackApp();
             await manager.connect(slackApp);
@@ -454,8 +558,8 @@ describe('SlackConnectionManager', () => {
 
             // boltApps 中的 app 應被移除
             expect(manager.getBoltApp(slackApp.id)).toBeUndefined();
-            // 重連邏輯應被觸發（updateStatus 應被呼叫為 connecting）
-            expect(slackAppStore.updateStatus).toHaveBeenCalledWith(slackApp.id, 'connecting');
+            // 重連邏輯應被觸發（updateStatus 應被呼叫為 reconnecting）
+            expect(slackAppStore.updateStatus).toHaveBeenCalledWith(slackApp.id, 'reconnecting');
         });
 
         it('startHealthCheck 不重複啟動', async () => {
@@ -468,6 +572,23 @@ describe('SlackConnectionManager', () => {
             const secondInterval = managerAny.healthCheckInterval;
 
             expect(firstInterval).toBe(secondInterval);
+        });
+
+        it('健康檢查同時驗證 SocketModeClient WebSocket 是否存活', async () => {
+            const slackApp = createMockSlackApp();
+            vi.useRealTimers();
+            await manager.connect(slackApp);
+            vi.useFakeTimers();
+
+            const inst = getLastAppInstance();
+            // auth.test 成功，但 WebSocket 已斷線
+            inst.client.auth.test.mockResolvedValue({user_id: 'U123456'});
+            inst.receiver.client.websocket = undefined;
+
+            manager.startHealthCheck();
+            await vi.advanceTimersByTimeAsync(30000);
+
+            expect(slackAppStore.updateStatus).toHaveBeenCalledWith(slackApp.id, 'reconnecting');
         });
     });
 
@@ -496,6 +617,124 @@ describe('SlackConnectionManager', () => {
             if (!result.success) {
                 expect(result.error).toContain('尚未連線');
             }
+        });
+    });
+
+    describe('Socket Mode 斷線重連', () => {
+        beforeEach(() => {
+            vi.useFakeTimers();
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it('SocketModeClient 發出 disconnected 事件時觸發重連', async () => {
+            const slackApp = createMockSlackApp();
+            vi.useRealTimers();
+            await manager.connect(slackApp);
+            vi.useFakeTimers();
+
+            const inst = getLastAppInstance();
+            vi.mocked(slackAppStore.updateStatus).mockClear();
+
+            inst.receiver.client.emit('disconnected');
+
+            // debounce 1000ms 內不應觸發
+            await vi.advanceTimersByTimeAsync(999);
+            expect(slackAppStore.updateStatus).not.toHaveBeenCalledWith(slackApp.id, 'reconnecting');
+
+            // debounce 到期後觸發重連
+            await vi.advanceTimersByTimeAsync(1);
+            expect(slackAppStore.updateStatus).toHaveBeenCalledWith(slackApp.id, 'reconnecting');
+            expect(inst.stop).toHaveBeenCalled();
+        });
+
+        it('SocketModeClient 發出 close 事件時觸發重連', async () => {
+            const slackApp = createMockSlackApp();
+            vi.useRealTimers();
+            await manager.connect(slackApp);
+            vi.useFakeTimers();
+
+            const inst = getLastAppInstance();
+            vi.mocked(slackAppStore.updateStatus).mockClear();
+
+            inst.receiver.client.emit('close');
+            await vi.advanceTimersByTimeAsync(1000);
+
+            expect(slackAppStore.updateStatus).toHaveBeenCalledWith(slackApp.id, 'reconnecting');
+            expect(inst.stop).toHaveBeenCalled();
+        });
+
+        it('SocketModeClient 發出 reconnecting 事件時更新狀態為 reconnecting', async () => {
+            const slackApp = createMockSlackApp();
+            vi.useRealTimers();
+            await manager.connect(slackApp);
+            vi.useFakeTimers();
+
+            const inst = getLastAppInstance();
+            vi.mocked(slackAppStore.updateStatus).mockClear();
+            vi.mocked(socketService.emitToAll).mockClear();
+
+            inst.receiver.client.emit('reconnecting');
+
+            expect(slackAppStore.updateStatus).toHaveBeenCalledWith(slackApp.id, 'reconnecting');
+            expect(socketService.emitToAll).toHaveBeenCalled();
+        });
+
+        it('SocketModeClient 發出 connected 事件時更新狀態為 connected', async () => {
+            const slackApp = createMockSlackApp();
+            vi.useRealTimers();
+            await manager.connect(slackApp);
+            vi.useFakeTimers();
+
+            const inst = getLastAppInstance();
+            const managerAny = manager as any;
+            managerAny.reconnectAttempts.set(slackApp.id, 5);
+            vi.mocked(slackAppStore.updateStatus).mockClear();
+
+            inst.receiver.client.emit('connected');
+
+            expect(slackAppStore.updateStatus).toHaveBeenCalledWith(slackApp.id, 'connected');
+            expect(managerAny.reconnectAttempts.get(slackApp.id)).toBe(0);
+        });
+
+        it('重連前先呼叫舊 app.stop() 清理資源', async () => {
+            const slackApp = createMockSlackApp();
+            vi.useRealTimers();
+            await manager.connect(slackApp);
+            vi.useFakeTimers();
+
+            const oldInst = getLastAppInstance();
+
+            oldInst.receiver.client.emit('disconnected');
+            await vi.advanceTimersByTimeAsync(1000);
+
+            expect(oldInst.stop).toHaveBeenCalled();
+            expect(manager.getBoltApp(slackApp.id)).toBeUndefined();
+        });
+
+        it('重複觸發斷線事件不重複排程重連', async () => {
+            const slackApp = createMockSlackApp();
+            vi.useRealTimers();
+            await manager.connect(slackApp);
+            vi.useFakeTimers();
+
+            const inst = getLastAppInstance();
+            vi.mocked(slackAppStore.updateStatus).mockClear();
+
+            // 快速觸發多次斷線事件
+            inst.receiver.client.emit('disconnected');
+            inst.receiver.client.emit('disconnected');
+            inst.receiver.client.emit('close');
+
+            await vi.advanceTimersByTimeAsync(1000);
+
+            // reconnecting 只應被呼叫一次（從 cleanupAndReconnect 觸發）
+            const reconnectingCalls = vi.mocked(slackAppStore.updateStatus).mock.calls.filter(
+                ([, status]) => status === 'reconnecting',
+            );
+            expect(reconnectingCalls.length).toBe(1);
         });
     });
 });

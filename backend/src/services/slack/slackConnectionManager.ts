@@ -1,4 +1,5 @@
 import {App} from '@slack/bolt';
+import {SocketModeClient} from '@slack/socket-mode';
 import type {SlackApp, SlackChannel} from '../../types/index.js';
 import {Result, ok, err} from '../../types/index.js';
 import {logger} from '../../utils/logger.js';
@@ -13,12 +14,15 @@ const HEALTH_CHECK_INTERVAL_MS = 30000;
 const SLACK_CHANNEL_LIST_PAGE_SIZE = 200;
 const BASE_RETRY_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 30000;
+const DISCONNECT_DEBOUNCE_MS = 1000;
 
 class SlackConnectionManager {
     private boltApps: Map<string, App> = new Map();
     private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
     private reconnectTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
     private reconnectAttempts: Map<string, number> = new Map();
+    private disconnectDebounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+    private isReconnecting: Set<string> = new Set();
 
     async connect(slackApp: SlackApp): Promise<void> {
         if (this.boltApps.has(slackApp.id)) {
@@ -65,6 +69,7 @@ class SlackConnectionManager {
         // 非關鍵操作：失敗不影響連線狀態
         await this.fetchChannels(slackApp, app);
         this.setupEventHandlers(app, slackApp);
+        this.setupSocketModeListeners(app, slackApp.id);
 
         this.broadcastConnectionStatus(slackApp.id);
     }
@@ -80,10 +85,110 @@ class SlackConnectionManager {
         });
     }
 
+    private getSocketModeClient(app: App): SocketModeClient | null {
+        const appWithReceiver = app as unknown as {receiver?: {client?: unknown}};
+        const client = appWithReceiver.receiver?.client;
+        if (!client || typeof (client as SocketModeClient).on !== 'function' || !('websocket' in (client as object))) {
+            logger.warn('Slack', 'Error', '無法取得 SocketModeClient 實例');
+            return null;
+        }
+        return client as SocketModeClient;
+    }
+
+    private setupSocketModeListeners(app: App, slackAppId: string): void {
+        const client = this.getSocketModeClient(app);
+        if (!client) {
+            logger.warn('Slack', 'Error', `Slack App ${slackAppId} 無法設定 Socket Mode 事件監聽`);
+            return;
+        }
+
+        client.on('disconnected', () => {
+            logger.log('Slack', 'Complete', `Slack App ${slackAppId} Socket Mode 已斷線`);
+            this.handleSocketModeDisconnect(slackAppId);
+        });
+
+        client.on('close', () => {
+            logger.log('Slack', 'Complete', `Slack App ${slackAppId} Socket Mode WebSocket 已關閉`);
+            this.handleSocketModeDisconnect(slackAppId);
+        });
+
+        client.on('reconnecting', () => {
+            logger.log('Slack', 'Complete', `Slack App ${slackAppId} Socket Mode 正在重連`);
+            slackAppStore.updateStatus(slackAppId, 'reconnecting');
+            this.broadcastConnectionStatus(slackAppId);
+        });
+
+        client.on('connected', () => {
+            logger.log('Slack', 'Complete', `Slack App ${slackAppId} Socket Mode 已重新連線`);
+            slackAppStore.updateStatus(slackAppId, 'connected');
+            this.reconnectAttempts.set(slackAppId, 0);
+            this.broadcastConnectionStatus(slackAppId);
+        });
+
+        client.on('error', (error: Error) => {
+            logger.error('Slack', 'Error', `Slack App ${slackAppId} Socket Mode 發生錯誤`, error);
+        });
+    }
+
+    private handleSocketModeDisconnect(slackAppId: string): void {
+        if (this.disconnectDebounceTimers.has(slackAppId)) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            this.disconnectDebounceTimers.delete(slackAppId);
+
+            if (!this.boltApps.has(slackAppId)) {
+                return;
+            }
+
+            this.cleanupAndReconnect(slackAppId);
+        }, DISCONNECT_DEBOUNCE_MS);
+
+        this.disconnectDebounceTimers.set(slackAppId, timer);
+    }
+
+    private async cleanupAndReconnect(slackAppId: string): Promise<void> {
+        if (this.isReconnecting.has(slackAppId)) {
+            return;
+        }
+
+        this.isReconnecting.add(slackAppId);
+
+        const oldApp = this.boltApps.get(slackAppId);
+        this.boltApps.delete(slackAppId);
+
+        if (oldApp) {
+            const socketClient = this.getSocketModeClient(oldApp);
+            if (socketClient) {
+                socketClient.removeAllListeners();
+            }
+
+            try {
+                await oldApp.stop();
+            } catch {
+                logger.warn('Slack', 'Error', `Slack App ${slackAppId} 清理舊連線時發生錯誤`);
+            }
+        }
+
+        this.handleReconnect(slackAppId);
+    }
+
     async disconnect(slackAppId: string): Promise<void> {
         const app = this.boltApps.get(slackAppId);
         if (!app) {
             return;
+        }
+
+        const debounceTimer = this.disconnectDebounceTimers.get(slackAppId);
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            this.disconnectDebounceTimers.delete(slackAppId);
+        }
+
+        const socketClient = this.getSocketModeClient(app);
+        if (socketClient) {
+            socketClient.removeAllListeners();
         }
 
         try {
@@ -94,6 +199,7 @@ class SlackConnectionManager {
 
         this.boltApps.delete(slackAppId);
         this.clearReconnectTimeout(slackAppId);
+        this.isReconnecting.delete(slackAppId);
 
         slackAppStore.updateStatus(slackAppId, 'disconnected');
         this.broadcastConnectionStatus(slackAppId);
@@ -178,12 +284,14 @@ class SlackConnectionManager {
                 })
             );
 
-            const entriesWithResults = entries.map((entry, index) => ({ entry, result: results[index] }));
-            for (const { entry: [slackAppId], result } of entriesWithResults) {
-                if (result.status === 'rejected') {
+            const entriesWithResults = entries.map((entry, index) => ({entry, result: results[index]}));
+            for (const {entry: [slackAppId, app], result} of entriesWithResults) {
+                const socketClient = this.getSocketModeClient(app);
+                const isWebSocketAlive = socketClient ? socketClient.websocket != null : true;
+
+                if (result.status === 'rejected' || !isWebSocketAlive) {
                     logger.warn('Slack', 'Error', `Slack App ${slackAppId} 健康檢查失敗，觸發重連`);
-                    this.boltApps.delete(slackAppId);
-                    this.handleReconnect(slackAppId);
+                    await this.cleanupAndReconnect(slackAppId);
                 }
             }
         }, HEALTH_CHECK_INTERVAL_MS);
@@ -207,6 +315,7 @@ class SlackConnectionManager {
             logger.error('Slack', 'Error', `Slack App ${slackAppId} 重連失敗超過 ${MAX_RECONNECT_ATTEMPTS} 次，停止重連`);
             slackAppStore.updateStatus(slackAppId, 'error');
             this.broadcastConnectionStatus(slackAppId);
+            this.isReconnecting.delete(slackAppId);
             return;
         }
 
@@ -214,7 +323,7 @@ class SlackConnectionManager {
 
         logger.log('Slack', 'Complete', `Slack App ${slackAppId} 將在 ${delayMs}ms 後進行第 ${attempts + 1} 次重連`);
 
-        slackAppStore.updateStatus(slackAppId, 'connecting');
+        slackAppStore.updateStatus(slackAppId, 'reconnecting');
         this.broadcastConnectionStatus(slackAppId);
 
         const timeout = setTimeout(async () => {
@@ -223,6 +332,7 @@ class SlackConnectionManager {
             const slackApp = slackAppStore.getById(slackAppId);
             if (!slackApp) {
                 logger.warn('Slack', 'Error', `重連時找不到 Slack App ${slackAppId}`);
+                this.isReconnecting.delete(slackAppId);
                 return;
             }
 
@@ -230,11 +340,13 @@ class SlackConnectionManager {
             const updatedStatus = slackAppStore.getById(slackAppId)?.connectionStatus;
             if (updatedStatus === 'connected') {
                 this.reconnectAttempts.set(slackAppId, 0);
+                this.isReconnecting.delete(slackAppId);
                 logger.log('Slack', 'Complete', `Slack App ${slackAppId} 重連成功`);
                 return;
             }
             const currentAttempts = this.reconnectAttempts.get(slackAppId) ?? 0;
             this.reconnectAttempts.set(slackAppId, currentAttempts + 1);
+            this.isReconnecting.delete(slackAppId);
             this.handleReconnect(slackAppId);
         }, delayMs);
 
@@ -249,6 +361,11 @@ class SlackConnectionManager {
         }
         this.reconnectTimeouts.clear();
 
+        for (const timer of this.disconnectDebounceTimers.values()) {
+            clearTimeout(timer);
+        }
+        this.disconnectDebounceTimers.clear();
+
         const disconnectPromises = Array.from(this.boltApps.entries()).map(async ([slackAppId, app]) => {
             try {
                 await app.stop();
@@ -261,6 +378,7 @@ class SlackConnectionManager {
         await Promise.all(disconnectPromises);
         this.boltApps.clear();
         this.reconnectAttempts.clear();
+        this.isReconnecting.clear();
     }
 
     getBoltApp(slackAppId: string): App | undefined {
