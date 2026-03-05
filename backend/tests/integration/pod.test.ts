@@ -203,7 +203,7 @@ describe('Pod 管理', () => {
       expect(response.error).toContain('已存在相同名稱');
     });
 
-    it('重命名為自己目前的名稱應成功', async () => {
+    it('重命名為自己目前的名稱回傳錯誤', async () => {
       const client = getClient();
       const pod = await createPod(client, { name: `rename-self-${uuidv4()}` });
 
@@ -215,8 +215,8 @@ describe('Pod 管理', () => {
         { requestId: uuidv4(), canvasId, podId: pod.id, name: pod.name }
       );
 
-      expect(response.success).toBe(true);
-      expect(response.pod!.name).toBe(pod.name);
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('已存在相同名稱');
     });
   });
 

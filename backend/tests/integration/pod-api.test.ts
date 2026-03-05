@@ -2,7 +2,7 @@ import {
 	waitForEvent,
 	setupIntegrationTest,
 } from '../setup';
-import { createPod, deletePod, postCanvas, postPod } from '../helpers';
+import { createPod, deletePod, postCanvas, postPod, patchPod } from '../helpers';
 import { WebSocketResponseEvents } from '../../src/schemas';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -373,5 +373,207 @@ describe('DELETE /api/canvas/:id/pods/:podId', () => {
 
 		const body = await secondDelete.json();
 		expect(body.error).toBe('找不到 Pod');
+	});
+});
+
+describe('PATCH /api/canvas/:id/pods/:podId', () => {
+	const { getServer, getClient } = setupIntegrationTest();
+
+	it('成功重新命名 Pod 回傳 200 並包含更新後的 Pod', async () => {
+		const server = getServer();
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Rename Pod A', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const response = await patchPod(server.baseUrl, server.canvasId, pod.id, { name: 'Renamed Pod A' });
+		expect(response.status).toBe(200);
+
+		const body = await response.json();
+		expect(body.pod).toBeDefined();
+		expect(body.pod.name).toBe('Renamed Pod A');
+		expect(body.pod.id).toBe(pod.id);
+	});
+
+	it('重新命名後 GET 確認名稱已更新', async () => {
+		const server = getServer();
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Before Rename', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		await patchPod(server.baseUrl, server.canvasId, pod.id, { name: 'After Rename' });
+
+		const listResponse = await fetch(`${server.baseUrl}/api/canvas/${server.canvasId}/pods`);
+		const listBody = await listResponse.json();
+		const found = listBody.pods.find((p: { id: string }) => p.id === pod.id);
+		expect(found).toBeDefined();
+		expect(found.name).toBe('After Rename');
+	});
+
+	it('重新命名後透過 WebSocket 廣播 pod:renamed 事件', async () => {
+		const server = getServer();
+		const client = getClient();
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'WS Rename Pod', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const eventPromise = waitForEvent<{
+			requestId: string;
+			canvasId: string;
+			podId: string;
+			name: string;
+			pod: { id: string; name: string };
+		}>(client, WebSocketResponseEvents.POD_RENAMED);
+
+		await patchPod(server.baseUrl, server.canvasId, pod.id, { name: 'WS Renamed Pod' });
+
+		const payload = await eventPromise;
+		expect(payload.success).toBe(true);
+		expect(payload.requestId).toBe('system');
+		expect(payload.canvasId).toBe(server.canvasId);
+		expect(payload.podId).toBe(pod.id);
+		expect(payload.name).toBe('WS Renamed Pod');
+		expect(payload.pod).toBeDefined();
+		expect(payload.pod.name).toBe('WS Renamed Pod');
+	});
+
+	it('用 Canvas name 重新命名 Pod 成功', async () => {
+		const server = getServer();
+		const createResponse = await postCanvas(server.baseUrl, { name: 'rename-pod-canvas-name' });
+		expect(createResponse.status).toBe(201);
+		const { canvas } = await createResponse.json();
+
+		const podResponse = await postPod(server.baseUrl, canvas.id, { name: 'Pod In Named Canvas', x: 0, y: 0 });
+		expect(podResponse.status).toBe(201);
+		const { pod } = await podResponse.json();
+
+		const response = await patchPod(server.baseUrl, 'rename-pod-canvas-name', pod.id, { name: 'Renamed In Named Canvas' });
+		expect(response.status).toBe(200);
+
+		const body = await response.json();
+		expect(body.pod.name).toBe('Renamed In Named Canvas');
+	});
+
+	it('用 Pod name 重新命名 Pod 成功', async () => {
+		const server = getServer();
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Pod By Name Rename', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+
+		const response = await patchPod(server.baseUrl, server.canvasId, 'Pod By Name Rename', { name: 'Pod By Name Renamed' });
+		expect(response.status).toBe(200);
+
+		const body = await response.json();
+		expect(body.pod.name).toBe('Pod By Name Renamed');
+	});
+
+	it('缺少 name 欄位回傳 400', async () => {
+		const server = getServer();
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Pod Missing Name', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const response = await patchPod(server.baseUrl, server.canvasId, pod.id, {});
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('Pod 名稱不能為空');
+	});
+
+	it('name 為空字串回傳 400', async () => {
+		const server = getServer();
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Pod Empty Name', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const response = await patchPod(server.baseUrl, server.canvasId, pod.id, { name: '' });
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('Pod 名稱不能為空');
+	});
+
+	it('name 為純空白字串回傳 400', async () => {
+		const server = getServer();
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Pod Whitespace Name', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const response = await patchPod(server.baseUrl, server.canvasId, pod.id, { name: '   ' });
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('Pod 名稱不能為空');
+	});
+
+	it('name 超過 100 字元回傳 400', async () => {
+		const server = getServer();
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Pod Long Name', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const response = await patchPod(server.baseUrl, server.canvasId, pod.id, { name: 'a'.repeat(101) });
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('Pod 名稱不能超過 100 個字元');
+	});
+
+	it('同名 Pod 回傳 409', async () => {
+		const server = getServer();
+		const createResponseA = await postPod(server.baseUrl, server.canvasId, { name: 'Conflict Pod A', x: 0, y: 0 });
+		expect(createResponseA.status).toBe(201);
+
+		const createResponseB = await postPod(server.baseUrl, server.canvasId, { name: 'Conflict Pod B', x: 0, y: 0 });
+		expect(createResponseB.status).toBe(201);
+		const { pod: podB } = await createResponseB.json();
+
+		const response = await patchPod(server.baseUrl, server.canvasId, podB.id, { name: 'Conflict Pod A' });
+		expect(response.status).toBe(409);
+
+		const body = await response.json();
+		expect(body.error).toBe('同一 Canvas 下已存在相同名稱的 Pod');
+	});
+
+	it('重新命名為自己目前的名稱回傳 409', async () => {
+		const server = getServer();
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Self Rename Pod', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const response = await patchPod(server.baseUrl, server.canvasId, pod.id, { name: 'Self Rename Pod' });
+		expect(response.status).toBe(409);
+
+		const body = await response.json();
+		expect(body.error).toBe('同一 Canvas 下已存在相同名稱的 Pod');
+	});
+
+	it('Canvas 不存在回傳 404', async () => {
+		const server = getServer();
+		const response = await patchPod(server.baseUrl, uuidv4(), uuidv4(), { name: 'Some Name' });
+		expect(response.status).toBe(404);
+
+		const body = await response.json();
+		expect(body.error).toBe('找不到 Canvas');
+	});
+
+	it('Pod 不存在回傳 404', async () => {
+		const server = getServer();
+		const response = await patchPod(server.baseUrl, server.canvasId, uuidv4(), { name: 'Some Name' });
+		expect(response.status).toBe(404);
+
+		const body = await response.json();
+		expect(body.error).toBe('找不到 Pod');
+	});
+
+	it('無效 JSON body 回傳 400', async () => {
+		const server = getServer();
+		const createResponse = await postPod(server.baseUrl, server.canvasId, { name: 'Invalid JSON Pod', x: 0, y: 0 });
+		expect(createResponse.status).toBe(201);
+		const { pod } = await createResponse.json();
+
+		const response = await patchPod(server.baseUrl, server.canvasId, pod.id, {}, 'text/plain');
+		expect(response.status).toBe(400);
+
+		const body = await response.json();
+		expect(body.error).toBe('無效的請求格式');
 	});
 });

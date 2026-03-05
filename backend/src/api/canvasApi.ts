@@ -37,6 +37,38 @@ export function handleListCanvases(_req: Request, _params: Record<string, string
 	return jsonResponse({ canvases: canvases.map(toCanvasDto) }, HTTP_STATUS.OK);
 }
 
+export async function handleRenameCanvas(req: Request, params: Record<string, string>): Promise<Response> {
+	const jsonError = requireJsonBody(req);
+	if (jsonError) return jsonError;
+
+	const body = await req.json();
+
+	const { canvas, error } = requireCanvas(params.id);
+	if (error) return error;
+
+	if (!isValidCreateCanvasBody(body)) {
+		return jsonResponse({ error: 'Canvas 名稱不能為空' }, HTTP_STATUS.BAD_REQUEST);
+	}
+
+	const result = await canvasStore.rename(canvas.id, body.name);
+
+	if (!result.success) {
+		return jsonResponse({ error: result.error }, HTTP_STATUS.BAD_REQUEST);
+	}
+
+	const canvasData = { id: result.data.id, name: result.data.name };
+
+	socketService.emitToAll(WebSocketResponseEvents.CANVAS_RENAMED, {
+		requestId: 'system',
+		success: true,
+		canvasId: canvasData.id,
+		newName: canvasData.name,
+		canvas: canvasData,
+	});
+
+	return jsonResponse({ canvas: canvasData }, HTTP_STATUS.OK);
+}
+
 export async function handleCreateCanvas(req: Request, _params: Record<string, string>): Promise<Response> {
 	const jsonError = requireJsonBody(req);
 	if (jsonError) return jsonError;

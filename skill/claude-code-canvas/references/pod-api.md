@@ -101,3 +101,58 @@ curl -X DELETE http://localhost:3001/api/canvas/xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxx
 # 用 Pod 名稱刪除 Pod
 curl -X DELETE http://localhost:3001/api/canvas/my-canvas/pods/My%20Pod
 ```
+
+---
+
+## PATCH /api/canvas/:id/pods/:podId
+
+重新命名指定 Canvas 下的 Pod。`:id` 支援 UUID 或 name，`:podId` 支援 UUID 或 name。
+
+### Request Body
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| name | string | 是 | 新的 Pod 名稱，1-100 字元 |
+
+### 成功回應 200
+
+```json
+{
+  "pod": {
+    "id": "xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx",
+    "name": "New Pod Name",
+    "status": "idle",
+    "workspacePath": "/path/to/workspace",
+    "x": 100,
+    "y": 200,
+    "rotation": 0,
+    "model": "opus",
+    "skillIds": [],
+    "subAgentIds": [],
+    "mcpServerIds": [],
+    "autoClear": false
+  }
+}
+```
+
+### 錯誤回應
+
+| 狀態碼 | 說明 |
+|--------|------|
+| 400 | 無效的請求格式 / Pod 名稱驗證失敗 |
+| 404 | 找不到 Canvas 或找不到 Pod |
+| 409 | 同一 Canvas 下已存在相同名稱的 Pod |
+
+### curl 範例
+
+```bash
+# 用 canvas name 重新命名 Pod（podId 為 UUID）
+curl -X PATCH http://localhost:3001/api/canvas/my-canvas/pods/xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx \
+  -H "Content-Type: application/json" \
+  -d '{"name": "New Pod Name"}'
+
+# 用 Pod 名稱重新命名 Pod
+curl -X PATCH http://localhost:3001/api/canvas/my-canvas/pods/Old%20Pod%20Name \
+  -H "Content-Type: application/json" \
+  -d '{"name": "New Pod Name"}'
+```

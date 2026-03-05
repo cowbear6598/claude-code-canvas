@@ -4,6 +4,8 @@ import { createPodWithWorkspace, deletePodWithCleanup } from '../services/podSer
 import { logger } from '../utils/logger.js';
 import type { ModelType } from '../types/pod.js';
 import { HTTP_STATUS } from '../constants.js';
+import { socketService } from '../services/socketService.js';
+import { WebSocketResponseEvents } from '../schemas/index.js';
 
 const VALID_MODELS: ModelType[] = ['opus', 'sonnet', 'haiku'];
 
@@ -111,6 +113,53 @@ export async function handleCreatePod(req: Request, params: Record<string, strin
 	}
 
 	return jsonResponse({ pod: result.data.pod }, HTTP_STATUS.CREATED);
+}
+
+export async function handleRenamePod(req: Request, params: Record<string, string>): Promise<Response> {
+	const jsonError = requireJsonBody(req);
+	if (jsonError) return jsonError;
+
+	const body = await req.json() as Record<string, unknown>;
+
+	const { canvas, error } = requireCanvas(params.id);
+	if (error) return error;
+
+	const pod = resolvePod(canvas.id, decodeURIComponent(params.podId));
+	if (!pod) {
+		return jsonResponse({ error: '找不到 Pod' }, HTTP_STATUS.NOT_FOUND);
+	}
+
+	const nameError = validatePodName(body);
+	if (nameError) {
+		return jsonResponse({ error: nameError }, HTTP_STATUS.BAD_REQUEST);
+	}
+
+	const trimmedName = (body.name as string).trim();
+
+	if (podStore.hasName(canvas.id, trimmedName)) {
+		return jsonResponse({ error: '同一 Canvas 下已存在相同名稱的 Pod' }, HTTP_STATUS.CONFLICT);
+	}
+
+	const oldName = pod.name;
+	const result = podStore.update(canvas.id, pod.id, { name: trimmedName });
+
+	if (!result) {
+		logger.error('Pod', 'Error', '重新命名 Pod 失敗');
+		return jsonResponse({ error: '重新命名 Pod 時發生內部錯誤' }, HTTP_STATUS.INTERNAL_ERROR);
+	}
+
+	logger.log('Pod', 'Rename', `已重命名 Pod「${oldName}」為「${result.pod.name}」`);
+
+	socketService.emitToCanvas(canvas.id, WebSocketResponseEvents.POD_RENAMED, {
+		requestId: 'system',
+		canvasId: canvas.id,
+		success: true,
+		pod: result.pod,
+		podId: result.pod.id,
+		name: result.pod.name,
+	});
+
+	return jsonResponse({ pod: result.pod }, HTTP_STATUS.OK);
 }
 
 export async function handleDeletePod(_req: Request, params: Record<string, string>): Promise<Response> {

@@ -135,7 +135,7 @@ export const handlePodRename = withCanvasId<PodRenamePayload>(
         const {podId, name} = payload;
         const trimmedName = name.trim();
 
-        if (podStore.hasName(canvasId, trimmedName, podId)) {
+        if (podStore.hasName(canvasId, trimmedName)) {
             emitError(connectionId, WebSocketResponseEvents.POD_RENAMED, '同一 Canvas 下已存在相同名稱的 Pod', requestId, podId, 'DUPLICATE_NAME');
             return;
         }

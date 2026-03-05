@@ -89,6 +89,33 @@ export async function deletePod(baseUrl: string, canvasId: string, podId: string
   return fetch(`${baseUrl}/api/canvas/${canvasId}/pods/${encodeURIComponent(podId)}`, { method: 'DELETE' });
 }
 
+export function patchPod(
+  baseUrl: string,
+  canvasId: string,
+  podId: string,
+  body: Record<string, unknown>,
+  contentType = 'application/json',
+): Promise<Response> {
+  return fetch(`${baseUrl}/api/canvas/${canvasId}/pods/${encodeURIComponent(podId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': contentType },
+    body: JSON.stringify(body),
+  });
+}
+
+export function patchCanvas(
+  baseUrl: string,
+  canvasId: string,
+  body: Record<string, unknown>,
+  contentType = 'application/json',
+): Promise<Response> {
+  return fetch(`${baseUrl}/api/canvas/${canvasId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': contentType },
+    body: JSON.stringify(body),
+  });
+}
+
 export async function reorderCanvases(
   client: TestWebSocketClient,
   canvasIds: string[]

@@ -2,7 +2,7 @@ import {
 	waitForEvent,
 	setupIntegrationTest,
 } from '../setup';
-import { createCanvas, postCanvas } from '../helpers';
+import { createCanvas, patchCanvas, postCanvas } from '../helpers';
 import { canvasStore } from '../../src/services/canvasStore.js';
 
 describe('Canvas REST API', () => {
@@ -353,6 +353,198 @@ describe('Canvas REST API', () => {
 			expect(body.canvases).toEqual([]);
 
 			vi.restoreAllMocks();
+		});
+	});
+
+	describe('PATCH /api/canvas/:id', () => {
+
+		it('成功重新命名 Canvas 回傳 200 並包含 canvas 物件', async () => {
+			const server = getServer();
+			const createResponse = await postCanvas(server.baseUrl, { name: 'patch-rename-test' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			const response = await patchCanvas(server.baseUrl, canvasId, { name: 'new-name' });
+			expect(response.status).toBe(200);
+
+			const body = await response.json();
+			expect(body.canvas.id).toBe(canvasId);
+			expect(body.canvas.name).toBe('new-name');
+		});
+
+		it('重新命名後 GET /api/canvas/list 確認名稱已更新', async () => {
+			const server = getServer();
+			const createResponse = await postCanvas(server.baseUrl, { name: 'rename-list-verify' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			await patchCanvas(server.baseUrl, canvasId, { name: 'renamed-list-verify' });
+
+			const listResponse = await fetch(`${server.baseUrl}/api/canvas/list`);
+			const listBody = await listResponse.json();
+			const found = listBody.canvases.find((c: { id: string }) => c.id === canvasId);
+			expect(found).toBeDefined();
+			expect(found.name).toBe('renamed-list-verify');
+		});
+
+		it('重新命名後透過 WebSocket 廣播 canvas:renamed 事件', async () => {
+			const server = getServer();
+			const client = getClient();
+			const createResponse = await postCanvas(server.baseUrl, { name: 'rename-ws-test' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			const eventPromise = waitForEvent(client, 'canvas:renamed', 5000);
+			const response = await patchCanvas(server.baseUrl, canvasId, { name: 'rename-ws-renamed' });
+			expect(response.status).toBe(200);
+
+			const event = await eventPromise;
+			expect(event.success).toBe(true);
+			expect(event.requestId).toBe('system');
+			expect(event.canvasId).toBe(canvasId);
+			expect(event.newName).toBe('rename-ws-renamed');
+			expect(event.canvas.id).toBe(canvasId);
+			expect(event.canvas.name).toBe('rename-ws-renamed');
+		});
+
+		it('用 Canvas name 重新命名成功', async () => {
+			const server = getServer();
+			const createResponse = await postCanvas(server.baseUrl, { name: 'rename-by-name-test' });
+			expect(createResponse.status).toBe(201);
+
+			const response = await patchCanvas(server.baseUrl, 'rename-by-name-test', { name: 'rename-by-name-result' });
+			expect(response.status).toBe(200);
+
+			const body = await response.json();
+			expect(body.canvas.name).toBe('rename-by-name-result');
+		});
+
+		it('缺少 name 欄位回傳 400', async () => {
+			const server = getServer();
+			const createResponse = await postCanvas(server.baseUrl, { name: 'rename-missing-name' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			const response = await patchCanvas(server.baseUrl, canvasId, {});
+			expect(response.status).toBe(400);
+
+			const body = await response.json();
+			expect(body.error).toBe('Canvas 名稱不能為空');
+		});
+
+		it('name 為空字串回傳 400', async () => {
+			const server = getServer();
+			const createResponse = await postCanvas(server.baseUrl, { name: 'rename-empty-name' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			const response = await patchCanvas(server.baseUrl, canvasId, { name: '   ' });
+			expect(response.status).toBe(400);
+			const body = await response.json();
+			expect(body.error).toBe('Canvas 名稱不能為空');
+		});
+
+		it('name 超過 50 字元回傳 400', async () => {
+			const server = getServer();
+			const createResponse = await postCanvas(server.baseUrl, { name: 'rename-long-name' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			const response = await patchCanvas(server.baseUrl, canvasId, { name: 'a'.repeat(51) });
+			expect(response.status).toBe(400);
+
+			const body = await response.json();
+			expect(body.error).toBe('Canvas 名稱不能超過 50 個字元');
+		});
+
+		it('name 包含非法字元回傳 400', async () => {
+			const server = getServer();
+			const createResponse = await postCanvas(server.baseUrl, { name: 'rename-invalid-char' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			const response = await patchCanvas(server.baseUrl, canvasId, { name: 'test@canvas!' });
+			expect(response.status).toBe(400);
+
+			const body = await response.json();
+			expect(body.error).toBe('Canvas 名稱只能包含英文字母、數字、底線、連字號和空格');
+		});
+
+		it('Canvas 不存在回傳 404', async () => {
+			const server = getServer();
+			const response = await patchCanvas(server.baseUrl, '00000000-0000-4000-8000-000000000000', { name: 'new-name' });
+			expect(response.status).toBe(404);
+
+			const body = await response.json();
+			expect(body.error).toBe('找不到 Canvas');
+		});
+
+		it('無效 JSON body 回傳 400', async () => {
+			const server = getServer();
+			const createResponse = await postCanvas(server.baseUrl, { name: 'rename-invalid-json' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			const response = await fetch(`${server.baseUrl}/api/canvas/${canvasId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'text/plain' },
+				body: 'not json',
+			});
+			expect(response.status).toBe(400);
+
+			const body = await response.json();
+			expect(body.error).toBe('無效的請求格式');
+		});
+
+		it('重複名稱回傳 400', async () => {
+			const server = getServer();
+			const createAResponse = await postCanvas(server.baseUrl, { name: 'rename-dup-a' });
+			expect(createAResponse.status).toBe(201);
+			const createBResponse = await postCanvas(server.baseUrl, { name: 'rename-dup-b' });
+			expect(createBResponse.status).toBe(201);
+			const createdB = await createBResponse.json();
+
+			const response = await patchCanvas(server.baseUrl, createdB.canvas.id, { name: 'rename-dup-a' });
+			expect(response.status).toBe(400);
+
+			const body = await response.json();
+			expect(body.error).toContain('已存在相同名稱的 Canvas');
+		});
+
+		it('重新命名為自己目前名稱回傳 400', async () => {
+			const server = getServer();
+			const createResponse = await postCanvas(server.baseUrl, { name: 'rename-self-test' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			const response = await patchCanvas(server.baseUrl, canvasId, { name: 'rename-self-test' });
+			expect(response.status).toBe(400);
+
+			const body = await response.json();
+			expect(body.error).toBe('已存在相同名稱的 Canvas');
+		});
+
+		it('name 為 Windows 保留名稱回傳 400', async () => {
+			const server = getServer();
+			const createResponse = await postCanvas(server.baseUrl, { name: 'rename-win-reserved' });
+			expect(createResponse.status).toBe(201);
+			const created = await createResponse.json();
+			const canvasId = created.canvas.id;
+
+			const response = await patchCanvas(server.baseUrl, canvasId, { name: 'CON' });
+			expect(response.status).toBe(400);
+
+			const body = await response.json();
+			expect(body.error).toBe('Canvas 名稱為系統保留名稱');
 		});
 	});
 });
