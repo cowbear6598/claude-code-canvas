@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0] - 2026-03-05
+
+### 新增
+- Telegram Long Polling 整合
+
+### 重構
+- 全面重構：拆分 God Component、消除重複、強化安全防護
+- 統一命名：claude-canvas → claude-code-canvas
+
 ## [0.4.1] - 2026-03-05
 
 ### 新增
