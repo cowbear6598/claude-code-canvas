@@ -19,10 +19,8 @@ class StartupService {
       return dirResult;
     }
 
-    // 初始化 SQLite 資料庫
     getDb();
 
-    // 檢查是否需要建立預設 Canvas
     const canvases = canvasStore.list();
     if (canvases.length === 0) {
       logger.log('Startup', 'Create', '未找到任何畫布，建立預設畫布');

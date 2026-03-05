@@ -32,12 +32,6 @@ describe('useEditModal', () => {
     createGroup: ReturnType<typeof vi.fn>
   }
 
-  let mockMcpServerStore: {
-    updateMcpServer: ReturnType<typeof vi.fn>
-    createMcpServer: ReturnType<typeof vi.fn>
-    createNote: ReturnType<typeof vi.fn>
-  }
-
   beforeEach(() => {
     mockOutputStyleStore = {
       readOutputStyle: vi.fn().mockResolvedValue({ id: 'os-1', name: 'My Style', content: 'content' }),
@@ -63,11 +57,6 @@ describe('useEditModal', () => {
       createGroup: vi.fn().mockResolvedValue({ success: true })
     }
 
-    mockMcpServerStore = {
-      updateMcpServer: vi.fn().mockResolvedValue(undefined),
-      createMcpServer: vi.fn().mockResolvedValue({ success: true, mcpServer: { id: 'mcp-new' } }),
-      createNote: vi.fn().mockResolvedValue(undefined)
-    }
   })
 
   function createComposable(menuPosition = { x: 100, y: 200 }) {
@@ -151,14 +140,14 @@ describe('useEditModal', () => {
     })
   })
 
-  describe('handleUpdate - 更新資源', () => {
+  describe('handleCreateEditSubmit（edit mode）- 更新資源', () => {
     it('更新 outputStyle 後應關閉 Modal', async () => {
       const { composable } = createComposable()
       composable.handleOpenCreateModal('outputStyle', '建立')
       composable.editModal.value.mode = 'edit'
       composable.editModal.value.itemId = 'os-1'
 
-      await composable.handleUpdate('name', 'new content')
+      await composable.handleCreateEditSubmit({ name: 'name', content: 'new content' })
 
       expect(mockOutputStyleStore.updateOutputStyle).toHaveBeenCalledWith('os-1', 'new content')
       expect(composable.editModal.value.visible).toBe(false)
@@ -177,19 +166,19 @@ describe('useEditModal', () => {
         showContent: true
       }
 
-      await composable.handleUpdate('name', 'agent content')
+      await composable.handleCreateEditSubmit({ name: 'name', content: 'agent content' })
 
       expect(mockSubAgentStore.updateSubAgent).toHaveBeenCalledWith('sa-1', 'agent content')
       expect(composable.editModal.value.visible).toBe(false)
     })
   })
 
-  describe('handleCreate - 建立資源', () => {
+  describe('handleCreateEditSubmit（create mode）- 建立資源', () => {
     it('建立 outputStyle 後應呼叫 createNote 並關閉 Modal', async () => {
       const { composable } = createComposable({ x: 100, y: 200 })
       composable.handleOpenCreateModal('outputStyle', '建立')
 
-      await composable.handleCreate('My Style', 'style content')
+      await composable.handleCreateEditSubmit({ name: 'My Style', content: 'style content' })
 
       expect(mockOutputStyleStore.createOutputStyle).toHaveBeenCalledWith('My Style', 'style content')
       expect(mockOutputStyleStore.createNote).toHaveBeenCalledWith('os-new', 100, 200)
@@ -200,7 +189,7 @@ describe('useEditModal', () => {
       const { composable } = createComposable()
       composable.handleOpenCreateGroupModal('outputStyleGroup', '建立群組')
 
-      await composable.handleCreate('My Group', '')
+      await composable.handleCreateEditSubmit({ name: 'My Group', content: '' })
 
       expect(mockOutputStyleStore.createGroup).toHaveBeenCalledWith('My Group')
       expect(mockOutputStyleStore.createNote).not.toHaveBeenCalled()
@@ -211,7 +200,7 @@ describe('useEditModal', () => {
       const { composable } = createComposable()
       composable.handleOpenCreateGroupModal('commandGroup', '建立指令群組')
 
-      await composable.handleCreate('CMD Group', '')
+      await composable.handleCreateEditSubmit({ name: 'CMD Group', content: '' })
 
       expect(mockCommandStore.createGroup).toHaveBeenCalledWith('CMD Group')
     })
@@ -221,7 +210,7 @@ describe('useEditModal', () => {
       lastMenuPosition.value = null
       composable.handleOpenCreateModal('subAgent', '建立 SubAgent')
 
-      await composable.handleCreate('Agent', 'content')
+      await composable.handleCreateEditSubmit({ name: 'Agent', content: 'content' })
 
       expect(mockSubAgentStore.createSubAgent).toHaveBeenCalled()
       expect(mockSubAgentStore.createNote).not.toHaveBeenCalled()
@@ -269,59 +258,4 @@ describe('useEditModal', () => {
     })
   })
 
-  describe('handleOpenMcpServerModal - 開啟 McpServer Modal', () => {
-    it('建立模式應設定 visible 為 true 且 mode 為 create', () => {
-      const { composable } = createComposable()
-      composable.handleOpenMcpServerModal('create')
-
-      expect(composable.mcpServerModal.value.visible).toBe(true)
-      expect(composable.mcpServerModal.value.mode).toBe('create')
-      expect(composable.mcpServerModal.value.mcpServerId).toBe('')
-    })
-
-    it('編輯模式應設定 mcpServerId', () => {
-      const { composable } = createComposable()
-      composable.handleOpenMcpServerModal('edit', 'mcp-1')
-
-      expect(composable.mcpServerModal.value.mode).toBe('edit')
-      expect(composable.mcpServerModal.value.mcpServerId).toBe('mcp-1')
-    })
-  })
-
-  describe('handleMcpServerModalSubmit - McpServer 提交', () => {
-    it('edit mode 應呼叫 updateMcpServer 並關閉 Modal', async () => {
-      const { composable } = createComposable()
-      composable.handleOpenMcpServerModal('edit', 'mcp-1')
-
-      const config = { command: 'npx', args: ['-y', 'server'] }
-      await composable.handleMcpServerModalSubmit({ name: 'My MCP', config }, mockMcpServerStore as any)
-
-      expect(mockMcpServerStore.updateMcpServer).toHaveBeenCalledWith('mcp-1', 'My MCP', config)
-      expect(composable.mcpServerModal.value.visible).toBe(false)
-    })
-
-    it('create mode 應呼叫 createMcpServer 並建立 Note', async () => {
-      const { composable } = createComposable({ x: 50, y: 100 })
-      composable.handleOpenMcpServerModal('create')
-
-      const config = { command: 'npx', args: [] }
-      await composable.handleMcpServerModalSubmit({ name: 'New MCP', config }, mockMcpServerStore as any)
-
-      expect(mockMcpServerStore.createMcpServer).toHaveBeenCalledWith('New MCP', config)
-      expect(mockMcpServerStore.createNote).toHaveBeenCalledWith('mcp-new', 50, 100)
-      expect(composable.mcpServerModal.value.visible).toBe(false)
-    })
-
-    it('建立失敗時應關閉 Modal 但不建立 Note', async () => {
-      const { composable } = createComposable()
-      mockMcpServerStore.createMcpServer.mockResolvedValue({ success: false })
-      composable.handleOpenMcpServerModal('create')
-
-      const config = { command: 'npx', args: [] }
-      await composable.handleMcpServerModalSubmit({ name: 'New MCP', config }, mockMcpServerStore as any)
-
-      expect(mockMcpServerStore.createNote).not.toHaveBeenCalled()
-      expect(composable.mcpServerModal.value.visible).toBe(false)
-    })
-  })
 })

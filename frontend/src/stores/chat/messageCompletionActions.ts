@@ -5,6 +5,7 @@ import {truncateContent} from './chatUtils'
 import type {ChatStoreInstance} from './chatStore'
 import {finalizeSubMessages, finalizeToolUse, updateMainMessageState} from './subMessageHelpers'
 import {getMessages, findMessageIndex} from './chatStoreHelpers'
+import {usePodStore} from '../pod/podStore'
 
 function extractSubMessageLines(subMessages: SubMessage[] | undefined): string[] {
     if (!subMessages || subMessages.length === 0) return []
@@ -24,7 +25,6 @@ export function createMessageCompletionActions(
     updatePodOutput: (podId: string) => Promise<void>
 } {
     const updatePodOutput = async (podId: string): Promise<void> => {
-        const {usePodStore} = await import('../pod/podStore')
         const podStore = usePodStore()
         const pod = podStore.pods.find(pod => pod.id === podId)
 

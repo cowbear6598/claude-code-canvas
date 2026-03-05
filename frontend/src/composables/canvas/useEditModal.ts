@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import type { Ref } from 'vue'
-import type { Group, McpServerConfig, Position } from '@/types'
+import type { Group, Position } from '@/types'
 import { screenToCanvasPosition } from '@/lib/canvasCoordinateUtils'
 
 type ResourceType = 'outputStyle' | 'subAgent' | 'command'
@@ -16,20 +16,6 @@ interface EditModalState {
   resourceType: ExtendedResourceType
   itemId: string
   showContent: boolean
-}
-
-interface McpServerModalState {
-  visible: boolean
-  mode: 'create' | 'edit'
-  mcpServerId: string
-  initialName: string
-  initialConfig: McpServerConfig | undefined
-}
-
-export interface McpServerOperations {
-  updateMcpServer: (id: string, name: string, config: McpServerConfig) => Promise<{ success: boolean; [key: string]: unknown }>
-  createMcpServer: (name: string, config: McpServerConfig) => Promise<{ success: boolean; mcpServer?: { id: string } }>
-  createNote: (id: string, x: number, y: number) => Promise<void>
 }
 
 interface ResourceStore {
@@ -66,16 +52,11 @@ export function useEditModal(
   lastMenuPosition: Ref<Position | null>
 ): {
   editModal: Ref<EditModalState>
-  mcpServerModal: Ref<McpServerModalState>
   handleOpenCreateModal: (resourceType: ResourceType, title: string) => void
   handleOpenCreateGroupModal: (groupType: GroupType, title: string) => void
   handleOpenEditModal: (resourceType: ResourceType, id: string) => Promise<void>
-  handleCreate: (name: string, content: string) => Promise<void>
-  handleUpdate: (name: string, content: string) => Promise<void>
   handleCreateEditSubmit: (payload: { name: string; content: string }) => Promise<void>
   closeEditModal: () => void
-  handleOpenMcpServerModal: (mode: 'create' | 'edit', mcpServerId?: string) => void
-  handleMcpServerModalSubmit: (payload: { name: string; config: McpServerConfig }, mcpServerStore: McpServerOperations) => Promise<void>
 } {
   const { outputStyleStore, subAgentStore, commandStore, viewportStore } = stores
 
@@ -88,14 +69,6 @@ export function useEditModal(
     resourceType: 'outputStyle',
     itemId: '',
     showContent: true
-  })
-
-  const mcpServerModal = ref<McpServerModalState>({
-    visible: false,
-    mode: 'create',
-    mcpServerId: '',
-    initialName: '',
-    initialConfig: undefined
   })
 
   const resourceStoreMap: ResourceStoreMap = {
@@ -177,7 +150,9 @@ export function useEditModal(
     const data = await readActions[resourceType](id)
 
     if (!data) {
-      console.error(`無法讀取 ${resourceTitleMap[resourceType]} (id: ${id})，請確認後端是否正常運作`)
+      if (import.meta.env.DEV) {
+        console.error(`無法讀取 ${resourceTitleMap[resourceType]} (id: ${id})，請確認後端是否正常運作`)
+      }
       return
     }
 
@@ -241,57 +216,12 @@ export function useEditModal(
     editModal.value.visible = false
   }
 
-  function handleOpenMcpServerModal(mode: 'create' | 'edit', mcpServerId?: string): void {
-    mcpServerModal.value = {
-      visible: true,
-      mode,
-      mcpServerId: mcpServerId ?? '',
-      initialName: '',
-      initialConfig: undefined
-    }
-  }
-
-  async function handleMcpServerModalSubmit(
-    payload: { name: string; config: McpServerConfig },
-    mcpServerStore: McpServerOperations
-  ): Promise<void> {
-    const { name, config } = payload
-    const { mode, mcpServerId } = mcpServerModal.value
-
-    if (mode === 'edit') {
-      await mcpServerStore.updateMcpServer(mcpServerId, name, config)
-      mcpServerModal.value.visible = false
-      return
-    }
-
-    const result = await mcpServerStore.createMcpServer(name, config)
-
-    if (!result.success || !lastMenuPosition.value) {
-      mcpServerModal.value.visible = false
-      return
-    }
-
-    if (result.mcpServer) {
-      const position = getCanvasPosition()
-      if (position) {
-        await mcpServerStore.createNote(result.mcpServer.id, position.x, position.y)
-      }
-    }
-
-    mcpServerModal.value.visible = false
-  }
-
   return {
     editModal,
-    mcpServerModal,
     handleOpenCreateModal,
     handleOpenCreateGroupModal,
     handleOpenEditModal,
-    handleCreate,
-    handleUpdate,
     handleCreateEditSubmit,
-    closeEditModal,
-    handleOpenMcpServerModal,
-    handleMcpServerModalSubmit
+    closeEditModal
   }
 }

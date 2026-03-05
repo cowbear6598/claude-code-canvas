@@ -1,59 +1,15 @@
 <script setup lang="ts">
-import {ref, onMounted, onUnmounted, watch} from 'vue'
+import {ref, computed, watch} from 'vue'
 import {Send, Mic, Square} from 'lucide-vue-next'
 import {
   MAX_MESSAGE_LENGTH,
   TEXTAREA_MAX_HEIGHT,
-  MAX_IMAGE_SIZE_BYTES,
-  SUPPORTED_IMAGE_MEDIA_TYPES,
-  MAX_IMAGES_PER_DROP
 } from '@/lib/constants'
 import ScrollArea from '@/components/ui/scroll-area/ScrollArea.vue'
-import {useToast} from '@/composables/useToast'
-import type {ContentBlock, ImageMediaType} from '@/types/websocket/requests'
-import {walkDOM} from '@/utils/chatInputDOM'
-import type {DOMNodeHandlers} from '@/utils/chatInputDOM'
-
-interface SpeechRecognitionResult {
-  readonly [index: number]: { transcript: string }
-}
-
-interface SpeechRecognitionResultList {
-  readonly length: number
-
-  readonly [index: number]: SpeechRecognitionResult
-}
-
-interface SpeechRecognitionEventMap {
-  result: { results: SpeechRecognitionResultList }
-  end: Event
-  error: { error: string }
-}
-
-interface ISpeechRecognition {
-  lang: string
-  interimResults: boolean
-  continuous: boolean
-  onresult: ((event: SpeechRecognitionEventMap['result']) => void) | null
-  onend: (() => void) | null
-  onerror: ((event: SpeechRecognitionEventMap['error']) => void) | null
-
-  start(): void
-
-  stop(): void
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: new () => ISpeechRecognition
-    webkitSpeechRecognition: new () => ISpeechRecognition
-  }
-}
-
-interface ImageAttachment {
-  mediaType: ImageMediaType
-  base64Data: string
-}
+import type {ContentBlock} from '@/types/websocket/requests'
+import {useSpeechRecognition} from '@/composables/chat/useSpeechRecognition'
+import {useImageAttachment} from '@/composables/chat/useImageAttachment'
+import {useContentBlocks} from '@/composables/chat/useContentBlocks'
 
 const props = defineProps<{
   isTyping?: boolean
@@ -67,12 +23,9 @@ const emit = defineEmits<{
 
 const input = ref('')
 const editableRef = ref<HTMLDivElement | null>(null)
-const isListening = ref(false)
-const recognition = ref<ISpeechRecognition | null>(null)
 const isAborting = ref(false)
-const {toast} = useToast()
 
-const imageDataMap = new WeakMap<HTMLElement, ImageAttachment>()
+const disabledRef = computed(() => props.disabled ?? false)
 
 const moveCursorToEnd = (): void => {
   const element = editableRef.value
@@ -96,47 +49,6 @@ const updateText = (text: string): void => {
   input.value = truncated
   element.innerText = truncated
   moveCursorToEnd()
-}
-
-const textLengthHandlers: DOMNodeHandlers<number> = {
-  onText: (text) => text.length,
-  onBreak: () => 1,
-  onImage: () => 0,
-  combine: (results) => results.reduce((sum, n) => sum + n, 0),
-}
-
-const countTextLength = (node: Node): number => walkDOM(node, textLengthHandlers)
-
-const handleInput = (event: Event): void => {
-  const target = event.target as HTMLDivElement
-  const innerText = target.innerText
-
-  let textLength = 0
-  for (const child of Array.from(target.childNodes)) {
-    textLength += countTextLength(child)
-  }
-
-  if (textLength > MAX_MESSAGE_LENGTH) {
-    updateText(innerText)
-  } else {
-    input.value = innerText
-  }
-}
-
-const isValidImageType = (fileType: string): fileType is ImageMediaType => {
-  return SUPPORTED_IMAGE_MEDIA_TYPES.includes(fileType as ImageMediaType)
-}
-
-const createImageAtom = (mediaType: ImageMediaType, base64Data: string): HTMLSpanElement => {
-  const imageAtom = document.createElement('span')
-  imageAtom.contentEditable = 'false'
-  imageAtom.dataset.type = 'image'
-  imageAtom.className = 'image-atom'
-  imageAtom.textContent = '[image]'
-
-  imageDataMap.set(imageAtom, {mediaType, base64Data})
-
-  return imageAtom
 }
 
 const insertNodeAtCursor = (node: Node): void => {
@@ -164,60 +76,36 @@ const insertNodeAtCursor = (node: Node): void => {
   element.dispatchEvent(new Event('input', {bubbles: true}))
 }
 
-const readFileAsDataURL = (file: File): Promise<string | null> => {
-  return new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = (event): void => {
-      const result = event.target?.result
-      resolve(typeof result === 'string' ? result : null)
-    }
-    reader.onerror = (): void => resolve(null)
-    reader.readAsDataURL(file)
-  })
-}
+const {isListening, toggleListening} = useSpeechRecognition({
+  disabled: disabledRef,
+  currentText: input,
+  updateText,
+})
 
-const insertImageAtCursor = async (file: File): Promise<void> => {
-  if (file.size > MAX_IMAGE_SIZE_BYTES) {
-    toast({title: '圖片大小超過 5MB 限制'})
-    return
+const {imageDataMap, findImageFile, handleImagePaste, handleDrop} = useImageAttachment({
+  editableRef,
+  insertNodeAtCursor,
+})
+
+const {countTextLength, buildContentBlocks, extractTextFromBlocks} = useContentBlocks({
+  editableRef,
+  imageDataMap,
+})
+
+const handleInput = (event: Event): void => {
+  const target = event.target as HTMLDivElement
+  const innerText = target.innerText
+
+  let textLength = 0
+  for (const child of Array.from(target.childNodes)) {
+    textLength += countTextLength(child)
   }
 
-  if (!isValidImageType(file.type)) {
-    toast({
-      title: '不支援的圖片格式',
-      description: '僅支援 JPEG/PNG/GIF/WebP',
-    })
-    return
+  if (textLength > MAX_MESSAGE_LENGTH) {
+    updateText(innerText)
+  } else {
+    input.value = innerText
   }
-
-  const result = await readFileAsDataURL(file)
-  if (!result) {
-    toast({title: '圖片讀取失敗'})
-    return
-  }
-
-  if (!/^data:image\/(jpeg|png|gif|webp);base64,/.test(result)) {
-    toast({title: '圖片格式無效'})
-    return
-  }
-
-  const base64Data = result.split(',')[1]
-  if (!base64Data) {
-    toast({title: '圖片資料無效'})
-    return
-  }
-
-  const imageAtom = createImageAtom(file.type as ImageMediaType, base64Data)
-  insertNodeAtCursor(imageAtom)
-}
-
-const findImageFile = (files: FileList | null): File | undefined => {
-  if (!files || files.length === 0) return undefined
-  return Array.from(files).find(file => file.type.startsWith('image/'))
-}
-
-const handleImagePaste = async (imageFile: File): Promise<void> => {
-  await insertImageAtCursor(imageFile)
 }
 
 const handleTextPaste = (event: ClipboardEvent): void => {
@@ -235,7 +123,7 @@ const handleTextPaste = (event: ClipboardEvent): void => {
   range.setEndAfter(textNode)
   selection.removeAllRanges()
   selection.addRange(range)
-  // 同步更新 input.value，避免貼上後送出時檢查失敗
+  // 避免貼上後送出時檢查失敗
   input.value = editableRef.value?.innerText ?? ''
 }
 
@@ -249,84 +137,6 @@ const handlePaste = async (event: ClipboardEvent): Promise<void> => {
   }
 
   handleTextPaste(event)
-}
-
-const handleDrop = async (event: DragEvent): Promise<void> => {
-  event.preventDefault()
-
-  const files = event.dataTransfer?.files
-  if (!files || files.length === 0) return
-
-  const imageFiles = Array.from(files).filter(file => isValidImageType(file.type))
-  if (imageFiles.length > MAX_IMAGES_PER_DROP) {
-    toast({
-      title: '一次最多只能上傳 1 張圖片',
-    })
-  }
-
-  const fileToInsert = imageFiles[0]
-  if (!fileToInsert) return
-
-  await insertImageAtCursor(fileToInsert)
-}
-
-const flushTextToBlocks = (blocks: ContentBlock[], currentText: string[]): void => {
-  if (currentText.length === 0) return
-
-  const text = currentText.join('')
-  if (text.trim()) {
-    blocks.push({type: 'text', text})
-  }
-  currentText.length = 0
-}
-
-const makeContentBlockHandlers = (
-    blocks: ContentBlock[],
-    currentText: string[]
-): DOMNodeHandlers<void> => ({
-  onText: (text): void => { if (text) currentText.push(text) },
-  onBreak: (): void => { currentText.push('\n') },
-  onImage: (element): void => {
-    const imageData = imageDataMap.get(element)
-    if (imageData) {
-      flushTextToBlocks(blocks, currentText)
-      blocks.push({
-        type: 'image',
-        mediaType: imageData.mediaType,
-        base64Data: imageData.base64Data
-      })
-    }
-  },
-  combine: (): void => undefined,
-})
-
-const parseContentBlocks = (
-    node: Node,
-    blocks: ContentBlock[],
-    currentText: string[]
-): void => { walkDOM(node, makeContentBlockHandlers(blocks, currentText)) }
-
-const buildContentBlocks = (): ContentBlock[] => {
-  const element = editableRef.value
-  if (!element) return []
-
-  const blocks: ContentBlock[] = []
-  const currentText: string[] = []
-
-  for (const child of Array.from(element.childNodes)) {
-    parseContentBlocks(child, blocks, currentText)
-  }
-
-  flushTextToBlocks(blocks, currentText)
-
-  return blocks
-}
-
-const extractTextFromBlocks = (blocks: ContentBlock[]): string => {
-  return blocks
-      .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
-      .map(block => block.text)
-      .join('')
 }
 
 const clearInput = (): void => {
@@ -435,87 +245,10 @@ const handleKeyDown = (event: KeyboardEvent): void => {
   if (event.key === 'Backspace') return handleBackspaceKey(event)
 }
 
-const toggleListening = (): void => {
-  if (props.disabled) return
-  if (!recognition.value) {
-    toast({
-      title: '此瀏覽器不支援語音輸入功能',
-    })
-    return
-  }
-
-  if (isListening.value) {
-    recognition.value.stop()
-    isListening.value = false
-  } else {
-    recognition.value.start()
-    isListening.value = true
-    editableRef.value?.focus()
-  }
-}
-
-const createOnResultHandler = () => (event: SpeechRecognitionEventMap['result']): void => {
-  const lastResult = event.results[event.results.length - 1]
-  if (!lastResult) return
-  const transcript = lastResult[0]?.transcript
-  if (!transcript) return
-
-  if (input.value.length + transcript.length > MAX_MESSAGE_LENGTH) {
-    updateText((input.value + transcript).slice(0, MAX_MESSAGE_LENGTH))
-    recognition.value?.stop()
-    toast({title: '已達到最大文字長度限制'})
-    return
-  }
-
-  updateText(input.value + transcript)
-}
-
-const createOnErrorHandler = () => (event: SpeechRecognitionEventMap['error']): void => {
-  isListening.value = false
-  if (import.meta.env.DEV) {
-    console.warn('語音辨識錯誤：', event.error)
-  }
-}
-
-const initializeSpeechRecognition = (): void => {
-  const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition
-
-  if (!SpeechRecognitionConstructor) {
-    recognition.value = null
-    return
-  }
-
-  recognition.value = new SpeechRecognitionConstructor()
-  recognition.value.lang = 'zh-TW'
-  recognition.value.interimResults = false
-  recognition.value.continuous = true
-
-  recognition.value.onresult = createOnResultHandler()
-  recognition.value.onend = (): void => { isListening.value = false }
-  recognition.value.onerror = createOnErrorHandler()
-}
-
-const cleanupSpeechRecognition = (): void => {
-  if (!recognition.value) return
-
-  recognition.value.stop()
-  recognition.value.onresult = null
-  recognition.value.onend = null
-  recognition.value.onerror = null
-}
-
 watch(() => props.isTyping, (newValue, oldValue) => {
   if (oldValue === true && newValue === false) {
     isAborting.value = false
   }
-})
-
-onMounted(() => {
-  initializeSpeechRecognition()
-})
-
-onUnmounted(() => {
-  cleanupSpeechRecognition()
 })
 </script>
 

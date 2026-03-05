@@ -33,7 +33,7 @@ const gridStyle = computed(() => {
 })
 
 const handleContextMenu = (e: MouseEvent): void => {
-  e.preventDefault() // 只阻止瀏覽器原生右鍵選單，自定義選單由 useCanvasPan 的回呼處理
+  e.preventDefault() // 自定義選單由 useCanvasPan 的回呼處理
 }
 
 const handleMouseDown = (e: MouseEvent): void => {

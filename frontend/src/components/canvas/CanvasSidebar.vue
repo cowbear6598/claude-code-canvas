@@ -161,7 +161,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
-import type {Canvas} from '@/types/canvas'
+import {useCanvasDragReorder} from '@/composables/canvas/useCanvasDragReorder'
 
 interface Props {
   open: boolean
@@ -189,10 +189,18 @@ const showDeleteDialog = ref(false)
 const deleteTargetId = ref<string | null>(null)
 const deleteTargetName = ref('')
 
-const draggedIndex = ref<number | null>(null)
-const dragOverIndex = ref<number | null>(null)
-const isDraggingOver = ref(false)
-const originalCanvases = ref<Canvas[]>([])
+const {
+  draggedIndex,
+  dragOverIndex,
+  handleDragStart,
+  handleDragEnd,
+  handleDragOver,
+  handleDragEnter,
+  handleDragLeave,
+  handleDrop,
+  handleSidebarDragLeave,
+  cancelDrag,
+} = useCanvasDragReorder(sidebarRef)
 
 const handleClose = (): void => {
   emit('update:open', false)
@@ -298,99 +306,9 @@ const handleKeyDown = (event: KeyboardEvent): void => {
   }
 }
 
-const handleDragStart = (event: Event, index: number): void => {
-  if (!(event instanceof DragEvent)) return
-  if (!event.dataTransfer) return
-
-  const canvas = canvasStore.canvases[index]
-  if (!canvas) return
-
-  draggedIndex.value = index
-  originalCanvases.value = JSON.parse(JSON.stringify(canvasStore.canvases))
-
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', canvas.id)
-
-  canvasStore.setDragging(true, canvas.id)
-}
-
-const handleDragEnd = (): void => {
-  draggedIndex.value = null
-  dragOverIndex.value = null
-  isDraggingOver.value = false
-  canvasStore.setDragging(false, null)
-}
-
-const handleDragOver = (event: Event, index: number): void => {
-  if (!(event instanceof DragEvent)) return
-
-  event.preventDefault()
-  if (!event.dataTransfer) return
-
-  event.dataTransfer.dropEffect = 'move'
-  dragOverIndex.value = index
-}
-
-const handleDragEnter = (event: Event, index: number): void => {
-  dragOverIndex.value = index
-}
-
-const handleDragLeave = (event: Event): void => {
-  if (!(event instanceof DragEvent)) return
-
-  const relatedTarget = event.relatedTarget
-
-  if (!(relatedTarget instanceof HTMLElement)) {
-    dragOverIndex.value = null
-    return
-  }
-
-  if (!sidebarRef.value?.contains(relatedTarget)) {
-    dragOverIndex.value = null
-  }
-}
-
-const handleDrop = (event: Event, targetIndex: number): void => {
-  if (!(event instanceof DragEvent)) return
-
-  event.preventDefault()
-
-  if (draggedIndex.value === null || draggedIndex.value === targetIndex) {
-    return
-  }
-
-  canvasStore.reorderCanvases(draggedIndex.value, targetIndex)
-
-  draggedIndex.value = null
-  dragOverIndex.value = null
-  isDraggingOver.value = false
-}
-
-const handleSidebarDragLeave = (event: Event): void => {
-  if (!(event instanceof DragEvent)) return
-
-  const relatedTarget = event.relatedTarget
-
-  if (!(relatedTarget instanceof HTMLElement)) {
-    cancelDrag()
-    return
-  }
-
-  if (!sidebarRef.value?.contains(relatedTarget)) {
-    cancelDrag()
-  }
-}
-
-const cancelDrag = (): void => {
-  if (draggedIndex.value !== null && originalCanvases.value.length > 0) {
-    canvasStore.revertCanvasOrder(originalCanvases.value)
-  }
-
-  draggedIndex.value = null
-  dragOverIndex.value = null
-  isDraggingOver.value = false
-  originalCanvases.value = []
-  canvasStore.setDragging(false, null)
+const removeDocumentListeners = (): void => {
+  document.removeEventListener('mousedown', handleClickOutside)
+  document.removeEventListener('keydown', handleKeyDown)
 }
 
 watch(() => props.open, (isOpen) => {
@@ -400,16 +318,14 @@ watch(() => props.open, (isOpen) => {
       document.addEventListener('keydown', handleKeyDown)
     })
   } else {
-    document.removeEventListener('mousedown', handleClickOutside)
-    document.removeEventListener('keydown', handleKeyDown)
+    removeDocumentListeners()
     cancelCreate()
     cancelRename()
   }
 })
 
 onUnmounted(() => {
-  document.removeEventListener('mousedown', handleClickOutside)
-  document.removeEventListener('keydown', handleKeyDown)
+  removeDocumentListeners()
 })
 </script>
 

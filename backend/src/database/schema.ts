@@ -1,7 +1,6 @@
 import { Database } from 'bun:sqlite';
 
 export function createTables(db: Database): void {
-  // canvases：畫布主表
   db.exec(
     'CREATE TABLE IF NOT EXISTS canvases (' +
       'id TEXT PRIMARY KEY,' +
@@ -10,7 +9,6 @@ export function createTables(db: Database): void {
       ')'
   );
 
-  // pods：畫布中的 agent 節點
   db.exec(
     'CREATE TABLE IF NOT EXISTS pods (' +
       'id TEXT PRIMARY KEY,' +
@@ -33,7 +31,6 @@ export function createTables(db: Database): void {
   );
   db.exec('CREATE INDEX IF NOT EXISTS idx_pods_canvas_id ON pods(canvas_id)');
 
-  // pod_skill_ids：pod 與技能的多對多關聯
   db.exec(
     'CREATE TABLE IF NOT EXISTS pod_skill_ids (' +
       'pod_id TEXT NOT NULL REFERENCES pods(id) ON DELETE CASCADE,' +
@@ -42,7 +39,6 @@ export function createTables(db: Database): void {
       ')'
   );
 
-  // pod_sub_agent_ids：pod 與子代理的多對多關聯
   db.exec(
     'CREATE TABLE IF NOT EXISTS pod_sub_agent_ids (' +
       'pod_id TEXT NOT NULL REFERENCES pods(id) ON DELETE CASCADE,' +
@@ -51,7 +47,6 @@ export function createTables(db: Database): void {
       ')'
   );
 
-  // pod_mcp_server_ids：pod 與 MCP server 的多對多關聯
   db.exec(
     'CREATE TABLE IF NOT EXISTS pod_mcp_server_ids (' +
       'pod_id TEXT NOT NULL REFERENCES pods(id) ON DELETE CASCADE,' +
@@ -60,7 +55,6 @@ export function createTables(db: Database): void {
       ')'
   );
 
-  // connections：pod 之間的連線
   db.exec(
     'CREATE TABLE IF NOT EXISTS connections (' +
       'id TEXT PRIMARY KEY,' +
@@ -79,7 +73,6 @@ export function createTables(db: Database): void {
   db.exec('CREATE INDEX IF NOT EXISTS idx_connections_source_pod_id ON connections(source_pod_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_connections_target_pod_id ON connections(target_pod_id)');
 
-  // notes：畫布上的附註節點
   db.exec(
     'CREATE TABLE IF NOT EXISTS notes (' +
       'id TEXT PRIMARY KEY,' +
@@ -98,7 +91,6 @@ export function createTables(db: Database): void {
   db.exec('CREATE INDEX IF NOT EXISTS idx_notes_bound_to_pod_id ON notes(bound_to_pod_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_notes_foreign_key_id ON notes(foreign_key_id)');
 
-  // messages：pod 的對話紀錄
   db.exec(
     'CREATE TABLE IF NOT EXISTS messages (' +
       'id TEXT PRIMARY KEY,' +
@@ -112,7 +104,6 @@ export function createTables(db: Database): void {
   );
   db.exec('CREATE INDEX IF NOT EXISTS idx_messages_pod_id ON messages(pod_id)');
 
-  // slack_apps：Slack 應用程式設定
   db.exec(
     'CREATE TABLE IF NOT EXISTS slack_apps (' +
       'id TEXT PRIMARY KEY,' +
@@ -123,7 +114,6 @@ export function createTables(db: Database): void {
       ')'
   );
 
-  // slack_app_channels：Slack 應用程式與頻道的關聯
   db.exec(
     'CREATE TABLE IF NOT EXISTS slack_app_channels (' +
       'slack_app_id TEXT NOT NULL REFERENCES slack_apps(id) ON DELETE CASCADE,' +
@@ -133,7 +123,6 @@ export function createTables(db: Database): void {
       ')'
   );
 
-  // repository_metadata：Git 儲存庫的元資料
   db.exec(
     'CREATE TABLE IF NOT EXISTS repository_metadata (' +
       'id TEXT PRIMARY KEY,' +
@@ -145,7 +134,6 @@ export function createTables(db: Database): void {
       ')'
   );
 
-  // mcp_servers：MCP Server 設定
   db.exec(
     'CREATE TABLE IF NOT EXISTS mcp_servers (' +
       'id TEXT PRIMARY KEY,' +
@@ -154,7 +142,6 @@ export function createTables(db: Database): void {
       ')'
   );
 
-  // pod_manifests：pod 與儲存庫的檔案清單關聯
   db.exec(
     'CREATE TABLE IF NOT EXISTS pod_manifests (' +
       'pod_id TEXT NOT NULL,' +

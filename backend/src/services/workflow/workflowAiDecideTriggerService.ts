@@ -149,6 +149,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
 
     if (decideResult.approved) {
       this.handleApprovedConnection(canvasId, sourcePodId, connection, decideResult);
+      this.triggerApprovedPipeline(canvasId, sourcePodId, connection, decideResult);
       return;
     }
 
@@ -226,7 +227,14 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
       reason: decideResult.reason ?? '',
     });
     this.logConnectionEvent('log', 'Create', canvasId, sourcePodId, connection, `AI Decide 核准`, decideResult.reason ?? undefined);
+  }
 
+  private triggerApprovedPipeline(
+    canvasId: string,
+    sourcePodId: string,
+    connection: Connection,
+    decideResult: TriggerDecideResult
+  ): void {
     const pipelineContext: PipelineContext = {
       canvasId,
       sourcePodId,

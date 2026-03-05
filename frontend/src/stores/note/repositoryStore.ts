@@ -42,11 +42,11 @@ function toFailure(error: string): { success: false; error: string } {
 }
 
 function createRepositoryCustomActions(): RepositoryStoreCustomActions {
+  const { executeAction } = useCanvasWebSocketAction()
+  const { showSuccessToast, showErrorToast } = useToast()
+
   return {
     async createRepository(this: NoteStoreContext<Repository>, name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }> {
-      const { executeAction } = useCanvasWebSocketAction()
-      const { showSuccessToast, showErrorToast } = useToast()
-
       const result = await executeAction<RepositoryCreatePayload, RepositoryCreatedPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_CREATE,
@@ -78,8 +78,6 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
     },
 
     async checkIsGit(this: NoteStoreContext<Repository>, repositoryId: string): Promise<boolean> {
-      const { executeAction } = useCanvasWebSocketAction()
-
       const result = await executeAction<RepositoryCheckGitPayload, RepositoryCheckGitResultPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_CHECK_GIT,
@@ -100,9 +98,6 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
     },
 
     async createWorktree(this: NoteStoreContext<Repository>, repositoryId: string, worktreeName: string, sourceNotePosition: { x: number; y: number }): Promise<{ success: boolean; error?: string }> {
-      const { executeAction } = useCanvasWebSocketAction()
-      const { showSuccessToast, showErrorToast } = useToast()
-
       const result = await executeAction<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
@@ -135,8 +130,6 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
     },
 
     async getLocalBranches(this: NoteStoreContext<Repository>, repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; worktreeBranches?: string[]; error?: string }> {
-      const { executeAction } = useCanvasWebSocketAction()
-
       const result = await executeAction<RepositoryGetLocalBranchesPayload, RepositoryLocalBranchesResultPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_GET_LOCAL_BRANCHES,
@@ -158,8 +151,6 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
     },
 
     async checkDirty(this: NoteStoreContext<Repository>, repositoryId: string): Promise<{ success: boolean; isDirty?: boolean; error?: string }> {
-      const { executeAction } = useCanvasWebSocketAction()
-
       const result = await executeAction<RepositoryCheckDirtyPayload, RepositoryDirtyCheckResultPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_CHECK_DIRTY,
@@ -197,9 +188,6 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
     },
 
     async deleteBranch(this: NoteStoreContext<Repository>, repositoryId: string, branchName: string): Promise<{ success: boolean; branchName?: string; error?: string }> {
-      const { executeAction } = useCanvasWebSocketAction()
-      const { showSuccessToast, showErrorToast } = useToast()
-
       const result = await executeAction<RepositoryDeleteBranchPayload, RepositoryBranchDeletedPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_DELETE_BRANCH,

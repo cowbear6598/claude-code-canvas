@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import type { Database } from 'bun:sqlite';
 import { WebSocketResponseEvents } from '../schemas';
 import type { Pod, PodStatus, CreatePodRequest, ScheduleConfig } from '../types';
 import type { PodSlackBinding } from '../types';
@@ -224,24 +225,15 @@ class PodStore {
         });
 
         if (updates.skillIds !== undefined) {
-            this.stmts.podSkillIds.deleteByPodId.run(id);
-            for (const skillId of updates.skillIds) {
-                this.stmts.podSkillIds.insert.run({ $podId: id, $skillId: skillId });
-            }
+            this.replaceJoinTableIds(id, this.stmts.podSkillIds, updates.skillIds, valueId => ({ $podId: id, $skillId: valueId }));
         }
 
         if (updates.subAgentIds !== undefined) {
-            this.stmts.podSubAgentIds.deleteByPodId.run(id);
-            for (const subAgentId of updates.subAgentIds) {
-                this.stmts.podSubAgentIds.insert.run({ $podId: id, $subAgentId: subAgentId });
-            }
+            this.replaceJoinTableIds(id, this.stmts.podSubAgentIds, updates.subAgentIds, valueId => ({ $podId: id, $subAgentId: valueId }));
         }
 
         if (updates.mcpServerIds !== undefined) {
-            this.stmts.podMcpServerIds.deleteByPodId.run(id);
-            for (const mcpServerId of updates.mcpServerIds) {
-                this.stmts.podMcpServerIds.insert.run({ $podId: id, $mcpServerId: mcpServerId });
-            }
+            this.replaceJoinTableIds(id, this.stmts.podMcpServerIds, updates.mcpServerIds, valueId => ({ $podId: id, $mcpServerId: valueId }));
         }
 
         return { pod: updatedPod, persisted: Promise.resolve() };
@@ -303,43 +295,61 @@ class PodStore {
         return Promise.resolve();
     }
 
-    findBySkillId(canvasId: string, skillId: string): Pod[] {
-        const podIdRows = this.stmts.podSkillIds.selectBySkillId.all(skillId) as Array<{ pod_id: string }>;
+    private findByJoinTableId(
+        canvasId: string,
+        selectByValueId: ReturnType<typeof getStatements>['podSkillIds']['selectBySkillId'],
+        valueId: string
+    ): Pod[] {
+        const podIdRows = selectByValueId.all(valueId) as Array<{ pod_id: string }>;
         return podIdRows
             .map(r => this.stmts.pod.selectByCanvasIdAndId.get(canvasId, r.pod_id) as PodRow | undefined)
             .filter((row): row is PodRow => row !== undefined)
             .map(rowToPod);
+    }
+
+    private replaceJoinTableIds(
+        podId: string,
+        stmtGroup: { deleteByPodId: ReturnType<typeof getStatements>['podSkillIds']['deleteByPodId']; insert: ReturnType<typeof getStatements>['podSkillIds']['insert'] },
+        valueIds: string[],
+        buildParams: (valueId: string) => Record<string, string>
+    ): void {
+        stmtGroup.deleteByPodId.run(podId);
+        for (const valueId of valueIds) {
+            stmtGroup.insert.run(buildParams(valueId));
+        }
+    }
+
+    findBySkillId(canvasId: string, skillId: string): Pod[] {
+        return this.findByJoinTableId(canvasId, this.stmts.podSkillIds.selectBySkillId, skillId);
     }
 
     findBySubAgentId(canvasId: string, subAgentId: string): Pod[] {
-        const podIdRows = this.stmts.podSubAgentIds.selectBySubAgentId.all(subAgentId) as Array<{ pod_id: string }>;
-        return podIdRows
-            .map(r => this.stmts.pod.selectByCanvasIdAndId.get(canvasId, r.pod_id) as PodRow | undefined)
-            .filter((row): row is PodRow => row !== undefined)
-            .map(rowToPod);
+        return this.findByJoinTableId(canvasId, this.stmts.podSubAgentIds.selectBySubAgentId, subAgentId);
     }
 
     findByMcpServerId(canvasId: string, mcpServerId: string): Pod[] {
-        const podIdRows = this.stmts.podMcpServerIds.selectByMcpServerId.all(mcpServerId) as Array<{ pod_id: string }>;
-        return podIdRows
-            .map(r => this.stmts.pod.selectByCanvasIdAndId.get(canvasId, r.pod_id) as PodRow | undefined)
-            .filter((row): row is PodRow => row !== undefined)
-            .map(rowToPod);
+        return this.findByJoinTableId(canvasId, this.stmts.podMcpServerIds.selectByMcpServerId, mcpServerId);
+    }
+
+    private findByDirectColumn(
+        canvasId: string,
+        statement: ReturnType<Database['prepare']>,
+        id: string
+    ): Pod[] {
+        const rows = statement.all(id) as PodRow[];
+        return rows.filter(r => r.canvas_id === canvasId).map(rowToPod);
     }
 
     findByCommandId(canvasId: string, commandId: string): Pod[] {
-        const rows = this.stmts.pod.selectByCommandId.all(commandId) as PodRow[];
-        return rows.filter(r => r.canvas_id === canvasId).map(rowToPod);
+        return this.findByDirectColumn(canvasId, this.stmts.pod.selectByCommandId, commandId);
     }
 
     findByOutputStyleId(canvasId: string, outputStyleId: string): Pod[] {
-        const rows = this.stmts.pod.selectByOutputStyleId.all(outputStyleId) as PodRow[];
-        return rows.filter(r => r.canvas_id === canvasId).map(rowToPod);
+        return this.findByDirectColumn(canvasId, this.stmts.pod.selectByOutputStyleId, outputStyleId);
     }
 
     findByRepositoryId(canvasId: string, repositoryId: string): Pod[] {
-        const rows = this.stmts.pod.selectByRepositoryId.all(repositoryId) as PodRow[];
-        return rows.filter(r => r.canvas_id === canvasId).map(rowToPod);
+        return this.findByDirectColumn(canvasId, this.stmts.pod.selectByRepositoryId, repositoryId);
     }
 
     setRepositoryId(canvasId: string, id: string, repositoryId: string | null): Promise<void> {

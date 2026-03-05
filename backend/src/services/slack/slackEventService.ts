@@ -188,29 +188,30 @@ class SlackEventService {
 
         const escapedUserName = escapeSlackInput(message.userName);
         const escapedText = escapeSlackInput(message.text);
-        const formattedText = `[Slack: @${escapedUserName}] ${escapedText}`;
+        // 第一層：escapeSlackInput 處理特殊字元；第二層：<user_data> 標籤作為結構性隔離
+        const formattedText = `[Slack: @${escapedUserName}] <user_data>${escapedText}</user_data>`;
 
         podStore.setStatus(canvasId, podId, 'chatting');
 
+        await messageStore.addMessage(canvasId, podId, 'user', formattedText);
+
+        socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_CHAT_USER_MESSAGE, {
+            canvasId,
+            podId,
+            messageId: uuidv4(),
+            content: formattedText,
+            timestamp: new Date().toISOString(),
+        });
+
+        logger.log('Slack', 'Complete', `[SlackEventService] 注入 Slack 訊息至 Pod「${podName}」`);
+
+        const onComplete = createPostChatCompleteCallback(
+            (canvasId, podId) => autoClearService.onPodComplete(canvasId, podId),
+            (canvasId, podId) => workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId),
+            'Slack'
+        );
+
         try {
-            await messageStore.addMessage(canvasId, podId, 'user', formattedText);
-
-            socketService.emitToCanvas(canvasId, WebSocketResponseEvents.POD_CHAT_USER_MESSAGE, {
-                canvasId,
-                podId,
-                messageId: uuidv4(),
-                content: formattedText,
-                timestamp: new Date().toISOString(),
-            });
-
-            logger.log('Slack', 'Complete', `[SlackEventService] 注入 Slack 訊息至 Pod「${podName}」`);
-
-            const onComplete = createPostChatCompleteCallback(
-                (canvasId, podId) => autoClearService.onPodComplete(canvasId, podId),
-                (canvasId, podId) => workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId),
-                'Slack'
-            );
-
             await executeStreamingChat(
                 {canvasId, podId, message: formattedText, abortable: false},
                 {onComplete}

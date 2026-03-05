@@ -131,7 +131,6 @@ function buildStatements(db: Database): {
   };
 } {
   return {
-    // canvas 相關
     canvas: {
       insert: db.prepare('INSERT INTO canvases (id, name, sort_index) VALUES ($id, $name, $sortIndex)'),
       selectAll: db.prepare('SELECT * FROM canvases ORDER BY sort_index ASC'),
@@ -143,7 +142,6 @@ function buildStatements(db: Database): {
       deleteById: db.prepare('DELETE FROM canvases WHERE id = ?'),
     },
 
-    // pod 相關
     pod: {
       insert: db.prepare(
         'INSERT INTO pods (id, canvas_id, name, status, x, y, rotation, model, workspace_path, claude_session_id, output_style_id, repository_id, command_id, auto_clear, schedule_json, slack_binding_json) VALUES ($id, $canvasId, $name, $status, $x, $y, $rotation, $model, $workspacePath, $claudeSessionId, $outputStyleId, $repositoryId, $commandId, $autoClear, $scheduleJson, $slackBindingJson)',
@@ -177,7 +175,6 @@ function buildStatements(db: Database): {
       deleteByCanvasId: db.prepare('DELETE FROM pods WHERE canvas_id = ?'),
     },
 
-    // pod 多對多關聯表
     podSkillIds: {
       insert: db.prepare('INSERT OR IGNORE INTO pod_skill_ids (pod_id, skill_id) VALUES ($podId, $skillId)'),
       selectByPodId: db.prepare('SELECT skill_id FROM pod_skill_ids WHERE pod_id = ?'),
@@ -210,7 +207,6 @@ function buildStatements(db: Database): {
       selectByMcpServerId: db.prepare('SELECT pod_id FROM pod_mcp_server_ids WHERE mcp_server_id = ?'),
     },
 
-    // connection 相關
     connection: {
       insert: db.prepare(
         'INSERT INTO connections (id, canvas_id, source_pod_id, source_anchor, target_pod_id, target_anchor, trigger_mode, decide_status, decide_reason, connection_status) VALUES ($id, $canvasId, $sourcePodId, $sourceAnchor, $targetPodId, $targetAnchor, $triggerMode, $decideStatus, $decideReason, $connectionStatus)',
@@ -248,7 +244,6 @@ function buildStatements(db: Database): {
       ),
     },
 
-    // note 相關
     note: {
       insert: db.prepare(
         'INSERT INTO notes (id, canvas_id, type, name, x, y, bound_to_pod_id, original_position_json, foreign_key_id) VALUES ($id, $canvasId, $type, $name, $x, $y, $boundToPodId, $originalPositionJson, $foreignKeyId)',
@@ -279,7 +274,6 @@ function buildStatements(db: Database): {
       ),
     },
 
-    // message 相關
     message: {
       insert: db.prepare(
         'INSERT INTO messages (id, pod_id, canvas_id, role, content, timestamp, sub_messages_json) VALUES ($id, $podId, $canvasId, $role, $content, $timestamp, $subMessagesJson)',
@@ -293,7 +287,6 @@ function buildStatements(db: Database): {
       deleteByCanvasId: db.prepare('DELETE FROM messages WHERE canvas_id = ?'),
     },
 
-    // slackApp 相關
     slackApp: {
       insert: db.prepare(
         'INSERT INTO slack_apps (id, name, bot_token, signing_secret, bot_user_id) VALUES ($id, $name, $botToken, $signingSecret, $botUserId)',
@@ -308,7 +301,6 @@ function buildStatements(db: Database): {
       deleteById: db.prepare('DELETE FROM slack_apps WHERE id = ?'),
     },
 
-    // slackAppChannel 相關
     slackAppChannel: {
       insert: db.prepare(
         'INSERT OR IGNORE INTO slack_app_channels (slack_app_id, channel_id, channel_name) VALUES ($slackAppId, $channelId, $channelName)',
@@ -317,7 +309,6 @@ function buildStatements(db: Database): {
       deleteByAppId: db.prepare('DELETE FROM slack_app_channels WHERE slack_app_id = ?'),
     },
 
-    // repositoryMetadata 相關
     repositoryMetadata: {
       upsert: db.prepare(
         'INSERT OR REPLACE INTO repository_metadata (id, name, path, parent_repo_id, branch_name, current_branch) VALUES ($id, $name, $path, $parentRepoId, $branchName, $currentBranch)',
@@ -327,7 +318,6 @@ function buildStatements(db: Database): {
       deleteById: db.prepare('DELETE FROM repository_metadata WHERE id = ?'),
     },
 
-    // mcpServer 相關
     mcpServer: {
       insert: db.prepare('INSERT INTO mcp_servers (id, name, config_json) VALUES ($id, $name, $configJson)'),
       selectAll: db.prepare('SELECT * FROM mcp_servers'),
@@ -336,7 +326,6 @@ function buildStatements(db: Database): {
       deleteById: db.prepare('DELETE FROM mcp_servers WHERE id = ?'),
     },
 
-    // podManifest 相關
     podManifest: {
       upsert: db.prepare(
         'INSERT OR REPLACE INTO pod_manifests (pod_id, repository_id, files_json) VALUES ($podId, $repositoryId, $filesJson)',

@@ -24,9 +24,9 @@ async function deleteSelectedElements(): Promise<void> {
   const deletePromises: Promise<void>[] = []
 
   for (const element of selectedElements) {
-    const deleteFn = storeMap[element.type]
-    if (deleteFn) {
-      deletePromises.push(deleteFn(element.id))
+    const deleteFunction = storeMap[element.type]
+    if (deleteFunction) {
+      deletePromises.push(deleteFunction(element.id))
     }
   }
 
@@ -38,7 +38,9 @@ async function deleteSelectedElements(): Promise<void> {
   if (failedCount > 0) {
     failedResults.forEach((result) => {
       if (result.status === 'rejected') {
-        console.error('刪除元素失敗:', result.reason)
+        if (import.meta.env.DEV) {
+          console.error('刪除元素失敗:', result.reason)
+        }
       }
     })
 

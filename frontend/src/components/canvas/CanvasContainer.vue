@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import {computed, onUnmounted, ref} from 'vue'
+import {computed, ref} from 'vue'
 import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
-import {useDeleteSelection, useGitCloneProgress, useCheckoutProgress, usePullProgress, useNoteEventHandlers} from '@/composables/canvas'
+import {useDeleteSelection} from '@/composables/canvas'
 import {useRemoteCursors} from '@/composables/canvas/useRemoteCursors'
 import {useCursorTracker} from '@/composables/canvas/useCursorTracker'
-import {useContextMenu} from '@/composables/canvas/useContextMenu'
 import {useEditModal} from '@/composables/canvas/useEditModal'
+import {useMcpServerModal} from '@/composables/canvas/useMcpServerModal'
 import {useDeleteResource} from '@/composables/canvas/useDeleteResource'
+import {useCanvasProgressTasks} from '@/composables/canvas/useCanvasProgressTasks'
+import {useCanvasContextMenus} from '@/composables/canvas/useCanvasContextMenus'
+import {useCanvasNoteHandlers} from '@/composables/canvas/useCanvasNoteHandlers'
 import {isCtrlOrCmdPressed} from '@/utils/keyboardHelpers'
 import CanvasViewport from './CanvasViewport.vue'
 import RemoteCursorLayer from './RemoteCursorLayer.vue'
@@ -15,7 +18,6 @@ import PodTypeMenu from './PodTypeMenu.vue'
 import CanvasPod from '@/components/pod/CanvasPod.vue'
 import GenericNote from './GenericNote.vue'
 import ProgressNote from './ProgressNote.vue'
-import type { ProgressTask } from './ProgressNote.vue'
 import TrashZone from './TrashZone.vue'
 import ConnectionLayer from './ConnectionLayer.vue'
 import SelectionBox from './SelectionBox.vue'
@@ -28,7 +30,7 @@ import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 import CreateEditModal from './CreateEditModal.vue'
 import McpServerModal from './McpServerModal.vue'
 import SlackConnectModal from '@/components/slack/SlackConnectModal.vue'
-import type {Pod, PodTypeConfig, Position, McpServerConfig, TriggerMode} from '@/types'
+import type {Pod, PodTypeConfig, Position, McpServerConfig} from '@/types'
 import {
   POD_MENU_X_OFFSET,
   POD_MENU_Y_OFFSET,
@@ -36,8 +38,6 @@ import {
 } from '@/lib/constants'
 import { screenToCanvasPosition } from '@/lib/canvasCoordinateUtils'
 import { useSlackStore } from '@/stores/slackStore'
-
-type EditableNoteType = 'outputStyle' | 'subAgent' | 'command'
 
 const {
   podStore,
@@ -59,39 +59,7 @@ const viewportRef = ref<InstanceType<typeof CanvasViewport> | null>(null)
 const viewportContainerRef = computed(() => viewportRef.value?.el ?? null)
 useCursorTracker(viewportContainerRef)
 
-const gitCloneProgress = useGitCloneProgress()
-const checkoutProgress = useCheckoutProgress()
-const pullProgress = usePullProgress()
-
 const trashZoneRef = ref<InstanceType<typeof TrashZone> | null>(null)
-
-const {
-  state: repositoryContextMenu,
-  open: openRepositoryContextMenu,
-  close: closeRepositoryContextMenu,
-} = useContextMenu({
-  repositoryId: '',
-  repositoryName: '',
-  notePosition: {x: 0, y: 0},
-  isWorktree: false,
-})
-
-const {
-  state: connectionContextMenu,
-  open: openConnectionContextMenu,
-  close: closeConnectionContextMenu,
-} = useContextMenu({
-  connectionId: '',
-  triggerMode: 'auto' as TriggerMode,
-})
-
-const {
-  state: podContextMenu,
-  open: openPodContextMenu,
-  close: closePodContextMenu,
-} = useContextMenu({
-  podId: '',
-})
 
 const showCreateRepositoryModal = ref(false)
 const showCloneRepositoryModal = ref(false)
@@ -104,17 +72,20 @@ const slackConnectModal = ref<{ visible: boolean; podId: string }>({
 
 const {
   editModal,
-  mcpServerModal,
   handleOpenCreateModal,
   handleOpenCreateGroupModal,
   handleOpenEditModal,
   handleCreateEditSubmit,
-  handleOpenMcpServerModal: openMcpServerModal,
-  handleMcpServerModalSubmit: submitMcpServerModal,
 } = useEditModal(
   { outputStyleStore, subAgentStore, commandStore, viewportStore },
   lastMenuPosition
 )
+
+const {
+  mcpServerModal,
+  handleOpenMcpServerModal: openMcpServerModal,
+  handleMcpServerModalSubmit: submitMcpServerModal,
+} = useMcpServerModal({ viewportStore, lastMenuPosition })
 
 const {
   showDeleteModal,
@@ -132,31 +103,46 @@ const {
   mcpServerStore,
 })
 
-const noteConfigs = [
-  { store: outputStyleStore, type: 'outputStyle' as const },
-  { store: skillStore, type: 'skill' as const },
-  { store: subAgentStore, type: 'subAgent' as const },
-  { store: repositoryStore, type: 'repository' as const },
-  { store: commandStore, type: 'command' as const },
-  { store: mcpServerStore, type: 'mcpServer' as const },
-] as const
+const { allProgressTasks, handleCloneStarted, handlePullStarted } = useCanvasProgressTasks()
 
-const allNoteStores = noteConfigs.map(config => config.store)
+const {
+  repositoryContextMenu,
+  connectionContextMenu,
+  podContextMenu,
+  closeRepositoryContextMenu,
+  closeConnectionContextMenu,
+  closePodContextMenu,
+  handleRepositoryContextMenu,
+  handleConnectionContextMenu,
+  handlePodContextMenu,
+} = useCanvasContextMenus({ repositoryStore, connectionStore, podStore })
 
-const checkAnyStoreProperty = (property: 'isDraggingNote' | 'isOverTrash'): boolean =>
-  allNoteStores.some(store => store[property])
-
-const showTrashZone = computed(() => checkAnyStoreProperty('isDraggingNote'))
-const isTrashHighlighted = computed(() => checkAnyStoreProperty('isOverTrash'))
-
-const isCanvasEmpty = computed(() =>
-    podStore.podCount === 0 &&
-    allNoteStores.every(store => store.notes.length === 0)
-)
-
-const noteHandlerMap = Object.fromEntries(
-  noteConfigs.map(config => [config.type, useNoteEventHandlers({ store: config.store, trashZoneRef })])
-) as Record<typeof noteConfigs[number]['type'], ReturnType<typeof useNoteEventHandlers>>
+const {
+  noteHandlerMap,
+  showTrashZone,
+  isTrashHighlighted,
+  isCanvasEmpty,
+  handleCreateOutputStyleNote,
+  handleCreateSkillNote,
+  handleCreateSubAgentNote,
+  handleCreateRepositoryNote,
+  handleCreateCommandNote,
+  handleCreateMcpServerNote,
+  getRepositoryBranchName,
+  handleNoteDoubleClick,
+} = useCanvasNoteHandlers({
+  podStore,
+  viewportStore,
+  outputStyleStore,
+  skillStore,
+  subAgentStore,
+  repositoryStore,
+  commandStore,
+  mcpServerStore,
+  trashZoneRef,
+  handleOpenEditModal,
+  mcpServerModal,
+})
 
 const handleContextMenu = (e: MouseEvent): void => {
   e.preventDefault()
@@ -250,62 +236,6 @@ const handlePodDragComplete = (data: { id: string }): void => {
   podStore.syncPodPosition(data.id)
 }
 
-const createNoteHandler = (store: { createNote: (id: string, x: number, y: number) => void }) => {
-  return (itemId: string): void => {
-    if (!podStore.typeMenu.position) return
-
-    const { x, y } = screenToCanvasPosition(podStore.typeMenu.position, viewportStore)
-
-    store.createNote(itemId, x, y)
-  }
-}
-
-const handleCreateOutputStyleNote = createNoteHandler(outputStyleStore)
-const handleCreateSkillNote = createNoteHandler(skillStore)
-const handleCreateSubAgentNote = createNoteHandler(subAgentStore)
-const handleCreateRepositoryNote = createNoteHandler(repositoryStore)
-const handleCreateCommandNote = createNoteHandler(commandStore)
-const handleCreateMcpServerNote = createNoteHandler(mcpServerStore)
-
-const getRepositoryBranchName = (repositoryId: string): string | undefined => {
-  const repository = repositoryStore.typedAvailableItems.find(r => r.id === repositoryId)
-  return repository?.currentBranch ?? repository?.branchName
-}
-
-const handleRepositoryContextMenu = (data: { noteId: string; event: MouseEvent }): void => {
-  const note = repositoryStore.typedNotes.find(note => note.id === data.noteId)
-  if (!note) return
-
-  const repository = repositoryStore.typedAvailableItems.find(r => r.id === note.repositoryId)
-  if (!repository) return
-
-  openRepositoryContextMenu(data.event, {
-    repositoryId: repository.id,
-    repositoryName: repository.name,
-    notePosition: {x: note.x, y: note.y},
-    isWorktree: repository.parentRepoId !== undefined && repository.parentRepoId !== null,
-  })
-}
-
-const handleConnectionContextMenu = (data: { connectionId: string; event: MouseEvent }): void => {
-  const connection = connectionStore.connections.find(connection => connection.id === data.connectionId)
-  if (!connection) return
-
-  openConnectionContextMenu(data.event, {
-    connectionId: connection.id,
-    triggerMode: connection.triggerMode,
-  })
-}
-
-const handlePodContextMenu = (data: { podId: string; event: MouseEvent }): void => {
-  const pod = podStore.getPodById(data.podId)
-  if (!pod) return
-
-  openPodContextMenu(data.event, {
-    podId: pod.id,
-  })
-}
-
 const handleConnectSlack = (podId: string): void => {
   slackConnectModal.value = { visible: true, podId }
 }
@@ -313,28 +243,6 @@ const handleConnectSlack = (podId: string): void => {
 const handleDisconnectSlack = async (podId: string): Promise<void> => {
   await useSlackStore().unbindSlackFromPod(podId)
 }
-
-const handleCloneStarted = (payload: { requestId: string; repoName: string }): void => {
-  gitCloneProgress.addTask(payload.requestId, payload.repoName)
-}
-
-const handlePullStarted = (payload: { requestId: string; repositoryName: string; repositoryId: string }): void => {
-  pullProgress.addTask(payload.requestId, payload.repositoryName, payload.repositoryId)
-}
-
-const allProgressTasks = computed<Map<string, ProgressTask>>(() => {
-  const result = new Map<string, ProgressTask>()
-  for (const [key, task] of gitCloneProgress.progressTasks.value) {
-    result.set(key, task)
-  }
-  for (const [key, task] of checkoutProgress.progressTasks.value) {
-    result.set(key, task)
-  }
-  for (const [key, task] of pullProgress.progressTasks.value) {
-    result.set(key, task)
-  }
-  return result
-})
 
 const handleOpenCreateRepositoryModal = (): void => {
   lastMenuPosition.value = podStore.typeMenu.position
@@ -353,85 +261,21 @@ const handleRepositoryCreated = (repository: { id: string; name: string }): void
   repositoryStore.createNote(repository.id, x, y)
 }
 
-const editableNoteResourceIdGetters: Record<EditableNoteType, (noteId: string) => string | undefined> = {
-  outputStyle: (noteId) => outputStyleStore.typedNotes.find(note => note.id === noteId)?.outputStyleId,
-  subAgent: (noteId) => subAgentStore.typedNotes.find(note => note.id === noteId)?.subAgentId,
-  command: (noteId) => commandStore.typedNotes.find(note => note.id === noteId)?.commandId,
-}
-
-const handleOpenMcpServerModal = (mode: 'create' | 'edit', mcpServerId?: string): void => {
-  lastMenuPosition.value = podStore.typeMenu.position
-  openMcpServerModal(mode, mcpServerId)
+const withMenuPosition = <T extends (...args: never[]) => unknown>(fn: T): T => {
+  return ((...args: Parameters<T>) => {
+    lastMenuPosition.value = podStore.typeMenu.position
+    return fn(...args)
+  }) as T
 }
 
 const handleMcpServerModalSubmit = async (payload: { name: string; config: McpServerConfig }): Promise<void> => {
   await submitMcpServerModal(payload, mcpServerStore)
 }
 
-const handleMcpServerDoubleClick = async (noteId: string): Promise<void> => {
-  const note = mcpServerStore.typedNotes.find(note => note.id === noteId)
-  if (!note) return
-
-  const mcpServerId = note.mcpServerId
-  const mcpServerData = await mcpServerStore.readMcpServer(mcpServerId)
-
-  if (!mcpServerData) {
-    console.error(`無法讀取 MCP Server (id: ${mcpServerId})，請確認後端是否正常運作`)
-    return
-  }
-
-  mcpServerModal.value = {
-    visible: true,
-    mode: 'edit',
-    mcpServerId,
-    initialName: mcpServerData.name,
-    initialConfig: mcpServerData.config
-  }
-}
-
-const handleNoteDoubleClick = async (data: {
-  noteId: string;
-  noteType: 'outputStyle' | 'skill' | 'subAgent' | 'repository' | 'command' | 'mcpServer'
-}): Promise<void> => {
-  const {noteId, noteType} = data
-
-  if (noteType === 'mcpServer') {
-    await handleMcpServerDoubleClick(noteId)
-    return
-  }
-
-  const getResourceId = editableNoteResourceIdGetters[noteType as EditableNoteType]
-  if (!getResourceId) return
-
-  const resourceId = getResourceId(noteId)
-
-  if (resourceId) {
-    handleOpenEditModal(noteType as EditableNoteType, resourceId)
-  } else {
-    console.error(`無法找到 Note (id: ${noteId}, type: ${noteType}) 的資源 ID`)
-  }
-}
-
-const wrappedHandleOpenCreateModal = (resourceType: 'outputStyle' | 'subAgent' | 'command', title: string): void => {
-  lastMenuPosition.value = podStore.typeMenu.position
-  handleOpenCreateModal(resourceType, title)
-}
-
-const wrappedHandleOpenCreateGroupModal = (groupType: 'outputStyleGroup' | 'subAgentGroup' | 'commandGroup', title: string): void => {
-  lastMenuPosition.value = podStore.typeMenu.position
-  handleOpenCreateGroupModal(groupType, title)
-}
-
-const wrappedHandleOpenEditModal = async (resourceType: 'outputStyle' | 'subAgent' | 'command', id: string): Promise<void> => {
-  lastMenuPosition.value = podStore.typeMenu.position
-  await handleOpenEditModal(resourceType, id)
-}
-
-onUnmounted(() => {
-  gitCloneProgress.cleanupListeners()
-  checkoutProgress.cleanupListeners()
-  pullProgress.cleanupListeners()
-})
+const wrappedHandleOpenCreateModal = withMenuPosition(handleOpenCreateModal)
+const wrappedHandleOpenCreateGroupModal = withMenuPosition(handleOpenCreateGroupModal)
+const wrappedHandleOpenEditModal = withMenuPosition(handleOpenEditModal)
+const handleOpenMcpServerModal = withMenuPosition(openMcpServerModal)
 </script>
 
 <template>
