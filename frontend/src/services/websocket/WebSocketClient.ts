@@ -1,16 +1,14 @@
 import { ref } from 'vue'
-import type { WebSocketMessage, WebSocketAckMessage } from '@/types/websocket'
+import type { WebSocketMessage } from '@/types/websocket'
 import { logger } from '@/utils/logger'
 
 type EventCallback<T> = (payload: T) => void
-type AckCallback = (response?: unknown) => void
-type EventCallbackWithAck<T> = (payload: T, ack: AckCallback) => void
 
 const RECONNECT_INTERVAL_MS = 3000
 
-type EventHandler = (payload: unknown, ack?: AckCallback) => void
+type EventHandler = (payload: unknown) => void
 
-function castToEventHandler<T>(callback: EventCallback<T> | EventCallbackWithAck<T>): EventHandler {
+function castToEventHandler<T>(callback: EventCallback<T>): EventHandler {
     return callback as unknown as EventHandler
 }
 
@@ -19,7 +17,6 @@ class WebSocketClient {
   private reconnectTimer: ReturnType<typeof setInterval> | null = null
   private wsUrl: string = ''
   private eventListeners: Map<string, Set<EventHandler>> = new Map()
-  private ackCallbacks: Map<string, AckCallback> = new Map()
   private disconnectListeners: Set<(reason: string) => void> = new Set()
 
   public readonly isConnected = ref(false)
@@ -123,28 +120,8 @@ class WebSocketClient {
     logger.error('[WebSocket] 連線錯誤:', event)
   }
 
-  private handleAckMessage(message: WebSocketAckMessage): void {
-    const callback = this.ackCallbacks.get(message.ackId)
-    if (!callback) return
-
-    this.ackCallbacks.delete(message.ackId)
-    callback(message.payload)
-  }
-
   private invokeListener(callback: EventHandler, message: WebSocketMessage): void {
-    if (message.ackId) {
-      const ack = (response?: unknown): void => {
-        const ackMessage: WebSocketAckMessage = {
-          type: 'ack',
-          ackId: message.ackId!,
-          payload: response
-        }
-        this.socket?.send(JSON.stringify(ackMessage))
-      }
-      ;(callback as EventCallbackWithAck<unknown>)(message.payload, ack)
-    } else {
-      ;(callback as EventCallback<unknown>)(message.payload)
-    }
+    ;(callback as EventCallback<unknown>)(message.payload)
   }
 
   private dispatchToListeners(message: WebSocketMessage): void {
@@ -162,11 +139,6 @@ class WebSocketClient {
       message = JSON.parse(event.data) as WebSocketMessage
     } catch (error) {
       logger.error('[WebSocket] 訊息解析錯誤:', error)
-      return
-    }
-
-    if (message.type === 'ack') {
-      this.handleAckMessage(message as WebSocketAckMessage)
       return
     }
 
@@ -189,14 +161,14 @@ class WebSocketClient {
     this.socket.send(JSON.stringify(message))
   }
 
-  private registerEventListener<T>(event: string, callback: EventCallback<T> | EventCallbackWithAck<T>): void {
+  private registerEventListener<T>(event: string, callback: EventCallback<T>): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set())
     }
     this.eventListeners.get(event)!.add(castToEventHandler(callback))
   }
 
-  private unregisterEventListener<T>(event: string, callback: EventCallback<T> | EventCallbackWithAck<T>): void {
+  private unregisterEventListener<T>(event: string, callback: EventCallback<T>): void {
     const listeners = this.eventListeners.get(event)
     if (listeners) {
       listeners.delete(castToEventHandler(callback))
@@ -211,14 +183,6 @@ class WebSocketClient {
   }
 
   off<T>(event: string, callback: EventCallback<T>): void {
-    this.unregisterEventListener(event, callback)
-  }
-
-  onWithAck<T>(event: string, callback: EventCallbackWithAck<T>): void {
-    this.registerEventListener(event, callback)
-  }
-
-  offWithAck<T>(event: string, callback: EventCallbackWithAck<T>): void {
     this.unregisterEventListener(event, callback)
   }
 

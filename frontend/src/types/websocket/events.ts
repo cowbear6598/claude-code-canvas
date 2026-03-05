@@ -100,6 +100,7 @@ export const WebSocketRequestEvents = {
   SUBAGENT_MOVE_TO_GROUP: 'subagent:move-to-group',
   CURSOR_MOVE: 'cursor:move',
   POD_OPEN_DIRECTORY: 'pod:open-directory',
+  HEARTBEAT_PONG: 'heartbeat:pong',
   SLACK_APP_CREATE: 'slack:app:create',
   SLACK_APP_DELETE: 'slack:app:delete',
   SLACK_APP_LIST: 'slack:app:list',

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { websocketClient } from '@/services/websocket/WebSocketClient'
-import type { WebSocketMessage, WebSocketAckMessage } from '@/types/websocket'
+import type { WebSocketMessage } from '@/types/websocket'
 
 let mockWebSocketInstances: MockWebSocket[] = []
 
@@ -287,109 +287,7 @@ describe('WebSocketClient', () => {
     })
   })
 
-  describe('onWithAck / offWithAck', () => {
-    it('應該在 ack 訊息時觸發 callback 和 ack 函數', () => {
-      const callback = vi.fn()
-
-      websocketClient.onWithAck('testEvent', callback)
-      websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]!
-      instance.triggerOpen()
-
-      const message: WebSocketMessage = {
-        type: 'testEvent',
-        payload: { data: 'test' },
-        ackId: 'ack-123',
-      }
-      instance.triggerMessage(JSON.stringify(message))
-
-      expect(callback).toHaveBeenCalledWith(
-        { data: 'test' },
-        expect.any(Function)
-      )
-    })
-
-    it('應該透過 ack 函數 send 回應', () => {
-      websocketClient.onWithAck('testEvent', (payload, ack) => {
-        ack({ response: 'ok' })
-      })
-      websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]!
-      instance.triggerOpen()
-
-      const message: WebSocketMessage = {
-        type: 'testEvent',
-        payload: { data: 'test' },
-        ackId: 'ack-123',
-      }
-      instance.triggerMessage(JSON.stringify(message))
-
-      expect(instance.send).toHaveBeenCalledWith(
-        JSON.stringify({
-          type: 'ack',
-          ackId: 'ack-123',
-          payload: { response: 'ok' },
-        })
-      )
-    })
-
-    it('應該取消 ack 監聽器', () => {
-      const callback = vi.fn()
-
-      websocketClient.onWithAck('testEvent', callback)
-      websocketClient.offWithAck('testEvent', callback)
-      websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]!
-      instance.triggerOpen()
-
-      const message: WebSocketMessage = {
-        type: 'testEvent',
-        payload: { data: 'test' },
-        ackId: 'ack-123',
-      }
-      instance.triggerMessage(JSON.stringify(message))
-
-      expect(callback).not.toHaveBeenCalled()
-    })
-  })
-
   describe('handleMessage', () => {
-    it('應該解析 type 為 ack 的訊息並呼叫對應 callback', () => {
-      websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]!
-      instance.triggerOpen()
-
-      const ackCallback = vi.fn()
-      ;(websocketClient as any).ackCallbacks.set('ack-123', ackCallback)
-
-      const ackMessage: WebSocketAckMessage = {
-        type: 'ack',
-        ackId: 'ack-123',
-        payload: { result: 'success' },
-      }
-      instance.triggerMessage(JSON.stringify(ackMessage))
-
-      expect(ackCallback).toHaveBeenCalledWith({ result: 'success' })
-    })
-
-    it('應該在 ack 後刪除 callback', () => {
-      websocketClient.connect('http://localhost:3001')
-      const instance = mockWebSocketInstances[0]!
-      instance.triggerOpen()
-
-      const ackCallback = vi.fn()
-      ;(websocketClient as any).ackCallbacks.set('ack-123', ackCallback)
-
-      const ackMessage: WebSocketAckMessage = {
-        type: 'ack',
-        ackId: 'ack-123',
-        payload: { result: 'success' },
-      }
-      instance.triggerMessage(JSON.stringify(ackMessage))
-
-      expect((websocketClient as any).ackCallbacks.has('ack-123')).toBe(false)
-    })
-
     it('應該分發正常訊息到對應監聽器', () => {
       const callback = vi.fn()
       websocketClient.on('normalEvent', callback)

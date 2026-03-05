@@ -173,7 +173,7 @@ export const useChatStore = defineStore('chat', {
             websocketClient.on<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
             websocketClient.on<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
             websocketClient.on<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
-            websocketClient.onWithAck<HeartbeatPingPayload>(WebSocketResponseEvents.HEARTBEAT_PING, this.handleHeartbeatPing)
+            websocketClient.on<HeartbeatPingPayload>(WebSocketResponseEvents.HEARTBEAT_PING, this.handleHeartbeatPing)
             websocketClient.onDisconnect(this.handleSocketDisconnect)
         },
 
@@ -187,7 +187,7 @@ export const useChatStore = defineStore('chat', {
             websocketClient.off<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
             websocketClient.off<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
             websocketClient.off<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
-            websocketClient.offWithAck<HeartbeatPingPayload>(WebSocketResponseEvents.HEARTBEAT_PING, this.handleHeartbeatPing)
+            websocketClient.off<HeartbeatPingPayload>(WebSocketResponseEvents.HEARTBEAT_PING, this.handleHeartbeatPing)
             websocketClient.offDisconnect(this.handleSocketDisconnect)
         },
 
@@ -196,9 +196,9 @@ export const useChatStore = defineStore('chat', {
             return connectionActions.handleConnectionReady(payload)
         },
 
-        handleHeartbeatPing(payload: HeartbeatPingPayload, ack: (response?: unknown) => void): void {
+        handleHeartbeatPing(payload: HeartbeatPingPayload): void {
             const connectionActions = this.getConnectionActions()
-            connectionActions.handleHeartbeatPing(payload, ack)
+            connectionActions.handleHeartbeatPing(payload)
         },
 
         handleSocketDisconnect(reason: string): void {

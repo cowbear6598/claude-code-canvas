@@ -3,6 +3,7 @@ import { setActivePinia } from 'pinia'
 import { setupTestPinia } from '../../helpers/mockStoreFactory'
 import { mockWebSocketModule, resetMockWebSocket, mockWebSocketClient } from '../../helpers/mockWebSocket'
 import { useChatStore, resetChatActionsCache } from '@/stores/chat/chatStore'
+import { WebSocketRequestEvents } from '@/types/websocket/events'
 import type { HeartbeatPingPayload, PodErrorPayload } from '@/types/websocket'
 
 // Mock WebSocket
@@ -143,30 +144,27 @@ describe('chatConnectionActions', () => {
       const store = useChatStore()
       const now = Date.now()
       vi.spyOn(Date, 'now').mockReturnValue(now)
-      const ack = vi.fn()
 
-      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload)
 
       expect(store.lastHeartbeatAt).toBe(now)
     })
 
-    it('呼叫 ack 回傳 timestamp', () => {
+    it('emit heartbeat:pong 並帶上 timestamp', () => {
       const store = useChatStore()
       const now = Date.now()
       vi.spyOn(Date, 'now').mockReturnValue(now)
-      const ack = vi.fn()
 
-      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload)
 
-      expect(ack).toHaveBeenCalledWith({ timestamp: now })
+      expect(mockWebSocketClient.emit).toHaveBeenCalledWith(WebSocketRequestEvents.HEARTBEAT_PONG, { timestamp: now })
     })
 
     it('非 connected 狀態時恢復為 connected', () => {
       const store = useChatStore()
       store.connectionStatus = 'error'
-      const ack = vi.fn()
 
-      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload)
 
       expect(store.connectionStatus).toBe('connected')
     })
@@ -174,9 +172,8 @@ describe('chatConnectionActions', () => {
     it('已為 connected 狀態時保持 connected', () => {
       const store = useChatStore()
       store.connectionStatus = 'connected'
-      const ack = vi.fn()
 
-      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload)
 
       expect(store.connectionStatus).toBe('connected')
     })
@@ -191,8 +188,7 @@ describe('chatConnectionActions', () => {
 
       const now = Date.now()
       vi.spyOn(Date, 'now').mockReturnValue(now)
-      const ack = vi.fn()
-      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload)
 
       vi.spyOn(Date, 'now').mockReturnValue(now + 21000)
       vi.advanceTimersByTime(5000)
@@ -230,8 +226,7 @@ describe('chatConnectionActions', () => {
 
       const now = Date.now()
       vi.spyOn(Date, 'now').mockReturnValue(now)
-      const ack = vi.fn()
-      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload, ack)
+      store.handleHeartbeatPing({} as unknown as HeartbeatPingPayload)
 
       vi.spyOn(Date, 'now').mockReturnValue(now + 21000)
       vi.advanceTimersByTime(4900)

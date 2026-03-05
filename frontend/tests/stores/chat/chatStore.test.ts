@@ -630,7 +630,7 @@ describe('chatStore', () => {
       expect(mockWebSocketClient.on).toHaveBeenCalledWith('pod:error', expect.any(Function))
       expect(mockWebSocketClient.on).toHaveBeenCalledWith('pod:messages:cleared', expect.any(Function))
       expect(mockWebSocketClient.on).toHaveBeenCalledWith('workflow:auto-cleared', expect.any(Function))
-      expect(mockWebSocketClient.onWithAck).toHaveBeenCalledWith('heartbeat:ping', expect.any(Function))
+      expect(mockWebSocketClient.on).toHaveBeenCalledWith('heartbeat:ping', expect.any(Function))
       expect(mockWebSocketClient.onDisconnect).toHaveBeenCalledWith(expect.any(Function))
     })
 
@@ -649,7 +649,6 @@ describe('chatStore', () => {
       const store = useChatStore()
       store.registerListeners()
       mockWebSocketClient.off.mockClear()
-      mockWebSocketClient.offWithAck.mockClear()
       mockWebSocketClient.offDisconnect.mockClear()
 
       store.unregisterListeners()
@@ -663,7 +662,7 @@ describe('chatStore', () => {
       expect(mockWebSocketClient.off).toHaveBeenCalledWith('pod:error', expect.any(Function))
       expect(mockWebSocketClient.off).toHaveBeenCalledWith('pod:messages:cleared', expect.any(Function))
       expect(mockWebSocketClient.off).toHaveBeenCalledWith('workflow:auto-cleared', expect.any(Function))
-      expect(mockWebSocketClient.offWithAck).toHaveBeenCalledWith('heartbeat:ping', expect.any(Function))
+      expect(mockWebSocketClient.off).toHaveBeenCalledWith('heartbeat:ping', expect.any(Function))
       expect(mockWebSocketClient.offDisconnect).toHaveBeenCalledWith(expect.any(Function))
     })
   })

@@ -1,4 +1,4 @@
-import {websocketClient} from '@/services/websocket'
+import {websocketClient, WebSocketRequestEvents} from '@/services/websocket'
 import {useToast} from '@/composables/useToast'
 import type {ConnectionReadyPayload, HeartbeatPingPayload, PodErrorPayload} from '@/types/websocket'
 import type {ChatStoreInstance} from './chatStore'
@@ -22,7 +22,7 @@ export function createConnectionActions(store: ChatStoreInstance): {
     initWebSocket: () => void
     disconnectWebSocket: () => void
     handleConnectionReady: (payload: ConnectionReadyPayload) => Promise<void>
-    handleHeartbeatPing: (payload: HeartbeatPingPayload, ack: (response?: unknown) => void) => void
+    handleHeartbeatPing: (payload: HeartbeatPingPayload) => void
     startHeartbeatCheck: () => void
     stopHeartbeatCheck: () => void
     handleSocketDisconnect: (reason: string) => void
@@ -49,10 +49,10 @@ export function createConnectionActions(store: ChatStoreInstance): {
         startHeartbeatCheck()
     }
 
-    const handleHeartbeatPing = (_payload: HeartbeatPingPayload, ack: (response?: unknown) => void): void => {
+    const handleHeartbeatPing = (_payload: HeartbeatPingPayload): void => {
         store.lastHeartbeatAt = Date.now()
 
-        ack({timestamp: Date.now()})
+        websocketClient.emit(WebSocketRequestEvents.HEARTBEAT_PONG, {timestamp: Date.now()})
 
         if (store.connectionStatus !== 'connected') {
             store.connectionStatus = 'connected'

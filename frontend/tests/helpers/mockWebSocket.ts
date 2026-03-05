@@ -2,12 +2,10 @@ import { vi } from 'vitest'
 import { ref } from 'vue'
 
 type EventCallback = (payload: unknown) => void
-type EventCallbackWithAck = (payload: unknown, ack: (response?: unknown) => void) => void
 type DisconnectCallback = (reason: string) => void
 
 interface EventListeners {
-  callbacks: Set<EventCallback | EventCallbackWithAck>
-  hasAck: boolean
+  callbacks: Set<EventCallback>
 }
 
 const eventListeners = new Map<string, EventListeners>()
@@ -21,25 +19,11 @@ export const mockWebSocketClient = {
   emit: vi.fn(),
   on: vi.fn((event: string, callback: EventCallback) => {
     if (!eventListeners.has(event)) {
-      eventListeners.set(event, { callbacks: new Set(), hasAck: false })
+      eventListeners.set(event, { callbacks: new Set() })
     }
     eventListeners.get(event)!.callbacks.add(callback)
   }),
   off: vi.fn((event: string, callback: EventCallback) => {
-    const listeners = eventListeners.get(event)
-    if (listeners) {
-      listeners.callbacks.delete(callback)
-    }
-  }),
-  onWithAck: vi.fn((event: string, callback: EventCallbackWithAck) => {
-    if (!eventListeners.has(event)) {
-      eventListeners.set(event, { callbacks: new Set(), hasAck: true })
-    }
-    const listeners = eventListeners.get(event)!
-    listeners.hasAck = true
-    listeners.callbacks.add(callback)
-  }),
-  offWithAck: vi.fn((event: string, callback: EventCallbackWithAck) => {
     const listeners = eventListeners.get(event)
     if (listeners) {
       listeners.callbacks.delete(callback)
@@ -65,12 +49,7 @@ export function simulateEvent(eventName: string, payload: unknown): void {
   }
 
   listeners.callbacks.forEach((callback) => {
-    if (listeners.hasAck) {
-      const ack = vi.fn()
-      ;(callback as EventCallbackWithAck)(payload, ack)
-    } else {
-      ;(callback as EventCallback)(payload)
-    }
+    ;(callback as EventCallback)(payload)
   })
 }
 
@@ -97,8 +76,6 @@ export function resetMockWebSocket(): void {
   mockWebSocketClient.emit.mockClear()
   mockWebSocketClient.on.mockClear()
   mockWebSocketClient.off.mockClear()
-  mockWebSocketClient.onWithAck.mockClear()
-  mockWebSocketClient.offWithAck.mockClear()
   mockWebSocketClient.onDisconnect.mockClear()
   mockWebSocketClient.offDisconnect.mockClear()
   mockCreateWebSocketRequest.mockReset().mockResolvedValue(null)
