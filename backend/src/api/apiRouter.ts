@@ -1,5 +1,6 @@
 import { handleListCanvases, handleCreateCanvas, handleDeleteCanvas, handleRenameCanvas } from './canvasApi.js';
 import { handleListPods, handleCreatePod, handleDeletePod, handleRenamePod } from './podApi.js';
+import { handleListConnections, handleCreateConnection, handleDeleteConnection, handleUpdateConnection } from './connectionApi.js';
 import { JSON_HEADERS } from './constants.js';
 import { logger } from '../utils/logger.js';
 
@@ -17,6 +18,10 @@ const ROUTES: Route[] = [
 	{ method: 'GET', pattern: new URLPattern({ pathname: '/api/canvas/:id/pods' }), handler: handleListPods },
 	{ method: 'POST', pattern: new URLPattern({ pathname: '/api/canvas/:id/pods' }), handler: handleCreatePod },
 	{ method: 'DELETE', pattern: new URLPattern({ pathname: '/api/canvas/:id/pods/:podId' }), handler: handleDeletePod },
+	{ method: 'DELETE', pattern: new URLPattern({ pathname: '/api/canvas/:id/connections/:connectionId' }), handler: handleDeleteConnection },
+	{ method: 'PATCH', pattern: new URLPattern({ pathname: '/api/canvas/:id/connections/:connectionId' }), handler: handleUpdateConnection },
+	{ method: 'GET', pattern: new URLPattern({ pathname: '/api/canvas/:id/connections' }), handler: handleListConnections },
+	{ method: 'POST', pattern: new URLPattern({ pathname: '/api/canvas/:id/connections' }), handler: handleCreateConnection },
 	{ method: 'DELETE', pattern: new URLPattern({ pathname: '/api/canvas/:id' }), handler: handleDeleteCanvas },
 	{ method: 'PATCH', pattern: new URLPattern({ pathname: '/api/canvas/:id/pods/:podId' }), handler: handleRenamePod },
 	{ method: 'PATCH', pattern: new URLPattern({ pathname: '/api/canvas/:id' }), handler: handleRenameCanvas },

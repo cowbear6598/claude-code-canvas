@@ -204,7 +204,7 @@ const handleClose = (): void => {
               <Input
                 id="private-user-id"
                 v-model="privateUserId"
-                type="number"
+                type="text"
                 placeholder="請輸入 User ID"
               />
               <p class="text-xs text-muted-foreground">

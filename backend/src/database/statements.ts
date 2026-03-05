@@ -236,20 +236,20 @@ function buildStatements(db: Database): {
         'INSERT INTO connections (id, canvas_id, source_pod_id, source_anchor, target_pod_id, target_anchor, trigger_mode, decide_status, decide_reason, connection_status) VALUES ($id, $canvasId, $sourcePodId, $sourceAnchor, $targetPodId, $targetAnchor, $triggerMode, $decideStatus, $decideReason, $connectionStatus)',
       ),
       selectByCanvasId: db.prepare('SELECT * FROM connections WHERE canvas_id = ?'),
-      selectById: db.prepare('SELECT * FROM connections WHERE id = ?'),
+      selectById: db.prepare('SELECT * FROM connections WHERE canvas_id = ? AND id = ?'),
       update: db.prepare(
-        'UPDATE connections SET source_pod_id = $sourcePodId, source_anchor = $sourceAnchor, target_pod_id = $targetPodId, target_anchor = $targetAnchor, trigger_mode = $triggerMode, decide_status = $decideStatus, decide_reason = $decideReason, connection_status = $connectionStatus WHERE id = $id',
+        'UPDATE connections SET source_pod_id = $sourcePodId, source_anchor = $sourceAnchor, target_pod_id = $targetPodId, target_anchor = $targetAnchor, trigger_mode = $triggerMode, decide_status = $decideStatus, decide_reason = $decideReason, connection_status = $connectionStatus WHERE canvas_id = $canvasId AND id = $id',
       ),
       updateConnectionStatus: db.prepare(
-        'UPDATE connections SET connection_status = $connectionStatus WHERE id = $id',
+        'UPDATE connections SET connection_status = $connectionStatus WHERE canvas_id = $canvasId AND id = $id',
       ),
       updateDecideStatus: db.prepare(
-        'UPDATE connections SET decide_status = $decideStatus, decide_reason = $decideReason WHERE id = $id',
+        'UPDATE connections SET decide_status = $decideStatus, decide_reason = $decideReason WHERE canvas_id = $canvasId AND id = $id',
       ),
       clearDecideStatusByPodId: db.prepare(
         "UPDATE connections SET decide_status = 'none', decide_reason = NULL WHERE canvas_id = $canvasId AND source_pod_id = $podId",
       ),
-      deleteById: db.prepare('DELETE FROM connections WHERE id = ?'),
+      deleteById: db.prepare('DELETE FROM connections WHERE canvas_id = ? AND id = ?'),
       deleteByCanvasId: db.prepare('DELETE FROM connections WHERE canvas_id = ?'),
       selectByPodId: db.prepare(
         'SELECT * FROM connections WHERE canvas_id = $canvasId AND (source_pod_id = $podId OR target_pod_id = $podId)',

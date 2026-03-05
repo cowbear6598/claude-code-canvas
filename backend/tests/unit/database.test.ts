@@ -183,7 +183,7 @@ describe('Database', () => {
         $connectionStatus: 'idle',
       });
 
-      const conn = stmts.connection.selectById.get('conn1') as { source_pod_id: string; trigger_mode: string };
+      const conn = stmts.connection.selectById.get('c1', 'conn1') as { source_pod_id: string; trigger_mode: string };
       expect(conn.source_pod_id).toBe('p1');
       expect(conn.trigger_mode).toBe('auto');
     });

@@ -60,6 +60,17 @@ claude-code-canvas 是一個 Agent 畫布系統，後端使用 **Bun + TypeScrip
 
 詳細格式與範例：[references/pod-api.md](references/pod-api.md)
 
+### Connection
+
+| 方法 | 路徑 | 說明 |
+|------|------|------|
+| GET | /api/canvas/:id/connections | 取得指定畫布的所有 Connection（:id 支援 UUID 或 name） |
+| POST | /api/canvas/:id/connections | 在指定畫布建立新 Connection（:id 支援 UUID 或 name） |
+| DELETE | /api/canvas/:id/connections/:connectionId | 刪除指定 Connection（:id 支援 UUID 或 name，:connectionId 僅支援 UUID） |
+| PATCH | /api/canvas/:id/connections/:connectionId | 更新指定 Connection 的觸發模式（:id 支援 UUID 或 name，:connectionId 僅支援 UUID） |
+
+詳細格式與範例：[references/connection-api.md](references/connection-api.md)
+
 ---
 
 ## 錯誤處理

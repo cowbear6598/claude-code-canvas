@@ -67,7 +67,7 @@ class ConnectionStore {
     }
 
     getById(canvasId: string, id: string): Connection | undefined {
-        const row = this.stmts.selectById.get(id) as ConnectionRow | undefined;
+        const row = this.stmts.selectById.get(canvasId, id) as ConnectionRow | undefined;
         if (!row) return undefined;
         return rowToConnection(row);
     }
@@ -78,7 +78,7 @@ class ConnectionStore {
     }
 
     delete(canvasId: string, id: string): boolean {
-        const result = this.stmts.deleteById.run(id);
+        const result = this.stmts.deleteById.run(canvasId, id);
         return result.changes > 0;
     }
 
@@ -128,6 +128,7 @@ class ConnectionStore {
         }
 
         this.stmts.update.run({
+            $canvasId: canvasId,
             $id: id,
             $sourcePodId: existing.sourcePodId,
             $sourceAnchor: existing.sourceAnchor,
@@ -147,6 +148,7 @@ class ConnectionStore {
         if (!existing) return undefined;
 
         this.stmts.updateConnectionStatus.run({
+            $canvasId: canvasId,
             $id: connectionId,
             $connectionStatus: status,
         });

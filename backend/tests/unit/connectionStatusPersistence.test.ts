@@ -1,5 +1,5 @@
 import { connectionStore } from '../../src/services/connectionStore.js';
-import { initTestDb, closeDb, resetDb } from '../../src/database/index.js';
+import { initTestDb, closeDb, resetDb, getDb } from '../../src/database/index.js';
 import { resetStatements } from '../../src/database/statements.js';
 import type { ConnectionStatus } from '../../src/types/connection.js';
 
@@ -169,6 +169,77 @@ describe('ConnectionStore SQLite 持久化', () => {
         it('更新 connection 不存在時回傳 undefined', () => {
             const result = connectionStore.update(canvasId, 'nonexistent-id', { triggerMode: 'auto' });
             expect(result).toBeUndefined();
+        });
+    });
+
+    describe('跨 Canvas 資源隔離', () => {
+        const otherCanvasId = 'other-canvas-id';
+
+        beforeEach(() => {
+            // 外層 beforeEach 已呼叫 resetStatements() + initTestDb() 並建立 canvasId
+            // 這裡只需額外插入 otherCanvasId
+            getDb().exec(`INSERT OR IGNORE INTO canvases (id, name, sort_index) VALUES ('${otherCanvasId}', 'other canvas', 1)`);
+        });
+
+        it('getById 不允許用其他 canvas 的 connectionId 跨 Canvas 讀取', () => {
+            const connection = connectionStore.create(canvasId, {
+                sourcePodId: 'pod-a',
+                sourceAnchor: 'right',
+                targetPodId: 'pod-b',
+                targetAnchor: 'left',
+            });
+
+            const result = connectionStore.getById(otherCanvasId, connection.id);
+            expect(result).toBeUndefined();
+        });
+
+        it('delete 不允許用其他 canvas 的 connectionId 跨 Canvas 刪除', () => {
+            const connection = connectionStore.create(canvasId, {
+                sourcePodId: 'pod-a',
+                sourceAnchor: 'right',
+                targetPodId: 'pod-b',
+                targetAnchor: 'left',
+            });
+
+            const deleted = connectionStore.delete(otherCanvasId, connection.id);
+            expect(deleted).toBe(false);
+
+            // 確認原本 canvas 的 connection 仍存在
+            const stillExists = connectionStore.getById(canvasId, connection.id);
+            expect(stillExists).toBeDefined();
+        });
+
+        it('update 不允許用其他 canvas 的 connectionId 跨 Canvas 更新', () => {
+            const connection = connectionStore.create(canvasId, {
+                sourcePodId: 'pod-a',
+                sourceAnchor: 'right',
+                targetPodId: 'pod-b',
+                targetAnchor: 'left',
+                triggerMode: 'auto',
+            });
+
+            const result = connectionStore.update(otherCanvasId, connection.id, { triggerMode: 'direct' });
+            expect(result).toBeUndefined();
+
+            // 確認原本的 triggerMode 沒有被修改
+            const original = connectionStore.getById(canvasId, connection.id);
+            expect(original?.triggerMode).toBe('auto');
+        });
+
+        it('updateConnectionStatus 不允許用其他 canvas 的 connectionId 跨 Canvas 更新狀態', () => {
+            const connection = connectionStore.create(canvasId, {
+                sourcePodId: 'pod-a',
+                sourceAnchor: 'right',
+                targetPodId: 'pod-b',
+                targetAnchor: 'left',
+            });
+
+            const result = connectionStore.updateConnectionStatus(otherCanvasId, connection.id, 'active');
+            expect(result).toBeUndefined();
+
+            // 確認原本的 connectionStatus 沒有被修改
+            const original = connectionStore.getById(canvasId, connection.id);
+            expect(original?.connectionStatus).toBe('idle');
         });
     });
 
