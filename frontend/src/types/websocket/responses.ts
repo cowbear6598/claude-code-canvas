@@ -1,4 +1,4 @@
-import type {Pod, PodStatus} from '../pod'
+import type {Pod, PodStatus, ModelType} from '../pod'
 import type {SlackApp, SlackChannel, SlackAppConnectionStatus} from '../slack'
 import type {TelegramBot, TelegramChat, TelegramBotConnectionStatus} from '../telegram'
 import type {OutputStyleNote} from '@/types'
@@ -591,4 +591,14 @@ export interface TelegramMessageReceivedPayload {
     chatId: number
     userName: string
     text: string
+}
+
+export interface ConfigGetResultPayload extends ResultPayload {
+    summaryModel?: ModelType
+    aiDecideModel?: ModelType
+}
+
+export interface ConfigUpdatedPayload extends ResultPayload {
+    summaryModel?: ModelType
+    aiDecideModel?: ModelType
 }

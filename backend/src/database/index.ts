@@ -35,6 +35,8 @@ export function resetDb(): void {
 
   const database = getDb();
 
+  database.exec('DELETE FROM global_settings');
+
   // 子表先刪，避免外鍵約束衝突
   database.exec('DELETE FROM pod_manifests');
   database.exec('DELETE FROM slack_app_channels');

@@ -6,6 +6,7 @@ import { messageStore } from '../messageStore.js';
 import { outputStyleService } from '../outputStyleService.js';
 import { commandService } from '../commandService.js';
 import { claudeService } from '../claude/claudeService.js';
+import { configStore } from '../configStore.js';
 import { summaryPromptBuilder } from '../summaryPromptBuilder.js';
 import type { Connection } from '../../types/index.js';
 import { logger } from '../../utils/logger.js';
@@ -91,7 +92,7 @@ class AiDecideService {
       systemPrompt,
       mcpServers: { 'ai-decide': customServer },
       allowedTools: ['mcp__ai-decide__decide_triggers'],
-      model: 'sonnet',
+      model: configStore.getAiDecideModel(),
       cwd: sourcePod.workspacePath,
     });
 
@@ -265,6 +266,7 @@ class AiDecideService {
       systemPrompt,
       userMessage: userPrompt,
       workspacePath: sourcePod.workspacePath,
+      model: configStore.getSummaryModel(),
     });
 
     if (!result.success) {

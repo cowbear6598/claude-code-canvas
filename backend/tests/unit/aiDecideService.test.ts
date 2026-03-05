@@ -20,6 +20,7 @@ import { commandService } from '../../src/services/commandService.js';
 import { summaryPromptBuilder } from '../../src/services/summaryPromptBuilder.js';
 import { logger } from '../../src/utils/logger.js';
 import type { Connection } from '../../src/types';
+import { configStore } from '../../src/services/configStore.js';
 
 describe('AiDecideService', () => {
   const mockSourcePod = {
@@ -112,6 +113,10 @@ describe('AiDecideService', () => {
         yield { type: 'result', subtype: 'success' };
       })() as any
     );
+
+    // configStore
+    vi.spyOn(configStore, 'getAiDecideModel').mockReturnValue('sonnet');
+    vi.spyOn(configStore, 'getSummaryModel').mockReturnValue('sonnet');
   });
 
   afterEach(() => {
@@ -401,6 +406,56 @@ describe('AiDecideService', () => {
       expect(result.results).toHaveLength(0);
       expect(result.errors).toHaveLength(0);
       expect(claudeService.executeMcpChat).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('executeDecision 使用 configStore 的 aiDecideModel', () => {
+    it('executeMcpChat 呼叫時帶入 configStore 的 aiDecideModel', async () => {
+      (configStore.getAiDecideModel as any).mockReturnValue('haiku');
+
+      vi.spyOn(claudeService, 'executeMcpChat').mockImplementation((options: any) => {
+        return (async function* () {
+          const mcpServer = options.mcpServers['ai-decide'];
+          const decideTool = mcpServer.tools[0];
+
+          await decideTool.handler({
+            decisions: [{ connectionId: 'conn-1', shouldTrigger: true, reason: '相關' }],
+          });
+
+          yield { type: 'result', subtype: 'success' };
+        })() as any;
+      });
+
+      await aiDecideService.decideConnections('canvas-1', 'source-pod', [mockConnection]);
+
+      expect(claudeService.executeMcpChat).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'haiku' })
+      );
+    });
+  });
+
+  describe('generateSourceSummary 使用 configStore 的 summaryModel', () => {
+    it('generateSourceSummary 中 executeDisposableChat 帶入 configStore 的 summaryModel', async () => {
+      (configStore.getSummaryModel as any).mockReturnValue('opus');
+
+      vi.spyOn(claudeService, 'executeMcpChat').mockImplementation((options: any) => {
+        return (async function* () {
+          const mcpServer = options.mcpServers['ai-decide'];
+          const decideTool = mcpServer.tools[0];
+
+          await decideTool.handler({
+            decisions: [{ connectionId: 'conn-1', shouldTrigger: true, reason: '相關' }],
+          });
+
+          yield { type: 'result', subtype: 'success' };
+        })() as any;
+      });
+
+      await aiDecideService.decideConnections('canvas-1', 'source-pod', [mockConnection]);
+
+      expect(claudeService.executeDisposableChat).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'opus' })
+      );
     });
   });
 });

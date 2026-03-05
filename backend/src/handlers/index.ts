@@ -17,6 +17,7 @@ import { cursorHandlerGroup } from './groups/cursorHandlerGroup.js';
 import { mcpServerHandlerGroup } from './groups/mcpServerHandlerGroup.js';
 import { slackHandlerGroup } from './groups/slackHandlerGroup.js';
 import { telegramHandlerGroup } from './groups/telegramHandlerGroup.js';
+import { configHandlerGroup } from './groups/configHandlerGroup.js';
 
 const registry = new HandlerRegistry();
 
@@ -38,6 +39,7 @@ registry.registerGroup(cursorHandlerGroup);
 registry.registerGroup(mcpServerHandlerGroup);
 registry.registerGroup(slackHandlerGroup);
 registry.registerGroup(telegramHandlerGroup);
+registry.registerGroup(configHandlerGroup);
 
 export function registerAllHandlers(): void {
 	registry.registerToRouter();

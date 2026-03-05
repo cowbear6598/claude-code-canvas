@@ -1,5 +1,6 @@
 import { claudeService } from './claude/claudeService.js';
 import { summaryPromptBuilder } from './summaryPromptBuilder.js';
+import { configStore } from './configStore.js';
 import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { outputStyleService } from './outputStyleService.js';
@@ -72,6 +73,7 @@ class SummaryService {
       systemPrompt,
       userMessage: userPrompt,
       workspacePath: sourcePod.workspacePath,
+      model: configStore.getSummaryModel(),
     });
 
     if (!result.success) {

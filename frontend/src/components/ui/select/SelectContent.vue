@@ -28,6 +28,7 @@ const forwarded = useForwardPropsEmits(props, emits)
           props.class,
         )
       "
+      :style="props.position === 'popper' ? { width: 'var(--reka-select-trigger-width)' } : undefined"
     >
       <SelectViewport
         :class="

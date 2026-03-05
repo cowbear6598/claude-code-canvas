@@ -452,3 +452,13 @@ export interface PodUnbindTelegramPayload {
   canvasId: string
   podId: string
 }
+
+export interface ConfigGetPayload {
+  requestId: string
+}
+
+export interface ConfigUpdatePayload {
+  requestId: string
+  summaryModel?: ModelType
+  aiDecideModel?: ModelType
+}

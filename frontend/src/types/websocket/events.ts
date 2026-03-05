@@ -116,6 +116,8 @@ export const WebSocketRequestEvents = {
   TELEGRAM_BOT_CHATS: 'telegram:bot:chats',
   POD_BIND_TELEGRAM: 'pod:bind-telegram',
   POD_UNBIND_TELEGRAM: 'pod:unbind-telegram',
+  CONFIG_GET: 'config:get',
+  CONFIG_UPDATE: 'config:update',
 } as const
 
 export type WebSocketRequestEvents = typeof WebSocketRequestEvents[keyof typeof WebSocketRequestEvents]
@@ -272,6 +274,8 @@ export const WebSocketResponseEvents = {
   POD_TELEGRAM_UNBOUND: 'pod:telegram:unbound',
   TELEGRAM_CONNECTION_STATUS_CHANGED: 'telegram:connection:status:changed',
   TELEGRAM_MESSAGE_RECEIVED: 'telegram:message:received',
+  CONFIG_GET_RESULT: 'config:get:result',
+  CONFIG_UPDATED: 'config:updated',
 } as const
 
 export type WebSocketResponseEvents = typeof WebSocketResponseEvents[keyof typeof WebSocketResponseEvents]

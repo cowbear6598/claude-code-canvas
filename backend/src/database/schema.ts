@@ -172,6 +172,10 @@ export function createTables(db: Database): void {
       ')'
   );
 
+  db.exec(
+    'CREATE TABLE IF NOT EXISTS global_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)'
+  );
+
   try {
     db.exec('ALTER TABLE pods ADD COLUMN telegram_binding_json TEXT');
   } catch (error) {

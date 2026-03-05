@@ -65,6 +65,7 @@ export interface DisposableChatOptions {
     systemPrompt: string;
     userMessage: string;
     workspacePath: string;
+    model?: string;
 }
 
 export interface DisposableChatResult {
@@ -650,7 +651,7 @@ export class ClaudeService {
     }
 
     public async executeDisposableChat(options: DisposableChatOptions): Promise<DisposableChatResult> {
-        const {systemPrompt, userMessage, workspacePath} = options;
+        const {systemPrompt, userMessage, workspacePath, model} = options;
 
         try {
             const queryOptions: Options = {
@@ -658,6 +659,10 @@ export class ClaudeService {
                 allowedTools: [],
                 systemPrompt,
             };
+
+            if (model) {
+                queryOptions.model = model;
+            }
 
             const queryStream = query({
                 prompt: userMessage,

@@ -7,6 +7,7 @@ import { messageStore } from '../../src/services/messageStore.js';
 import { claudeService } from '../../src/services/claude/claudeService.js';
 import { summaryPromptBuilder } from '../../src/services/summaryPromptBuilder.js';
 import { logger } from '../../src/utils/logger.js';
+import { configStore } from '../../src/services/configStore.js';
 
 describe('SummaryService', () => {
   const mockSourcePod = {
@@ -78,6 +79,9 @@ describe('SummaryService', () => {
 
     // logger
     vi.spyOn(logger, 'error').mockImplementation(() => {});
+
+    // configStore
+    vi.spyOn(configStore, 'getSummaryModel').mockReturnValue('sonnet');
   });
 
   afterEach(() => {
@@ -171,6 +175,18 @@ describe('SummaryService', () => {
         targetPodCommand: 'Analyze the performance.',
         conversationHistory: '[User]: Hello\n\n[Assistant]: Hi',
       });
+    });
+  });
+
+  describe('generateSummaryForTarget 使用 configStore 的 summaryModel', () => {
+    it('呼叫 executeDisposableChat 時帶入 configStore 的 summaryModel', async () => {
+      (configStore.getSummaryModel as any).mockReturnValue('opus');
+
+      await summaryService.generateSummaryForTarget('canvas-1', 'source-pod', 'target-pod');
+
+      expect(claudeService.executeDisposableChat).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'opus' })
+      );
     });
   });
 

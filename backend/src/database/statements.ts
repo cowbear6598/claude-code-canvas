@@ -144,6 +144,11 @@ function buildStatements(db: Database): {
     update: ReturnType<Database['prepare']>;
     deleteById: ReturnType<Database['prepare']>;
   };
+  globalSettings: {
+    selectByKey: ReturnType<Database['prepare']>;
+    upsert: ReturnType<Database['prepare']>;
+    selectAll: ReturnType<Database['prepare']>;
+  };
 } {
   return {
     canvas: {
@@ -378,6 +383,12 @@ function buildStatements(db: Database): {
         'DELETE FROM pod_manifests WHERE pod_id = $podId AND repository_id = $repoId',
       ),
       deleteByPodId: db.prepare('DELETE FROM pod_manifests WHERE pod_id = ?'),
+    },
+
+    globalSettings: {
+      selectByKey: db.prepare('SELECT * FROM global_settings WHERE key = ?'),
+      upsert: db.prepare('INSERT OR REPLACE INTO global_settings (key, value) VALUES ($key, $value)'),
+      selectAll: db.prepare('SELECT * FROM global_settings'),
     },
   };
 }

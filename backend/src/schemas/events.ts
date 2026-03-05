@@ -115,6 +115,8 @@ export enum WebSocketRequestEvents {
   TELEGRAM_BOT_CHATS = 'telegram:bot:chats',
   POD_BIND_TELEGRAM = 'pod:bind-telegram',
   POD_UNBIND_TELEGRAM = 'pod:unbind-telegram',
+  CONFIG_GET = 'config:get',
+  CONFIG_UPDATE = 'config:update',
 }
 
 export enum WebSocketResponseEvents {
@@ -271,4 +273,6 @@ export enum WebSocketResponseEvents {
   POD_TELEGRAM_UNBOUND = 'pod:telegram:unbound',
   TELEGRAM_CONNECTION_STATUS_CHANGED = 'telegram:connection:status:changed',
   TELEGRAM_MESSAGE_RECEIVED = 'telegram:message:received',
+  CONFIG_GET_RESULT = 'config:get:result',
+  CONFIG_UPDATED = 'config:updated',
 }

@@ -19,7 +19,7 @@ describe('Database', () => {
       const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
       const tableNames = (tables as { name: string }[]).map((t) => t.name).sort();
       expect(tableNames).toEqual([
-        'canvases', 'connections', 'mcp_servers', 'messages', 'notes',
+        'canvases', 'connections', 'global_settings', 'mcp_servers', 'messages', 'notes',
         'pod_manifests', 'pod_mcp_server_ids', 'pod_skill_ids', 'pod_sub_agent_ids',
         'pods', 'repository_metadata', 'slack_app_channels', 'slack_apps',
         'telegram_bot_chats', 'telegram_bots',
@@ -227,6 +227,30 @@ describe('Database', () => {
 
       const skillNotes = stmts.note.selectByCanvasIdAndType.all({ $canvasId: 'c1', $type: 'skill' }) as unknown[];
       expect(skillNotes).toHaveLength(1);
+    });
+
+    it('應該能操作 global_settings', () => {
+      const stmts = getStatements(db);
+
+      stmts.globalSettings.upsert.run({ $key: 'summaryModel', $value: 'sonnet' });
+
+      const setting = stmts.globalSettings.selectByKey.get('summaryModel') as { key: string; value: string };
+      expect(setting.key).toBe('summaryModel');
+      expect(setting.value).toBe('sonnet');
+
+      stmts.globalSettings.upsert.run({ $key: 'aiDecideModel', $value: 'haiku' });
+
+      const all = stmts.globalSettings.selectAll.all() as { key: string; value: string }[];
+      expect(all).toHaveLength(2);
+      expect(all.map((s) => s.key).sort()).toEqual(['aiDecideModel', 'summaryModel']);
+
+      // INSERT OR REPLACE 應更新既有 key
+      stmts.globalSettings.upsert.run({ $key: 'summaryModel', $value: 'opus' });
+      const updated = stmts.globalSettings.selectByKey.get('summaryModel') as { value: string };
+      expect(updated.value).toBe('opus');
+
+      const allAfterUpdate = stmts.globalSettings.selectAll.all() as unknown[];
+      expect(allAfterUpdate).toHaveLength(2);
     });
 
     it('應該能操作 message', () => {

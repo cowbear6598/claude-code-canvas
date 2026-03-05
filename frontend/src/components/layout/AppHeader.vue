@@ -18,6 +18,14 @@
 
         <button
           class="flex items-center justify-center rounded-md p-2 hover:bg-accent"
+          title="全域設定"
+          @click="showSettingsModal = true"
+        >
+          <Settings class="h-4 w-4" />
+        </button>
+
+        <button
+          class="flex items-center justify-center rounded-md p-2 hover:bg-accent"
           title="整合服務管理"
           @click="showIntegrationModal = true"
         >
@@ -43,21 +51,24 @@
   />
   <SlackAppsModal v-model:open="showSlackAppsModal" />
   <TelegramBotsModal v-model:open="showTelegramBotsModal" />
+  <GlobalSettingsModal v-model:open="showSettingsModal" />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Sparkles, LayoutDashboard, KeyRound } from 'lucide-vue-next'
+import { Sparkles, LayoutDashboard, KeyRound, Settings } from 'lucide-vue-next'
 import ConnectionStatus from '@/components/ui/ConnectionStatus.vue'
 import SlackAppsModal from '@/components/slack/SlackAppsModal.vue'
 import TelegramBotsModal from '@/components/telegram/TelegramBotsModal.vue'
 import IntegrationSelectModal from '@/components/integration/IntegrationSelectModal.vue'
+import GlobalSettingsModal from '@/components/settings/GlobalSettingsModal.vue'
 import { useCanvasStore } from '@/stores/canvasStore'
 
 const canvasStore = useCanvasStore()
 const showIntegrationModal = ref<boolean>(false)
 const showSlackAppsModal = ref<boolean>(false)
 const showTelegramBotsModal = ref<boolean>(false)
+const showSettingsModal = ref<boolean>(false)
 
 const handleIntegrationSelect = (category: string): void => {
   if (category === 'slack') {
