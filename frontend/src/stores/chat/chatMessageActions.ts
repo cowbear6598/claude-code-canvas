@@ -54,15 +54,14 @@ export function createAssistantMessageShape(messageId: string, content: string, 
     }
     return {
         subMessages: [firstSubMessage],
-        expectingNewBlock: true
     }
 }
 
 export interface ChatMessageActions {
-    addUserMessage: (podId: string, content: string) => Promise<void>
+    addUserMessage: (podId: string, content: string) => void
     addRemoteUserMessage: (podId: string, messageId: string, content: string, timestamp: string) => void
     handleChatMessage: (payload: PodChatMessagePayload) => void
-    addNewChatMessage: (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string) => Promise<void>
+    addNewChatMessage: (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string) => void
     updateExistingChatMessage: (podId: string, messages: Message[], messageIndex: number, content: string, isPartial: boolean, delta: string) => void
     handleChatToolUse: (payload: PodChatToolUsePayload) => void
     createMessageWithToolUse: (podId: string, messageId: string, toolUseId: string, toolName: string, input: Record<string, unknown>) => void
@@ -73,13 +72,13 @@ export interface ChatMessageActions {
     handleChatAborted: (payload: PodChatAbortedPayload) => void
     finalizeStreaming: (podId: string, messageId: string) => void
     completeMessage: (podId: string, messages: Message[], messageIndex: number, fullContent: string, messageId: string) => void
-    updatePodOutput: (podId: string) => Promise<void>
+    updatePodOutput: (podId: string) => void
     convertPersistedToMessage: (persistedMessage: PersistedMessage) => Message
     setPodMessages: (podId: string, messages: Message[]) => void
     setTyping: (podId: string, isTyping: boolean) => void
     clearMessagesByPodIds: (podIds: string[]) => void
-    handleMessagesClearedEvent: (payload: PodMessagesClearedPayload) => Promise<void>
-    handleWorkflowAutoCleared: (payload: WorkflowAutoClearedPayload) => Promise<void>
+    handleMessagesClearedEvent: (payload: PodMessagesClearedPayload) => void
+    handleWorkflowAutoCleared: (payload: WorkflowAutoClearedPayload) => void
 }
 
 export function createMessageActions(store: ChatStoreInstance): ChatMessageActions {
@@ -97,7 +96,7 @@ export function createMessageActions(store: ChatStoreInstance): ChatMessageActio
         appendUserOutputToPod(pod, message.content)
     }
 
-    const addUserMessage = async (podId: string, content: string): Promise<void> => {
+    const addUserMessage = (podId: string, content: string): void => {
         const userMessage: Message = {
             id: generateRequestId(),
             role: 'user',
@@ -152,15 +151,7 @@ export function createMessageActions(store: ChatStoreInstance): ChatMessageActio
         return { ...baseMessage, ...shape }
     }
 
-    function updateUserPodOutput(podId: string, content: string): void {
-        const podStore = usePodStore()
-        const pod = podStore.pods.find(p => p.id === podId)
-        if (pod) {
-            appendUserOutputToPod(pod, content)
-        }
-    }
-
-    const addNewChatMessage = async (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string): Promise<void> => {
+    const addNewChatMessage = (podId: string, messageId: string, content: string, isPartial: boolean, role?: 'user' | 'assistant', delta?: string): void => {
         const messages = getMessages(store, podId)
         const effectiveRole = role ?? 'assistant'
         const newMessage = buildNewMessage(messageId, effectiveRole, content, isPartial, delta)
@@ -173,7 +164,11 @@ export function createMessageActions(store: ChatStoreInstance): ChatMessageActio
         }
 
         if (effectiveRole === 'user') {
-            updateUserPodOutput(podId, content)
+            const podStore = usePodStore()
+            const pod = podStore.pods.find(p => p.id === podId)
+            if (pod) {
+                appendUserOutputToPod(pod, content)
+            }
         }
     }
 
@@ -184,7 +179,7 @@ export function createMessageActions(store: ChatStoreInstance): ChatMessageActio
         if (!existingMessage) return
 
         const subMessageUpdates = existingMessage.role === 'assistant' && existingMessage.subMessages
-            ? updateAssistantSubMessages(existingMessage, delta, isPartial, content)
+            ? updateAssistantSubMessages(existingMessage, delta, isPartial)
             : {}
 
         updatedMessages[messageIndex] = {
@@ -214,13 +209,18 @@ export function createMessageActions(store: ChatStoreInstance): ChatMessageActio
 
         const allToolUse = collectToolUseFromSubMessages(persistedMessage.subMessages)
 
-        // 確保歷史載入後 tool 標籤位置與即時串流一致
         const result: Pick<Message, 'subMessages' | 'toolUse'> = {
-            subMessages: persistedMessage.subMessages.map((sub, index) => ({
+            subMessages: persistedMessage.subMessages.map((sub) => ({
                 id: sub.id,
                 content: sub.content,
                 isPartial: false,
-                toolUse: index === 0 && allToolUse.length > 0 ? allToolUse : undefined,
+                toolUse: sub.toolUse?.map(t => ({
+                    toolUseId: t.toolUseId,
+                    toolName: t.toolName,
+                    input: t.input,
+                    output: t.output,
+                    status: isValidToolUseStatus(t.status) ? t.status : 'completed',
+                })),
             })),
         }
 
@@ -256,14 +256,14 @@ export function createMessageActions(store: ChatStoreInstance): ChatMessageActio
         })
     }
 
-    const handleMessagesClearedEvent = async (payload: PodMessagesClearedPayload): Promise<void> => {
+    const handleMessagesClearedEvent = (payload: PodMessagesClearedPayload): void => {
         clearMessagesByPodIds([payload.podId])
 
         const podStore = usePodStore()
         podStore.clearPodOutputsByIds([payload.podId])
     }
 
-    const handleWorkflowAutoCleared = async (payload: WorkflowAutoClearedPayload): Promise<void> => {
+    const handleWorkflowAutoCleared = (payload: WorkflowAutoClearedPayload): void => {
         clearMessagesByPodIds(payload.clearedPodIds)
 
         const podStore = usePodStore()

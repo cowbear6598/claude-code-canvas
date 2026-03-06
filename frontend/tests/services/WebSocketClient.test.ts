@@ -287,6 +287,68 @@ describe('WebSocketClient', () => {
     })
   })
 
+  describe('offAll', () => {
+    it('offAll 應清空指定事件的所有 listener', () => {
+      const callback1 = vi.fn()
+      const callback2 = vi.fn()
+
+      websocketClient.on('testEvent', callback1)
+      websocketClient.on('testEvent', callback2)
+      websocketClient.offAll('testEvent')
+      websocketClient.connect('http://localhost:3001')
+      const instance = mockWebSocketInstances[0]!
+      instance.triggerOpen()
+
+      const message: WebSocketMessage = {
+        type: 'testEvent',
+        payload: { data: 'test' },
+      }
+      instance.triggerMessage(JSON.stringify(message))
+
+      expect(callback1).not.toHaveBeenCalled()
+      expect(callback2).not.toHaveBeenCalled()
+    })
+
+    it('offAll 後觸發該事件不應呼叫任何 callback', () => {
+      const callback = vi.fn()
+
+      websocketClient.on('myEvent', callback)
+      websocketClient.offAll('myEvent')
+      websocketClient.connect('http://localhost:3001')
+      const instance = mockWebSocketInstances[0]!
+      instance.triggerOpen()
+
+      const message: WebSocketMessage = {
+        type: 'myEvent',
+        payload: {},
+      }
+      instance.triggerMessage(JSON.stringify(message))
+
+      expect(callback).toHaveBeenCalledTimes(0)
+    })
+
+    it('offAll 不影響其他事件的 listener', () => {
+      const callbackA = vi.fn()
+      const callbackB = vi.fn()
+
+      websocketClient.on('eventA', callbackA)
+      websocketClient.on('eventB', callbackB)
+      websocketClient.offAll('eventA')
+      websocketClient.connect('http://localhost:3001')
+      const instance = mockWebSocketInstances[0]!
+      instance.triggerOpen()
+
+      const messageB: WebSocketMessage = {
+        type: 'eventB',
+        payload: { data: 'hello' },
+      }
+      instance.triggerMessage(JSON.stringify(messageB))
+
+      expect(callbackA).not.toHaveBeenCalled()
+      expect(callbackB).toHaveBeenCalledWith({ data: 'hello' })
+    })
+  })
+
   describe('handleMessage', () => {
     it('應該分發正常訊息到對應監聽器', () => {
       const callback = vi.fn()

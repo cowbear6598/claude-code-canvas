@@ -177,7 +177,7 @@ describe('chatMessageActions', () => {
       })
     })
 
-    it('應設定 expectingNewBlock 為 true', () => {
+    it('新建立的 assistant 訊息不應帶 expectingNewBlock', () => {
       const chatStore = useChatStore()
       const payload: PodChatMessagePayload = {
         podId: 'pod-1',
@@ -189,7 +189,7 @@ describe('chatMessageActions', () => {
       chatStore.handleChatMessage(payload)
 
       const messages = chatStore.messagesByPodId.get('pod-1')
-      expect(messages![0]!.expectingNewBlock).toBe(true)
+      expect(messages![0]).not.toHaveProperty('expectingNewBlock')
     })
 
     it('應記錄 accumulatedLengthByMessageId', () => {
@@ -229,7 +229,7 @@ describe('chatMessageActions', () => {
       expect(messages![0]!.content).toBe('Hello World')
     })
 
-    it('應計算 delta（content 增量）', () => {
+    it('應計算 delta（content 增量）並累加到同一個 subMessage', () => {
       const chatStore = useChatStore()
 
       chatStore.handleChatMessage({
@@ -249,13 +249,11 @@ describe('chatMessageActions', () => {
       const messages = chatStore.messagesByPodId.get('pod-1')
       const subMessages = messages![0]!.subMessages!
 
-      // 第一次更新時 expectingNewBlock 為 true，所以建立第二個 subMessage
-      expect(subMessages).toHaveLength(2)
-      expect(subMessages[0]!.content).toBe('Hello')
-      expect(subMessages[1]!.content).toBe(' World')
+      expect(subMessages).toHaveLength(1)
+      expect(subMessages[0]!.content).toBe('Hello World')
     })
 
-    it('應更新 subMessage 的 content', () => {
+    it('應更新 subMessage 的 content（delta 持續累加到同一個 subMessage）', () => {
       const chatStore = useChatStore()
 
       chatStore.handleChatMessage({
@@ -265,7 +263,6 @@ describe('chatMessageActions', () => {
         isPartial: true,
       })
 
-      // 第一次更新時會建立新 subMessage（expectingNewBlock = true）
       chatStore.handleChatMessage({
         podId: 'pod-1',
         messageId: 'msg-1',
@@ -276,11 +273,9 @@ describe('chatMessageActions', () => {
       let messages = chatStore.messagesByPodId.get('pod-1')
       let subMessages = messages![0]!.subMessages!
 
-      expect(subMessages).toHaveLength(2)
-      expect(subMessages[0]!.content).toBe('Part1')
-      expect(subMessages[1]!.content).toBe('Part2')
+      expect(subMessages).toHaveLength(1)
+      expect(subMessages[0]!.content).toBe('Part1Part2')
 
-      // 第二次更新時 expectingNewBlock 已經是 false，會更新最後一個 subMessage
       chatStore.handleChatMessage({
         podId: 'pod-1',
         messageId: 'msg-1',
@@ -291,13 +286,12 @@ describe('chatMessageActions', () => {
       messages = chatStore.messagesByPodId.get('pod-1')
       subMessages = messages![0]!.subMessages!
 
-      expect(subMessages).toHaveLength(2)
-      expect(subMessages[0]!.content).toBe('Part1')
-      expect(subMessages[1]!.content).toBe('Part2Part3')
-      expect(subMessages[1]!.isPartial).toBe(true)
+      expect(subMessages).toHaveLength(1)
+      expect(subMessages[0]!.content).toBe('Part1Part2Part3')
+      expect(subMessages[0]!.isPartial).toBe(true)
     })
 
-    it('expectingNewBlock 為 true 時應建立新 subMessage', () => {
+    it('toolUse 觸發 flush 後，後續 delta 應累加到新的 subMessage', () => {
       const chatStore = useChatStore()
 
       chatStore.handleChatMessage({
@@ -307,9 +301,14 @@ describe('chatMessageActions', () => {
         isPartial: true,
       })
 
-      // 模擬 expectingNewBlock = true 的情況（例如在 toolUse 之後）
-      const messages = chatStore.messagesByPodId.get('pod-1')!
-      messages[0]!.expectingNewBlock = true
+      // toolUse 觸發 flush：建立新 subMessage
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: {},
+      })
 
       chatStore.handleChatMessage({
         podId: 'pod-1',
@@ -324,10 +323,9 @@ describe('chatMessageActions', () => {
       expect(subMessages).toHaveLength(2)
       expect(subMessages[0]!.content).toBe('Block1')
       expect(subMessages[1]!.content).toBe('Block2')
-      expect(updatedMessages![0]!.expectingNewBlock).toBe(false)
     })
 
-    it('expectingNewBlock 為 false 時應更新最後一個 subMessage', () => {
+    it('delta 應持續累加到最後一個 subMessage', () => {
       const chatStore = useChatStore()
 
       chatStore.handleChatMessage({
@@ -337,7 +335,6 @@ describe('chatMessageActions', () => {
         isPartial: true,
       })
 
-      // 第一次更新會建立第二個 subMessage
       chatStore.handleChatMessage({
         podId: 'pod-1',
         messageId: 'msg-1',
@@ -345,7 +342,6 @@ describe('chatMessageActions', () => {
         isPartial: true,
       })
 
-      // expectingNewBlock 現在是 false，第二次更新應該更新最後一個 subMessage
       chatStore.handleChatMessage({
         podId: 'pod-1',
         messageId: 'msg-1',
@@ -356,9 +352,8 @@ describe('chatMessageActions', () => {
       const messages = chatStore.messagesByPodId.get('pod-1')
       const subMessages = messages![0]!.subMessages!
 
-      expect(subMessages).toHaveLength(2)
-      expect(subMessages[0]!.content).toBe('Hello')
-      expect(subMessages[1]!.content).toBe(' World!')
+      expect(subMessages).toHaveLength(1)
+      expect(subMessages[0]!.content).toBe('Hello World!')
     })
   })
 
@@ -468,7 +463,7 @@ describe('chatMessageActions', () => {
       })
     })
 
-    it('應設定 expectingNewBlock 為 true', () => {
+    it('createMessageWithToolUse 建立的訊息不應帶 expectingNewBlock', () => {
       const chatStore = useChatStore()
       const payload: PodChatToolUsePayload = {
         podId: 'pod-1',
@@ -481,7 +476,7 @@ describe('chatMessageActions', () => {
       chatStore.handleChatToolUse(payload)
 
       const messages = chatStore.messagesByPodId.get('pod-1')
-      expect(messages![0]!.expectingNewBlock).toBe(true)
+      expect(messages![0]).not.toHaveProperty('expectingNewBlock')
     })
 
     it('應設定 currentStreamingMessageId', () => {
@@ -563,7 +558,7 @@ describe('chatMessageActions', () => {
       expect(messages![0]!.toolUse).toHaveLength(1)
     })
 
-    it('應設定 expectingNewBlock 為 true', () => {
+    it('addToolUseToMessage 不應設定 expectingNewBlock', () => {
       const chatStore = useChatStore()
 
       chatStore.handleChatMessage({
@@ -572,9 +567,6 @@ describe('chatMessageActions', () => {
         content: 'Content',
         isPartial: true,
       })
-
-      const messages = chatStore.messagesByPodId.get('pod-1')!
-      messages[0]!.expectingNewBlock = false
 
       chatStore.handleChatToolUse({
         podId: 'pod-1',
@@ -585,10 +577,10 @@ describe('chatMessageActions', () => {
       })
 
       const updatedMessages = chatStore.messagesByPodId.get('pod-1')
-      expect(updatedMessages![0]!.expectingNewBlock).toBe(true)
+      expect(updatedMessages![0]).not.toHaveProperty('expectingNewBlock')
     })
 
-    it('應同時更新最後一個 subMessage 的 toolUse', () => {
+    it('addToolUseToMessage 應 flush 當前 SubMessage 並建立帶 tool 的新 SubMessage', () => {
       const chatStore = useChatStore()
 
       chatStore.handleChatMessage({
@@ -609,12 +601,99 @@ describe('chatMessageActions', () => {
       const messages = chatStore.messagesByPodId.get('pod-1')
       const subMessages = messages![0]!.subMessages!
 
-      expect(subMessages[0]!.toolUse).toHaveLength(1)
-      expect(subMessages[0]!.toolUse![0]).toMatchObject({
+      expect(subMessages).toHaveLength(2)
+      expect(subMessages[0]!.isPartial).toBe(false)
+      expect(subMessages[1]!.toolUse).toHaveLength(1)
+      expect(subMessages[1]!.toolUse![0]).toMatchObject({
         toolUseId: 'tool-1',
         toolName: 'Read',
         status: 'running',
       })
+    })
+
+    it('連續 tool_use 應 append 到同一個 SubMessage 而非建立新的', () => {
+      const chatStore = useChatStore()
+
+      // Text A → Sub[0] 有內容
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Text A',
+        isPartial: true,
+      })
+
+      // Tool1 → flush Sub[0]，建立 Sub[1] = {content: '', toolUse: [Tool1]}
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: { command: 'ls' },
+      })
+
+      // Tool2 → Sub[1] content 還是空的，應 append 而非 flush + 建新
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-2',
+        toolName: 'Read',
+        input: { file_path: '/test.ts' },
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      const subMessages = messages![0]!.subMessages!
+
+      expect(subMessages).toHaveLength(2)
+      expect(subMessages[1]!.toolUse).toHaveLength(2)
+      expect(subMessages[1]!.toolUse![0]).toMatchObject({ toolUseId: 'tool-1' })
+      expect(subMessages[1]!.toolUse![1]).toMatchObject({ toolUseId: 'tool-2' })
+    })
+
+    it('tool_use 後有文字的 SubMessage 再收到 tool_use 應 flush + 建新', () => {
+      const chatStore = useChatStore()
+
+      // Text A → Sub[0] 有內容
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Text A',
+        isPartial: true,
+      })
+
+      // Tool1 → flush Sub[0]，建立 Sub[1] = {content: '', toolUse: [Tool1]}
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-1',
+        toolName: 'Bash',
+        input: { command: 'ls' },
+      })
+
+      // Text B → Sub[1] 有了內容
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: ' Text B',
+        isPartial: true,
+      })
+
+      // Tool2 → Sub[1] 有內容，應 flush + 建新 Sub[2]
+      chatStore.handleChatToolUse({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        toolUseId: 'tool-2',
+        toolName: 'Read',
+        input: { file_path: '/test.ts' },
+      })
+
+      const messages = chatStore.messagesByPodId.get('pod-1')
+      const subMessages = messages![0]!.subMessages!
+
+      expect(subMessages).toHaveLength(3)
+      expect(subMessages[1]!.toolUse).toHaveLength(1)
+      expect(subMessages[1]!.toolUse![0]).toMatchObject({ toolUseId: 'tool-1' })
+      expect(subMessages[2]!.toolUse).toHaveLength(1)
+      expect(subMessages[2]!.toolUse![0]).toMatchObject({ toolUseId: 'tool-2' })
     })
   })
 
@@ -720,8 +799,15 @@ describe('chatMessageActions', () => {
       })
     })
 
-    it('所有 tool 完成後 subMessage 的 isPartial 應設為 false', () => {
+    it('tool 完成後 subMessage 的 isPartial 應設為 false', () => {
       const chatStore = useChatStore()
+
+      chatStore.handleChatMessage({
+        podId: 'pod-1',
+        messageId: 'msg-1',
+        content: 'Thinking...',
+        isPartial: true,
+      })
 
       chatStore.handleChatToolUse({
         podId: 'pod-1',
@@ -731,13 +817,9 @@ describe('chatMessageActions', () => {
         input: {},
       })
 
-      chatStore.handleChatToolUse({
-        podId: 'pod-1',
-        messageId: 'msg-1',
-        toolUseId: 'tool-2',
-        toolName: 'Write',
-        input: {},
-      })
+      let messages = chatStore.messagesByPodId.get('pod-1')
+      // sub-1 has tool-1, isPartial=true
+      expect(messages![0]!.subMessages![1]!.isPartial).toBe(true)
 
       chatStore.handleChatToolResult({
         podId: 'pod-1',
@@ -747,19 +829,9 @@ describe('chatMessageActions', () => {
         output: 'output1',
       })
 
-      let messages = chatStore.messagesByPodId.get('pod-1')
-      expect(messages![0]!.subMessages![0]!.isPartial).toBe(true)
-
-      chatStore.handleChatToolResult({
-        podId: 'pod-1',
-        messageId: 'msg-1',
-        toolUseId: 'tool-2',
-        toolName: 'Write',
-        output: 'output2',
-      })
-
       messages = chatStore.messagesByPodId.get('pod-1')
-      expect(messages![0]!.subMessages![0]!.isPartial).toBe(false)
+      // sub-1 all tools completed, isPartial=false
+      expect(messages![0]!.subMessages![1]!.isPartial).toBe(false)
     })
   })
 
@@ -947,7 +1019,7 @@ describe('chatMessageActions', () => {
       })
 
       const messages = chatStore.messagesByPodId.get('pod-1')
-      expect(messages![0]!.expectingNewBlock).toBeUndefined()
+      expect(messages![0]).not.toHaveProperty('expectingNewBlock')
     })
   })
 
@@ -1286,7 +1358,7 @@ describe('chatMessageActions', () => {
       expect(result.subMessages![1]!.content).toBe('Content2')
     })
 
-    it('應將所有 toolUse 集中到第一個 subMessage', () => {
+    it('各 subMessage 應保留自己的 toolUse（不集中到第一個）', () => {
       const chatStore = useChatStore()
       const messageActions = chatStore.getMessageActions()
 
@@ -1317,13 +1389,14 @@ describe('chatMessageActions', () => {
       expect(result.subMessages![0]!.content).toBe('Hello')
       expect(result.subMessages![1]!.content).toBe(' World')
 
-      expect(result.subMessages![0]!.toolUse).toHaveLength(1)
-      expect(result.subMessages![1]!.toolUse).toBeUndefined()
+      expect(result.subMessages![0]!.toolUse).toBeUndefined()
+      expect(result.subMessages![1]!.toolUse).toHaveLength(1)
+      expect(result.subMessages![1]!.toolUse![0]).toMatchObject({ toolUseId: 'tool-1' })
 
       expect(result.toolUse).toHaveLength(1)
     })
 
-    it('多個 subMessages 各有 toolUse 時應全部集中到第一個', () => {
+    it('多個 subMessages 各有 toolUse 時應各自保留', () => {
       const chatStore = useChatStore()
       const messageActions = chatStore.getMessageActions()
 
@@ -1345,8 +1418,10 @@ describe('chatMessageActions', () => {
       const result = messageActions.convertPersistedToMessage(persistedMessage)
 
       expect(result.subMessages).toHaveLength(2)
-      expect(result.subMessages![0]!.toolUse).toHaveLength(2)
-      expect(result.subMessages![1]!.toolUse).toBeUndefined()
+      expect(result.subMessages![0]!.toolUse).toHaveLength(1)
+      expect(result.subMessages![0]!.toolUse![0]).toMatchObject({ toolUseId: 'tool-1' })
+      expect(result.subMessages![1]!.toolUse).toHaveLength(1)
+      expect(result.subMessages![1]!.toolUse![0]).toMatchObject({ toolUseId: 'tool-2' })
       expect(result.toolUse).toHaveLength(2)
     })
 
@@ -1596,7 +1671,7 @@ describe('chatMessageActions', () => {
   })
 
   describe('createAssistantMessageShape', () => {
-    it('應回傳包含 subMessages 和 expectingNewBlock 的 Message', () => {
+    it('應回傳包含 subMessages 的 Message（不含 expectingNewBlock）', () => {
       const shape = createAssistantMessageShape('msg-1', 'content', true, 'delta')
 
       expect(shape.subMessages).toHaveLength(1)
@@ -1605,7 +1680,7 @@ describe('chatMessageActions', () => {
         content: 'delta',
         isPartial: true,
       })
-      expect(shape.expectingNewBlock).toBe(true)
+      expect(shape).not.toHaveProperty('expectingNewBlock')
     })
 
     it('delta 為空時應以 content 作為 subMessage 內容', () => {
@@ -1616,7 +1691,7 @@ describe('chatMessageActions', () => {
   })
 
   describe('addNewChatMessage - 角色分支', () => {
-    it('assistant 訊息應使用 createAssistantMessageShape 建構', async () => {
+    it('assistant 訊息應使用 createAssistantMessageShape 建構（不含 expectingNewBlock）', async () => {
       const chatStore = useChatStore()
       const messageActions = chatStore.getMessageActions()
 
@@ -1624,7 +1699,7 @@ describe('chatMessageActions', () => {
 
       const messages = chatStore.messagesByPodId.get('pod-1')
       expect(messages![0]!.subMessages).toHaveLength(1)
-      expect(messages![0]!.expectingNewBlock).toBe(true)
+      expect(messages![0]).not.toHaveProperty('expectingNewBlock')
     })
 
     it('user 訊息應不含 subMessages 和 expectingNewBlock', async () => {
@@ -1637,7 +1712,7 @@ describe('chatMessageActions', () => {
 
       const messages = chatStore.messagesByPodId.get('pod-1')
       expect(messages![0]!.subMessages).toBeUndefined()
-      expect(messages![0]!.expectingNewBlock).toBeUndefined()
+      expect(messages![0]).not.toHaveProperty('expectingNewBlock')
     })
 
     it('user 訊息應呼叫 appendUserOutputToPod', async () => {
@@ -1667,7 +1742,6 @@ describe('chatMessageActions', () => {
           isPartial: true,
           timestamp: new Date().toISOString(),
           subMessages: [{ id: 'msg-1-sub-0', content: 'Hello', isPartial: true }],
-          expectingNewBlock: false,
         }
       ]
       chatStore.messagesByPodId.set('pod-1', messages)

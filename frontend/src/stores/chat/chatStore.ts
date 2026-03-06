@@ -162,32 +162,33 @@ export const useChatStore = defineStore('chat', {
             connectionActions.disconnectWebSocket()
         },
 
+        getEventListenerConfig(): Array<{ event: string; handler: (payload: never) => void }> {
+            return [
+                { event: WebSocketResponseEvents.CONNECTION_READY, handler: this.handleConnectionReady as (payload: never) => void },
+                { event: WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE, handler: this.handleChatMessage as (payload: never) => void },
+                { event: WebSocketResponseEvents.POD_CHAT_TOOL_USE, handler: this.handleChatToolUse as (payload: never) => void },
+                { event: WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, handler: this.handleChatToolResult as (payload: never) => void },
+                { event: WebSocketResponseEvents.POD_CHAT_COMPLETE, handler: this.handleChatComplete as (payload: never) => void },
+                { event: WebSocketResponseEvents.POD_CHAT_ABORTED, handler: this.handleChatAborted as (payload: never) => void },
+                { event: WebSocketResponseEvents.POD_ERROR, handler: this.handleError as (payload: never) => void },
+                { event: WebSocketResponseEvents.POD_MESSAGES_CLEARED, handler: this.handleMessagesClearedEvent as (payload: never) => void },
+                { event: WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, handler: this.handleWorkflowAutoCleared as (payload: never) => void },
+                { event: WebSocketResponseEvents.HEARTBEAT_PING, handler: this.handleHeartbeatPing as (payload: never) => void },
+            ]
+        },
+
         registerListeners(): void {
             this.unregisterListeners()
-            websocketClient.on<ConnectionReadyPayload>(WebSocketResponseEvents.CONNECTION_READY, this.handleConnectionReady)
-            websocketClient.on<PodChatMessagePayload>(WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE, this.handleChatMessage)
-            websocketClient.on<PodChatToolUsePayload>(WebSocketResponseEvents.POD_CHAT_TOOL_USE, this.handleChatToolUse)
-            websocketClient.on<PodChatToolResultPayload>(WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, this.handleChatToolResult)
-            websocketClient.on<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)
-            websocketClient.on<PodChatAbortedPayload>(WebSocketResponseEvents.POD_CHAT_ABORTED, this.handleChatAborted)
-            websocketClient.on<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
-            websocketClient.on<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
-            websocketClient.on<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
-            websocketClient.on<HeartbeatPingPayload>(WebSocketResponseEvents.HEARTBEAT_PING, this.handleHeartbeatPing)
+            this.getEventListenerConfig().forEach(({ event, handler }) => {
+                websocketClient.on(event, handler)
+            })
             websocketClient.onDisconnect(this.handleSocketDisconnect)
         },
 
         unregisterListeners(): void {
-            websocketClient.off<ConnectionReadyPayload>(WebSocketResponseEvents.CONNECTION_READY, this.handleConnectionReady)
-            websocketClient.off<PodChatMessagePayload>(WebSocketResponseEvents.POD_CLAUDE_CHAT_MESSAGE, this.handleChatMessage)
-            websocketClient.off<PodChatToolUsePayload>(WebSocketResponseEvents.POD_CHAT_TOOL_USE, this.handleChatToolUse)
-            websocketClient.off<PodChatToolResultPayload>(WebSocketResponseEvents.POD_CHAT_TOOL_RESULT, this.handleChatToolResult)
-            websocketClient.off<PodChatCompletePayload>(WebSocketResponseEvents.POD_CHAT_COMPLETE, this.handleChatComplete)
-            websocketClient.off<PodChatAbortedPayload>(WebSocketResponseEvents.POD_CHAT_ABORTED, this.handleChatAborted)
-            websocketClient.off<PodErrorPayload>(WebSocketResponseEvents.POD_ERROR, this.handleError)
-            websocketClient.off<PodMessagesClearedPayload>(WebSocketResponseEvents.POD_MESSAGES_CLEARED, this.handleMessagesClearedEvent)
-            websocketClient.off<WorkflowAutoClearedPayload>(WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, this.handleWorkflowAutoCleared)
-            websocketClient.off<HeartbeatPingPayload>(WebSocketResponseEvents.HEARTBEAT_PING, this.handleHeartbeatPing)
+            this.getEventListenerConfig().forEach(({ event }) => {
+                websocketClient.offAll(event)
+            })
             websocketClient.offDisconnect(this.handleSocketDisconnect)
         },
 
@@ -238,9 +239,9 @@ export const useChatStore = defineStore('chat', {
             podStore.updatePodStatus(podId, 'chatting')
         },
 
-        addUserMessage(podId: string, content: string): Promise<void> {
+        addUserMessage(podId: string, content: string): void {
             const messageActions = this.getMessageActions()
-            return messageActions.addUserMessage(podId, content)
+            messageActions.addUserMessage(podId, content)
         },
 
         addRemoteUserMessage(podId: string, messageId: string, content: string, timestamp: string): void {
@@ -317,14 +318,14 @@ export const useChatStore = defineStore('chat', {
             })
         },
 
-        handleMessagesClearedEvent(payload: PodMessagesClearedPayload): Promise<void> {
+        handleMessagesClearedEvent(payload: PodMessagesClearedPayload): void {
             const messageActions = this.getMessageActions()
-            return messageActions.handleMessagesClearedEvent(payload)
+            messageActions.handleMessagesClearedEvent(payload)
         },
 
-        handleWorkflowAutoCleared(payload: WorkflowAutoClearedPayload): Promise<void> {
+        handleWorkflowAutoCleared(payload: WorkflowAutoClearedPayload): void {
             const messageActions = this.getMessageActions()
-            return messageActions.handleWorkflowAutoCleared(payload)
+            messageActions.handleWorkflowAutoCleared(payload)
         },
 
         clearAutoClearAnimation(): void {

@@ -306,9 +306,10 @@ describe('Chat 對話完整流程', () => {
         status: 'running',
       })
 
-      expect(messages[0]?.subMessages).toHaveLength(1)
-      expect(messages[0]?.subMessages![0]?.toolUse).toHaveLength(1)
-      expect(messages[0]?.subMessages![0]?.toolUse![0]?.status).toBe('running')
+      // flush 後有 2 個 subMessages：sub-0（內容文字）、sub-1（toolUse）
+      expect(messages[0]?.subMessages).toHaveLength(2)
+      expect(messages[0]?.subMessages![1]?.toolUse).toHaveLength(1)
+      expect(messages[0]?.subMessages![1]?.toolUse![0]?.status).toBe('running')
 
       chatStore.handleChatToolResult({
         podId: 'pod-1',
@@ -321,7 +322,7 @@ describe('Chat 對話完整流程', () => {
       messages = chatStore.getMessages('pod-1')
       expect(messages[0]?.toolUse![0]?.status).toBe('completed')
       expect(messages[0]?.toolUse![0]?.output).toBe('file1.txt\nfile2.txt\n')
-      expect(messages[0]?.subMessages![0]?.toolUse![0]?.status).toBe('completed')
+      expect(messages[0]?.subMessages![1]?.toolUse![0]?.status).toBe('completed')
 
       chatStore.handleChatMessage({
         podId: 'pod-1',
@@ -441,10 +442,11 @@ describe('Chat 對話完整流程', () => {
       expect(messages[0]?.toolUse![1]?.toolName).toBe('Write')
       expect(messages[0]?.toolUse![1]?.status).toBe('completed')
 
-      // 在同一個 message 內多次呼叫 handleChatToolUse 時，沒有 handleChatMessage 介入
-      // 所以第二次呼叫的 toolUse 會加到同一個 subMessage 的 toolUse 陣列中
+      // 第二次呼叫 handleChatToolUse 時，sub-0 content 仍為空，故 append 到同一個 SubMessage
       expect(messages[0]?.subMessages).toHaveLength(1)
       expect(messages[0]?.subMessages![0]?.toolUse).toHaveLength(2)
+      expect(messages[0]?.subMessages![0]?.toolUse![0]?.toolName).toBe('Read')
+      expect(messages[0]?.subMessages![0]?.toolUse![1]?.toolName).toBe('Write')
     })
   })
 

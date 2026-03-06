@@ -30,6 +30,10 @@ class WebSocketClient {
       return
     }
 
+    if (this.socket?.readyState === WebSocket.CONNECTING) {
+      return
+    }
+
     this.wsUrl = url ?? import.meta.env.VITE_WS_URL ?? this.resolveDefaultWebSocketUrl()
 
     const wsProtocol = this.wsUrl.replace(/^http/, 'ws')
@@ -188,6 +192,13 @@ class WebSocketClient {
 
   off<T>(event: string, callback: EventCallback<T>): void {
     this.unregisterEventListener(event, callback)
+  }
+
+  offAll(event: string): void {
+    const listeners = this.eventListeners.get(event)
+    if (!listeners) return
+    listeners.clear()
+    this.eventListeners.delete(event)
   }
 
   onDisconnect(callback: (reason: string) => void): void {

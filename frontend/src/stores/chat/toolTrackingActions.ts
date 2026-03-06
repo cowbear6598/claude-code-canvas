@@ -1,7 +1,7 @@
 import type {Message, ToolUseInfo} from '@/types/chat'
 import type {PodChatToolResultPayload, PodChatToolUsePayload} from '@/types/websocket'
 import type {ChatStoreInstance} from './chatStore'
-import {appendToolUseToLastSub, markToolCompleted, updateSubMessagesToolUseResult} from './subMessageHelpers'
+import {appendToolToLastSubMessage, flushAndCreateNewSubMessage, markToolWithOutput, updateSubMessagesToolUseResult} from './subMessageHelpers'
 import {getMessages, findMessageIndex} from './chatStoreHelpers'
 
 export function createToolTrackingActions(store: ChatStoreInstance): {
@@ -36,8 +36,7 @@ export function createToolTrackingActions(store: ChatStoreInstance): {
                 content: '',
                 isPartial: true,
                 toolUse: [toolUseInfo]
-            }],
-            expectingNewBlock: true
+            }]
         }
 
         store.messagesByPodId.set(podId, [...messages, newMessage])
@@ -58,11 +57,15 @@ export function createToolTrackingActions(store: ChatStoreInstance): {
         const updatedMessage: Message = {
             ...message,
             toolUse: updatedToolUse,
-            expectingNewBlock: true,
         }
 
         if (message.subMessages !== undefined && message.subMessages.length > 0) {
-            updatedMessage.subMessages = appendToolUseToLastSub(message.subMessages, toolUseInfo)
+            const lastSub = message.subMessages[message.subMessages.length - 1]
+            if (lastSub && lastSub.content.trim() === '') {
+                updatedMessage.subMessages = appendToolToLastSubMessage(message.subMessages, toolUseInfo)
+            } else {
+                updatedMessage.subMessages = flushAndCreateNewSubMessage(message.subMessages, message.id, toolUseInfo)
+            }
         }
 
         updatedMessages[messageIndex] = updatedMessage
@@ -95,11 +98,7 @@ export function createToolTrackingActions(store: ChatStoreInstance): {
 
         if (!message?.toolUse) return
 
-        const updatedToolUse = message.toolUse.map(tool =>
-            tool.toolUseId === toolUseId
-                ? {...markToolCompleted(tool), output}
-                : tool
-        )
+        const updatedToolUse = markToolWithOutput(message.toolUse, toolUseId, output)
 
         const updatedMessage: Message = {
             ...message,

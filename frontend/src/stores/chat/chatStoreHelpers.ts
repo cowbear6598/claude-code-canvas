@@ -9,20 +9,6 @@ export function findMessageIndex(messages: Message[], messageId: string): number
     return messages.findIndex(message => message.id === messageId)
 }
 
-export function updateMessageInStore(
-    store: { messagesByPodId: Map<string, Message[]> },
-    podId: string,
-    messages: Message[],
-    messageIndex: number,
-    updater: (message: Message) => Message
-): void {
-    const updatedMessages = [...messages]
-    const message = updatedMessages[messageIndex]
-    if (!message) return
-    updatedMessages[messageIndex] = updater(message)
-    store.messagesByPodId.set(podId, updatedMessages)
-}
-
 export function setTyping(store: { isTypingByPodId: Map<string, boolean> }, podId: string, isTyping: boolean): void {
     store.isTypingByPodId.set(podId, isTyping)
 

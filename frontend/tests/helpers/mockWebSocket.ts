@@ -29,6 +29,13 @@ export const mockWebSocketClient = {
       listeners.callbacks.delete(callback)
     }
   }),
+  offAll: vi.fn((event: string) => {
+    const listeners = eventListeners.get(event)
+    if (listeners) {
+      listeners.callbacks.clear()
+      eventListeners.delete(event)
+    }
+  }),
   onDisconnect: vi.fn((callback: DisconnectCallback) => {
     disconnectListeners.add(callback)
   }),
@@ -76,6 +83,7 @@ export function resetMockWebSocket(): void {
   mockWebSocketClient.emit.mockClear()
   mockWebSocketClient.on.mockClear()
   mockWebSocketClient.off.mockClear()
+  mockWebSocketClient.offAll.mockClear()
   mockWebSocketClient.onDisconnect.mockClear()
   mockWebSocketClient.offDisconnect.mockClear()
   mockCreateWebSocketRequest.mockReset().mockResolvedValue(null)

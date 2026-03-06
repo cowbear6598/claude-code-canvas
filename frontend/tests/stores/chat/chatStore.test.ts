@@ -633,25 +633,47 @@ describe('chatStore', () => {
   })
 
   describe('unregisterListeners', () => {
-    it('應取消所有事件 listener', () => {
+    it('應使用 offAll 取消所有事件 listener', () => {
       const store = useChatStore()
       store.registerListeners()
-      mockWebSocketClient.off.mockClear()
+      mockWebSocketClient.offAll.mockClear()
       mockWebSocketClient.offDisconnect.mockClear()
 
       store.unregisterListeners()
 
-      expect(mockWebSocketClient.off).toHaveBeenCalledWith('connection:ready', expect.any(Function))
-      expect(mockWebSocketClient.off).toHaveBeenCalledWith('pod:claude:chat:message', expect.any(Function))
-      expect(mockWebSocketClient.off).toHaveBeenCalledWith('pod:chat:tool_use', expect.any(Function))
-      expect(mockWebSocketClient.off).toHaveBeenCalledWith('pod:chat:tool_result', expect.any(Function))
-      expect(mockWebSocketClient.off).toHaveBeenCalledWith('pod:chat:complete', expect.any(Function))
-      expect(mockWebSocketClient.off).toHaveBeenCalledWith('pod:chat:aborted', expect.any(Function))
-      expect(mockWebSocketClient.off).toHaveBeenCalledWith('pod:error', expect.any(Function))
-      expect(mockWebSocketClient.off).toHaveBeenCalledWith('pod:messages:cleared', expect.any(Function))
-      expect(mockWebSocketClient.off).toHaveBeenCalledWith('workflow:auto-cleared', expect.any(Function))
-      expect(mockWebSocketClient.off).toHaveBeenCalledWith('heartbeat:ping', expect.any(Function))
+      expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('connection:ready')
+      expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('pod:claude:chat:message')
+      expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('pod:chat:tool_use')
+      expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('pod:chat:tool_result')
+      expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('pod:chat:complete')
+      expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('pod:chat:aborted')
+      expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('pod:error')
+      expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('pod:messages:cleared')
+      expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('workflow:auto-cleared')
+      expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('heartbeat:ping')
       expect(mockWebSocketClient.offDisconnect).toHaveBeenCalledWith(expect.any(Function))
+    })
+
+    it('重複呼叫 registerListeners 不會造成 listener 累積', () => {
+      const store = useChatStore()
+
+      store.registerListeners()
+      store.registerListeners()
+      store.registerListeners()
+
+      // 每次 registerListeners 都會先呼叫 unregisterListeners（offAll），
+      // 確保每個事件只有一個 listener，不會因重複註冊而累積
+      const onCallsForReady = mockWebSocketClient.on.mock.calls.filter(
+        ([event]) => event === 'connection:ready'
+      )
+      // 3 次 registerListeners，每次都 offAll 後重新 on，最終 on 被呼叫 3 次
+      expect(onCallsForReady.length).toBe(3)
+      // offAll 被呼叫次數：第 1 次 registerListeners 先 offAll（但 Map 為空），
+      // 第 2、3 次各 offAll 一次，共 3 次
+      const offAllCallsForReady = mockWebSocketClient.offAll.mock.calls.filter(
+        ([event]) => event === 'connection:ready'
+      )
+      expect(offAllCallsForReady.length).toBe(3)
     })
   })
 })

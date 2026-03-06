@@ -35,6 +35,5 @@ export interface Message {
   isSummarized?: boolean
   sourceInfo?: { podId: string; podName: string }
   subMessages?: SubMessage[]
-  expectingNewBlock?: boolean
 }
 

@@ -1,6 +1,6 @@
 import type {Message, SubMessage} from '@/types/chat'
 import type {PodChatAbortedPayload, PodChatCompletePayload} from '@/types/websocket'
-import {RESPONSE_PREVIEW_LENGTH} from '@/lib/constants'
+import {RESPONSE_PREVIEW_LENGTH, OUTPUT_LINES_PREVIEW_COUNT} from '@/lib/constants'
 import {truncateContent} from './chatUtils'
 import type {ChatStoreInstance} from './chatStore'
 import {finalizeSubMessages, finalizeToolUse, updateMainMessageState} from './subMessageHelpers'
@@ -22,18 +22,19 @@ export function createMessageCompletionActions(
     handleChatAborted: (payload: PodChatAbortedPayload) => void
     finalizeStreaming: (podId: string, messageId: string) => void
     completeMessage: (podId: string, messages: Message[], messageIndex: number, fullContent: string, messageId: string) => void
-    updatePodOutput: (podId: string) => Promise<void>
+    updatePodOutput: (podId: string) => void
 } {
-    const updatePodOutput = async (podId: string): Promise<void> => {
+    const updatePodOutput = (podId: string): void => {
         const podStore = usePodStore()
         const pod = podStore.pods.find(pod => pod.id === podId)
 
         if (!pod) return
 
         const messages = getMessages(store, podId)
+        const recentMessages = messages.slice(-OUTPUT_LINES_PREVIEW_COUNT * 2)
         const outputLines: string[] = []
 
-        for (const message of messages) {
+        for (const message of recentMessages) {
             if (message.role === 'user') {
                 const userContent = message.content
                 outputLines.push(`> ${truncateContent(userContent, RESPONSE_PREVIEW_LENGTH)}`)
@@ -44,7 +45,7 @@ export function createMessageCompletionActions(
 
         podStore.updatePod({
             ...pod,
-            output: outputLines
+            output: outputLines.slice(-OUTPUT_LINES_PREVIEW_COUNT)
         })
     }
 

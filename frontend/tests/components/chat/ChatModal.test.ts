@@ -213,12 +213,13 @@ describe('isWorkflowBusy', () => {
     wrapper.unmount()
   })
 
-  it('頭 Pod 自己在 typing 時（isTyping=true），ChatInput 不應收到 disabled（應顯示停止按鈕）', async () => {
+  it('頭 Pod 自己在 typing 時（status=chatting），ChatInput 不應收到 disabled（應顯示停止按鈕）', async () => {
     mockGetPodWorkflowRole.mockReturnValue('head')
     mockIsPartOfRunningWorkflow.mockReturnValue(true)
     mockIsTyping.mockReturnValue(true)
 
-    const wrapper = mountChatModal()
+    const pod = createMockPod({ id: 'test-pod-1', status: 'chatting' })
+    const wrapper = mount(ChatModal, { props: { pod } })
     await wrapper.vm.$nextTick()
 
     const chatInput = wrapper.find('[data-testid="chat-input"]')
@@ -255,12 +256,13 @@ describe('isWorkflowBusy', () => {
     wrapper.unmount()
   })
 
-  it('tail Pod 自己在 typing 時，ChatInput 不應收到 disabled=true', async () => {
+  it('tail Pod 自己在 typing 時（status=chatting），ChatInput 不應收到 disabled=true', async () => {
     mockGetPodWorkflowRole.mockReturnValue('tail')
     mockIsPartOfRunningWorkflow.mockReturnValue(true)
     mockIsTyping.mockReturnValue(true)
 
-    const wrapper = mountChatModal()
+    const pod = createMockPod({ id: 'test-pod-1', status: 'chatting' })
+    const wrapper = mount(ChatModal, { props: { pod } })
     await wrapper.vm.$nextTick()
 
     const chatInput = wrapper.find('[data-testid="chat-input"]')
