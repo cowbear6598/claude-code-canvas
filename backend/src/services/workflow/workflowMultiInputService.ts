@@ -4,6 +4,7 @@ import type {
   Connection,
   AutoTriggerMode,
 } from '../../types/index.js';
+import { isPodBusy } from '../../types/index.js';
 import type { ExecutionServiceMethods, TriggerStrategy, HandleMultiInputForConnectionParams } from './types.js';
 import {podStore} from '../podStore.js';
 import {socketService} from '../socketService.js';
@@ -25,7 +26,7 @@ interface MultiInputServiceDeps {
 class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps> {
   private isTargetPodBusy(targetPod: ReturnType<typeof podStore.getById>): boolean {
     if (targetPod === undefined) return false;
-    return targetPod.status === 'chatting' || targetPod.status === 'summarizing';
+    return isPodBusy(targetPod.status);
   }
 
   private enqueueIfBusy(
@@ -140,8 +141,6 @@ class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps>
     connection: Connection,
     triggerMode: AutoTriggerMode
   ): void {
-    this.ensureInitialized();
-
     const merged = this.getMergedContentOrNull(canvasId, connection.targetPodId);
     if (!merged) return;
 

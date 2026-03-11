@@ -30,6 +30,15 @@ interface GenericNoteStoreConfig<T, K extends keyof T> {
   storeName: string;
 }
 
+function getForeignKeyValue<T, K extends keyof T>(data: T, key: K): string | null {
+  const value = data[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function setForeignKeyValue<T, K extends keyof T>(obj: T, key: K, value: string): void {
+  (obj as Record<string, unknown>)[key as string] = value;
+}
+
 export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
   private readonly noteConfig: GenericNoteStoreConfig<T, K>;
 
@@ -51,7 +60,7 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
       originalPosition: row.original_position_json ? safeJsonParse<{ x: number; y: number }>(row.original_position_json) : null,
     };
 
-    (note as unknown as Record<string, unknown>)[this.noteConfig.foreignKeyField as string] = row.foreign_key_id ?? '';
+    setForeignKeyValue(note as unknown as T, this.noteConfig.foreignKeyField, row.foreign_key_id ?? '');
 
     return note as T;
   }
@@ -59,7 +68,7 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
   create(canvasId: string, data: Omit<T, 'id'>): T {
     const id = uuidv4();
     const baseData = data as unknown as BaseNote;
-    const foreignKeyValue = (data as Record<string, unknown>)[this.noteConfig.foreignKeyField as string] as string ?? null;
+    const foreignKeyValue = getForeignKeyValue(data as Partial<T>, this.noteConfig.foreignKeyField);
 
     this.stmts.note.insert.run({
       $id: id,
@@ -102,7 +111,7 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
     }
 
     const merged = { ...existing, ...updates } as T;
-    const foreignKeyValue = (merged as Record<string, unknown>)[this.noteConfig.foreignKeyField as string] as string ?? null;
+    const foreignKeyValue = getForeignKeyValue(merged, this.noteConfig.foreignKeyField);
 
     this.stmts.note.update.run({
       $id: id,

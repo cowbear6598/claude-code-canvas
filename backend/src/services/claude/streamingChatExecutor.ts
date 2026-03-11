@@ -14,7 +14,7 @@ import {claudeService} from './claudeService.js';
 import type {StreamEvent} from './types.js';
 import {
     buildPersistedMessage,
-    createSubMessageAccumulator,
+    createFlushCurrentSubMessage,
     createSubMessageState,
     processTextEvent,
     processToolResultEvent,
@@ -205,7 +205,7 @@ export async function executeStreamingChat(
     const messageId = uuidv4();
     const contentBuffer = {value: ''};
     const subMessageState = createSubMessageState();
-    const flushCurrentSubMessage = createSubMessageAccumulator(messageId, subMessageState);
+    const flushCurrentSubMessage = createFlushCurrentSubMessage(messageId, subMessageState);
 
     const persistStreamingMessage = (): void => {
         const persistedMsg = buildPersistedMessage(messageId, contentBuffer.value, subMessageState);

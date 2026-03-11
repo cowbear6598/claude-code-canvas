@@ -73,7 +73,7 @@ export function handleListPods(_req: Request, params: Record<string, string>): R
 	const { canvas, error } = requireCanvas(params.id);
 	if (error) return error;
 
-	const pods = podStore.getAll(canvas.id);
+	const pods = podStore.list(canvas.id);
 	return jsonResponse({ pods }, HTTP_STATUS.OK);
 }
 

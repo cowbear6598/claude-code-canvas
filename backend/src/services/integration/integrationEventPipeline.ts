@@ -13,8 +13,7 @@ import { shouldSendBusyReply } from '../../utils/busyChatManager.js';
 import { isWorkflowChainBusy } from '../../utils/workflowChainTraversal.js';
 import { integrationRegistry } from './integrationRegistry.js';
 import type { NormalizedEvent } from './types.js';
-
-const BUSY_STATUSES = new Set(['chatting', 'summarizing'] as const);
+import { isPodBusy } from '../../types/index.js';
 
 class IntegrationEventPipeline {
   private busyReplyCooldowns = new Map<string, number>();
@@ -54,12 +53,12 @@ class IntegrationEventPipeline {
   private isResourceBusy(appId: string, resourceId: string): boolean {
     const boundPods = podStore.findByIntegrationAppAndResource(appId, resourceId);
     return boundPods.some(({ canvasId, pod }) =>
-      BUSY_STATUSES.has(pod.status as 'chatting' | 'summarizing') || isWorkflowChainBusy(canvasId, pod.id)
+      isPodBusy(pod.status) || isWorkflowChainBusy(canvasId, pod.id)
     );
   }
 
   private async processBoundPod(canvasId: string, pod: Pod, event: NormalizedEvent): Promise<void> {
-    if (BUSY_STATUSES.has(pod.status as 'chatting' | 'summarizing')) return;
+    if (isPodBusy(pod.status)) return;
 
     if (pod.status === 'error') {
       podStore.setStatus(canvasId, pod.id, 'idle');
@@ -71,7 +70,7 @@ class IntegrationEventPipeline {
   private async injectMessage(canvasId: string, podId: string, event: NormalizedEvent): Promise<void> {
     // 二次確認 Pod 狀態，防止並發事件穿透
     const currentPod = podStore.getById(canvasId, podId);
-    if (currentPod && BUSY_STATUSES.has(currentPod.status as 'chatting' | 'summarizing')) {
+    if (currentPod && isPodBusy(currentPod.status)) {
       logger.log('Integration', 'Complete', `Pod「${currentPod.name}」已在忙碌中，跳過注入`);
       return;
     }

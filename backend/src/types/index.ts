@@ -2,6 +2,7 @@ export type { Result } from './result.js';
 export { ok, err } from './result.js';
 
 export type { Pod, PodStatus, ModelType } from './pod.js';
+export { isPodBusy } from './pod.js';
 
 export type { Message, MessageRole, ToolUseInfo, ContentBlock, TextContentBlock, ImageContentBlock } from './message.js';
 

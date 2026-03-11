@@ -2,9 +2,9 @@ import {connectionStore} from '../services/connectionStore.js';
 import {podStore} from '../services/podStore.js';
 import {logger} from './logger.js';
 import type {LogCategory} from './logger.js';
+import {isPodBusy} from '../types/index.js';
 
 const MAX_WORKFLOW_CHAIN_SIZE = 50;
-const BUSY_STATUSES = new Set(['chatting', 'summarizing'] as const);
 
 function getAdjacentPodIds(canvasId: string, podId: string): string[] {
     const downstream = connectionStore.findBySourcePodId(canvasId, podId).map(c => c.targetPodId);
@@ -65,6 +65,6 @@ export function traverseWorkflowChain(
 export function isWorkflowChainBusy(canvasId: string, podId: string): boolean {
     return traverseWorkflowChain('Workflow', canvasId, podId, (currentId) => {
         const pod = podStore.getById(canvasId, currentId);
-        return pod !== undefined && BUSY_STATUSES.has(pod.status as 'chatting' | 'summarizing');
+        return pod !== undefined && isPodBusy(pod.status);
     });
 }

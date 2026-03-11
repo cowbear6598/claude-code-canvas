@@ -183,13 +183,14 @@ class PodStore {
         return { canvasId: row.canvas_id, pod: this.toPodWithBindings(row) };
     }
 
-    getAll(canvasId: string): Pod[] {
-        return this.list(canvasId);
-    }
-
     list(canvasId: string): Pod[] {
         const rows = this.stmts.pod.selectByCanvasId.all(canvasId) as PodRow[];
         return this.toPodListWithBindings(rows);
+    }
+
+    /** @deprecated 請改用 list() */
+    getAll(canvasId: string): Pod[] {
+        return this.list(canvasId);
     }
 
     getByName(canvasId: string, name: string): Pod | undefined {

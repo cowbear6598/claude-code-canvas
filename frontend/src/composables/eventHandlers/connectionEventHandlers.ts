@@ -1,0 +1,39 @@
+import { WebSocketResponseEvents } from '@/services/websocket'
+import { useConnectionStore } from '@/stores/connectionStore'
+import type { Connection } from '@/types'
+import { createUnifiedHandler } from './sharedHandlerUtils'
+import type { BasePayload } from './sharedHandlerUtils'
+
+type RawConnectionFromEvent = Omit<Connection, 'status'>
+
+const handleConnectionCreated = createUnifiedHandler<BasePayload & { connection?: RawConnectionFromEvent; canvasId: string }>(
+  (payload) => {
+    if (payload.connection) {
+      useConnectionStore().addConnectionFromEvent(payload.connection)
+    }
+  },
+  { toastMessage: '連線建立成功' }
+)
+
+const handleConnectionUpdated = createUnifiedHandler<BasePayload & { connection?: RawConnectionFromEvent; canvasId: string }>(
+  (payload) => {
+    if (payload.connection) {
+      useConnectionStore().updateConnectionFromEvent(payload.connection)
+    }
+  }
+)
+
+const handleConnectionDeleted = createUnifiedHandler<BasePayload & { connectionId: string; canvasId: string }>(
+  (payload) => {
+    useConnectionStore().removeConnectionFromEvent(payload.connectionId)
+  },
+  { toastMessage: '連線已刪除' }
+)
+
+export function getConnectionEventListeners(): Array<{ event: string; handler: (payload: unknown) => void }> {
+  return [
+    { event: WebSocketResponseEvents.CONNECTION_CREATED, handler: handleConnectionCreated as (payload: unknown) => void },
+    { event: WebSocketResponseEvents.CONNECTION_UPDATED, handler: handleConnectionUpdated as (payload: unknown) => void },
+    { event: WebSocketResponseEvents.CONNECTION_DELETED, handler: handleConnectionDeleted as (payload: unknown) => void },
+  ]
+}

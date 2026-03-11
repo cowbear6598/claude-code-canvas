@@ -4,6 +4,7 @@ import type {
     ContentBlock,
     Pod,
 } from '../types';
+import { isPodBusy } from '../types/index.js';
 import type {ChatSendPayload, ChatHistoryPayload, ChatAbortPayload} from '../schemas';
 import {podStore} from '../services/podStore.js';
 import {messageStore} from '../services/messageStore.js';
@@ -32,7 +33,7 @@ function validatePodChatReady(
         return false;
     }
 
-    if (pod.status === 'chatting' || pod.status === 'summarizing') {
+    if (isPodBusy(pod.status)) {
         emitError(
             connectionId,
             WebSocketResponseEvents.POD_ERROR,

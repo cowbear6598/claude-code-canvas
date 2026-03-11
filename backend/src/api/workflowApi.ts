@@ -12,6 +12,7 @@ import { HTTP_STATUS } from '../constants.js';
 import { socketService } from '../services/socketService.js';
 import { WebSocketResponseEvents } from '../schemas/index.js';
 import type { Pod, ContentBlock } from '../types/index.js';
+import { isPodBusy } from '../types/index.js';
 import type { Connection } from '../types/connection.js';
 
 interface WorkflowNode {
@@ -48,7 +49,7 @@ function buildWorkflowNode(
 }
 
 export function buildWorkflows(canvasId: string): WorkflowInfo[] {
-	const pods = podStore.getAll(canvasId);
+	const pods = podStore.list(canvasId);
 	const connections = connectionStore.list(canvasId);
 
 	const podMap = new Map<string, Pod>(pods.map(p => [p.id, p]));
@@ -127,7 +128,7 @@ export async function handleWorkflowChat(req: Request, params: Record<string, st
 		return jsonResponse({ error: 'Pod 已連接外部服務，無法手動發送訊息' }, HTTP_STATUS.BAD_REQUEST);
 	}
 
-	if (pod.status === 'chatting' || pod.status === 'summarizing') {
+	if (isPodBusy(pod.status)) {
 		return jsonResponse({ error: 'Pod 目前正在忙碌中，請稍後再試' }, HTTP_STATUS.CONFLICT);
 	}
 

@@ -35,6 +35,15 @@ interface ExecutionServiceDeps {
   directTriggerService: TriggerStrategy;
 }
 
+interface WorkflowChatContext {
+  canvasId: string;
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+  participatingConnectionIds: string[];
+  strategy: TriggerStrategy;
+}
+
 class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
   private getLastAssistantFallback(sourcePodId: string): { content: string; isSummarized: boolean } | null {
     const fallback = this.deps.autoTriggerService.getLastAssistantMessage(sourcePodId);
@@ -91,8 +100,6 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
   }
 
   async checkAndTriggerWorkflows(canvasId: string, sourcePodId: string): Promise<void> {
-    this.ensureInitialized();
-
     const connections = connectionStore.findBySourcePodId(canvasId, sourcePodId);
 
     if (connections.length === 0) {
@@ -197,14 +204,7 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     );
   }
 
-  private async onWorkflowChatComplete(params: {
-    canvasId: string;
-    connectionId: string;
-    sourcePodId: string;
-    targetPodId: string;
-    participatingConnectionIds: string[];
-    strategy: TriggerStrategy;
-  }): Promise<void> {
+  private async onWorkflowChatComplete(params: WorkflowChatContext): Promise<void> {
     const { canvasId, connectionId, sourcePodId, targetPodId, participatingConnectionIds, strategy } = params;
     strategy.onComplete(
       { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode, participatingConnectionIds },
@@ -220,14 +220,7 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     this.scheduleNextInQueue(canvasId, targetPodId);
   }
 
-  private async onWorkflowChatError(params: {
-    canvasId: string;
-    connectionId: string;
-    sourcePodId: string;
-    targetPodId: string;
-    participatingConnectionIds: string[];
-    strategy: TriggerStrategy;
-  }, error: Error): Promise<void> {
+  private async onWorkflowChatError(params: WorkflowChatContext, error: Error): Promise<void> {
     const { canvasId, connectionId, sourcePodId, targetPodId, participatingConnectionIds, strategy } = params;
     strategy.onError(
       { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode, participatingConnectionIds },
@@ -238,15 +231,7 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     this.scheduleNextInQueue(canvasId, targetPodId);
   }
 
-  private async executeClaudeQuery(params: {
-    canvasId: string;
-    connectionId: string;
-    sourcePodId: string;
-    targetPodId: string;
-    content: string;
-    participatingConnectionIds: string[];
-    strategy: TriggerStrategy;
-  }): Promise<void> {
+  private async executeClaudeQuery(params: WorkflowChatContext & { content: string }): Promise<void> {
     const { canvasId, targetPodId, content } = params;
     const baseMessage = buildTransferMessage(content);
     const targetPod = podStore.getById(canvasId, targetPodId);

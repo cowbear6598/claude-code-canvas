@@ -21,8 +21,6 @@ interface PipelineDeps {
 class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
 
   async execute(context: PipelineContext, strategy: TriggerStrategy): Promise<void> {
-    this.ensureInitialized();
-
     const { canvasId, sourcePodId, connection, triggerMode } = context;
     const { targetPodId, id: connectionId } = connection;
 
@@ -90,7 +88,6 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
     summaryContent: string,
     summaryIsCondensedSummary: boolean
   ): Promise<{ finalSummary: string; finalIsCondensedSummary: boolean; participatingConnectionIds?: string[] } | null> {
-    this.ensureInitialized();
     const { canvasId, sourcePodId, connection, triggerMode } = context;
     const { targetPodId } = connection;
 

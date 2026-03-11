@@ -44,7 +44,7 @@ export const handlePodList = withCanvasId<PodListPayload>(
     WebSocketResponseEvents.POD_LIST_RESULT,
     async (connectionId: string, canvasId: string, _payload: PodListPayload, requestId: string): Promise<void> => {
 
-    const pods = podStore.getAll(canvasId);
+    const pods = podStore.list(canvasId);
 
         const response: PodListResultPayload = {
             requestId,

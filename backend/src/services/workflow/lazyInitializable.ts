@@ -16,9 +16,4 @@ export abstract class LazyInitializable<TDeps> {
     return this._deps;
   }
 
-  protected ensureInitialized(): void {
-    if (!this._deps) {
-      throw new Error(`${this.constructor.name} 尚未初始化，請先呼叫 init()`);
-    }
-  }
 }

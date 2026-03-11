@@ -3,6 +3,10 @@ import type { IntegrationBinding } from './integration.js';
 
 export type PodStatus = 'idle' | 'chatting' | 'summarizing' | 'error';
 
+export function isPodBusy(status: PodStatus): status is 'chatting' | 'summarizing' {
+  return status === 'chatting' || status === 'summarizing';
+}
+
 export type ModelType = 'opus' | 'sonnet' | 'haiku';
 
 export interface Pod {

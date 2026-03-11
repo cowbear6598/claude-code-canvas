@@ -26,7 +26,6 @@ class WorkflowQueueService extends LazyInitializable<QueueServiceDeps> {
   private queues: Map<string, QueueItem[]> = new Map();
 
   private getStrategy(triggerMode: TriggerMode): TriggerStrategy {
-    this.ensureInitialized();
     return this.deps.strategies[triggerMode];
   }
 
@@ -79,8 +78,6 @@ class WorkflowQueueService extends LazyInitializable<QueueServiceDeps> {
   }
 
   async processNextInQueue(canvasId: string, targetPodId: string): Promise<void> {
-    this.ensureInitialized();
-
     const targetPod = podStore.getById(canvasId, targetPodId);
     if (!targetPod) {
       return;

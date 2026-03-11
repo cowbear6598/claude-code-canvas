@@ -97,32 +97,32 @@ export function useBatchDrag(): {
   const dragState = {
     startX: 0,
     startY: 0,
-    movedPods: new Set<string>(),
-    movedOutputStyleNotes: new Set<string>(),
-    movedSkillNotes: new Set<string>(),
-    movedRepositoryNotes: new Set<string>(),
-    movedSubAgentNotes: new Set<string>(),
-    movedCommandNotes: new Set<string>(),
-    movedMcpServerNotes: new Set<string>(),
+    movedPodIds: new Set<string>(),
+    movedOutputStyleNoteIds: new Set<string>(),
+    movedSkillNoteIds: new Set<string>(),
+    movedRepositoryNoteIds: new Set<string>(),
+    movedSubAgentNoteIds: new Set<string>(),
+    movedCommandNoteIds: new Set<string>(),
+    movedMcpServerNoteIds: new Set<string>(),
   }
 
   const clearDragState = (): void => {
-    dragState.movedPods.clear()
-    dragState.movedOutputStyleNotes.clear()
-    dragState.movedSkillNotes.clear()
-    dragState.movedRepositoryNotes.clear()
-    dragState.movedSubAgentNotes.clear()
-    dragState.movedCommandNotes.clear()
-    dragState.movedMcpServerNotes.clear()
+    dragState.movedPodIds.clear()
+    dragState.movedOutputStyleNoteIds.clear()
+    dragState.movedSkillNoteIds.clear()
+    dragState.movedRepositoryNoteIds.clear()
+    dragState.movedSubAgentNoteIds.clear()
+    dragState.movedCommandNoteIds.clear()
+    dragState.movedMcpServerNoteIds.clear()
   }
 
   const noteMovedSets: { set: Set<string>; store: NoteStore }[] = [
-    { set: dragState.movedOutputStyleNotes, store: outputStyleStore },
-    { set: dragState.movedSkillNotes, store: skillStore },
-    { set: dragState.movedRepositoryNotes, store: repositoryStore },
-    { set: dragState.movedSubAgentNotes, store: subAgentStore },
-    { set: dragState.movedCommandNotes, store: commandStore },
-    { set: dragState.movedMcpServerNotes, store: mcpServerStore },
+    { set: dragState.movedOutputStyleNoteIds, store: outputStyleStore },
+    { set: dragState.movedSkillNoteIds, store: skillStore },
+    { set: dragState.movedRepositoryNoteIds, store: repositoryStore },
+    { set: dragState.movedSubAgentNoteIds, store: subAgentStore },
+    { set: dragState.movedCommandNoteIds, store: commandStore },
+    { set: dragState.movedMcpServerNoteIds, store: mcpServerStore },
   ]
 
   const { isDragging: isBatchDragging, startDrag } = useDragHandler({
@@ -170,13 +170,13 @@ export function useBatchDrag(): {
     const storeConfigMap = createStoreConfigMap(
       { podStore, outputStyleStore, skillStore, repositoryStore, subAgentStore, commandStore, mcpServerStore },
       {
-        movedPodIds: dragState.movedPods,
-        movedOutputStyleNoteIds: dragState.movedOutputStyleNotes,
-        movedSkillNoteIds: dragState.movedSkillNotes,
-        movedRepositoryNoteIds: dragState.movedRepositoryNotes,
-        movedSubAgentNoteIds: dragState.movedSubAgentNotes,
-        movedCommandNoteIds: dragState.movedCommandNotes,
-        movedMcpServerNoteIds: dragState.movedMcpServerNotes,
+        movedPodIds: dragState.movedPodIds,
+        movedOutputStyleNoteIds: dragState.movedOutputStyleNoteIds,
+        movedSkillNoteIds: dragState.movedSkillNoteIds,
+        movedRepositoryNoteIds: dragState.movedRepositoryNoteIds,
+        movedSubAgentNoteIds: dragState.movedSubAgentNoteIds,
+        movedCommandNoteIds: dragState.movedCommandNoteIds,
+        movedMcpServerNoteIds: dragState.movedMcpServerNoteIds,
       }
     )
 
@@ -207,7 +207,7 @@ export function useBatchDrag(): {
   }
 
   const syncElementsToBackend = async (): Promise<void> => {
-    dragState.movedPods.forEach(podId => podStore.syncPodPosition(podId))
+    dragState.movedPodIds.forEach(podId => podStore.syncPodPosition(podId))
 
     await Promise.all(noteMovedSets.map(({ set, store }) => syncNotesByType(set, store)))
 

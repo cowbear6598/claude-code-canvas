@@ -50,7 +50,6 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
   readonly mode = 'ai-decide' as const;
 
   onTrigger(context: TriggerLifecycleContext): void {
-    this.ensureInitialized();
     this.deps.eventEmitter.emitWorkflowAiDecideTriggered(
       context.canvasId,
       context.connectionId,
@@ -70,7 +69,6 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
   }
 
   onQueued(context: QueuedContext): void {
-    this.ensureInitialized();
     forEachMultiInputGroupConnection(context.canvasId, context.targetPodId, (connection) => {
       this.deps.connectionStore.updateConnectionStatus(context.canvasId, connection.id, 'queued');
     });
@@ -85,12 +83,11 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
   }
 
   async decide(context: TriggerDecideContext): Promise<TriggerDecideResult[]> {
-    this.ensureInitialized();
-
+    const deps = this.deps;
     const { canvasId, sourcePodId, connections } = context;
 
     try {
-      const batchResult = await this.deps.aiDecideService.decideConnections(
+      const batchResult = await deps.aiDecideService.decideConnections(
         canvasId,
         sourcePodId,
         connections
@@ -161,8 +158,6 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     sourcePodId: string,
     connections: Connection[]
   ): Promise<void> {
-    this.ensureInitialized();
-
     const connectionIds = connections.map(connection => connection.id);
     this.deps.eventEmitter.emitAiDecidePending(canvasId, connectionIds, sourcePodId);
 
