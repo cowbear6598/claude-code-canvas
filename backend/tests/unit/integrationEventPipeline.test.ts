@@ -32,12 +32,6 @@ vi.mock('../../src/utils/logger.js', () => ({
   },
 }));
 
-vi.mock('../../src/services/autoClear/index.js', () => ({
-  autoClearService: {
-    onPodComplete: vi.fn(() => Promise.resolve()),
-  },
-}));
-
 vi.mock('../../src/services/workflow/index.js', () => ({
   workflowExecutionService: {
     checkAndTriggerWorkflows: vi.fn(() => Promise.resolve()),
@@ -59,7 +53,6 @@ import { podStore } from '../../src/services/podStore.js';
 import { messageStore } from '../../src/services/messageStore.js';
 import { socketService } from '../../src/services/socketService.js';
 import { executeStreamingChat } from '../../src/services/claude/streamingChatExecutor.js';
-import { autoClearService } from '../../src/services/autoClear/index.js';
 import { workflowExecutionService } from '../../src/services/workflow/index.js';
 import { isWorkflowChainBusy } from '../../src/utils/workflowChainTraversal.js';
 import { integrationRegistry } from '../../src/services/integration/integrationRegistry.js';
@@ -88,7 +81,7 @@ function makePod(overrides: Partial<Pod> = {}): Pod {
     model: 'opus',
     repositoryId: null,
     commandId: null,
-    autoClear: false,
+    multiInstance: false,
     ...overrides,
   };
 }
@@ -115,7 +108,6 @@ describe('IntegrationEventPipeline', () => {
     asMock(podStore.getById).mockReturnValue(undefined);
     asMock(messageStore.addMessage).mockResolvedValue({ success: true, data: { id: 'msg-1' } });
     asMock(executeStreamingChat).mockResolvedValue({ messageId: 'stream-1', content: '回覆', hasContent: true, aborted: false });
-    asMock(autoClearService.onPodComplete).mockResolvedValue(undefined);
     asMock(workflowExecutionService.checkAndTriggerWorkflows).mockResolvedValue(undefined);
     asMock(isWorkflowChainBusy).mockReturnValue(false);
     asMock(integrationRegistry.get).mockReturnValue(undefined);
@@ -168,7 +160,7 @@ describe('IntegrationEventPipeline', () => {
       );
     });
 
-    it('完成後應觸發 autoClear 和 workflow', async () => {
+    it('完成後應觸發 workflow', async () => {
       const pod = makePod();
       asMock(podStore.findByIntegrationAppAndResource).mockReturnValue([{ canvasId, pod }]);
       asMock(podStore.getById).mockReturnValue(pod);
@@ -183,7 +175,6 @@ describe('IntegrationEventPipeline', () => {
       await integrationEventPipeline.processEvent('slack', 'app-1', makeEvent());
 
       await vi.waitFor(() => {
-        expect(autoClearService.onPodComplete).toHaveBeenCalledWith(canvasId, podId);
         expect(workflowExecutionService.checkAndTriggerWorkflows).toHaveBeenCalledWith(canvasId, podId);
       });
     });

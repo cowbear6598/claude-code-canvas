@@ -15,7 +15,6 @@ import type {
     PodChatToolUsePayload,
     PodErrorPayload,
     PodMessagesClearedPayload,
-    WorkflowAutoClearedPayload
 } from '@/types/websocket'
 import type {Command} from '@/types/command'
 import type {Pod} from '@/types/pod'
@@ -89,7 +88,6 @@ interface ChatState {
     historyLoadingStatus: Map<string, HistoryLoadingStatus>
     historyLoadingError: Map<string, string>
     allHistoryLoaded: boolean
-    autoClearAnimationPodId: string | null
     disconnectReason: string | null
     lastHeartbeatAt: number | null
     heartbeatCheckTimer: number | null
@@ -106,7 +104,6 @@ export const useChatStore = defineStore('chat', {
         historyLoadingStatus: new Map(),
         historyLoadingError: new Map(),
         allHistoryLoaded: false,
-        autoClearAnimationPodId: null,
         disconnectReason: null,
         lastHeartbeatAt: null,
         heartbeatCheckTimer: null,
@@ -172,7 +169,6 @@ export const useChatStore = defineStore('chat', {
                 { event: WebSocketResponseEvents.POD_CHAT_ABORTED, handler: this.handleChatAborted as (payload: unknown) => void },
                 { event: WebSocketResponseEvents.POD_ERROR, handler: this.handleError as (payload: unknown) => void },
                 { event: WebSocketResponseEvents.POD_MESSAGES_CLEARED, handler: this.handleMessagesClearedEvent as (payload: unknown) => void },
-                { event: WebSocketResponseEvents.WORKFLOW_AUTO_CLEARED, handler: this.handleWorkflowAutoCleared as (payload: unknown) => void },
                 { event: WebSocketResponseEvents.HEARTBEAT_PING, handler: this.handleHeartbeatPing as (payload: unknown) => void },
             ]
         },
@@ -321,15 +317,6 @@ export const useChatStore = defineStore('chat', {
         handleMessagesClearedEvent(payload: PodMessagesClearedPayload): void {
             const messageActions = this.getMessageActions()
             messageActions.handleMessagesClearedEvent(payload)
-        },
-
-        handleWorkflowAutoCleared(payload: WorkflowAutoClearedPayload): void {
-            const messageActions = this.getMessageActions()
-            messageActions.handleWorkflowAutoCleared(payload)
-        },
-
-        clearAutoClearAnimation(): void {
-            this.autoClearAnimationPodId = null
         },
 
         loadPodChatHistory(podId: string): Promise<void> {

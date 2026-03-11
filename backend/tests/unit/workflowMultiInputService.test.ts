@@ -3,14 +3,12 @@ import {
   createPendingTargetStoreMock,
   createLoggerMock,
   createSocketServiceMock,
-  createAutoClearServiceMock,
 } from '../mocks/workflowModuleMocks.js';
 
 vi.mock('../../src/services/podStore.js', () => createPodStoreMock());
 vi.mock('../../src/services/pendingTargetStore.js', () => createPendingTargetStoreMock());
 vi.mock('../../src/utils/logger.js', () => createLoggerMock());
 vi.mock('../../src/services/socketService.js', () => createSocketServiceMock());
-vi.mock('../../src/services/autoClear/autoClearService.js', () => createAutoClearServiceMock());
 vi.mock('../../src/services/workflow/workflowQueueService.js', () => ({
   workflowQueueService: {
     enqueue: vi.fn(),
@@ -27,7 +25,6 @@ import { workflowMultiInputService } from '../../src/services/workflow/workflowM
 import { podStore } from '../../src/services/podStore.js';
 import { pendingTargetStore } from '../../src/services/pendingTargetStore.js';
 import { workflowQueueService } from '../../src/services/workflow/workflowQueueService.js';
-import { autoClearService } from '../../src/services/autoClear/autoClearService.js';
 import { createMockConnection, createMockPod, createMockStrategy, TEST_IDS } from '../mocks/workflowTestFactories.js';
 import type { TriggerStrategy } from '../../src/services/workflow/types.js';
 
@@ -120,7 +117,7 @@ describe('WorkflowMultiInputService', () => {
   });
 
   describe('handleMultiInputForConnection - 所有來源回應完畢有拒絕時', () => {
-    it('所有來源回應完畢且有拒絕時應呼叫 onGroupNotTriggered', async () => {
+    it('所有來源回應完畢且有拒絕時不應觸發 workflow', async () => {
       (pendingTargetStore.recordSourceCompletion as any).mockReturnValue({
         allSourcesResponded: true,
         hasRejection: true,
@@ -135,7 +132,6 @@ describe('WorkflowMultiInputService', () => {
         triggerMode: 'auto',
       });
 
-      expect(autoClearService.onGroupNotTriggered).toHaveBeenCalledWith(canvasId, targetPodId);
       expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
     });
   });

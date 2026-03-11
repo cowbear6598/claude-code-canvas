@@ -94,16 +94,6 @@ export function createAiDecideServiceMock() {
   };
 }
 
-export function createAutoClearServiceMock() {
-  return {
-    autoClearService: {
-      initializeWorkflowTracking: vi.fn(),
-      onPodComplete: vi.fn(),
-      onGroupNotTriggered: vi.fn().mockResolvedValue(undefined),
-    },
-  };
-}
-
 export function createLoggerMock() {
   return {
     logger: {

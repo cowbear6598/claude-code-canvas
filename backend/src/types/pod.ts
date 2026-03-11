@@ -25,7 +25,7 @@ export interface Pod {
   model: ModelType;
   repositoryId: string | null;
   commandId: string | null;
-  autoClear: boolean;
+  multiInstance: boolean;
   schedule?: ScheduleConfig;
   integrationBindings?: IntegrationBinding[];
 }

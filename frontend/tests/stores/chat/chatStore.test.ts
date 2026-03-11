@@ -58,11 +58,6 @@ describe('chatStore', () => {
       expect(store.allHistoryLoaded).toBe(false)
     })
 
-    it('autoClearAnimationPodId 應為 null', () => {
-      const store = useChatStore()
-
-      expect(store.autoClearAnimationPodId).toBeNull()
-    })
   })
 
   describe('getters', () => {
@@ -584,25 +579,6 @@ describe('chatStore', () => {
     })
   })
 
-  describe('clearAutoClearAnimation', () => {
-    it('應清除 autoClearAnimationPodId', () => {
-      const store = useChatStore()
-      store.autoClearAnimationPodId = 'pod-1'
-
-      store.clearAutoClearAnimation()
-
-      expect(store.autoClearAnimationPodId).toBeNull()
-    })
-
-    it('autoClearAnimationPodId 已為 null 時不應報錯', () => {
-      const store = useChatStore()
-      store.autoClearAnimationPodId = null
-
-      expect(() => store.clearAutoClearAnimation()).not.toThrow()
-      expect(store.autoClearAnimationPodId).toBeNull()
-    })
-  })
-
   describe('registerListeners', () => {
     it('應註冊所有事件 listener', () => {
       const store = useChatStore()
@@ -617,7 +593,6 @@ describe('chatStore', () => {
       expect(mockWebSocketClient.on).toHaveBeenCalledWith('pod:chat:aborted', expect.any(Function))
       expect(mockWebSocketClient.on).toHaveBeenCalledWith('pod:error', expect.any(Function))
       expect(mockWebSocketClient.on).toHaveBeenCalledWith('pod:messages:cleared', expect.any(Function))
-      expect(mockWebSocketClient.on).toHaveBeenCalledWith('workflow:auto-cleared', expect.any(Function))
       expect(mockWebSocketClient.on).toHaveBeenCalledWith('heartbeat:ping', expect.any(Function))
       expect(mockWebSocketClient.onDisconnect).toHaveBeenCalledWith(expect.any(Function))
     })
@@ -649,7 +624,6 @@ describe('chatStore', () => {
       expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('pod:chat:aborted')
       expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('pod:error')
       expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('pod:messages:cleared')
-      expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('workflow:auto-cleared')
       expect(mockWebSocketClient.offAll).toHaveBeenCalledWith('heartbeat:ping')
       expect(mockWebSocketClient.offDisconnect).toHaveBeenCalledWith(expect.any(Function))
     })

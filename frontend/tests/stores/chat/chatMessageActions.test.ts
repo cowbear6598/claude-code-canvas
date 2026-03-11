@@ -12,7 +12,6 @@ import type {
   PodChatCompletePayload,
   PodChatAbortedPayload,
   PodMessagesClearedPayload,
-  WorkflowAutoClearedPayload,
   PersistedMessage
 } from '@/types/websocket'
 import type { Message, SubMessage, ToolUseInfo } from '@/types/chat'
@@ -1135,76 +1134,6 @@ describe('chatMessageActions', () => {
 
       const updatedPod = podStore.pods.find(p => p.id === 'pod-1')
       expect(updatedPod!.output).toEqual([])
-    })
-  })
-
-  describe('handleWorkflowAutoCleared', () => {
-    it('應批量清除 clearedPodIds 的訊息', async () => {
-      const chatStore = useChatStore()
-
-      chatStore.handleChatMessage({
-        podId: 'pod-1',
-        messageId: 'msg-1',
-        content: 'Message 1',
-        isPartial: false,
-      })
-
-      chatStore.handleChatMessage({
-        podId: 'pod-2',
-        messageId: 'msg-2',
-        content: 'Message 2',
-        isPartial: false,
-      })
-
-      const payload: WorkflowAutoClearedPayload = {
-        sourcePodId: 'pod-source',
-        clearedPodIds: ['pod-1', 'pod-2'],
-        clearedPodNames: ['Pod 1', 'Pod 2'],
-      }
-
-      await chatStore.handleWorkflowAutoCleared(payload)
-
-      expect(chatStore.messagesByPodId.get('pod-1')).toBeUndefined()
-      expect(chatStore.messagesByPodId.get('pod-2')).toBeUndefined()
-    })
-
-    it('應設定 autoClearAnimationPodId', async () => {
-      const chatStore = useChatStore()
-      const podStore = usePodStore()
-      const pod1 = createMockPod({ id: 'pod-1', output: [] })
-      const pod2 = createMockPod({ id: 'pod-2', output: [] })
-      podStore.pods = [pod1, pod2]
-
-      const payload: WorkflowAutoClearedPayload = {
-        sourcePodId: 'pod-source',
-        clearedPodIds: ['pod-1', 'pod-2'],
-        clearedPodNames: ['Pod 1', 'Pod 2'],
-      }
-
-      await chatStore.handleWorkflowAutoCleared(payload)
-
-      expect(chatStore.autoClearAnimationPodId).toBe('pod-source')
-    })
-
-    it('應清除多個 Pod 的 output', async () => {
-      const chatStore = useChatStore()
-      const podStore = usePodStore()
-      const pod1 = createMockPod({ id: 'pod-1', output: ['line1'] })
-      const pod2 = createMockPod({ id: 'pod-2', output: ['line2'] })
-      podStore.pods = [pod1, pod2]
-
-      const payload: WorkflowAutoClearedPayload = {
-        sourcePodId: 'pod-source',
-        clearedPodIds: ['pod-1', 'pod-2'],
-        clearedPodNames: ['Pod 1', 'Pod 2'],
-      }
-
-      await chatStore.handleWorkflowAutoCleared(payload)
-
-      const updatedPod1 = podStore.pods.find(p => p.id === 'pod-1')
-      const updatedPod2 = podStore.pods.find(p => p.id === 'pod-2')
-      expect(updatedPod1!.output).toEqual([])
-      expect(updatedPod2!.output).toEqual([])
     })
   })
 

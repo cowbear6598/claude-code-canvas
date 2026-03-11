@@ -2,8 +2,7 @@ import type { Pod } from '../../types/index.js';
 import { podStore } from '../podStore.js';
 import { executeStreamingChat } from '../claude/streamingChatExecutor.js';
 import { logger } from '../../utils/logger.js';
-import { createPostChatCompleteCallback } from '../../utils/operationHelpers.js';
-import { autoClearService } from '../autoClear/index.js';
+import { fireAndForget } from '../../utils/operationHelpers.js';
 import { workflowExecutionService } from '../workflow/index.js';
 import { shouldSendBusyReply } from '../../utils/busyChatManager.js';
 import { isWorkflowChainBusy } from '../../utils/workflowChainTraversal.js';
@@ -78,11 +77,13 @@ class IntegrationEventPipeline {
 
     logger.log('Integration', 'Complete', `[IntegrationEventPipeline] 注入 ${event.provider} 訊息至 Pod「${podName}」`);
 
-    const onComplete = createPostChatCompleteCallback(
-      (cId, pId) => autoClearService.onPodComplete(cId, pId),
-      (cId, pId) => workflowExecutionService.checkAndTriggerWorkflows(cId, pId),
-      'Integration'
-    );
+    const onComplete = async (cId: string, pId: string): Promise<void> => {
+      fireAndForget(
+        workflowExecutionService.checkAndTriggerWorkflows(cId, pId),
+        'Integration',
+        `檢查 Pod「${pId}」自動觸發 Workflow 失敗`
+      );
+    };
 
     try {
       await executeStreamingChat(

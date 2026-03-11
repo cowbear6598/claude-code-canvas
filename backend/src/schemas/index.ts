@@ -11,7 +11,7 @@ export * from './outputStyleSchemas.js';
 export * from './pasteSchemas.js';
 export * from './repositorySchemas.js';
 export * from './subAgentSchemas.js';
-export * from './autoClearSchemas.js';
+export * from './multiInstanceSchemas.js';
 export * from './scheduleSchemas.js';
 export * from './canvasSchemas.js';
 export * from './groupSchemas.js';

@@ -191,7 +191,7 @@ export interface PodSubAgentBoundPayload {
   error?: string;
 }
 
-export interface PodAutoClearSetPayload {
+export interface PodMultiInstanceSetPayload {
   requestId: string;
   canvasId: string;
   success: boolean;

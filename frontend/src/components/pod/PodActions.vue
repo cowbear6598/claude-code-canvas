@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch } from 'vue'
 import { Eraser, Trash2, Timer } from 'lucide-vue-next'
-import { useChatStore } from '@/stores/chat'
 import {
   Dialog,
   DialogContent,
@@ -17,8 +16,7 @@ const props = withDefaults(defineProps<{
   podName: string
   isSourcePod: boolean
   showScheduleButton: boolean
-  isAutoClearEnabled: boolean
-  isAutoClearAnimating: boolean
+  isMultiInstanceEnabled: boolean
   isLoadingDownstream: boolean
   isClearing: boolean
   isWorkflowRunning?: boolean
@@ -37,7 +35,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   'delete': []
   'clear-workflow': []
-  'toggle-auto-clear': []
+  'toggle-multi-instance': []
   'update:show-clear-dialog': [value: boolean]
   'update:show-delete-dialog': [value: boolean]
   'confirm-clear': []
@@ -48,9 +46,6 @@ const emit = defineEmits<{
   'clear-schedule-fired-animation': []
 }>()
 
-const chatStore = useChatStore()
-
-const AUTO_CLEAR_ANIMATION_DURATION_MS = 600
 const SCHEDULE_FIRED_ANIMATION_DURATION_MS = 1800
 const TOGGLE_DEBOUNCE_GUARD_MS = 5000
 
@@ -64,7 +59,6 @@ const longPressProgress = ref(0)
 const mousePosition = ref({ x: 0, y: 0 })
 let progressAnimationFrame: number | null = null
 let longPressStartTime: number | null = null
-let autoClearAnimationTimer: ReturnType<typeof setTimeout> | null = null
 
 const isEraserDisabled = computed(() =>
   props.isLoadingDownstream || props.isClearing || isToggling.value || props.isWorkflowRunning
@@ -109,7 +103,7 @@ const handleEraserMouseDown = (event: MouseEvent): void => {
     isLongPressing.value = false
     longPressProgress.value = 0
     isToggling.value = true
-    emit('toggle-auto-clear')
+    emit('toggle-multi-instance')
     setTimeout(() => {
       isToggling.value = false
     }, TOGGLE_DEBOUNCE_GUARD_MS)
@@ -155,23 +149,10 @@ onUnmounted(() => {
     clearTimeout(scheduleFiredAnimationTimer)
     scheduleFiredAnimationTimer = null
   }
-  if (autoClearAnimationTimer) {
-    clearTimeout(autoClearAnimationTimer)
-    autoClearAnimationTimer = null
-  }
 })
 
-watch(() => props.isAutoClearEnabled, () => {
+watch(() => props.isMultiInstanceEnabled, () => {
   isToggling.value = false
-})
-
-watch(() => props.isAutoClearAnimating, (newValue) => {
-  if (newValue) {
-    autoClearAnimationTimer = setTimeout(() => {
-      chatStore.clearAutoClearAnimation()
-      autoClearAnimationTimer = null
-    }, AUTO_CLEAR_ANIMATION_DURATION_MS)
-  }
 })
 
 watch(() => props.isScheduleFiredAnimating, (newValue) => {
@@ -208,10 +189,7 @@ watch(() => props.isScheduleFiredAnimating, (newValue) => {
     </button>
     <button
       class="pod-action-button-base workflow-clear-button-in-group"
-      :class="{
-        'auto-clear-enabled': isAutoClearEnabled,
-        'auto-clear-animating': isAutoClearAnimating
-      }"
+      :class="{ 'multi-instance-enabled': isMultiInstanceEnabled }"
       :disabled="isEraserDisabled"
       @mousedown="handleEraserMouseDown"
       @mouseup="handleEraserMouseUp"
@@ -219,9 +197,9 @@ watch(() => props.isScheduleFiredAnimating, (newValue) => {
     >
       <Eraser :size="16" />
       <span
-        v-show="isAutoClearEnabled"
-        class="auto-clear-badge"
-      >A</span>
+        v-show="isMultiInstanceEnabled"
+        class="multi-instance-badge"
+      >M</span>
     </button>
   </div>
 

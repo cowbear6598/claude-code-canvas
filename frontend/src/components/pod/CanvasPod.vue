@@ -79,8 +79,7 @@ const isEditing = ref(false)
 const showDeleteDialog = ref(false)
 const showScheduleModal = ref(false)
 
-const isAutoClearEnabled = computed(() => props.pod.autoClear ?? false)
-const isAutoClearAnimating = computed(() => chatStore.autoClearAnimationPodId === props.pod.id)
+const isMultiInstanceEnabled = computed(() => props.pod.multiInstance ?? false)
 
 const hasSchedule = computed(() => props.pod.schedule !== null && props.pod.schedule !== undefined)
 const scheduleEnabled = computed(() => props.pod.schedule?.enabled ?? false)
@@ -286,8 +285,8 @@ const handleModelChange = async (model: ModelType): Promise<void> => {
   podStore.updatePodModel(props.pod.id, response.pod.model ?? 'opus')
 }
 
-const handleToggleAutoClear = async (): Promise<void> => {
-  await podStore.setAutoClearWithBackend(props.pod.id, !isAutoClearEnabled.value)
+const handleToggleMultiInstance = async (): Promise<void> => {
+  await podStore.setMultiInstanceWithBackend(props.pod.id, !isMultiInstanceEnabled.value)
 }
 
 const handleClearScheduleFiredAnimation = (): void => {
@@ -382,8 +381,7 @@ const handleContextMenu = (e: MouseEvent): void => {
         :pod-name="pod.name"
         :is-source-pod="isSourcePod"
         :show-schedule-button="showScheduleButton"
-        :is-auto-clear-enabled="isAutoClearEnabled"
-        :is-auto-clear-animating="isAutoClearAnimating"
+        :is-multi-instance-enabled="isMultiInstanceEnabled"
         :is-loading-downstream="isLoadingDownstream"
         :is-clearing="isClearing"
         :downstream-pods="downstreamPods"
@@ -399,7 +397,7 @@ const handleContextMenu = (e: MouseEvent): void => {
         @update:show-delete-dialog="showDeleteDialog = $event"
         @delete="handleDelete"
         @clear-workflow="handleClearWorkflow"
-        @toggle-auto-clear="handleToggleAutoClear"
+        @toggle-multi-instance="handleToggleMultiInstance"
         @confirm-clear="handleConfirmClear"
         @cancel-clear="handleCancelClear"
         @confirm-delete="handleDelete"

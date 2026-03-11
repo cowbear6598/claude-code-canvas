@@ -29,7 +29,7 @@ curl http://localhost:3001/api/canvas/my-canvas/workflows
         "skillIds": [],
         "subAgentIds": [],
         "mcpServerIds": [],
-        "autoClear": false
+        "multiInstance": false
       },
       "nodes": {
         "pod": {
@@ -44,7 +44,7 @@ curl http://localhost:3001/api/canvas/my-canvas/workflows
           "skillIds": [],
           "subAgentIds": [],
           "mcpServerIds": [],
-          "autoClear": false
+          "multiInstance": false
         },
         "connections": [
           {
@@ -73,7 +73,7 @@ curl http://localhost:3001/api/canvas/my-canvas/workflows
               "skillIds": [],
               "subAgentIds": [],
               "mcpServerIds": [],
-              "autoClear": false
+              "multiInstance": false
             },
             "connections": [],
             "children": []

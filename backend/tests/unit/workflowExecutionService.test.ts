@@ -7,7 +7,6 @@ import {
   createWorkflowStateServiceMock,
   createWorkflowEventEmitterMock,
   createAiDecideServiceMock,
-  createAutoClearServiceMock,
   createLoggerMock,
   createSocketServiceMock,
   createClaudeQueryServiceMock,
@@ -24,7 +23,6 @@ vi.mock('../../src/services/pendingTargetStore.js', () => createPendingTargetSto
 vi.mock('../../src/services/workflow/workflowStateService.js', () => createWorkflowStateServiceMock());
 vi.mock('../../src/services/workflow/workflowEventEmitter.js', () => createWorkflowEventEmitterMock());
 vi.mock('../../src/services/workflow/aiDecideService.js', () => createAiDecideServiceMock());
-vi.mock('../../src/services/autoClear/index.js', () => createAutoClearServiceMock());
 vi.mock('../../src/utils/logger.js', () => createLoggerMock());
 vi.mock('../../src/services/socketService.js', () => createSocketServiceMock());
 vi.mock('../../src/services/claude/queryService.js', () => createClaudeQueryServiceMock());

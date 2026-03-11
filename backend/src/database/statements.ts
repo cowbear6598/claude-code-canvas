@@ -26,7 +26,7 @@ function buildStatements(db: Database): {
     updateOutputStyleId: ReturnType<Database['prepare']>;
     updateRepositoryId: ReturnType<Database['prepare']>;
     updateCommandId: ReturnType<Database['prepare']>;
-    updateAutoClear: ReturnType<Database['prepare']>;
+    updateMultiInstance: ReturnType<Database['prepare']>;
     updateScheduleJson: ReturnType<Database['prepare']>;
     selectWithSchedule: ReturnType<Database['prepare']>;
     selectByOutputStyleId: ReturnType<Database['prepare']>;
@@ -152,7 +152,7 @@ function buildStatements(db: Database): {
 
     pod: {
       insert: db.prepare(
-        'INSERT INTO pods (id, canvas_id, name, status, x, y, rotation, model, workspace_path, claude_session_id, output_style_id, repository_id, command_id, auto_clear, schedule_json) VALUES ($id, $canvasId, $name, $status, $x, $y, $rotation, $model, $workspacePath, $claudeSessionId, $outputStyleId, $repositoryId, $commandId, $autoClear, $scheduleJson)',
+        'INSERT INTO pods (id, canvas_id, name, status, x, y, rotation, model, workspace_path, claude_session_id, output_style_id, repository_id, command_id, multi_instance, schedule_json) VALUES ($id, $canvasId, $name, $status, $x, $y, $rotation, $model, $workspacePath, $claudeSessionId, $outputStyleId, $repositoryId, $commandId, $multiInstance, $scheduleJson)',
       ),
       selectByCanvasId: db.prepare('SELECT * FROM pods WHERE canvas_id = ?'),
       selectById: db.prepare('SELECT * FROM pods WHERE id = ?'),
@@ -162,14 +162,14 @@ function buildStatements(db: Database): {
         'SELECT COUNT(*) as count FROM pods WHERE canvas_id = $canvasId AND name = $name AND id != $excludeId',
       ),
       update: db.prepare(
-        'UPDATE pods SET name = $name, status = $status, x = $x, y = $y, rotation = $rotation, model = $model, claude_session_id = $claudeSessionId, output_style_id = $outputStyleId, repository_id = $repositoryId, command_id = $commandId, auto_clear = $autoClear, schedule_json = $scheduleJson WHERE id = $id',
+        'UPDATE pods SET name = $name, status = $status, x = $x, y = $y, rotation = $rotation, model = $model, claude_session_id = $claudeSessionId, output_style_id = $outputStyleId, repository_id = $repositoryId, command_id = $commandId, multi_instance = $multiInstance, schedule_json = $scheduleJson WHERE id = $id',
       ),
       updateStatus: db.prepare('UPDATE pods SET status = $status WHERE id = $id'),
       updateClaudeSessionId: db.prepare('UPDATE pods SET claude_session_id = $claudeSessionId WHERE id = $id'),
       updateOutputStyleId: db.prepare('UPDATE pods SET output_style_id = $outputStyleId WHERE id = $id'),
       updateRepositoryId: db.prepare('UPDATE pods SET repository_id = $repositoryId WHERE id = $id'),
       updateCommandId: db.prepare('UPDATE pods SET command_id = $commandId WHERE id = $id'),
-      updateAutoClear: db.prepare('UPDATE pods SET auto_clear = $autoClear WHERE id = $id'),
+      updateMultiInstance: db.prepare('UPDATE pods SET multi_instance = $multiInstance WHERE id = $id'),
       updateScheduleJson: db.prepare('UPDATE pods SET schedule_json = $scheduleJson WHERE id = $id'),
       selectWithSchedule: db.prepare('SELECT * FROM pods WHERE schedule_json IS NOT NULL'),
       selectByOutputStyleId: db.prepare('SELECT * FROM pods WHERE output_style_id = ?'),

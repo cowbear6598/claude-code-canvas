@@ -6,7 +6,6 @@ import {workflowEventEmitter} from '../../src/services/workflow/workflowEventEmi
 import {directTriggerStore} from '../../src/services/directTriggerStore.js';
 import {pendingTargetStore} from '../../src/services/pendingTargetStore.js';
 import {summaryService} from '../../src/services/summaryService.js';
-import {autoClearService} from '../../src/services/autoClear/index.js';
 import {logger} from '../../src/utils/logger.js';
 import {socketService} from '../../src/services/socketService.js';
 import {workflowStateService} from '../../src/services/workflow/workflowStateService.js';
@@ -150,15 +149,6 @@ export function setupSummaryServiceSpy(summary?: { targetPodId: string; success:
     return spies;
 }
 
-export function setupAutoClearServiceSpy() {
-    const spies = {
-        initializeWorkflowTracking: vi.spyOn(autoClearService, 'initializeWorkflowTracking').mockImplementation(() => {
-        }),
-        onPodComplete: vi.spyOn(autoClearService, 'onPodComplete').mockResolvedValue(undefined),
-    };
-    return spies;
-}
-
 export function setupLoggerSpy() {
     const spies = {
         log: vi.spyOn(logger, 'log').mockImplementation(() => {
@@ -221,7 +211,6 @@ export function setupAllSpies(options?: SetupAllSpiesOptions) {
         directTriggerStore: setupDirectTriggerStoreSpy(),
         pendingTargetStore: setupPendingTargetStoreSpy(),
         summaryService: setupSummaryServiceSpy(options?.summary),
-        autoClearService: setupAutoClearServiceSpy(),
         logger: setupLoggerSpy(),
         socketService: setupSocketServiceSpy(),
         workflowStateService: setupWorkflowStateServiceSpy(options?.directConnectionCount),

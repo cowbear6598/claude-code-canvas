@@ -27,7 +27,7 @@ export function createMockPod(overrides?: Partial<Pod>): Pod {
     x: 0,
     y: 0,
     rotation: 0,
-    autoClear: false,
+    multiInstance: false,
     skillIds: [],
     subAgentIds: [],
     ...overrides,

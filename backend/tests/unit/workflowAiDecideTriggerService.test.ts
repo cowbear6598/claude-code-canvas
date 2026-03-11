@@ -8,7 +8,6 @@ import {
   createPendingTargetStoreMock,
   createWorkflowMultiInputServiceMock,
   createLoggerMock,
-  createAutoClearServiceMock,
   createPodStoreMock,
 } from '../mocks/workflowModuleMocks.js';
 
@@ -32,8 +31,6 @@ vi.mock('../../src/utils/logger.js', () => createLoggerMock());
 
 vi.mock('../../src/utils/errorHelpers.js', () => createErrorHelpersMock());
 
-vi.mock('../../src/services/autoClear/autoClearService.js', () => createAutoClearServiceMock());
-
 import { workflowAiDecideTriggerService } from '../../src/services/workflow/workflowAiDecideTriggerService.js';
 import { aiDecideService } from '../../src/services/workflow/aiDecideService.js';
 import { workflowEventEmitter } from '../../src/services/workflow/workflowEventEmitter.js';
@@ -42,7 +39,6 @@ import { workflowStateService } from '../../src/services/workflow/workflowStateS
 import { pendingTargetStore } from '../../src/services/pendingTargetStore.js';
 import { workflowPipeline } from '../../src/services/workflow/workflowPipeline.js';
 import { workflowMultiInputService } from '../../src/services/workflow/workflowMultiInputService.js';
-import { autoClearService } from '../../src/services/autoClear/autoClearService.js';
 import { podStore } from '../../src/services/podStore.js';
 import { logger } from '../../src/utils/logger.js';
 import type { Connection } from '../../src/types';
@@ -70,7 +66,6 @@ describe('WorkflowAiDecideTriggerService', () => {
       pendingTargetStore,
       pipeline: workflowPipeline,
       multiInputService: workflowMultiInputService,
-      autoClearService,
     });
 
     (podStore.getById as any).mockImplementation((_canvasId: string, podId: string) =>
@@ -613,8 +608,8 @@ describe('WorkflowAiDecideTriggerService', () => {
     });
   });
 
-  describe('handleRejectedConnection - 拒絕是最後回應的路徑', () => {
-    it('多輸入場景 + 拒絕是最後一個回應 → 應呼叫 autoClearService.onGroupNotTriggered', async () => {
+  describe('handleRejectedConnection - 拒絕處理路徑', () => {
+    it('多輸入場景 + 拒絕是最後一個回應 → 應更新 pending 狀態', async () => {
       (aiDecideService.decideConnections as any).mockResolvedValue({
         results: [
           { connectionId: 'conn-ai-1', shouldTrigger: false, reason: '不相關' },
@@ -629,10 +624,7 @@ describe('WorkflowAiDecideTriggerService', () => {
 
       (pendingTargetStore.hasPendingTarget as any).mockReturnValue(true);
 
-      // 模擬所有來源都已回應且有拒絕（拒絕是最後一個回應）
       (pendingTargetStore.recordSourceRejection as any).mockReturnValue({ allSourcesResponded: true });
-
-      (autoClearService.onGroupNotTriggered as any).mockResolvedValue(undefined);
 
       await workflowAiDecideTriggerService.processAiDecideConnections(
         canvasId,
@@ -640,10 +632,10 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      expect(autoClearService.onGroupNotTriggered).toHaveBeenCalledWith(canvasId, targetPodId);
+      expect(pendingTargetStore.recordSourceRejection).toHaveBeenCalled();
     });
 
-    it('多輸入場景 + 拒絕但還有其他 source 未回應 → 不應呼叫 onGroupNotTriggered', async () => {
+    it('多輸入場景 + 拒絕但還有其他 source 未回應 → 應記錄拒絕但不結束', async () => {
       (aiDecideService.decideConnections as any).mockResolvedValue({
         results: [
           { connectionId: 'conn-ai-1', shouldTrigger: false, reason: '不相關' },
@@ -658,7 +650,6 @@ describe('WorkflowAiDecideTriggerService', () => {
 
       (pendingTargetStore.hasPendingTarget as any).mockReturnValue(true);
 
-      // 只有一個 source 回應，其他還未回應
       (pendingTargetStore.recordSourceRejection as any).mockReturnValue({ allSourcesResponded: false });
 
       await workflowAiDecideTriggerService.processAiDecideConnections(
@@ -667,10 +658,10 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      expect(autoClearService.onGroupNotTriggered).not.toHaveBeenCalled();
+      expect(pendingTargetStore.recordSourceRejection).toHaveBeenCalled();
     });
 
-    it('單一 ai-decide connection 被拒絕 → 應呼叫 autoClearService.onGroupNotTriggered', async () => {
+    it('單一 ai-decide connection 被拒絕 + 非 multi input 場景 → 應更新連線狀態', async () => {
       (aiDecideService.decideConnections as any).mockResolvedValue({
         results: [
           { connectionId: 'conn-ai-1', shouldTrigger: false, reason: '不相關' },
@@ -683,12 +674,9 @@ describe('WorkflowAiDecideTriggerService', () => {
         requiredSourcePodIds: [],
       });
 
-      // 只有一條 auto/ai-decide 連線
       (connectionStore.findByTargetPodId as any).mockReturnValue([
         { id: 'conn-ai-1', triggerMode: 'ai-decide', sourcePodId, targetPodId },
       ]);
-
-      (autoClearService.onGroupNotTriggered as any).mockResolvedValue(undefined);
 
       await workflowAiDecideTriggerService.processAiDecideConnections(
         canvasId,
@@ -696,10 +684,11 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      expect(autoClearService.onGroupNotTriggered).toHaveBeenCalledWith(canvasId, targetPodId);
+      expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(canvasId, 'conn-ai-1', 'rejected', '不相關');
+      expect(connectionStore.updateConnectionStatus).toHaveBeenCalledWith(canvasId, 'conn-ai-1', 'ai-rejected');
     });
 
-    it('多條 auto/ai-decide 連到同一 target，其中一條 ai-decide 被拒絕 → 不應在此處呼叫 onGroupNotTriggered', async () => {
+    it('多條 auto/ai-decide 連到同一 target，其中一條 ai-decide 被拒絕 → 應更新連線狀態', async () => {
       (aiDecideService.decideConnections as any).mockResolvedValue({
         results: [
           { connectionId: 'conn-ai-1', shouldTrigger: false, reason: '不相關' },
@@ -712,7 +701,6 @@ describe('WorkflowAiDecideTriggerService', () => {
         requiredSourcePodIds: [],
       });
 
-      // 有多條 auto/ai-decide 連線
       (connectionStore.findByTargetPodId as any).mockReturnValue([
         { id: 'conn-ai-1', triggerMode: 'ai-decide', sourcePodId, targetPodId },
         { id: 'conn-auto-1', triggerMode: 'auto', sourcePodId: 'other-source', targetPodId },
@@ -724,7 +712,7 @@ describe('WorkflowAiDecideTriggerService', () => {
         [mockConnection]
       );
 
-      expect(autoClearService.onGroupNotTriggered).not.toHaveBeenCalled();
+      expect(connectionStore.updateDecideStatus).toHaveBeenCalledWith(canvasId, 'conn-ai-1', 'rejected', '不相關');
     });
   });
 

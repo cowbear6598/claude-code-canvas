@@ -138,7 +138,7 @@ describe('Database', () => {
         $outputStyleId: null,
         $repositoryId: null,
         $commandId: null,
-        $autoClear: 0,
+        $multiInstance: 0,
         $scheduleJson: null,
       });
 

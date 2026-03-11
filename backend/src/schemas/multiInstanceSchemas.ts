@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { requestIdSchema, podIdSchema, canvasIdSchema } from './base.js';
 
-export const podSetAutoClearSchema = z.object({
+export const podSetMultiInstanceSchema = z.object({
   requestId: requestIdSchema,
   canvasId: canvasIdSchema,
   podId: podIdSchema,
-  autoClear: z.boolean(),
+  multiInstance: z.boolean(),
 });
 
-export type PodSetAutoClearPayload = z.infer<typeof podSetAutoClearSchema>;
+export type PodSetMultiInstancePayload = z.infer<typeof podSetMultiInstanceSchema>;

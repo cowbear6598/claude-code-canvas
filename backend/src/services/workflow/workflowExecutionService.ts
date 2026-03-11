@@ -12,7 +12,6 @@ import {podStore} from '../podStore.js';
 import {summaryService} from '../summaryService.js';
 import {injectUserMessage} from '../../utils/chatHelpers.js';
 import {workflowQueueService} from './workflowQueueService.js';
-import {autoClearService} from '../autoClear/index.js';
 import {logger} from '../../utils/logger.js';
 import {fireAndForget} from '../../utils/operationHelpers.js';
 import {commandService} from '../commandService.js';
@@ -102,8 +101,6 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     if (connections.length === 0) {
       return;
     }
-
-    autoClearService.initializeWorkflowTracking(canvasId, sourcePodId);
 
     await Promise.allSettled([
       ...this.triggerAutoConnections(canvasId, sourcePodId, connections),
@@ -198,7 +195,6 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
       { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode, participatingConnectionIds },
       true
     );
-    await autoClearService.onPodComplete(canvasId, targetPodId);
     // 刻意不 await：下游 workflow 觸發獨立於當前查詢完成流程
     fireAndForget(
       this.checkAndTriggerWorkflows(canvasId, targetPodId),

@@ -25,7 +25,7 @@ interface PodRow {
     output_style_id: string | null;
     repository_id: string | null;
     command_id: string | null;
-    auto_clear: number;
+    multi_instance: number;
     schedule_json: string | null;
 }
 
@@ -62,7 +62,7 @@ function rowToPod(row: PodRow): Pod {
         model: row.model as Pod['model'],
         repositoryId: row.repository_id,
         commandId: row.command_id,
-        autoClear: row.auto_clear === 1,
+        multiInstance: row.multi_instance === 1,
     };
 
     if (row.schedule_json) {
@@ -135,7 +135,7 @@ class PodStore {
             model: data.model ?? 'opus',
             repositoryId: data.repositoryId ?? null,
             commandId: data.commandId ?? null,
-            autoClear: false,
+            multiInstance: false,
         };
 
         this.stmts.pod.insert.run({
@@ -152,7 +152,7 @@ class PodStore {
             $outputStyleId: pod.outputStyleId,
             $repositoryId: pod.repositoryId,
             $commandId: pod.commandId,
-            $autoClear: 0,
+            $multiInstance: 0,
             $scheduleJson: null,
         });
 
@@ -236,7 +236,7 @@ class PodStore {
             $outputStyleId: updatedPod.outputStyleId,
             $repositoryId: updatedPod.repositoryId,
             $commandId: updatedPod.commandId,
-            $autoClear: updatedPod.autoClear ? 1 : 0,
+            $multiInstance: updatedPod.multiInstance ? 1 : 0,
             $scheduleJson: serializeSchedule(updatedPod.schedule),
         });
 
@@ -366,8 +366,8 @@ class PodStore {
         this.stmts.pod.updateRepositoryId.run({ $repositoryId: repositoryId, $id: id });
     }
 
-    setAutoClear(canvasId: string, id: string, autoClear: boolean): void {
-        this.stmts.pod.updateAutoClear.run({ $autoClear: autoClear ? 1 : 0, $id: id });
+    setMultiInstance(canvasId: string, id: string, multiInstance: boolean): void {
+        this.stmts.pod.updateMultiInstance.run({ $multiInstance: multiInstance ? 1 : 0, $id: id });
     }
 
     setCommandId(canvasId: string, podId: string, commandId: string | null): void {

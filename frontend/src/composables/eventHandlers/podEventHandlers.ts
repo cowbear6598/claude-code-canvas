@@ -142,7 +142,7 @@ export function getPodEventListeners(): Array<{ event: string; handler: (payload
     { event: WebSocketResponseEvents.POD_SUBAGENT_BOUND, handler: handlePodStateUpdated as (payload: unknown) => void },
     { event: WebSocketResponseEvents.POD_COMMAND_BOUND, handler: handlePodStateUpdated as (payload: unknown) => void },
     { event: WebSocketResponseEvents.POD_COMMAND_UNBOUND, handler: handlePodStateUpdated as (payload: unknown) => void },
-    { event: WebSocketResponseEvents.POD_AUTO_CLEAR_SET, handler: handlePodStateUpdated as (payload: unknown) => void },
+    { event: WebSocketResponseEvents.POD_MULTI_INSTANCE_SET, handler: handlePodStateUpdated as (payload: unknown) => void },
     { event: WebSocketResponseEvents.POD_MCP_SERVER_BOUND, handler: handlePodStateUpdated as (payload: unknown) => void },
     { event: WebSocketResponseEvents.POD_MCP_SERVER_UNBOUND, handler: handlePodStateUpdated as (payload: unknown) => void },
     { event: WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, handler: handleWorkflowClearResult as (payload: unknown) => void },

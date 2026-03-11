@@ -7,9 +7,8 @@ import { podStore } from './podStore.js';
 import { messageStore } from './messageStore.js';
 import { socketService } from './socketService.js';
 import { workflowExecutionService } from './workflow';
-import { autoClearService } from './autoClear';
 import { logger } from '../utils/logger.js';
-import { fireAndForget, createPostChatCompleteCallback } from '../utils/operationHelpers.js';
+import { fireAndForget } from '../utils/operationHelpers.js';
 import { executeStreamingChat } from './claude/streamingChatExecutor.js';
 
 const TICK_INTERVAL_MS = 1000;
@@ -149,11 +148,13 @@ class ScheduleService {
 
     await messageStore.addMessage(canvasId, podId, 'user', '');
 
-    const onScheduleChatComplete = createPostChatCompleteCallback(
-      (completedCanvasId, completedPodId) => autoClearService.onPodComplete(completedCanvasId, completedPodId),
-      (completedCanvasId, completedPodId) => workflowExecutionService.checkAndTriggerWorkflows(completedCanvasId, completedPodId),
-      'Schedule'
-    );
+    const onScheduleChatComplete = async (completedCanvasId: string, completedPodId: string): Promise<void> => {
+      fireAndForget(
+        workflowExecutionService.checkAndTriggerWorkflows(completedCanvasId, completedPodId),
+        'Schedule',
+        `檢查 Pod「${completedPodId}」自動觸發 Workflow 失敗`
+      );
+    };
 
     await executeStreamingChat(
       { canvasId, podId, message: '', abortable: false },

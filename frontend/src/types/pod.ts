@@ -35,7 +35,7 @@ export interface Pod {
   mcpServerIds?: string[]
   model?: ModelType
   repositoryId?: string | null
-  autoClear?: boolean
+  multiInstance?: boolean
   commandId?: string | null
   schedule?: Schedule | null
   integrationBindings?: IntegrationBinding[]

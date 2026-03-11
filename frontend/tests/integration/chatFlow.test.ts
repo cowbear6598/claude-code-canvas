@@ -11,7 +11,6 @@ import type {
   PodChatToolResultPayload,
   PodChatCompletePayload,
   PodChatAbortedPayload,
-  WorkflowAutoClearedPayload,
   PersistedMessage
 } from '@/types/websocket'
 
@@ -520,54 +519,6 @@ describe('Chat 對話完整流程', () => {
       expect(messages[0]?.isPartial).toBe(false)
     })
 
-    it('AutoClear：handleWorkflowAutoCleared -> 訊息清空 + 動畫觸發', async () => {
-      const podStore = usePodStore()
-      const pod1 = createMockPod({ id: 'pod-1', output: ['line1'] })
-      const pod2 = createMockPod({ id: 'pod-2', output: ['line2'] })
-      podStore.pods = [pod1, pod2]
-      const chatStore = useChatStore()
-
-      chatStore.handleChatMessage({
-        podId: 'pod-1',
-        messageId: 'msg-1',
-        content: 'Message for pod-1',
-        isPartial: false,
-      } as PodChatMessagePayload)
-
-      chatStore.handleChatMessage({
-        podId: 'pod-2',
-        messageId: 'msg-2',
-        content: 'Message for pod-2',
-        isPartial: false,
-      } as PodChatMessagePayload)
-
-      expect(chatStore.getMessages('pod-1')).toHaveLength(1)
-      expect(chatStore.getMessages('pod-2')).toHaveLength(1)
-
-      await chatStore.handleWorkflowAutoCleared({
-        sourcePodId: 'pod-source',
-        clearedPodIds: ['pod-1', 'pod-2'],
-        clearedPodNames: ['Pod 1', 'Pod 2'],
-      } as WorkflowAutoClearedPayload)
-
-      expect(chatStore.getMessages('pod-1')).toEqual([])
-      expect(chatStore.getMessages('pod-2')).toEqual([])
-
-      const updatedPod1 = podStore.pods.find(p => p.id === 'pod-1')
-      const updatedPod2 = podStore.pods.find(p => p.id === 'pod-2')
-      expect(updatedPod1!.output).toEqual([])
-      expect(updatedPod2!.output).toEqual([])
-
-      expect(chatStore.autoClearAnimationPodId).toBe('pod-source')
-    })
-
-    it('AutoClear 清除動畫後可手動清除', () => {
-      const chatStore = useChatStore()
-
-      chatStore.autoClearAnimationPodId = 'pod-1'
-      chatStore.clearAutoClearAnimation()
-      expect(chatStore.autoClearAnimationPodId).toBeNull()
-    })
   })
 
   describe('歷史載入', () => {

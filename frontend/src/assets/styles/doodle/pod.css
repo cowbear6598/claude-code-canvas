@@ -293,8 +293,8 @@
   color: oklch(0.25 0.02 50);
 }
 
-/* 自動清除 Badge 樣式 */
-.auto-clear-badge {
+/* Multi Instance Badge 樣式 */
+.multi-instance-badge {
   position: absolute;
   top: -6px;
   right: -6px;
@@ -313,12 +313,12 @@
   z-index: 1;
 }
 
-/* 自動清除啟用狀態 */
-.workflow-clear-button-in-group.auto-clear-enabled {
+/* Multi Instance 啟用狀態 */
+.workflow-clear-button-in-group.multi-instance-enabled {
   background: oklch(0.85 0.08 150);
 }
 
-.workflow-clear-button-in-group.auto-clear-enabled:hover {
+.workflow-clear-button-in-group.multi-instance-enabled:hover {
   background: oklch(0.78 0.1 150);
 }
 

@@ -21,8 +21,7 @@ const defaultProps = {
   podName: '測試 Pod',
   isSourcePod: true,
   showScheduleButton: false,
-  isAutoClearEnabled: false,
-  isAutoClearAnimating: false,
+  isMultiInstanceEnabled: false,
   isLoadingDownstream: false,
   isClearing: false,
   isWorkflowRunning: false,
@@ -75,7 +74,7 @@ describe('PodActions 橡皮擦按鈕 isWorkflowRunning 行為', () => {
       wrapper.unmount()
     })
 
-    it('isWorkflowRunning=true 時長按橡皮擦不應 emit toggle-auto-clear', async () => {
+    it('isWorkflowRunning=true 時長按橡皮擦不應 emit toggle-multi-instance', async () => {
       vi.useFakeTimers()
       const wrapper = mountPodActions({ isWorkflowRunning: true })
       const eraser = findEraserButton(wrapper)
@@ -84,7 +83,7 @@ describe('PodActions 橡皮擦按鈕 isWorkflowRunning 行為', () => {
       vi.advanceTimersByTime(600)
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.emitted('toggle-auto-clear')).toBeFalsy()
+      expect(wrapper.emitted('toggle-multi-instance')).toBeFalsy()
 
       vi.useRealTimers()
       wrapper.unmount()

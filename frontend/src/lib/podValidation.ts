@@ -38,7 +38,7 @@ export function enrichPod(pod: Pod, existingOutput?: string[]): Pod {
     output: resolveOutputArray(existingOutput, pod.output),
     outputStyleId: pod.outputStyleId ?? null,
     model: pod.model ?? 'opus',
-    autoClear: pod.autoClear ?? false,
+    multiInstance: pod.multiInstance ?? false,
     commandId: pod.commandId ?? null,
     schedule: pod.schedule ?? null,
   }

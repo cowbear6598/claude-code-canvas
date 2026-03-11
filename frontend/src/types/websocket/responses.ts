@@ -250,14 +250,8 @@ export interface PodMessagesClearedPayload {
     podId: string
 }
 
-export interface PodAutoClearSetPayload extends ResultPayload {
+export interface PodMultiInstanceSetPayload extends ResultPayload {
     pod?: Pod
-}
-
-export interface WorkflowAutoClearedPayload {
-    sourcePodId: string
-    clearedPodIds: string[]
-    clearedPodNames: string[]
 }
 
 export interface SubAgentCreatedPayload {

@@ -13,7 +13,6 @@ import {workflowQueueService} from './workflowQueueService.js';
 import {workflowStateService} from './workflowStateService.js';
 import {logger} from '../../utils/logger.js';
 import {formatMergedSummaries} from './workflowHelpers.js';
-import {autoClearService} from '../autoClear/autoClearService.js';
 import { LazyInitializable } from './lazyInitializable.js';
 import { MERGED_CONTENT_PREVIEW_MAX_LENGTH } from './constants.js';
 import { fireAndForget } from '../../utils/operationHelpers.js';
@@ -111,7 +110,6 @@ class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps>
       const targetPod = podStore.getById(canvasId, connection.targetPodId);
       logger.log('Workflow', 'Update', `目標「${targetPod?.name ?? connection.targetPodId}」有被拒絕的來源，不觸發`);
       workflowStateService.emitPendingStatus(canvasId, connection.targetPodId);
-      await autoClearService.onGroupNotTriggered(canvasId, connection.targetPodId);
       return 'rejected';
     }
 

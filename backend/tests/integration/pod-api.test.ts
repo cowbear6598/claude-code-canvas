@@ -62,7 +62,7 @@ describe('GET /api/canvas/:id/pods', () => {
 		expect(Array.isArray(pod.subAgentIds)).toBe(true);
 		expect(Array.isArray(pod.mcpServerIds)).toBe(true);
 		expect(typeof pod.model).toBe('string');
-		expect(typeof pod.autoClear).toBe('boolean');
+		expect(typeof pod.multiInstance).toBe('boolean');
 	});
 
 	it('用 canvas name 取得 Pod 列表', async () => {
@@ -248,7 +248,7 @@ describe('POST /api/canvas/:id/pods', () => {
 		expect(Array.isArray(pod.skillIds)).toBe(true);
 		expect(Array.isArray(pod.subAgentIds)).toBe(true);
 		expect(Array.isArray(pod.mcpServerIds)).toBe(true);
-		expect(typeof pod.autoClear).toBe('boolean');
+		expect(typeof pod.multiInstance).toBe('boolean');
 	});
 });
 

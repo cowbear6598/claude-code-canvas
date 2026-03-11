@@ -58,7 +58,7 @@ describe('Canvas/Pod 操作完整流程', () => {
         skillIds: [],
         subAgentIds: [],
         repositoryId: null,
-        autoClear: false,
+        multiInstance: false,
         commandId: null,
         schedule: null,
       })
@@ -105,7 +105,7 @@ describe('Canvas/Pod 操作完整流程', () => {
         skillIds: [],
         subAgentIds: [],
         repositoryId: null,
-        autoClear: false,
+        multiInstance: false,
         commandId: null,
         schedule: null,
       })
@@ -138,7 +138,7 @@ describe('Canvas/Pod 操作完整流程', () => {
         skillIds: [],
         subAgentIds: [],
         repositoryId: null,
-        autoClear: false,
+        multiInstance: false,
         commandId: null,
         schedule: null,
       })

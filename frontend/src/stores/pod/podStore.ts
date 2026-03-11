@@ -9,7 +9,7 @@ import {
     WebSocketResponseEvents
 } from '@/services/websocket'
 import type {
-    PodAutoClearSetPayload,
+    PodMultiInstanceSetPayload,
     PodCreatedPayload,
     PodCreatePayload,
     PodDeletedPayload,
@@ -20,7 +20,7 @@ import type {
     PodRenamedPayload,
     PodRenamePayload,
     PodScheduleSetPayload,
-    PodSetAutoClearPayload,
+    PodSetMultiInstancePayload,
     PodSetSchedulePayload
 } from '@/types/websocket'
 import {useConnectionStore} from '@/stores/connectionStore'
@@ -334,15 +334,15 @@ export const usePodStore = defineStore('pod', {
             this.updatePodField(podId, 'commandId', commandId)
         },
 
-        async setAutoClearWithBackend(podId: string, autoClear: boolean): Promise<Pod | null> {
+        async setMultiInstanceWithBackend(podId: string, multiInstance: boolean): Promise<Pod | null> {
             const { executeAction } = useCanvasWebSocketAction()
             const { showSuccessToast } = useToast()
 
-            const result = await executeAction<PodSetAutoClearPayload, PodAutoClearSetPayload>(
+            const result = await executeAction<PodSetMultiInstancePayload, PodMultiInstanceSetPayload>(
                 {
-                    requestEvent: WebSocketRequestEvents.POD_SET_AUTO_CLEAR,
-                    responseEvent: WebSocketResponseEvents.POD_AUTO_CLEAR_SET,
-                    payload: { podId, autoClear }
+                    requestEvent: WebSocketRequestEvents.POD_SET_MULTI_INSTANCE,
+                    responseEvent: WebSocketResponseEvents.POD_MULTI_INSTANCE_SET,
+                    payload: { podId, multiInstance }
                 },
                 { errorCategory: 'Pod', errorAction: '設定失敗', errorMessage: 'Pod 設定失敗' }
             )

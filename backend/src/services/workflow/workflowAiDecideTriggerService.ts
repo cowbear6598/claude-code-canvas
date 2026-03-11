@@ -17,12 +17,10 @@ import { workflowStateService } from './workflowStateService.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
 import { workflowPipeline } from './workflowPipeline.js';
 import { workflowMultiInputService } from './workflowMultiInputService.js';
-import { forEachMultiInputGroupConnection, formatConnectionLog, buildQueuedPayload, isAutoTriggerable, createMultiInputCompletionHandlers, emitQueueProcessed } from './workflowHelpers.js';
+import { forEachMultiInputGroupConnection, formatConnectionLog, buildQueuedPayload, createMultiInputCompletionHandlers, emitQueueProcessed } from './workflowHelpers.js';
 import { logger } from '../../utils/logger.js';
 import { getErrorMessage } from '../../utils/errorHelpers.js';
 import { LazyInitializable } from './lazyInitializable.js';
-import { autoClearService } from '../autoClear/autoClearService.js';
-
 type AiDecideService = typeof aiDecideService;
 type WorkflowEventEmitter = typeof workflowEventEmitter;
 type ConnectionStore = typeof connectionStore;
@@ -31,7 +29,6 @@ type WorkflowStateService = typeof workflowStateService;
 type PendingTargetStore = typeof pendingTargetStore;
 type WorkflowPipeline = typeof workflowPipeline;
 type WorkflowMultiInputService = typeof workflowMultiInputService;
-type AutoClearService = typeof autoClearService;
 
 interface AiDecideTriggerDependencies {
   aiDecideService: AiDecideService;
@@ -42,7 +39,6 @@ interface AiDecideTriggerDependencies {
   pendingTargetStore: PendingTargetStore;
   pipeline: WorkflowPipeline;
   multiInputService: WorkflowMultiInputService;
-  autoClearService: AutoClearService;
 }
 
 class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDependencies> implements TriggerStrategy {
@@ -267,12 +263,6 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     return isMultiInput && this.deps.pendingTargetStore.hasPendingTarget(targetPodId);
   }
 
-  private async handleNonMultiInputRejection(canvasId: string, targetPodId: string): Promise<void> {
-    if (this.isLastRejectionTriggersGroupCancel(canvasId, targetPodId)) {
-      await this.deps.autoClearService.onGroupNotTriggered(canvasId, targetPodId);
-    }
-  }
-
   private async handleRejectedConnection(
     canvasId: string,
     sourcePodId: string,
@@ -286,16 +276,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
 
     if (this.shouldDeferToMultiInput(canvasId, connection.targetPodId)) {
       await this.handleRejectedMultiInput(canvasId, sourcePodId, connection, reason);
-      return;
     }
-
-    await this.handleNonMultiInputRejection(canvasId, connection.targetPodId);
-  }
-
-  private isLastRejectionTriggersGroupCancel(canvasId: string, targetPodId: string): boolean {
-    const incomingConnections = this.deps.connectionStore.findByTargetPodId(canvasId, targetPodId);
-    const autoAiIncoming = incomingConnections.filter((c) => isAutoTriggerable(c.triggerMode));
-    return autoAiIncoming.length === 1;
   }
 
   private async handleRejectedMultiInput(
@@ -304,12 +285,8 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     connection: Connection,
     reason: string
   ): Promise<void> {
-    const { allSourcesResponded } = this.deps.pendingTargetStore.recordSourceRejection(connection.targetPodId, sourcePodId, reason);
+    this.deps.pendingTargetStore.recordSourceRejection(connection.targetPodId, sourcePodId, reason);
     this.deps.stateService.emitPendingStatus(canvasId, connection.targetPodId);
-
-    if (allSourcesResponded) {
-      await this.deps.autoClearService.onGroupNotTriggered(canvasId, connection.targetPodId);
-    }
   }
 }
 

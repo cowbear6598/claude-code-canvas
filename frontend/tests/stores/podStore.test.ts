@@ -339,7 +339,7 @@ describe('podStore', () => {
       expect(result.output).toEqual([])
       expect(result.outputStyleId).toBeNull()
       expect(result.model).toBe('opus')
-      expect(result.autoClear).toBe(false)
+      expect(result.multiInstance).toBe(false)
       expect(result.commandId).toBeNull()
       expect(result.schedule).toBeNull()
     })
@@ -354,7 +354,7 @@ describe('podStore', () => {
         output: ['existing'],
         outputStyleId: 'style-1',
         model: 'sonnet',
-        autoClear: true,
+        multiInstance: true,
         commandId: 'cmd-1',
         schedule,
       })
@@ -367,7 +367,7 @@ describe('podStore', () => {
       expect(result.output).toEqual(['existing'])
       expect(result.outputStyleId).toBe('style-1')
       expect(result.model).toBe('sonnet')
-      expect(result.autoClear).toBe(true)
+      expect(result.multiInstance).toBe(true)
       expect(result.commandId).toBe('cmd-1')
       expect(result.schedule).toEqual(schedule)
     })
@@ -541,7 +541,7 @@ describe('podStore', () => {
         skillIds: [],
         subAgentIds: [],
         repositoryId: null,
-        autoClear: false,
+        multiInstance: false,
         commandId: null,
         schedule: null,
       })
@@ -585,7 +585,7 @@ describe('podStore', () => {
         skillIds: [],
         subAgentIds: [],
         repositoryId: null,
-        autoClear: false,
+        multiInstance: false,
         commandId: null,
         schedule: null,
       })
@@ -615,7 +615,7 @@ describe('podStore', () => {
         skillIds: [],
         subAgentIds: [],
         repositoryId: null,
-        autoClear: false,
+        multiInstance: false,
         commandId: null,
         schedule: null,
       })
@@ -643,7 +643,7 @@ describe('podStore', () => {
         skillIds: [],
         subAgentIds: [],
         repositoryId: null,
-        autoClear: false,
+        multiInstance: false,
         commandId: null,
         schedule: null,
       })
@@ -1405,26 +1405,26 @@ describe('podStore', () => {
     })
   })
 
-  describe('setAutoClearWithBackend', () => {
+  describe('setMultiInstanceWithBackend', () => {
     it('成功時應回傳更新的 Pod、顯示成功 Toast', async () => {
       const canvasStore = useCanvasStore()
       canvasStore.activeCanvasId = 'canvas-1'
       const store = usePodStore()
 
-      const updatedPod = createMockPod({ id: 'pod-1', autoClear: true })
+      const updatedPod = createMockPod({ id: 'pod-1', multiInstance: true })
 
       mockExecuteAction.mockResolvedValueOnce({
         success: true,
         data: { success: true, pod: updatedPod },
       })
 
-      const result = await store.setAutoClearWithBackend('pod-1', true)
+      const result = await store.setMultiInstanceWithBackend('pod-1', true)
 
       expect(mockExecuteAction).toHaveBeenCalledWith(
         expect.objectContaining({
-          requestEvent: 'pod:set-auto-clear',
-          responseEvent: 'pod:auto-clear:set',
-          payload: { podId: 'pod-1', autoClear: true },
+          requestEvent: 'pod:set-multi-instance',
+          responseEvent: 'pod:multi-instance:set',
+          payload: { podId: 'pod-1', multiInstance: true },
         }),
         expect.objectContaining({ errorCategory: 'Pod', errorAction: '設定失敗' })
       )
@@ -1439,7 +1439,7 @@ describe('podStore', () => {
 
       mockExecuteAction.mockResolvedValueOnce({ success: false, error: 'Pod 設定失敗' })
 
-      const result = await store.setAutoClearWithBackend('pod-1', false)
+      const result = await store.setMultiInstanceWithBackend('pod-1', false)
 
       expect(result).toBeNull()
     })
@@ -1454,7 +1454,7 @@ describe('podStore', () => {
         data: { success: false },
       })
 
-      const result = await store.setAutoClearWithBackend('pod-1', false)
+      const result = await store.setMultiInstanceWithBackend('pod-1', false)
 
       expect(result).toBeNull()
     })
@@ -1469,7 +1469,7 @@ describe('podStore', () => {
         data: { success: true },
       })
 
-      const result = await store.setAutoClearWithBackend('pod-1', true)
+      const result = await store.setMultiInstanceWithBackend('pod-1', true)
 
       expect(result).toBeNull()
     })

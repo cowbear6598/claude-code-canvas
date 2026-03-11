@@ -41,7 +41,7 @@ curl http://localhost:3001/api/canvas/my-canvas/pods
     "skillIds": [],
     "subAgentIds": [],
     "mcpServerIds": [],
-    "autoClear": false
+    "multiInstance": false
   }
 }
 ```
@@ -130,7 +130,7 @@ curl -X DELETE http://localhost:3001/api/canvas/my-canvas/pods/My%20Pod
     "skillIds": [],
     "subAgentIds": [],
     "mcpServerIds": [],
-    "autoClear": false
+    "multiInstance": false
   }
 }
 ```

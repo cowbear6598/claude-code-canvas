@@ -210,11 +210,11 @@ export interface RepositoryGitClonePayload {
   branch?: string
 }
 
-export interface PodSetAutoClearPayload {
+export interface PodSetMultiInstancePayload {
   requestId: string
   canvasId: string
   podId: string
-  autoClear: boolean
+  multiInstance: boolean
 }
 
 export interface PasteSubAgentNoteItem {

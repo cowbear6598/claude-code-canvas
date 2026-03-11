@@ -11,7 +11,6 @@ import type {
     PodChatToolResultPayload,
     PodChatToolUsePayload,
     PodMessagesClearedPayload,
-    WorkflowAutoClearedPayload
 } from '@/types/websocket'
 import {CONTENT_PREVIEW_LENGTH} from '@/lib/constants'
 import {truncateContent} from './chatUtils'
@@ -78,7 +77,6 @@ export interface ChatMessageActions {
     setTyping: (podId: string, isTyping: boolean) => void
     clearMessagesByPodIds: (podIds: string[]) => void
     handleMessagesClearedEvent: (payload: PodMessagesClearedPayload) => void
-    handleWorkflowAutoCleared: (payload: WorkflowAutoClearedPayload) => void
 }
 
 export function createMessageActions(store: ChatStoreInstance): ChatMessageActions {
@@ -263,15 +261,6 @@ export function createMessageActions(store: ChatStoreInstance): ChatMessageActio
         podStore.clearPodOutputsByIds([payload.podId])
     }
 
-    const handleWorkflowAutoCleared = (payload: WorkflowAutoClearedPayload): void => {
-        clearMessagesByPodIds(payload.clearedPodIds)
-
-        const podStore = usePodStore()
-        podStore.clearPodOutputsByIds(payload.clearedPodIds)
-
-        store.autoClearAnimationPodId = payload.sourcePodId
-    }
-
     const boundSetTyping = (podId: string, isTyping: boolean): void => setTyping(store, podId, isTyping)
 
     return {
@@ -287,6 +276,5 @@ export function createMessageActions(store: ChatStoreInstance): ChatMessageActio
         setTyping: boundSetTyping,
         clearMessagesByPodIds,
         handleMessagesClearedEvent,
-        handleWorkflowAutoCleared
     }
 }

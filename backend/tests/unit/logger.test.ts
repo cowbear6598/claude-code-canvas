@@ -163,12 +163,6 @@ describe('Logger 顏色輸出', () => {
       expect(consoleLogCalls[0]).toContain('[OutputStyle]');
     });
 
-    it('AutoClear Category 輸出包含黃色 ANSI 碼', async () => {
-      const logger = await getLogger();
-      logger.log('AutoClear', 'Update', '自動清除');
-      expect(consoleLogCalls[0]).toContain(ANSI_COLORS.YELLOW);
-      expect(consoleLogCalls[0]).toContain('[AutoClear]');
-    });
 
     it('Schedule Category 輸出包含黃色 ANSI 碼', async () => {
       const logger = await getLogger();

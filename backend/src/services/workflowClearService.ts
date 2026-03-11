@@ -75,7 +75,7 @@ class WorkflowClearService {
     for (const podId of podIds) {
       const clearResult = await safeExecuteAsync(() => this.clearSinglePod(canvasId, podId));
       if (!clearResult.success) {
-        logger.error('AutoClear', 'Error', `[WorkflowClear] 清除 Pod ${podId} 失敗：${clearResult.error}`);
+        logger.error('Workflow', 'Error', `[WorkflowClear] 清除 Pod ${podId} 失敗：${clearResult.error}`);
         continue;
       }
 

@@ -24,7 +24,7 @@ export function createTables(db: Database): void {
       'output_style_id TEXT,' +
       'repository_id TEXT,' +
       'command_id TEXT,' +
-      'auto_clear INTEGER NOT NULL DEFAULT 0,' +
+      'multi_instance INTEGER NOT NULL DEFAULT 0,' +
       'schedule_json TEXT' +
       ')'
   );

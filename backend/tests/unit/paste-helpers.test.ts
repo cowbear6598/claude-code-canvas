@@ -56,7 +56,7 @@ describe('Paste Helpers', () => {
         status: 'idle' as const,
         schedule: undefined,
         claudeSessionId: null,
-        autoClear: false,
+        multiInstance: false,
       };
 
       // 保存原始方法並替換
@@ -168,7 +168,7 @@ describe('Paste Helpers', () => {
         status: 'idle' as const,
         schedule: undefined,
         claudeSessionId: null,
-        autoClear: false,
+        multiInstance: false,
       };
 
       // 保存原始方法並替換
@@ -248,7 +248,7 @@ describe('Paste Helpers', () => {
         status: 'idle' as const,
         schedule: undefined,
         claudeSessionId: null,
-        autoClear: false,
+        multiInstance: false,
       };
 
       // 保存原始方法並替換

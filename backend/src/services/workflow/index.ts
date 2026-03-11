@@ -24,8 +24,6 @@ import { aiDecideService } from './aiDecideService.js';
 import { connectionStore } from '../connectionStore.js';
 import { podStore } from '../podStore.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
-import { autoClearService } from '../autoClear/autoClearService.js';
-
 export function initWorkflowServices(): void {
   workflowPipeline.init({
     executionService: workflowExecutionService,
@@ -45,7 +43,6 @@ export function initWorkflowServices(): void {
     pendingTargetStore,
     pipeline: workflowPipeline,
     multiInputService: workflowMultiInputService,
-    autoClearService,
   });
 
   workflowMultiInputService.init({

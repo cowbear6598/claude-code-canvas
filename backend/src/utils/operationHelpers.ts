@@ -55,24 +55,6 @@ export function fireAndForget(promise: Promise<unknown>, category: LogCategory, 
   });
 }
 
-export function createPostChatCompleteCallback(
-  autoClearOnPodComplete: (canvasId: string, podId: string) => Promise<void>,
-  checkAndTriggerWorkflows: (canvasId: string, podId: string) => Promise<void>,
-  logCategory: LogCategory
-): (canvasId: string, podId: string) => Promise<void> {
-  return async (canvasId: string, podId: string): Promise<void> => {
-    fireAndForget(
-      autoClearOnPodComplete(canvasId, podId),
-      logCategory,
-      `檢查 Pod「${podId}」自動清除失敗`
-    );
-    fireAndForget(
-      checkAndTriggerWorkflows(canvasId, podId),
-      logCategory,
-      `檢查 Pod「${podId}」自動觸發 Workflow 失敗`
-    );
-  };
-}
 
 export function safeExecute<T>(operation: () => T): Result<T> {
   try {
