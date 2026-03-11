@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.6.0] - 2026-03-11
+
+### 新增
+- 全域模型設定功能
+- Workflow REST API（GET list / POST chat / POST stop）
+- Connection REST API（GET list / POST create / DELETE / PATCH triggerMode）
+- Jira Cloud Webhook 整合（App CRUD、Pod 綁定、HMAC 簽章驗證 + 防重放 + SSRF 防護）
+- Plugin Gateway 重構
+
+### 修正
+- 修復 Chat 訊息氣泡與工具標籤顯示不一致
+- 修復歷史載入時所有 Tool 集中在第一個氣泡
+- 修復 WebSocket listener 重複註冊導致重複訊息
+- 修復 Mini Screen 內容重複
+- Telegram polling 加入去重防護，避免 409 Conflict
+- Shutdown 順序調整與資源清理補齊
+- 修正 connectionStore SQL 安全漏洞（加入 canvas_id 隔離）
+- chatSchemas Base64 字元合法性驗證
+- parseWebhookBody Content-Length 負值/NaN 防護
+
+### 重構
+- podStore 14 個假 async 方法改為同步簽名（bun:sqlite 同步 API）
+- Integration Provider 5 個重複模式抽出共用 integrationHelpers.ts
+- autoClearService graph traversal 邏輯抽離至 autoClearGraphUtils.ts
+- useUnifiedEventListeners 600+ 行拆分為 6 個領域模組
+- isPodBusy type guard 統一 Pod 忙碌狀態判斷
+- injectUserMessage 共用函式統一 4 處訊息注入流程
+- claudeService sendMessageInternal 拆分，session 重試邏輯獨立
+- GenericNoteStore 型別安全改善，消除雙重 as 轉型
+- workflowApi validateMessage 改用 contentBlockSchema 統一驗證
+- createNoteStore buildCRUDActions 抽離為獨立模組
+- try-catch 濫用修正（renamePodWithBackend、findProvider、skillService）
+
 ## [0.5.0] - 2026-03-05
 
 ### 新增
