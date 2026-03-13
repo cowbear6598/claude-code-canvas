@@ -89,6 +89,10 @@ class RunExecutionService {
     this.updateAndEmitPodInstanceStatus(runContext, podId, 'summarizing');
   }
 
+  decidingPodInstance(runContext: RunContext, podId: string): void {
+    this.updateAndEmitPodInstanceStatus(runContext, podId, 'deciding');
+  }
+
   skipPodInstance(runContext: RunContext, podId: string): void {
     this.updateAndEmitPodInstanceStatus(runContext, podId, 'skipped', { evaluateRun: true });
   }
@@ -144,7 +148,7 @@ class RunExecutionService {
 
     const hasError = instances.some((i) => i.status === 'error');
     const hasInProgress = instances.some(
-      (i) => i.status === 'running' || i.status === 'pending' || i.status === 'summarizing',
+      (i) => i.status === 'running' || i.status === 'pending' || i.status === 'summarizing' || i.status === 'deciding',
     );
     const allDone = instances.every((i) => i.status === 'completed' || i.status === 'skipped');
 

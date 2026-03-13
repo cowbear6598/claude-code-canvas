@@ -5,7 +5,7 @@ import { getStatements } from '../database/statements.js';
 import { safeJsonParse } from '../utils/safeJsonParse.js';
 
 export type RunStatus = 'running' | 'completed' | 'error';
-export type RunPodInstanceStatus = 'pending' | 'running' | 'summarizing' | 'completed' | 'error' | 'skipped';
+export type RunPodInstanceStatus = 'pending' | 'running' | 'summarizing' | 'deciding' | 'completed' | 'error' | 'skipped';
 
 export interface WorkflowRun {
   id: string;

@@ -37,6 +37,7 @@ export function setupConnectionStoreSpy(connection?: Connection) {
         updateDecideStatus: vi.spyOn(connectionStore, 'updateDecideStatus').mockReturnValue(undefined),
         updateConnectionStatus: vi.spyOn(connectionStore, 'updateConnectionStatus').mockReturnValue(undefined),
         findByTargetPodId: vi.spyOn(connectionStore, 'findByTargetPodId').mockReturnValue([]),
+        list: vi.spyOn(connectionStore, 'list').mockReturnValue([]),
     };
 }
 
@@ -256,6 +257,7 @@ export function setupRunExecutionServiceSpy() {
         completePodInstance: vi.spyOn(runExecutionService, 'completePodInstance').mockImplementation(() => {}),
         errorPodInstance: vi.spyOn(runExecutionService, 'errorPodInstance').mockImplementation(() => {}),
         summarizingPodInstance: vi.spyOn(runExecutionService, 'summarizingPodInstance').mockImplementation(() => {}),
+        decidingPodInstance: vi.spyOn(runExecutionService, 'decidingPodInstance').mockImplementation(() => {}),
         skipPodInstance: vi.spyOn(runExecutionService, 'skipPodInstance').mockImplementation(() => {}),
         registerActiveStream: vi.spyOn(runExecutionService, 'registerActiveStream').mockImplementation(() => {}),
         unregisterActiveStream: vi.spyOn(runExecutionService, 'unregisterActiveStream').mockImplementation(() => {}),

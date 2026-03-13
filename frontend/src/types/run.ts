@@ -1,6 +1,6 @@
 export type RunStatus = 'running' | 'completed' | 'error'
 
-export type RunPodStatus = 'pending' | 'running' | 'summarizing' | 'completed' | 'error' | 'skipped'
+export type RunPodStatus = 'pending' | 'running' | 'summarizing' | 'deciding' | 'completed' | 'error' | 'skipped'
 
 export interface RunPodInstance {
   id: string

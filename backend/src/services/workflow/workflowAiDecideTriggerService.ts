@@ -22,6 +22,8 @@ import { forEachMultiInputGroupConnection, formatConnectionLog, buildQueuedPaylo
 import { logger } from '../../utils/logger.js';
 import { getErrorMessage } from '../../utils/errorHelpers.js';
 import { LazyInitializable } from './lazyInitializable.js';
+import { runExecutionService } from './runExecutionService.js';
+import { runStore } from '../runStore.js';
 type AiDecideService = typeof aiDecideService;
 type WorkflowEventEmitter = typeof workflowEventEmitter;
 type ConnectionStore = typeof connectionStore;
@@ -167,6 +169,13 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
 
     this.setConnectionsToDeciding(canvasId, connections, runContext);
 
+    if (runContext) {
+      const targetPodIds = [...new Set(connections.map((c) => c.targetPodId))];
+      for (const targetPodId of targetPodIds) {
+        runExecutionService.decidingPodInstance(runContext, targetPodId);
+      }
+    }
+
     const decideResults = await this.decide({ canvasId, sourcePodId, connections, runContext });
 
     for (const decideResult of decideResults) {
@@ -192,6 +201,9 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
         targetPodId: connection.targetPodId,
         error: errorMessage,
       });
+    } else {
+      runExecutionService.errorPodInstance(runContext, connection.targetPodId, errorMessage);
+      this.cascadeSkipUnreachablePods(runContext, canvasId, connection.targetPodId, 'error');
     }
     const sourcePod = this.deps.podStore.getById(canvasId, sourcePodId);
     const targetPod = this.deps.podStore.getById(canvasId, connection.targetPodId);
@@ -296,6 +308,9 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     if (!runContext) {
       this.deps.connectionStore.updateDecideStatus(canvasId, connection.id, 'rejected', decideResult.reason);
       this.deps.connectionStore.updateConnectionStatus(canvasId, connection.id, 'ai-rejected');
+    } else {
+      runExecutionService.skipPodInstance(runContext, connection.targetPodId);
+      this.cascadeSkipUnreachablePods(runContext, canvasId, connection.targetPodId);
     }
     this.emitRejectionEvents(canvasId, connection, sourcePodId, reason, runContext);
 
@@ -312,6 +327,57 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
   ): Promise<void> {
     this.deps.pendingTargetStore.recordSourceRejection(connection.targetPodId, sourcePodId, reason);
     this.deps.stateService.emitPendingStatus(canvasId, connection.targetPodId);
+  }
+
+  /**
+   * 使用迭代方式傳播 skip 狀態：
+   * 若某 pod 的所有 incoming connection source 都已是 skipped 或 error，則該 pod 也應被 skip。
+   * 持續迭代直到沒有新的 skip 發生為止。
+   * 需要 while 迴圈反覆確認，因為每次 skip 都可能讓更下游的 pod 符合條件。
+   * triggeredBy 為觸發本次 cascade 的 pod 資訊（剛被 skip/error，尚未反映在 DB query 中）。
+   */
+  private cascadeSkipUnreachablePods(
+    runContext: RunContext,
+    canvasId: string,
+    triggeredByPodId: string,
+    triggeredByStatus: 'skipped' | 'error' = 'skipped',
+  ): void {
+    const instances = runStore.getPodInstancesByRunId(runContext.runId);
+    const connections = this.deps.connectionStore.list(canvasId);
+
+    const triggeredInstance = instances.find((i) => i.podId === triggeredByPodId);
+    if (triggeredInstance) {
+      // 補償：剛呼叫的 skipPodInstance/errorPodInstance 已寫入 DB，但本次 snapshot 是之前取得的，
+      // 需手動同步觸發者狀態，避免迴圈中誤判觸發者仍為 pending
+      triggeredInstance.status = triggeredByStatus;
+    }
+
+    let changed = true;
+    let safetyLimit = instances.length;
+    while (changed && safetyLimit-- > 0) {
+      changed = false;
+      for (const instance of instances) {
+        if (instance.status !== 'pending') continue;
+
+        const incomingConns = connections.filter((c) => c.targetPodId === instance.podId);
+        if (incomingConns.length === 0) continue;
+
+        const allSourcesUnreachable = incomingConns.every((conn) => {
+          const source = instances.find((i) => i.podId === conn.sourcePodId);
+          return source && (source.status === 'skipped' || source.status === 'error');
+        });
+
+        if (allSourcesUnreachable) {
+          runExecutionService.skipPodInstance(runContext, instance.podId);
+          instance.status = 'skipped';
+          changed = true;
+        }
+      }
+    }
+
+    if (safetyLimit <= 0) {
+      logger.warn('Workflow', 'Warn', `cascade skip 達到迭代上限 (runId: ${runContext.runId})`);
+    }
   }
 }
 

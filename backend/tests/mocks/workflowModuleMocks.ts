@@ -18,6 +18,7 @@ export function createConnectionStoreMock() {
       updateDecideStatus: vi.fn(),
       updateConnectionStatus: vi.fn(),
       findByTargetPodId: vi.fn(),
+      list: vi.fn().mockReturnValue([]),
     },
   };
 }
@@ -166,5 +167,27 @@ export function createWorkflowPipelineMock() {
 export function createErrorHelpersMock() {
   return {
     getErrorMessage: vi.fn((e) => e?.message ?? String(e)),
+  };
+}
+
+export function createRunStoreMock() {
+  return {
+    runStore: {
+      getPodInstancesByRunId: vi.fn().mockReturnValue([]),
+      getPodInstance: vi.fn().mockReturnValue(undefined),
+    },
+  };
+}
+
+export function createRunExecutionServiceMock() {
+  return {
+    runExecutionService: {
+      skipPodInstance: vi.fn(),
+      errorPodInstance: vi.fn(),
+      completePodInstance: vi.fn(),
+      summarizingPodInstance: vi.fn(),
+      decidingPodInstance: vi.fn(),
+      startPodInstance: vi.fn(),
+    },
   };
 }
