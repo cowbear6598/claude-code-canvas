@@ -413,7 +413,7 @@ function buildStatements(db: Database): {
         'SELECT * FROM run_pod_instances WHERE run_id = $runId AND pod_id = $podId',
       ),
       updateStatus: db.prepare(
-        'UPDATE run_pod_instances SET status = $status, error_message = $errorMessage, triggered_at = $triggeredAt, completed_at = $completedAt WHERE id = $id',
+        "UPDATE run_pod_instances SET status = $status, error_message = $errorMessage, triggered_at = CASE WHEN $status = 'running' THEN $triggeredAt ELSE triggered_at END, completed_at = $completedAt WHERE id = $id",
       ),
       updateClaudeSessionId: db.prepare(
         'UPDATE run_pod_instances SET claude_session_id = $claudeSessionId WHERE id = $id',
@@ -424,6 +424,7 @@ function buildStatements(db: Database): {
       deleteByRunId: db.prepare('DELETE FROM run_pod_instances WHERE run_id = ?'),
       settleAutoPathway: db.prepare('UPDATE run_pod_instances SET auto_pathway_settled = 1 WHERE id = $id'),
       settleDirectPathway: db.prepare('UPDATE run_pod_instances SET direct_pathway_settled = 1 WHERE id = $id'),
+      // 只結算存在的 pathway（NULL 表示此 pathway 不存在，保持 NULL 不變）
       settleAllPathways: db.prepare(
         'UPDATE run_pod_instances SET auto_pathway_settled = CASE WHEN auto_pathway_settled IS NOT NULL THEN 1 ELSE NULL END, direct_pathway_settled = CASE WHEN direct_pathway_settled IS NOT NULL THEN 1 ELSE NULL END WHERE id = $id',
       ),

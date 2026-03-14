@@ -186,7 +186,6 @@ export function createRunStoreMock() {
 export function createRunExecutionServiceMock() {
   return {
     runExecutionService: {
-      skipPodInstance: vi.fn(),
       errorPodInstance: vi.fn(),
       settlePodTrigger: vi.fn(),
       settleAndSkipPath: vi.fn(),

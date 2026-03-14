@@ -264,7 +264,6 @@ export function setupRunExecutionServiceSpy() {
         errorPodInstance: vi.spyOn(runExecutionService, 'errorPodInstance').mockImplementation(() => {}),
         summarizingPodInstance: vi.spyOn(runExecutionService, 'summarizingPodInstance').mockImplementation(() => {}),
         decidingPodInstance: vi.spyOn(runExecutionService, 'decidingPodInstance').mockImplementation(() => {}),
-        skipPodInstance: vi.spyOn(runExecutionService, 'skipPodInstance').mockImplementation(() => {}),
         registerActiveStream: vi.spyOn(runExecutionService, 'registerActiveStream').mockImplementation(() => {}),
         unregisterActiveStream: vi.spyOn(runExecutionService, 'unregisterActiveStream').mockImplementation(() => {}),
         deleteRun: vi.spyOn(runExecutionService, 'deleteRun').mockImplementation(() => {}),

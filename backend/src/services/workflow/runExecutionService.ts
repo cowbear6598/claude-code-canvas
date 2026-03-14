@@ -248,10 +248,6 @@ class RunExecutionService {
     this.updateAndEmitPodInstanceStatus(runContext, podId, 'deciding');
   }
 
-  skipPodInstance(runContext: RunContext, podId: string): void {
-    this.updateAndEmitPodInstanceStatus(runContext, podId, 'skipped', { evaluateRun: true });
-  }
-
   private updateAndEmitPodInstanceStatus(
     runContext: RunContext,
     podId: string,
@@ -270,7 +266,7 @@ class RunExecutionService {
       runStore.updatePodInstanceStatus(instance.id, status);
     }
 
-    // store 負責計算 triggeredAt/completedAt，直接根據 status 推導，避免重複查詢
+    // running 時記錄啟動時間；其他狀態保留原有的 triggeredAt（與 SQL CASE WHEN 邏輯一致）
     const triggeredAt = status === 'running' ? new Date().toISOString() : instance.triggeredAt ?? undefined;
     const isTerminal = status === 'completed' || status === 'error' || status === 'skipped';
     const completedAt = isTerminal ? new Date().toISOString() : instance.completedAt ?? undefined;

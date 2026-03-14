@@ -5,6 +5,12 @@ vi.mock('../../src/services/podStore.js', () => ({
   },
 }));
 
+vi.mock('../../src/services/runStore.js', () => ({
+  runStore: {
+    getPodInstance: vi.fn(),
+  },
+}));
+
 vi.mock('../../src/utils/logger.js', () => ({
   logger: {
     log: vi.fn(),
@@ -16,8 +22,11 @@ vi.mock('../../src/utils/logger.js', () => ({
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { workflowPipeline } from '../../src/services/workflow/workflowPipeline.js';
 import { podStore } from '../../src/services/podStore.js';
+import { runStore } from '../../src/services/runStore.js';
 import type { PipelineContext, TriggerStrategy, CollectSourcesContext, TriggerDecideContext } from '../../src/services/workflow/types.js';
 import type { Connection } from '../../src/types/index.js';
+import type { RunContext } from '../../src/types/run.js';
+import type { RunPodInstance } from '../../src/services/runStore.js';
 import { createMockPod, createMockConnection, createMockStrategy, TEST_IDS } from '../mocks/workflowTestFactories.js';
 
 describe('WorkflowPipeline', () => {
@@ -356,6 +365,83 @@ describe('WorkflowPipeline', () => {
       expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
 
       expect(mockQueueService.enqueue).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Run 模式 skipped guard', () => {
+    const runContext: RunContext = { runId: 'run-1', canvasId, sourcePodId };
+    const runContextPipelineBase: PipelineContext = { ...baseContext, runContext };
+
+    function makeRunInstance(status: RunPodInstance['status']): RunPodInstance {
+      return {
+        id: 'inst-1',
+        runId: 'run-1',
+        podId: targetPodId,
+        status,
+        claudeSessionId: null,
+        errorMessage: null,
+        triggeredAt: null,
+        completedAt: null,
+        autoPathwaySettled: null,
+        directPathwaySettled: null,
+      };
+    }
+
+    it('target instance 為 completed 時應 early return，不繼續觸發', async () => {
+      const mockStrategy = createMockStrategy('auto');
+      (runStore.getPodInstance as any).mockReturnValue(makeRunInstance('completed'));
+
+      await workflowPipeline.execute(runContextPipelineBase, mockStrategy);
+
+      expect(mockExecutionService.generateSummaryWithFallback).not.toHaveBeenCalled();
+      expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
+    });
+
+    it('target instance 為 skipped 時應 early return，不繼續觸發', async () => {
+      const mockStrategy = createMockStrategy('auto');
+      (runStore.getPodInstance as any).mockReturnValue(makeRunInstance('skipped'));
+
+      await workflowPipeline.execute(runContextPipelineBase, mockStrategy);
+
+      expect(mockExecutionService.generateSummaryWithFallback).not.toHaveBeenCalled();
+      expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
+    });
+
+    it('target instance 為 error 時應 early return，不繼續觸發', async () => {
+      const mockStrategy = createMockStrategy('auto');
+      (runStore.getPodInstance as any).mockReturnValue(makeRunInstance('error'));
+
+      await workflowPipeline.execute(runContextPipelineBase, mockStrategy);
+
+      expect(mockExecutionService.generateSummaryWithFallback).not.toHaveBeenCalled();
+      expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
+    });
+
+    it('target instance 為 pending 時應繼續執行', async () => {
+      const mockStrategy = createMockStrategy('auto');
+      (runStore.getPodInstance as any).mockReturnValue(makeRunInstance('pending'));
+
+      await workflowPipeline.execute(runContextPipelineBase, mockStrategy);
+
+      expect(mockExecutionService.generateSummaryWithFallback).toHaveBeenCalled();
+    });
+
+    it('target instance 為 deciding 時應繼續執行', async () => {
+      const mockStrategy = createMockStrategy('auto');
+      (runStore.getPodInstance as any).mockReturnValue(makeRunInstance('deciding'));
+
+      await workflowPipeline.execute(runContextPipelineBase, mockStrategy);
+
+      expect(mockExecutionService.generateSummaryWithFallback).toHaveBeenCalled();
+    });
+
+    it('非 run 模式（無 runContext）時不觸發 guard，照常執行', async () => {
+      const mockStrategy = createMockStrategy('auto');
+      (runStore.getPodInstance as any).mockReturnValue(undefined);
+
+      await workflowPipeline.execute(baseContext, mockStrategy);
+
+      expect(mockExecutionService.generateSummaryWithFallback).toHaveBeenCalled();
     });
   });
 });

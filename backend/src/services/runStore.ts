@@ -245,6 +245,7 @@ class RunStore {
     status: RunPodInstanceStatus,
     errorMessage?: string,
   ): void {
+    // triggeredAt 只在 running 時設定，SQL 層會用 CASE WHEN 保護非 running 狀態不覆蓋已有值
     const triggeredAt = status === 'running' ? new Date().toISOString() : null;
     const completedAt = status === 'completed' || status === 'error' || status === 'skipped'
       ? new Date().toISOString()

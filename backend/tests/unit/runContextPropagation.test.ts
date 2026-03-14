@@ -51,7 +51,6 @@ vi.mock('../../src/services/workflow/runExecutionService.js', () => ({
     settleAndSkipPath: vi.fn(),
     errorPodInstance: vi.fn(),
     summarizingPodInstance: vi.fn(),
-    skipPodInstance: vi.fn(),
     registerActiveStream: vi.fn(),
     unregisterActiveStream: vi.fn(),
     deleteRun: vi.fn(),

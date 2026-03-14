@@ -64,15 +64,21 @@ describe('RunExecutionService - deciding 狀態', () => {
     expect(runStore.updateRunStatus).not.toHaveBeenCalled();
   });
 
-  it('有 deciding 的 instance 時，skipPodInstance 後不應完成 run', () => {
+  it('有 deciding 的 instance 時，settleAndSkipPath 後不應完成 run', () => {
     const instanceA = makeInstance({ podId: 'pod-a', status: 'deciding' });
-    const instanceB = makeInstance({ podId: 'pod-b', status: 'pending' });
-    vi.spyOn(runStore, 'getPodInstance').mockReturnValue(instanceB);
+    const instanceB = makeInstance({ podId: 'pod-b', status: 'pending', autoPathwaySettled: false });
+    const instanceBAfterSettle = makeInstance({ podId: 'pod-b', status: 'pending', autoPathwaySettled: true });
+    vi.spyOn(runStore, 'getPodInstance')
+      .mockReturnValueOnce(instanceB)
+      .mockReturnValueOnce(instanceBAfterSettle)
+      .mockReturnValueOnce(instanceBAfterSettle);
+    vi.spyOn(runStore, 'settleAutoPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceA, instanceB]);
+    vi.spyOn(connectionStore, 'list').mockReturnValue([]);
 
-    runExecutionService.skipPodInstance(makeRunContext(), 'pod-b');
+    runExecutionService.settleAndSkipPath(makeRunContext(), 'pod-b', 'auto');
 
     expect(runStore.updateRunStatus).not.toHaveBeenCalled();
   });

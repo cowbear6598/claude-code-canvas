@@ -252,34 +252,6 @@ describe('RunExecutionService', () => {
     });
   });
 
-  describe('skipPodInstance', () => {
-    it('更新 status 為 skipped 並發送事件、評估 run 狀態', () => {
-      const instance = createMockInstance({ status: 'pending' });
-      const skippedInstance = createMockInstance({ status: 'skipped', completedAt: new Date().toISOString() });
-      vi.spyOn(runStore, 'getPodInstance').mockReturnValueOnce(instance);
-      vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
-      vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([skippedInstance]);
-      vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
-      vi.spyOn(runStore, 'getRun').mockReturnValue(createMockRun({ status: 'completed', completedAt: new Date().toISOString() }));
-
-      runExecutionService.skipPodInstance(makeRunContext(), sourcePodId);
-
-      expect(runStore.updatePodInstanceStatus).toHaveBeenCalledWith(instance.id, 'skipped');
-      expect(socketService.emitToCanvas).toHaveBeenCalledWith(
-        canvasId,
-        WebSocketResponseEvents.RUN_POD_STATUS_CHANGED,
-        expect.objectContaining({ status: 'skipped' }),
-      );
-    });
-
-    it('找不到 instance 時 log warning 不拋錯', () => {
-      vi.spyOn(runStore, 'getPodInstance').mockReturnValue(undefined);
-
-      expect(() => runExecutionService.skipPodInstance(makeRunContext(), sourcePodId)).not.toThrow();
-      expect(logger.warn).toHaveBeenCalled();
-    });
-  });
-
   describe('evaluateRunStatus（透過 settlePodTrigger 觸發）', () => {
     it('有 error 且無進行中的 instance → run 狀態變為 error', () => {
       const errorInstance = createMockInstance({ status: 'error', errorMessage: '失敗' });
