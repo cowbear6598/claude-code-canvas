@@ -40,7 +40,6 @@ const extraValues = ref<Record<string, string>>({})
 const selectedResourceId = ref<string | null>(null)
 const manualResourceInput = ref<string>('')
 
-// 回填 binding 時暫停清除 watch 的旗標
 const isRestoringBinding = ref(false)
 
 const selectedApp = computed<IntegrationApp | undefined>(() =>
@@ -55,7 +54,6 @@ const isManualInput = computed<boolean>(() =>
   config.value.hasManualResourceInput?.(extraValues.value) ?? false
 )
 
-// 手動輸入的錯誤訊息
 const manualInputError = computed<string>(() => {
   const manualConfig = config.value.manualResourceInputConfig
   if (!manualConfig) return ''
@@ -65,7 +63,6 @@ const manualInputError = computed<string>(() => {
 const isConfirmDisabled = computed<boolean>(() => {
   if (apps.value.length === 0 || !selectedAppId.value) return true
 
-  // 如果有 extra fields，確認都已選擇
   const extraFields = config.value.bindingExtraFields ?? []
   if (extraFields.some((field) => !extraValues.value[field.key])) return true
 
@@ -118,11 +115,10 @@ watch(
       return
     }
 
-    // 回填時暫停 watch 清除邏輯，避免設定 selectedAppId 後 watch 清除 selectedResourceId
+    // 防止 selectedAppId 設定後立即觸發 watch 清除 selectedResourceId
     isRestoringBinding.value = true
     selectedAppId.value = binding.appId
 
-    // 回填 extra values（如 Telegram 的 chatType）
     const extraFields = config.value.bindingExtraFields ?? []
     extraFields.forEach((field) => {
       const savedValue = binding.extra[field.key]
@@ -133,26 +129,25 @@ watch(
 
     selectedResourceId.value = binding.resourceId
 
-    // 回填手動輸入值（private 模式下 resourceId 即為 User ID）
+    // private 模式下 resourceId 即為 User ID
     if (config.value.hasManualResourceInput?.(extraValues.value)) {
       manualResourceInput.value = binding.resourceId
     }
 
-    // 等待 watch 觸發後再解除旗標
     nextTick(() => {
       isRestoringBinding.value = false
     })
   }
 )
 
-// 切換 App 時清除 resource 選擇（回填期間不清除）
+// 防止回填期間清除資源選擇
 watch(selectedAppId, () => {
   if (isRestoringBinding.value) return
   selectedResourceId.value = null
   manualResourceInput.value = ''
 })
 
-// 切換 extra fields 時清除 resource 選擇（回填期間不清除）
+// 防止回填期間清除資源選擇
 watch(
   extraValues,
   () => {

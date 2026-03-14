@@ -42,25 +42,21 @@ export interface IntegrationProvider {
   createAppSchema: z.ZodType;
   bindSchema: z.ZodType;
 
-  // AppStore 層
   validateCreate(config: IntegrationAppConfig): Result<void>;
   sanitizeConfig(config: IntegrationAppConfig): Record<string, unknown>;
   getExtraDbFields?(config: IntegrationAppConfig): Record<string, unknown>;
 
-  // ClientManager 層
   initialize(app: IntegrationApp): Promise<void>;
   destroy(appId: string): void;
   destroyAll(): void;
   refreshResources(appId: string): Promise<IntegrationResource[]>;
   sendMessage?(appId: string, resourceId: string, text: string, extra?: Record<string, unknown>): Promise<Result<void>>;
 
-  // EventService 層
   formatEventMessage(event: unknown, app: IntegrationApp): NormalizedEvent | null;
 
   // 允許手動輸入 Resource ID（跳過 resources 列表驗證）
   allowManualResourceId?: boolean;
 
-  // Webhook/Polling 層
   webhookPath?: string;
   handleWebhookRequest?(req: Request): Promise<Response>;
   startPolling?(appId: string, config: IntegrationAppConfig): void;

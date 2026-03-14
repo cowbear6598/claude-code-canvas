@@ -151,8 +151,8 @@ class CanvasStore {
         const transaction = getDb().transaction(() => {
             const allCanvases = this.stmts.canvas.selectAll.all() as CanvasRow[];
             const reorderedSet = new Set(canvasIds);
-            const notReordered = allCanvases.filter(c => !reorderedSet.has(c.id));
-            const reordered = canvasIds.map(id => allCanvases.find(c => c.id === id)!);
+            const notReordered = allCanvases.filter(canvas => !reorderedSet.has(canvas.id));
+            const reordered = canvasIds.map(canvasId => allCanvases.find(canvas => canvas.id === canvasId)!);
             const finalOrder = [...reordered, ...notReordered];
             finalOrder.forEach((canvas, index) => {
                 this.stmts.canvas.updateSortIndex.run({$id: canvas.id, $sortIndex: index});

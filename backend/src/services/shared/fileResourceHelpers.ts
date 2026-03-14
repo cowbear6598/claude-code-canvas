@@ -1,9 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { logger } from '../../utils/logger.js';
 import { config } from '../../config/index.js';
 import { isPathWithinDirectory } from '../../utils/pathValidator.js';
-import { safeJsonParse } from '../../utils/safeJsonParse.js';
 
 export async function readFileOrNull(filePath: string): Promise<string | null> {
     if (!await fileExists(filePath)) {
@@ -24,23 +22,6 @@ export async function directoryExists(dirPath: string): Promise<boolean> {
 export async function ensureDirectoryAndWriteFile(filePath: string, content: string): Promise<void> {
     await fs.mkdir(path.dirname(filePath), {recursive: true});
     await fs.writeFile(filePath, content, 'utf-8');
-}
-
-export async function readJsonFileOrDefault<T>(filePath: string): Promise<T[] | null> {
-    const exists = await fileExists(filePath);
-    if (!exists) {
-        return null;
-    }
-
-    const data = await fs.readFile(filePath, 'utf-8');
-    const parsed = safeJsonParse<T[]>(data);
-
-    if (parsed === null) {
-        logger.error('Startup', 'Error', `[FileResource] 無效的 JSON 檔案 ${filePath}`);
-        return null;
-    }
-
-    return parsed;
 }
 
 export async function copyResourceFile(srcPath: string, destBasePath: string, subDir: string, fileName: string): Promise<void> {

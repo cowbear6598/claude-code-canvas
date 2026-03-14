@@ -278,7 +278,7 @@ class AiDecideService {
     if (!result.success) {
       logger.log('Workflow', 'Update', `[AiDecideService] 生成摘要失敗，使用備用內容`);
       if (runContext) {
-        const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
+        const lastAssistant = [...messages].reverse().find(message => message.role === 'assistant');
         return lastAssistant?.content ?? null;
       }
       return getLastAssistantMessage(sourcePodId);

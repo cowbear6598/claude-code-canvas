@@ -5,6 +5,7 @@ import type { IntegrationConnectionStatus } from '../../types/integration.js';
 import { getDb } from '../../database/index.js';
 import { getStatements } from '../../database/statements.js';
 import { integrationRegistry } from './integrationRegistry.js';
+import { getErrorMessage } from '../../utils/errorHelpers.js';
 import type { IntegrationApp, IntegrationAppConfig, IntegrationResource } from './types.js';
 
 interface IntegrationAppRow {
@@ -50,8 +51,7 @@ class IntegrationAppStore {
     try {
       this.stmts.insert.run({ $id: id, $provider: provider, $name: name, $configJson: configJson, $extraJson: null });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes('UNIQUE constraint failed')) {
+      if (getErrorMessage(error).includes('UNIQUE constraint failed')) {
         return err(`相同 Provider（${provider}）下已存在名稱為「${name}」的 App`);
       }
       throw error;

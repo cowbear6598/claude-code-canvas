@@ -19,7 +19,7 @@ import {directTriggerStore} from '../directTriggerStore.js';
 import {workflowStateService} from './workflowStateService.js';
 import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {logger} from '../../utils/logger.js';
-import {formatMergedSummaries, buildQueuedPayload, buildQueueProcessedPayload} from './workflowHelpers.js';
+import {formatMergedSummaries, buildQueuedPayload, buildQueueProcessedPayload, resolvePendingKey} from './workflowHelpers.js';
 import {connectionStore} from '../connectionStore.js';
 import {runExecutionService} from './runExecutionService.js';
 import {MERGED_CONTENT_PREVIEW_MAX_LENGTH} from './constants.js';
@@ -66,7 +66,7 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         summary: string,
         runContext?: RunContext
     ): Promise<CollectSourcesResult> {
-        const storeKey = runContext ? `${runContext.runId}:${targetPodId}` : targetPodId;
+        const storeKey = resolvePendingKey(targetPodId, runContext);
 
         if (!directTriggerStore.hasDirectPending(storeKey)) {
             directTriggerStore.initializeDirectPending(storeKey);

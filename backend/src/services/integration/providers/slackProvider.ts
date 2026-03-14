@@ -175,8 +175,6 @@ class SlackProvider implements IntegrationProvider {
 
     private clients: Map<string, WebClient> = new Map();
 
-    // AppStore 層
-
     validateCreate(config: IntegrationAppConfig): Result<void> {
         const botToken = config['botToken'];
         if (typeof botToken !== 'string') {
@@ -194,8 +192,6 @@ class SlackProvider implements IntegrationProvider {
     sanitizeConfig(_config: IntegrationAppConfig): Record<string, unknown> {
         return {};
     }
-
-    // ClientManager 層
 
     async initialize(app: IntegrationApp): Promise<void> {
         await initializeProvider(
@@ -275,8 +271,6 @@ class SlackProvider implements IntegrationProvider {
         }
     }
 
-    // EventService 層
-
     formatEventMessage(event: unknown, app: IntegrationApp): NormalizedEvent | null {
         const mentionEvent = event as AppMentionEvent;
         const { channel, user, text } = mentionEvent;
@@ -299,8 +293,6 @@ class SlackProvider implements IntegrationProvider {
             rawEvent: event,
         };
     }
-
-    // Webhook 層
 
     readonly webhookPath = '/slack/events';
 
@@ -329,8 +321,6 @@ class SlackProvider implements IntegrationProvider {
         logger.warn('Integration', 'Error', `收到未知的 Slack 事件類型: ${body.type}`);
         return new Response('OK', { status: 200 });
     }
-
-    // 私有輔助方法
 
     private async fetchAndUpdateChannels(appId: string, client: WebClient): Promise<IntegrationResource[]> {
         const channels: IntegrationResource[] = [];

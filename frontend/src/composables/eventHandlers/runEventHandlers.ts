@@ -13,8 +13,6 @@ import type {
   RunToolResultPayload,
 } from '@/types/websocket/responses'
 
-// === Unified Handlers ===
-
 const handleRunCreated = createUnifiedHandler<BasePayload & RunCreatedPayload>(
   (payload) => {
     useRunStore().addRun(payload.run)
@@ -49,8 +47,6 @@ const handleRunDeleted = createUnifiedHandler<BasePayload & RunDeletedPayload>(
     useRunStore().removeRun(payload.runId)
   }
 )
-
-// === Standalone Handlers ===
 
 export const handleRunMessage = (payload: RunMessagePayload): void => {
   if (!isCurrentCanvas(payload.canvasId)) return
@@ -101,8 +97,6 @@ export const handleRunToolResult = (payload: RunToolResultPayload): void => {
     output: payload.output,
   })
 }
-
-// === Export Functions ===
 
 export function getRunEventListeners(): Array<{ event: string; handler: (payload: unknown) => void }> {
   return [

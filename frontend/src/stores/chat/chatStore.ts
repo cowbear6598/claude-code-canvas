@@ -45,7 +45,7 @@ function hasMessageContent(content: string, contentBlocks: ContentBlock[] | unde
 }
 
 function resolveCommandForPod(podId: string, pods: Pod[], availableCommands: Command[]): Command | null {
-    const pod = pods.find(p => p.id === podId)
+    const pod = pods.find(podItem => podItem.id === podId)
     if (!pod?.commandId) return null
     return availableCommands.find(command => command.id === pod.commandId) ?? null
 }

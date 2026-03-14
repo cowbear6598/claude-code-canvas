@@ -63,8 +63,8 @@ const openFilePicker = (): Promise<File | null> => {
     input.type = 'file'
     input.accept = '.zip,application/zip'
 
-    input.onchange = (e): void => {
-      const target = e.target as HTMLInputElement
+    input.onchange = (changeEvent: Event): void => {
+      const target = changeEvent.target as HTMLInputElement
       const file = target.files?.[0]
       resolve(file || null)
     }

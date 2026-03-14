@@ -86,7 +86,7 @@ class SummaryService {
       let fallbackContent: string | null;
       if (runContext) {
         const runMessages = runStore.getRunMessages(runContext.runId, sourcePodId);
-        const lastAssistant = [...runMessages].reverse().find(m => m.role === 'assistant');
+        const lastAssistant = [...runMessages].reverse().find(message => message.role === 'assistant');
         fallbackContent = lastAssistant?.content ?? null;
       } else {
         fallbackContent = getLastAssistantMessage(sourcePodId);

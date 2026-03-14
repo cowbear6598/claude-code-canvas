@@ -1,9 +1,10 @@
 import { simpleGit } from 'simple-git';
 import { Result, ok, err } from '../types';
 import { logger, type LogCategory } from './logger.js';
+import { getErrorMessage } from './errorHelpers.js';
 
 export function maskTokenInError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = getErrorMessage(error);
   return message.replace(/https?:\/\/[^@\s]*@/g, 'https://***@');
 }
 
@@ -60,8 +61,7 @@ export function safeExecute<T>(operation: () => T): Result<T> {
   try {
     return ok(operation());
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return err(message);
+    return err(getErrorMessage(error));
   }
 }
 
@@ -69,8 +69,7 @@ export async function safeExecuteAsync<T>(operation: () => Promise<T>): Promise<
   try {
     return ok(await operation());
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return err(message);
+    return err(getErrorMessage(error));
   }
 }
 

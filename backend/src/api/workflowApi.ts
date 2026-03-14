@@ -50,7 +50,7 @@ export function buildWorkflows(canvasId: string): WorkflowInfo[] {
 	const pods = podStore.list(canvasId);
 	const connections = connectionStore.list(canvasId);
 
-	const podMap = new Map<string, Pod>(pods.map(p => [p.id, p]));
+	const podMap = new Map<string, Pod>(pods.map(pod => [pod.id, pod]));
 
 	const adjacencyMap = new Map<string, Connection[]>();
 	const inboundSet = new Set<string>();
@@ -62,7 +62,7 @@ export function buildWorkflows(canvasId: string): WorkflowInfo[] {
 		inboundSet.add(connection.targetPodId);
 	}
 
-	const entryPods = pods.filter(p => !inboundSet.has(p.id) && !p.integrationBindings?.length);
+	const entryPods = pods.filter(pod => !inboundSet.has(pod.id) && !pod.integrationBindings?.length);
 
 	return entryPods.map(entryPod => {
 		const visited = new Set<string>();

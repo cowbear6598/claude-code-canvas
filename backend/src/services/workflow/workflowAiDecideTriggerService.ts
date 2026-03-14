@@ -18,7 +18,7 @@ import { workflowStateService } from './workflowStateService.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
 import { workflowPipeline } from './workflowPipeline.js';
 import { workflowMultiInputService } from './workflowMultiInputService.js';
-import { forEachMultiInputGroupConnection, formatConnectionLog, buildQueuedPayload, createMultiInputCompletionHandlers, emitQueueProcessed } from './workflowHelpers.js';
+import { forEachMultiInputGroupConnection, formatConnectionLog, buildQueuedPayload, createMultiInputCompletionHandlers, emitQueueProcessed, resolvePendingKey } from './workflowHelpers.js';
 import { logger } from '../../utils/logger.js';
 import { getErrorMessage } from '../../utils/errorHelpers.js';
 import { LazyInitializable } from './lazyInitializable.js';
@@ -138,7 +138,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     decideResult: TriggerDecideResult,
     runContext?: RunContext
   ): Promise<void> {
-    const connection = connections.find(c => c.id === decideResult.connectionId);
+    const connection = connections.find(conn => conn.id === decideResult.connectionId);
     if (!connection) return;
 
     if (decideResult.isError) {
@@ -169,7 +169,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
     this.setConnectionsToDeciding(canvasId, connections, runContext);
 
     if (runContext) {
-      const targetPodIds = [...new Set(connections.map((c) => c.targetPodId))];
+      const targetPodIds = [...new Set(connections.map((conn) => conn.targetPodId))];
       for (const targetPodId of targetPodIds) {
         runExecutionService.decidingPodInstance(runContext, targetPodId);
       }
@@ -291,7 +291,7 @@ class WorkflowAiDecideTriggerService extends LazyInitializable<AiDecideTriggerDe
 
   private shouldDeferToMultiInput(canvasId: string, targetPodId: string, runContext?: RunContext): boolean {
     const { isMultiInput } = this.deps.stateService.checkMultiInputScenario(canvasId, targetPodId);
-    const pendingKey = runContext ? `${runContext.runId}:${targetPodId}` : targetPodId;
+    const pendingKey = resolvePendingKey(targetPodId, runContext);
     return isMultiInput && this.deps.pendingTargetStore.hasPendingTarget(pendingKey);
   }
 

@@ -18,6 +18,7 @@ import {socketService} from '../services/socketService.js';
 import {emitError, emitNotFound, emitSuccess} from '../utils/websocketResponse.js';
 import {logger} from '../utils/logger.js';
 import {fireAndForget} from '../utils/operationHelpers.js';
+import {getErrorMessage} from '../utils/errorHelpers.js';
 import {emitPodUpdated, handleResultError, getPodDisplayName, validatePod, withCanvasId} from '../utils/handlerHelpers.js';
 
 function sanitizeApp(app: IntegrationApp): SanitizedIntegrationApp {
@@ -64,7 +65,7 @@ export async function handleIntegrationAppCreate(
 
     const schemaResult = provider.createAppSchema.safeParse(config);
     if (!schemaResult.success) {
-        const message = schemaResult.error.issues.map(i => i.message).join('；');
+        const message = schemaResult.error.issues.map(issue => issue.message).join('；');
         emitError(connectionId, WebSocketResponseEvents.INTEGRATION_APP_CREATED, `設定驗證失敗：${message}`, requestId, undefined, 'VALIDATION_ERROR');
         return;
     }
@@ -205,8 +206,7 @@ export async function handleIntegrationAppResourcesRefresh(
     try {
         resources = await provider.refreshResources(appId);
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        emitError(connectionId, WebSocketResponseEvents.INTEGRATION_APP_RESOURCES_REFRESHED, `重新取得 Resources 失敗：${message}`, requestId);
+        emitError(connectionId, WebSocketResponseEvents.INTEGRATION_APP_RESOURCES_REFRESHED, `重新取得 Resources 失敗：${getErrorMessage(error)}`, requestId);
         return;
     }
 
@@ -250,7 +250,7 @@ export const handlePodBindIntegration = withCanvasId<PodBindIntegrationPayload>(
         const bindPayload = {resourceId, ...(extra ? {extra} : {})};
         const bindResult = provider.bindSchema.safeParse(bindPayload);
         if (!bindResult.success) {
-            const message = bindResult.error.issues.map(i => i.message).join('；');
+            const message = bindResult.error.issues.map(issue => issue.message).join('；');
             emitError(connectionId, WebSocketResponseEvents.POD_INTEGRATION_BOUND, `綁定設定驗證失敗：${message}`, requestId, undefined, 'VALIDATION_ERROR');
             return;
         }
@@ -278,7 +278,7 @@ export const handlePodUnbindIntegration = withCanvasId<PodUnbindIntegrationPaylo
         const pod = validatePod(connectionId, podId, WebSocketResponseEvents.POD_INTEGRATION_UNBOUND, requestId);
         if (!pod) return;
 
-        const hasBinding = pod.integrationBindings?.some(b => b.provider === providerName);
+        const hasBinding = pod.integrationBindings?.some(binding => binding.provider === providerName);
         if (!hasBinding) {
             emitError(connectionId, WebSocketResponseEvents.POD_INTEGRATION_UNBOUND, `Pod「${getPodDisplayName(canvasId, podId)}」尚未綁定 ${providerName}`, requestId, undefined, 'NOT_BOUND');
             return;

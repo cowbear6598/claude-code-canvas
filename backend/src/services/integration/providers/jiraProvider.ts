@@ -144,8 +144,6 @@ class JiraProvider implements IntegrationProvider {
 
   private clients: Map<string, JiraClientInfo> = new Map();
 
-  // AppStore 層
-
   validateCreate(config: IntegrationAppConfig): Result<void> {
     const siteUrl = config.siteUrl as string | undefined;
     const email = config.email as string | undefined;
@@ -171,8 +169,6 @@ class JiraProvider implements IntegrationProvider {
       email: config.email,
     };
   }
-
-  // ClientManager 層
 
   async initialize(app: IntegrationApp): Promise<void> {
     await initializeProvider(
@@ -234,8 +230,6 @@ class JiraProvider implements IntegrationProvider {
     return this.fetchProjects(appId, client.siteUrl, client.authHeader);
   }
 
-  // EventService 層
-
   formatEventMessage(event: unknown, app: IntegrationApp): NormalizedEvent | null {
     const parsed = jiraWebhookPayloadSchema.safeParse(event);
     if (!parsed.success) return null;
@@ -264,8 +258,6 @@ class JiraProvider implements IntegrationProvider {
       rawEvent: event,
     };
   }
-
-  // Webhook 層
 
   readonly webhookPath = '/jira/events';
 

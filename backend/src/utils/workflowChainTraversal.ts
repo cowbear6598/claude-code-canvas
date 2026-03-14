@@ -7,8 +7,8 @@ import {isPodBusy} from '../types/index.js';
 const MAX_WORKFLOW_CHAIN_SIZE = 50;
 
 function getAdjacentPodIds(canvasId: string, podId: string): string[] {
-    const downstream = connectionStore.findBySourcePodId(canvasId, podId).map(c => c.targetPodId);
-    const upstream = connectionStore.findByTargetPodId(canvasId, podId).map(c => c.sourcePodId);
+    const downstream = connectionStore.findBySourcePodId(canvasId, podId).map(conn => conn.targetPodId);
+    const upstream = connectionStore.findByTargetPodId(canvasId, podId).map(conn => conn.sourcePodId);
     return [...downstream, ...upstream];
 }
 

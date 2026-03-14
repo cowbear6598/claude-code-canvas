@@ -77,11 +77,11 @@ class IntegrationEventPipeline {
 
     logger.log('Integration', 'Complete', `[IntegrationEventPipeline] 注入 ${event.provider} 訊息至 Pod「${podName}」`);
 
-    const onComplete = async (cId: string, pId: string): Promise<void> => {
+    const onComplete = async (canvasId: string, podId: string): Promise<void> => {
       fireAndForget(
-        workflowExecutionService.checkAndTriggerWorkflows(cId, pId),
+        workflowExecutionService.checkAndTriggerWorkflows(canvasId, podId),
         'Integration',
-        `檢查 Pod「${pId}」自動觸發 Workflow 失敗`
+        `檢查 Pod「${podId}」自動觸發 Workflow 失敗`
       );
     };
 

@@ -1,9 +1,7 @@
 import type { Component } from 'vue'
 
-// ========== 連線狀態 ==========
 export type IntegrationConnectionStatus = 'connected' | 'disconnected' | 'error'
 
-// ========== 表單欄位定義 ==========
 export interface FormFieldDefinition {
   key: string
   label: string
@@ -12,13 +10,11 @@ export interface FormFieldDefinition {
   validate: (value: string) => string
 }
 
-// ========== 資源（第二步選擇的項目） ==========
 export interface IntegrationResource {
   id: string | number
   label: string
 }
 
-// ========== 綁定時的額外欄位 ==========
 export interface BindingExtraFieldDefinition {
   key: string
   label: string
@@ -27,14 +23,12 @@ export interface BindingExtraFieldDefinition {
   defaultValue: string
 }
 
-// ========== 連線狀態樣式 ==========
 export interface ConnectionStatusStyle {
   dotClass: string
   bg: string
   label: string
 }
 
-// ========== Integration App 統一介面 ==========
 export interface IntegrationApp {
   id: string
   name: string
@@ -44,7 +38,6 @@ export interface IntegrationApp {
   raw: Record<string, unknown>
 }
 
-// ========== Pod Integration Binding 統一介面 ==========
 export interface IntegrationBinding {
   provider: string
   appId: string
@@ -52,7 +45,6 @@ export interface IntegrationBinding {
   extra: Record<string, unknown>
 }
 
-// ========== Provider Config ==========
 export interface IntegrationProviderConfig {
   name: string
   label: string

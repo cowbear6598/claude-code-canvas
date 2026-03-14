@@ -72,8 +72,6 @@ class TelegramProvider implements IntegrationProvider {
     private pollingControllers: Map<string, AbortController> = new Map();
     private pollingOffsets: Map<string, number> = new Map();
 
-    // AppStore 層
-
     validateCreate(config: IntegrationAppConfig): Result<void> {
         const botToken = config['botToken'] as string | undefined;
         if (!botToken) return err('botToken 為必填');
@@ -87,8 +85,6 @@ class TelegramProvider implements IntegrationProvider {
     sanitizeConfig(_config: IntegrationAppConfig): Record<string, unknown> {
         return {};
     }
-
-    // ClientManager 層
 
     async initialize(app: IntegrationApp): Promise<void> {
         await initializeProvider(
@@ -172,8 +168,6 @@ class TelegramProvider implements IntegrationProvider {
         }
     }
 
-    // EventService 層
-
     formatEventMessage(event: unknown, app: IntegrationApp): NormalizedEvent | null {
         const message = event as TelegramApiMessage;
         if (message.from?.is_bot === true) return null;
@@ -199,7 +193,7 @@ class TelegramProvider implements IntegrationProvider {
         };
     }
 
-    // Webhook/Polling 層（使用 polling，無 webhookPath）
+    // 使用 polling，無 webhookPath
 
     // 每個 Bot 有獨立的 polling 迴圈，透過 AbortController 控制生命週期，避免 memory leak
     startPolling(appId: string, config: IntegrationAppConfig): void {
@@ -230,8 +224,6 @@ class TelegramProvider implements IntegrationProvider {
             this.pollingControllers.delete(appId);
         }
     }
-
-    // 私有輔助方法
 
     private async fetchBotUsername(appId: string, botToken: string): Promise<string | null> {
         try {
