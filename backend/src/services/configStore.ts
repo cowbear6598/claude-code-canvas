@@ -1,5 +1,4 @@
-import { getDb } from '../database/index.js';
-import { getStatements } from '../database/statements.js';
+import { getStmts } from '../database/stmtsHelper.js';
 import type { ModelType } from '../types/pod.js';
 
 interface GlobalSettingRow {
@@ -17,8 +16,8 @@ export interface ConfigData {
 }
 
 export class ConfigStore {
-  private get stmts(): ReturnType<typeof getStatements> {
-    return getStatements(getDb());
+  private get stmts(): ReturnType<typeof getStmts> {
+    return getStmts();
   }
 
   getAll(): ConfigData {

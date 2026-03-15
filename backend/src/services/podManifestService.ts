@@ -3,8 +3,7 @@ import path from 'node:path';
 import {isPathWithinDirectory} from '../utils/pathValidator.js';
 import {logger} from '../utils/logger.js';
 import {repositoryService} from './repositoryService.js';
-import {getDb} from '../database/index.js';
-import {getStatements} from '../database/statements.js';
+import {getStmts} from '../database/stmtsHelper.js';
 import {safeJsonParse} from '../utils/safeJsonParse.js';
 
 interface PodManifestRow {
@@ -16,8 +15,8 @@ interface PodManifestRow {
 const CLAUDE_DIR = '.claude';
 
 class PodManifestService {
-    private get stmts(): ReturnType<typeof getStatements> {
-        return getStatements(getDb());
+    private get stmts(): ReturnType<typeof getStmts> {
+        return getStmts();
     }
 
     readManifest(repositoryId: string, podId: string): string[] {

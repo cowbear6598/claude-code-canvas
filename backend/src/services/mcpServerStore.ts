@@ -1,7 +1,6 @@
 import {v4 as uuidv4} from 'uuid';
 import type {McpServer, McpServerConfig} from '../types/mcpServer.js';
-import {getDb} from '../database/index.js';
-import {getStatements} from '../database/statements.js';
+import {getStmts} from '../database/stmtsHelper.js';
 import {safeJsonParse} from '../utils/safeJsonParse.js';
 import {logger} from '../utils/logger.js';
 
@@ -25,8 +24,8 @@ function rowToMcpServer(row: McpServerRow): McpServer | null {
 }
 
 export class McpServerStore {
-    private get stmts(): ReturnType<typeof getStatements> {
-        return getStatements(getDb());
+    private get stmts(): ReturnType<typeof getStmts> {
+        return getStmts();
     }
 
     create(name: string, config: McpServerConfig): McpServer {

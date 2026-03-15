@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getDb } from '../database/index.js';
-import { getStatements } from '../database/statements.js';
+import { getStmts } from '../database/stmtsHelper.js';
 import { safeJsonParse } from '../utils/safeJsonParse.js';
 
 export interface BaseNote {
@@ -46,8 +45,8 @@ export class GenericNoteStore<T extends BaseNote, K extends keyof T> {
     this.noteConfig = storeConfig;
   }
 
-  private get stmts(): ReturnType<typeof getStatements> {
-    return getStatements(getDb());
+  private get stmts(): ReturnType<typeof getStmts> {
+    return getStmts();
   }
 
   private rowToNote(row: NoteRow): T {

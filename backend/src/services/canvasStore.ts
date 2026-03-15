@@ -4,7 +4,7 @@ import {Result, ok, err} from '../types';
 import {config} from '../config';
 import {logger} from '../utils/logger.js';
 import {getDb} from '../database/index.js';
-import {getStatements} from '../database/statements.js';
+import {getStmts} from '../database/stmtsHelper.js';
 
 interface CanvasRow {
     id: string;
@@ -23,8 +23,8 @@ function rowToCanvas(row: CanvasRow): Canvas {
 class CanvasStore {
     private activeCanvasMap: Map<string, string> = new Map();
 
-    private get stmts(): ReturnType<typeof getStatements> {
-        return getStatements(getDb());
+    private get stmts(): ReturnType<typeof getStmts> {
+        return getStmts();
     }
 
     private static readonly WINDOWS_RESERVED_NAMES = [

@@ -5,8 +5,7 @@ import type { Pod, PodStatus, CreatePodRequest, ScheduleConfig } from '../types'
 import type { IntegrationBinding } from '../types/integration.js';
 import { socketService } from './socketService.js';
 import { canvasStore } from './canvasStore.js';
-import { getDb } from '../database/index.js';
-import { getStatements } from '../database/statements.js';
+import { getStmts } from '../database/stmtsHelper.js';
 import { safeJsonParse } from '../utils/safeJsonParse.js';
 
 type PodUpdates = Partial<Omit<Pod, 'schedule'>> & { schedule?: ScheduleConfig | null };
@@ -40,7 +39,7 @@ interface IntegrationBindingRow {
 }
 
 function rowToPod(row: PodRow): Pod {
-    const stmts = getStatements(getDb());
+    const stmts = getStmts();
 
     const skillRows = stmts.podSkillIds.selectByPodId.all(row.id) as Array<{ skill_id: string }>;
     const subAgentRows = stmts.podSubAgentIds.selectByPodId.all(row.id) as Array<{ sub_agent_id: string }>;
@@ -87,8 +86,8 @@ function serializeSchedule(schedule?: ScheduleConfig): string | null {
 }
 
 class PodStore {
-    private get stmts(): ReturnType<typeof getStatements> {
-        return getStatements(getDb());
+    private get stmts(): ReturnType<typeof getStmts> {
+        return getStmts();
     }
 
     private loadBindingsForPod(podId: string): IntegrationBinding[] {
@@ -307,7 +306,7 @@ class PodStore {
 
     private findByJoinTableId(
         canvasId: string,
-        selectByValueId: ReturnType<typeof getStatements>['podSkillIds']['selectBySkillId'],
+        selectByValueId: ReturnType<typeof getStmts>['podSkillIds']['selectBySkillId'],
         valueId: string
     ): Pod[] {
         const podIdRows = selectByValueId.all(valueId) as Array<{ pod_id: string }>;
@@ -319,7 +318,7 @@ class PodStore {
 
     private replaceJoinTableIds(
         podId: string,
-        stmtGroup: { deleteByPodId: ReturnType<typeof getStatements>['podSkillIds']['deleteByPodId']; insert: ReturnType<typeof getStatements>['podSkillIds']['insert'] },
+        stmtGroup: { deleteByPodId: ReturnType<typeof getStmts>['podSkillIds']['deleteByPodId']; insert: ReturnType<typeof getStmts>['podSkillIds']['insert'] },
         valueIds: string[],
         buildParams: (valueId: string) => Record<string, string>
     ): void {

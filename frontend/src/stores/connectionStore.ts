@@ -110,6 +110,13 @@ function runBFS(
     return false
 }
 
+function buildIsRunningPod(podStore: ReturnType<typeof usePodStore>): (podId: string) => boolean {
+    return (podId: string) => {
+        const pod = podStore.getPodById(podId)
+        return pod !== undefined && RUNNING_POD_STATUSES.has(pod.status ?? '')
+    }
+}
+
 interface ConnectionState {
     connections: Connection[]
     selectedConnectionId: string | null
@@ -203,10 +210,7 @@ export const useConnectionStore = defineStore('connection', {
                     }
                     return neighbors
                 },
-                (currentId) => {
-                    const pod = podStore.getPodById(currentId)
-                    return pod !== undefined && RUNNING_POD_STATUSES.has(pod.status ?? '')
-                },
+                buildIsRunningPod(podStore),
             )
         },
 
@@ -225,10 +229,7 @@ export const useConnectionStore = defineStore('connection', {
                         .filter(connection => connection.sourcePodId === currentId)
                         .map(connection => ({ neighborId: connection.targetPodId, connection }))
                 },
-                (currentId) => {
-                    const pod = podStore.getPodById(currentId)
-                    return pod !== undefined && RUNNING_POD_STATUSES.has(pod.status ?? '')
-                },
+                buildIsRunningPod(podStore),
             )
         },
     },

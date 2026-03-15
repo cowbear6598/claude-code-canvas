@@ -2,6 +2,7 @@ import { Database } from 'bun:sqlite';
 import path from 'path';
 import { config } from '../config/index.js';
 import { createTables } from './schema.js';
+import { getStatements } from './statements.js';
 
 let db: Database | null = null;
 
@@ -17,6 +18,10 @@ export function getDb(): Database {
   createTables(db);
 
   return db;
+}
+
+export function getStmts(): ReturnType<typeof getStatements> {
+  return getStatements(getDb());
 }
 
 export function closeDb(): void {

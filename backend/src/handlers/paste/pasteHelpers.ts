@@ -206,12 +206,7 @@ export function createPastedConnections(
 }
 
 type NoteItemBase = { boundToOriginalPodId: string | null; name: string; x: number; y: number; originalPosition: { x: number; y: number } | null };
-type OutputStyleNoteItem = NoteItemBase & { outputStyleId: string };
-type SkillNoteItem = NoteItemBase & { skillId: string };
-type RepositoryNoteItem = NoteItemBase & { repositoryId: string };
-type SubAgentNoteItem = NoteItemBase & { subAgentId: string };
-type CommandNoteItem = NoteItemBase & { commandId: string };
-type McpServerNoteItem = NoteItemBase & { mcpServerId: string };
+type NoteItemWithId<K extends string> = NoteItemBase & Record<K, string>;
 
 type NotePasteConfig<TNoteItem extends NoteItemBase, TNote extends { id: string; name: string; x: number; y: number; boundToPodId: string | null; originalPosition: { x: number; y: number } | null }> = {
   store: NoteStoreType<TNote>;
@@ -220,96 +215,44 @@ type NotePasteConfig<TNoteItem extends NoteItemBase, TNote extends { id: string;
   createParams: (item: TNoteItem, boundToPodId: string | null) => NoteCreateParams<TNote>;
 };
 
+function makeNoteConfig<K extends string, TNote extends { id: string; name: string; x: number; y: number; boundToPodId: string | null; originalPosition: { x: number; y: number } | null } & Record<K, string>>(
+  idKey: K,
+  store: NoteStoreType<TNote>,
+  type: PasteError['type']
+): NotePasteConfig<NoteItemWithId<K>, TNote> {
+  return {
+    store,
+    type,
+    getId: (item) => item[idKey],
+    createParams: (item, boundToPodId) => ({
+      [idKey]: item[idKey],
+      name: item.name,
+      x: item.x,
+      y: item.y,
+      boundToPodId,
+      originalPosition: item.originalPosition,
+    } as NoteCreateParams<TNote>),
+  };
+}
+
 const NOTE_PASTE_CONFIGS = {
-  outputStyle: {
-    store: noteStore,
-    type: 'outputStyleNote',
-    getId: (item: OutputStyleNoteItem): string => item.outputStyleId,
-    createParams: (item: OutputStyleNoteItem, boundToPodId: string | null): NoteCreateParams<OutputStyleNote> => ({
-      outputStyleId: item.outputStyleId,
-      name: item.name,
-      x: item.x,
-      y: item.y,
-      boundToPodId,
-      originalPosition: item.originalPosition,
-    }),
-  } satisfies NotePasteConfig<OutputStyleNoteItem, OutputStyleNote>,
-  skill: {
-    store: skillNoteStore,
-    type: 'skillNote',
-    getId: (item: SkillNoteItem): string => item.skillId,
-    createParams: (item: SkillNoteItem, boundToPodId: string | null): NoteCreateParams<SkillNote> => ({
-      skillId: item.skillId,
-      name: item.name,
-      x: item.x,
-      y: item.y,
-      boundToPodId,
-      originalPosition: item.originalPosition,
-    }),
-  } satisfies NotePasteConfig<SkillNoteItem, SkillNote>,
-  repository: {
-    store: repositoryNoteStore,
-    type: 'repositoryNote',
-    getId: (item: RepositoryNoteItem): string => item.repositoryId,
-    createParams: (item: RepositoryNoteItem, boundToPodId: string | null): NoteCreateParams<RepositoryNote> => ({
-      repositoryId: item.repositoryId,
-      name: item.name,
-      x: item.x,
-      y: item.y,
-      boundToPodId,
-      originalPosition: item.originalPosition,
-    }),
-  } satisfies NotePasteConfig<RepositoryNoteItem, RepositoryNote>,
-  subAgent: {
-    store: subAgentNoteStore,
-    type: 'subAgentNote',
-    getId: (item: SubAgentNoteItem): string => item.subAgentId,
-    createParams: (item: SubAgentNoteItem, boundToPodId: string | null): NoteCreateParams<SubAgentNote> => ({
-      subAgentId: item.subAgentId,
-      name: item.name,
-      x: item.x,
-      y: item.y,
-      boundToPodId,
-      originalPosition: item.originalPosition,
-    }),
-  } satisfies NotePasteConfig<SubAgentNoteItem, SubAgentNote>,
-  command: {
-    store: commandNoteStore,
-    type: 'commandNote',
-    getId: (item: CommandNoteItem): string => item.commandId,
-    createParams: (item: CommandNoteItem, boundToPodId: string | null): NoteCreateParams<CommandNote> => ({
-      commandId: item.commandId,
-      name: item.name,
-      x: item.x,
-      y: item.y,
-      boundToPodId,
-      originalPosition: item.originalPosition,
-    }),
-  } satisfies NotePasteConfig<CommandNoteItem, CommandNote>,
-  mcpServer: {
-    store: mcpServerNoteStore,
-    type: 'mcpServerNote',
-    getId: (item: McpServerNoteItem): string => item.mcpServerId,
-    createParams: (item: McpServerNoteItem, boundToPodId: string | null): NoteCreateParams<McpServerNote> => ({
-      mcpServerId: item.mcpServerId,
-      name: item.name,
-      x: item.x,
-      y: item.y,
-      boundToPodId,
-      originalPosition: item.originalPosition,
-    }),
-  } satisfies NotePasteConfig<McpServerNoteItem, McpServerNote>,
+  outputStyle: makeNoteConfig('outputStyleId', noteStore, 'outputStyleNote'),
+  skill: makeNoteConfig('skillId', skillNoteStore, 'skillNote'),
+  repository: makeNoteConfig('repositoryId', repositoryNoteStore, 'repositoryNote'),
+  subAgent: makeNoteConfig('subAgentId', subAgentNoteStore, 'subAgentNote'),
+  command: makeNoteConfig('commandId', commandNoteStore, 'commandNote'),
+  mcpServer: makeNoteConfig('mcpServerId', mcpServerNoteStore, 'mcpServerNote'),
 } as const;
 
 export type NotePasteType = keyof typeof NOTE_PASTE_CONFIGS;
 
 type NoteItemForType<K extends NotePasteType> =
-  K extends 'outputStyle' ? OutputStyleNoteItem :
-  K extends 'skill' ? SkillNoteItem :
-  K extends 'repository' ? RepositoryNoteItem :
-  K extends 'subAgent' ? SubAgentNoteItem :
-  K extends 'command' ? CommandNoteItem :
-  K extends 'mcpServer' ? McpServerNoteItem :
+  K extends 'outputStyle' ? NoteItemWithId<'outputStyleId'> :
+  K extends 'skill' ? NoteItemWithId<'skillId'> :
+  K extends 'repository' ? NoteItemWithId<'repositoryId'> :
+  K extends 'subAgent' ? NoteItemWithId<'subAgentId'> :
+  K extends 'command' ? NoteItemWithId<'commandId'> :
+  K extends 'mcpServer' ? NoteItemWithId<'mcpServerId'> :
   never;
 
 type NoteForType<K extends NotePasteType> =

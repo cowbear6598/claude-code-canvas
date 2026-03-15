@@ -1,8 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { PersistedMessage, PersistedSubMessage } from '../types';
 import { Result, ok } from '../types';
-import { getDb } from '../database/index.js';
-import { getStatements } from '../database/statements.js';
+import { getStmts } from '../database/stmtsHelper.js';
 import { safeJsonParse } from '../utils/safeJsonParse.js';
 
 interface MessageRow {
@@ -26,8 +25,8 @@ function rowToMessage(row: MessageRow): PersistedMessage {
 }
 
 class MessageStore {
-  private get stmts(): ReturnType<typeof getStatements> {
-    return getStatements(getDb());
+  private get stmts(): ReturnType<typeof getStmts> {
+    return getStmts();
   }
 
   async addMessage(

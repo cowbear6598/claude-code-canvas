@@ -10,6 +10,7 @@ import type {ContentBlock} from '@/types/websocket/requests'
 import {useSpeechRecognition} from '@/composables/chat/useSpeechRecognition'
 import {useImageAttachment} from '@/composables/chat/useImageAttachment'
 import {useContentBlocks} from '@/composables/chat/useContentBlocks'
+import {useSelectionManager} from '@/composables/chat/useSelectionManager'
 
 const props = defineProps<{
   isTyping?: boolean
@@ -27,19 +28,13 @@ const isAborting = ref(false)
 
 const disabledRef = computed(() => props.disabled ?? false)
 
-const moveCursorToEnd = (): void => {
-  const element = editableRef.value
-  if (!element) return
-
-  const range = document.createRange()
-  const selection = window.getSelection()
-  if (!selection) return
-
-  range.selectNodeContents(element)
-  range.collapse(false)
-  selection.removeAllRanges()
-  selection.addRange(range)
-}
+const {
+  moveCursorToEnd,
+  insertNodeAtCursor,
+  insertLineBreak,
+  handleTextPaste,
+  findImageAtomBefore,
+} = useSelectionManager({editableRef})
 
 const updateText = (text: string): void => {
   const element = editableRef.value
@@ -49,31 +44,6 @@ const updateText = (text: string): void => {
   input.value = truncated
   element.innerText = truncated
   moveCursorToEnd()
-}
-
-const insertNodeAtCursor = (node: Node): void => {
-  const element = editableRef.value
-  if (!element) return
-
-  const selection = window.getSelection()
-  if (!selection) return
-
-  const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null
-
-  if (range && element.contains(range.commonAncestorContainer)) {
-    range.deleteContents()
-    range.insertNode(node)
-
-    range.setStartAfter(node)
-    range.collapse(true)
-    selection.removeAllRanges()
-    selection.addRange(range)
-  } else {
-    element.appendChild(node)
-    moveCursorToEnd()
-  }
-
-  element.dispatchEvent(new Event('input', {bubbles: true}))
 }
 
 const {isListening, toggleListening} = useSpeechRecognition({
@@ -108,25 +78,6 @@ const handleInput = (event: Event): void => {
   }
 }
 
-const handleTextPaste = (event: ClipboardEvent): void => {
-  const text = event.clipboardData?.getData('text/plain')
-  if (!text) return
-
-  const selection = window.getSelection()
-  if (!selection || selection.rangeCount === 0) return
-
-  const range = selection.getRangeAt(0)
-  range.deleteContents()
-  const textNode = document.createTextNode(text)
-  range.insertNode(textNode)
-  range.setStartAfter(textNode)
-  range.setEndAfter(textNode)
-  selection.removeAllRanges()
-  selection.addRange(range)
-  // 避免貼上後送出時檢查失敗
-  input.value = editableRef.value?.innerText ?? ''
-}
-
 const handlePaste = async (event: ClipboardEvent): Promise<void> => {
   event.preventDefault()
   const imageFile = findImageFile(event.clipboardData?.files ?? null)
@@ -136,7 +87,8 @@ const handlePaste = async (event: ClipboardEvent): Promise<void> => {
     return
   }
 
-  handleTextPaste(event)
+  // 避免貼上後送出時檢查失敗，透過 callback 同步 input.value
+  handleTextPaste(event, (text) => { input.value = text })
 }
 
 const clearInput = (): void => {
@@ -173,31 +125,9 @@ const handleSend = (): void => {
   clearInput()
 }
 
-const isImageAtom = (node: Node | null): node is HTMLElement => {
-  return node !== null &&
-      node.nodeType === Node.ELEMENT_NODE &&
-      (node as HTMLElement).dataset.type === 'image'
-}
-
 const deleteImageAtom = (element: HTMLElement): void => {
   imageDataMap.delete(element)
   element.remove()
-  editableRef.value?.dispatchEvent(new Event('input', {bubbles: true}))
-}
-
-const insertLineBreak = (event: KeyboardEvent): void => {
-  event.preventDefault()
-  const selection = window.getSelection()
-  if (!selection || selection.rangeCount === 0) return
-
-  const range = selection.getRangeAt(0)
-  range.deleteContents()
-  const br = document.createElement('br')
-  range.insertNode(br)
-  range.setStartAfter(br)
-  range.collapse(true)
-  selection.removeAllRanges()
-  selection.addRange(range)
   editableRef.value?.dispatchEvent(new Event('input', {bubbles: true}))
 }
 
@@ -207,22 +137,6 @@ const handleEnterKey = (event: KeyboardEvent): void => {
   if (props.isTyping) return
   if (props.disabled) return
   handleSend()
-}
-
-const findImageAtomBefore = (range: Range): HTMLElement | null => {
-  const {startContainer, startOffset} = range
-
-  if (startContainer.nodeType === Node.ELEMENT_NODE && startOffset > 0) {
-    const node = startContainer.childNodes[startOffset - 1] ?? null
-    return isImageAtom(node) ? node : null
-  }
-
-  if (startContainer.nodeType === Node.TEXT_NODE && startOffset === 0) {
-    const prev = startContainer.previousSibling
-    return isImageAtom(prev) ? prev : null
-  }
-
-  return null
 }
 
 const handleBackspaceKey = (event: KeyboardEvent): void => {
