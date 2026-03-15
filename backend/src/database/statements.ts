@@ -133,6 +133,7 @@ function buildStatements(db: Database): {
     selectAll: ReturnType<Database['prepare']>;
     selectById: ReturnType<Database['prepare']>;
     selectByProvider: ReturnType<Database['prepare']>;
+    selectByProviderAndName: ReturnType<Database['prepare']>;
     selectByProviderAndConfigField: ReturnType<Database['prepare']>;
     updateExtraJson: ReturnType<Database['prepare']>;
     deleteById: ReturnType<Database['prepare']>;
@@ -376,6 +377,7 @@ function buildStatements(db: Database): {
       selectAll: db.prepare('SELECT * FROM integration_apps'),
       selectById: db.prepare('SELECT * FROM integration_apps WHERE id = ?'),
       selectByProvider: db.prepare('SELECT * FROM integration_apps WHERE provider = ?'),
+      selectByProviderAndName: db.prepare('SELECT * FROM integration_apps WHERE provider = $provider AND name = $name LIMIT 1'),
       selectByProviderAndConfigField: db.prepare(
         "SELECT * FROM integration_apps WHERE provider = $provider AND json_extract(config_json, $jsonPath) = $value LIMIT 1",
       ),

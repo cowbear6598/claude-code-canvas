@@ -5,11 +5,15 @@ vi.mock('../../src/services/podStore.js', () => ({
   },
 }));
 
-vi.mock('../../src/services/runStore.js', () => ({
-  runStore: {
-    getPodInstance: vi.fn(),
-  },
-}));
+vi.mock('../../src/services/runStore.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/services/runStore.js')>();
+  return {
+    ...actual,
+    runStore: {
+      getPodInstance: vi.fn(),
+    },
+  };
+});
 
 vi.mock('../../src/utils/logger.js', () => ({
   logger: {

@@ -51,16 +51,19 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
   }
 
   private updateSummaryStatus(canvasId: string, sourcePodId: string, success: boolean, runContext?: RunContext, fallbackAvailable?: boolean, pathway?: 'auto' | 'direct'): void {
-    if (runContext) {
-      if (success || fallbackAvailable) {
-        if (pathway) {
-          runExecutionService.settlePodTrigger(runContext, sourcePodId, pathway);
-        }
-      } else {
-        runExecutionService.errorPodInstance(runContext, sourcePodId, '無法生成摘要');
-      }
-    } else {
+    if (!runContext) {
       podStore.setStatus(canvasId, sourcePodId, 'idle');
+      return;
+    }
+
+    const summarySucceeded = success || fallbackAvailable;
+    if (!summarySucceeded) {
+      runExecutionService.errorPodInstance(runContext, sourcePodId, '無法生成摘要');
+      return;
+    }
+
+    if (pathway) {
+      runExecutionService.settlePodTrigger(runContext, sourcePodId, pathway);
     }
   }
 

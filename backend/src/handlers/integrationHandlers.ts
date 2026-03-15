@@ -9,7 +9,7 @@ import type {
     PodBindIntegrationPayload,
     PodUnbindIntegrationPayload,
 } from '../schemas';
-import type {SanitizedIntegrationApp} from '../services/integration/types.js';
+import type {SanitizedIntegrationApp, IntegrationProvider} from '../services/integration/types.js';
 import type {IntegrationApp} from '../services/integration/types.js';
 import {integrationRegistry} from '../services/integration/integrationRegistry.js';
 import {integrationAppStore} from '../services/integration/integrationAppStore.js';
@@ -34,6 +34,20 @@ function sanitizeApp(app: IntegrationApp): SanitizedIntegrationApp {
     };
 }
 
+function getProviderOrEmitError(
+    connectionId: string,
+    providerName: string,
+    responseEvent: WebSocketResponseEvents,
+    requestId: string
+): IntegrationProvider | null {
+    try {
+        return integrationRegistry.getOrThrow(providerName);
+    } catch {
+        emitError(connectionId, responseEvent, `找不到 Integration Provider「${providerName}」`, requestId, undefined, 'PROVIDER_NOT_FOUND');
+        return null;
+    }
+}
+
 function getAppOrEmitError(
     connectionId: string,
     appId: string,
@@ -55,13 +69,8 @@ export async function handleIntegrationAppCreate(
 ): Promise<void> {
     const {provider: providerName, name, config} = payload;
 
-    let provider;
-    try {
-        provider = integrationRegistry.getOrThrow(providerName);
-    } catch {
-        emitError(connectionId, WebSocketResponseEvents.INTEGRATION_APP_CREATED, `找不到 Integration Provider「${providerName}」`, requestId, undefined, 'PROVIDER_NOT_FOUND');
-        return;
-    }
+    const provider = getProviderOrEmitError(connectionId, providerName, WebSocketResponseEvents.INTEGRATION_APP_CREATED, requestId);
+    if (!provider) return;
 
     const schemaResult = provider.createAppSchema.safeParse(config);
     if (!schemaResult.success) {
@@ -101,13 +110,8 @@ export async function handleIntegrationAppDelete(
     const app = getAppOrEmitError(connectionId, appId, WebSocketResponseEvents.INTEGRATION_APP_DELETED, requestId);
     if (!app) return;
 
-    let provider;
-    try {
-        provider = integrationRegistry.getOrThrow(app.provider);
-    } catch {
-        emitError(connectionId, WebSocketResponseEvents.INTEGRATION_APP_DELETED, `找不到 Integration Provider「${app.provider}」`, requestId, undefined, 'PROVIDER_NOT_FOUND');
-        return;
-    }
+    const provider = getProviderOrEmitError(connectionId, app.provider, WebSocketResponseEvents.INTEGRATION_APP_DELETED, requestId);
+    if (!provider) return;
 
     provider.destroy(appId);
 
@@ -194,13 +198,8 @@ export async function handleIntegrationAppResourcesRefresh(
     const app = getAppOrEmitError(connectionId, appId, WebSocketResponseEvents.INTEGRATION_APP_RESOURCES_REFRESHED, requestId);
     if (!app) return;
 
-    let provider;
-    try {
-        provider = integrationRegistry.getOrThrow(app.provider);
-    } catch {
-        emitError(connectionId, WebSocketResponseEvents.INTEGRATION_APP_RESOURCES_REFRESHED, `找不到 Integration Provider「${app.provider}」`, requestId, undefined, 'PROVIDER_NOT_FOUND');
-        return;
-    }
+    const provider = getProviderOrEmitError(connectionId, app.provider, WebSocketResponseEvents.INTEGRATION_APP_RESOURCES_REFRESHED, requestId);
+    if (!provider) return;
 
     let resources;
     try {
@@ -239,13 +238,8 @@ export const handlePodBindIntegration = withCanvasId<PodBindIntegrationPayload>(
             return;
         }
 
-        let provider;
-        try {
-            provider = integrationRegistry.getOrThrow(providerName);
-        } catch {
-            emitError(connectionId, WebSocketResponseEvents.POD_INTEGRATION_BOUND, `找不到 Integration Provider「${providerName}」`, requestId, undefined, 'PROVIDER_NOT_FOUND');
-            return;
-        }
+        const provider = getProviderOrEmitError(connectionId, providerName, WebSocketResponseEvents.POD_INTEGRATION_BOUND, requestId);
+        if (!provider) return;
 
         const bindPayload = {resourceId, ...(extra ? {extra} : {})};
         const bindResult = provider.bindSchema.safeParse(bindPayload);

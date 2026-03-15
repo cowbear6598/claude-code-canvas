@@ -7,6 +7,13 @@ import { safeJsonParse } from '../utils/safeJsonParse.js';
 export type RunStatus = 'running' | 'completed' | 'error';
 export type RunPodInstanceStatus = 'pending' | 'running' | 'summarizing' | 'deciding' | 'queued' | 'waiting' | 'completed' | 'error' | 'skipped';
 
+export const NEVER_TRIGGERED_STATUSES = new Set<RunPodInstanceStatus>(['pending', 'deciding', 'queued', 'waiting']);
+export const IN_PROGRESS_STATUSES = new Set<RunPodInstanceStatus>(['running', 'pending', 'summarizing', 'deciding', 'queued', 'waiting']);
+export const TRIGGERABLE_STATUSES = new Set<RunPodInstanceStatus>(['pending', 'deciding', 'queued', 'waiting', 'running']);
+export const TERMINAL_POD_STATUSES = new Set<RunPodInstanceStatus>(['completed', 'error', 'skipped']);
+// Run 層級終態（不含 skipped，skipped 只存在於 pod 層級）
+export const RUN_TERMINAL_STATUSES = ['completed', 'error'] as const;
+
 export interface WorkflowRun {
   id: string;
   canvasId: string;
@@ -85,6 +92,16 @@ function rowToWorkflowRun(row: WorkflowRunRow): WorkflowRun {
   };
 }
 
+function booleanToSqliteInt(value: boolean | null): number | null {
+	if (value === null) return null;
+	return value ? 1 : 0;
+}
+
+function sqliteIntToBoolean(value: number | null): boolean | null {
+	if (value === null) return null;
+	return value === 1;
+}
+
 function rowToRunPodInstance(row: RunPodInstanceRow): RunPodInstance {
   return {
     id: row.id,
@@ -95,8 +112,8 @@ function rowToRunPodInstance(row: RunPodInstanceRow): RunPodInstance {
     errorMessage: row.error_message,
     triggeredAt: row.triggered_at,
     completedAt: row.completed_at,
-    autoPathwaySettled: row.auto_pathway_settled === null ? null : row.auto_pathway_settled === 1,
-    directPathwaySettled: row.direct_pathway_settled === null ? null : row.direct_pathway_settled === 1,
+    autoPathwaySettled: sqliteIntToBoolean(row.auto_pathway_settled),
+    directPathwaySettled: sqliteIntToBoolean(row.direct_pathway_settled),
   };
 }
 
@@ -112,7 +129,6 @@ function rowToRunMessage(row: RunMessageRow): PersistedMessage {
   };
 }
 
-const COMPLETED_TERMINAL_STATUSES = ['completed', 'error'] as const;
 
 class RunStore {
   private get stmts(): ReturnType<typeof getStatements> {
@@ -155,7 +171,7 @@ class RunStore {
   }
 
   updateRunStatus(runId: string, status: RunStatus): void {
-    const completedAt = (COMPLETED_TERMINAL_STATUSES as readonly string[]).includes(status) ? new Date().toISOString() : null;
+    const completedAt = (RUN_TERMINAL_STATUSES as readonly string[]).includes(status) ? new Date().toISOString() : null;
     this.stmts.workflowRun.updateStatus.run({
       $id: runId,
       $status: status,
@@ -196,8 +212,6 @@ class RunStore {
       directPathwaySettled,
     };
 
-    const toSqlite = (v: boolean | null): number | null => (v === null ? null : v ? 1 : 0);
-
     this.stmts.runPodInstance.insert.run({
       $id: instance.id,
       $runId: instance.runId,
@@ -207,8 +221,8 @@ class RunStore {
       $errorMessage: instance.errorMessage,
       $triggeredAt: instance.triggeredAt,
       $completedAt: instance.completedAt,
-      $autoPathwaySettled: toSqlite(autoPathwaySettled),
-      $directPathwaySettled: toSqlite(directPathwaySettled),
+      $autoPathwaySettled: booleanToSqliteInt(autoPathwaySettled),
+      $directPathwaySettled: booleanToSqliteInt(directPathwaySettled),
     });
 
     return instance;
@@ -243,9 +257,7 @@ class RunStore {
   ): void {
     // triggeredAt 只在 running 時設定，SQL 層會用 CASE WHEN 保護非 running 狀態不覆蓋已有值
     const triggeredAt = status === 'running' ? new Date().toISOString() : null;
-    const completedAt = status === 'completed' || status === 'error' || status === 'skipped'
-      ? new Date().toISOString()
-      : null;
+    const completedAt = TERMINAL_POD_STATUSES.has(status) ? new Date().toISOString() : null;
     this.stmts.runPodInstance.updateStatus.run({
       $id: instanceId,
       $status: status,

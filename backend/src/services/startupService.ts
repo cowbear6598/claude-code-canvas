@@ -42,11 +42,8 @@ class StartupService {
 
   private async ensureDirectories(paths: string[]): Promise<Result<void>> {
     for (const dirPath of paths) {
-      try {
-        await fs.mkdir(dirPath, {recursive: true});
-      } catch {
-        return err(`伺服器初始化失敗: 建立目錄 ${dirPath} 失敗`);
-      }
+      const result = await fs.mkdir(dirPath, {recursive: true}).then(() => ok(undefined)).catch(() => err(`伺服器初始化失敗: 建立目錄 ${dirPath} 失敗`));
+      if (!result.success) return result;
     }
     return ok(undefined);
   }

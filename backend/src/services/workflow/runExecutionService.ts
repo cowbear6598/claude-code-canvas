@@ -1,4 +1,4 @@
-import { runStore } from '../runStore.js';
+import { runStore, NEVER_TRIGGERED_STATUSES, IN_PROGRESS_STATUSES, TERMINAL_POD_STATUSES } from '../runStore.js';
 import type { RunPodInstance, RunPodInstanceStatus } from '../runStore.js';
 import { connectionStore } from '../connectionStore.js';
 import { podStore } from '../podStore.js';
@@ -100,7 +100,7 @@ class RunExecutionService {
   }
 
   private isNeverTriggeredStatus(status: RunPodInstanceStatus): boolean {
-    return status === 'pending' || status === 'deciding' || status === 'queued' || status === 'waiting';
+    return NEVER_TRIGGERED_STATUSES.has(status);
   }
 
   private isAllPathwaysSettled(instance: RunPodInstance): boolean {
@@ -125,11 +125,16 @@ class RunExecutionService {
     this.updateAndEmitPodInstanceStatus(runContext, podId, 'running');
   }
 
-  settlePodTrigger(runContext: RunContext, podId: string, pathway: 'auto' | 'direct'): void {
+  private settlePathwayAndRefresh(
+    runContext: RunContext,
+    podId: string,
+    pathway: 'auto' | 'direct',
+    callerName: string,
+  ): RunPodInstance | null {
     const instance = runStore.getPodInstance(runContext.runId, podId);
     if (!instance) {
-      logger.warn('Run', 'Warn', `settlePodTrigger：找不到 instance (runId=${runContext.runId}, podId=${podId})`);
-      return;
+      logger.warn('Run', 'Warn', `${callerName}：找不到 instance (runId=${runContext.runId}, podId=${podId})`);
+      return null;
     }
 
     if (pathway === 'auto') {
@@ -139,6 +144,16 @@ class RunExecutionService {
     }
 
     const updated = runStore.getPodInstance(runContext.runId, podId);
+    if (!updated) {
+      logger.warn('Run', 'Warn', `${callerName}：settle 後找不到 instance (runId=${runContext.runId}, podId=${podId})`);
+      return null;
+    }
+
+    return updated;
+  }
+
+  settlePodTrigger(runContext: RunContext, podId: string, pathway: 'auto' | 'direct'): void {
+    const updated = this.settlePathwayAndRefresh(runContext, podId, pathway, 'settlePodTrigger');
     if (!updated) return;
 
     if (this.isAllPathwaysSettled(updated) && !this.isNeverTriggeredStatus(updated.status)) {
@@ -147,19 +162,7 @@ class RunExecutionService {
   }
 
   settleAndSkipPath(runContext: RunContext, podId: string, pathway: 'auto' | 'direct'): void {
-    const instance = runStore.getPodInstance(runContext.runId, podId);
-    if (!instance) {
-      logger.warn('Run', 'Warn', `settleAndSkipPath：找不到 instance (runId=${runContext.runId}, podId=${podId})`);
-      return;
-    }
-
-    if (pathway === 'auto') {
-      runStore.settleAutoPathway(instance.id);
-    } else {
-      runStore.settleDirectPathway(instance.id);
-    }
-
-    const updated = runStore.getPodInstance(runContext.runId, podId);
+    const updated = this.settlePathwayAndRefresh(runContext, podId, pathway, 'settleAndSkipPath');
     if (!updated || !this.isAllPathwaysSettled(updated)) return;
 
     if (this.isNeverTriggeredStatus(updated.status)) {
@@ -288,7 +291,7 @@ class RunExecutionService {
 
     // running 時記錄啟動時間；其他狀態保留原有的 triggeredAt（與 SQL CASE WHEN 邏輯一致）
     const triggeredAt = status === 'running' ? new Date().toISOString() : instance.triggeredAt ?? undefined;
-    const isTerminal = status === 'completed' || status === 'error' || status === 'skipped';
+    const isTerminal = TERMINAL_POD_STATUSES.has(status);
     const completedAt = isTerminal ? new Date().toISOString() : instance.completedAt ?? undefined;
 
     socketService.emitToCanvas(runContext.canvasId, WebSocketResponseEvents.RUN_POD_STATUS_CHANGED, {
@@ -322,9 +325,7 @@ class RunExecutionService {
     if (instances.length === 0) return;
 
     const hasError = instances.some((i) => i.status === 'error');
-    const hasInProgress = instances.some(
-      (i) => i.status === 'running' || i.status === 'pending' || i.status === 'summarizing' || i.status === 'deciding' || i.status === 'queued' || i.status === 'waiting',
-    );
+    const hasInProgress = instances.some((i) => IN_PROGRESS_STATUSES.has(i.status));
     const allDone = instances.every((i) => i.status === 'completed' || i.status === 'skipped');
 
     let newStatus: 'completed' | 'error' | null = null;
