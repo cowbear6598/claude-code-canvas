@@ -15,6 +15,7 @@ vi.mock('../../src/services/integration/integrationAppStore.js', () => ({
 vi.mock('../../src/services/integration/integrationEventPipeline.js', () => ({
     integrationEventPipeline: {
         processEvent: vi.fn(() => Promise.resolve()),
+        safeProcessEvent: vi.fn(),
     },
 }));
 
@@ -136,7 +137,7 @@ describe('SlackProvider - handleWebhookRequest event_callback', () => {
 
         const res = await slackProvider.handleWebhookRequest(req);
         expect(res.status).toBe(200);
-        expect(asMock(integrationEventPipeline.processEvent)).toHaveBeenCalled();
+        expect(asMock(integrationEventPipeline.safeProcessEvent)).toHaveBeenCalled();
     });
 
     it('簽名驗證失敗回傳 403', async () => {
@@ -264,11 +265,11 @@ describe('SlackProvider - handleWebhookRequest 防護機制', () => {
         const req2 = buildSignedRequest(body, signingSecret);
 
         await slackProvider.handleWebhookRequest(req1);
-        asMock(integrationEventPipeline.processEvent).mockClear();
+        asMock(integrationEventPipeline.safeProcessEvent).mockClear();
 
         const res2 = await slackProvider.handleWebhookRequest(req2);
         expect(res2.status).toBe(200);
-        expect(asMock(integrationEventPipeline.processEvent)).not.toHaveBeenCalled();
+        expect(asMock(integrationEventPipeline.safeProcessEvent)).not.toHaveBeenCalled();
     });
 });
 

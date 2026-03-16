@@ -1381,7 +1381,7 @@ describe('podStore', () => {
 
         expect(store.pods[0]?.output).toEqual([])
         expect(store.pods[1]?.output).toEqual([])
-        expect(store.pods[2]?.output).toEqual(['line4']) // 不受影響
+        expect(store.pods[2]?.output).toEqual(['line4'])
       })
 
       it('空陣列時不應清空任何 output', () => {

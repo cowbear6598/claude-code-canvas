@@ -3,7 +3,7 @@ import { createWebSocketRequest, websocketClient, WebSocketRequestEvents, WebSoc
 import { generateRequestId } from '@/services/utils'
 import { getActiveCanvasIdOrWarn } from '@/utils/canvasGuard'
 import { MAX_RUNS_PER_CANVAS } from '@/lib/constants'
-import type { WorkflowRun, RunStatus, RunPodStatus } from '@/types/run'
+import type { WorkflowRun, RunStatus, RunPodStatus, PathwayState } from '@/types/run'
 import type { Message } from '@/types/chat'
 import type {
     RunDeletePayload,
@@ -15,6 +15,13 @@ import type {
     RunPodMessagesResultPayload,
     PersistedMessage,
 } from '@/types/websocket/responses'
+import {
+    buildRunPodCacheKey,
+    buildSubMessageId,
+    applyToolUseToMessage,
+    applyToolResultToMessage,
+    upsertMessage,
+} from '@/stores/chat/messageHelpers'
 
 interface RunState {
     runs: WorkflowRun[]
@@ -33,7 +40,7 @@ function toMessage(pm: PersistedMessage): Message {
         isPartial: false,
         ...(pm.subMessages && {
             subMessages: pm.subMessages.map(sm => ({
-                id: `${pm.id}-${sm.toolUse?.[0]?.toolUseId ?? 'sub'}`,
+                id: buildSubMessageId(pm.id, sm.toolUse?.[0]?.toolUseId),
                 content: sm.content,
                 toolUse: sm.toolUse?.map(tu => ({
                     toolUseId: tu.toolUseId,
@@ -53,7 +60,7 @@ function findRunChatMessage(
     podId: string,
     messageId: string
 ): Message | undefined {
-    const key = `${runId}:${podId}`
+    const key = buildRunPodCacheKey(runId, podId)
     const msgs = messages.get(key)
     if (!msgs) return undefined
     return msgs.find(m => m.id === messageId)
@@ -87,8 +94,7 @@ export const useRunStore = defineStore('run', {
         getActiveRunChatMessages(state): Message[] {
             if (!state.activeRunChatModal) return []
             const { runId, podId } = state.activeRunChatModal
-            const key = `${runId}:${podId}`
-            return state.runChatMessages.get(key) ?? []
+            return state.runChatMessages.get(buildRunPodCacheKey(runId, podId)) ?? []
         },
     },
 
@@ -141,8 +147,8 @@ export const useRunStore = defineStore('run', {
             errorMessage?: string
             triggeredAt?: string
             completedAt?: string
-            autoPathwaySettled?: boolean | null
-            directPathwaySettled?: boolean | null
+            autoPathwaySettled?: PathwayState
+            directPathwaySettled?: PathwayState
         }): void {
             const run = this.runs.find(r => r.id === payload.runId)
             if (!run) return
@@ -233,8 +239,7 @@ export const useRunStore = defineStore('run', {
                 })
 
                 if (response.success && response.messages) {
-                    const key = `${runId}:${podId}`
-                    this.runChatMessages.set(key, response.messages.map(toMessage))
+                    this.runChatMessages.set(buildRunPodCacheKey(runId, podId), response.messages.map(toMessage))
                 }
             } finally {
                 this.isLoadingPodMessages = false
@@ -253,23 +258,10 @@ export const useRunStore = defineStore('run', {
             isPartial: boolean,
             role: 'user' | 'assistant'
         ): void {
-            const key = `${runId}:${podId}`
+            const key = buildRunPodCacheKey(runId, podId)
             const messages = this.runChatMessages.get(key) ?? []
 
-            const existingIndex = messages.findIndex(m => m.id === messageId)
-            if (existingIndex !== -1) {
-                const existing = messages[existingIndex]
-                if (existing) {
-                    messages[existingIndex] = { ...existing, content, isPartial: isPartial }
-                }
-            } else {
-                messages.push({
-                    id: messageId,
-                    role,
-                    content,
-                    isPartial: isPartial,
-                })
-            }
+            upsertMessage(messages, messageId, content, isPartial, role)
 
             this.runChatMessages.set(key, messages)
         },
@@ -285,18 +277,7 @@ export const useRunStore = defineStore('run', {
             const message = findRunChatMessage(this.runChatMessages, payload.runId, payload.podId, payload.messageId)
             if (!message) return
 
-            const subMessages = message.subMessages ?? []
-            subMessages.push({
-                id: payload.toolUseId,
-                content: '',
-                toolUse: [{
-                    toolUseId: payload.toolUseId,
-                    toolName: payload.toolName,
-                    input: payload.input,
-                    status: 'running',
-                }],
-            })
-            message.subMessages = subMessages
+            applyToolUseToMessage(message, payload)
         },
 
         handleRunChatToolResult(payload: {
@@ -308,17 +289,9 @@ export const useRunStore = defineStore('run', {
             output: string
         }): void {
             const message = findRunChatMessage(this.runChatMessages, payload.runId, payload.podId, payload.messageId)
-            if (!message?.subMessages) return
+            if (!message) return
 
-            for (const subMessage of message.subMessages) {
-                if (!subMessage.toolUse) continue
-                const toolUseEntry = subMessage.toolUse.find(t => t.toolUseId === payload.toolUseId)
-                if (toolUseEntry) {
-                    toolUseEntry.output = payload.output
-                    toolUseEntry.status = 'completed'
-                    return
-                }
-            }
+            applyToolResultToMessage(message, payload)
         },
 
         handleRunChatComplete(
@@ -327,7 +300,7 @@ export const useRunStore = defineStore('run', {
             messageId: string,
             fullContent: string
         ): void {
-            const key = `${runId}:${podId}`
+            const key = buildRunPodCacheKey(runId, podId)
             const messages = this.runChatMessages.get(key)
             if (!messages) return
 

@@ -87,6 +87,12 @@ export interface McpChatOptions {
     cwd: string;
 }
 
+const SESSION_RESUME_ERROR_KEYWORDS = ['session', 'resume'] as const;
+
+function isSessionResumeError(errorMessage: string): boolean {
+    return SESSION_RESUME_ERROR_KEYWORDS.some(keyword => errorMessage.includes(keyword));
+}
+
 export class ClaudeService {
     private activeQueries = new Map<string, {
         queryStream: Query;
@@ -305,7 +311,7 @@ export class ClaudeService {
         if (isRetry) return false;
         if (!pod.claudeSessionId) return false;
         const errorMessage = getErrorMessage(error);
-        return errorMessage.includes('session') || errorMessage.includes('resume');
+        return isSessionResumeError(errorMessage);
     }
 
     private async handleSendMessageError(

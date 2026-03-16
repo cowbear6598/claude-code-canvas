@@ -21,7 +21,7 @@ import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {logger} from '../../utils/logger.js';
 import {formatMergedSummaries, buildQueuedPayload, buildQueueProcessedPayload, resolvePendingKey} from './workflowHelpers.js';
 import {connectionStore} from '../connectionStore.js';
-import {runExecutionService} from './runExecutionService.js';
+import {createStatusDelegate} from './workflowStatusDelegate.js';
 import {MERGED_CONTENT_PREVIEW_MAX_LENGTH} from './constants.js';
 
 // 等待 10 秒讓多個 direct 輸入合併為一次觸發，避免重複執行
@@ -74,8 +74,9 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
 
         directTriggerStore.recordDirectReady(storeKey, sourcePodId, summary);
 
-        if (runContext) {
-            runExecutionService.waitingPodInstance(runContext, targetPodId);
+        const delegate = createStatusDelegate(runContext);
+        if (delegate.isRunMode()) {
+            delegate.markWaiting(canvasId, targetPodId);
         } else {
             connectionStore.updateConnectionStatus(canvasId, connection.id, 'waiting');
         }
@@ -113,15 +114,15 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
         directTriggerStore.setTimer(storeKey, timer);
     }
 
-    cancelPendingResolver(targetPodId: string): void {
-        const resolver = this.pendingResolvers.get(targetPodId);
+    cancelPendingResolver(storeKey: string): void {
+        const resolver = this.pendingResolvers.get(storeKey);
         if (!resolver) {
             return;
         }
 
         resolver({ready: false});
-        this.pendingResolvers.delete(targetPodId);
-        logger.log('Workflow', 'Delete', `已取消目標 ${targetPodId} 的 pending resolver - 連線已刪除`);
+        this.pendingResolvers.delete(storeKey);
+        logger.log('Workflow', 'Delete', `已取消目標 ${storeKey} 的 pending resolver - 連線已刪除`);
     }
 
     private onTimerExpired(canvasId: string, targetPodId: string, storeKey = targetPodId, runContext?: RunContext): void {
@@ -182,15 +183,21 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
             .filter((conn): conn is Connection => conn !== undefined);
     }
 
+    private forEachParticipatingConnection(
+        canvasId: string,
+        participatingConnectionIds: string[],
+        callback: (conn: Connection) => void
+    ): void {
+        const connections = this.getConnectionsToIterate(canvasId, participatingConnectionIds);
+        for (const conn of connections) {
+            callback(conn);
+        }
+    }
+
     onTrigger(context: TriggerLifecycleContext): void {
         if (context.runContext) return;
 
-        const connections = this.getConnectionsToIterate(
-            context.canvasId,
-            context.participatingConnectionIds
-        );
-
-        for (const conn of connections) {
+        this.forEachParticipatingConnection(context.canvasId, context.participatingConnectionIds, (conn) => {
             workflowEventEmitter.emitDirectTriggered(context.canvasId, {
                 canvasId: context.canvasId,
                 connectionId: conn.id,
@@ -199,18 +206,13 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
                 transferredContent: context.summary,
                 isSummarized: context.isSummarized,
             });
-        }
+        });
     }
 
     onComplete(context: CompletionContext, success: boolean, error?: string): void {
         if (context.runContext) return;
 
-        const connections = this.getConnectionsToIterate(
-            context.canvasId,
-            context.participatingConnectionIds
-        );
-
-        for (const conn of connections) {
+        this.forEachParticipatingConnection(context.canvasId, context.participatingConnectionIds, (conn) => {
             workflowEventEmitter.emitWorkflowComplete({
                 canvasId: context.canvasId,
                 connectionId: conn.id,
@@ -221,7 +223,7 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
                 triggerMode: context.triggerMode,
             });
             connectionStore.updateConnectionStatus(context.canvasId, conn.id, 'idle');
-        }
+        });
     }
 
     onError(context: CompletionContext, errorMessage: string): void {
@@ -231,18 +233,13 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
     onQueued(context: QueuedContext): void {
         if (context.runContext) return;
 
-        const connections = this.getConnectionsToIterate(
-            context.canvasId,
-            context.participatingConnectionIds
-        );
-
-        for (const conn of connections) {
+        this.forEachParticipatingConnection(context.canvasId, context.participatingConnectionIds, (conn) => {
             connectionStore.updateConnectionStatus(context.canvasId, conn.id, 'queued');
             workflowEventEmitter.emitWorkflowQueued(
                 context.canvasId,
                 buildQueuedPayload(context, conn.id, conn.sourcePodId)
             );
-        }
+        });
     }
 
     /**
@@ -252,17 +249,12 @@ class WorkflowDirectTriggerService implements TriggerStrategy {
     onQueueProcessed(context: QueueProcessedContext): void {
         if (context.runContext) return;
 
-        const connections = this.getConnectionsToIterate(
-            context.canvasId,
-            context.participatingConnectionIds
-        );
-
-        for (const conn of connections) {
+        this.forEachParticipatingConnection(context.canvasId, context.participatingConnectionIds, (conn) => {
             workflowEventEmitter.emitWorkflowQueueProcessed(
                 context.canvasId,
                 buildQueueProcessedPayload({...context, connectionId: conn.id, sourcePodId: conn.sourcePodId})
             );
-        }
+        });
     }
 }
 

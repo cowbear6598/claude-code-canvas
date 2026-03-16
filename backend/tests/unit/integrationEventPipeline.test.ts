@@ -363,4 +363,18 @@ describe('IntegrationEventPipeline', () => {
       expect(executeStreamingChat).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('safeProcessEvent', () => {
+    it('應以 fire-and-forget 方式呼叫 processEvent，不拋出錯誤', async () => {
+      asMock(podStore.findByIntegrationAppAndResource).mockReturnValue([]);
+
+      expect(() => {
+        integrationEventPipeline.safeProcessEvent('slack', 'app-1', makeEvent());
+      }).not.toThrow();
+
+      await vi.waitFor(() => {
+        expect(podStore.findByIntegrationAppAndResource).toHaveBeenCalled();
+      });
+    });
+  });
 });

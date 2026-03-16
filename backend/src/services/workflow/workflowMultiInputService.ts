@@ -13,7 +13,7 @@ import {pendingTargetStore} from '../pendingTargetStore.js';
 import {workflowQueueService} from './workflowQueueService.js';
 import {workflowStateService} from './workflowStateService.js';
 import {logger} from '../../utils/logger.js';
-import {formatMergedSummaries, resolvePendingKey} from './workflowHelpers.js';
+import {formatMergedSummaries, resolvePendingKey, getMultiInputGroupConnections} from './workflowHelpers.js';
 import { LazyInitializable } from './lazyInitializable.js';
 import { MERGED_CONTENT_PREVIEW_MAX_LENGTH } from './constants.js';
 import { fireAndForget } from '../../utils/operationHelpers.js';
@@ -127,7 +127,8 @@ class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps>
   }
 
   async handleMultiInputForConnection(params: HandleMultiInputForConnectionParams): Promise<void> {
-    const {canvasId, sourcePodId, connection, requiredSourcePodIds, summary, triggerMode, runContext} = params;
+    const {canvasId, sourcePodId, connection, summary, triggerMode, runContext} = params;
+    const requiredSourcePodIds = getMultiInputGroupConnections(canvasId, connection.targetPodId).map((c) => c.sourcePodId);
 
     const readiness = await this.checkMultiInputReadiness(canvasId, sourcePodId, connection, requiredSourcePodIds, summary, runContext);
     if (readiness !== 'ready') return;

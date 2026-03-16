@@ -645,7 +645,7 @@ describe('useSlotEject', () => {
       expect(isEjecting.value).toBe(true)
       expect(mockSetNoteAnimating).toHaveBeenCalledWith('note-1', true)
 
-      // 快轉 300ms
+      // eject 延遲閾值（300ms）
       vi.advanceTimersByTime(300)
 
       expect(isEjecting.value).toBe(false)
@@ -691,7 +691,6 @@ describe('useSlotEject', () => {
       const mockEvent = new MouseEvent('click')
       const mockOnRemoved = vi.fn()
 
-      // 不應 throw error
       await expect(handleSlotClick(mockEvent, 'note-1', 'pod-1', mockOnRemoved)).rejects.toThrow('解綁失敗')
 
       // 仍應設定 animating

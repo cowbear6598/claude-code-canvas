@@ -14,6 +14,14 @@ import { injectUserMessage } from '../../utils/chatHelpers.js';
 class IntegrationEventPipeline {
   private busyReplyCooldowns = new Map<string, number>();
 
+  safeProcessEvent(providerName: string, appId: string, event: NormalizedEvent): void {
+    fireAndForget(
+      this.processEvent(providerName, appId, event),
+      'Integration',
+      `[IntegrationEventPipeline] ${providerName} 事件處理失敗`
+    );
+  }
+
   async processEvent(provider: string, appId: string, event: NormalizedEvent): Promise<void> {
     const boundPods = podStore.findByIntegrationAppAndResource(appId, event.resourceId);
 

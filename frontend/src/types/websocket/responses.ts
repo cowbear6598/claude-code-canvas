@@ -7,7 +7,7 @@ import type {CommandNote} from '@/types'
 import type {AnchorPosition} from '@/types'
 import type {McpServerConfig, McpServerNote} from '../mcpServer'
 import type {ResultPayload} from './index'
-import type {WorkflowRun, RunStatus, RunPodStatus} from '../run'
+import type {WorkflowRun, RunStatus, RunPodStatus, PathwayState} from '../run'
 
 export interface ConnectionReadyPayload {
     socketId: string
@@ -523,8 +523,8 @@ export interface RunPodStatusChangedPayload {
     errorMessage?: string
     triggeredAt?: string
     completedAt?: string
-    autoPathwaySettled?: boolean | null
-    directPathwaySettled?: boolean | null
+    autoPathwaySettled?: PathwayState
+    directPathwaySettled?: PathwayState
 }
 
 export interface RunMessagePayload {

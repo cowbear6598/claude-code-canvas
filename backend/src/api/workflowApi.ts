@@ -147,10 +147,9 @@ export async function handleWorkflowChat(req: Request, params: Record<string, st
 			);
 		} catch (err) {
 			logger.error('Chat', 'Error', `Pod「${podName}」REST API 發送訊息失敗`, err);
-			try {
+			const pod = podStore.getById(canvasId, podId);
+			if (pod) {
 				podStore.setStatus(canvasId, podId, 'idle');
-			} catch {
-				// 忽略 setStatus 失敗，避免在伺服器關閉時產生 unhandled rejection
 			}
 		}
 	})();

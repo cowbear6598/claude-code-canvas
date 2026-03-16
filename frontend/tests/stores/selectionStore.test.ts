@@ -565,8 +565,7 @@ describe('selectionStore', () => {
         const store = useSelectionStore()
         const pod = createMockPod({ id: 'pod-1', x: 100, y: 100 })
 
-        // 框選從右到左：(400, 0) 到 (0, 300)
-        // 應等同於 (0, 0) 到 (400, 300)
+        // 框選方向反轉時應自動正規化座標範圍
         store.startSelection(400, 0)
         store.updateSelection(0, 300)
 

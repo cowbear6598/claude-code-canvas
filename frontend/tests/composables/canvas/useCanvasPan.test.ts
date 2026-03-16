@@ -218,7 +218,6 @@ describe('useCanvasPan', () => {
       })
       document.dispatchEvent(moveEvent)
 
-      // 應呼叫 setOffset，dx = 50, dy = 50
       expect(mockViewportStore.setOffset).toHaveBeenCalledWith(100, 100)
     })
 

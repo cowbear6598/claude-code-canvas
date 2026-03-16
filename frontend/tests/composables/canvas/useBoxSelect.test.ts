@@ -611,7 +611,6 @@ describe('useBoxSelect', () => {
       // 卸載元件
       wrapper.unmount()
 
-      // 應清理 mousemove 和 mouseup 事件監聽器
       expect(removeEventListenerSpy).toHaveBeenCalledWith('mousemove', expect.any(Function))
       expect(removeEventListenerSpy).toHaveBeenCalledWith('mouseup', expect.any(Function))
     })
@@ -658,7 +657,6 @@ describe('useBoxSelect', () => {
       })
       document.dispatchEvent(mouseupEvent)
 
-      // 應清理事件監聽器
       expect(removeEventListenerSpy).toHaveBeenCalledWith('mousemove', expect.any(Function))
       expect(removeEventListenerSpy).toHaveBeenCalledWith('mouseup', expect.any(Function))
     })
@@ -711,7 +709,6 @@ describe('useBoxSelect', () => {
 
       wrapper.vm.startBoxSelect(mousedownEvent2)
 
-      // 應清理舊的事件監聽器
       expect(removeEventListenerSpy).toHaveBeenCalledWith('mousemove', expect.any(Function))
       expect(removeEventListenerSpy).toHaveBeenCalledWith('mouseup', expect.any(Function))
     })

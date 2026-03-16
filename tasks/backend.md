@@ -1,327 +1,416 @@
-# Trigger Settlement Model - 後端實作計畫書
+# Workflow 層重構計畫書
 
-## 背景
+## 總覽
 
-Multi-Instance Run 模式下，AI-decide connection 拒絕時，下游 multi-input pod 永遠卡在 pending。
-原因：`cascadeSkipUnreachablePods` 使用 `every`（ALL sources skip/error 才 skip），
-但 multi-input pod 只要 ANY auto-triggerable source 不可達，整條 auto pathway 就不可達。
-
-## 核心概念：Trigger Settlement Model
-
-用 `expectedTriggers` / `settledTriggers` 取代現有 `completePodInstance` + `cascadeSkipUnreachablePods`。
-
-### 觸發路徑（Trigger Pathway）
-
-每個 pod 有最多 2 條觸發路徑：
-1. **auto-triggerable 路徑**（auto + ai-decide connections 合併為 1 條）
-2. **direct 路徑**（所有 direct connections 合併為 1 條）
-
-`expectedTriggers` = 擁有的路徑數量（0~2），最少為 1。
-
-### 不可達判定
-
-- **Auto 路徑**：ANY auto-triggerable source 是 skipped/error -> 不可達（因為 multi-input 需要全部 auto-triggerable 摘要）
-- **Direct 路徑**：ALL direct sources 都是 skipped/error -> 不可達
-
-### 完成判定
-
-- `settledTriggers >= expectedTriggers` 且 `status !== 'pending'`（曾被觸發）-> completed
-- `settledTriggers >= expectedTriggers` 且 `status === 'pending'`（從未觸發）-> skipped
+三個主要任務 + 額外修正，按依賴順序排列。修改順序：型別定義 → Store → Service → 測試。
 
 ---
 
-## 測試案例清單
+## 風險點
 
-建立 `backend/tests/unit/triggerSettlement.test.ts`
-
-### calculateExpectedTriggers
-
-- 源頭 pod（sourcePod === podId）固定回傳 1
-- 只有 auto connections 的 pod 回傳 1
-- 只有 ai-decide connections 的 pod 回傳 1
-- 混合 auto + ai-decide connections 的 pod 回傳 1（合併為同一路徑）
-- 只有 direct connections 的 pod 回傳 1
-- 混合 auto + direct connections 的 pod 回傳 2
-- 混合 ai-decide + direct connections 的 pod 回傳 2
-- 混合 auto + ai-decide + direct connections 的 pod 回傳 2
-- 不在 chain 中的 connection 不計算（chainPodIds 過濾）
-- 沒有 chain connections 時回傳 1（fallback）
-
-### settlePodTrigger
-
-- settledTriggers < expectedTriggers 時不做任何事
-- settledTriggers >= expectedTriggers 且 status !== 'pending' 時設為 completed
-- 呼叫 evaluateRunStatus 檢查 Run 整體狀態
-
-### settleAndSkipPath
-
-- settledTriggers < expectedTriggers 時不做任何事
-- settledTriggers >= expectedTriggers 且 status !== 'pending' 時設為 completed
-- settledTriggers >= expectedTriggers 且 status === 'pending' 時設為 skipped
-- 支援 count 參數一次累加多個
-
-### settleUnreachablePaths
-
-- 線性鏈：A -> B -> C，A skipped，B 和 C 都被 skip
-- 菱形拓撲 auto-only：A -> B, A -> C, B -> D, C -> D（全 auto），B skipped -> D 被 skip（ANY auto 不可達）
-- 菱形拓撲 mixed：B(auto) -> D, C(direct) -> D，B skipped -> D 的 auto 路徑被 settle，但 direct 未 settle，D 不一定被 skip
-- 菱形拓撲 direct-only：B(direct) -> D, C(direct) -> D，B skipped, C completed -> D 不被 skip（ALL direct 才算不可達）
-- 菱形拓撲 direct-only 全 skip：B(direct) -> D, C(direct) -> D，B skipped, C skipped -> D 被 skip
-- 多層級聯傳播：A -> B -> C -> D，A skipped，B/C/D 全被 skip（while 迴圈持續直到無新變化）
-- safety limit 達到上限時停止（不無限迴圈）
-- 已完成的 pod 不受影響（status 非 pending 跳過）
-- 不在 run 中的 pod 不受影響
-
-### evaluateRunStatus 整合
-
-- 所有 pod completed/skipped -> run completed
-- 有 error 且無 in-progress -> run error
-- 呼叫 settleUnreachablePaths 後再判斷
-
-### 端到端場景
-
-- AI-decide 拒絕 -> target pod skipped -> 下游 cascade skip -> run 正確完成
-- AI-decide 錯誤 -> target pod error -> 下游 cascade skip -> run 正確完成
-- 多 incoming source，一條被 reject 一條完成 -> 正確判定不可達
+1. **DB Migration 不需要**：`PathwayState` 在 DB 層仍使用 `0/1/NULL`，轉換邏輯集中在 `runStore.ts` 的 `rowToRunPodInstance` / `createPodInstance`，SQL schema 和 statements 不變
+2. **前端同步必須**：前端 `frontend/src/types/run.ts`、`frontend/src/stores/run/runStore.ts`、`frontend/src/types/websocket/responses.ts`、`frontend/src/composables/eventHandlers/runEventHandlers.ts` 都使用 `boolean | null`，需同步改為 `PathwayState`
+3. **WebSocket wire format 變更**：`RunPodStatusChangedPayload` 的 `autoPathwaySettled` / `directPathwaySettled` 從 `boolean | null` 改為 `PathwayState` 字串，前後端需同步部署
+4. **WorkflowStatusDelegate 影響面廣**：27+ 處分支散布在 5 個 service 檔案中，需逐檔確認每個 `if (runContext)` 都被 delegate 方法取代
+5. **Delegate 介面設計需仔細**：不同 service 對 delegate 的需求不同（有些需要 emitEvent，有些需要 updateConnectionStatus），介面要涵蓋所有用途但不過度膨脹
 
 ---
 
-## 實作步驟
+## 測試案例定義
 
-### 第 1 步：修改 DB Schema
+### 新增 `backend/tests/unit/pathwayState.test.ts`
+- pathwayStateToSqliteInt 將 'not-applicable' 轉為 NULL
+- pathwayStateToSqliteInt 將 'pending' 轉為 0
+- pathwayStateToSqliteInt 將 'settled' 轉為 1
+- sqliteIntToPathwayState 將 NULL 轉為 'not-applicable'
+- sqliteIntToPathwayState 將 0 轉為 'pending'
+- sqliteIntToPathwayState 將 1 轉為 'settled'
+- isAllPathwaysSettled 雙路徑皆 settled 回傳 true
+- isAllPathwaysSettled 有 pending 回傳 false
+- isAllPathwaysSettled 一個 not-applicable 一個 settled 回傳 true
+- isAllPathwaysSettled 雙路徑皆 not-applicable 回傳 true
 
-- [ ] 修改 `backend/src/database/schema.ts` — `run_pod_instances` 表新增欄位
-  - 在 `completed_at TEXT` 後面新增 `expected_triggers INTEGER NOT NULL DEFAULT 1`
-  - 再新增 `settled_triggers INTEGER NOT NULL DEFAULT 0`
+### 新增 `backend/tests/unit/settlementPathway.test.ts`
+- resolveSettlementPathway 將 auto 模式解析為 'auto'
+- resolveSettlementPathway 將 ai-decide 模式解析為 'auto'
+- resolveSettlementPathway 將 direct 模式解析為 'direct'
 
-### 第 2 步：修改 Prepared Statements
+### 新增 `backend/tests/unit/workflowStatusDelegate.test.ts`
+- NormalModeDelegate.startPodExecution 呼叫 podStore.setStatus('chatting')
+- NormalModeDelegate.markSummarizing 呼叫 podStore.setStatus('summarizing')
+- NormalModeDelegate.onSummaryComplete 呼叫 podStore.setStatus('idle')
+- NormalModeDelegate.onChatError 呼叫 podStore.setStatus('idle')
+- NormalModeDelegate.updateConnectionStatus 呼叫 connectionStore.updateConnectionStatus
+- NormalModeDelegate.shouldEnqueue 回傳 true
+- NormalModeDelegate.scheduleNextInQueue 呼叫 workflowQueueService.processNextInQueue
+- NormalModeDelegate.settleAndSkipPath 不執行任何操作
+- RunModeDelegate.startPodExecution 呼叫 runExecutionService.startPodInstance
+- RunModeDelegate.markSummarizing 呼叫 runExecutionService.summarizingPodInstance
+- RunModeDelegate.markDeciding 呼叫 runExecutionService.decidingPodInstance
+- RunModeDelegate.markWaiting 呼叫 runExecutionService.waitingPodInstance
+- RunModeDelegate.onSummaryComplete 呼叫 runExecutionService.settlePodTrigger
+- RunModeDelegate.onSummaryFailed 呼叫 runExecutionService.errorPodInstance
+- RunModeDelegate.onChatComplete 呼叫 runExecutionService.settlePodTrigger
+- RunModeDelegate.onChatError 呼叫 runExecutionService.errorPodInstance
+- RunModeDelegate.updateConnectionStatus 不呼叫 connectionStore
+- RunModeDelegate.shouldEnqueue 回傳 false
+- RunModeDelegate.scheduleNextInQueue 不執行任何操作
+- RunModeDelegate.settleAndSkipPath 呼叫 runExecutionService.settleAndSkipPath
+- createStatusDelegate 有 runContext 時建立 RunModeDelegate
+- createStatusDelegate 無 runContext 時建立 NormalModeDelegate
 
-- [ ] 修改 `backend/src/database/statements.ts` — `runPodInstance` 區塊
-  - 修改 `insert` 語句：加入 `expected_triggers` 和 `settled_triggers` 欄位，對應參數 `$expectedTriggers` 和 `$settledTriggers`
-  - 新增 `incrementSettledTriggers` 語句：`UPDATE run_pod_instances SET settled_triggers = settled_triggers + $count WHERE id = $id`
-  - 新增 `updateExpectedTriggers` 語句：`UPDATE run_pod_instances SET expected_triggers = $expectedTriggers WHERE id = $id`
-  - 在 buildStatements 回傳型別中的 `runPodInstance` 區塊新增對應的型別宣告
+### 新增 `backend/tests/unit/runExecutionHelpers.test.ts`
+- isInstanceUnreachable 偵測 auto 路徑不可達（來源 skipped）
+- isInstanceUnreachable 偵測 auto 路徑不可達（來源 error）
+- isInstanceUnreachable direct 路徑部分來源存活時不視為不可達
+- isInstanceUnreachable 偵測 direct 路徑不可達（全部來源 skipped/error）
+- isInstanceUnreachable 已 settled 的路徑不再檢查
+- isInstanceUnreachable 無 incoming connections 時不視為不可達
 
-### 第 3 步：修改 RunStore
+### 現有測試需要更新
+- `backend/tests/mocks/workflowTestFactories.ts`：`createMockRunPodInstance` 的 `autoPathwaySettled` / `directPathwaySettled` 改為 `PathwayState`
+- `backend/tests/mocks/workflowSpySetup.ts`：`setupRunStoreSpy` 中 `createPodInstance` mock 的回傳值改為 `PathwayState`
+
+---
+
+## 任務 0：定義 `SettlementPathway` 具名型別
+
+- [ ] 在 `backend/src/services/workflow/types.ts` 頂部新增型別定義
+  - `export type SettlementPathway = 'auto' | 'direct'`
+  - JSDoc：`/** settle 階段的路徑類別。ai-decide 在 settle 時歸類為 'auto' */`
+
+- [ ] 在 `backend/src/services/workflow/workflowHelpers.ts` 新增 `resolveSettlementPathway` helper
+  - 簽名：`(triggerMode: TriggerMode) => SettlementPathway`
+  - 實作：`return isAutoTriggerable(triggerMode) ? 'auto' : 'direct'`
+
+- [ ] 替換所有內聯 `'auto' | 'direct'` pathway 型別，改為引用 `SettlementPathway`
+  - `backend/src/services/workflow/workflowExecutionService.ts` 行 53 `updateSummaryStatus` 的 `pathway` 參數型別
+  - `backend/src/services/workflow/workflowExecutionService.ts` 行 75 `generateSummaryWithFallback` 的 `pathway` 參數型別
+  - `backend/src/services/workflow/runExecutionService.ts` 行 127 `settlePathwayAndRefresh` 的 `pathway` 參數型別
+  - `backend/src/services/workflow/runExecutionService.ts` 行 151 `settlePodTrigger` 的 `pathway` 參數型別
+  - `backend/src/services/workflow/runExecutionService.ts` 行 160 `settleAndSkipPath` 的 `pathway` 參數型別
+  - `backend/src/services/workflow/types.ts` 行 117 `ExecutionServiceMethods.generateSummaryWithFallback` 的 `pathway` 參數型別
+
+- [ ] 替換計算 pathway 的地方改用 `resolveSettlementPathway`
+  - `backend/src/services/workflow/workflowPipeline.ts` 行 48：`const pathway = resolveSettlementPathway(triggerMode)` 取代 `isAutoTriggerable(triggerMode) ? 'auto' : 'direct'`
+  - `backend/src/services/workflow/workflowExecutionService.ts` 行 239：`const pathway = resolveSettlementPathway(strategy.mode)` 取代 `isAutoTriggerable(strategy.mode) ? 'auto' : 'direct'`
+
+---
+
+## 任務 1：`boolean | null` 三值語義改為 `PathwayState` enum
+
+- [ ] 在 `backend/src/types/run.ts` 新增型別
+  - `export type PathwayState = 'not-applicable' | 'pending' | 'settled'`
+  - JSDoc：`/** not-applicable: 該路徑不存在; pending: 尚未 settle; settled: 已完成 settle */`
+
+- [ ] 在 `backend/src/utils/pathwayHelpers.ts` 建立新檔案，定義轉換函數與判斷函數（供 runStore 和測試使用）
+  - `pathwayStateToSqliteInt(state: PathwayState): number | null`
+    - `'not-applicable'` → `null`
+    - `'pending'` → `0`
+    - `'settled'` → `1`
+  - `sqliteIntToPathwayState(value: number | null): PathwayState`
+    - `null` → `'not-applicable'`
+    - `0` → `'pending'`
+    - `1` → `'settled'`
+  - `isAllPathwaysSettled(auto: PathwayState, direct: PathwayState): boolean`
+    - 當兩條路徑皆為 `'not-applicable'` 或 `'settled'` 時回傳 `true`
+    - 任一為 `'pending'` 時回傳 `false`
 
 - [ ] 修改 `backend/src/services/runStore.ts`
-  - `RunPodInstance` interface 新增 `expectedTriggers: number` 和 `settledTriggers: number`
-  - `RunPodInstanceRow` interface 新增 `expected_triggers: number` 和 `settled_triggers: number`
-  - `rowToRunPodInstance` 映射新增 `expectedTriggers: row.expected_triggers` 和 `settledTriggers: row.settled_triggers`
-  - `createPodInstance` 方法：新增第三個參數 `expectedTriggers: number = 1`，在 instance 物件及 insert 語句中使用
-  - 新增 `incrementSettledTriggers(instanceId: string, count: number = 1): void` 方法，呼叫對應 prepared statement
-  - 新增 `updateExpectedTriggers(instanceId: string, expectedTriggers: number): void` 方法，呼叫對應 prepared statement
+  - 匯入 `PathwayState` from `'../types/run.js'`
+  - 匯入 `pathwayStateToSqliteInt`, `sqliteIntToPathwayState` from `'../utils/pathwayHelpers.js'`
+  - 刪除原有的 `booleanToSqliteInt` 和 `sqliteIntToBoolean` 兩個 module-private 函數
+  - `RunPodInstance` 介面：`autoPathwaySettled: boolean | null` → `autoPathwaySettled: PathwayState`，`directPathwaySettled` 同理
+  - `rowToRunPodInstance` 中改用 `sqliteIntToPathwayState(row.auto_pathway_settled)` 等
+  - `createPodInstance` 方法簽名：參數從 `autoPathwaySettled: boolean | null = null` 改為 `autoPathwaySettled: PathwayState = 'not-applicable'`，`directPathwaySettled` 同理
+  - `createPodInstance` 中 instance 物件和 DB insert 使用 `pathwayStateToSqliteInt()`
 
-### 第 4 步：修改 Run Types
-
-- [ ] 修改 `backend/src/types/run.ts` — `RunPodStatusChangedPayload`
-  - 新增 `expectedTriggers?: number` 和 `settledTriggers?: number` 屬性
-
-### 第 5 步：修改 RunExecutionService（核心）
+- [ ] 修改 `backend/src/types/run.ts` 的 `RunPodStatusChangedPayload`
+  - 行 40：`autoPathwaySettled?: boolean | null` → `autoPathwaySettled?: PathwayState`
+  - 行 41：`directPathwaySettled?: boolean | null` → `directPathwaySettled?: PathwayState`
 
 - [ ] 修改 `backend/src/services/workflow/runExecutionService.ts`
+  - 匯入 `PathwayState` from `'../../types/run.js'`
+  - 匯入 `isAllPathwaysSettled` from `'../../utils/pathwayHelpers.js'`
+  - `calculatePathways` 回傳型別改為 `{ autoPathwaySettled: PathwayState; directPathwaySettled: PathwayState }`
+    - 行 83：`{ autoPathwaySettled: false, directPathwaySettled: null }` → `{ autoPathwaySettled: 'pending', directPathwaySettled: 'not-applicable' }`
+    - 行 90：同上模式
+    - 行 97：`hasAutoTriggerable ? false : null` → `hasAutoTriggerable ? 'pending' : 'not-applicable'`
+    - 行 98：`hasDirect ? false : null` → `hasDirect ? 'pending' : 'not-applicable'`
+  - 刪除 private `isAllPathwaysSettled` 方法（行 102-107），改用從 `pathwayHelpers.ts` 匯入的版本
+  - `settlePodTrigger` 行 155：`this.isAllPathwaysSettled(updated)` → `isAllPathwaysSettled(updated.autoPathwaySettled, updated.directPathwaySettled)`
+  - `settleAndSkipPath` 行 162：同上
+  - `settleUnreachablePaths` 中的判斷邏輯：
+    - 行 197：`instance.autoPathwaySettled === false` → `instance.autoPathwaySettled === 'pending'`
+    - 行 205：`instance.directPathwaySettled === false` → `instance.directPathwaySettled === 'pending'`
+    - 行 214：`instance.autoPathwaySettled = true` → `instance.autoPathwaySettled = 'settled'`
+    - 行 219：`instance.directPathwaySettled = true` → `instance.directPathwaySettled = 'settled'`
+    - 行 223：`this.isAllPathwaysSettled(instance)` → `isAllPathwaysSettled(instance.autoPathwaySettled, instance.directPathwaySettled)`
 
-  **5-1. 新增 import**
-  - 從 `connectionStore.js` import `connectionStore`
-  - 從 `workflowHelpers.js` import `isAutoTriggerable`
+- [ ] 同步修改前端（或建立 follow-up ticket）
+  - `frontend/src/types/run.ts` 行 15-16：改為 `PathwayState`
+  - `frontend/src/types/websocket/responses.ts` 行 526-527：改為 `PathwayState`
+  - `frontend/src/stores/run/runStore.ts` 行 144-145, 166-170：payload 接收邏輯調整
+  - 前端需新增 `PathwayState` 型別定義
 
-  **5-2. 新增 `calculateExpectedTriggers` 靜態方法**
-  - 參數：`canvasId: string, podId: string, sourcePodId: string, chainPodIds: string[]`
-  - 回傳：`number`
-  - 邏輯：
-    - 若 `podId === sourcePodId` 回傳 1（源頭 pod）
-    - 取得 `connectionStore.findByTargetPodId(canvasId, podId)`
-    - 過濾出 `chainConnections`：`sourcePodId` 在 `chainPodIds` 中的 connections
-    - `hasAutoTriggerable` = chainConnections 中是否有任何 `isAutoTriggerable(c.triggerMode)`
-    - `hasDirect` = chainConnections 中是否有任何 `c.triggerMode === 'direct'`
-    - `result = (hasAutoTriggerable ? 1 : 0) + (hasDirect ? 1 : 0)`
-    - 回傳 `result || 1`（最少為 1）
+---
 
-  **5-3. 修改 `createRun` 方法**
-  - 取得 `chainPodIds` 後（已有 `collectChainPodIds` 呼叫），建立 instances 時傳入 expectedTriggers：
-    - 改為 `chainPodIds.map(podId => runStore.createPodInstance(workflowRun.id, podId, this.calculateExpectedTriggers(canvasId, podId, sourcePodId, chainPodIds)))`
-  - 注意 `calculateExpectedTriggers` 需改為非 private 的 instance method（或 private 也可，因為只在 class 內使用）
+## 任務 2：建立 `WorkflowStatusDelegate` 消除 `if (!runContext)` 散落分支
 
-  **5-4. 新增 `settlePodTrigger` 方法（取代 `completePodInstance`）**
-  - 參數：`runContext: RunContext, podId: string`
-  - 邏輯：
-    - 取得 instance：`runStore.getPodInstance(runContext.runId, podId)`，若不存在 warn 並 return
-    - `runStore.incrementSettledTriggers(instance.id)`
-    - 重新讀取 instance（因為 increment 是 DB 操作，需要最新值）
-    - 若 `updatedInstance.settledTriggers < updatedInstance.expectedTriggers` -> 直接 return（不動作）
-    - 若 `updatedInstance.status !== 'pending'`（曾被觸發） -> 呼叫 `this.updateAndEmitPodInstanceStatus(runContext, podId, 'completed', { evaluateRun: true })`
-    - 注意：不處理 `status === 'pending'` 的情況，那是 `settleAndSkipPath` 的責任
+### 步驟 2-1：定義介面與實作
 
-  **5-5. 新增 `settleAndSkipPath` 方法**
-  - 參數：`runContext: RunContext, podId: string, count: number = 1`
-  - 邏輯：
-    - 取得 instance，若不存在 warn 並 return
-    - `runStore.incrementSettledTriggers(instance.id, count)`
-    - 重新讀取 instance
-    - 若 `settledTriggers < expectedTriggers` -> return
-    - 若 `status !== 'pending'`（曾被觸發） -> `updateAndEmitPodInstanceStatus(runContext, podId, 'completed', { evaluateRun: true })`
-    - 若 `status === 'pending'`（從未觸發） -> `updateAndEmitPodInstanceStatus(runContext, podId, 'skipped', { evaluateRun: true })`
+- [ ] 建立 `backend/src/services/workflow/workflowStatusDelegate.ts`
+  - 定義 `WorkflowStatusDelegate` 介面，方法清單：
+    - `startPodExecution(canvasId: string, podId: string): void` — normal: `podStore.setStatus(canvasId, podId, 'chatting')`, run: `runExecutionService.startPodInstance(runContext, podId)`
+    - `markSummarizing(canvasId: string, podId: string): void` — normal: `podStore.setStatus(canvasId, podId, 'summarizing')`, run: `runExecutionService.summarizingPodInstance(runContext, podId)`
+    - `markDeciding(canvasId: string, podId: string): void` — normal: 無操作, run: `runExecutionService.decidingPodInstance(runContext, podId)`
+    - `markWaiting(canvasId: string, podId: string): void` — normal: 無操作（connection status 由各 strategy 自行處理）, run: `runExecutionService.waitingPodInstance(runContext, podId)`
+    - `onSummaryComplete(canvasId: string, podId: string, pathway: SettlementPathway): void` — normal: `podStore.setStatus(canvasId, podId, 'idle')`, run: `runExecutionService.settlePodTrigger(runContext, podId, pathway)`
+    - `onSummaryFailed(canvasId: string, podId: string, errorMessage: string): void` — normal: `podStore.setStatus(canvasId, podId, 'idle')`, run: `runExecutionService.errorPodInstance(runContext, podId, errorMessage)`
+    - `onChatComplete(canvasId: string, podId: string, pathway: SettlementPathway): void` — normal: 無操作, run: `runExecutionService.settlePodTrigger(runContext, podId, pathway)`
+    - `onChatError(canvasId: string, podId: string, errorMessage: string): void` — normal: `podStore.setStatus(canvasId, podId, 'idle')`, run: `runExecutionService.errorPodInstance(runContext, podId, errorMessage)`
+    - `shouldEnqueue(): boolean` — normal: `true`, run: `false`
+    - `scheduleNextInQueue(canvasId: string, targetPodId: string): void` — normal: `fireAndForget(workflowQueueService.processNextInQueue(...))`, run: 無操作
+    - `isRunMode(): boolean` — normal: `false`, run: `true`（供少數仍需判斷模式的地方使用，如 connection status 是否要更新的判斷）
+    - `settleAndSkipPath(canvasId: string, podId: string, pathway: SettlementPathway): void` — normal: 無操作, run: `runExecutionService.settleAndSkipPath(runContext, podId, pathway)`
 
-  **5-6. 新增 `settleUnreachablePaths` 方法**
-  - 參數：`runId: string, canvasId: string`
-  - 回傳：`void`
-  - 此方法不呼叫 `settlePodTrigger` / `settleAndSkipPath`，直接操作 DB 和 emit WebSocket，避免遞迴呼叫 `evaluateRunStatus`
-  - 邏輯詳述：
-    ```
-    1. 取得所有 instances = runStore.getPodInstancesByRunId(runId)
-    2. 取得所有 connections = connectionStore.list(canvasId)
-    3. safetyLimit = instances.length
-    4. while 迴圈：
-       a. changed = false
-       b. 遍歷每個 instance：
-          - 跳過非 pending 的 instance（已有明確狀態的不處理）
-          - 取得該 pod 的 incoming connections（從 connections 過濾 targetPodId === instance.podId）
-          - 只考慮 source 在 run 中的 connections（sourcePodId 存在於 instances 的 podId 集合中）
-          - 分類為 autoTriggerableConns 和 directConns
-          - 判斷 auto 路徑是否不可達：
-            autoUnreachable = autoTriggerableConns.length > 0 且 ANY source 的 status 是 'skipped' 或 'error'
-          - 判斷 direct 路徑是否不可達：
-            directUnreachable = directConns.length > 0 且 ALL source 的 status 是 'skipped' 或 'error'
-          - 計算本輪要 settle 的 count：
-            settleCount = (autoUnreachable ? 1 : 0) + (directUnreachable ? 1 : 0)
-          - 若 settleCount > 0：
-            - DB: runStore.incrementSettledTriggers(instance.id, settleCount)
-            - 重新讀取 instance 狀態
-            - 若 settledTriggers >= expectedTriggers：
-              - status === 'pending' -> 更新為 'skipped'
-              - status !== 'pending' -> 更新為 'completed'
-              - 使用 runStore.updatePodInstanceStatus 更新 DB
-              - emit RUN_POD_STATUS_CHANGED WebSocket 事件
-              - 同步更新 instances 陣列中的 status（讓下一輪 while 看到最新狀態）
-            - changed = true
-       c. safetyLimit--
-       d. 若 !changed 或 safetyLimit <= 0 -> break
-    5. safetyLimit <= 0 時 log warning
-    ```
+- [ ] 實作 `NormalModeDelegate` class
+  - 所有方法按上述「normal」欄位實作
+  - 不需要任何建構子參數
 
-  **5-7. 修改 `evaluateRunStatus` 方法**
-  - 在方法開頭、取得 instances 之前，呼叫 `this.settleUnreachablePaths(runId, canvasId)`
-  - 其餘邏輯不變
+- [ ] 實作 `RunModeDelegate` class
+  - 建構子接收 `runContext: RunContext`，存為 private readonly 欄位
+  - 所有方法按上述「run」欄位實作
 
-  **5-8. 修改 `updateAndEmitPodInstanceStatus` — emit payload 加入新欄位**
-  - 在 emit `RUN_POD_STATUS_CHANGED` 時，payload 中新增 `expectedTriggers` 和 `settledTriggers`
-  - 這需要重新讀取 instance 或從已有資料取得（建議重新讀取以確保最新值）
+- [ ] export 工廠函數 `createStatusDelegate(runContext?: RunContext): WorkflowStatusDelegate`
+  - 有 `runContext` → `new RunModeDelegate(runContext)`
+  - 無 `runContext` → `new NormalModeDelegate()`
 
-  **5-9. 保留 `completePodInstance`、`skipPodInstance` 等方法**
-  - `completePodInstance` 保留但不再直接呼叫 `evaluateRun`，改為呼叫 `settlePodTrigger`
-  - 不對，重新思考：`completePodInstance` 的語義是「這個 pod 的工作做完了」，`settlePodTrigger` 的語義是「結算一條觸發路徑」。兩者不完全等價。
-  - **最終決定**：
-    - `completePodInstance` -> 改名/改實作為 `settlePodTrigger`（因為 pod 完成就是它對應的觸發路徑完成了）
-    - 原本呼叫 `completePodInstance` 的地方全部改呼叫 `settlePodTrigger`
-    - `skipPodInstance` 保留，用於直接將 pod 標記為 skipped（如 AI-decide reject 的 target pod），但不再觸發 cascade
-    - `errorPodInstance` 保留，用於直接將 pod 標記為 error，但不再觸發 cascade
+### 步驟 2-2：將 delegate 加入 context 型別
 
-### 第 6 步：修改 WorkflowAiDecideTriggerService
+- [ ] 修改 `backend/src/services/workflow/types.ts` 中需要 delegate 的介面
+  - `PipelineContext` 新增 `delegate: WorkflowStatusDelegate`
+  - `TriggerLifecycleContext` 新增 `delegate: WorkflowStatusDelegate`
+  - `CompletionContext` 新增 `delegate: WorkflowStatusDelegate`
+  - `QueuedContext` 新增 `delegate: WorkflowStatusDelegate`
+  - `QueueProcessedContext` 新增 `delegate: WorkflowStatusDelegate`
+  - `CollectSourcesContext` 新增 `delegate: WorkflowStatusDelegate`
+  - `TriggerWorkflowWithSummaryParams` 新增 `delegate: WorkflowStatusDelegate`
+  - `HandleMultiInputForConnectionParams` 新增 `delegate: WorkflowStatusDelegate`
+  - 注意：保留所有介面中的 `runContext?: RunContext`，因為底層呼叫（`injectRunUserMessage`、`executeStreamingChat`、`summaryService.generateSummaryForTarget`、`runStore` 查詢）仍需要原始 runContext
+  - 匯入 `WorkflowStatusDelegate` type
 
-- [ ] 修改 `backend/src/services/workflow/workflowAiDecideTriggerService.ts`
+### 步驟 2-3：修改 Pipeline 層注入 delegate
 
-  **6-1. 刪除 `cascadeSkipUnreachablePods` 方法**
-  - 完全移除此方法，不可達判定改由 `settleUnreachablePaths` 處理
+- [ ] 修改 `backend/src/services/workflow/workflowPipeline.ts`
+  - `execute` 方法中：`const delegate = createStatusDelegate(runContext)` 放入 context
+  - 行 68 `if (!runContext && targetPod.status !== 'idle')`：改為 `if (delegate.shouldEnqueue() && targetPod.status !== 'idle')`
+  - 傳遞 delegate 到 `runCollectSourcesStage` 和 `executionService.triggerWorkflowWithSummary`
 
-  **6-2. 修改 `handleRejectedConnection`**
-  - Run 模式分支（`else` 分支）：
-    - 將 `runExecutionService.skipPodInstance(runContext, connection.targetPodId)` 改為 `runExecutionService.settleAndSkipPath(runContext, connection.targetPodId)` — AI 拒絕表示 auto pathway 的一條 source 不可達，結算該路徑
-    - 刪除 `this.cascadeSkipUnreachablePods(...)` 呼叫（cascade 由 evaluateRunStatus -> settleUnreachablePaths 處理）
-    - 注意：多條 ai-decide 都拒絕時會呼叫多次 settleAndSkipPath，造成 settledTriggers over-count（>= 判定不受影響，接受此行為）
-
-  **6-3. 修改 `handleErrorConnection`**
-  - Run 模式分支（`else` 分支）：
-    - 保留 `runExecutionService.errorPodInstance(runContext, connection.targetPodId, errorMessage)` — error 代表服務異常，使用者需要看到 error 狀態（紅色），不是被「正常跳過」
-    - 刪除 `this.cascadeSkipUnreachablePods(...)` 呼叫
-    - cascade 由 evaluateRunStatus -> settleUnreachablePaths 偵測 error pod 下游不可達並 settle
-
-  **6-4. 移除不再需要的 imports/dependencies**
-  - 移除 `runStore` import（不再需要直接操作 runStore）
-  - 如果 `connectionStore` 的 `list` 方法也不再被使用可以從 deps 中移除
-
-### 第 7 步：修改 WorkflowExecutionService
+### 步驟 2-4：替換 workflowExecutionService.ts 中的分支
 
 - [ ] 修改 `backend/src/services/workflow/workflowExecutionService.ts`
+  - `generateSummaryWithFallback`（行 77-81）：從 params 取出 delegate，呼叫 `delegate.markSummarizing(canvasId, sourcePodId)` 取代 if/else
+  - `updateSummaryStatus`（行 53-68）：整個方法重構
+    - 移除方法，將邏輯內聯到 `generateSummaryWithFallback` 中
+    - 成功時：`delegate.onSummaryComplete(canvasId, sourcePodId, pathway)`
+    - 失敗且無 fallback 時：`delegate.onSummaryFailed(canvasId, sourcePodId, '無法生成摘要')`
+    - 失敗但有 fallback 時：若有 pathway 則 `delegate.onSummaryComplete(canvasId, sourcePodId, pathway)`，否則 `delegate.onSummaryComplete(canvasId, sourcePodId, 'auto')` 作為預設
+  - `triggerWorkflowWithSummary`（行 178-182）：`delegate.startPodExecution(canvasId, targetPodId)` 取代 if/else
+  - `setConnectionsToActive`（行 211-212）：`if (delegate.isRunMode()) return` 取代 `if (runContext) return`
+  - `onWorkflowChatComplete`（行 238-241）：`delegate.onChatComplete(canvasId, targetPodId, pathway)` 取代 if 分支
+  - `onWorkflowChatComplete`（行 249-251）：`delegate.scheduleNextInQueue(canvasId, targetPodId)` 取代 `if (!runContext)` 分支
+  - `onWorkflowChatError`（行 262-267）：`delegate.onChatError(canvasId, targetPodId, error.message)` 取代 if/else，接著 `delegate.scheduleNextInQueue(canvasId, targetPodId)`
+  - `executeClaudeQuery`（行 277-281）：保留 `runContext` 判斷（`injectRunUserMessage` vs `injectUserMessage` 是資料操作不是狀態管理），或用 `delegate.isRunMode()` 判斷
 
-  **7-1. `updateSummaryStatus` 方法**
-  - 將 `runExecutionService.completePodInstance(runContext, sourcePodId)` 改為 `runExecutionService.settlePodTrigger(runContext, sourcePodId)`
+### 步驟 2-5：替換 workflowAutoTriggerService.ts 中的分支
 
-  **7-2. `onWorkflowChatComplete` 方法**
-  - 將 `runExecutionService.completePodInstance(runContext, targetPodId)` 改為 `runExecutionService.settlePodTrigger(runContext, targetPodId)`
+- [ ] 修改 `backend/src/services/workflow/workflowAutoTriggerService.ts`
+  - `getLastAssistantMessage`（行 42-63）：保留 runContext 判斷（資料查詢，不屬於 delegate 職責）
+  - `onTrigger`（行 99-100）：`if (context.delegate.isRunMode()) return` 取代 `if (context.runContext) return`
+  - `onQueued`（行 121-122）：`if (context.delegate.isRunMode()) return` 取代 `if (context.runContext) return`
 
-### 第 8 步：修改 chatCallbacks
+### 步驟 2-6：替換 workflowAiDecideTriggerService.ts 中的分支
 
-- [ ] 修改 `backend/src/utils/chatCallbacks.ts`
-  - `onRunChatComplete` 中將 `runExecutionService.completePodInstance(runContext, podId)` 改為 `runExecutionService.settlePodTrigger(runContext, podId)`
+- [ ] 修改 `backend/src/services/workflow/workflowAiDecideTriggerService.ts`
+  - `onTrigger`（行 49-50）：`if (context.delegate.isRunMode()) return` 取代
+  - `setConnectionsToDeciding`（行 126-127）：`if (delegate.isRunMode()) return` 取代，delegate 從參數傳入
+  - `processAiDecideConnections`（行 165-167）：透過 `delegate.isRunMode()` 判斷是否 emit pending 事件
+  - `processAiDecideConnections`（行 171-176）：改用迴圈呼叫 `delegate.markDeciding(canvasId, targetPodId)`，normal mode 下 markDeciding 是空操作，所以不需要額外判斷
+  - `handleErrorConnection`（行 193-205）：
+    - normal mode 分支（`!delegate.isRunMode()`）：connectionStore + eventEmitter 操作保持不變
+    - run mode 分支：`delegate.onChatError(canvasId, connection.targetPodId, errorMessage)` 取代直接呼叫 runExecutionService
+  - `handleApprovedConnection`（行 219-230）：`if (!delegate.isRunMode())` 取代 `if (!runContext)`
+  - `triggerApprovedPipeline`（行 256-266）：`if (!delegate.isRunMode())` 取代 `if (!runContext)`
+  - `handleRejectedConnection`（行 306-311）：
+    - normal mode：connectionStore.updateDecideStatus + updateConnectionStatus 保持不變
+    - run mode：`delegate.settleAndSkipPath(canvasId, connection.targetPodId, 'auto')` 取代直接呼叫 runExecutionService
+  - `emitRejectionEvents`（行 277）：`if (delegate.isRunMode()) return` 取代
+  - `onQueued`（行 69-70）：`if (context.delegate.isRunMode()) return` 取代
 
-### 第 9 步：修改 Mock Factories 和 Spy Setup
+### 步驟 2-7：替換 workflowDirectTriggerService.ts 中的分支
 
-- [ ] 修改 `backend/tests/mocks/workflowTestFactories.ts`
-  - `createMockRunPodInstance` 新增 `expectedTriggers: 1` 和 `settledTriggers: 0` 預設值
+- [ ] 修改 `backend/src/services/workflow/workflowDirectTriggerService.ts`
+  - `handleMultiDirectTrigger`（行 77-81）：`delegate.markWaiting(canvasId, targetPodId)` 取代 run mode 分支；normal mode 的 `connectionStore.updateConnectionStatus` 保留（因為是 connection 層級操作）
+    - 方案：if `delegate.isRunMode()` 呼叫 `delegate.markWaiting`，else 呼叫 `connectionStore.updateConnectionStatus`
+  - `handleMultiDirectTrigger`（行 89-91）：`if (!delegate.isRunMode())` 取代 `if (!runContext)`
+  - `onTrigger`（行 185-186）：`if (context.delegate.isRunMode()) return` 取代
+  - `onComplete`（行 205-206）：`if (context.delegate.isRunMode()) return` 取代
+  - `onQueued`（行 231-232）：`if (context.delegate.isRunMode()) return` 取代
+  - `onQueueProcessed`（行 252-253）：`if (context.delegate.isRunMode()) return` 取代
+  - `processTimerResult`（行 165-174）：`if (!delegate.isRunMode())` 取代 `if (!runContext)`
 
-- [ ] 修改 `backend/tests/mocks/workflowSpySetup.ts`
-  - `setupRunStoreSpy` 中 `createPodInstance` mock 的回傳值新增 `expectedTriggers: 1, settledTriggers: 0`
-  - 新增 `incrementSettledTriggers` spy：`vi.spyOn(runStore, 'incrementSettledTriggers').mockImplementation(() => {})`
-  - 新增 `updateExpectedTriggers` spy：`vi.spyOn(runStore, 'updateExpectedTriggers').mockImplementation(() => {})`
-  - `setupRunExecutionServiceSpy` 中：
-    - 將 `completePodInstance` spy 改為 `settlePodTrigger`：`vi.spyOn(runExecutionService, 'settlePodTrigger').mockImplementation(() => {})`
-    - 新增 `settleAndSkipPath` spy：`vi.spyOn(runExecutionService, 'settleAndSkipPath').mockImplementation(() => {})`
-    - 移除 `completePodInstance` spy（方法已不存在）
+### 步驟 2-8：替換 workflowMultiInputService.ts 中的分支
 
-### 第 10 步：撰寫測試
+- [ ] 修改 `backend/src/services/workflow/workflowMultiInputService.ts`
+  - `handleMultiInputForConnection`（行 139-145）：`if (delegate.shouldEnqueue())` 取代 `if (!runContext)`
+  - `triggerMergedWorkflow`（行 161-163）：normal mode 下 `delegate.startPodExecution(canvasId, targetPodId)` 取代（注意：這裡 normal mode 是 `podStore.setStatus(chatting)` 不是 `startPodExecution`，但 delegate.startPodExecution 的語義就是設為 chatting，所以可以用）
+    - 或用 `if (!delegate.isRunMode()) podStore.setStatus(...)` 保持現狀，差異不大
+  - `triggerMergedWorkflow`（行 175-181）：`if (!delegate.isRunMode())` 取代 `if (!runContext)`
 
-- [ ] 建立 `backend/tests/unit/triggerSettlement.test.ts`
+### 步驟 2-9：替換 workflowHelpers.ts 和 workflowStateService.ts
 
-  **10-1. 測試環境設定**
-  - import 必要模組：`runExecutionService`, `runStore`, `connectionStore`, `socketService`, `logger`
-  - import mock helpers：`setupAllSpies`, `createMockRunPodInstance`, `createMockConnection`, `createMockRunContext`
-  - beforeEach 呼叫 `setupAllSpies()` 設定所有 spy
+- [ ] 修改 `backend/src/services/workflow/workflowHelpers.ts` 的 `completeMultiInputConnections`
+  - 行 89 `if (!context.runContext)`：改為 `if (!context.delegate.isRunMode())`
 
-  **10-2. calculateExpectedTriggers 測試**
-  - 直接測試 runExecutionService 上的方法（需要先確認是否為 public 或用其他方式暴露）
-  - 若為 private，則透過 createRun 間接測試（觀察 createPodInstance 被呼叫時的 expectedTriggers 參數）
-  - **建議**：將 `calculateExpectedTriggers` 設為 public static 或獨立 export 的純函式，便於單元測試
-    - 從 `runExecutionService.ts` 中 export 出 `calculateExpectedTriggers` 函式
-    - 測試案例如上方清單所列
+- [ ] 修改 `backend/src/services/workflow/workflowStateService.ts`
+  - `emitPendingStatus`（行 77-78）：`if (delegate.isRunMode()) return` 取代 `if (runContext) return`
+  - 此方法的參數需要從 `runContext?: RunContext` 改為接收 delegate 或直接接收 boolean flag
+  - 或保留 runContext 參數不變（因為 workflowStateService 不在 pipeline 流程中，呼叫方可能不持有 delegate）
+  - **建議**：保留 runContext 判斷，不改此處，因為 workflowStateService 主要被 pipeline 之外的場景呼叫
 
-  **10-3. settlePodTrigger 測試**
-  - mock `runStore.getPodInstance` 回傳不同 expectedTriggers/settledTriggers 組合
-  - mock `runStore.incrementSettledTriggers`
-  - 第二次 `runStore.getPodInstance` 回傳 increment 後的結果
-  - 驗證：
-    - settledTriggers < expectedTriggers -> 不呼叫 updatePodInstanceStatus
-    - settledTriggers >= expectedTriggers 且 status 為 'running' -> 呼叫 updatePodInstanceStatus('completed')
-    - 呼叫 evaluateRunStatus（透過觀察 socketService.emitToCanvas 是否有 RUN_STATUS_CHANGED 事件）
+### 步驟 2-10：更新建立 PipelineContext 的地方
 
-  **10-4. settleAndSkipPath 測試**
-  - 類似 settlePodTrigger 但多驗證：
-    - settledTriggers >= expectedTriggers 且 status === 'pending' -> 更新為 'skipped'
-    - count 參數正確傳遞到 incrementSettledTriggers
+- [ ] 確保所有建立 `PipelineContext` 的地方都傳入 delegate
+  - `workflowAutoTriggerService.ts` 行 82-94：`processAutoTriggerConnection` 建立 context 時加入 `delegate: createStatusDelegate(runContext)`
+  - `workflowAiDecideTriggerService.ts` 行 245-252：`triggerApprovedPipeline` 建立 context 時加入 delegate
+  - `workflowExecutionService.ts` 行 117-124：`triggerDirectConnections` 建立 context 時加入 delegate
+  - `workflowQueueService.ts` 行 117-124：`processNextInQueue` 呼叫 `triggerWorkflowWithSummary` 時傳入 delegate
 
-  **10-5. settleUnreachablePaths 測試**（重點）
-  - 準備 mock instances 和 connections 組合
-  - 測試各種拓撲場景（如上方清單）
-  - 重點驗證：
-    - auto 路徑 ANY source skip -> settle
-    - direct 路徑 ALL source skip -> settle
-    - while 迴圈多輪傳播
-    - 不影響已完成的 pod
+### 步驟 2-11：確認 initWorkflowServices 不需更新
 
-  **10-6. 端到端整合場景測試**
-  - AI-decide reject -> skip -> settleUnreachablePaths -> run completed
-  - 驗證 evaluateRunStatus 在 settle 後正確判斷 run 最終狀態
+- [ ] 確認 `backend/src/services/workflow/index.ts` 不需要額外修改
+  - delegate 是在 pipeline execute 時動態建立的，不需要在 init 階段注入
 
-### 第 11 步：確認沒有遺漏的 completePodInstance 呼叫
+---
 
-- [ ] 全域搜尋 `completePodInstance`，確認所有呼叫點都已改為 `settlePodTrigger`
-  - `workflowExecutionService.ts` — `updateSummaryStatus` 和 `onWorkflowChatComplete`
-  - `chatCallbacks.ts` — `onRunChatComplete`
-  - `runExecutionService.ts` — 方法本身改名
-  - mock/test files — 同步更新
+## 任務 3：額外相關修正
 
-### 第 12 步：驗證
+### 3-1：`settleUnreachablePaths` 三層嵌套 → 抽出 `isInstanceUnreachable` 純函數
 
-- [ ] 執行 `bun run style` 確認 ESLint 和 TypeScript 沒有錯誤
+- [ ] 在 `backend/src/services/workflow/runExecutionService.ts` 中 class 外部定義純函數 `isInstanceUnreachable`
+  - 簽名：`(instance: RunPodInstance, incomingConns: Connection[], allInstances: RunPodInstance[]) => { autoUnreachable: boolean; directUnreachable: boolean }`
+  - 內容提取自 `settleUnreachablePaths` 行 190-210 的邏輯：
+    - 過濾 `autoConns`（`isAutoTriggerable(c.triggerMode)`）和 `directConns`（`c.triggerMode === 'direct'`）
+    - `autoUnreachable`：`instance.autoPathwaySettled === 'pending'`（任務 1 改後）且 autoConns 中有任一 source 是 skipped/error
+    - `directUnreachable`：`instance.directPathwaySettled === 'pending'`（任務 1 改後）且 directConns 全部 source 是 skipped/error
+  - export 此函數供測試使用
+  - `settleUnreachablePaths` 的 for 迴圈內改為：`const { autoUnreachable, directUnreachable } = isInstanceUnreachable(instance, incomingConns, instances)`
+
+### 3-2：`isSummarized` 命名統一
+
+- [ ] 修改 `backend/src/services/workflow/workflowPipeline.ts`
+  - `runCollectSourcesStage` 的參數名稱：`summaryIsCondensedSummary` → `isSummarized`（行 105）
+  - 回傳型別中的 `finalIsCondensedSummary` → `finalIsSummarized`（行 106 回傳型別，行 65、76、94、126、129、150 所有使用處）
+
+### 3-3：`workflowAiDecideTriggerService` 取 pod + formatLog 重複 → 抽出 `buildConnectionLog`
+
+- [ ] 在 `workflowAiDecideTriggerService.ts` 中新增 private method `buildConnectionLog`
+  - 簽名：`(canvasId: string, sourcePodId: string, connection: Connection) => string`
+  - 實作：取 sourcePod 和 targetPod，呼叫 `formatConnectionLog({...})`
+  - 替換三處重複程式碼：
+    - `handleErrorConnection` 行 206-208
+    - `handleApprovedConnection` 行 231-233
+    - `emitRejectionEvents` 行 286-288
+
+### 3-4：`workflowEventEmitter` emit 模式重複 → 抽出 private `emit` helper
+
+- [ ] 在 `backend/src/services/workflow/workflowEventEmitter.ts` 中新增 private method
+  - 簽名：`private emit(canvasId: string, event: WebSocketResponseEvents, payload: Record<string, unknown>): void`
+  - 實作：`socketService.emitToCanvas(canvasId, event, payload)`
+  - 替換類別中所有 `socketService.emitToCanvas(canvasId, ...)` 呼叫（共 13 處）
+
+### 3-5：`workflowDirectTriggerService` 迴圈重複 → 抽出 `forEachParticipatingConnection`
+
+- [ ] 在 `workflowDirectTriggerService.ts` 中新增 private method `forEachParticipatingConnection`
+  - 簽名：`(canvasId: string, participatingConnectionIds: string[], callback: (conn: Connection) => void): void`
+  - 實作：`this.getConnectionsToIterate(canvasId, participatingConnectionIds).forEach(callback)`
+  - 替換四處重複模式：
+    - `onTrigger`（行 188-202）
+    - `onComplete`（行 208-224）
+    - `onQueued`（行 234-245）
+    - `onQueueProcessed`（行 255-265）
+
+### 3-6：`updateSummaryStatus` 簡化
+
+- [ ] 在任務 2 完成後評估
+  - 如果 delegate 已完全取代此方法的邏輯，直接刪除 `updateSummaryStatus` 方法
+  - 將成功/失敗的 delegate 呼叫內聯到 `generateSummaryWithFallback` 中
+
+### 3-7：`handleMultiInputForConnection` 的 `requiredSourcePodIds` 改為內部計算
+
+- [ ] 修改 `backend/src/services/workflow/types.ts`
+  - `HandleMultiInputForConnectionParams` 介面中移除 `requiredSourcePodIds: string[]` 欄位
+
+- [ ] 修改 `backend/src/services/workflow/workflowMultiInputService.ts`
+  - `handleMultiInputForConnection` 開頭新增：呼叫 `workflowStateService.checkMultiInputScenario(canvasId, connection.targetPodId)` 取得 `requiredSourcePodIds`
+  - 需要新增 `workflowStateService` 依賴：在 `MultiInputServiceDeps` 介面中加入 `stateService`，或直接 import `workflowStateService` 使用
+
+- [ ] 修改 `backend/src/services/workflow/workflowPipeline.ts`
+  - `runCollectSourcesStage`（行 132-148）中移除 `stateService.checkMultiInputScenario` 呼叫
+  - 移除 `requiredSourcePodIds` 傳遞
+  - `PipelineDeps` 中移除 `stateService: StateServiceMethods`（如果 pipeline 不再需要 stateService）
+  - 簡化：直接呼叫 `multiInputService.handleMultiInputForConnection` 並由 multiInputService 自行判斷是否為 multi-input
+
+- [ ] 修改 `backend/src/services/workflow/index.ts`
+  - `workflowPipeline.init({...})` 中移除 `stateService`（如果已不需要）
+  - `workflowMultiInputService.init({...})` 中新增 `stateService: workflowStateService`（如果改為 DI）
+
+---
+
+## 任務 4：撰寫測試
+
+- [ ] 建立 `backend/tests/unit/pathwayState.test.ts`
+  - 匯入 `pathwayStateToSqliteInt`, `sqliteIntToPathwayState`, `isAllPathwaysSettled` from pathwayHelpers
+  - 撰寫上方定義的 10 個測試案例
+
+- [ ] 建立 `backend/tests/unit/settlementPathway.test.ts`
+  - 匯入 `resolveSettlementPathway` from workflowHelpers
+  - 撰寫上方定義的 3 個測試案例
+
+- [ ] 建立 `backend/tests/unit/workflowStatusDelegate.test.ts`
+  - 使用 `workflowSpySetup.ts` 中的 spy 設定
+  - 匯入 `createStatusDelegate`, `NormalModeDelegate`, `RunModeDelegate`
+  - 匯入 `createMockRunContext` from workflowTestFactories
+  - 撰寫上方定義的 22 個測試案例
+  - beforeEach 設定所有必要 spy
+
+- [ ] 建立 `backend/tests/unit/runExecutionHelpers.test.ts`
+  - 匯入 `isInstanceUnreachable` from runExecutionService
+  - 匯入 `createMockRunPodInstance`, `createMockConnection` from workflowTestFactories
+  - 撰寫上方定義的 6 個測試案例
+
+- [ ] 更新 `backend/tests/mocks/workflowTestFactories.ts`
+  - `createMockRunPodInstance` 預設值：`autoPathwaySettled: 'not-applicable'`, `directPathwaySettled: 'not-applicable'`
+
+- [ ] 更新 `backend/tests/mocks/workflowSpySetup.ts`
+  - `setupRunStoreSpy` 的 `createPodInstance` mock 回傳值中 pathway 欄位改為 `'not-applicable'`
+
 - [ ] 執行 `bun run test` 確認所有測試通過
-- [ ] 告知使用者需要重啟後端服務（因為修改了後端程式碼）
-- [ ] 告知使用者需要刪除 DB 檔案重建（因為修改了 schema）
+- [ ] 執行 `bun run style` 確認 eslint 與 type 檢查通過
+
+---
+
+## 建議實作順序
+
+1. **任務 0** — SettlementPathway 型別（最小、無風險、其他任務的前置依賴）
+2. **任務 1** — PathwayState enum（獨立，只碰 runStore + runExecutionService + types）
+3. **任務 3-1** — isInstanceUnreachable 純函數抽取（搭配任務 1 的 PathwayState 一起改 settleUnreachablePaths）
+4. **任務 3-2** — isSummarized 命名統一（獨立小改動，無依賴）
+5. **任務 3-3** — buildConnectionLog 抽取（獨立小改動）
+6. **任務 3-4** — workflowEventEmitter emit helper（獨立小改動）
+7. **任務 3-5** — forEachParticipatingConnection 抽取（獨立小改動）
+8. **任務 3-7** — requiredSourcePodIds 內部化（獨立，減少 pipeline 複雜度）
+9. **任務 2** — WorkflowStatusDelegate（最大任務，在其他清理完成後雜訊最少）
+10. **任務 3-6** — updateSummaryStatus 簡化（依賴任務 2 完成後才知道能否刪除）
+11. **任務 4** — 撰寫測試（建議每完成一個任務就同步寫對應測試，而非最後集中寫）

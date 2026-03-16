@@ -15,6 +15,7 @@ vi.mock('../../src/services/integration/integrationAppStore.js', () => ({
 vi.mock('../../src/services/integration/integrationEventPipeline.js', () => ({
   integrationEventPipeline: {
     processEvent: vi.fn(() => Promise.resolve()),
+    safeProcessEvent: vi.fn(),
   },
 }));
 
@@ -278,11 +279,11 @@ describe('JiraProvider - handleWebhookRequest 重複簽章防護', () => {
       });
 
     await jiraProvider.handleWebhookRequest(makeReq());
-    asMock(integrationEventPipeline.processEvent).mockClear();
+    asMock(integrationEventPipeline.safeProcessEvent).mockClear();
 
     const res2 = await jiraProvider.handleWebhookRequest(makeReq());
     expect(res2.status).toBe(200);
-    expect(asMock(integrationEventPipeline.processEvent)).not.toHaveBeenCalled();
+    expect(asMock(integrationEventPipeline.safeProcessEvent)).not.toHaveBeenCalled();
   });
 });
 

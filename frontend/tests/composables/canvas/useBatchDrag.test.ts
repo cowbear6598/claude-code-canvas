@@ -306,7 +306,6 @@ describe('useBatchDrag', () => {
       const upEvent = new MouseEvent('mouseup')
       document.dispatchEvent(upEvent)
 
-      // 等待 async 操作
       await new Promise(resolve => setTimeout(resolve, 0))
 
       expect(isBatchDragging.value).toBe(false)
@@ -332,7 +331,6 @@ describe('useBatchDrag', () => {
       const upEvent = new MouseEvent('mouseup')
       document.dispatchEvent(upEvent)
 
-      // 等待 async 操作
       await new Promise(resolve => setTimeout(resolve, 0))
 
       expect(mockPodStore.syncPodPosition).toHaveBeenCalledWith('pod-1')
@@ -360,7 +358,6 @@ describe('useBatchDrag', () => {
       const upEvent = new MouseEvent('mouseup')
       document.dispatchEvent(upEvent)
 
-      // 等待 async 操作
       await new Promise(resolve => setTimeout(resolve, 0))
 
       expect(mockOutputStyleStore.updateNotePosition).toHaveBeenCalledWith('note-1', 150, 150)
@@ -384,7 +381,6 @@ describe('useBatchDrag', () => {
       const upEvent = new MouseEvent('mouseup')
       document.dispatchEvent(upEvent)
 
-      // 等待 async 操作
       await new Promise(resolve => setTimeout(resolve, 0))
 
       expect(mockPodStore.syncPodPosition).toHaveBeenCalledWith('pod-1')
@@ -415,7 +411,6 @@ describe('useBatchDrag', () => {
       const upEvent = new MouseEvent('mouseup')
       document.dispatchEvent(upEvent)
 
-      // 等待 async 操作
       await new Promise(resolve => setTimeout(resolve, 0))
 
       expect(mockRepositoryStore.updateNotePosition).toHaveBeenCalledWith('note-1', 150, 150)
@@ -508,7 +503,6 @@ describe('useBatchDrag', () => {
       const upEvent = new MouseEvent('mouseup')
       document.dispatchEvent(upEvent)
 
-      // 等待 async 操作
       await new Promise(resolve => setTimeout(resolve, 0))
 
       expect(mockPodStore.syncPodPosition).not.toHaveBeenCalled()

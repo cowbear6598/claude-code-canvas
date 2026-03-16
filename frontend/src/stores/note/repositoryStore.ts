@@ -37,17 +37,13 @@ interface RepositoryStoreCustomActions {
   isWorktree(repositoryId: string): boolean
 }
 
-function toFailure(error: string): { success: false; error: string } {
-  return { success: false, error }
-}
-
 function createRepositoryCustomActions(): RepositoryStoreCustomActions {
-  const { executeAction } = useCanvasWebSocketAction()
+  const { executeAction: executeRepositoryAction } = useCanvasWebSocketAction()
   const { showSuccessToast, showErrorToast } = useToast()
 
   return {
     async createRepository(this: NoteStoreContext<Repository>, name: string): Promise<{ success: boolean; repository?: { id: string; name: string }; error?: string }> {
-      const result = await executeAction<RepositoryCreatePayload, RepositoryCreatedPayload>(
+      const result = await executeRepositoryAction<RepositoryCreatePayload, RepositoryCreatedPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_CREATE,
           responseEvent: WebSocketResponseEvents.REPOSITORY_CREATED,
@@ -56,7 +52,7 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
         { errorCategory: 'Repository', errorAction: '建立失敗', errorMessage: '建立資料夾失敗' }
       )
 
-      if (!result.success) return toFailure(result.error)
+      if (!result.success) return result
 
       if (!result.data.repository) {
         const error = result.data.error || '建立資料夾失敗'
@@ -78,7 +74,7 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
     },
 
     async checkIsGit(this: NoteStoreContext<Repository>, repositoryId: string): Promise<boolean> {
-      const result = await executeAction<RepositoryCheckGitPayload, RepositoryCheckGitResultPayload>(
+      const result = await executeRepositoryAction<RepositoryCheckGitPayload, RepositoryCheckGitResultPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_CHECK_GIT,
           responseEvent: WebSocketResponseEvents.REPOSITORY_CHECK_GIT_RESULT,
@@ -98,7 +94,7 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
     },
 
     async createWorktree(this: NoteStoreContext<Repository>, repositoryId: string, worktreeName: string, sourceNotePosition: { x: number; y: number }): Promise<{ success: boolean; error?: string }> {
-      const result = await executeAction<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
+      const result = await executeRepositoryAction<RepositoryWorktreeCreatePayload, RepositoryWorktreeCreatedPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_WORKTREE_CREATE,
           responseEvent: WebSocketResponseEvents.REPOSITORY_WORKTREE_CREATED,
@@ -107,7 +103,7 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
         { errorCategory: 'Repository', errorAction: 'Worktree 建立失敗', errorMessage: '建立 Worktree 失敗' }
       )
 
-      if (!result.success) return toFailure(result.error)
+      if (!result.success) return result
 
       if (!result.data.success) {
         const error = result.data.error || '建立 Worktree 失敗'
@@ -130,7 +126,7 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
     },
 
     async getLocalBranches(this: NoteStoreContext<Repository>, repositoryId: string): Promise<{ success: boolean; branches?: string[]; currentBranch?: string; worktreeBranches?: string[]; error?: string }> {
-      const result = await executeAction<RepositoryGetLocalBranchesPayload, RepositoryLocalBranchesResultPayload>(
+      const result = await executeRepositoryAction<RepositoryGetLocalBranchesPayload, RepositoryLocalBranchesResultPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_GET_LOCAL_BRANCHES,
           responseEvent: WebSocketResponseEvents.REPOSITORY_LOCAL_BRANCHES_RESULT,
@@ -139,7 +135,7 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
         { errorCategory: 'Git', errorAction: '取得分支列表失敗', errorMessage: '取得分支列表失敗' }
       )
 
-      if (!result.success) return toFailure(result.error)
+      if (!result.success) return result
 
       return {
         success: result.data.success,
@@ -151,7 +147,7 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
     },
 
     async checkDirty(this: NoteStoreContext<Repository>, repositoryId: string): Promise<{ success: boolean; isDirty?: boolean; error?: string }> {
-      const result = await executeAction<RepositoryCheckDirtyPayload, RepositoryDirtyCheckResultPayload>(
+      const result = await executeRepositoryAction<RepositoryCheckDirtyPayload, RepositoryDirtyCheckResultPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_CHECK_DIRTY,
           responseEvent: WebSocketResponseEvents.REPOSITORY_DIRTY_CHECK_RESULT,
@@ -160,7 +156,7 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
         { errorCategory: 'Git', errorAction: '檢查修改狀態失敗', errorMessage: '檢查修改狀態失敗' }
       )
 
-      if (!result.success) return toFailure(result.error)
+      if (!result.success) return result
 
       return {
         success: result.data.success,
@@ -188,7 +184,7 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
     },
 
     async deleteBranch(this: NoteStoreContext<Repository>, repositoryId: string, branchName: string): Promise<{ success: boolean; branchName?: string; error?: string }> {
-      const result = await executeAction<RepositoryDeleteBranchPayload, RepositoryBranchDeletedPayload>(
+      const result = await executeRepositoryAction<RepositoryDeleteBranchPayload, RepositoryBranchDeletedPayload>(
         {
           requestEvent: WebSocketRequestEvents.REPOSITORY_DELETE_BRANCH,
           responseEvent: WebSocketResponseEvents.REPOSITORY_BRANCH_DELETED,
@@ -197,7 +193,7 @@ function createRepositoryCustomActions(): RepositoryStoreCustomActions {
         { errorCategory: 'Git', errorAction: '刪除分支失敗', errorMessage: '刪除分支失敗' }
       )
 
-      if (!result.success) return toFailure(result.error)
+      if (!result.success) return result
 
       if (result.data.success) {
         showSuccessToast('Git', '刪除分支成功', branchName)

@@ -210,7 +210,6 @@ describe('ChatMessageBubble', () => {
     const pendingButtons = buttons.filter((btn) => btn.text().includes('Bash'))
     expect(pendingButtons.length).toBe(0)
 
-    // 應該有渲染對應的 div 元素
     const allDivs = wrapper.findAll('div')
     const pendingDivs = allDivs.filter((el) =>
       el.classes().some((c) => c.includes('gray')),

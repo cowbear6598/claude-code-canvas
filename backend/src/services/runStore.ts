@@ -1,7 +1,9 @@
 import { randomUUID } from 'crypto';
 import type { PersistedMessage, PersistedSubMessage } from '../types';
+import type { PathwayState } from '../types/run.js';
 import { getStmts } from '../database/stmtsHelper.js';
 import { safeJsonParse } from '../utils/safeJsonParse.js';
+import { pathwayStateToSqliteInt, sqliteIntToPathwayState } from '../utils/pathwayHelpers.js';
 
 export type RunStatus = 'running' | 'completed' | 'error';
 export type RunPodInstanceStatus = 'pending' | 'running' | 'summarizing' | 'deciding' | 'queued' | 'waiting' | 'completed' | 'error' | 'skipped';
@@ -32,8 +34,8 @@ export interface RunPodInstance {
   errorMessage: string | null;
   triggeredAt: string | null;
   completedAt: string | null;
-  autoPathwaySettled: boolean | null;
-  directPathwaySettled: boolean | null;
+  autoPathwaySettled: PathwayState;
+  directPathwaySettled: PathwayState;
 }
 
 export interface RunMessage {
@@ -91,16 +93,6 @@ function rowToWorkflowRun(row: WorkflowRunRow): WorkflowRun {
   };
 }
 
-function booleanToSqliteInt(value: boolean | null): number | null {
-	if (value === null) return null;
-	return value ? 1 : 0;
-}
-
-function sqliteIntToBoolean(value: number | null): boolean | null {
-	if (value === null) return null;
-	return value === 1;
-}
-
 function rowToRunPodInstance(row: RunPodInstanceRow): RunPodInstance {
   return {
     id: row.id,
@@ -111,8 +103,8 @@ function rowToRunPodInstance(row: RunPodInstanceRow): RunPodInstance {
     errorMessage: row.error_message,
     triggeredAt: row.triggered_at,
     completedAt: row.completed_at,
-    autoPathwaySettled: sqliteIntToBoolean(row.auto_pathway_settled),
-    directPathwaySettled: sqliteIntToBoolean(row.direct_pathway_settled),
+    autoPathwaySettled: sqliteIntToPathwayState(row.auto_pathway_settled),
+    directPathwaySettled: sqliteIntToPathwayState(row.direct_pathway_settled),
   };
 }
 
@@ -195,8 +187,8 @@ class RunStore {
   createPodInstance(
     runId: string,
     podId: string,
-    autoPathwaySettled: boolean | null = null,
-    directPathwaySettled: boolean | null = null,
+    autoPathwaySettled: PathwayState = 'not-applicable',
+    directPathwaySettled: PathwayState = 'not-applicable',
   ): RunPodInstance {
     const instance: RunPodInstance = {
       id: randomUUID(),
@@ -220,8 +212,8 @@ class RunStore {
       $errorMessage: instance.errorMessage,
       $triggeredAt: instance.triggeredAt,
       $completedAt: instance.completedAt,
-      $autoPathwaySettled: booleanToSqliteInt(autoPathwaySettled),
-      $directPathwaySettled: booleanToSqliteInt(directPathwaySettled),
+      $autoPathwaySettled: pathwayStateToSqliteInt(autoPathwaySettled),
+      $directPathwaySettled: pathwayStateToSqliteInt(directPathwaySettled),
     });
 
     return instance;

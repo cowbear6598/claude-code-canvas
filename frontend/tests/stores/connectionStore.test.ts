@@ -705,7 +705,7 @@ describe('connectionStore', () => {
         store.handleWorkflowComplete(payload)
 
         expect(conn1.status).toBe('idle')
-        expect(conn2.status).toBe('active') // 不變
+        expect(conn2.status).toBe('active')
       })
     })
 
@@ -859,7 +859,7 @@ describe('connectionStore', () => {
         expect(conn1.decideReason).toBeUndefined()
         expect(conn2.status).toBe('idle')
         expect(conn2.decideReason).toBeUndefined()
-        expect(conn3.status).toBe('ai-error') // 不變
+        expect(conn3.status).toBe('ai-error')
       })
     })
 

@@ -4,6 +4,8 @@ import {WebSocketResponseEvents} from '../../schemas';
 import {isAbortError} from '../../utils/errorHelpers.js';
 import type {
     ContentBlock,
+    Message,
+    PersistedSubMessage,
 } from '../../types';
 
 import {claudeService} from './claudeService.js';
@@ -174,11 +176,16 @@ export interface StreamingChatExecutorResult {
     aborted: boolean;
 }
 
+interface MutableStreamState {
+    accumulatedContent: string;
+    subMessages: PersistedSubMessage[];
+}
+
 interface StreamContext {
     canvasId: string;
     podId: string;
     messageId: string;
-    contentBuffer: { value: string };
+    streamState: MutableStreamState;
     subMessageState: ReturnType<typeof createSubMessageState>;
     flushCurrentSubMessage: () => void;
     persistStreamingMessage: () => void;
@@ -193,11 +200,11 @@ type CompleteStreamEvent = Extract<StreamEvent, {type: 'complete'}>;
 type ErrorStreamEvent = Extract<StreamEvent, {type: 'error'}>;
 
 function handleTextEvent(event: TextStreamEvent, context: StreamContext): void {
-    const {canvasId, podId, messageId, contentBuffer, subMessageState, persistStreamingMessage, emitStrategy} = context;
+    const {canvasId, podId, messageId, streamState, subMessageState, persistStreamingMessage, emitStrategy} = context;
 
-    contentBuffer.value = processTextEvent(event.content, contentBuffer.value, subMessageState);
+    streamState.accumulatedContent = processTextEvent(event.content, streamState.accumulatedContent, subMessageState);
 
-    emitStrategy.emitText({canvasId, podId, messageId, content: contentBuffer.value});
+    emitStrategy.emitText({canvasId, podId, messageId, content: streamState.accumulatedContent});
 
     persistStreamingMessage();
 }
@@ -237,11 +244,11 @@ function handleToolResultEvent(event: ToolResultStreamEvent, context: StreamCont
 }
 
 function handleCompleteEvent(_event: CompleteStreamEvent, context: StreamContext): void {
-    const {canvasId, podId, messageId, contentBuffer, flushCurrentSubMessage, emitStrategy} = context;
+    const {canvasId, podId, messageId, streamState, flushCurrentSubMessage, emitStrategy} = context;
 
     flushCurrentSubMessage();
 
-    emitStrategy.emitComplete({canvasId, podId, messageId, fullContent: contentBuffer.value});
+    emitStrategy.emitComplete({canvasId, podId, messageId, fullContent: streamState.accumulatedContent});
 }
 
 function handleErrorEvent(_event: ErrorStreamEvent, context: StreamContext): void {
@@ -272,17 +279,18 @@ async function handleStreamAbort(
     context: StreamContext,
     callbacks?: StreamingChatExecutorCallbacks
 ): Promise<StreamingChatExecutorResult> {
-    const {canvasId, podId, messageId, contentBuffer, subMessageState, flushCurrentSubMessage, persistStreamingMessage, runContext} = context;
+    const {canvasId, podId, messageId, streamState, flushCurrentSubMessage, persistStreamingMessage, runContext} = context;
 
     flushCurrentSubMessage();
 
-    const hasAssistantContent = contentBuffer.value.length > 0 || subMessageState.subMessages.length > 0;
+    const hasAssistantContent = streamState.accumulatedContent.length > 0 || streamState.subMessages.length > 0;
     if (hasAssistantContent) {
         persistStreamingMessage();
     }
 
     if (runContext) {
         runExecutionService.unregisterActiveStream(runContext.runId, podId);
+        runExecutionService.errorPodInstance(runContext, podId, '使用者中斷執行');
     } else {
         podStore.setStatus(canvasId, podId, 'idle');
     }
@@ -293,7 +301,7 @@ async function handleStreamAbort(
 
     return {
         messageId,
-        content: contentBuffer.value,
+        content: streamState.accumulatedContent,
         hasContent: hasAssistantContent,
         aborted: true,
     };
@@ -317,24 +325,16 @@ async function handleStreamError(
     throw error;
 }
 
-/**
- * run mode 與非 run mode 的差異點超過閾值，加此說明：
- * - 有 runContext → 使用 run-specific session、key、store，不改 pod 全域狀態
- * - 無 runContext → 維持原有行為
- */
-export async function executeStreamingChat(
-    options: StreamingChatExecutorOptions,
-    callbacks?: StreamingChatExecutorCallbacks
-): Promise<StreamingChatExecutorResult> {
-    const {canvasId, podId, message, abortable, runContext} = options;
+function setupStreamContext(options: StreamingChatExecutorOptions): StreamContext {
+    const {canvasId, podId, runContext} = options;
 
     const messageId = uuidv4();
-    const contentBuffer = {value: ''};
     const subMessageState = createSubMessageState();
+    const streamState: MutableStreamState = {accumulatedContent: '', subMessages: subMessageState.subMessages};
     const flushCurrentSubMessage = createFlushCurrentSubMessage(messageId, subMessageState);
 
     const persistStreamingMessage = (): void => {
-        const persistedMsg = buildPersistedMessage(messageId, contentBuffer.value, subMessageState);
+        const persistedMsg = buildPersistedMessage(messageId, streamState.accumulatedContent, subMessageState);
         if (runContext) {
             runStore.upsertRunMessage(runContext.runId, podId, persistedMsg);
         } else {
@@ -346,18 +346,55 @@ export async function executeStreamingChat(
         ? createRunEmitStrategy(runContext.runId)
         : createNormalEmitStrategy();
 
-    const streamContext: StreamContext = {
+    return {
         canvasId,
         podId,
         messageId,
-        contentBuffer,
+        streamState,
         subMessageState,
         flushCurrentSubMessage,
         persistStreamingMessage,
         emitStrategy,
         runContext,
     };
+}
 
+async function finalizeAfterStream(
+    context: StreamContext,
+    resultMessage: Message,
+    runInstance: Awaited<ReturnType<typeof runStore.getPodInstance>> | undefined
+): Promise<void> {
+    const {canvasId, podId, streamState, persistStreamingMessage, runContext} = context;
+
+    const hasAssistantContent = streamState.accumulatedContent.length > 0 || streamState.subMessages.length > 0;
+    if (hasAssistantContent) {
+        persistStreamingMessage();
+    }
+
+    if (runContext) {
+        runExecutionService.unregisterActiveStream(runContext.runId, podId);
+        // 串流完成後，將最新的 sessionId 寫回 run instance
+        if (resultMessage.sessionId && runInstance) {
+            runStore.updatePodInstanceClaudeSessionId(runInstance.id, resultMessage.sessionId);
+        }
+    } else {
+        podStore.setStatus(canvasId, podId, 'idle');
+    }
+}
+
+/**
+ * run mode 與非 run mode 的差異點超過閾值，加此說明：
+ * - 有 runContext → 使用 run-specific session、key、store，不改 pod 全域狀態
+ * - 無 runContext → 維持原有行為
+ */
+export async function executeStreamingChat(
+    options: StreamingChatExecutorOptions,
+    callbacks?: StreamingChatExecutorCallbacks
+): Promise<StreamingChatExecutorResult> {
+    const {podId, message, abortable, runContext} = options;
+
+    const streamContext = setupStreamContext(options);
+    const {canvasId, messageId, streamState} = streamContext;
     const streamingCallback = createStreamingCallback(streamContext);
 
     // run mode：從 instance 取得 session，並以 runId:podId 作為 query key
@@ -375,28 +412,17 @@ export async function executeStreamingChat(
 
         const resultMessage = await claudeService.sendMessage(podId, message, streamingCallback, runOptions);
 
-        const hasAssistantContent = contentBuffer.value.length > 0 || subMessageState.subMessages.length > 0;
-        if (hasAssistantContent) {
-            persistStreamingMessage();
-        }
-
-        if (runContext) {
-            runExecutionService.unregisterActiveStream(runContext.runId, podId);
-            // 串流完成後，將最新的 sessionId 寫回 run instance
-            if (resultMessage.sessionId && runInstance) {
-                runStore.updatePodInstanceClaudeSessionId(runInstance.id, resultMessage.sessionId);
-            }
-        } else {
-            podStore.setStatus(canvasId, podId, 'idle');
-        }
+        await finalizeAfterStream(streamContext, resultMessage, runInstance);
 
         if (callbacks?.onComplete) {
             await callbacks.onComplete(canvasId, podId);
         }
 
+        const hasAssistantContent = streamState.accumulatedContent.length > 0 || streamState.subMessages.length > 0;
+
         return {
             messageId,
-            content: contentBuffer.value,
+            content: streamState.accumulatedContent,
             hasContent: hasAssistantContent,
             aborted: false,
         };

@@ -141,6 +141,10 @@ class TelegramProvider implements IntegrationProvider {
         if (!botToken) return err(`Telegram Bot ${appId} 缺少 botToken`);
 
         const chatId = Number(resourceId);
+        if (isNaN(chatId)) {
+            return err('無效的 chatId');
+        }
+
         const body: Record<string, unknown> = { chat_id: chatId, text };
 
         const replyToMessageId = extra?.['replyToMessageId'] as number | undefined;
@@ -257,9 +261,7 @@ class TelegramProvider implements IntegrationProvider {
         const normalizedEvent = this.formatEventMessage(message, app);
         if (!normalizedEvent) return;
 
-        integrationEventPipeline.processEvent(this.name, appId, normalizedEvent).catch((error) => {
-            logger.error('Telegram', 'Error', `[TelegramProvider] 處理事件失敗：${getErrorMessage(error)}`);
-        });
+        integrationEventPipeline.safeProcessEvent(this.name, appId, normalizedEvent);
     }
 
     private async getUpdates(

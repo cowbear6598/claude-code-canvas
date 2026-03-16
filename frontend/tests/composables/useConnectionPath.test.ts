@@ -158,7 +158,7 @@ describe('useConnectionPath', () => {
 
       // top anchor: cp1y 應該是 startY - offset
       const cp1y = coords![3]
-      expect(cp1y).toBeLessThan(100) // 應該向上偏移
+      expect(cp1y).toBeLessThan(100)
     })
 
     it('所有 anchor 位置應正確計算 offset（bottom）', () => {
@@ -169,7 +169,7 @@ describe('useConnectionPath', () => {
 
       // bottom anchor: cp1y 應該是 startY + offset
       const cp1y = coords![3]
-      expect(cp1y).toBeGreaterThan(100) // 應該向下偏移
+      expect(cp1y).toBeGreaterThan(100)
     })
 
     it('angle 應在 -180 到 180 度之間', () => {

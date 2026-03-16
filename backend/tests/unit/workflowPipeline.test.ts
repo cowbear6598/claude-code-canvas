@@ -5,6 +5,12 @@ vi.mock('../../src/services/podStore.js', () => ({
   },
 }));
 
+vi.mock('../../src/services/connectionStore.js', () => ({
+  connectionStore: {
+    findByTargetPodId: vi.fn().mockReturnValue([]),
+  },
+}));
+
 vi.mock('../../src/services/runStore.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/services/runStore.js')>();
   return {
@@ -26,6 +32,7 @@ vi.mock('../../src/utils/logger.js', () => ({
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { workflowPipeline } from '../../src/services/workflow/workflowPipeline.js';
 import { podStore } from '../../src/services/podStore.js';
+import { connectionStore } from '../../src/services/connectionStore.js';
 import { runStore } from '../../src/services/runStore.js';
 import type { PipelineContext, TriggerStrategy, CollectSourcesContext, TriggerDecideContext } from '../../src/services/workflow/types.js';
 import type { Connection } from '../../src/types/index.js';
@@ -56,10 +63,6 @@ describe('WorkflowPipeline', () => {
     triggerWorkflowWithSummary: vi.fn(),
   };
 
-  const mockStateService = {
-    checkMultiInputScenario: vi.fn(),
-  };
-
   const mockMultiInputService = {
     handleMultiInputForConnection: vi.fn(),
   };
@@ -81,7 +84,6 @@ describe('WorkflowPipeline', () => {
 
     workflowPipeline.init({
       executionService: mockExecutionService,
-      stateService: mockStateService,
       multiInputService: mockMultiInputService,
       queueService: mockQueueService,
     });
@@ -90,10 +92,8 @@ describe('WorkflowPipeline', () => {
       content: '摘要',
       isSummarized: true,
     });
-    (mockStateService.checkMultiInputScenario as any).mockReturnValue({
-      isMultiInput: false,
-      requiredSourcePodIds: [],
-    });
+    // 預設：只有一條連線 → 非 multi-input
+    (connectionStore.findByTargetPodId as any).mockReturnValue([mockConnection]);
     (podStore.getById as any).mockReturnValue(mockTargetPod);
   });
 
@@ -112,7 +112,8 @@ describe('WorkflowPipeline', () => {
         sourcePodId,
         targetPodId,
         undefined,
-        'auto'
+        'auto',
+        undefined
       );
 
       expect(mockStrategy.collectSources).toHaveBeenCalledWith({
@@ -129,6 +130,8 @@ describe('WorkflowPipeline', () => {
         isSummarized: true,
         participatingConnectionIds: undefined,
         strategy: mockStrategy,
+        runContext: undefined,
+        delegate: undefined,
       });
     });
   });
@@ -153,7 +156,7 @@ describe('WorkflowPipeline', () => {
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
-      expect(mockStateService.checkMultiInputScenario).toHaveBeenCalledWith(
+      expect(connectionStore.findByTargetPodId).toHaveBeenCalledWith(
         canvasId,
         targetPodId
       );
@@ -171,10 +174,10 @@ describe('WorkflowPipeline', () => {
     it('多輸入情境正確委派', async () => {
       const mockStrategy = createMockStrategy('auto');
 
-      (mockStateService.checkMultiInputScenario as any).mockReturnValue({
-        isMultiInput: true,
-        requiredSourcePodIds: ['pod-a', 'pod-b'],
-      });
+      // 兩條 auto 連線 → isMultiInput = true
+      const connA = createMockConnection({ id: 'conn-a', sourcePodId: 'pod-a', targetPodId, triggerMode: 'auto' });
+      const connB = createMockConnection({ id: 'conn-b', sourcePodId: 'pod-b', targetPodId, triggerMode: 'auto' });
+      (connectionStore.findByTargetPodId as any).mockReturnValue([connA, connB]);
 
       await workflowPipeline.execute(baseContext, mockStrategy);
 
@@ -182,9 +185,9 @@ describe('WorkflowPipeline', () => {
         canvasId,
         sourcePodId,
         connection: mockConnection,
-        requiredSourcePodIds: ['pod-a', 'pod-b'],
         summary: '摘要',
         triggerMode: 'auto',
+        runContext: undefined,
       });
 
       expect(mockExecutionService.triggerWorkflowWithSummary).not.toHaveBeenCalled();
@@ -387,8 +390,8 @@ describe('WorkflowPipeline', () => {
         errorMessage: null,
         triggeredAt: null,
         completedAt: null,
-        autoPathwaySettled: null,
-        directPathwaySettled: null,
+        autoPathwaySettled: 'not-applicable' as const,
+        directPathwaySettled: 'not-applicable' as const,
       };
     }
 

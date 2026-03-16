@@ -141,8 +141,8 @@ export function createMockRunPodInstance(overrides?: Partial<RunPodInstance>): R
     errorMessage: null,
     triggeredAt: null,
     completedAt: null,
-    autoPathwaySettled: null,
-    directPathwaySettled: null,
+    autoPathwaySettled: 'not-applicable',
+    directPathwaySettled: 'not-applicable',
     ...overrides,
   };
 }

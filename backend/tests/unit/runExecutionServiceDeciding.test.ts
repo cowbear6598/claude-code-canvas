@@ -21,8 +21,8 @@ function makeInstance(overrides?: Partial<RunPodInstance>): RunPodInstance {
     errorMessage: null,
     triggeredAt: null,
     completedAt: null,
-    autoPathwaySettled: null,
-    directPathwaySettled: null,
+    autoPathwaySettled: 'not-applicable',
+    directPathwaySettled: 'not-applicable',
     ...overrides,
   };
 }
@@ -66,8 +66,8 @@ describe('RunExecutionService - deciding 狀態', () => {
 
   it('有 deciding 的 instance 時，settleAndSkipPath 後不應完成 run', () => {
     const instanceA = makeInstance({ podId: 'pod-a', status: 'deciding' });
-    const instanceB = makeInstance({ podId: 'pod-b', status: 'pending', autoPathwaySettled: false });
-    const instanceBAfterSettle = makeInstance({ podId: 'pod-b', status: 'pending', autoPathwaySettled: true });
+    const instanceB = makeInstance({ podId: 'pod-b', status: 'pending', autoPathwaySettled: 'pending' });
+    const instanceBAfterSettle = makeInstance({ podId: 'pod-b', status: 'pending', autoPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instanceB)
       .mockReturnValueOnce(instanceBAfterSettle)
@@ -98,9 +98,9 @@ describe('evaluateRunStatus — deciding 狀態處理', () => {
 
   it('有 pod 處於 deciding 狀態時，即使其他 pod 有 error，Run 不應結束', () => {
     // instanceA status 為 error，表示已非 pending，settlePodTrigger 會觸發 completed 流程進而呼叫 evaluateRunStatus
-    const instanceA = makeInstance({ podId: 'pod-a', status: 'error', autoPathwaySettled: false });
+    const instanceA = makeInstance({ podId: 'pod-a', status: 'error', autoPathwaySettled: 'pending' });
     const instanceB = makeInstance({ id: 'instance-2', podId: 'pod-b', status: 'deciding' });
-    const instanceASettled = makeInstance({ podId: 'pod-a', status: 'error', autoPathwaySettled: true });
+    const instanceASettled = makeInstance({ podId: 'pod-a', status: 'error', autoPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instanceA)
       .mockReturnValueOnce(instanceASettled)
@@ -117,9 +117,9 @@ describe('evaluateRunStatus — deciding 狀態處理', () => {
   });
 
   it('所有 pod completed/skipped 且無 deciding 時，Run 標記為 completed', () => {
-    const instanceA = makeInstance({ podId: 'pod-a', status: 'completed', autoPathwaySettled: false });
+    const instanceA = makeInstance({ podId: 'pod-a', status: 'completed', autoPathwaySettled: 'pending' });
     const instanceB = makeInstance({ id: 'instance-2', podId: 'pod-b', status: 'skipped' });
-    const instanceASettled = makeInstance({ podId: 'pod-a', status: 'completed', autoPathwaySettled: true });
+    const instanceASettled = makeInstance({ podId: 'pod-a', status: 'completed', autoPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instanceA)
       .mockReturnValueOnce(instanceASettled)

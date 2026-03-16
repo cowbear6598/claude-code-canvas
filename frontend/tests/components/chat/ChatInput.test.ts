@@ -614,7 +614,6 @@ describe('中止流程', () => {
     const newAbortButton = newButtons[0]!
     await newAbortButton.trigger('click')
 
-    // 應能再次 emit abort
     expect(wrapper.emitted('abort')).toHaveLength(2)
 
     vi.useRealTimers()

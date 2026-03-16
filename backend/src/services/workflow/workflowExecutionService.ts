@@ -6,13 +6,13 @@ import type {
   AutoTriggerMethods,
   TriggerStrategy,
   TriggerWorkflowWithSummaryParams,
+  SettlementPathway,
 } from './types.js';
 import {connectionStore} from '../connectionStore.js';
 import {podStore} from '../podStore.js';
 import {summaryService} from '../summaryService.js';
 import {injectUserMessage} from '../../utils/chatHelpers.js';
 import {injectRunUserMessage} from '../../utils/runChatHelpers.js';
-import {workflowQueueService} from './workflowQueueService.js';
 import {logger} from '../../utils/logger.js';
 import {fireAndForget} from '../../utils/operationHelpers.js';
 import {commandService} from '../commandService.js';
@@ -22,10 +22,11 @@ import {
     buildMessageWithCommand,
     forEachMultiInputGroupConnection,
     isAutoTriggerable,
+    resolveSettlementPathway,
 } from './workflowHelpers.js';
 import { LazyInitializable } from './lazyInitializable.js';
-import { runExecutionService } from '../workflow/runExecutionService.js';
 import type { RunContext } from '../../types/run.js';
+import { type WorkflowStatusDelegate, createStatusDelegate } from './workflowStatusDelegate.js';
 
 interface ExecutionServiceDeps {
   pipeline: PipelineMethods;
@@ -42,6 +43,7 @@ interface WorkflowChatContext {
   participatingConnectionIds: string[];
   strategy: TriggerStrategy;
   runContext?: RunContext;
+  delegate: WorkflowStatusDelegate;
 }
 
 class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
@@ -50,35 +52,17 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     return fallback ? { content: fallback, isSummarized: false } : null;
   }
 
-  private updateSummaryStatus(canvasId: string, sourcePodId: string, success: boolean, runContext?: RunContext, fallbackAvailable?: boolean, pathway?: 'auto' | 'direct'): void {
-    if (!runContext) {
-      podStore.setStatus(canvasId, sourcePodId, 'idle');
-      return;
-    }
-
-    const summarySucceeded = success || fallbackAvailable;
-    if (!summarySucceeded) {
-      runExecutionService.errorPodInstance(runContext, sourcePodId, '無法生成摘要');
-      return;
-    }
-
-    if (pathway) {
-      runExecutionService.settlePodTrigger(runContext, sourcePodId, pathway);
-    }
-  }
-
   async generateSummaryWithFallback(
     canvasId: string,
     sourcePodId: string,
     targetPodId: string,
     runContext?: RunContext,
-    pathway?: 'auto' | 'direct'
+    pathway?: SettlementPathway,
+    delegate?: WorkflowStatusDelegate
   ): Promise<{ content: string; isSummarized: boolean } | null> {
-    if (runContext) {
-      runExecutionService.summarizingPodInstance(runContext, sourcePodId);
-    } else {
-      podStore.setStatus(canvasId, sourcePodId, 'summarizing');
-    }
+    const resolvedDelegate = delegate ?? createStatusDelegate(runContext);
+
+    resolvedDelegate.markSummarizing(canvasId, sourcePodId);
 
     const summaryResult = await summaryService.generateSummaryForTarget(
       canvasId,
@@ -88,13 +72,19 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     );
 
     if (summaryResult.success) {
-      this.updateSummaryStatus(canvasId, sourcePodId, true, runContext, undefined, pathway);
+      resolvedDelegate.onSummaryComplete(canvasId, sourcePodId, pathway);
       return { content: summaryResult.summary, isSummarized: true };
     }
 
     logger.error('Workflow', 'Error', `生成摘要失敗：${summaryResult.error}`);
     const fallback = this.getLastAssistantFallback(sourcePodId, runContext);
-    this.updateSummaryStatus(canvasId, sourcePodId, false, runContext, fallback !== null, pathway);
+
+    if (!fallback) {
+      resolvedDelegate.onSummaryFailed(canvasId, sourcePodId, '無法生成摘要');
+      return null;
+    }
+
+    resolvedDelegate.onSummaryComplete(canvasId, sourcePodId, pathway);
     return fallback;
   }
 
@@ -142,6 +132,7 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
 
   async triggerWorkflowWithSummary(params: TriggerWorkflowWithSummaryParams): Promise<void> {
     const {canvasId, connectionId, summary, isSummarized, participatingConnectionIds, strategy, runContext} = params;
+    const delegate = params.delegate ?? createStatusDelegate(runContext);
 
     const connection = connectionStore.getById(canvasId, connectionId);
     if (!connection) {
@@ -175,15 +166,12 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
       runContext,
     });
 
-    if (runContext) {
-      runExecutionService.startPodInstance(runContext, targetPodId);
-    } else {
-      podStore.setStatus(canvasId, targetPodId, 'chatting');
-    }
+    delegate.startPodExecution(canvasId, targetPodId);
+
     // 刻意不 await：Claude 查詢是長時間操作，結果透過 WebSocket 事件通知前端。
     // 若改為 await，呼叫方的 Promise.allSettled 會等到查詢完成才繼續，喪失多 connection 並行觸發的能力。
     fireAndForget(
-      this.executeClaudeQuery({ canvasId, connectionId, sourcePodId, targetPodId, content: summary, participatingConnectionIds: resolvedConnectionIds, strategy, runContext }),
+      this.executeClaudeQuery({ canvasId, connectionId, sourcePodId, targetPodId, content: summary, participatingConnectionIds: resolvedConnectionIds, strategy, runContext, delegate }),
       'Workflow',
       `executeClaudeQuery 執行失敗 (connection: ${connectionId})`
     );
@@ -220,25 +208,14 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
     this.activateConnections(canvasId, participatingConnectionIds);
   }
 
-  private scheduleNextInQueue(canvasId: string, targetPodId: string): void {
-    // 刻意不 await：佇列處理獨立於當前 workflow，避免阻塞完成/錯誤回調
-    fireAndForget(
-      workflowQueueService.processNextInQueue(canvasId, targetPodId),
-      'Workflow',
-      '處理佇列下一項時發生錯誤'
-    );
-  }
-
   private async onWorkflowChatComplete(params: WorkflowChatContext): Promise<void> {
-    const { canvasId, connectionId, sourcePodId, targetPodId, participatingConnectionIds, strategy, runContext } = params;
+    const { canvasId, connectionId, sourcePodId, targetPodId, participatingConnectionIds, strategy, runContext, delegate } = params;
     strategy.onComplete(
       { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode, participatingConnectionIds, runContext },
       true
     );
-    if (runContext) {
-      const pathway = isAutoTriggerable(strategy.mode) ? 'auto' : 'direct';
-      runExecutionService.settlePodTrigger(runContext, targetPodId, pathway);
-    }
+    delegate.onChatComplete(canvasId, targetPodId, resolveSettlementPathway(strategy.mode));
+
     // 刻意不 await：下游 workflow 觸發獨立於當前查詢完成流程
     fireAndForget(
       this.checkAndTriggerWorkflows(canvasId, targetPodId, runContext),
@@ -246,35 +223,29 @@ class WorkflowExecutionService extends LazyInitializable<ExecutionServiceDeps> {
       `下游 workflow 觸發失敗 (pod: ${targetPodId})`
     );
 
-    if (!runContext) {
-      this.scheduleNextInQueue(canvasId, targetPodId);
-    }
+    delegate.scheduleNextInQueue(canvasId, targetPodId);
   }
 
   private async onWorkflowChatError(params: WorkflowChatContext, error: Error): Promise<void> {
-    const { canvasId, connectionId, sourcePodId, targetPodId, participatingConnectionIds, strategy, runContext } = params;
+    const { canvasId, connectionId, sourcePodId, targetPodId, participatingConnectionIds, strategy, runContext, delegate } = params;
     strategy.onError(
       { canvasId, connectionId, sourcePodId, targetPodId, triggerMode: strategy.mode, participatingConnectionIds, runContext },
       error.message
     );
     logger.error('Workflow', 'Error', 'Workflow 執行失敗', error);
 
-    if (runContext) {
-      runExecutionService.errorPodInstance(runContext, targetPodId, error.message);
-    } else {
-      podStore.setStatus(canvasId, targetPodId, 'idle');
-      this.scheduleNextInQueue(canvasId, targetPodId);
-    }
+    delegate.onChatError(canvasId, targetPodId, error.message);
+    delegate.scheduleNextInQueue(canvasId, targetPodId);
   }
 
   private async executeClaudeQuery(params: WorkflowChatContext & { content: string }): Promise<void> {
-    const { canvasId, targetPodId, content, runContext } = params;
+    const { canvasId, targetPodId, content, runContext, delegate } = params;
     const baseMessage = buildTransferMessage(content);
     const targetPod = podStore.getById(canvasId, targetPodId);
     const commands = await commandService.list();
     const messageToSend = buildMessageWithCommand(baseMessage, targetPod, commands);
 
-    if (runContext) {
+    if (delegate.isRunMode() && runContext) {
       await injectRunUserMessage(runContext, targetPodId, messageToSend);
     } else {
       await injectUserMessage({ canvasId, podId: targetPodId, content: messageToSend });

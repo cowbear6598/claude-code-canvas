@@ -189,7 +189,8 @@ class JiraProvider implements IntegrationProvider {
           });
 
           if (!res.ok) {
-            throw new Error(`API 驗證失敗，狀態碼：${res.status}`);
+            logger.error('Jira', 'Error', `Jira App ${app.id} 初始化失敗：API 驗證失敗 (${res.status})`);
+            return false;
           }
         } catch (error) {
           logger.error('Jira', 'Error', `Jira App ${app.id} 初始化失敗：${getErrorMessage(error)}`);
@@ -306,9 +307,7 @@ class JiraProvider implements IntegrationProvider {
     }
 
     // Jira 要求快速回應，使用 fire-and-forget 非同步處理
-    integrationEventPipeline.processEvent(this.name, matchedApp.id, normalizedEvent).catch((error) => {
-      logger.error('Jira', 'Error', `處理 Jira 事件 ${webhookEvent} 失敗`, error);
-    });
+    integrationEventPipeline.safeProcessEvent(this.name, matchedApp.id, normalizedEvent);
 
     return new Response('OK', { status: 200 });
   }

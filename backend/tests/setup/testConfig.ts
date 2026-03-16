@@ -5,10 +5,6 @@ import os from 'os';
 // 每個測試都會建立 socket 連線，導致 listeners 累積
 process.setMaxListeners(50);
 
-// =============================================================================
-// Console Mock - 隱藏所有測試期間的 console 輸出
-// =============================================================================
-
 // 必須在最早期就執行
 console.log = () => {};
 console.error = () => {};
@@ -19,15 +15,9 @@ console.debug = () => {};
 // 必須在任何可能使用 logger 的模組載入之前執行，且必須完全覆蓋 Logger 類別的所有方法
 vi.mock('../../src/utils/logger.js', () => {
   class MockLogger {
-    log(): void {
-      // 不執行任何操作
-    }
-    warn(): void {
-      // 不執行任何操作
-    }
-    error(): void {
-      // 不執行任何操作
-    }
+    log(): void {}
+    warn(): void {}
+    error(): void {}
   }
 
   return {

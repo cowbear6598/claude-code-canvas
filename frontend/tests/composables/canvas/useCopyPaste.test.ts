@@ -545,7 +545,6 @@ describe('useCopyPaste', () => {
       const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true })
       document.dispatchEvent(event)
 
-      // 等待非同步處理
       await new Promise(resolve => setTimeout(resolve, 0))
 
 

@@ -2,6 +2,9 @@ export type RunStatus = 'running' | 'completed' | 'error'
 
 export type RunPodStatus = 'pending' | 'running' | 'summarizing' | 'deciding' | 'queued' | 'waiting' | 'completed' | 'error' | 'skipped'
 
+/** not-applicable: 該路徑不存在; pending: 尚未 settle; settled: 已完成 settle */
+export type PathwayState = 'not-applicable' | 'pending' | 'settled'
+
 export interface RunPodInstance {
   id: string
   runId: string
@@ -12,8 +15,8 @@ export interface RunPodInstance {
   lastResponseSummary?: string
   triggeredAt?: string
   completedAt?: string
-  autoPathwaySettled: boolean | null
-  directPathwaySettled: boolean | null
+  autoPathwaySettled: PathwayState
+  directPathwaySettled: PathwayState
 }
 
 export interface WorkflowRun {

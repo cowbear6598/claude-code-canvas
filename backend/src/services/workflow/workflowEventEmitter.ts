@@ -18,6 +18,14 @@ import type {
 } from '../../types/index.js';
 
 class WorkflowEventEmitter {
+  private emitWorkflowEvent(
+    canvasId: string,
+    event: WebSocketResponseEvents,
+    payload: object
+  ): void {
+    socketService.emitToCanvas(canvasId, event, { ...payload, canvasId });
+  }
+
   emitWorkflowComplete(params: {
     canvasId: string;
     connectionId: string;
@@ -56,27 +64,15 @@ class WorkflowEventEmitter {
   }
 
   emitWorkflowAutoTriggered(canvasId: string, payload: WorkflowAutoTriggeredPayload): void {
-    const fullPayload = {
-      ...payload,
-      canvasId,
-    };
-    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, fullPayload);
+    this.emitWorkflowEvent(canvasId, WebSocketResponseEvents.WORKFLOW_AUTO_TRIGGERED, payload);
   }
 
   emitWorkflowPending(canvasId: string, payload: WorkflowPendingPayload): void {
-    const fullPayload = {
-      ...payload,
-      canvasId,
-    };
-    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_PENDING, fullPayload);
+    this.emitWorkflowEvent(canvasId, WebSocketResponseEvents.WORKFLOW_PENDING, payload);
   }
 
   emitWorkflowSourcesMerged(canvasId: string, payload: WorkflowSourcesMergedPayload): void {
-    const fullPayload = {
-      ...payload,
-      canvasId,
-    };
-    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, fullPayload);
+    this.emitWorkflowEvent(canvasId, WebSocketResponseEvents.WORKFLOW_SOURCES_MERGED, payload);
   }
 
   emitAiDecidePending(canvasId: string, connectionIds: string[], sourcePodId: string): void {

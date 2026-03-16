@@ -13,6 +13,7 @@ vi.mock('../../src/services/integration/integrationAppStore.js', () => ({
 vi.mock('../../src/services/integration/integrationEventPipeline.js', () => ({
     integrationEventPipeline: {
         processEvent: vi.fn(() => Promise.resolve()),
+        safeProcessEvent: vi.fn(),
     },
 }));
 

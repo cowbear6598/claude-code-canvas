@@ -9,6 +9,7 @@ import { integrationAppStore } from '../integrationAppStore.js';
 import { integrationEventPipeline } from '../integrationEventPipeline.js';
 import { createDedupTracker } from '../dedupHelper.js';
 import { destroyProvider, initializeProvider, formatIntegrationMessage, parseWebhookBody } from '../integrationHelpers.js';
+import { escapeUserInput } from '../../../utils/escapeInput.js';
 import type { IntegrationApp, IntegrationAppConfig, IntegrationProvider, IntegrationResource, NormalizedEvent } from '../types.js';
 
 const SLACK_CHANNEL_LIST_PAGE_SIZE = 200;
@@ -54,6 +55,7 @@ function verifySlackSignature(signingSecret: string, timestamp: string, rawBody:
     try {
         return timingSafeEqual(Buffer.from(expected, 'utf8'), Buffer.from(signature, 'utf8'));
     } catch {
+        // timingSafeEqual 在兩個 Buffer 長度不同時會拋出，視為簽名不符合直接回傳 false
         return false;
     }
 }
@@ -153,9 +155,7 @@ async function handleEventCallback(
     }
 
     // Slack 要求 3 秒內回應，使用 fire-and-forget 非同步處理
-    integrationEventPipeline.processEvent('slack', app.id, normalizedEvent).catch((error) => {
-        logger.error('Integration', 'Error', `處理 app_mention 事件失敗`, error);
-    });
+    integrationEventPipeline.safeProcessEvent('slack', app.id, normalizedEvent);
 
     return new Response('OK', { status: 200 });
 }
@@ -276,10 +276,11 @@ class SlackProvider implements IntegrationProvider {
         const { channel, user, text } = mentionEvent;
 
         const rawCleanedText = text.replace(/<@[A-Z0-9]+(?:\|[^>]+)?>/g, '').trim();
-        const cleanedText =
+        const truncatedText =
             rawCleanedText.length > MAX_SLACK_MESSAGE_LENGTH
                 ? rawCleanedText.slice(0, MAX_SLACK_MESSAGE_LENGTH) + '\n...(訊息過長，已截斷)'
                 : rawCleanedText;
+        const cleanedText = escapeUserInput(truncatedText);
 
         const userName = user ?? 'unknown';
         const formattedText = formatIntegrationMessage('Slack', userName, cleanedText);

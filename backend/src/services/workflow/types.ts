@@ -1,5 +1,9 @@
 import type { Connection, TriggerMode, AutoTriggerMode } from '../../types/index.js';
 import type { RunContext } from '../../types/run.js';
+import type { WorkflowStatusDelegate } from './workflowStatusDelegate.js';
+
+/** settle 階段的路徑類別。ai-decide 在 settle 時歸類為 'auto' */
+export type SettlementPathway = 'auto' | 'direct'
 
 export interface TriggerDecideContext {
   canvasId: string;
@@ -96,6 +100,7 @@ export interface PipelineContext {
   triggerMode: TriggerMode;
   decideResult: TriggerDecideResult;
   runContext?: RunContext;
+  delegate?: WorkflowStatusDelegate;
 }
 
 export interface TriggerWorkflowWithSummaryParams {
@@ -106,6 +111,7 @@ export interface TriggerWorkflowWithSummaryParams {
   participatingConnectionIds: string[] | undefined;
   strategy: TriggerStrategy;
   runContext?: RunContext;
+  delegate?: WorkflowStatusDelegate;
 }
 
 export interface ExecutionServiceMethods {
@@ -114,7 +120,8 @@ export interface ExecutionServiceMethods {
     sourcePodId: string,
     targetPodId: string,
     runContext?: RunContext,
-    pathway?: 'auto' | 'direct'
+    pathway?: SettlementPathway,
+    delegate?: WorkflowStatusDelegate
   ): Promise<{ content: string; isSummarized: boolean } | null>;
 
   triggerWorkflowWithSummary(params: TriggerWorkflowWithSummaryParams): Promise<void>;
@@ -131,7 +138,6 @@ export interface HandleMultiInputForConnectionParams {
   canvasId: string;
   sourcePodId: string;
   connection: Connection;
-  requiredSourcePodIds: string[];
   summary: string;
   triggerMode: AutoTriggerMode;
   runContext?: RunContext;

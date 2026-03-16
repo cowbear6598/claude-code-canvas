@@ -28,7 +28,6 @@ import { pendingTargetStore } from '../pendingTargetStore.js';
 export function initWorkflowServices(): void {
   workflowPipeline.init({
     executionService: workflowExecutionService,
-    stateService: workflowStateService,
     multiInputService: workflowMultiInputService,
     queueService: workflowQueueService,
   });

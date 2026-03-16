@@ -2,7 +2,6 @@ import type {
   PipelineContext,
   TriggerStrategy,
   ExecutionServiceMethods,
-  StateServiceMethods,
   MultiInputServiceMethods,
   QueueServiceMethods,
 } from './types.js';
@@ -11,11 +10,10 @@ import { runStore, TRIGGERABLE_STATUSES } from '../runStore.js';
 import { logger } from '../../utils/logger.js';
 import { LazyInitializable } from './lazyInitializable.js';
 import { fireAndForget } from '../../utils/operationHelpers.js';
-import { isAutoTriggerable } from './workflowHelpers.js';
+import { resolveSettlementPathway, getMultiInputGroupConnections } from './workflowHelpers.js';
 
 interface PipelineDeps {
   executionService: ExecutionServiceMethods;
-  stateService: StateServiceMethods;
   multiInputService: MultiInputServiceMethods;
   queueService: QueueServiceMethods;
 }
@@ -45,13 +43,15 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
 
     logger.log('Workflow', 'Pipeline', `開始執行 Pipeline："${sourcePodName}" → "${targetPod.name}" (${triggerMode})`);
 
-    const pathway = isAutoTriggerable(triggerMode) ? 'auto' : 'direct';
+    const pathway = resolveSettlementPathway(triggerMode);
+    const delegate = context.delegate;
     const summaryResult = await this.deps.executionService.generateSummaryWithFallback(
       canvasId,
       sourcePodId,
       targetPodId,
       runContext,
-      pathway
+      pathway,
+      delegate
     );
 
     if (!summaryResult) {
@@ -62,7 +62,7 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
     const collectResult = await this.runCollectSourcesStage(context, strategy, summaryResult.content, summaryResult.isSummarized);
     if (!collectResult) return;
 
-    const { finalSummary, finalIsCondensedSummary, participatingConnectionIds } = collectResult;
+    const { finalSummary, finalIsSummarized, participatingConnectionIds } = collectResult;
 
     // run mode 下直接執行，不進入佇列
     if (!runContext && targetPod.status !== 'idle') {
@@ -73,7 +73,7 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
         sourcePodId,
         targetPodId,
         summary: finalSummary,
-        isSummarized: finalIsCondensedSummary,
+        isSummarized: finalIsSummarized,
         triggerMode,
         participatingConnectionIds,
         runContext,
@@ -91,10 +91,11 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
       canvasId,
       connectionId,
       summary: finalSummary,
-      isSummarized: finalIsCondensedSummary,
+      isSummarized: finalIsSummarized,
       participatingConnectionIds,
       strategy,
       runContext,
+      delegate,
     });
   }
 
@@ -102,8 +103,8 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
     context: PipelineContext,
     strategy: TriggerStrategy,
     summaryContent: string,
-    summaryIsCondensedSummary: boolean
-  ): Promise<{ finalSummary: string; finalIsCondensedSummary: boolean; participatingConnectionIds?: string[] } | null> {
+    isSummarized: boolean
+  ): Promise<{ finalSummary: string; finalIsSummarized: boolean; participatingConnectionIds?: string[] } | null> {
     const { canvasId, sourcePodId, connection, triggerMode } = context;
     const { targetPodId } = connection;
 
@@ -123,23 +124,19 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
       const { participatingConnectionIds } = collectResult;
 
       if (collectResult.mergedContent) {
-        return { finalSummary: collectResult.mergedContent, finalIsCondensedSummary: collectResult.isSummarized ?? true, participatingConnectionIds };
+        return { finalSummary: collectResult.mergedContent, finalIsSummarized: collectResult.isSummarized ?? true, participatingConnectionIds };
       }
 
-      return { finalSummary: summaryContent, finalIsCondensedSummary: summaryIsCondensedSummary, participatingConnectionIds };
+      return { finalSummary: summaryContent, finalIsSummarized: isSummarized, participatingConnectionIds };
     }
 
-    const { isMultiInput, requiredSourcePodIds } = this.deps.stateService.checkMultiInputScenario(
-      canvasId,
-      targetPodId
-    );
+    const isMultiInput = getMultiInputGroupConnections(canvasId, targetPodId).length > 1;
 
     if (isMultiInput) {
       await this.deps.multiInputService.handleMultiInputForConnection({
         canvasId,
         sourcePodId,
         connection,
-        requiredSourcePodIds,
         summary: summaryContent,
         triggerMode: triggerMode as 'auto' | 'ai-decide',
         runContext: context.runContext,
@@ -147,7 +144,7 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
       return null;
     }
 
-    return { finalSummary: summaryContent, finalIsCondensedSummary: summaryIsCondensedSummary };
+    return { finalSummary: summaryContent, finalIsSummarized: isSummarized };
   }
 }
 

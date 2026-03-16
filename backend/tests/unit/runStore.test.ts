@@ -178,56 +178,56 @@ describe('RunStore', () => {
       expect(updated?.claudeSessionId).toBe('session-abc');
     });
 
-    it('createPodInstance 帶入 false 後 getPodInstance 讀回應為 false', () => {
+    it('createPodInstance 帶入 pending 後 getPodInstance 讀回應為 pending', () => {
       const run = runStore.createRun(CANVAS_ID, SOURCE_POD_ID, TRIGGER_MESSAGE);
-      runStore.createPodInstance(run.id, 'pod-1', false, false);
+      runStore.createPodInstance(run.id, 'pod-1', 'pending', 'pending');
 
       const instance = runStore.getPodInstance(run.id, 'pod-1');
 
-      expect(instance?.autoPathwaySettled).toBe(false);
-      expect(instance?.directPathwaySettled).toBe(false);
+      expect(instance?.autoPathwaySettled).toBe('pending');
+      expect(instance?.directPathwaySettled).toBe('pending');
     });
 
-    it('createPodInstance 帶入 null 後 getPodInstance 讀回應為 null', () => {
+    it('createPodInstance 帶入 not-applicable 後 getPodInstance 讀回應為 not-applicable', () => {
       const run = runStore.createRun(CANVAS_ID, SOURCE_POD_ID, TRIGGER_MESSAGE);
-      runStore.createPodInstance(run.id, 'pod-1', null, null);
+      runStore.createPodInstance(run.id, 'pod-1', 'not-applicable', 'not-applicable');
 
       const instance = runStore.getPodInstance(run.id, 'pod-1');
 
-      expect(instance?.autoPathwaySettled).toBeNull();
-      expect(instance?.directPathwaySettled).toBeNull();
+      expect(instance?.autoPathwaySettled).toBe('not-applicable');
+      expect(instance?.directPathwaySettled).toBe('not-applicable');
     });
 
-    it('createPodInstance 帶入 true 後 getPodInstance 讀回應為 true', () => {
+    it('createPodInstance 帶入 settled 後 getPodInstance 讀回應為 settled', () => {
       const run = runStore.createRun(CANVAS_ID, SOURCE_POD_ID, TRIGGER_MESSAGE);
-      runStore.createPodInstance(run.id, 'pod-1', true, true);
+      runStore.createPodInstance(run.id, 'pod-1', 'settled', 'settled');
 
       const instance = runStore.getPodInstance(run.id, 'pod-1');
 
-      expect(instance?.autoPathwaySettled).toBe(true);
-      expect(instance?.directPathwaySettled).toBe(true);
+      expect(instance?.autoPathwaySettled).toBe('settled');
+      expect(instance?.directPathwaySettled).toBe('settled');
     });
 
-    it('settleAutoPathway 呼叫後 autoPathwaySettled 應從 false 變為 true', () => {
+    it('settleAutoPathway 呼叫後 autoPathwaySettled 應從 pending 變為 settled', () => {
       const run = runStore.createRun(CANVAS_ID, SOURCE_POD_ID, TRIGGER_MESSAGE);
-      const instance = runStore.createPodInstance(run.id, 'pod-1', false, false);
+      const instance = runStore.createPodInstance(run.id, 'pod-1', 'pending', 'pending');
 
       runStore.settleAutoPathway(instance.id);
 
       const updated = runStore.getPodInstance(run.id, 'pod-1');
-      expect(updated?.autoPathwaySettled).toBe(true);
-      expect(updated?.directPathwaySettled).toBe(false);
+      expect(updated?.autoPathwaySettled).toBe('settled');
+      expect(updated?.directPathwaySettled).toBe('pending');
     });
 
-    it('settleDirectPathway 呼叫後 directPathwaySettled 應從 false 變為 true', () => {
+    it('settleDirectPathway 呼叫後 directPathwaySettled 應從 pending 變為 settled', () => {
       const run = runStore.createRun(CANVAS_ID, SOURCE_POD_ID, TRIGGER_MESSAGE);
-      const instance = runStore.createPodInstance(run.id, 'pod-1', false, false);
+      const instance = runStore.createPodInstance(run.id, 'pod-1', 'pending', 'pending');
 
       runStore.settleDirectPathway(instance.id);
 
       const updated = runStore.getPodInstance(run.id, 'pod-1');
-      expect(updated?.autoPathwaySettled).toBe(false);
-      expect(updated?.directPathwaySettled).toBe(true);
+      expect(updated?.autoPathwaySettled).toBe('pending');
+      expect(updated?.directPathwaySettled).toBe('settled');
     });
 
     it('getRunningPodInstances 只回傳 pending/running/summarizing 狀態', () => {

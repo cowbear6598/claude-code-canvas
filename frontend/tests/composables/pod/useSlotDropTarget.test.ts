@@ -52,7 +52,6 @@ describe('useSlotDropTarget', () => {
 
       mount(TestComponent)
 
-      // 應該設定 mousemove 和 mouseup 監聽器
       expect(addEventListenerSpy).toHaveBeenCalledWith('mousemove', expect.any(Function))
       expect(addEventListenerSpy).toHaveBeenCalledWith('mouseup', expect.any(Function), { capture: true })
     })
@@ -106,7 +105,6 @@ describe('useSlotDropTarget', () => {
       draggedNoteId.value = null
       await wrapper.vm.$nextTick()
 
-      // 應該移除 mousemove 和 mouseup 監聽器
       expect(removeEventListenerSpy).toHaveBeenCalledWith('mousemove', expect.any(Function))
       expect(removeEventListenerSpy).toHaveBeenCalledWith('mouseup', expect.any(Function), { capture: true })
     })
@@ -510,7 +508,7 @@ describe('useSlotDropTarget', () => {
       await wrapper.vm.$nextTick()
       expect(wrapper.vm.isInserting).toBe(true)
 
-      // 等待 300ms
+      // drop 延遲閾值（300ms）
       vi.advanceTimersByTime(300)
       await wrapper.vm.$nextTick()
 
@@ -584,7 +582,6 @@ describe('useSlotDropTarget', () => {
       draggedNoteId.value = 'note-1'
       await wrapper.vm.$nextTick()
 
-      // 應該設定監聽器
       expect(addEventListenerSpy).toHaveBeenCalledWith('mousemove', expect.any(Function))
       expect(addEventListenerSpy).toHaveBeenCalledWith('mouseup', expect.any(Function), { capture: true })
     })

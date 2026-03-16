@@ -13,17 +13,29 @@ import { socketService } from '../services/socketService.js';
 import { workflowEventEmitter } from '../services/workflow';
 import { emitSuccess, emitError, emitNotFound } from '../utils/websocketResponse.js';
 import { withCanvasId } from '../utils/handlerHelpers.js';
+import type { Pod } from '../types/index.js';
+
+function findSourcePodOrEmitNotFound(
+  connectionId: string,
+  canvasId: string,
+  sourcePodId: string,
+  event: WebSocketResponseEvents,
+  requestId: string,
+): Pod | undefined {
+  const sourcePod = podStore.getById(canvasId, sourcePodId);
+  if (!sourcePod) {
+    emitNotFound(connectionId, event, '來源 Pod', sourcePodId, requestId);
+    return undefined;
+  }
+  return sourcePod;
+}
 
 export const handleWorkflowGetDownstreamPods = withCanvasId<WorkflowGetDownstreamPodsPayload>(
   WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT,
   async (connectionId: string, canvasId: string, payload: WorkflowGetDownstreamPodsPayload, requestId: string): Promise<void> => {
     const { sourcePodId } = payload;
 
-    const sourcePod = podStore.getById(canvasId, sourcePodId);
-    if (!sourcePod) {
-      emitNotFound(connectionId, WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT, '來源 Pod', sourcePodId, requestId);
-      return;
-    }
+    if (!findSourcePodOrEmitNotFound(connectionId, canvasId, sourcePodId, WebSocketResponseEvents.WORKFLOW_GET_DOWNSTREAM_PODS_RESULT, requestId)) return;
 
     const pods = workflowClearService.getDownstreamPods(canvasId, sourcePodId);
 
@@ -42,11 +54,7 @@ export const handleWorkflowClear = withCanvasId<WorkflowClearPayload>(
   async (connectionId: string, canvasId: string, payload: WorkflowClearPayload, requestId: string): Promise<void> => {
     const { sourcePodId } = payload;
 
-    const sourcePod = podStore.getById(canvasId, sourcePodId);
-    if (!sourcePod) {
-      emitNotFound(connectionId, WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, '來源 Pod', sourcePodId, requestId);
-      return;
-    }
+    if (!findSourcePodOrEmitNotFound(connectionId, canvasId, sourcePodId, WebSocketResponseEvents.WORKFLOW_CLEAR_RESULT, requestId)) return;
 
     const result = await workflowClearService.clearWorkflow(canvasId, sourcePodId);
 

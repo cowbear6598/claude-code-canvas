@@ -27,8 +27,8 @@ function makeInstance(overrides?: Partial<RunPodInstance>): RunPodInstance {
     errorMessage: null,
     triggeredAt: null,
     completedAt: null,
-    autoPathwaySettled: null,
-    directPathwaySettled: null,
+    autoPathwaySettled: 'not-applicable',
+    directPathwaySettled: 'not-applicable',
     ...overrides,
   };
 }
@@ -81,7 +81,7 @@ describe('calculatePathways（透過 createRun 測試）', () => {
 
     await runExecutionService.createRun(CANVAS_ID, SOURCE_POD_ID, '測試');
 
-    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, SOURCE_POD_ID, false, null);
+    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, SOURCE_POD_ID, 'pending', 'not-applicable');
   });
 
   it('只有 auto connections → auto=false, direct=null', async () => {
@@ -102,10 +102,10 @@ describe('calculatePathways（透過 createRun 測試）', () => {
 
     await runExecutionService.createRun(CANVAS_ID, SOURCE_POD_ID, '測試');
 
-    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, targetPod, false, null);
+    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, targetPod, 'pending', 'not-applicable');
   });
 
-  it('只有 ai-decide connections → auto=false, direct=null', async () => {
+  it('只有 ai-decide connections → auto=pending, direct=not-applicable', async () => {
     const targetPod = 'pod-target';
     vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((_, podId) =>
       podId === SOURCE_POD_ID
@@ -123,10 +123,10 @@ describe('calculatePathways（透過 createRun 測試）', () => {
 
     await runExecutionService.createRun(CANVAS_ID, SOURCE_POD_ID, '測試');
 
-    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, targetPod, false, null);
+    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, targetPod, 'pending', 'not-applicable');
   });
 
-  it('只有 direct connections → auto=null, direct=false', async () => {
+  it('只有 direct connections → auto=not-applicable, direct=pending', async () => {
     const targetPod = 'pod-target';
     vi.spyOn(connectionStore, 'findBySourcePodId').mockImplementation((_, podId) =>
       podId === SOURCE_POD_ID
@@ -144,10 +144,10 @@ describe('calculatePathways（透過 createRun 測試）', () => {
 
     await runExecutionService.createRun(CANVAS_ID, SOURCE_POD_ID, '測試');
 
-    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, targetPod, null, false);
+    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, targetPod, 'not-applicable', 'pending');
   });
 
-  it('auto + direct connections（同一 source）→ auto=false, direct=false', async () => {
+  it('auto + direct connections（同一 source）→ auto=pending, direct=pending', async () => {
     const targetPod = 'pod-target';
     // SOURCE_POD_ID 同時有 auto 和 direct 兩條到 targetPod 的 connections
     const conns = [
@@ -166,7 +166,7 @@ describe('calculatePathways（透過 createRun 測試）', () => {
 
     await runExecutionService.createRun(CANVAS_ID, SOURCE_POD_ID, '測試');
 
-    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, targetPod, false, false);
+    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, targetPod, 'pending', 'pending');
   });
 
   it('不在 chain 內的 connection 不計算', async () => {
@@ -189,7 +189,7 @@ describe('calculatePathways（透過 createRun 測試）', () => {
     await runExecutionService.createRun(CANVAS_ID, SOURCE_POD_ID, '測試');
 
     // pod-not-in-chain 不在 chainPodIds 中，所以 direct 不被計算
-    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, targetPod, false, null);
+    expect(createPodInstanceSpy).toHaveBeenCalledWith(RUN_ID, targetPod, 'pending', 'not-applicable');
   });
 });
 
@@ -206,8 +206,8 @@ describe('settlePodTrigger', () => {
   });
 
   it('只有 auto pathway、settle auto → completed', () => {
-    const instance = makeInstance({ status: 'running', autoPathwaySettled: false });
-    const settledInstance = makeInstance({ status: 'running', autoPathwaySettled: true });
+    const instance = makeInstance({ status: 'running', autoPathwaySettled: 'pending' });
+    const settledInstance = makeInstance({ status: 'running', autoPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instance)
       .mockReturnValueOnce(settledInstance)
@@ -215,7 +215,7 @@ describe('settlePodTrigger', () => {
     vi.spyOn(runStore, 'settleAutoPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([
-      makeInstance({ status: 'completed', autoPathwaySettled: true }),
+      makeInstance({ status: 'completed', autoPathwaySettled: 'settled' }),
     ]);
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getRun').mockReturnValue({
@@ -236,8 +236,8 @@ describe('settlePodTrigger', () => {
   });
 
   it('只有 direct pathway、settle direct → completed', () => {
-    const instance = makeInstance({ status: 'running', autoPathwaySettled: null, directPathwaySettled: false });
-    const settledInstance = makeInstance({ status: 'running', autoPathwaySettled: null, directPathwaySettled: true });
+    const instance = makeInstance({ status: 'running', autoPathwaySettled: 'not-applicable', directPathwaySettled: 'pending' });
+    const settledInstance = makeInstance({ status: 'running', autoPathwaySettled: 'not-applicable', directPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instance)
       .mockReturnValueOnce(settledInstance)
@@ -245,7 +245,7 @@ describe('settlePodTrigger', () => {
     vi.spyOn(runStore, 'settleDirectPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([
-      makeInstance({ status: 'completed', autoPathwaySettled: null, directPathwaySettled: true }),
+      makeInstance({ status: 'completed', autoPathwaySettled: 'not-applicable', directPathwaySettled: 'settled' }),
     ]);
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getRun').mockReturnValue({
@@ -266,8 +266,8 @@ describe('settlePodTrigger', () => {
   });
 
   it('auto + direct pathway：settle auto 但 direct 未結算 → 不 completed', () => {
-    const instance = makeInstance({ status: 'running', autoPathwaySettled: false, directPathwaySettled: false });
-    const afterSettleAuto = makeInstance({ status: 'running', autoPathwaySettled: true, directPathwaySettled: false });
+    const instance = makeInstance({ status: 'running', autoPathwaySettled: 'pending', directPathwaySettled: 'pending' });
+    const afterSettleAuto = makeInstance({ status: 'running', autoPathwaySettled: 'settled', directPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instance)
       .mockReturnValueOnce(afterSettleAuto);
@@ -281,8 +281,8 @@ describe('settlePodTrigger', () => {
   });
 
   it('auto + direct pathway：auto 已結算，再 settle direct → completed', () => {
-    const instance = makeInstance({ status: 'running', autoPathwaySettled: true, directPathwaySettled: false });
-    const settledInstance = makeInstance({ status: 'running', autoPathwaySettled: true, directPathwaySettled: true });
+    const instance = makeInstance({ status: 'running', autoPathwaySettled: 'settled', directPathwaySettled: 'pending' });
+    const settledInstance = makeInstance({ status: 'running', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instance)
       .mockReturnValueOnce(settledInstance)
@@ -290,7 +290,7 @@ describe('settlePodTrigger', () => {
     vi.spyOn(runStore, 'settleDirectPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([
-      makeInstance({ status: 'completed', autoPathwaySettled: true, directPathwaySettled: true }),
+      makeInstance({ status: 'completed', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' }),
     ]);
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getRun').mockReturnValue({
@@ -311,8 +311,8 @@ describe('settlePodTrigger', () => {
   });
 
   it('status 為 pending 且 all pathways settled 時不應更新為 completed', () => {
-    const instance = makeInstance({ status: 'pending', autoPathwaySettled: false, directPathwaySettled: null });
-    const settledInstance = makeInstance({ status: 'pending', autoPathwaySettled: true, directPathwaySettled: null });
+    const instance = makeInstance({ status: 'pending', autoPathwaySettled: 'pending', directPathwaySettled: 'not-applicable' });
+    const settledInstance = makeInstance({ status: 'pending', autoPathwaySettled: 'settled', directPathwaySettled: 'not-applicable' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instance)
       .mockReturnValueOnce(settledInstance);
@@ -339,9 +339,9 @@ describe('settleAndSkipPath', () => {
   });
 
   it('settle auto，還有 direct 未結算 → 不動作', () => {
-    const instance = makeInstance({ status: 'pending', autoPathwaySettled: false, directPathwaySettled: false });
-    // 第二次查詢 auto 已 settle，direct 還是 false
-    const afterSettle = makeInstance({ status: 'pending', autoPathwaySettled: true, directPathwaySettled: false });
+    const instance = makeInstance({ status: 'pending', autoPathwaySettled: 'pending', directPathwaySettled: 'pending' });
+    // 第二次查詢 auto 已 settle，direct 還是 pending
+    const afterSettle = makeInstance({ status: 'pending', autoPathwaySettled: 'settled', directPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instance)
       .mockReturnValueOnce(afterSettle);
@@ -355,8 +355,8 @@ describe('settleAndSkipPath', () => {
   });
 
   it('settle auto，direct 也已結算，status=pending → skipped', () => {
-    const instance = makeInstance({ status: 'pending', autoPathwaySettled: false, directPathwaySettled: true });
-    const afterSettle = makeInstance({ status: 'pending', autoPathwaySettled: true, directPathwaySettled: true });
+    const instance = makeInstance({ status: 'pending', autoPathwaySettled: 'pending', directPathwaySettled: 'settled' });
+    const afterSettle = makeInstance({ status: 'pending', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instance)
       .mockReturnValueOnce(afterSettle)
@@ -364,7 +364,7 @@ describe('settleAndSkipPath', () => {
     vi.spyOn(runStore, 'settleAutoPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([
-      makeInstance({ status: 'skipped', autoPathwaySettled: true, directPathwaySettled: true }),
+      makeInstance({ status: 'skipped', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' }),
     ]);
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getRun').mockReturnValue({
@@ -384,8 +384,8 @@ describe('settleAndSkipPath', () => {
   });
 
   it('settle auto，direct 也已結算，status=queued → skipped（排隊中視為未觸發）', () => {
-    const instance = makeInstance({ status: 'queued', autoPathwaySettled: false, directPathwaySettled: true });
-    const afterSettle = makeInstance({ status: 'queued', autoPathwaySettled: true, directPathwaySettled: true });
+    const instance = makeInstance({ status: 'queued', autoPathwaySettled: 'pending', directPathwaySettled: 'settled' });
+    const afterSettle = makeInstance({ status: 'queued', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instance)
       .mockReturnValueOnce(afterSettle)
@@ -393,7 +393,7 @@ describe('settleAndSkipPath', () => {
     vi.spyOn(runStore, 'settleAutoPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([
-      makeInstance({ status: 'skipped', autoPathwaySettled: true, directPathwaySettled: true }),
+      makeInstance({ status: 'skipped', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' }),
     ]);
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getRun').mockReturnValue({
@@ -413,8 +413,8 @@ describe('settleAndSkipPath', () => {
   });
 
   it('settle auto，direct 也已結算，status=waiting → skipped（等待中視為未觸發）', () => {
-    const instance = makeInstance({ status: 'waiting', autoPathwaySettled: false, directPathwaySettled: true });
-    const afterSettle = makeInstance({ status: 'waiting', autoPathwaySettled: true, directPathwaySettled: true });
+    const instance = makeInstance({ status: 'waiting', autoPathwaySettled: 'pending', directPathwaySettled: 'settled' });
+    const afterSettle = makeInstance({ status: 'waiting', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instance)
       .mockReturnValueOnce(afterSettle)
@@ -422,7 +422,7 @@ describe('settleAndSkipPath', () => {
     vi.spyOn(runStore, 'settleAutoPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([
-      makeInstance({ status: 'skipped', autoPathwaySettled: true, directPathwaySettled: true }),
+      makeInstance({ status: 'skipped', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' }),
     ]);
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getRun').mockReturnValue({
@@ -442,8 +442,8 @@ describe('settleAndSkipPath', () => {
   });
 
   it('settle auto，direct 也已結算，status=deciding → skipped（AI 判斷中視為未觸發）', () => {
-    const instance = makeInstance({ status: 'deciding', autoPathwaySettled: false, directPathwaySettled: true });
-    const afterSettle = makeInstance({ status: 'deciding', autoPathwaySettled: true, directPathwaySettled: true });
+    const instance = makeInstance({ status: 'deciding', autoPathwaySettled: 'pending', directPathwaySettled: 'settled' });
+    const afterSettle = makeInstance({ status: 'deciding', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instance)
       .mockReturnValueOnce(afterSettle)
@@ -451,7 +451,7 @@ describe('settleAndSkipPath', () => {
     vi.spyOn(runStore, 'settleAutoPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([
-      makeInstance({ status: 'skipped', autoPathwaySettled: true, directPathwaySettled: true }),
+      makeInstance({ status: 'skipped', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' }),
     ]);
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getRun').mockReturnValue({
@@ -471,8 +471,8 @@ describe('settleAndSkipPath', () => {
   });
 
   it('settle auto，direct 也已結算，status=running → completed', () => {
-    const instance = makeInstance({ status: 'running', autoPathwaySettled: false, directPathwaySettled: true });
-    const afterSettle = makeInstance({ status: 'running', autoPathwaySettled: true, directPathwaySettled: true });
+    const instance = makeInstance({ status: 'running', autoPathwaySettled: 'pending', directPathwaySettled: 'settled' });
+    const afterSettle = makeInstance({ status: 'running', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instance)
       .mockReturnValueOnce(afterSettle)
@@ -480,7 +480,7 @@ describe('settleAndSkipPath', () => {
     vi.spyOn(runStore, 'settleAutoPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([
-      makeInstance({ status: 'completed', autoPathwaySettled: true, directPathwaySettled: true }),
+      makeInstance({ status: 'completed', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' }),
     ]);
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getRun').mockReturnValue({
@@ -500,12 +500,12 @@ describe('settleAndSkipPath', () => {
   });
 
   it('冪等：重複呼叫 settleAndSkipPath 不拋錯', () => {
-    const instance = makeInstance({ status: 'pending', autoPathwaySettled: true, directPathwaySettled: null });
+    const instance = makeInstance({ status: 'pending', autoPathwaySettled: 'settled', directPathwaySettled: 'not-applicable' });
     vi.spyOn(runStore, 'getPodInstance').mockReturnValue(instance);
     vi.spyOn(runStore, 'settleAutoPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([
-      makeInstance({ status: 'skipped', autoPathwaySettled: true }),
+      makeInstance({ status: 'skipped', autoPathwaySettled: 'settled' }),
     ]);
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getRun').mockReturnValue({
@@ -539,8 +539,8 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('線性鏈：A(skipped) → B(auto, pending) → B 被 skip', () => {
-    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'skipped', autoPathwaySettled: true });
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'pending', autoPathwaySettled: false });
+    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'skipped', autoPathwaySettled: 'settled' });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'pending', autoPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceA, instanceB]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c1', sourcePodId: 'pod-a', targetPodId: 'pod-b', triggerMode: 'auto' }),
@@ -563,9 +563,9 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('菱形 auto-only：B(skipped)→D(auto), C(running)→D(auto)，B skipped → D auto settled，但 C 還在跑，D 不 skip', () => {
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'skipped', autoPathwaySettled: true });
-    const instanceC = makeInstance({ id: 'i-c', podId: 'pod-c', status: 'running', autoPathwaySettled: false });
-    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: false });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'skipped', autoPathwaySettled: 'settled' });
+    const instanceC = makeInstance({ id: 'i-c', podId: 'pod-c', status: 'running', autoPathwaySettled: 'pending' });
+    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceB, instanceC, instanceD]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c1', sourcePodId: 'pod-b', targetPodId: 'pod-d', triggerMode: 'auto' }),
@@ -590,9 +590,9 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('Direct-only 部分 skip：B(direct,error)→D, C(direct,running)→D → D 不 skip（不是 ALL）', () => {
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'error', autoPathwaySettled: null });
-    const instanceC = makeInstance({ id: 'i-c', podId: 'pod-c', status: 'running', autoPathwaySettled: null });
-    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: null, directPathwaySettled: false });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'error', autoPathwaySettled: 'not-applicable' });
+    const instanceC = makeInstance({ id: 'i-c', podId: 'pod-c', status: 'running', autoPathwaySettled: 'not-applicable' });
+    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: 'not-applicable', directPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceB, instanceC, instanceD]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c1', sourcePodId: 'pod-b', targetPodId: 'pod-d', triggerMode: 'direct' }),
@@ -611,9 +611,9 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('Direct-only 全 error：B(direct,error), C(direct,error) → D skipped', () => {
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'error', autoPathwaySettled: null, directPathwaySettled: true });
-    const instanceC = makeInstance({ id: 'i-c', podId: 'pod-c', status: 'error', autoPathwaySettled: null, directPathwaySettled: true });
-    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: null, directPathwaySettled: false });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'error', autoPathwaySettled: 'not-applicable', directPathwaySettled: 'settled' });
+    const instanceC = makeInstance({ id: 'i-c', podId: 'pod-c', status: 'error', autoPathwaySettled: 'not-applicable', directPathwaySettled: 'settled' });
+    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: 'not-applicable', directPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceB, instanceC, instanceD]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c1', sourcePodId: 'pod-b', targetPodId: 'pod-d', triggerMode: 'direct' }),
@@ -636,10 +636,10 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('多層級聯：A(auto,skipped)→B→C→D 全 auto，A skipped → B/C/D 全 skip', () => {
-    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'skipped', autoPathwaySettled: true });
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'pending', autoPathwaySettled: false });
-    const instanceC = makeInstance({ id: 'i-c', podId: 'pod-c', status: 'pending', autoPathwaySettled: false });
-    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: false });
+    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'skipped', autoPathwaySettled: 'settled' });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'pending', autoPathwaySettled: 'pending' });
+    const instanceC = makeInstance({ id: 'i-c', podId: 'pod-c', status: 'pending', autoPathwaySettled: 'pending' });
+    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceA, instanceB, instanceC, instanceD]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c-ab', sourcePodId: 'pod-a', targetPodId: 'pod-b', triggerMode: 'auto' }),
@@ -667,8 +667,8 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('deciding 狀態 pod 被偵測為不可達時，應標記為 skipped', () => {
-    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'skipped', autoPathwaySettled: true });
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'deciding', autoPathwaySettled: false });
+    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'skipped', autoPathwaySettled: 'settled' });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'deciding', autoPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceA, instanceB]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c1', sourcePodId: 'pod-a', targetPodId: 'pod-b', triggerMode: 'auto' }),
@@ -690,8 +690,8 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('已完成 pod 不受影響', () => {
-    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'error', autoPathwaySettled: true });
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'completed', autoPathwaySettled: true });
+    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'error', autoPathwaySettled: 'settled' });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'completed', autoPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceA, instanceB]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c-ab', sourcePodId: 'pod-a', targetPodId: 'pod-b', triggerMode: 'auto' }),
@@ -713,8 +713,8 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('source 為 error 狀態時也應觸發下游 auto skip', () => {
-    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'error', autoPathwaySettled: true });
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'pending', autoPathwaySettled: false });
+    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'error', autoPathwaySettled: 'settled' });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'pending', autoPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceA, instanceB]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c1', sourcePodId: 'pod-a', targetPodId: 'pod-b', triggerMode: 'auto' }),
@@ -736,9 +736,9 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('direct pathway 混合 error+skipped source 觸發 skip', () => {
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'error', autoPathwaySettled: null, directPathwaySettled: true });
-    const instanceC = makeInstance({ id: 'i-c', podId: 'pod-c', status: 'skipped', autoPathwaySettled: null, directPathwaySettled: true });
-    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: null, directPathwaySettled: false });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'error', autoPathwaySettled: 'not-applicable', directPathwaySettled: 'settled' });
+    const instanceC = makeInstance({ id: 'i-c', podId: 'pod-c', status: 'skipped', autoPathwaySettled: 'not-applicable', directPathwaySettled: 'settled' });
+    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: 'not-applicable', directPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceB, instanceC, instanceD]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c1', sourcePodId: 'pod-b', targetPodId: 'pod-d', triggerMode: 'direct' }),
@@ -761,8 +761,8 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('queued 狀態 pod 被偵測為不可達時，應標記為 skipped', () => {
-    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'skipped', autoPathwaySettled: true });
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'queued', autoPathwaySettled: false });
+    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'skipped', autoPathwaySettled: 'settled' });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'queued', autoPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceA, instanceB]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c1', sourcePodId: 'pod-a', targetPodId: 'pod-b', triggerMode: 'auto' }),
@@ -784,8 +784,8 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('waiting 狀態 pod 被偵測為不可達時，應標記為 skipped', () => {
-    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'skipped', autoPathwaySettled: true });
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'waiting', autoPathwaySettled: false });
+    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'skipped', autoPathwaySettled: 'settled' });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'waiting', autoPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceA, instanceB]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c1', sourcePodId: 'pod-a', targetPodId: 'pod-b', triggerMode: 'auto' }),
@@ -807,8 +807,8 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
   });
 
   it('source 為 deciding 狀態時不應觸發下游 auto skip', () => {
-    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'deciding', autoPathwaySettled: false });
-    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'pending', autoPathwaySettled: false });
+    const instanceA = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'deciding', autoPathwaySettled: 'pending' });
+    const instanceB = makeInstance({ id: 'i-b', podId: 'pod-b', status: 'pending', autoPathwaySettled: 'pending' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceA, instanceB]);
     vi.spyOn(connectionStore, 'list').mockReturnValue([
       makeConnection({ id: 'c1', sourcePodId: 'pod-a', targetPodId: 'pod-b', triggerMode: 'auto' }),
@@ -818,7 +818,7 @@ describe('settleUnreachablePaths（透過 evaluateRunStatus 觸發）', () => {
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     // deciding 狀態的 pod 觸發 evaluateRunStatus（透過 settlePodTrigger 進入）
-    const instanceASettled = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'deciding', autoPathwaySettled: true });
+    const instanceASettled = makeInstance({ id: 'i-a', podId: 'pod-a', status: 'deciding', autoPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstance')
       .mockReturnValueOnce(instanceA)
       .mockReturnValueOnce(instanceASettled)
@@ -844,9 +844,9 @@ describe('雙 pathway pod 端到端', () => {
   });
 
   it('auto pathway settled 後 direct 未 settled → 不 completed；兩者都 settled → completed', () => {
-    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'running', autoPathwaySettled: false, directPathwaySettled: false });
-    const instanceDAutoSettled = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'running', autoPathwaySettled: true, directPathwaySettled: false });
-    const instanceDBothSettled = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'running', autoPathwaySettled: true, directPathwaySettled: true });
+    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'running', autoPathwaySettled: 'pending', directPathwaySettled: 'pending' });
+    const instanceDAutoSettled = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'running', autoPathwaySettled: 'settled', directPathwaySettled: 'pending' });
+    const instanceDBothSettled = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'running', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' });
 
     vi.spyOn(runStore, 'settleAutoPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'settleDirectPathway').mockImplementation(() => {});
@@ -878,7 +878,7 @@ describe('雙 pathway pod 端到端', () => {
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     // evaluateRunStatus 呼叫 getPodInstancesByRunId，需回傳全部已完成的狀態讓 run 結算
-    const instanceDCompleted = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'completed', autoPathwaySettled: true, directPathwaySettled: true });
+    const instanceDCompleted = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'completed', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' });
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([instanceDCompleted]);
     vi.spyOn(runStore, 'getRun').mockReturnValue({
       id: RUN_ID, canvasId: CANVAS_ID, sourcePodId: SOURCE_POD_ID, triggerMessage: '',
@@ -903,9 +903,9 @@ describe('雙 pathway pod 端到端', () => {
   });
 
   it('pending pod：auto settled 後 direct 未 settled → 不 skip；兩者都 settled → skipped', () => {
-    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: false, directPathwaySettled: false });
-    const instanceDAutoSettled = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: true, directPathwaySettled: false });
-    const instanceDBothSettled = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: true, directPathwaySettled: true });
+    const instanceD = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: 'pending', directPathwaySettled: 'pending' });
+    const instanceDAutoSettled = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: 'settled', directPathwaySettled: 'pending' });
+    const instanceDBothSettled = makeInstance({ id: 'i-d', podId: 'pod-d', status: 'pending', autoPathwaySettled: 'settled', directPathwaySettled: 'settled' });
 
     vi.spyOn(runStore, 'settleAutoPathway').mockImplementation(() => {});
     vi.spyOn(runStore, 'settleDirectPathway').mockImplementation(() => {});
@@ -963,10 +963,10 @@ describe('端到端：AI-decide reject → settleAndSkipPath → evaluateRunStat
   });
 
   it('source pod 完成後 target pod 被 reject → run 完成', () => {
-    const sourceInstance = makeInstance({ id: 'i-source', podId: SOURCE_POD_ID, status: 'running', autoPathwaySettled: false });
-    const targetInstance = makeInstance({ id: 'i-target', podId: 'pod-target', status: 'pending', autoPathwaySettled: false });
-    const sourceSettled = makeInstance({ id: 'i-source', podId: SOURCE_POD_ID, status: 'running', autoPathwaySettled: true });
-    const targetSettled = makeInstance({ id: 'i-target', podId: 'pod-target', status: 'pending', autoPathwaySettled: true });
+    const sourceInstance = makeInstance({ id: 'i-source', podId: SOURCE_POD_ID, status: 'running', autoPathwaySettled: 'pending' });
+    const targetInstance = makeInstance({ id: 'i-target', podId: 'pod-target', status: 'pending', autoPathwaySettled: 'pending' });
+    const sourceSettled = makeInstance({ id: 'i-source', podId: SOURCE_POD_ID, status: 'running', autoPathwaySettled: 'settled' });
+    const targetSettled = makeInstance({ id: 'i-target', podId: 'pod-target', status: 'pending', autoPathwaySettled: 'settled' });
 
     // settleAndSkipPath 呼叫順序：1st (targetInstance), 2nd (targetSettled), 3rd via updateAndEmitPodInstanceStatus (targetSettled)
     vi.spyOn(runStore, 'getPodInstance')
@@ -977,8 +977,8 @@ describe('端到端：AI-decide reject → settleAndSkipPath → evaluateRunStat
     vi.spyOn(runStore, 'updatePodInstanceStatus').mockImplementation(() => {});
     // After skip: source is completed, target is skipped
     vi.spyOn(runStore, 'getPodInstancesByRunId').mockReturnValue([
-      makeInstance({ id: 'i-source', podId: SOURCE_POD_ID, status: 'completed', autoPathwaySettled: true }),
-      makeInstance({ id: 'i-target', podId: 'pod-target', status: 'skipped', autoPathwaySettled: true }),
+      makeInstance({ id: 'i-source', podId: SOURCE_POD_ID, status: 'completed', autoPathwaySettled: 'settled' }),
+      makeInstance({ id: 'i-target', podId: 'pod-target', status: 'skipped', autoPathwaySettled: 'settled' }),
     ]);
     vi.spyOn(runStore, 'updateRunStatus').mockImplementation(() => {});
     vi.spyOn(runStore, 'getRun').mockReturnValue({

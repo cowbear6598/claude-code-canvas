@@ -2,6 +2,9 @@ import type { WorkflowRun, RunPodInstance } from '../services/runStore.js';
 import type { PersistedMessage } from './persistence.js';
 import type { MessageRole } from './message.js';
 
+/** not-applicable: 該路徑不存在; pending: 尚未 settle; settled: 已完成 settle */
+export type PathwayState = 'not-applicable' | 'pending' | 'settled'
+
 export type { WorkflowRun, RunPodInstance };
 
 export interface RunContext {
@@ -37,8 +40,8 @@ export interface RunPodStatusChangedPayload {
   lastResponseSummary?: string;
   triggeredAt?: string;
   completedAt?: string;
-  autoPathwaySettled?: boolean | null;
-  directPathwaySettled?: boolean | null;
+  autoPathwaySettled?: PathwayState;
+  directPathwaySettled?: PathwayState;
 }
 
 export interface RunMessagePayload {

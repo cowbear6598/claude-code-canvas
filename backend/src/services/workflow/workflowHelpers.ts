@@ -1,10 +1,10 @@
-import type {Pod, Command, Connection} from '../../types/index.js';
+import type {Pod, Command, Connection, TriggerMode} from '../../types/index.js';
 import type {WorkflowQueuedPayload, WorkflowQueueProcessedPayload} from '../../types/responses/workflow.js';
 import type { RunContext } from '../../types/run.js';
 import {connectionStore} from '../connectionStore.js';
 import {workflowEventEmitter} from './workflowEventEmitter.js';
 import {logger} from '../../utils/logger.js';
-import type {CompletionContext, QueuedContext, QueueProcessedContext} from './types.js';
+import type {CompletionContext, QueuedContext, QueueProcessedContext, SettlementPathway} from './types.js';
 
 const WORKFLOW_SOURCE_HEADING = '## Source:';
 const WORKFLOW_SECTION_SEPARATOR = '---';
@@ -15,6 +15,10 @@ export function resolvePendingKey(targetPodId: string, runContext?: RunContext):
 
 export function isAutoTriggerable(triggerMode: string): boolean {
     return triggerMode === 'auto' || triggerMode === 'ai-decide';
+}
+
+export function resolveSettlementPathway(triggerMode: TriggerMode): SettlementPathway {
+    return isAutoTriggerable(triggerMode) ? 'auto' : 'direct';
 }
 
 export function getMultiInputGroupConnections(
