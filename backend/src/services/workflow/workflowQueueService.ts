@@ -6,6 +6,8 @@ import { podStore } from '../podStore.js';
 import { LazyInitializable } from './lazyInitializable.js';
 import { logger } from '../../utils/logger.js';
 
+const MAX_QUEUE_SIZE = 50;
+
 export interface QueueItem {
   id: string;
   canvasId: string;
@@ -39,13 +41,19 @@ class WorkflowQueueService extends LazyInitializable<QueueServiceDeps> {
       return { position: 0, queueSize: 0 };
     }
 
+    const existingQueue = this.queues.get(item.targetPodId) ?? [];
+    if (existingQueue.length >= MAX_QUEUE_SIZE) {
+      logger.warn('Workflow', 'Warn', `[WorkflowQueueService] 佇列已達上限 ${MAX_QUEUE_SIZE}，拒絕加入 (targetPodId=${item.targetPodId})`);
+      return { position: 0, queueSize: existingQueue.length };
+    }
+
     const queueItem: QueueItem = {
       ...item,
       id: uuidv4(),
       enqueuedAt: new Date(),
     };
 
-    const queue = this.queues.get(item.targetPodId) ?? [];
+    const queue = existingQueue;
     queue.push(queueItem);
     this.queues.set(item.targetPodId, queue);
 

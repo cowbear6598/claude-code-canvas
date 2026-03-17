@@ -21,6 +21,7 @@ import { workflowMultiInputService } from './workflowMultiInputService.js';
 import { workflowExecutionService } from './workflowExecutionService.js';
 import { workflowQueueService } from './workflowQueueService.js';
 import { runQueueService } from './runQueueService.js';
+import { runExecutionService } from './runExecutionService.js';
 import { workflowStateService } from './workflowStateService.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
 import { aiDecideService } from './aiDecideService.js';
@@ -28,6 +29,12 @@ import { connectionStore } from '../connectionStore.js';
 import { podStore } from '../podStore.js';
 import { pendingTargetStore } from '../pendingTargetStore.js';
 export function initWorkflowServices(): void {
+  const sharedStrategies = {
+    auto: workflowAutoTriggerService,
+    direct: workflowDirectTriggerService,
+    'ai-decide': workflowAiDecideTriggerService,
+  };
+
   workflowPipeline.init({
     executionService: workflowExecutionService,
     multiInputService: workflowMultiInputService,
@@ -49,29 +56,18 @@ export function initWorkflowServices(): void {
 
   workflowMultiInputService.init({
     executionService: workflowExecutionService,
-    strategies: {
-      auto: workflowAutoTriggerService,
-      direct: workflowDirectTriggerService,
-      'ai-decide': workflowAiDecideTriggerService,
-    },
+    strategies: sharedStrategies,
   });
 
   workflowQueueService.init({
     executionService: workflowExecutionService,
-    strategies: {
-      auto: workflowAutoTriggerService,
-      direct: workflowDirectTriggerService,
-      'ai-decide': workflowAiDecideTriggerService,
-    },
+    strategies: sharedStrategies,
   });
 
   runQueueService.init({
     executionService: workflowExecutionService,
-    strategies: {
-      auto: workflowAutoTriggerService,
-      direct: workflowDirectTriggerService,
-      'ai-decide': workflowAiDecideTriggerService,
-    },
+    strategies: sharedStrategies,
+    queuedPodInstance: (ctx, podId) => runExecutionService.queuedPodInstance(ctx, podId),
   });
 
   workflowExecutionService.init({

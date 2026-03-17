@@ -116,28 +116,4 @@ describe('RunModeDelegate 佇列整合', () => {
     });
   });
 
-  describe('settlePodTrigger 佇列不為空時不標記 completed', () => {
-    it('佇列有項目時不標記 completed', async () => {
-      const { runQueueService } = await import('../../src/services/workflow/runQueueService.js');
-      (runQueueService.getQueueSize as any).mockReturnValue(1);
-
-      const instance = createMockRunPodInstance({
-        autoPathwaySettled: 'settled',
-        directPathwaySettled: 'not-applicable',
-        status: 'running',
-      });
-      (runStore.getPodInstance as any)
-        .mockReturnValueOnce(instance)
-        .mockReturnValueOnce({ ...instance });
-
-      const { runExecutionService } = await import('../../src/services/workflow/runExecutionService.js');
-      const settleSpy = runExecutionService.settlePodTrigger as any;
-
-      // 透過真實的 runExecutionService.settlePodTrigger 測試
-      // 由於 settlePodTrigger 用 lazy import，需透過 settlePathwayAndRefresh 邏輯測試
-      // 這裡驗證 runQueueService.getQueueSize 被呼叫到
-      expect(runQueueService.getQueueSize).toBeDefined();
-      expect(settleSpy).toBeDefined();
-    });
-  });
 });

@@ -8,11 +8,6 @@ vi.mock('../../src/services/runStore.js', async (importOriginal) => {
   };
 });
 
-vi.mock('../../src/services/workflow/runExecutionService.js', () => ({
-  runExecutionService: {
-    queuedPodInstance: vi.fn(),
-  },
-}));
 
 vi.mock('../../src/utils/logger.js', () => ({
   logger: {
@@ -25,12 +20,15 @@ vi.mock('../../src/utils/logger.js', () => ({
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runQueueService } from '../../src/services/workflow/runQueueService.js';
 import { runStore } from '../../src/services/runStore.js';
+import { logger } from '../../src/utils/logger.js';
 import { createMockRunContext, TEST_IDS } from '../mocks/workflowTestFactories.js';
 import { buildRunQueueKey } from '../../src/services/workflow/workflowHelpers.js';
 import type { RunQueueItem } from '../../src/services/workflow/runQueueService.js';
 
 const { canvasId, targetPodId, sourcePodId, connectionId } = TEST_IDS;
 const mockRunContext = createMockRunContext();
+
+const mockQueuedPodInstance = vi.fn();
 
 const mockExecutionService = {
   generateSummaryWithFallback: vi.fn(),
@@ -63,6 +61,7 @@ describe('RunQueueService', () => {
     runQueueService.init({
       executionService: mockExecutionService,
       strategies: mockStrategies,
+      queuedPodInstance: mockQueuedPodInstance,
     });
     // 清空佇列
     const key = buildRunQueueKey(mockRunContext.runId, targetPodId);
@@ -81,15 +80,22 @@ describe('RunQueueService', () => {
       expect(runQueueService.getQueueSize(key)).toBe(1);
     });
 
-    it('enqueue 後呼叫 runExecutionService.queuedPodInstance', async () => {
-      const { runExecutionService } = await import('../../src/services/workflow/runExecutionService.js');
-
+    it('enqueue 後呼叫 queuedPodInstance', () => {
       runQueueService.enqueue(createQueueItem());
+      expect(mockQueuedPodInstance).toHaveBeenCalledWith(mockRunContext, targetPodId);
+    });
 
-      // 動態 import + 非同步，需等待 microtask queue 清空
-      await new Promise(resolve => setTimeout(resolve, 0));
+    it('佇列超過上限時拒絕加入並 warn', () => {
+      const key = buildRunQueueKey(mockRunContext.runId, targetPodId);
 
-      expect(runExecutionService.queuedPodInstance).toHaveBeenCalledWith(mockRunContext, targetPodId);
+      for (let i = 0; i < 50; i++) {
+        runQueueService.enqueue(createQueueItem({ connectionId: `conn-${i}` }));
+      }
+      expect(runQueueService.getQueueSize(key)).toBe(50);
+
+      runQueueService.enqueue(createQueueItem({ connectionId: 'conn-overflow' }));
+      expect(runQueueService.getQueueSize(key)).toBe(50);
+      expect(logger.warn).toHaveBeenCalled();
     });
   });
 

@@ -7,6 +7,8 @@ import { LazyInitializable } from './lazyInitializable.js';
 import { buildRunQueueKey } from './workflowHelpers.js';
 import { logger } from '../../utils/logger.js';
 
+const MAX_QUEUE_SIZE = 50;
+
 export interface RunQueueItem {
   id: string;
   canvasId: string;
@@ -24,6 +26,7 @@ export interface RunQueueItem {
 interface RunQueueServiceDeps {
   executionService: ExecutionServiceMethods;
   strategies: { auto: TriggerStrategy; direct: TriggerStrategy; 'ai-decide': TriggerStrategy };
+  queuedPodInstance: (runContext: RunContext, podId: string) => void;
 }
 
 class RunQueueService extends LazyInitializable<RunQueueServiceDeps> {
@@ -34,23 +37,24 @@ class RunQueueService extends LazyInitializable<RunQueueServiceDeps> {
   }
 
   enqueue(item: Omit<RunQueueItem, 'id' | 'enqueuedAt'>): void {
+    const key = buildRunQueueKey(item.runContext.runId, item.targetPodId);
+    const queue = this.queues.get(key) ?? [];
+
+    if (queue.length >= MAX_QUEUE_SIZE) {
+      logger.warn('Run', 'Warn', `[RunQueueService] 佇列已達上限 ${MAX_QUEUE_SIZE}，拒絕加入 (runId=${item.runContext.runId}, targetPodId=${item.targetPodId})`);
+      return;
+    }
+
     const queueItem: RunQueueItem = {
       ...item,
       id: uuidv4(),
       enqueuedAt: new Date(),
     };
 
-    const key = buildRunQueueKey(item.runContext.runId, item.targetPodId);
-    const queue = this.queues.get(key) ?? [];
     queue.push(queueItem);
     this.queues.set(key, queue);
 
-    // 更新 instance 狀態為 queued
-    import('./runExecutionService.js').then(({ runExecutionService }) => {
-      runExecutionService.queuedPodInstance(item.runContext, item.targetPodId);
-    }).catch((error) => {
-      logger.error('Run', 'Error', '[RunQueueService] 載入 runExecutionService 失敗', error);
-    });
+    this.deps.queuedPodInstance(item.runContext, item.targetPodId);
   }
 
   dequeue(key: string): RunQueueItem | undefined {
