@@ -1,6 +1,7 @@
 vi.mock('../../src/services/podStore.js', () => ({
   podStore: {
     setStatus: vi.fn(),
+    getById: vi.fn(),
   },
 }));
 
@@ -19,15 +20,35 @@ vi.mock('../../src/services/workflow/runExecutionService.js', () => ({
 vi.mock('../../src/services/workflow/workflowQueueService.js', () => ({
   workflowQueueService: {
     processNextInQueue: vi.fn().mockResolvedValue(undefined),
+    enqueue: vi.fn(),
     init: vi.fn(),
   },
 }));
+
+vi.mock('../../src/services/workflow/runQueueService.js', () => ({
+  runQueueService: {
+    processNext: vi.fn().mockResolvedValue(undefined),
+    enqueue: vi.fn(),
+    init: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/services/runStore.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/services/runStore.js')>();
+  return {
+    ...actual,
+    runStore: {
+      getPodInstance: vi.fn(),
+    },
+  };
+});
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createStatusDelegate } from '../../src/services/workflow/workflowStatusDelegate.js';
 import { podStore } from '../../src/services/podStore.js';
 import { runExecutionService } from '../../src/services/workflow/runExecutionService.js';
-import { createMockRunContext, TEST_IDS } from '../mocks/workflowTestFactories.js';
+import { runStore } from '../../src/services/runStore.js';
+import { createMockRunContext, createMockRunPodInstance, TEST_IDS } from '../mocks/workflowTestFactories.js';
 
 describe('WorkflowStatusDelegate', () => {
   const { canvasId, targetPodId } = TEST_IDS;
@@ -96,6 +117,39 @@ describe('WorkflowStatusDelegate', () => {
       expect(delegate.shouldEnqueue()).toBe(true);
     });
 
+    it('isBusy Pod 為 idle 時回傳 false', () => {
+      (podStore.getById as any).mockReturnValue({ status: 'idle' });
+      expect(delegate.isBusy(canvasId, targetPodId)).toBe(false);
+    });
+
+    it('isBusy Pod 為 chatting 時回傳 true', () => {
+      (podStore.getById as any).mockReturnValue({ status: 'chatting' });
+      expect(delegate.isBusy(canvasId, targetPodId)).toBe(true);
+    });
+
+    it('isBusy Pod 不存在時回傳 false', () => {
+      (podStore.getById as any).mockReturnValue(undefined);
+      expect(delegate.isBusy(canvasId, targetPodId)).toBe(false);
+    });
+
+    it('enqueue 呼叫 workflowQueueService.enqueue', async () => {
+      const { workflowQueueService } = await import('../../src/services/workflow/workflowQueueService.js');
+
+      delegate.enqueue({
+        canvasId,
+        connectionId: 'conn-1',
+        sourcePodId: 'source-pod',
+        targetPodId,
+        summary: '摘要',
+        isSummarized: true,
+        triggerMode: 'auto',
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(workflowQueueService.enqueue).toHaveBeenCalled();
+    });
+
     it('settleAndSkipPath 無操作', () => {
       delegate.settleAndSkipPath(canvasId, targetPodId, 'auto');
       expect(runExecutionService.settleAndSkipPath).not.toHaveBeenCalled();
@@ -161,14 +215,52 @@ describe('WorkflowStatusDelegate', () => {
       expect(runExecutionService.errorPodInstance).toHaveBeenCalledWith(mockRunContext, targetPodId, '執行失敗');
     });
 
-    it('shouldEnqueue 回傳 false', () => {
-      expect(delegate.shouldEnqueue()).toBe(false);
+    it('shouldEnqueue 回傳 true', () => {
+      expect(delegate.shouldEnqueue()).toBe(true);
     });
 
-    it('scheduleNextInQueue 無操作（run mode 無佇列）', () => {
+    it('isBusy instance 狀態為 running 時回傳 true', () => {
+      (runStore.getPodInstance as any).mockReturnValue(createMockRunPodInstance({ status: 'running' }));
+      expect(delegate.isBusy(canvasId, targetPodId)).toBe(true);
+    });
+
+    it('isBusy instance 狀態為 pending 時回傳 false', () => {
+      (runStore.getPodInstance as any).mockReturnValue(createMockRunPodInstance({ status: 'pending' }));
+      expect(delegate.isBusy(canvasId, targetPodId)).toBe(false);
+    });
+
+    it('isBusy instance 不存在時回傳 false', () => {
+      (runStore.getPodInstance as any).mockReturnValue(undefined);
+      expect(delegate.isBusy(canvasId, targetPodId)).toBe(false);
+    });
+
+    it('enqueue 呼叫 runQueueService.enqueue', async () => {
+      const { runQueueService } = await import('../../src/services/workflow/runQueueService.js');
+
+      delegate.enqueue({
+        canvasId,
+        connectionId: 'conn-1',
+        sourcePodId: 'source-pod',
+        targetPodId,
+        summary: '摘要',
+        isSummarized: true,
+        triggerMode: 'auto',
+        runContext: mockRunContext,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(runQueueService.enqueue).toHaveBeenCalled();
+    });
+
+    it('scheduleNextInQueue 呼叫 runQueueService.processNext', async () => {
+      const { runQueueService } = await import('../../src/services/workflow/runQueueService.js');
+
       delegate.scheduleNextInQueue(canvasId, targetPodId);
-      // run mode 下不應觸發任何佇列操作
-      expect(podStore.setStatus).not.toHaveBeenCalled();
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(runQueueService.processNext).toHaveBeenCalledWith(canvasId, targetPodId, mockRunContext);
     });
 
     it('settleAndSkipPath 呼叫 runExecutionService.settleAndSkipPath', () => {

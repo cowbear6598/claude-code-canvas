@@ -8,6 +8,7 @@ export { workflowAiDecideTriggerService } from './workflowAiDecideTriggerService
 export { aiDecideService } from './aiDecideService.js';
 export { aiDecidePromptBuilder } from './aiDecidePromptBuilder.js';
 export { workflowQueueService } from './workflowQueueService.js';
+export { runQueueService } from './runQueueService.js';
 export { workflowPipeline } from './workflowPipeline.js';
 export { runExecutionService } from './runExecutionService.js';
 export type * from './types.js';
@@ -19,6 +20,7 @@ import { workflowDirectTriggerService } from './workflowDirectTriggerService.js'
 import { workflowMultiInputService } from './workflowMultiInputService.js';
 import { workflowExecutionService } from './workflowExecutionService.js';
 import { workflowQueueService } from './workflowQueueService.js';
+import { runQueueService } from './runQueueService.js';
 import { workflowStateService } from './workflowStateService.js';
 import { workflowEventEmitter } from './workflowEventEmitter.js';
 import { aiDecideService } from './aiDecideService.js';
@@ -55,6 +57,15 @@ export function initWorkflowServices(): void {
   });
 
   workflowQueueService.init({
+    executionService: workflowExecutionService,
+    strategies: {
+      auto: workflowAutoTriggerService,
+      direct: workflowDirectTriggerService,
+      'ai-decide': workflowAiDecideTriggerService,
+    },
+  });
+
+  runQueueService.init({
     executionService: workflowExecutionService,
     strategies: {
       auto: workflowAutoTriggerService,

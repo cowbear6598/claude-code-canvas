@@ -33,6 +33,8 @@ const handleClose = (): void => {
 
 const handleKeydown = (event: KeyboardEvent): void => {
   if (event.key === 'Escape') {
+    event.stopPropagation()
+    event.preventDefault()
     handleClose()
   }
 }
@@ -48,8 +50,15 @@ onUnmounted(() => {
 
 <template>
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 modal-overlay" />
-    <div class="relative max-w-3xl w-full h-[85vh]">
+    <div
+      class="absolute inset-0 modal-overlay"
+      @mousedown.stop
+      @click="handleClose"
+    />
+    <div
+      class="relative max-w-3xl w-full h-[85vh]"
+      @mousedown.stop
+    >
       <div class="chat-window flex flex-col h-full overflow-hidden">
         <div class="flex items-center justify-between p-4 border-b-2 border-doodle-ink">
           <div class="flex items-center gap-2">

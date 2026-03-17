@@ -9,7 +9,8 @@ import { socketService } from '../socketService.js';
 import { claudeService } from '../claude/claudeService.js';
 import { logger } from '../../utils/logger.js';
 import { WebSocketResponseEvents } from '../../schemas/events.js';
-import { isAutoTriggerable } from './workflowHelpers.js';
+import { isAutoTriggerable, buildRunQueueKey } from './workflowHelpers.js';
+import { runQueueService } from './runQueueService.js';
 import type { SettlementPathway } from './types.js';
 import type {
   RunContext,
@@ -176,9 +177,16 @@ class RunExecutionService {
     const updated = this.settlePathwayAndRefresh(runContext, podId, pathway, 'settlePodTrigger');
     if (!updated) return;
 
-    if (isAllPathwaysSettled(updated.autoPathwaySettled, updated.directPathwaySettled) && !NEVER_TRIGGERED_STATUSES.has(updated.status)) {
-      this.updateAndEmitPodInstanceStatus(runContext, podId, 'completed', { evaluateRun: true });
+    if (!isAllPathwaysSettled(updated.autoPathwaySettled, updated.directPathwaySettled)) return;
+    if (NEVER_TRIGGERED_STATUSES.has(updated.status)) return;
+
+    const key = buildRunQueueKey(runContext.runId, podId);
+    if (runQueueService.getQueueSize(key) > 0) {
+      // 佇列中還有待處理項目，不提前標記 completed，等佇列消化完再說
+      return;
     }
+
+    this.updateAndEmitPodInstanceStatus(runContext, podId, 'completed', { evaluateRun: true });
   }
 
   settleAndSkipPath(runContext: RunContext, podId: string, pathway: SettlementPathway): void {

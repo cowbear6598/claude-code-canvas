@@ -13,6 +13,7 @@ import {commandService} from '../../src/services/commandService.js';
 import {claudeService} from '../../src/services/claude/claudeService.js';
 import {runStore} from '../../src/services/runStore.js';
 import {runExecutionService} from '../../src/services/workflow/runExecutionService.js';
+import {runQueueService} from '../../src/services/workflow/runQueueService.js';
 import type {Connection, PersistedMessage, Pod} from '../../src/types/index.js';
 import type {WorkflowRun, RunPodInstance} from '../../src/services/runStore.js';
 
@@ -272,6 +273,16 @@ export function setupRunExecutionServiceSpy() {
     return spies;
 }
 
+export function setupRunQueueServiceSpy() {
+    const spies = {
+        enqueue: vi.spyOn(runQueueService, 'enqueue').mockImplementation(() => {}),
+        dequeue: vi.spyOn(runQueueService, 'dequeue').mockReturnValue(undefined),
+        getQueueSize: vi.spyOn(runQueueService, 'getQueueSize').mockReturnValue(0),
+        processNext: vi.spyOn(runQueueService, 'processNext').mockResolvedValue(undefined),
+    };
+    return spies;
+}
+
 export function setupAllSpies(options?: SetupAllSpiesOptions) {
     return {
         connectionStore: setupConnectionStoreSpy(options?.connection),
@@ -288,5 +299,6 @@ export function setupAllSpies(options?: SetupAllSpiesOptions) {
         claudeService: setupClaudeServiceSpy(options?.customClaudeQuery),
         runStore: setupRunStoreSpy(),
         runExecutionService: setupRunExecutionServiceSpy(),
+        runQueueService: setupRunQueueServiceSpy(),
     };
 }

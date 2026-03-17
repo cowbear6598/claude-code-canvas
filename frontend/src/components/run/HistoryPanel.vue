@@ -27,6 +27,10 @@ const handleOpenPodChat = (runId: string, podId: string, _podName: string): void
 }
 
 const handleClickOutside = (event: MouseEvent): void => {
+  if (runStore.activeRunChatModal) {
+    return
+  }
+
   const target = event.target
 
   if (!(target instanceof Node)) {
@@ -46,6 +50,10 @@ const handleClickOutside = (event: MouseEvent): void => {
 }
 
 const handleKeyDown = (event: KeyboardEvent): void => {
+  if (runStore.activeRunChatModal) {
+    return
+  }
+
   if (event.key === 'Escape') {
     event.preventDefault()
     handleClose()

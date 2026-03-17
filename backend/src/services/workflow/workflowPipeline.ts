@@ -64,8 +64,25 @@ class WorkflowPipeline extends LazyInitializable<PipelineDeps> {
 
     const { finalSummary, finalIsSummarized, participatingConnectionIds } = collectResult;
 
-    // run mode 下直接執行，不進入佇列
-    if (!runContext && targetPod.status !== 'idle') {
+    if (delegate?.shouldEnqueue() && delegate.isBusy(canvasId, targetPodId)) {
+      logger.log('Workflow', 'Pipeline', `[checkQueue] 目標 Pod 忙碌中，加入佇列`);
+      delegate.enqueue({
+        canvasId,
+        connectionId,
+        sourcePodId,
+        targetPodId,
+        summary: finalSummary,
+        isSummarized: finalIsSummarized,
+        triggerMode,
+        participatingConnectionIds,
+        runContext,
+      });
+      // 安全網：立即嘗試消化佇列，防止 enqueue 發生在最後一次 scheduleNextInQueue 之後導致佇列卡住
+      delegate.scheduleNextInQueue(canvasId, targetPodId);
+      return;
+    }
+
+    if (!delegate && targetPod.status !== 'idle') {
       logger.log('Workflow', 'Pipeline', `[checkQueue] 目標 Pod 忙碌中 (${targetPod.status})，加入佇列`);
       this.deps.queueService.enqueue({
         canvasId,

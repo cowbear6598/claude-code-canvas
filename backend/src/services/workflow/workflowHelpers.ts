@@ -13,6 +13,10 @@ export function resolvePendingKey(targetPodId: string, runContext?: RunContext):
     return runContext ? `${runContext.runId}:${targetPodId}` : targetPodId;
 }
 
+export function buildRunQueueKey(runId: string, podId: string): string {
+    return `${runId}:${podId}`;
+}
+
 export function isAutoTriggerable(triggerMode: string): boolean {
     return triggerMode === 'auto' || triggerMode === 'ai-decide';
 }

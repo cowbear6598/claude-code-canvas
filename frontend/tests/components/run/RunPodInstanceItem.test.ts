@@ -11,8 +11,8 @@ function createInstance(overrides?: Partial<RunPodInstance>): RunPodInstance {
     podId: 'pod-1',
     podName: '測試 Pod',
     status: 'completed',
-    autoPathwaySettled: null,
-    directPathwaySettled: null,
+    autoPathwaySettled: 'not-applicable',
+    directPathwaySettled: 'not-applicable',
     ...overrides,
   }
 }
@@ -44,10 +44,10 @@ describe('RunPodInstanceItem', () => {
     wrapper.unmount()
   })
 
-  it('點擊時應 emit click', async () => {
+  it('點擊時應 emit select', async () => {
     const wrapper = mountItem(createInstance())
     await wrapper.trigger('click')
-    expect(wrapper.emitted('click')).toBeTruthy()
+    expect(wrapper.emitted('select')).toBeTruthy()
     wrapper.unmount()
   })
 

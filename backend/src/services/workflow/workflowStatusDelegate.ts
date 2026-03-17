@@ -1,9 +1,23 @@
 import type { RunContext } from '../../types/run.js';
+import type { TriggerMode } from '../../types/index.js';
 import type { SettlementPathway } from './types.js';
 import { podStore } from '../podStore.js';
+import { runStore } from '../runStore.js';
 import { runExecutionService } from './runExecutionService.js';
 import { fireAndForget } from '../../utils/operationHelpers.js';
 import { logger } from '../../utils/logger.js';
+
+export interface EnqueueItem {
+  canvasId: string;
+  connectionId: string;
+  sourcePodId: string;
+  targetPodId: string;
+  summary: string;
+  isSummarized: boolean;
+  triggerMode: TriggerMode;
+  participatingConnectionIds?: string[];
+  runContext?: RunContext;
+}
 
 export interface WorkflowStatusDelegate {
   startPodExecution(canvasId: string, podId: string): void;
@@ -15,6 +29,8 @@ export interface WorkflowStatusDelegate {
   onChatComplete(canvasId: string, podId: string, pathway: SettlementPathway): void;
   onChatError(canvasId: string, podId: string, errorMessage: string): void;
   shouldEnqueue(): boolean;
+  isBusy(canvasId: string, targetPodId: string): boolean;
+  enqueue(item: EnqueueItem): void;
   scheduleNextInQueue(canvasId: string, targetPodId: string): void;
   isRunMode(): boolean;
   settleAndSkipPath(canvasId: string, podId: string, pathway: SettlementPathway): void;
@@ -49,6 +65,20 @@ class NormalModeDelegate implements WorkflowStatusDelegate {
 
   shouldEnqueue(): boolean {
     return true;
+  }
+
+  isBusy(canvasId: string, targetPodId: string): boolean {
+    const pod = podStore.getById(canvasId, targetPodId);
+    return !!pod && pod.status !== 'idle';
+  }
+
+  enqueue(item: EnqueueItem): void {
+    // 延遲 import 避免循環依賴
+    import('./workflowQueueService.js').then(({ workflowQueueService }) => {
+      workflowQueueService.enqueue(item);
+    }).catch((error) => {
+      logger.error('Workflow', 'Error', '[NormalModeDelegate] 載入 workflowQueueService 失敗', error);
+    });
   }
 
   scheduleNextInQueue(canvasId: string, targetPodId: string): void {
@@ -108,10 +138,36 @@ class RunModeDelegate implements WorkflowStatusDelegate {
   }
 
   shouldEnqueue(): boolean {
-    return false;
+    return true;
   }
 
-  scheduleNextInQueue(_canvasId: string, _targetPodId: string): void {}
+  isBusy(_canvasId: string, targetPodId: string): boolean {
+    const instance = runStore.getPodInstance(this.runContext.runId, targetPodId);
+    return instance?.status === 'running';
+  }
+
+  enqueue(item: EnqueueItem): void {
+    // 延遲 import 避免循環依賴
+    import('./runQueueService.js').then(({ runQueueService }) => {
+      if (!item.runContext) return;
+      runQueueService.enqueue({ ...item, runContext: item.runContext });
+    }).catch((error) => {
+      logger.error('Run', 'Error', '[RunModeDelegate] 載入 runQueueService 失敗', error);
+    });
+  }
+
+  scheduleNextInQueue(canvasId: string, targetPodId: string): void {
+    // 延遲 import 避免循環依賴
+    import('./runQueueService.js').then(({ runQueueService }) => {
+      fireAndForget(
+        runQueueService.processNext(canvasId, targetPodId, this.runContext),
+        'Run',
+        '[RunModeDelegate] 處理 Run 佇列下一項時發生錯誤'
+      );
+    }).catch((error) => {
+      logger.error('Run', 'Error', '[RunModeDelegate] 載入 runQueueService 失敗', error);
+    });
+  }
 
   isRunMode(): boolean {
     return true;

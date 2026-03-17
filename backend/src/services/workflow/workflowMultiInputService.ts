@@ -8,6 +8,7 @@ import { isPodBusy } from '../../types/index.js';
 import type { ExecutionServiceMethods, TriggerStrategy, HandleMultiInputForConnectionParams } from './types.js';
 import type { RunContext } from '../../types/run.js';
 import {podStore} from '../podStore.js';
+import {runStore} from '../runStore.js';
 import {socketService} from '../socketService.js';
 import {pendingTargetStore} from '../pendingTargetStore.js';
 import {workflowQueueService} from './workflowQueueService.js';
@@ -17,6 +18,7 @@ import {formatMergedSummaries, resolvePendingKey, getMultiInputGroupConnections}
 import { LazyInitializable } from './lazyInitializable.js';
 import { MERGED_CONTENT_PREVIEW_MAX_LENGTH } from './constants.js';
 import { fireAndForget } from '../../utils/operationHelpers.js';
+import { createStatusDelegate } from './workflowStatusDelegate.js';
 
 interface MultiInputServiceDeps {
   executionService: ExecutionServiceMethods;
@@ -51,6 +53,38 @@ class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps>
       isSummarized: true,
       triggerMode,
       runContext,
+    });
+
+    const pendingKey = resolvePendingKey(connection.targetPodId, runContext);
+    pendingTargetStore.clearPendingTarget(pendingKey);
+  }
+
+  private enqueueIfBusyForRun(
+    canvasId: string,
+    connection: Connection,
+    completedSummaries: Map<string, string>,
+    mergedContent: string,
+    triggerMode: AutoTriggerMode,
+    runContext: RunContext
+  ): void {
+    const targetPod = podStore.getById(canvasId, connection.targetPodId);
+    logger.log('Run', 'Update', `目標 Pod "${targetPod?.name ?? connection.targetPodId}" 忙碌中，將合併的 workflow 加入 Run 佇列`);
+
+    const primarySourcePodId = Array.from(completedSummaries.keys())[0];
+
+    import('./runQueueService.js').then(({ runQueueService }) => {
+      runQueueService.enqueue({
+        canvasId,
+        connectionId: connection.id,
+        sourcePodId: primarySourcePodId,
+        targetPodId: connection.targetPodId,
+        summary: mergedContent,
+        isSummarized: true,
+        triggerMode,
+        runContext,
+      });
+    }).catch((error) => {
+      logger.error('Run', 'Error', '[MultiInputService] 載入 runQueueService 失敗', error);
     });
 
     const pendingKey = resolvePendingKey(connection.targetPodId, runContext);
@@ -136,11 +170,16 @@ class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps>
     const merged = this.getMergedContentOrNull(canvasId, connection.targetPodId, runContext);
     if (!merged) return;
 
-    // run mode 下直接觸發，不進行忙碌檢查
     if (!runContext) {
       const targetPod = podStore.getById(canvasId, connection.targetPodId);
       if (this.isTargetPodBusy(targetPod)) {
         this.enqueueIfBusy(canvasId, connection, merged.completedSummaries, merged.mergedContent, triggerMode);
+        return;
+      }
+    } else {
+      const instance = runStore.getPodInstance(runContext.runId, connection.targetPodId);
+      if (instance?.status === 'running') {
+        this.enqueueIfBusyForRun(canvasId, connection, merged.completedSummaries, merged.mergedContent, triggerMode, runContext);
         return;
       }
     }
@@ -182,6 +221,7 @@ class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps>
     }
 
     const strategy = this.deps.strategies[triggerMode];
+    const delegate = createStatusDelegate(runContext);
     // 刻意不 await：合併工作流程是長時間操作，結果透過 WebSocket 通知
     fireAndForget(
       this.deps.executionService.triggerWorkflowWithSummary({
@@ -192,6 +232,7 @@ class WorkflowMultiInputService extends LazyInitializable<MultiInputServiceDeps>
         participatingConnectionIds: undefined,
         strategy,
         runContext,
+        delegate,
       }),
       'Workflow',
       `觸發合併工作流程失敗 ${connection.id}`

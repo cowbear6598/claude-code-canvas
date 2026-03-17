@@ -10,14 +10,14 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  click: []
+  select: []
 }>()
 </script>
 
 <template>
   <div
     class="flex items-start gap-2 hover:bg-accent rounded-md p-2 cursor-pointer"
-    @click="emit('click')"
+    @click.stop="emit('select')"
   >
     <div class="mt-0.5 shrink-0">
       <RunStatusIcon :status="instance.status" />

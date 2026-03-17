@@ -19,8 +19,8 @@ function createRun(overrides?: Partial<WorkflowRun>): WorkflowRun {
         podId: 'pod-1',
         podName: 'Pod 1',
         status: 'completed',
-        autoPathwaySettled: null,
-        directPathwaySettled: null,
+        autoPathwaySettled: 'not-applicable',
+        directPathwaySettled: 'not-applicable',
       },
     ],
     createdAt: new Date().toISOString(),
@@ -79,10 +79,34 @@ describe('RunCard', () => {
   it('點擊 podInstance 時應 emit open-pod-chat 帶有正確參數', async () => {
     const wrapper = mountCard(createRun(), true)
     const instanceItem = wrapper.findComponent({ name: 'RunPodInstanceItem' })
-    await instanceItem.trigger('click')
+    await instanceItem.vm.$emit('select')
     const emitted = wrapper.emitted('open-pod-chat')
     expect(emitted).toBeTruthy()
     expect(emitted?.[0]).toEqual(['run-1', 'pod-1', 'Pod 1'])
+    wrapper.unmount()
+  })
+
+  it('點擊 RunPodInstanceItem 時不應觸發 toggle-expand', async () => {
+    const wrapper = mountCard(createRun(), true)
+    const instanceItem = wrapper.findComponent({ name: 'RunPodInstanceItem' })
+    await instanceItem.vm.$emit('select')
+    expect(wrapper.emitted('toggle-expand')).toBeFalsy()
+    wrapper.unmount()
+  })
+
+  it('點擊 RunCard 本體（非 pod instance 區域）應正常 toggle-expand', async () => {
+    const wrapper = mountCard(createRun())
+    await wrapper.trigger('click')
+    expect(wrapper.emitted('toggle-expand')).toBeTruthy()
+    wrapper.unmount()
+  })
+
+  it('點擊刪除按鈕不應觸發 toggle-expand', async () => {
+    const wrapper = mountCard(createRun())
+    const deleteBtn = wrapper.find('button')
+    await deleteBtn.trigger('click')
+    expect(wrapper.emitted('delete')).toBeTruthy()
+    expect(wrapper.emitted('toggle-expand')).toBeFalsy()
     wrapper.unmount()
   })
 })

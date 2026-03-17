@@ -52,7 +52,7 @@ const emit = defineEmits<{
           :key="instance.id"
           :instance="instance"
           :run-id="run.id"
-          @click="emit('open-pod-chat', run.id, instance.podId, instance.podName)"
+          @select="emit('open-pod-chat', run.id, instance.podId, instance.podName)"
         />
       </div>
     </div>

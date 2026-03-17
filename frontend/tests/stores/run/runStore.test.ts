@@ -32,8 +32,8 @@ function createMockPodInstance(overrides?: Partial<RunPodInstance>): RunPodInsta
         podId: 'pod-1',
         podName: 'Pod 1',
         status: 'pending',
-        autoPathwaySettled: null,
-        directPathwaySettled: null,
+        autoPathwaySettled: 'not-applicable',
+        directPathwaySettled: 'not-applicable',
         ...overrides,
     }
 }
@@ -324,34 +324,34 @@ describe('runStore', () => {
             const store = useRunStore()
             store.runs = [createMockRun({
                 id: 'run-1',
-                podInstances: [createMockPodInstance({ podId: 'pod-1', autoPathwaySettled: null })],
+                podInstances: [createMockPodInstance({ podId: 'pod-1', autoPathwaySettled: 'not-applicable' })],
             })]
 
             store.updatePodInstanceStatus({
                 runId: 'run-1',
                 podId: 'pod-1',
                 status: 'completed',
-                autoPathwaySettled: true,
+                autoPathwaySettled: 'settled',
             })
 
-            expect(store.runs[0]?.podInstances[0]?.autoPathwaySettled).toBe(true)
+            expect(store.runs[0]?.podInstances[0]?.autoPathwaySettled).toBe('settled')
         })
 
         it('應更新 directPathwaySettled', () => {
             const store = useRunStore()
             store.runs = [createMockRun({
                 id: 'run-1',
-                podInstances: [createMockPodInstance({ podId: 'pod-1', directPathwaySettled: null })],
+                podInstances: [createMockPodInstance({ podId: 'pod-1', directPathwaySettled: 'not-applicable' })],
             })]
 
             store.updatePodInstanceStatus({
                 runId: 'run-1',
                 podId: 'pod-1',
                 status: 'completed',
-                directPathwaySettled: false,
+                directPathwaySettled: 'pending',
             })
 
-            expect(store.runs[0]?.podInstances[0]?.directPathwaySettled).toBe(false)
+            expect(store.runs[0]?.podInstances[0]?.directPathwaySettled).toBe('pending')
         })
 
         it('run 不存在時不應有任何變化', () => {

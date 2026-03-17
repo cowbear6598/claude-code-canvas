@@ -1,3 +1,13 @@
+vi.mock('../../src/services/workflow/runQueueService.js', () => ({
+  runQueueService: {
+    getQueueSize: vi.fn().mockReturnValue(0),
+    enqueue: vi.fn(),
+    dequeue: vi.fn(),
+    processNext: vi.fn().mockResolvedValue(undefined),
+    init: vi.fn(),
+  },
+}));
+
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { runExecutionService } from '../../src/services/workflow/runExecutionService.js';
 import { runStore } from '../../src/services/runStore.js';
