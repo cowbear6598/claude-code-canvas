@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2] - 2026-03-17
+
+### 修正
+- Jira webhookSecret 前後端同步最小 16 字元驗證
+- 移除 Jira App 卡片的 Webhook URL 顯示
+- Jira App 名稱 placeholder 改為通用範例
+
 ## [0.7.1] - 2026-03-17
 
 ### 新增
