@@ -610,6 +610,32 @@ describe('runStore', () => {
             expect(messages).toHaveLength(1)
             expect(messages?.[0]?.content).toBe('Hello world')
         })
+
+        it('每次呼叫都應產生新的陣列引用以觸發 Vue 響應性', () => {
+            const store = useRunStore()
+
+            store.appendRunChatMessage('run-1', 'pod-1', 'msg-1', 'Hello', false, 'user')
+            const ref1 = store.runChatMessages.get('run-1:pod-1')
+
+            store.appendRunChatMessage('run-1', 'pod-1', 'msg-2', 'World', false, 'assistant')
+            const ref2 = store.runChatMessages.get('run-1:pod-1')
+
+            expect(ref1).not.toBe(ref2)
+        })
+
+        it('更新同一訊息時也應產生新的陣列引用', () => {
+            const store = useRunStore()
+            store.runChatMessages.set('run-1:pod-1', [
+                { id: 'msg-1', role: 'assistant', content: 'partial', isPartial: true },
+            ])
+
+            const refBefore = store.runChatMessages.get('run-1:pod-1')
+
+            store.appendRunChatMessage('run-1', 'pod-1', 'msg-1', 'full content', false, 'assistant')
+
+            const refAfter = store.runChatMessages.get('run-1:pod-1')
+            expect(refBefore).not.toBe(refAfter)
+        })
     })
 
     describe('handleRunChatToolUse', () => {
@@ -649,6 +675,25 @@ describe('runStore', () => {
             const messages = store.runChatMessages.get('run-1:pod-1')
             expect(messages).toHaveLength(0)
         })
+
+        it('應以新物件取代陣列中的 message 以觸發 Vue 響應性', () => {
+            const store = useRunStore()
+            const originalMessage = { id: 'msg-1', role: 'assistant' as const, content: '' }
+            store.runChatMessages.set('run-1:pod-1', [originalMessage])
+
+            store.handleRunChatToolUse({
+                runId: 'run-1',
+                podId: 'pod-1',
+                messageId: 'msg-1',
+                toolUseId: 'tool-1',
+                toolName: 'Bash',
+                input: {},
+            })
+
+            const messages = store.runChatMessages.get('run-1:pod-1')
+            // 陣列中的 message 應為新物件，而非原本的引用
+            expect(messages?.[0]).not.toBe(originalMessage)
+        })
     })
 
     describe('handleRunChatToolResult', () => {
@@ -679,6 +724,34 @@ describe('runStore', () => {
             const toolUse = store.runChatMessages.get('run-1:pod-1')?.[0]?.subMessages?.[0]?.toolUse?.[0]
             expect(toolUse?.output).toBe('file1.txt')
             expect(toolUse?.status).toBe('completed')
+        })
+
+        it('應以新物件取代陣列中的 message 以觸發 Vue 響應性', () => {
+            const store = useRunStore()
+            const originalMessage = {
+                id: 'msg-1',
+                role: 'assistant' as const,
+                content: '',
+                subMessages: [{
+                    id: 'tool-1',
+                    content: '',
+                    toolUse: [{ toolUseId: 'tool-1', toolName: 'Bash', input: {}, status: 'running' as const }],
+                }],
+            }
+            store.runChatMessages.set('run-1:pod-1', [originalMessage])
+
+            store.handleRunChatToolResult({
+                runId: 'run-1',
+                podId: 'pod-1',
+                messageId: 'msg-1',
+                toolUseId: 'tool-1',
+                toolName: 'Bash',
+                output: 'result',
+            })
+
+            const messages = store.runChatMessages.get('run-1:pod-1')
+            // 陣列中的 message 應為新物件，而非原本的引用
+            expect(messages?.[0]).not.toBe(originalMessage)
         })
     })
 
@@ -760,6 +833,18 @@ describe('runStore', () => {
             expect(message?.subMessages).toBeUndefined()
             expect(message?.content).toBe('最終純文字內容')
             expect(message?.isPartial).toBe(false)
+        })
+
+        it('應以新物件取代陣列中的 message 以觸發 Vue 響應性', () => {
+            const store = useRunStore()
+            const originalMessage = { id: 'msg-1', role: 'assistant' as const, content: 'streaming...', isPartial: true }
+            store.runChatMessages.set('run-1:pod-1', [originalMessage])
+
+            store.handleRunChatComplete('run-1', 'pod-1', 'msg-1', '最終內容')
+
+            const messages = store.runChatMessages.get('run-1:pod-1')
+            // 陣列中的 message 應為新物件，而非原本的引用
+            expect(messages?.[0]).not.toBe(originalMessage)
         })
     })
 

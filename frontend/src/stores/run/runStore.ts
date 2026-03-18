@@ -55,17 +55,6 @@ function toMessage(pm: PersistedMessage): Message {
     }
 }
 
-function findRunChatMessage(
-    messages: Map<string, Message[]>,
-    runId: string,
-    podId: string,
-    messageId: string
-): Message | undefined {
-    const key = buildRunPodCacheKey(runId, podId)
-    const msgs = messages.get(key)
-    if (!msgs) return undefined
-    return msgs.find(m => m.id === messageId)
-}
 
 export const useRunStore = defineStore('run', {
     state: (): RunState => ({
@@ -264,7 +253,7 @@ export const useRunStore = defineStore('run', {
 
             upsertMessage(messages, messageId, content, isPartial, role)
 
-            this.runChatMessages.set(key, messages)
+            this.runChatMessages.set(key, [...messages])
         },
 
         handleRunChatToolUse(payload: {
@@ -275,10 +264,20 @@ export const useRunStore = defineStore('run', {
             toolName: string
             input: Record<string, unknown>
         }): void {
-            const message = findRunChatMessage(this.runChatMessages, payload.runId, payload.podId, payload.messageId)
-            if (!message) return
+            const key = buildRunPodCacheKey(payload.runId, payload.podId)
+            const messages = this.runChatMessages.get(key)
+            if (!messages) return
 
+            const messageIndex = messages.findIndex(m => m.id === payload.messageId)
+            if (messageIndex === -1) return
+
+            // findIndex 已確認 index 有效，斷言元素一定存在
+            const message = messages[messageIndex] as Message
             applyToolUseToMessage(message, payload)
+
+            const updatedMessages = [...messages]
+            updatedMessages[messageIndex] = { ...message }
+            this.runChatMessages.set(key, updatedMessages)
         },
 
         handleRunChatToolResult(payload: {
@@ -289,10 +288,20 @@ export const useRunStore = defineStore('run', {
             toolName: string
             output: string
         }): void {
-            const message = findRunChatMessage(this.runChatMessages, payload.runId, payload.podId, payload.messageId)
-            if (!message) return
+            const key = buildRunPodCacheKey(payload.runId, payload.podId)
+            const messages = this.runChatMessages.get(key)
+            if (!messages) return
 
+            const messageIndex = messages.findIndex(m => m.id === payload.messageId)
+            if (messageIndex === -1) return
+
+            // findIndex 已確認 index 有效，斷言元素一定存在
+            const message = messages[messageIndex] as Message
             applyToolResultToMessage(message, payload)
+
+            const updatedMessages = [...messages]
+            updatedMessages[messageIndex] = { ...message }
+            this.runChatMessages.set(key, updatedMessages)
         },
 
         handleRunChatComplete(
@@ -305,12 +314,18 @@ export const useRunStore = defineStore('run', {
             const messages = this.runChatMessages.get(key)
             if (!messages) return
 
-            const message = messages.find(m => m.id === messageId)
-            if (!message) return
+            const messageIndex = messages.findIndex(m => m.id === messageId)
+            if (messageIndex === -1) return
 
+            // findIndex 已確認 index 有效，斷言元素一定存在
+            const message = messages[messageIndex] as Message
             message.subMessages = finalizeSubMessages(message.subMessages) ?? message.subMessages
             message.isPartial = false
             message.content = fullContent
+
+            const updatedMessages = [...messages]
+            updatedMessages[messageIndex] = { ...message }
+            this.runChatMessages.set(key, updatedMessages)
         },
 
         resetOnCanvasSwitch(): void {
