@@ -396,10 +396,11 @@ describe("GlobalSettingsModal", () => {
     });
     mockListPlugins.mockResolvedValue([
       {
-        id: "plugin-1",
+        id: "plugin-1@test-repo",
         name: "My Plugin",
         version: "1.0.0",
         description: "測試 Plugin",
+        repo: "test-repo",
       },
     ]);
 
@@ -407,6 +408,11 @@ describe("GlobalSettingsModal", () => {
     await flushPromises();
 
     expect(mockListPlugins).toHaveBeenCalledTimes(1);
+    // 預設收合，需展開 repo 才能看到 plugin
+    expect(wrapper.text()).toContain("test-repo");
+    // 點擊 repo 標題展開
+    const repoHeader = wrapper.find(".cursor-pointer");
+    await repoHeader.trigger("click");
     expect(wrapper.text()).toContain("My Plugin");
     expect(wrapper.text()).toContain("1.0.0");
 
@@ -424,21 +430,27 @@ describe("GlobalSettingsModal", () => {
     });
     mockListPlugins.mockResolvedValue([
       {
-        id: "plugin-1",
+        id: "plugin-1@test-repo",
         name: "Plugin A",
         version: "1.0.0",
         description: "",
+        repo: "test-repo",
       },
       {
-        id: "plugin-2",
+        id: "plugin-2@test-repo",
         name: "Plugin B",
         version: "2.0.0",
         description: "",
+        repo: "test-repo",
       },
     ]);
 
     const wrapper = mountModal(true);
     await flushPromises();
+
+    // 展開 repo 才能看到 plugin
+    const repoHeader = wrapper.find(".cursor-pointer");
+    await repoHeader.trigger("click");
 
     // Plugin 列表為唯讀，不應有開關
     const switches = wrapper.findAll(".switch-mock");
@@ -461,10 +473,11 @@ describe("GlobalSettingsModal", () => {
     });
     mockListPlugins.mockResolvedValue([
       {
-        id: "plugin-1",
+        id: "plugin-1@test-repo",
         name: "Plugin A",
         version: "1.0.0",
         description: "",
+        repo: "test-repo",
       },
     ]);
 
@@ -510,10 +523,11 @@ describe("GlobalSettingsModal", () => {
     });
     mockListPlugins.mockResolvedValue([
       {
-        id: "plugin-1",
+        id: "plugin-1@test-repo",
         name: "Plugin A",
         version: "1.0.0",
         description: "",
+        repo: "test-repo",
       },
     ]);
     mockUpdateConfig.mockResolvedValue({ success: true });

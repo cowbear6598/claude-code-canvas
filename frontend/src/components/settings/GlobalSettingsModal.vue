@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChevronDown, ChevronRight } from "lucide-vue-next";
 import { getConfig, updateConfig } from "@/services/configApi";
 import { listPlugins } from "@/services/pluginApi";
 import { MODEL_OPTIONS } from "@/types";
@@ -46,6 +47,31 @@ const isLoading = ref<boolean>(false);
 const isSaving = ref<boolean>(false);
 const loadFailed = ref<boolean>(false);
 
+// 按 repo 分組
+const pluginsByRepo = computed<Map<string, InstalledPlugin[]>>(() => {
+  const map = new Map<string, InstalledPlugin[]>();
+  for (const plugin of installedPlugins.value) {
+    const repoKey = plugin.repo || "(未知 repo)";
+    const group = map.get(repoKey) ?? [];
+    group.push(plugin);
+    map.set(repoKey, group);
+  }
+  return map;
+});
+
+// 展開狀態，預設全部收合
+const expandedRepos = ref<Set<string>>(new Set());
+
+const toggleRepo = (repo: string): void => {
+  const next = new Set(expandedRepos.value);
+  if (next.has(repo)) {
+    next.delete(repo);
+  } else {
+    next.add(repo);
+  }
+  expandedRepos.value = next;
+};
+
 const loadConfig = async (): Promise<void> => {
   isLoading.value = true;
   loadFailed.value = false;
@@ -53,6 +79,7 @@ const loadConfig = async (): Promise<void> => {
   listPlugins()
     .then((plugins) => {
       installedPlugins.value = plugins;
+      expandedRepos.value = new Set();
     })
     .catch(() => {
       installedPlugins.value = [];
@@ -169,22 +196,53 @@ watch(
           >
             尚未安裝任何 Plugin，請透過 Claude Code CLI 安裝
           </div>
-          <ScrollArea v-else class="h-40">
-            <div class="space-y-3 pr-3">
-              <div
-                v-for="plugin in installedPlugins"
-                :key="plugin.id"
-                class="flex items-center justify-between"
-              >
-                <div>
-                  <Label>{{ plugin.name }}</Label>
-                  <p class="text-xs text-muted-foreground">
-                    v{{ plugin.version }}
-                  </p>
+          <div v-else class="border border-border rounded-md p-2">
+            <ScrollArea class="h-40">
+              <div class="space-y-3 pr-3">
+                <div
+                  v-for="[repo, plugins] in pluginsByRepo"
+                  :key="repo"
+                  class="space-y-1"
+                >
+                  <!-- repo 標題列 -->
+                  <div
+                    class="flex items-center gap-1 cursor-pointer hover:bg-secondary rounded px-1 py-0.5"
+                    @click="toggleRepo(repo)"
+                  >
+                    <ChevronDown
+                      v-if="expandedRepos.has(repo)"
+                      class="h-3 w-3 text-muted-foreground shrink-0"
+                    />
+                    <ChevronRight
+                      v-else
+                      class="h-3 w-3 text-muted-foreground shrink-0"
+                    />
+                    <span class="text-xs font-medium">{{ repo }}</span>
+                    <span class="text-xs text-muted-foreground ml-1">
+                      ({{ plugins.length }})
+                    </span>
+                  </div>
+                  <!-- 展開的 plugin 列表 -->
+                  <div v-if="expandedRepos.has(repo)" class="pl-5 space-y-2">
+                    <div
+                      v-for="plugin in plugins"
+                      :key="plugin.id"
+                      class="flex items-center justify-between"
+                    >
+                      <div>
+                        <span class="text-xs font-medium">{{
+                          plugin.name
+                        }}</span>
+                        <p class="text-xs text-muted-foreground">
+                          v{{ plugin.version }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </ScrollArea>
+            </ScrollArea>
+          </div>
         </div>
       </div>
 

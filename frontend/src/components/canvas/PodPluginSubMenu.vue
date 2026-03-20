@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { Switch } from "@/components/ui/switch";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { listPlugins } from "@/services/pluginApi";
 import { updatePodPlugins as updatePodPluginsApi } from "@/services/podPluginApi";
 import { usePodStore } from "@/stores";
@@ -99,29 +98,27 @@ const handleToggle = async (
     >
       尚未安裝任何 Plugin
     </div>
-    <ScrollArea v-else class="max-h-60">
-      <div class="space-y-1 pr-1">
-        <div
-          v-for="plugin in installedPlugins"
-          :key="plugin.id"
-          class="flex items-center justify-between gap-3 px-2 py-1 rounded hover:bg-secondary cursor-pointer"
-          @click.stop="
-            handleToggle(plugin.id, !localPluginIds.includes(plugin.id))
-          "
-        >
-          <div>
-            <p class="text-xs font-mono">{{ plugin.name }}</p>
-            <p class="text-xs text-muted-foreground font-mono">
-              v{{ plugin.version }}
-            </p>
-          </div>
-          <Switch
-            :model-value="localPluginIds.includes(plugin.id)"
-            @click.stop
-            @update:model-value="(val: boolean) => handleToggle(plugin.id, val)"
-          />
+    <div v-else class="pod-menu-submenu-scrollable space-y-1">
+      <div
+        v-for="plugin in installedPlugins"
+        :key="plugin.id"
+        class="flex items-center justify-between gap-3 px-2 py-1 rounded hover:bg-secondary cursor-pointer"
+        @click.stop="
+          handleToggle(plugin.id, !localPluginIds.includes(plugin.id))
+        "
+      >
+        <div>
+          <p class="text-xs font-mono">{{ plugin.name }}</p>
+          <p class="text-xs text-muted-foreground font-mono">
+            v{{ plugin.version }}
+          </p>
         </div>
+        <Switch
+          :model-value="localPluginIds.includes(plugin.id)"
+          @click.stop
+          @update:model-value="(val: boolean) => handleToggle(plugin.id, val)"
+        />
       </div>
-    </ScrollArea>
+    </div>
   </div>
 </template>

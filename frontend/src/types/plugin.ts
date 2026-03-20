@@ -3,4 +3,5 @@ export interface InstalledPlugin {
   name: string;
   version: string;
   description: string;
+  repo: string;
 }

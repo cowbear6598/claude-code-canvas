@@ -15,6 +15,7 @@ export interface InstalledPlugin {
   version: string;
   description: string;
   installPath: string;
+  repo: string;
 }
 
 interface PluginEntry {
@@ -82,6 +83,8 @@ export function scanInstalledPlugins(): InstalledPlugin[] {
       seenPaths.add(entry.installPath);
 
       const manifest = readPluginManifest(entry.installPath);
+      const atIndex = pluginId.indexOf("@");
+      const repo = atIndex !== -1 ? pluginId.substring(atIndex + 1) : "";
 
       result.push({
         id: pluginId,
@@ -89,6 +92,7 @@ export function scanInstalledPlugins(): InstalledPlugin[] {
         version: manifest?.version ?? entry.version ?? "",
         description: manifest?.description ?? "",
         installPath: entry.installPath,
+        repo,
       });
     }
   }

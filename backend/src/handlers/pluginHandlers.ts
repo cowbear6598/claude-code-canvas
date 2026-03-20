@@ -9,11 +9,12 @@ export async function handlePluginList(
   requestId: string,
 ): Promise<void> {
   const plugins = scanInstalledPlugins().map(
-    ({ id, name, version, description }) => ({
+    ({ id, name, version, description, repo }) => ({
       id,
       name,
       version,
       description,
+      repo,
     }),
   );
 

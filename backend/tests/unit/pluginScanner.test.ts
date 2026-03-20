@@ -108,7 +108,65 @@ describe("pluginScanner", () => {
         name: "My Plugin",
         description: "A test plugin",
         installPath,
+        repo: "my-plugin",
       });
+    });
+
+    it("應正確從 plugin ID 解析 repo（@ 後面的部分）", () => {
+      const installPath =
+        "/home/user/.claude/plugins/cache/soap-toolkit/soap-dev/1.0.7";
+
+      mockReadFileSync.mockImplementation((filePath) => {
+        if (filePath === INSTALLED_PLUGINS_PATH) {
+          return makeInstalledPluginsJson({
+            "soap-dev@soap-toolkit": [
+              {
+                scope: "user",
+                installPath,
+                version: "1.0.7",
+                installedAt: "",
+                lastUpdated: "",
+              },
+            ],
+          });
+        }
+        if (filePath === `${installPath}/.claude-plugin/plugin.json`) {
+          return makePluginManifest("Soap Dev", "Soap Dev Plugin", "1.0.7");
+        }
+        throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
+      });
+
+      const result = scanInstalledPlugins();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].repo).toBe("soap-toolkit");
+    });
+
+    it("plugin ID 沒有 @ 時 repo 應為空字串", () => {
+      const installPath =
+        "/home/user/.claude/plugins/cache/no-repo-plugin/1.0.0";
+
+      mockReadFileSync.mockImplementation((filePath) => {
+        if (filePath === INSTALLED_PLUGINS_PATH) {
+          return makeInstalledPluginsJson({
+            "no-repo-plugin": [
+              {
+                scope: "user",
+                installPath,
+                version: "1.0.0",
+                installedAt: "",
+                lastUpdated: "",
+              },
+            ],
+          });
+        }
+        throw new Error("ENOENT: no such file or directory");
+      });
+
+      const result = scanInstalledPlugins();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].repo).toBe("");
     });
 
     it("plugin.json 不存在時應使用 plugin key 作為 name", () => {
