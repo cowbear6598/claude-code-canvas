@@ -220,7 +220,7 @@ const loadAppData = async (): Promise<void> => {
 
   logger.log("[App] Loading config...");
   await configStore.fetchConfig().catch(() => {
-    // 載入設定失敗時使用預設值，不阻斷啟動流程
+    logger.warn("[App] 載入全域設定失敗，使用預設值");
   });
 
   logger.log("[App] Loading canvases...");

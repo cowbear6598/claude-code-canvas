@@ -19,7 +19,11 @@ const MS_PER_MINUTE = 60 * 1000;
 const MS_PER_HOUR = 60 * 60 * 1000;
 const SCHEDULE_TRIGGER_SECOND = 0;
 
-type ShouldFireChecker = (schedule: ScheduleConfig, now: Date) => boolean;
+type ShouldFireChecker = (
+  schedule: ScheduleConfig,
+  now: Date,
+  offset: number,
+) => boolean;
 
 function isFirstTrigger(
   lastTriggeredAt: ScheduleConfig["lastTriggeredAt"],
@@ -55,37 +59,35 @@ const shouldFireCheckers: Record<
   ScheduleConfig["frequency"],
   ShouldFireChecker
 > = {
-  "every-second": (schedule, now) => {
+  "every-second": (schedule, now, _offset) => {
     if (isFirstTrigger(schedule.lastTriggeredAt)) return true;
     const elapsedSeconds =
       (now.getTime() - schedule.lastTriggeredAt!.getTime()) / MS_PER_SECOND;
     return elapsedSeconds >= schedule.second;
   },
 
-  "every-x-minute": (schedule, now) => {
+  "every-x-minute": (schedule, now, _offset) => {
     if (isFirstTrigger(schedule.lastTriggeredAt)) return true;
     const elapsedMinutes =
       (now.getTime() - schedule.lastTriggeredAt!.getTime()) / MS_PER_MINUTE;
     return elapsedMinutes >= schedule.intervalMinute;
   },
 
-  "every-x-hour": (schedule, now) => {
+  "every-x-hour": (schedule, now, _offset) => {
     if (isFirstTrigger(schedule.lastTriggeredAt)) return true;
     const elapsedHours =
       (now.getTime() - schedule.lastTriggeredAt!.getTime()) / MS_PER_HOUR;
     return elapsedHours >= schedule.intervalHour;
   },
 
-  "every-day": (schedule, now) => {
-    const offset = configStore.getTimezoneOffset();
+  "every-day": (schedule, now, offset) => {
     if (!isScheduledTime(schedule, now, offset)) {
       return false;
     }
     return isFirstTriggerOrNewDay(schedule, now, offset);
   },
 
-  "every-week": (schedule, now) => {
-    const offset = configStore.getTimezoneOffset();
+  "every-week": (schedule, now, offset) => {
     const parts = toOffsettedParts(now, offset);
     if (!schedule.weekdays.includes(parts.day)) {
       return false;
@@ -123,10 +125,11 @@ class ScheduleService {
 
   private tick(): void {
     const now = new Date();
+    const offset = configStore.getTimezoneOffset();
     const podsWithSchedule = podStore.getAllWithSchedule();
 
     for (const { canvasId, pod } of podsWithSchedule) {
-      if (pod.schedule && this.shouldFire(pod.schedule, now)) {
+      if (pod.schedule && this.shouldFire(pod.schedule, now, offset)) {
         fireAndForget(
           this.fireSchedule(canvasId, pod, now),
           "Schedule",
@@ -136,9 +139,13 @@ class ScheduleService {
     }
   }
 
-  private shouldFire(schedule: ScheduleConfig, now: Date): boolean {
+  private shouldFire(
+    schedule: ScheduleConfig,
+    now: Date,
+    offset: number,
+  ): boolean {
     const checker = shouldFireCheckers[schedule.frequency];
-    return checker ? checker(schedule, now) : false;
+    return checker ? checker(schedule, now, offset) : false;
   }
 
   private async fireSchedule(

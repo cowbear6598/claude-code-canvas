@@ -23,20 +23,21 @@ export class ConfigStore {
     return getStmts();
   }
 
+  private parseTimezoneOffset(value: string | undefined): number {
+    const parsed = Number(value);
+    return isNaN(parsed) ? DEFAULT_TIMEZONE_OFFSET : parsed;
+  }
+
   getAll(): ConfigData {
     const rows =
       this.stmts.globalSettings.selectAll.all() as GlobalSettingRow[];
     const map = new Map(rows.map((row) => [row.key, row.value]));
 
-    const timezoneOffsetRaw = Number(map.get(TIMEZONE_OFFSET_KEY));
-
     return {
       summaryModel: (map.get(SUMMARY_MODEL_KEY) as ModelType) ?? DEFAULT_MODEL,
       aiDecideModel:
         (map.get(AI_DECIDE_MODEL_KEY) as ModelType) ?? DEFAULT_MODEL,
-      timezoneOffset: isNaN(timezoneOffsetRaw)
-        ? DEFAULT_TIMEZONE_OFFSET
-        : timezoneOffsetRaw,
+      timezoneOffset: this.parseTimezoneOffset(map.get(TIMEZONE_OFFSET_KEY)),
     };
   }
 
@@ -83,8 +84,7 @@ export class ConfigStore {
     const row = this.stmts.globalSettings.selectByKey.get(
       TIMEZONE_OFFSET_KEY,
     ) as GlobalSettingRow | undefined;
-    const value = Number(row?.value);
-    return isNaN(value) ? DEFAULT_TIMEZONE_OFFSET : value;
+    return this.parseTimezoneOffset(row?.value);
   }
 }
 

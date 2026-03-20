@@ -5,26 +5,23 @@ import {
 } from "../../src/utils/timezoneUtils.js";
 
 // 測試用的內部 shouldFire 檢查函數
-type ShouldFireChecker = (schedule: ScheduleConfig, now: Date) => boolean;
+type ShouldFireChecker = (
+  schedule: ScheduleConfig,
+  now: Date,
+  offset: number,
+) => boolean;
 
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60 * 1000;
 const MS_PER_HOUR = 60 * 60 * 1000;
-
-function isSameDay(date1: Date, date2: Date): boolean {
-  return (
-    date1.getFullYear() === date2.getFullYear() &&
-    date1.getMonth() === date2.getMonth() &&
-    date1.getDate() === date2.getDate()
-  );
-}
+const SCHEDULE_TRIGGER_SECOND = 0;
 
 // 複製 scheduleService 中的 shouldFireCheckers 邏輯用於測試
 const shouldFireCheckers: Record<
   ScheduleConfig["frequency"],
   ShouldFireChecker
 > = {
-  "every-second": (schedule, now) => {
+  "every-second": (schedule, now, _offset) => {
     if (!schedule.lastTriggeredAt) {
       return true;
     }
@@ -33,7 +30,7 @@ const shouldFireCheckers: Record<
     return elapsedSeconds >= schedule.second;
   },
 
-  "every-x-minute": (schedule, now) => {
+  "every-x-minute": (schedule, now, _offset) => {
     if (!schedule.lastTriggeredAt) {
       return true;
     }
@@ -42,7 +39,7 @@ const shouldFireCheckers: Record<
     return elapsedMinutes >= schedule.intervalMinute;
   },
 
-  "every-x-hour": (schedule, now) => {
+  "every-x-hour": (schedule, now, _offset) => {
     if (!schedule.lastTriggeredAt) {
       return true;
     }
@@ -51,15 +48,12 @@ const shouldFireCheckers: Record<
     return elapsedHours >= schedule.intervalHour;
   },
 
-  "every-day": (schedule, now) => {
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentSecond = now.getSeconds();
-
+  "every-day": (schedule, now, offset) => {
+    const parts = toOffsettedParts(now, offset);
     if (
-      currentHour !== schedule.hour ||
-      currentMinute !== schedule.minute ||
-      currentSecond !== 0
+      parts.hours !== schedule.hour ||
+      parts.minutes !== schedule.minute ||
+      parts.seconds !== SCHEDULE_TRIGGER_SECOND
     ) {
       return false;
     }
@@ -68,23 +62,24 @@ const shouldFireCheckers: Record<
       return true;
     }
 
-    return !isSameDay(new Date(schedule.lastTriggeredAt), now);
+    return !isSameDayWithOffset(
+      new Date(schedule.lastTriggeredAt),
+      now,
+      offset,
+    );
   },
 
-  "every-week": (schedule, now) => {
-    const currentDay = now.getDay();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentSecond = now.getSeconds();
+  "every-week": (schedule, now, offset) => {
+    const parts = toOffsettedParts(now, offset);
 
-    if (!schedule.weekdays.includes(currentDay)) {
+    if (!schedule.weekdays.includes(parts.day)) {
       return false;
     }
 
     if (
-      currentHour !== schedule.hour ||
-      currentMinute !== schedule.minute ||
-      currentSecond !== 0
+      parts.hours !== schedule.hour ||
+      parts.minutes !== schedule.minute ||
+      parts.seconds !== SCHEDULE_TRIGGER_SECOND
     ) {
       return false;
     }
@@ -93,13 +88,20 @@ const shouldFireCheckers: Record<
       return true;
     }
 
-    return !isSameDay(new Date(schedule.lastTriggeredAt), now);
+    return !isSameDayWithOffset(
+      new Date(schedule.lastTriggeredAt),
+      now,
+      offset,
+    );
   },
 };
 
+// 使用本機時區 offset，讓 toOffsettedParts 與本地時間建立的 Date 結果一致
+const LOCAL_OFFSET = -new Date().getTimezoneOffset() / 60;
+
 function shouldFire(schedule: ScheduleConfig, now: Date): boolean {
   const checker = shouldFireCheckers[schedule.frequency];
-  return checker ? checker(schedule, now) : false;
+  return checker ? checker(schedule, now, LOCAL_OFFSET) : false;
 }
 
 describe("Schedule Service", () => {
@@ -518,40 +520,38 @@ describe("Schedule Service", () => {
     });
   });
 
-  describe("isSameDay 輔助函數", () => {
-    it("相同日期應回傳 true", () => {
+  describe("isSameDayWithOffset 輔助函數", () => {
+    it("相同日期（UTC offset=0）應回傳 true", () => {
       const date1 = new Date("2026-02-05T10:00:00Z");
       const date2 = new Date("2026-02-05T15:30:00Z");
 
-      expect(isSameDay(date1, date2)).toBe(true);
+      expect(isSameDayWithOffset(date1, date2, 0)).toBe(true);
     });
 
-    it("不同日期應回傳 false", () => {
+    it("不同日期（UTC offset=0）應回傳 false", () => {
       const date1 = new Date("2026-02-05T10:00:00Z");
       const date2 = new Date("2026-02-06T10:00:00Z");
 
-      expect(isSameDay(date1, date2)).toBe(false);
+      expect(isSameDayWithOffset(date1, date2, 0)).toBe(false);
     });
 
     it("不同月份應回傳 false", () => {
       const date1 = new Date("2026-02-05T10:00:00Z");
       const date2 = new Date("2026-03-05T10:00:00Z");
 
-      expect(isSameDay(date1, date2)).toBe(false);
+      expect(isSameDayWithOffset(date1, date2, 0)).toBe(false);
     });
 
     it("不同年份應回傳 false", () => {
       const date1 = new Date("2025-02-05T10:00:00Z");
       const date2 = new Date("2026-02-05T10:00:00Z");
 
-      expect(isSameDay(date1, date2)).toBe(false);
+      expect(isSameDayWithOffset(date1, date2, 0)).toBe(false);
     });
   });
 });
 
 // 時區修正版的 checker 函數（用於驗證時區邏輯）
-const SCHEDULE_TRIGGER_SECOND = 0;
-
 function isScheduledTimeWithOffset(
   schedule: ScheduleConfig,
   now: Date,

@@ -29,6 +29,32 @@ export function formatScheduleFrequency(schedule: Schedule): string {
   }
 }
 
+interface TzDateParts {
+  tzOffsetMs: number;
+  nowUtcMs: number;
+  tzYear: number;
+  tzMonth: number;
+  tzDay: number;
+  day: number;
+}
+
+/**
+ * 將 now 轉換為指定時區的日期各部分
+ */
+function getTzDateParts(now: Date, timezoneOffset: number): TzDateParts {
+  const tzOffsetMs = timezoneOffset * MS_PER_HOUR;
+  const nowUtcMs = now.getTime();
+  const tzDate = new Date(nowUtcMs + tzOffsetMs);
+  return {
+    tzOffsetMs,
+    nowUtcMs,
+    tzYear: tzDate.getUTCFullYear(),
+    tzMonth: tzDate.getUTCMonth(),
+    tzDay: tzDate.getUTCDate(),
+    day: tzDate.getUTCDay(),
+  };
+}
+
 type TriggerTimeCalculator = (
   schedule: Schedule,
   now: Date,
@@ -79,15 +105,10 @@ function calculateEveryDay(
   timezoneOffset: number,
 ): Date {
   // 計算指定時區下的當前日期
-  const tzOffsetMs = timezoneOffset * MS_PER_HOUR;
-  const nowUtcMs = now.getTime();
-
-  // 將 UTC 時間加上偏移量，得到指定時區的「虛擬 UTC 日期」
-  const tzDate = new Date(nowUtcMs + tzOffsetMs);
-  // 取指定時區的年月日（以 UTC 日期部分表示）
-  const tzYear = tzDate.getUTCFullYear();
-  const tzMonth = tzDate.getUTCMonth();
-  const tzDay = tzDate.getUTCDate();
+  const { tzOffsetMs, nowUtcMs, tzYear, tzMonth, tzDay } = getTzDateParts(
+    now,
+    timezoneOffset,
+  );
 
   // 在指定時區設定 schedule 的 hour/minute，再轉回 UTC
   // 指定時區的觸發時間（視為 UTC 計算）
@@ -132,15 +153,15 @@ function calculateEveryWeek(
     return new Date(now.getTime() + MS_PER_MINUTE);
   }
 
-  const tzOffsetMs = timezoneOffset * MS_PER_HOUR;
-  const nowUtcMs = now.getTime();
-
   // 計算指定時區下的當前日期與星期
-  const tzDate = new Date(nowUtcMs + tzOffsetMs);
-  const tzYear = tzDate.getUTCFullYear();
-  const tzMonth = tzDate.getUTCMonth();
-  const tzDay = tzDate.getUTCDate();
-  const currentDay = tzDate.getUTCDay(); // 指定時區的星期幾
+  const {
+    tzOffsetMs,
+    nowUtcMs,
+    tzYear,
+    tzMonth,
+    tzDay,
+    day: currentDay,
+  } = getTzDateParts(now, timezoneOffset);
 
   // 計算指定時區今天 schedule 時間點的 UTC 時間戳
   const tzTriggerTodayMs = Date.UTC(
@@ -216,7 +237,7 @@ export function formatScheduleTooltip(
   );
 
   // 將 UTC 時間轉換為指定時區的顯示時間
-  const tzDate = new Date(nextTime.getTime() + timezoneOffset * 60 * 60 * 1000);
+  const tzDate = new Date(nextTime.getTime() + timezoneOffset * MS_PER_HOUR);
   const timeStr = `${String(tzDate.getUTCHours()).padStart(2, "0")}:${String(tzDate.getUTCMinutes()).padStart(2, "0")}`;
 
   return `${frequency} | 下次：${timeStr}`;
