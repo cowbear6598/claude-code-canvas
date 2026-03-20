@@ -8,11 +8,14 @@ interface GlobalSettingRow {
 
 const SUMMARY_MODEL_KEY = "summary_model";
 const AI_DECIDE_MODEL_KEY = "ai_decide_model";
+const TIMEZONE_OFFSET_KEY = "timezone_offset";
 const DEFAULT_MODEL: ModelType = "sonnet";
+const DEFAULT_TIMEZONE_OFFSET = 8;
 
 export interface ConfigData {
   summaryModel: ModelType;
   aiDecideModel: ModelType;
+  timezoneOffset: number;
 }
 
 export class ConfigStore {
@@ -25,10 +28,15 @@ export class ConfigStore {
       this.stmts.globalSettings.selectAll.all() as GlobalSettingRow[];
     const map = new Map(rows.map((row) => [row.key, row.value]));
 
+    const timezoneOffsetRaw = Number(map.get(TIMEZONE_OFFSET_KEY));
+
     return {
       summaryModel: (map.get(SUMMARY_MODEL_KEY) as ModelType) ?? DEFAULT_MODEL,
       aiDecideModel:
         (map.get(AI_DECIDE_MODEL_KEY) as ModelType) ?? DEFAULT_MODEL,
+      timezoneOffset: isNaN(timezoneOffsetRaw)
+        ? DEFAULT_TIMEZONE_OFFSET
+        : timezoneOffsetRaw,
     };
   }
 
@@ -47,6 +55,13 @@ export class ConfigStore {
       });
     }
 
+    if (data.timezoneOffset !== undefined) {
+      this.stmts.globalSettings.upsert.run({
+        $key: TIMEZONE_OFFSET_KEY,
+        $value: String(data.timezoneOffset),
+      });
+    }
+
     return this.getAll();
   }
 
@@ -62,6 +77,14 @@ export class ConfigStore {
       AI_DECIDE_MODEL_KEY,
     ) as GlobalSettingRow | undefined;
     return (row?.value as ModelType) ?? DEFAULT_MODEL;
+  }
+
+  getTimezoneOffset(): number {
+    const row = this.stmts.globalSettings.selectByKey.get(
+      TIMEZONE_OFFSET_KEY,
+    ) as GlobalSettingRow | undefined;
+    const value = Number(row?.value);
+    return isNaN(value) ? DEFAULT_TIMEZONE_OFFSET : value;
   }
 }
 

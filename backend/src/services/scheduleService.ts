@@ -1,15 +1,17 @@
-import { WebSocketResponseEvents } from '../schemas';
-import type {
-  Pod,
-  ScheduleConfig,
-} from '../types';
-import { podStore } from './podStore.js';
-import { messageStore } from './messageStore.js';
-import { socketService } from './socketService.js';
-import { workflowExecutionService } from './workflow';
-import { logger } from '../utils/logger.js';
-import { fireAndForget } from '../utils/operationHelpers.js';
-import { executeStreamingChat } from './claude/streamingChatExecutor.js';
+import { WebSocketResponseEvents } from "../schemas";
+import type { Pod, ScheduleConfig } from "../types";
+import { podStore } from "./podStore.js";
+import { messageStore } from "./messageStore.js";
+import { socketService } from "./socketService.js";
+import { workflowExecutionService } from "./workflow";
+import { logger } from "../utils/logger.js";
+import { fireAndForget } from "../utils/operationHelpers.js";
+import { executeStreamingChat } from "./claude/streamingChatExecutor.js";
+import {
+  toOffsettedParts,
+  isSameDayWithOffset,
+} from "../utils/timezoneUtils.js";
+import { configStore } from "./configStore.js";
 
 const TICK_INTERVAL_MS = 1000;
 const MS_PER_SECOND = 1000;
@@ -19,74 +21,88 @@ const SCHEDULE_TRIGGER_SECOND = 0;
 
 type ShouldFireChecker = (schedule: ScheduleConfig, now: Date) => boolean;
 
-function isFirstTrigger(lastTriggeredAt: ScheduleConfig['lastTriggeredAt']): boolean {
+function isFirstTrigger(
+  lastTriggeredAt: ScheduleConfig["lastTriggeredAt"],
+): boolean {
   return !lastTriggeredAt;
 }
 
-function isScheduledTime(schedule: ScheduleConfig, now: Date): boolean {
-  return now.getHours() === schedule.hour
-    && now.getMinutes() === schedule.minute
-    && now.getSeconds() === SCHEDULE_TRIGGER_SECOND;
+function isScheduledTime(
+  schedule: ScheduleConfig,
+  now: Date,
+  offset: number,
+): boolean {
+  const parts = toOffsettedParts(now, offset);
+  return (
+    parts.hours === schedule.hour &&
+    parts.minutes === schedule.minute &&
+    parts.seconds === SCHEDULE_TRIGGER_SECOND
+  );
 }
 
-function isFirstTriggerOrNewDay(schedule: ScheduleConfig, now: Date): boolean {
+function isFirstTriggerOrNewDay(
+  schedule: ScheduleConfig,
+  now: Date,
+  offset: number,
+): boolean {
   if (isFirstTrigger(schedule.lastTriggeredAt)) {
     return true;
   }
-  return !isSameDay(new Date(schedule.lastTriggeredAt!), now);
+  return !isSameDayWithOffset(new Date(schedule.lastTriggeredAt!), now, offset);
 }
 
-const shouldFireCheckers: Record<ScheduleConfig['frequency'], ShouldFireChecker> = {
-  'every-second': (schedule, now) => {
+const shouldFireCheckers: Record<
+  ScheduleConfig["frequency"],
+  ShouldFireChecker
+> = {
+  "every-second": (schedule, now) => {
     if (isFirstTrigger(schedule.lastTriggeredAt)) return true;
-    const elapsedSeconds = (now.getTime() - schedule.lastTriggeredAt!.getTime()) / MS_PER_SECOND;
+    const elapsedSeconds =
+      (now.getTime() - schedule.lastTriggeredAt!.getTime()) / MS_PER_SECOND;
     return elapsedSeconds >= schedule.second;
   },
 
-  'every-x-minute': (schedule, now) => {
+  "every-x-minute": (schedule, now) => {
     if (isFirstTrigger(schedule.lastTriggeredAt)) return true;
-    const elapsedMinutes = (now.getTime() - schedule.lastTriggeredAt!.getTime()) / MS_PER_MINUTE;
+    const elapsedMinutes =
+      (now.getTime() - schedule.lastTriggeredAt!.getTime()) / MS_PER_MINUTE;
     return elapsedMinutes >= schedule.intervalMinute;
   },
 
-  'every-x-hour': (schedule, now) => {
+  "every-x-hour": (schedule, now) => {
     if (isFirstTrigger(schedule.lastTriggeredAt)) return true;
-    const elapsedHours = (now.getTime() - schedule.lastTriggeredAt!.getTime()) / MS_PER_HOUR;
+    const elapsedHours =
+      (now.getTime() - schedule.lastTriggeredAt!.getTime()) / MS_PER_HOUR;
     return elapsedHours >= schedule.intervalHour;
   },
 
-  'every-day': (schedule, now) => {
-    if (!isScheduledTime(schedule, now)) {
+  "every-day": (schedule, now) => {
+    const offset = configStore.getTimezoneOffset();
+    if (!isScheduledTime(schedule, now, offset)) {
       return false;
     }
-    return isFirstTriggerOrNewDay(schedule, now);
+    return isFirstTriggerOrNewDay(schedule, now, offset);
   },
 
-  'every-week': (schedule, now) => {
-    if (!schedule.weekdays.includes(now.getDay())) {
+  "every-week": (schedule, now) => {
+    const offset = configStore.getTimezoneOffset();
+    const parts = toOffsettedParts(now, offset);
+    if (!schedule.weekdays.includes(parts.day)) {
       return false;
     }
-    if (!isScheduledTime(schedule, now)) {
+    if (!isScheduledTime(schedule, now, offset)) {
       return false;
     }
-    return isFirstTriggerOrNewDay(schedule, now);
+    return isFirstTriggerOrNewDay(schedule, now, offset);
   },
 };
-
-function isSameDay(date1: Date, date2: Date): boolean {
-  return (
-    date1.getFullYear() === date2.getFullYear() &&
-    date1.getMonth() === date2.getMonth() &&
-    date1.getDate() === date2.getDate()
-  );
-}
 
 class ScheduleService {
   private tickInterval: ReturnType<typeof setInterval> | null = null;
 
   start(): void {
     if (this.tickInterval) {
-      logger.log('Schedule', 'Update', '排程器已在運行中');
+      logger.log("Schedule", "Update", "排程器已在運行中");
       return;
     }
 
@@ -94,14 +110,14 @@ class ScheduleService {
       this.tick();
     }, TICK_INTERVAL_MS);
 
-    logger.log('Schedule', 'Create', '排程器已啟動');
+    logger.log("Schedule", "Create", "排程器已啟動");
   }
 
   stop(): void {
     if (this.tickInterval) {
       clearInterval(this.tickInterval);
       this.tickInterval = null;
-      logger.log('Schedule', 'Delete', '排程器已停止');
+      logger.log("Schedule", "Delete", "排程器已停止");
     }
   }
 
@@ -113,8 +129,8 @@ class ScheduleService {
       if (pod.schedule && this.shouldFire(pod.schedule, now)) {
         fireAndForget(
           this.fireSchedule(canvasId, pod, now),
-          'Schedule',
-          `觸發 Pod「${pod.id}」排程失敗`
+          "Schedule",
+          `觸發 Pod「${pod.id}」排程失敗`,
         );
       }
     }
@@ -125,40 +141,57 @@ class ScheduleService {
     return checker ? checker(schedule, now) : false;
   }
 
-  private async fireSchedule(canvasId: string, pod: Pod, now: Date): Promise<void> {
-    if (pod.status !== 'idle') {
-      logger.log('Schedule', 'Update', `Pod「${pod.id}」正忙碌，跳過排程觸發`);
+  private async fireSchedule(
+    canvasId: string,
+    pod: Pod,
+    now: Date,
+  ): Promise<void> {
+    if (pod.status !== "idle") {
+      logger.log("Schedule", "Update", `Pod「${pod.id}」正忙碌，跳過排程觸發`);
       return;
     }
 
     podStore.setScheduleLastTriggeredAt(canvasId, pod.id, now);
 
-    socketService.emitToCanvas(canvasId, WebSocketResponseEvents.SCHEDULE_FIRED, {
-      podId: pod.id,
-      timestamp: now.toISOString(),
-    });
+    socketService.emitToCanvas(
+      canvasId,
+      WebSocketResponseEvents.SCHEDULE_FIRED,
+      {
+        podId: pod.id,
+        timestamp: now.toISOString(),
+      },
+    );
 
-    logger.log('Schedule', 'Update', `Pod「${pod.id}」排程已觸發`);
+    logger.log("Schedule", "Update", `Pod「${pod.id}」排程已觸發`);
 
     await this.sendScheduleMessage(canvasId, pod.id);
   }
 
-  private async sendScheduleMessage(canvasId: string, podId: string): Promise<void> {
-    podStore.setStatus(canvasId, podId, 'chatting');
+  private async sendScheduleMessage(
+    canvasId: string,
+    podId: string,
+  ): Promise<void> {
+    podStore.setStatus(canvasId, podId, "chatting");
 
-    await messageStore.addMessage(canvasId, podId, 'user', '');
+    await messageStore.addMessage(canvasId, podId, "user", "");
 
-    const onScheduleChatComplete = async (completedCanvasId: string, completedPodId: string): Promise<void> => {
+    const onScheduleChatComplete = async (
+      completedCanvasId: string,
+      completedPodId: string,
+    ): Promise<void> => {
       fireAndForget(
-        workflowExecutionService.checkAndTriggerWorkflows(completedCanvasId, completedPodId),
-        'Schedule',
-        `檢查 Pod「${completedPodId}」自動觸發 Workflow 失敗`
+        workflowExecutionService.checkAndTriggerWorkflows(
+          completedCanvasId,
+          completedPodId,
+        ),
+        "Schedule",
+        `檢查 Pod「${completedPodId}」自動觸發 Workflow 失敗`,
       );
     };
 
     await executeStreamingChat(
-      { canvasId, podId, message: '', abortable: false },
-      { onComplete: onScheduleChatComplete }
+      { canvasId, podId, message: "", abortable: false },
+      { onComplete: onScheduleChatComplete },
     );
   }
 }

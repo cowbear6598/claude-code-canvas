@@ -1,12 +1,23 @@
-import { spyOn } from 'bun:test';
-import { v4 as uuidv4 } from 'uuid';
+import { spyOn } from "bun:test";
+import { v4 as uuidv4 } from "uuid";
+import { emitAndWaitResponse, setupIntegrationTest } from "../setup";
 import {
-  emitAndWaitResponse,
-  setupIntegrationTest,
-} from '../setup';
-import { createPod, createPodPair, movePod, renamePod, setPodModel, setPodSchedule, FAKE_UUID, getCanvasId} from '../helpers';
-import { createConnection } from '../helpers';
-import { createOutputStyle, createMcpServer, createMcpServerNote, createRepository } from '../helpers';
+  createPod,
+  createPodPair,
+  movePod,
+  renamePod,
+  setPodModel,
+  setPodSchedule,
+  FAKE_UUID,
+  getCanvasId,
+} from "../helpers";
+import { createConnection } from "../helpers";
+import {
+  createOutputStyle,
+  createMcpServer,
+  createMcpServerNote,
+  createRepository,
+} from "../helpers";
 import {
   WebSocketRequestEvents,
   WebSocketResponseEvents,
@@ -23,7 +34,7 @@ import {
   type McpServerNoteListPayload,
   type PodOpenDirectoryPayload,
   type PodBindRepositoryPayload,
-} from '../../src/schemas';
+} from "../../src/schemas";
 import {
   type PodListResultPayload,
   type PodGetResultPayload,
@@ -38,23 +49,23 @@ import {
   type McpServerNoteListResultPayload,
   type PodDirectoryOpenedPayload,
   type PodRepositoryBoundPayload,
-} from '../../src/types';
+} from "../../src/types";
 
-describe('Pod 管理', () => {
+describe("Pod 管理", () => {
   const { getClient } = setupIntegrationTest();
 
-  describe('Pod 建立', () => {
-    it('成功建立 Pod', async () => {
+  describe("Pod 建立", () => {
+    it("成功建立 Pod", async () => {
       const client = getClient();
       const pod = await createPod(client, {
-        name: 'Created Pod',
+        name: "Created Pod",
         x: 100,
         y: 200,
         rotation: 5,
       });
 
       expect(pod.id).toBeDefined();
-      expect(pod.name).toBe('Created Pod');
+      expect(pod.name).toBe("Created Pod");
       expect(pod.x).toBe(100);
       expect(pod.y).toBe(200);
       expect(pod.rotation).toBe(5);
@@ -63,41 +74,47 @@ describe('Pod 管理', () => {
       expect(pod.subAgentIds).toEqual([]);
     });
 
-    it('新建立的 Pod 預設狀態為 idle', async () => {
+    it("新建立的 Pod 預設狀態為 idle", async () => {
       const client = getClient();
       const pod = await createPod(client);
-      expect(pod.status).toBe('idle');
+      expect(pod.status).toBe("idle");
     });
   });
 
-  describe('Pod 列表', () => {
-    it('成功取得所有 Pod 列表', async () => {
+  describe("Pod 列表", () => {
+    it("成功取得所有 Pod 列表", async () => {
       const client = getClient();
-      await createPod(client, { name: 'List Pod 1' });
-      await createPod(client, { name: 'List Pod 2' });
+      await createPod(client, { name: "List Pod 1" });
+      await createPod(client, { name: "List Pod 2" });
 
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodListPayload, PodListResultPayload>(
+      const response = await emitAndWaitResponse<
+        PodListPayload,
+        PodListResultPayload
+      >(
         client,
         WebSocketRequestEvents.POD_LIST,
         WebSocketResponseEvents.POD_LIST_RESULT,
-        { requestId: uuidv4(), canvasId }
+        { requestId: uuidv4(), canvasId },
       );
 
       expect(response.success).toBe(true);
       const names = response.pods!.map((p) => p.name);
-      expect(names).toContain('List Pod 1');
-      expect(names).toContain('List Pod 2');
+      expect(names).toContain("List Pod 1");
+      expect(names).toContain("List Pod 2");
     });
 
-    it('Pod 列表回傳陣列格式', async () => {
+    it("Pod 列表回傳陣列格式", async () => {
       const client = getClient();
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodListPayload, PodListResultPayload>(
+      const response = await emitAndWaitResponse<
+        PodListPayload,
+        PodListResultPayload
+      >(
         client,
         WebSocketRequestEvents.POD_LIST,
         WebSocketResponseEvents.POD_LIST_RESULT,
-        { requestId: uuidv4(), canvasId }
+        { requestId: uuidv4(), canvasId },
       );
 
       expect(response.success).toBe(true);
@@ -105,41 +122,47 @@ describe('Pod 管理', () => {
     });
   });
 
-  describe('Pod 取得', () => {
-    it('成功取得現有的 Pod', async () => {
+  describe("Pod 取得", () => {
+    it("成功取得現有的 Pod", async () => {
       const client = getClient();
-      const pod = await createPod(client, { name: 'Get Pod' });
+      const pod = await createPod(client, { name: "Get Pod" });
 
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodGetPayload, PodGetResultPayload>(
+      const response = await emitAndWaitResponse<
+        PodGetPayload,
+        PodGetResultPayload
+      >(
         client,
         WebSocketRequestEvents.POD_GET,
         WebSocketResponseEvents.POD_GET_RESULT,
-        { requestId: uuidv4(), canvasId, podId: pod.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id },
       );
 
       expect(response.success).toBe(true);
       expect(response.pod!.id).toBe(pod.id);
-      expect(response.pod!.name).toBe('Get Pod');
+      expect(response.pod!.name).toBe("Get Pod");
     });
 
-    it('取得不存在的 Pod 時失敗', async () => {
+    it("取得不存在的 Pod 時失敗", async () => {
       const client = getClient();
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodGetPayload, PodGetResultPayload>(
+      const response = await emitAndWaitResponse<
+        PodGetPayload,
+        PodGetResultPayload
+      >(
         client,
         WebSocketRequestEvents.POD_GET,
         WebSocketResponseEvents.POD_GET_RESULT,
-        { requestId: uuidv4(), canvasId, podId: FAKE_UUID }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID },
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
+      expect(response.error).toContain("找不到");
     });
   });
 
-  describe('Pod 移動', () => {
-    it('成功移動 Pod 位置', async () => {
+  describe("Pod 移動", () => {
+    it("成功移動 Pod 位置", async () => {
       const client = getClient();
       const pod = await createPod(client);
       const updatedPod = await movePod(client, pod.id, 500, 600);
@@ -148,136 +171,158 @@ describe('Pod 管理', () => {
       expect(updatedPod.y).toBe(600);
     });
 
-    it('移動不存在的 Pod 時失敗', async () => {
+    it("移動不存在的 Pod 時失敗", async () => {
       const client = getClient();
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodMovePayload, PodMovedPayload>(
+      const response = await emitAndWaitResponse<
+        PodMovePayload,
+        PodMovedPayload
+      >(
         client,
         WebSocketRequestEvents.POD_MOVE,
         WebSocketResponseEvents.POD_MOVED,
-        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, x: 100, y: 200 }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, x: 100, y: 200 },
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
+      expect(response.error).toContain("找不到");
     });
   });
 
-  describe('Pod 重命名', () => {
-    it('成功重命名 Pod', async () => {
+  describe("Pod 重命名", () => {
+    it("成功重命名 Pod", async () => {
       const client = getClient();
       const pod = await createPod(client);
-      const updatedPod = await renamePod(client, pod.id, 'New Name');
+      const updatedPod = await renamePod(client, pod.id, "New Name");
 
-      expect(updatedPod.name).toBe('New Name');
+      expect(updatedPod.name).toBe("New Name");
     });
 
-    it('重命名不存在的 Pod 時失敗', async () => {
+    it("重命名不存在的 Pod 時失敗", async () => {
       const client = getClient();
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodRenamePayload, PodRenamedPayload>(
+      const response = await emitAndWaitResponse<
+        PodRenamePayload,
+        PodRenamedPayload
+      >(
         client,
         WebSocketRequestEvents.POD_RENAME,
         WebSocketResponseEvents.POD_RENAMED,
-        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, name: 'Fail' }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, name: "Fail" },
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
+      expect(response.error).toContain("找不到");
     });
 
-    it('重命名為已存在的名稱應回傳錯誤', async () => {
+    it("重命名為已存在的名稱應回傳錯誤", async () => {
       const client = getClient();
-      const podA = await createPod(client, { name: `rename-conflict-a-${uuidv4()}` });
-      const podB = await createPod(client, { name: `rename-conflict-b-${uuidv4()}` });
+      const podA = await createPod(client, {
+        name: `rename-conflict-a-${uuidv4()}`,
+      });
+      const podB = await createPod(client, {
+        name: `rename-conflict-b-${uuidv4()}`,
+      });
 
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodRenamePayload, PodRenamedPayload>(
+      const response = await emitAndWaitResponse<
+        PodRenamePayload,
+        PodRenamedPayload
+      >(
         client,
         WebSocketRequestEvents.POD_RENAME,
         WebSocketResponseEvents.POD_RENAMED,
-        { requestId: uuidv4(), canvasId, podId: podB.id, name: podA.name }
+        { requestId: uuidv4(), canvasId, podId: podB.id, name: podA.name },
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('已存在相同名稱');
+      expect(response.error).toContain("已存在相同名稱");
     });
 
-    it('重命名為自己目前的名稱回傳錯誤', async () => {
+    it("重命名為自己目前的名稱回傳錯誤", async () => {
       const client = getClient();
       const pod = await createPod(client, { name: `rename-self-${uuidv4()}` });
 
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodRenamePayload, PodRenamedPayload>(
+      const response = await emitAndWaitResponse<
+        PodRenamePayload,
+        PodRenamedPayload
+      >(
         client,
         WebSocketRequestEvents.POD_RENAME,
         WebSocketResponseEvents.POD_RENAMED,
-        { requestId: uuidv4(), canvasId, podId: pod.id, name: pod.name }
+        { requestId: uuidv4(), canvasId, podId: pod.id, name: pod.name },
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('已存在相同名稱');
+      expect(response.error).toContain("已存在相同名稱");
     });
   });
 
-  describe('Pod 設定模型', () => {
-    it('成功設定 Pod 模型為 Sonnet', async () => {
+  describe("Pod 設定模型", () => {
+    it("成功設定 Pod 模型為 Sonnet", async () => {
       const client = getClient();
       const pod = await createPod(client);
-      const updatedPod = await setPodModel(client, pod.id, 'sonnet');
+      const updatedPod = await setPodModel(client, pod.id, "sonnet");
 
-      expect(updatedPod.model).toBe('sonnet');
+      expect(updatedPod.model).toBe("sonnet");
     });
 
-    it('成功設定 Pod 模型為 Haiku', async () => {
+    it("成功設定 Pod 模型為 Haiku", async () => {
       const client = getClient();
       const pod = await createPod(client);
-      const updatedPod = await setPodModel(client, pod.id, 'haiku');
+      const updatedPod = await setPodModel(client, pod.id, "haiku");
 
-      expect(updatedPod.model).toBe('haiku');
+      expect(updatedPod.model).toBe("haiku");
     });
 
-    it('成功設定 Pod 模型為 Opus', async () => {
+    it("成功設定 Pod 模型為 Opus", async () => {
       const client = getClient();
       const pod = await createPod(client);
-      const updatedPod = await setPodModel(client, pod.id, 'opus');
+      const updatedPod = await setPodModel(client, pod.id, "opus");
 
-      expect(updatedPod.model).toBe('opus');
+      expect(updatedPod.model).toBe("opus");
     });
 
-    it('設定不存在的 Pod 模型時失敗', async () => {
+    it("設定不存在的 Pod 模型時失敗", async () => {
       const client = getClient();
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodSetModelPayload, PodModelSetPayload>(
+      const response = await emitAndWaitResponse<
+        PodSetModelPayload,
+        PodModelSetPayload
+      >(
         client,
         WebSocketRequestEvents.POD_SET_MODEL,
         WebSocketResponseEvents.POD_MODEL_SET,
-        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, model: 'sonnet' }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID, model: "sonnet" },
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
+      expect(response.error).toContain("找不到");
     });
   });
 
-  describe('Pod 刪除', () => {
-    it('成功刪除 Pod', async () => {
+  describe("Pod 刪除", () => {
+    it("成功刪除 Pod", async () => {
       const client = getClient();
-      const pod = await createPod(client, { name: 'To Delete' });
+      const pod = await createPod(client, { name: "To Delete" });
 
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodDeletePayload, PodDeletedPayload>(
+      const response = await emitAndWaitResponse<
+        PodDeletePayload,
+        PodDeletedPayload
+      >(
         client,
         WebSocketRequestEvents.POD_DELETE,
         WebSocketResponseEvents.POD_DELETED,
-        { requestId: uuidv4(), canvasId, podId: pod.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id },
       );
 
       expect(response.success).toBe(true);
       expect(response.podId).toBe(pod.id);
     });
 
-    it('刪除 Pod 時清理相關連線', async () => {
+    it("刪除 Pod 時清理相關連線", async () => {
       const client = getClient();
       const { podA, podB } = await createPodPair(client);
       await createConnection(client, podA.id, podB.id);
@@ -287,26 +332,33 @@ describe('Pod 管理', () => {
         client,
         WebSocketRequestEvents.POD_DELETE,
         WebSocketResponseEvents.POD_DELETED,
-        { requestId: uuidv4(), canvasId, podId: podA.id }
+        { requestId: uuidv4(), canvasId, podId: podA.id },
       );
 
-      const listResponse = await emitAndWaitResponse<ConnectionListPayload, ConnectionListResultPayload>(
+      const listResponse = await emitAndWaitResponse<
+        ConnectionListPayload,
+        ConnectionListResultPayload
+      >(
         client,
         WebSocketRequestEvents.CONNECTION_LIST,
         WebSocketResponseEvents.CONNECTION_LIST_RESULT,
-        { requestId: uuidv4(), canvasId }
+        { requestId: uuidv4(), canvasId },
       );
 
       const related = listResponse.connections!.filter(
-        (c) => c.sourcePodId === podA.id || c.targetPodId === podA.id
+        (c) => c.sourcePodId === podA.id || c.targetPodId === podA.id,
       );
       expect(related).toHaveLength(0);
     });
 
-    it('刪除 Pod 時清理相關筆記', async () => {
+    it("刪除 Pod 時清理相關筆記", async () => {
       const client = getClient();
       const pod = await createPod(client);
-      const style = await createOutputStyle(client, `style-${uuidv4()}`, '# Test');
+      const style = await createOutputStyle(
+        client,
+        `style-${uuidv4()}`,
+        "# Test",
+      );
 
       const canvasId = await getCanvasId(client);
       await emitAndWaitResponse<NoteCreatePayload, NoteCreatedPayload>(
@@ -317,33 +369,38 @@ describe('Pod 管理', () => {
           requestId: uuidv4(),
           canvasId,
           outputStyleId: style.id,
-          name: 'Bound Note',
+          name: "Bound Note",
           x: 0,
           y: 0,
           boundToPodId: pod.id,
           originalPosition: null,
-        }
+        },
       );
 
       await emitAndWaitResponse<PodDeletePayload, PodDeletedPayload>(
         client,
         WebSocketRequestEvents.POD_DELETE,
         WebSocketResponseEvents.POD_DELETED,
-        { requestId: uuidv4(), canvasId, podId: pod.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id },
       );
 
-      const listResponse = await emitAndWaitResponse<NoteListPayload, NoteListResultPayload>(
+      const listResponse = await emitAndWaitResponse<
+        NoteListPayload,
+        NoteListResultPayload
+      >(
         client,
         WebSocketRequestEvents.NOTE_LIST,
         WebSocketResponseEvents.NOTE_LIST_RESULT,
-        { requestId: uuidv4(), canvasId }
+        { requestId: uuidv4(), canvasId },
       );
 
-      const bound = listResponse.notes!.filter((n) => n.boundToPodId === pod.id);
+      const bound = listResponse.notes!.filter(
+        (n) => n.boundToPodId === pod.id,
+      );
       expect(bound).toHaveLength(0);
     });
 
-    it('刪除 Pod 時清理綁定的 MCP Server Note', async () => {
+    it("刪除 Pod 時清理綁定的 MCP Server Note", async () => {
       const client = getClient();
       const pod = await createPod(client);
       const mcpServer = await createMcpServer(client, `mcp-${uuidv4()}`);
@@ -358,41 +415,49 @@ describe('Pod 管理', () => {
         client,
         WebSocketRequestEvents.POD_DELETE,
         WebSocketResponseEvents.POD_DELETED,
-        { requestId: uuidv4(), canvasId, podId: pod.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id },
       );
 
-      const listResponse = await emitAndWaitResponse<McpServerNoteListPayload, McpServerNoteListResultPayload>(
+      const listResponse = await emitAndWaitResponse<
+        McpServerNoteListPayload,
+        McpServerNoteListResultPayload
+      >(
         client,
         WebSocketRequestEvents.MCP_SERVER_NOTE_LIST,
         WebSocketResponseEvents.MCP_SERVER_NOTE_LIST_RESULT,
-        { requestId: uuidv4(), canvasId }
+        { requestId: uuidv4(), canvasId },
       );
 
-      const bound = listResponse.notes!.filter((n) => n.boundToPodId === pod.id);
+      const bound = listResponse.notes!.filter(
+        (n) => n.boundToPodId === pod.id,
+      );
       expect(bound).toHaveLength(0);
     });
 
-    it('刪除不存在的 Pod 時失敗', async () => {
+    it("刪除不存在的 Pod 時失敗", async () => {
       const client = getClient();
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodDeletePayload, PodDeletedPayload>(
+      const response = await emitAndWaitResponse<
+        PodDeletePayload,
+        PodDeletedPayload
+      >(
         client,
         WebSocketRequestEvents.POD_DELETE,
         WebSocketResponseEvents.POD_DELETED,
-        { requestId: uuidv4(), canvasId, podId: FAKE_UUID }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID },
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
+      expect(response.error).toContain("找不到");
     });
   });
 
-  describe('Pod Schedule 管理', () => {
-    it('成功設定 Pod 排程', async () => {
+  describe("Pod Schedule 管理", () => {
+    it("成功設定 Pod 排程", async () => {
       const client = getClient();
-      const pod = await createPod(client, { name: 'Schedule Pod' });
+      const pod = await createPod(client, { name: "Schedule Pod" });
       const updatedPod = await setPodSchedule(client, pod.id, {
-        frequency: 'every-day',
+        frequency: "every-day",
         second: 0,
         intervalMinute: 1,
         intervalHour: 1,
@@ -403,15 +468,15 @@ describe('Pod 管理', () => {
       });
 
       expect(updatedPod.schedule).toBeDefined();
-      expect(updatedPod.schedule!.frequency).toBe('every-day');
+      expect(updatedPod.schedule!.frequency).toBe("every-day");
       expect(updatedPod.schedule!.enabled).toBe(true);
     });
 
-    it('成功更新 Pod 排程', async () => {
+    it("成功更新 Pod 排程", async () => {
       const client = getClient();
-      const pod = await createPod(client, { name: 'Update Schedule Pod' });
+      const pod = await createPod(client, { name: "Update Schedule Pod" });
       const updatedPod = await setPodSchedule(client, pod.id, {
-        frequency: 'every-x-minute',
+        frequency: "every-x-minute",
         second: 0,
         intervalMinute: 30,
         intervalHour: 1,
@@ -422,16 +487,16 @@ describe('Pod 管理', () => {
       });
 
       expect(updatedPod.schedule).toBeDefined();
-      expect(updatedPod.schedule!.frequency).toBe('every-x-minute');
+      expect(updatedPod.schedule!.frequency).toBe("every-x-minute");
       expect(updatedPod.schedule!.intervalMinute).toBe(30);
     });
 
-    it('成功停用 Pod 排程', async () => {
+    it("成功停用 Pod 排程", async () => {
       const client = getClient();
-      const pod = await createPod(client, { name: 'Toggle Schedule Pod' });
+      const pod = await createPod(client, { name: "Toggle Schedule Pod" });
 
       await setPodSchedule(client, pod.id, {
-        frequency: 'every-day',
+        frequency: "every-day",
         second: 0,
         intervalMinute: 1,
         intervalHour: 1,
@@ -442,7 +507,7 @@ describe('Pod 管理', () => {
       });
 
       const updatedPod = await setPodSchedule(client, pod.id, {
-        frequency: 'every-day',
+        frequency: "every-day",
         second: 0,
         intervalMinute: 1,
         intervalHour: 1,
@@ -455,12 +520,12 @@ describe('Pod 管理', () => {
       expect(updatedPod.schedule!.enabled).toBe(false);
     });
 
-    it('成功移除 Pod 排程', async () => {
+    it("成功移除 Pod 排程", async () => {
       const client = getClient();
-      const pod = await createPod(client, { name: 'Remove Schedule Pod' });
+      const pod = await createPod(client, { name: "Remove Schedule Pod" });
 
       await setPodSchedule(client, pod.id, {
-        frequency: 'every-day',
+        frequency: "every-day",
         second: 0,
         intervalMinute: 1,
         intervalHour: 1,
@@ -475,11 +540,13 @@ describe('Pod 管理', () => {
       expect(updatedPod.schedule).toBeUndefined();
     });
 
-    it('啟用 Pod 排程時設定 lastTriggeredAt', async () => {
+    it("啟用 Pod 排程時設定 lastTriggeredAt", async () => {
       const client = getClient();
-      const pod = await createPod(client, { name: 'Schedule with lastTriggeredAt' });
+      const pod = await createPod(client, {
+        name: "Schedule with lastTriggeredAt",
+      });
       const updatedPod = await setPodSchedule(client, pod.id, {
-        frequency: 'every-x-minute',
+        frequency: "every-x-minute",
         second: 0,
         intervalMinute: 5,
         intervalHour: 1,
@@ -494,12 +561,12 @@ describe('Pod 管理', () => {
       expect(updatedPod.schedule!.lastTriggeredAt).toBeDefined();
     });
 
-    it('重新啟用 Pod 排程時更新 lastTriggeredAt', async () => {
+    it("重新啟用 Pod 排程時更新 lastTriggeredAt", async () => {
       const client = getClient();
-      const pod = await createPod(client, { name: 'Re-enable Schedule Pod' });
+      const pod = await createPod(client, { name: "Re-enable Schedule Pod" });
 
       const firstPod = await setPodSchedule(client, pod.id, {
-        frequency: 'every-second',
+        frequency: "every-second",
         second: 10,
         intervalMinute: 1,
         intervalHour: 1,
@@ -513,7 +580,7 @@ describe('Pod 管理', () => {
       expect(firstLastTriggeredAt).toBeDefined();
 
       const disabledPod = await setPodSchedule(client, pod.id, {
-        frequency: 'every-second',
+        frequency: "every-second",
         second: 10,
         intervalMinute: 1,
         intervalHour: 1,
@@ -523,13 +590,15 @@ describe('Pod 管理', () => {
         enabled: false,
       });
 
-      expect(disabledPod.schedule!.lastTriggeredAt).toEqual(firstLastTriggeredAt);
+      expect(disabledPod.schedule!.lastTriggeredAt).toEqual(
+        firstLastTriggeredAt,
+      );
 
       // 確保重新啟用時的 timestamp 與第一次不同
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       const reEnabledPod = await setPodSchedule(client, pod.id, {
-        frequency: 'every-second',
+        frequency: "every-second",
         second: 10,
         intervalMinute: 1,
         intervalHour: 1,
@@ -544,12 +613,14 @@ describe('Pod 管理', () => {
       expect(secondLastTriggeredAt).not.toEqual(firstLastTriggeredAt);
     });
 
-    it('更新 Pod 排程時保留 lastTriggeredAt', async () => {
+    it("更新 Pod 排程時保留 lastTriggeredAt", async () => {
       const client = getClient();
-      const pod = await createPod(client, { name: 'Update Schedule Preserve lastTriggeredAt' });
+      const pod = await createPod(client, {
+        name: "Update Schedule Preserve lastTriggeredAt",
+      });
 
       const firstPod = await setPodSchedule(client, pod.id, {
-        frequency: 'every-x-minute',
+        frequency: "every-x-minute",
         second: 0,
         intervalMinute: 10,
         intervalHour: 1,
@@ -562,7 +633,7 @@ describe('Pod 管理', () => {
       const firstLastTriggeredAt = firstPod.schedule!.lastTriggeredAt;
 
       const updatedPod = await setPodSchedule(client, pod.id, {
-        frequency: 'every-x-minute',
+        frequency: "every-x-minute",
         second: 0,
         intervalMinute: 20,
         intervalHour: 1,
@@ -573,13 +644,56 @@ describe('Pod 管理', () => {
       });
 
       expect(updatedPod.schedule!.intervalMinute).toBe(20);
-      expect(updatedPod.schedule!.lastTriggeredAt).toEqual(firstLastTriggeredAt);
+      expect(updatedPod.schedule!.lastTriggeredAt).toEqual(
+        firstLastTriggeredAt,
+      );
     });
 
-    it('設定不存在的 Pod 排程時失敗', async () => {
+    it("啟用 every-day 排程時 lastTriggeredAt 為 null（建立當天可正常觸發）", async () => {
+      const client = getClient();
+      const pod = await createPod(client, { name: "Every-day Schedule Pod" });
+      const updatedPod = await setPodSchedule(client, pod.id, {
+        frequency: "every-day",
+        second: 0,
+        intervalMinute: 1,
+        intervalHour: 1,
+        hour: 9,
+        minute: 0,
+        weekdays: [],
+        enabled: true,
+      });
+
+      expect(updatedPod.schedule).toBeDefined();
+      expect(updatedPod.schedule!.enabled).toBe(true);
+      expect(updatedPod.schedule!.lastTriggeredAt).toBeNull();
+    });
+
+    it("啟用 every-week 排程時 lastTriggeredAt 為 null（建立當天可正常觸發）", async () => {
+      const client = getClient();
+      const pod = await createPod(client, { name: "Every-week Schedule Pod" });
+      const updatedPod = await setPodSchedule(client, pod.id, {
+        frequency: "every-week",
+        second: 0,
+        intervalMinute: 1,
+        intervalHour: 1,
+        hour: 9,
+        minute: 0,
+        weekdays: [1, 3, 5],
+        enabled: true,
+      });
+
+      expect(updatedPod.schedule).toBeDefined();
+      expect(updatedPod.schedule!.enabled).toBe(true);
+      expect(updatedPod.schedule!.lastTriggeredAt).toBeNull();
+    });
+
+    it("設定不存在的 Pod 排程時失敗", async () => {
       const client = getClient();
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodSetSchedulePayload, PodScheduleSetPayload>(
+      const response = await emitAndWaitResponse<
+        PodSetSchedulePayload,
+        PodScheduleSetPayload
+      >(
         client,
         WebSocketRequestEvents.POD_SET_SCHEDULE,
         WebSocketResponseEvents.POD_SCHEDULE_SET,
@@ -588,7 +702,7 @@ describe('Pod 管理', () => {
           canvasId,
           podId: FAKE_UUID,
           schedule: {
-            frequency: 'every-day',
+            frequency: "every-day",
             second: 0,
             intervalMinute: 1,
             intervalHour: 1,
@@ -597,19 +711,19 @@ describe('Pod 管理', () => {
             weekdays: [],
             enabled: true,
           },
-        }
+        },
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
+      expect(response.error).toContain("找不到");
     });
   });
 
-  describe('Pod 打開工作目錄', () => {
+  describe("Pod 打開工作目錄", () => {
     let spawnSpy: ReturnType<typeof spyOn>;
 
     beforeEach(() => {
-      spawnSpy = spyOn(Bun, 'spawn').mockReturnValue({
+      spawnSpy = spyOn(Bun, "spawn").mockReturnValue({
         exited: Promise.resolve(0),
         pid: 0,
         stdin: null,
@@ -629,62 +743,80 @@ describe('Pod 管理', () => {
       spawnSpy.mockRestore();
     });
 
-    it('成功打開沒有綁定 Repository 的 Pod 工作目錄', async () => {
+    it("成功打開沒有綁定 Repository 的 Pod 工作目錄", async () => {
       const client = getClient();
-      const pod = await createPod(client, { name: 'Open Directory Pod' });
+      const pod = await createPod(client, { name: "Open Directory Pod" });
 
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodOpenDirectoryPayload, PodDirectoryOpenedPayload>(
+      const response = await emitAndWaitResponse<
+        PodOpenDirectoryPayload,
+        PodDirectoryOpenedPayload
+      >(
         client,
         WebSocketRequestEvents.POD_OPEN_DIRECTORY,
         WebSocketResponseEvents.POD_DIRECTORY_OPENED,
-        { requestId: uuidv4(), canvasId, podId: pod.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id },
       );
 
       expect(response.success).toBe(true);
       expect(response.path).toContain(pod.workspacePath);
       expect(spawnSpy).toHaveBeenCalledTimes(1);
-      expect(spawnSpy).toHaveBeenCalledWith([expect.any(String), pod.workspacePath]);
+      expect(spawnSpy).toHaveBeenCalledWith([
+        expect.any(String),
+        pod.workspacePath,
+      ]);
     });
 
-    it('成功打開有綁定 Repository 的 Pod 工作目錄', async () => {
+    it("成功打開有綁定 Repository 的 Pod 工作目錄", async () => {
       const client = getClient();
       const repo = await createRepository(client, `open-dir-repo-${uuidv4()}`);
-      const pod = await createPod(client, { name: 'Open Directory Repo Pod' });
+      const pod = await createPod(client, { name: "Open Directory Repo Pod" });
 
       const canvasId = await getCanvasId(client);
-      await emitAndWaitResponse<PodBindRepositoryPayload, PodRepositoryBoundPayload>(
+      await emitAndWaitResponse<
+        PodBindRepositoryPayload,
+        PodRepositoryBoundPayload
+      >(
         client,
         WebSocketRequestEvents.POD_BIND_REPOSITORY,
         WebSocketResponseEvents.POD_REPOSITORY_BOUND,
-        { requestId: uuidv4(), canvasId, podId: pod.id, repositoryId: repo.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id, repositoryId: repo.id },
       );
 
-      const response = await emitAndWaitResponse<PodOpenDirectoryPayload, PodDirectoryOpenedPayload>(
+      const response = await emitAndWaitResponse<
+        PodOpenDirectoryPayload,
+        PodDirectoryOpenedPayload
+      >(
         client,
         WebSocketRequestEvents.POD_OPEN_DIRECTORY,
         WebSocketResponseEvents.POD_DIRECTORY_OPENED,
-        { requestId: uuidv4(), canvasId, podId: pod.id }
+        { requestId: uuidv4(), canvasId, podId: pod.id },
       );
 
       expect(response.success).toBe(true);
       expect(response.path).toContain(repo.id);
       expect(spawnSpy).toHaveBeenCalledTimes(1);
-      expect(spawnSpy).toHaveBeenCalledWith([expect.any(String), expect.stringContaining(repo.id)]);
+      expect(spawnSpy).toHaveBeenCalledWith([
+        expect.any(String),
+        expect.stringContaining(repo.id),
+      ]);
     });
 
-    it('打開不存在的 Pod 的工作目錄時失敗', async () => {
+    it("打開不存在的 Pod 的工作目錄時失敗", async () => {
       const client = getClient();
       const canvasId = await getCanvasId(client);
-      const response = await emitAndWaitResponse<PodOpenDirectoryPayload, PodDirectoryOpenedPayload>(
+      const response = await emitAndWaitResponse<
+        PodOpenDirectoryPayload,
+        PodDirectoryOpenedPayload
+      >(
         client,
         WebSocketRequestEvents.POD_OPEN_DIRECTORY,
         WebSocketResponseEvents.POD_DIRECTORY_OPENED,
-        { requestId: uuidv4(), canvasId, podId: FAKE_UUID }
+        { requestId: uuidv4(), canvasId, podId: FAKE_UUID },
       );
 
       expect(response.success).toBe(false);
-      expect(response.error).toContain('找不到');
+      expect(response.error).toContain("找不到");
     });
   });
 });

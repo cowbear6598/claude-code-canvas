@@ -18,6 +18,7 @@ export async function handleConfigGet(
       success: true,
       summaryModel: config.summaryModel,
       aiDecideModel: config.aiDecideModel,
+      timezoneOffset: config.timezoneOffset,
     },
   );
 }
@@ -30,6 +31,7 @@ export async function handleConfigUpdate(
   const config = configStore.update({
     summaryModel: payload.summaryModel,
     aiDecideModel: payload.aiDecideModel,
+    timezoneOffset: payload.timezoneOffset,
   });
 
   socketService.emitToConnection(
@@ -40,6 +42,7 @@ export async function handleConfigUpdate(
       success: true,
       summaryModel: config.summaryModel,
       aiDecideModel: config.aiDecideModel,
+      timezoneOffset: config.timezoneOffset,
     },
   );
 }

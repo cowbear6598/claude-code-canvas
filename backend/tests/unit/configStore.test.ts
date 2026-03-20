@@ -75,4 +75,44 @@ describe("ConfigStore", () => {
       expect(configStore.getAiDecideModel()).toBe("opus");
     });
   });
+
+  describe("時區設定", () => {
+    it("DB 無資料時 timezoneOffset 回傳預設值 8", () => {
+      const config = configStore.getAll();
+
+      expect(config.timezoneOffset).toBe(8);
+    });
+
+    it("成功更新 timezoneOffset 並讀取回正確值", () => {
+      const result = configStore.update({ timezoneOffset: -5 });
+
+      expect(result.timezoneOffset).toBe(-5);
+
+      const config = configStore.getAll();
+      expect(config.timezoneOffset).toBe(-5);
+    });
+
+    it("只更新 timezoneOffset 不影響其他設定", () => {
+      configStore.update({ summaryModel: "opus" });
+      configStore.update({ timezoneOffset: 3 });
+
+      const config = configStore.getAll();
+      expect(config.summaryModel).toBe("opus");
+      expect(config.timezoneOffset).toBe(3);
+    });
+
+    it("更新其他設定不影響 timezoneOffset", () => {
+      configStore.update({ timezoneOffset: 5 });
+      configStore.update({ summaryModel: "haiku" });
+
+      const config = configStore.getAll();
+      expect(config.timezoneOffset).toBe(5);
+    });
+
+    it("getTimezoneOffset 回傳正確值", () => {
+      configStore.update({ timezoneOffset: -8 });
+
+      expect(configStore.getTimezoneOffset()).toBe(-8);
+    });
+  });
 });

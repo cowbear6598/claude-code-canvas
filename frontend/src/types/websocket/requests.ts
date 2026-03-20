@@ -380,6 +380,7 @@ export interface ConfigUpdatePayload {
   requestId: string;
   summaryModel?: ModelType;
   aiDecideModel?: ModelType;
+  timezoneOffset?: number;
 }
 
 export interface PodSetPluginsPayload {

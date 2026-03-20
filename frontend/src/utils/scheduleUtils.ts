@@ -1,114 +1,223 @@
-import type {FrequencyType, Schedule} from '@/types/pod'
-import {MS_PER_SECOND, MS_PER_MINUTE, MS_PER_HOUR} from '@/lib/constants'
+import type { FrequencyType, Schedule } from "@/types/pod";
+import { MS_PER_SECOND, MS_PER_MINUTE, MS_PER_HOUR } from "@/lib/constants";
 
 /**
  * 格式化 Schedule 頻率為可讀文字
  */
 export function formatScheduleFrequency(schedule: Schedule): string {
-    const {frequency} = schedule
+  const { frequency } = schedule;
 
-    switch (frequency) {
-        case 'every-second':
-            return '每秒'
-        case 'every-x-minute':
-            return `每 ${schedule.intervalMinute} 分鐘`
-        case 'every-x-hour':
-            return `每 ${schedule.intervalHour} 小時`
-        case 'every-day':
-            return `每天 ${String(schedule.hour).padStart(2, '0')}:${String(schedule.minute).padStart(2, '0')}`
-        case 'every-week': {
-            const weekdayNames = ['日', '一', '二', '三', '四', '五', '六']
-            const days = schedule.weekdays
-                .sort((a, b) => a - b)
-                .map(d => weekdayNames[d])
-                .join('、')
-            return `每週${days} ${String(schedule.hour).padStart(2, '0')}:${String(schedule.minute).padStart(2, '0')}`
-        }
-        default:
-            return '未知頻率'
+  switch (frequency) {
+    case "every-second":
+      return "每秒";
+    case "every-x-minute":
+      return `每 ${schedule.intervalMinute} 分鐘`;
+    case "every-x-hour":
+      return `每 ${schedule.intervalHour} 小時`;
+    case "every-day":
+      return `每天 ${String(schedule.hour).padStart(2, "0")}:${String(schedule.minute).padStart(2, "0")}`;
+    case "every-week": {
+      const weekdayNames = ["日", "一", "二", "三", "四", "五", "六"];
+      const days = schedule.weekdays
+        .sort((a, b) => a - b)
+        .map((d) => weekdayNames[d])
+        .join("、");
+      return `每週${days} ${String(schedule.hour).padStart(2, "0")}:${String(schedule.minute).padStart(2, "0")}`;
     }
+    default:
+      return "未知頻率";
+  }
 }
 
-type TriggerTimeCalculator = (schedule: Schedule, now: Date, last: Date) => Date
+type TriggerTimeCalculator = (
+  schedule: Schedule,
+  now: Date,
+  last: Date,
+  timezoneOffset: number,
+) => Date;
 
-function calculateEverySecond(_schedule: Schedule, now: Date, last: Date): Date {
-    const next = new Date(last.getTime() + MS_PER_SECOND)
-    return next > now ? next : new Date(now.getTime() + MS_PER_SECOND)
+function calculateEverySecond(
+  _schedule: Schedule,
+  now: Date,
+  last: Date,
+  _timezoneOffset: number,
+): Date {
+  const next = new Date(last.getTime() + MS_PER_SECOND);
+  return next > now ? next : new Date(now.getTime() + MS_PER_SECOND);
 }
 
-function calculateEveryXMinute(schedule: Schedule, now: Date, last: Date): Date {
-    const next = new Date(last.getTime() + schedule.intervalMinute * MS_PER_MINUTE)
-    return next > now ? next : new Date(now.getTime() + schedule.intervalMinute * MS_PER_MINUTE)
+function calculateEveryXMinute(
+  schedule: Schedule,
+  now: Date,
+  last: Date,
+  _timezoneOffset: number,
+): Date {
+  const next = new Date(
+    last.getTime() + schedule.intervalMinute * MS_PER_MINUTE,
+  );
+  return next > now
+    ? next
+    : new Date(now.getTime() + schedule.intervalMinute * MS_PER_MINUTE);
 }
 
-function calculateEveryXHour(schedule: Schedule, now: Date, last: Date): Date {
-    const next = new Date(last.getTime() + schedule.intervalHour * MS_PER_HOUR)
-    return next > now ? next : new Date(now.getTime() + schedule.intervalHour * MS_PER_HOUR)
+function calculateEveryXHour(
+  schedule: Schedule,
+  now: Date,
+  last: Date,
+  _timezoneOffset: number,
+): Date {
+  const next = new Date(last.getTime() + schedule.intervalHour * MS_PER_HOUR);
+  return next > now
+    ? next
+    : new Date(now.getTime() + schedule.intervalHour * MS_PER_HOUR);
 }
 
-function calculateEveryDay(schedule: Schedule, now: Date): Date {
-    const next = new Date(now)
-    next.setHours(schedule.hour, schedule.minute, 0, 0)
+function calculateEveryDay(
+  schedule: Schedule,
+  now: Date,
+  _last: Date,
+  timezoneOffset: number,
+): Date {
+  // 計算指定時區下的當前日期
+  const tzOffsetMs = timezoneOffset * MS_PER_HOUR;
+  const nowUtcMs = now.getTime();
 
-    if (next <= now) {
-        next.setDate(next.getDate() + 1)
-    }
+  // 將 UTC 時間加上偏移量，得到指定時區的「虛擬 UTC 日期」
+  const tzDate = new Date(nowUtcMs + tzOffsetMs);
+  // 取指定時區的年月日（以 UTC 日期部分表示）
+  const tzYear = tzDate.getUTCFullYear();
+  const tzMonth = tzDate.getUTCMonth();
+  const tzDay = tzDate.getUTCDate();
 
-    return next
+  // 在指定時區設定 schedule 的 hour/minute，再轉回 UTC
+  // 指定時區的觸發時間（視為 UTC 計算）
+  const tzTriggerMs = Date.UTC(
+    tzYear,
+    tzMonth,
+    tzDay,
+    schedule.hour,
+    schedule.minute,
+    0,
+    0,
+  );
+  // 轉換回真正的 UTC 時間戳
+  const nextUtcMs = tzTriggerMs - tzOffsetMs;
+
+  if (nextUtcMs <= nowUtcMs) {
+    // 已過，改為明天
+    const tzTriggerNextDayMs = Date.UTC(
+      tzYear,
+      tzMonth,
+      tzDay + 1,
+      schedule.hour,
+      schedule.minute,
+      0,
+      0,
+    );
+    return new Date(tzTriggerNextDayMs - tzOffsetMs);
+  }
+
+  return new Date(nextUtcMs);
 }
 
-function calculateEveryWeek(schedule: Schedule, now: Date): Date {
-    const sortedWeekdays = schedule.weekdays.slice().sort((a, b) => a - b)
+function calculateEveryWeek(
+  schedule: Schedule,
+  now: Date,
+  _last: Date,
+  timezoneOffset: number,
+): Date {
+  const sortedWeekdays = schedule.weekdays.slice().sort((a, b) => a - b);
 
-    if (sortedWeekdays.length === 0) {
-        return new Date(now.getTime() + MS_PER_MINUTE)
-    }
+  if (sortedWeekdays.length === 0) {
+    return new Date(now.getTime() + MS_PER_MINUTE);
+  }
 
-    const currentDay = now.getDay()
-    const next = new Date(now)
-    next.setHours(schedule.hour, schedule.minute, 0, 0)
+  const tzOffsetMs = timezoneOffset * MS_PER_HOUR;
+  const nowUtcMs = now.getTime();
 
-    const targetDay = sortedWeekdays.find(day => {
-        if (day > currentDay) return true
-        return day === currentDay && next > now
-    })
+  // 計算指定時區下的當前日期與星期
+  const tzDate = new Date(nowUtcMs + tzOffsetMs);
+  const tzYear = tzDate.getUTCFullYear();
+  const tzMonth = tzDate.getUTCMonth();
+  const tzDay = tzDate.getUTCDate();
+  const currentDay = tzDate.getUTCDay(); // 指定時區的星期幾
 
-    if (targetDay === undefined) {
-        const firstDay = sortedWeekdays[0]!
-        const daysToAdd = (7 - currentDay + firstDay) % 7 || 7
-        next.setDate(next.getDate() + daysToAdd)
-    } else {
-        next.setDate(next.getDate() + (targetDay - currentDay))
-    }
+  // 計算指定時區今天 schedule 時間點的 UTC 時間戳
+  const tzTriggerTodayMs = Date.UTC(
+    tzYear,
+    tzMonth,
+    tzDay,
+    schedule.hour,
+    schedule.minute,
+    0,
+    0,
+  );
+  const nextUtcTodayMs = tzTriggerTodayMs - tzOffsetMs;
 
-    return next
+  const targetDay = sortedWeekdays.find((day) => {
+    if (day > currentDay) return true;
+    return day === currentDay && nextUtcTodayMs > nowUtcMs;
+  });
+
+  let daysToAdd: number;
+  if (targetDay === undefined) {
+    const firstDay = sortedWeekdays[0]!;
+    daysToAdd = (7 - currentDay + firstDay) % 7 || 7;
+  } else {
+    daysToAdd = targetDay - currentDay;
+  }
+
+  const tzTriggerMs = Date.UTC(
+    tzYear,
+    tzMonth,
+    tzDay + daysToAdd,
+    schedule.hour,
+    schedule.minute,
+    0,
+    0,
+  );
+  return new Date(tzTriggerMs - tzOffsetMs);
 }
 
 const triggerTimeCalculators: Record<FrequencyType, TriggerTimeCalculator> = {
-    'every-second': calculateEverySecond,
-    'every-x-minute': calculateEveryXMinute,
-    'every-x-hour': calculateEveryXHour,
-    'every-day': calculateEveryDay,
-    'every-week': calculateEveryWeek,
-}
+  "every-second": calculateEverySecond,
+  "every-x-minute": calculateEveryXMinute,
+  "every-x-hour": calculateEveryXHour,
+  "every-day": calculateEveryDay,
+  "every-week": calculateEveryWeek,
+};
 
-export function getNextTriggerTime(schedule: Schedule, lastTriggeredAt?: string | null): Date {
-    const now = new Date()
-    const last = lastTriggeredAt ? new Date(lastTriggeredAt) : now
-    const calculator = triggerTimeCalculators[schedule.frequency]
+export function getNextTriggerTime(
+  schedule: Schedule,
+  lastTriggeredAt?: string | null,
+  timezoneOffset = 8,
+): Date {
+  const now = new Date();
+  const last = lastTriggeredAt ? new Date(lastTriggeredAt) : now;
+  const calculator = triggerTimeCalculators[schedule.frequency];
 
-    if (!calculator) return now
+  if (!calculator) return now;
 
-    return calculator(schedule, now, last)
+  return calculator(schedule, now, last, timezoneOffset);
 }
 
 /**
  * 格式化 Schedule Tooltip 文字
  */
-export function formatScheduleTooltip(schedule: Schedule): string {
-    const frequency = formatScheduleFrequency(schedule)
-    const nextTime = getNextTriggerTime(schedule, schedule.lastTriggeredAt)
-    const timeStr = `${String(nextTime.getHours()).padStart(2, '0')}:${String(nextTime.getMinutes()).padStart(2, '0')}`
+export function formatScheduleTooltip(
+  schedule: Schedule,
+  timezoneOffset = 8,
+): string {
+  const frequency = formatScheduleFrequency(schedule);
+  const nextTime = getNextTriggerTime(
+    schedule,
+    schedule.lastTriggeredAt,
+    timezoneOffset,
+  );
 
-    return `${frequency} | 下次：${timeStr}`
+  // 將 UTC 時間轉換為指定時區的顯示時間
+  const tzDate = new Date(nextTime.getTime() + timezoneOffset * 60 * 60 * 1000);
+  const timeStr = `${String(tzDate.getUTCHours()).padStart(2, "0")}:${String(tzDate.getUTCMinutes()).padStart(2, "0")}`;
+
+  return `${frequency} | 下次：${timeStr}`;
 }

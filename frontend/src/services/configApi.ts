@@ -24,6 +24,7 @@ export async function getConfig(): Promise<ConfigGetResultPayload> {
 export async function updateConfig(config: {
   summaryModel: ModelType;
   aiDecideModel: ModelType;
+  timezoneOffset: number;
 }): Promise<ConfigUpdatedPayload> {
   return createWebSocketRequest<ConfigUpdatePayload, ConfigUpdatedPayload>({
     requestEvent: WebSocketRequestEvents.CONFIG_UPDATE,
@@ -31,6 +32,7 @@ export async function updateConfig(config: {
     payload: {
       summaryModel: config.summaryModel,
       aiDecideModel: config.aiDecideModel,
+      timezoneOffset: config.timezoneOffset,
     },
   });
 }

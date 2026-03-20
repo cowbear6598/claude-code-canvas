@@ -121,6 +121,19 @@ vi.mock("@/composables/useWebSocketErrorHandler", () => ({
   }),
 }));
 
+// mock configStore
+const { mockSetTimezoneOffset } = vi.hoisted(() => ({
+  mockSetTimezoneOffset: vi.fn(),
+}));
+
+vi.mock("@/stores/configStore", () => ({
+  useConfigStore: () => ({
+    timezoneOffset: 8,
+    setTimezoneOffset: mockSetTimezoneOffset,
+    fetchConfig: vi.fn(),
+  }),
+}));
+
 function mountModal(open = true) {
   return mount(GlobalSettingsModal, {
     props: { open },
@@ -260,10 +273,12 @@ describe("GlobalSettingsModal", () => {
     await button.trigger("click");
     await nextTick();
 
-    expect(mockUpdateConfig).toHaveBeenCalledWith({
-      summaryModel: "sonnet",
-      aiDecideModel: "sonnet",
-    });
+    expect(mockUpdateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summaryModel: "sonnet",
+        aiDecideModel: "sonnet",
+      }),
+    );
 
     wrapper.unmount();
   });
@@ -539,12 +554,104 @@ describe("GlobalSettingsModal", () => {
     await saveButton.trigger("click");
     await nextTick();
 
-    expect(mockUpdateConfig).toHaveBeenCalledWith({
+    expect(mockUpdateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summaryModel: "sonnet",
+        aiDecideModel: "sonnet",
+      }),
+    );
+    expect(mockUpdateConfig).not.toHaveBeenCalledWith(
+      expect.objectContaining({ enabledPluginIds: expect.anything() }),
+    );
+
+    wrapper.unmount();
+  });
+
+  it("開啟時應顯示時區下拉選單，預設為 UTC+8", async () => {
+    mockGetConfig.mockResolvedValue({
+      success: true,
       summaryModel: "sonnet",
       aiDecideModel: "sonnet",
     });
-    expect(mockUpdateConfig).not.toHaveBeenCalledWith(
-      expect.objectContaining({ enabledPluginIds: expect.anything() }),
+
+    const wrapper = mountModal(true);
+    await nextTick();
+    await nextTick();
+
+    const selects = wrapper.findAll(".select-mock");
+    // 第三個 Select 是時區選單（index 2）
+    expect(selects[2]).toBeDefined();
+    expect(selects[2]?.attributes("data-value")).toBe("8");
+
+    wrapper.unmount();
+  });
+
+  it("載入設定後應正確顯示伺服器回傳的時區值", async () => {
+    mockWithErrorToast.mockImplementation(
+      (promise: Promise<unknown>) => promise,
+    );
+    mockGetConfig.mockResolvedValue({
+      success: true,
+      summaryModel: "sonnet",
+      aiDecideModel: "sonnet",
+      timezoneOffset: -5,
+    });
+
+    const wrapper = mountModal(true);
+    await nextTick();
+    await nextTick();
+
+    const selects = wrapper.findAll(".select-mock");
+    expect(selects[2]?.attributes("data-value")).toBe("-5");
+
+    wrapper.unmount();
+  });
+
+  it("切換時區後應更新本地狀態", async () => {
+    mockWithErrorToast.mockImplementation(
+      (promise: Promise<unknown>) => promise,
+    );
+    mockGetConfig.mockResolvedValue({
+      success: true,
+      summaryModel: "sonnet",
+      aiDecideModel: "sonnet",
+    });
+
+    const wrapper = mountModal(true);
+    await nextTick();
+    await nextTick();
+
+    const selects = wrapper.findAllComponents({ name: "Select" });
+    // 第三個 Select 是時區選單（index 2）
+    await selects[2]?.vm.$emit("update:modelValue", "3");
+    await nextTick();
+
+    expect(selects[2]?.props("modelValue")).toBe("3");
+
+    wrapper.unmount();
+  });
+
+  it("點擊儲存應發送包含 timezoneOffset 的 payload", async () => {
+    mockWithErrorToast.mockImplementation(
+      (promise: Promise<unknown>) => promise,
+    );
+    mockGetConfig.mockResolvedValue({
+      success: true,
+      summaryModel: "sonnet",
+      aiDecideModel: "sonnet",
+    });
+    mockUpdateConfig.mockResolvedValue({ success: true });
+
+    const wrapper = mountModal(true);
+    await nextTick();
+    await nextTick();
+
+    const button = wrapper.find("button");
+    await button.trigger("click");
+    await nextTick();
+
+    expect(mockUpdateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ timezoneOffset: 8 }),
     );
 
     wrapper.unmount();

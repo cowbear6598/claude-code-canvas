@@ -1,30 +1,34 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
-import {useCanvasContext} from '@/composables/canvas/useCanvasContext'
-import {websocketClient, WebSocketResponseEvents} from '@/services/websocket'
-import type {PodStatusChangedPayload, ScheduleFiredPayload} from '@/types/websocket'
-import AppHeader from '@/components/layout/AppHeader.vue'
-import CanvasContainer from '@/components/canvas/CanvasContainer.vue'
-import CanvasSidebar from '@/components/canvas/CanvasSidebar.vue'
-import ChatModal from '@/components/chat/ChatModal.vue'
-import HistoryPanel from '@/components/run/HistoryPanel.vue'
-import RunChatModal from '@/components/run/RunChatModal.vue'
-import {Toast} from '@/components/ui/toast'
-import DisconnectOverlay from '@/components/ui/DisconnectOverlay.vue'
-import {useCopyPaste} from '@/composables/canvas'
-import {useUnifiedEventListeners} from '@/composables/useUnifiedEventListeners'
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { useCanvasContext } from "@/composables/canvas/useCanvasContext";
+import { websocketClient, WebSocketResponseEvents } from "@/services/websocket";
+import type {
+  PodStatusChangedPayload,
+  ScheduleFiredPayload,
+} from "@/types/websocket";
+import AppHeader from "@/components/layout/AppHeader.vue";
+import CanvasContainer from "@/components/canvas/CanvasContainer.vue";
+import CanvasSidebar from "@/components/canvas/CanvasSidebar.vue";
+import ChatModal from "@/components/chat/ChatModal.vue";
+import HistoryPanel from "@/components/run/HistoryPanel.vue";
+import RunChatModal from "@/components/run/RunChatModal.vue";
+import { Toast } from "@/components/ui/toast";
+import DisconnectOverlay from "@/components/ui/DisconnectOverlay.vue";
+import { useCopyPaste } from "@/composables/canvas";
+import { useUnifiedEventListeners } from "@/composables/useUnifiedEventListeners";
 import {
   CONTENT_PREVIEW_LENGTH,
   RESPONSE_PREVIEW_LENGTH,
   OUTPUT_LINES_PREVIEW_COUNT,
-} from '@/lib/constants'
-import {truncateContent} from '@/stores/chat/chatUtils'
-import {useCursorStore} from '@/stores/cursorStore'
-import {logger} from '@/utils/logger'
+} from "@/lib/constants";
+import { truncateContent } from "@/stores/chat/chatUtils";
+import { useCursorStore } from "@/stores/cursorStore";
+import { logger } from "@/utils/logger";
 
-import { useIntegrationStore } from '@/stores/integrationStore'
-import { getAllProviders } from '@/integration/providerRegistry'
-import { useRunStore } from '@/stores/run/runStore'
+import { useIntegrationStore } from "@/stores/integrationStore";
+import { getAllProviders } from "@/integration/providerRegistry";
+import { useRunStore } from "@/stores/run/runStore";
+import { useConfigStore } from "@/stores/configStore";
 
 const {
   podStore,
@@ -38,315 +42,357 @@ const {
   mcpServerStore,
   connectionStore,
   canvasStore,
-} = useCanvasContext()
+} = useCanvasContext();
 
-const integrationStore = useIntegrationStore()
-const runStore = useRunStore()
+const integrationStore = useIntegrationStore();
+const runStore = useRunStore();
+const configStore = useConfigStore();
 
-const cursorStore = useCursorStore()
+const cursorStore = useCursorStore();
 
-const selectedPod = computed(() => podStore.selectedPod)
+const selectedPod = computed(() => podStore.selectedPod);
 
 const activeRunChatPodName = computed(() => {
-  if (!runStore.activeRunChatModal) return ''
-  const run = runStore.getRunById(runStore.activeRunChatModal.runId)
-  if (!run) return ''
-  const instance = run.podInstances.find(i => i.podId === runStore.activeRunChatModal!.podId)
-  return instance?.podName ?? ''
-})
+  if (!runStore.activeRunChatModal) return "";
+  const run = runStore.getRunById(runStore.activeRunChatModal.runId);
+  if (!run) return "";
+  const instance = run.podInstances.find(
+    (i) => i.podId === runStore.activeRunChatModal!.podId,
+  );
+  return instance?.podName ?? "";
+});
 
 const activeRunChatRunStatus = computed(() => {
-  if (!runStore.activeRunChatModal) return 'running' as const
-  const run = runStore.getRunById(runStore.activeRunChatModal.runId)
-  return run?.status ?? 'running'
-})
+  if (!runStore.activeRunChatModal) return "running" as const;
+  const run = runStore.getRunById(runStore.activeRunChatModal.runId);
+  return run?.status ?? "running";
+});
 
-useCopyPaste()
+useCopyPaste();
 
-const {registerUnifiedListeners, unregisterUnifiedListeners} = useUnifiedEventListeners()
+const { registerUnifiedListeners, unregisterUnifiedListeners } =
+  useUnifiedEventListeners();
 
-const isInitialized = ref(false)
-const isLoading = ref(false)
-let loadingAbortController: AbortController | null = null
+const isInitialized = ref(false);
+const isLoading = ref(false);
+let loadingAbortController: AbortController | null = null;
 
 const loadCanvasData = async (): Promise<void> => {
-  await podStore.loadPodsFromBackend()
+  await podStore.loadPodsFromBackend();
 
-  viewportStore.resetToCenter()
+  viewportStore.resetToCenter();
 
   await Promise.all([
     (async (): Promise<void> => {
-      await outputStyleStore.loadOutputStyles()
-      await outputStyleStore.loadNotesFromBackend()
-      await outputStyleStore.rebuildNotesFromPods(podStore.pods)
+      await outputStyleStore.loadOutputStyles();
+      await outputStyleStore.loadNotesFromBackend();
+      await outputStyleStore.rebuildNotesFromPods(podStore.pods);
     })(),
     (async (): Promise<void> => {
-      await skillStore.loadSkills()
-      await skillStore.loadNotesFromBackend()
+      await skillStore.loadSkills();
+      await skillStore.loadNotesFromBackend();
     })(),
     (async (): Promise<void> => {
-      await subAgentStore.loadItems()
-      await subAgentStore.loadNotesFromBackend()
+      await subAgentStore.loadItems();
+      await subAgentStore.loadNotesFromBackend();
     })(),
     (async (): Promise<void> => {
-      await repositoryStore.loadRepositories()
-      await repositoryStore.loadNotesFromBackend()
+      await repositoryStore.loadRepositories();
+      await repositoryStore.loadNotesFromBackend();
     })(),
     (async (): Promise<void> => {
-      await commandStore.loadCommands()
-      await commandStore.loadNotesFromBackend()
+      await commandStore.loadCommands();
+      await commandStore.loadNotesFromBackend();
     })(),
     (async (): Promise<void> => {
-      await mcpServerStore.loadMcpServers()
-      await mcpServerStore.loadNotesFromBackend()
+      await mcpServerStore.loadMcpServers();
+      await mcpServerStore.loadNotesFromBackend();
     })(),
     connectionStore.loadConnectionsFromBackend(),
-    ...getAllProviders().map((provider) => integrationStore.loadApps(provider.name)),
-  ])
+    ...getAllProviders().map((provider) =>
+      integrationStore.loadApps(provider.name),
+    ),
+  ]);
 
-  connectionStore.setupWorkflowListeners()
+  connectionStore.setupWorkflowListeners();
 
-  const podIds = podStore.pods.map(pod => pod.id)
+  const podIds = podStore.pods.map((pod) => pod.id);
   if (podIds.length > 0) {
-    await chatStore.loadAllPodsHistory(podIds)
-    syncHistoryToPodOutput()
+    await chatStore.loadAllPodsHistory(podIds);
+    syncHistoryToPodOutput();
   }
 
-  await runStore.loadRuns()
-}
+  await runStore.loadRuns();
+};
 
 const syncHistoryToPodOutput = (): void => {
   for (const pod of podStore.pods) {
-    const messages = chatStore.getMessages(pod.id)
+    const messages = chatStore.getMessages(pod.id);
 
-    if (messages.length === 0) continue
+    if (messages.length === 0) continue;
 
-    const recentMessages = messages.slice(-OUTPUT_LINES_PREVIEW_COUNT * 2)
+    const recentMessages = messages.slice(-OUTPUT_LINES_PREVIEW_COUNT * 2);
 
-    const output: string[] = []
+    const output: string[] = [];
     for (const message of recentMessages) {
-      if (message.role === 'user') {
-        output.push(`> ${truncateContent(message.content, CONTENT_PREVIEW_LENGTH)}`)
-      } else if (message.role === 'assistant' && !message.isPartial) {
+      if (message.role === "user") {
+        output.push(
+          `> ${truncateContent(message.content, CONTENT_PREVIEW_LENGTH)}`,
+        );
+      } else if (message.role === "assistant" && !message.isPartial) {
         if (message.subMessages && message.subMessages.length > 0) {
           for (const sub of message.subMessages) {
             if (sub.content) {
-              output.push(truncateContent(sub.content, RESPONSE_PREVIEW_LENGTH))
+              output.push(
+                truncateContent(sub.content, RESPONSE_PREVIEW_LENGTH),
+              );
             }
           }
         } else {
-          output.push(truncateContent(message.content, RESPONSE_PREVIEW_LENGTH))
+          output.push(
+            truncateContent(message.content, RESPONSE_PREVIEW_LENGTH),
+          );
         }
       }
     }
 
     if (output.length > 0) {
-      const previewOutput = output.slice(-OUTPUT_LINES_PREVIEW_COUNT)
+      const previewOutput = output.slice(-OUTPUT_LINES_PREVIEW_COUNT);
       podStore.updatePod({
         ...pod,
         output: previewOutput,
-      })
+      });
     }
   }
-}
+};
 
 const handleCloseChat = (): void => {
-  podStore.selectPod(null)
-}
+  podStore.selectPod(null);
+};
 
 const handlePodStatusChanged = (payload: PodStatusChangedPayload): void => {
-  podStore.updatePodStatus(payload.podId, payload.status)
-}
+  podStore.updatePodStatus(payload.podId, payload.status);
+};
 
-const handleScheduleFired = async (payload: ScheduleFiredPayload): Promise<void> => {
-  const pod = podStore.getPodById(payload.podId)
+const handleScheduleFired = async (
+  payload: ScheduleFiredPayload,
+): Promise<void> => {
+  const pod = podStore.getPodById(payload.podId);
   if (pod) {
-    podStore.triggerScheduleFiredAnimation(payload.podId)
+    podStore.triggerScheduleFiredAnimation(payload.podId);
 
     const command = pod.commandId
-      ? commandStore.typedAvailableItems.find(command => command.id === pod.commandId)
-      : null
-    const displayMessage = command ? `/${command.name} ` : ''
+      ? commandStore.typedAvailableItems.find(
+          (command) => command.id === pod.commandId,
+        )
+      : null;
+    const displayMessage = command ? `/${command.name} ` : "";
 
-    chatStore.addUserMessage(payload.podId, displayMessage)
+    chatStore.addUserMessage(payload.podId, displayMessage);
   }
-}
+};
 
 const checkAbortedAndCleanup = (controller: AbortController): boolean => {
-  if (!controller.signal.aborted) return false
+  if (!controller.signal.aborted) return false;
 
   if (controller === loadingAbortController) {
-    isLoading.value = false
-    loadingAbortController = null
+    isLoading.value = false;
+    loadingAbortController = null;
   }
-  return true
-}
+  return true;
+};
 
 const loadAppData = async (): Promise<void> => {
   if (isInitialized.value || isLoading.value) {
-    return
+    return;
   }
 
   if (loadingAbortController) {
-    loadingAbortController.abort()
+    loadingAbortController.abort();
   }
 
-  loadingAbortController = new AbortController()
-  const currentAbortController = loadingAbortController
+  loadingAbortController = new AbortController();
+  const currentAbortController = loadingAbortController;
 
-  isLoading.value = true
+  isLoading.value = true;
 
-  if (checkAbortedAndCleanup(currentAbortController)) return
+  if (checkAbortedAndCleanup(currentAbortController)) return;
 
-  logger.log('[App] Loading canvases...')
-  await canvasStore.loadCanvases()
+  logger.log("[App] Loading config...");
+  await configStore.fetchConfig().catch(() => {
+    // 載入設定失敗時使用預設值，不阻斷啟動流程
+  });
 
-  if (checkAbortedAndCleanup(currentAbortController)) return
+  logger.log("[App] Loading canvases...");
+  await canvasStore.loadCanvases();
+
+  if (checkAbortedAndCleanup(currentAbortController)) return;
 
   if (canvasStore.canvases.length === 0) {
-    logger.log('[App] No canvases found, creating default canvas...')
-    const defaultCanvas = await canvasStore.createCanvas('Default')
+    logger.log("[App] No canvases found, creating default canvas...");
+    const defaultCanvas = await canvasStore.createCanvas("Default");
     if (!defaultCanvas) {
-      logger.error('[App] Failed to create default canvas')
+      logger.error("[App] Failed to create default canvas");
       if (currentAbortController === loadingAbortController) {
-        isLoading.value = false
-        loadingAbortController = null
+        isLoading.value = false;
+        loadingAbortController = null;
       }
-      return
+      return;
     }
   }
 
-  if (checkAbortedAndCleanup(currentAbortController)) return
+  if (checkAbortedAndCleanup(currentAbortController)) return;
 
   if (!canvasStore.activeCanvasId) {
-    logger.error('[App] No active canvas after initialization')
-    logger.error('[App] Available canvases:', canvasStore.canvases)
+    logger.error("[App] No active canvas after initialization");
+    logger.error("[App] Available canvases:", canvasStore.canvases);
     if (currentAbortController === loadingAbortController) {
-      isLoading.value = false
-      loadingAbortController = null
+      isLoading.value = false;
+      loadingAbortController = null;
     }
-    return
+    return;
   }
 
-  logger.log('[App] Active canvas:', canvasStore.activeCanvasId)
-  logger.log('[App] Loading canvas data...')
-  await loadCanvasData()
+  logger.log("[App] Active canvas:", canvasStore.activeCanvasId);
+  logger.log("[App] Loading canvas data...");
+  await loadCanvasData();
 
-  if (checkAbortedAndCleanup(currentAbortController)) return
+  if (checkAbortedAndCleanup(currentAbortController)) return;
 
-  websocketClient.on<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
-  websocketClient.on<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
-  registerUnifiedListeners()
+  websocketClient.on<PodStatusChangedPayload>(
+    WebSocketResponseEvents.POD_STATUS_CHANGED,
+    handlePodStatusChanged,
+  );
+  websocketClient.on<ScheduleFiredPayload>(
+    WebSocketResponseEvents.SCHEDULE_FIRED,
+    handleScheduleFired,
+  );
+  registerUnifiedListeners();
 
-  isInitialized.value = true
-  logger.log('[App] Initialization complete')
+  isInitialized.value = true;
+  logger.log("[App] Initialization complete");
 
   if (currentAbortController === loadingAbortController) {
-    isLoading.value = false
-    loadingAbortController = null
+    isLoading.value = false;
+    loadingAbortController = null;
   }
-}
+};
 
 const initializeApp = async (): Promise<void> => {
-  chatStore.initWebSocket()
-}
+  chatStore.initWebSocket();
+};
 
 watch(
-    () => websocketClient.isConnected.value,
-    (connected) => {
-      if (connected) {
-        chatStore.unregisterListeners()
-        chatStore.registerListeners()
-      }
-    },
-    { flush: 'sync' }
-)
+  () => websocketClient.isConnected.value,
+  (connected) => {
+    if (connected) {
+      chatStore.unregisterListeners();
+      chatStore.registerListeners();
+    }
+  },
+  { flush: "sync" },
+);
 
 watch(
-    () => chatStore.connectionStatus,
-    (newStatus) => {
-      if (newStatus === 'connected' && !chatStore.allHistoryLoaded && !isInitialized.value) {
-        loadAppData()
-      }
+  () => chatStore.connectionStatus,
+  (newStatus) => {
+    if (
+      newStatus === "connected" &&
+      !chatStore.allHistoryLoaded &&
+      !isInitialized.value
+    ) {
+      loadAppData();
+    }
 
-      if (newStatus === 'disconnected') {
-        websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
-        websocketClient.off<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
-        connectionStore.cleanupWorkflowListeners()
-        unregisterUnifiedListeners()
-        isInitialized.value = false
-        isLoading.value = false
-        canvasStore.reset()
+    if (newStatus === "disconnected") {
+      websocketClient.off<PodStatusChangedPayload>(
+        WebSocketResponseEvents.POD_STATUS_CHANGED,
+        handlePodStatusChanged,
+      );
+      websocketClient.off<ScheduleFiredPayload>(
+        WebSocketResponseEvents.SCHEDULE_FIRED,
+        handleScheduleFired,
+      );
+      connectionStore.cleanupWorkflowListeners();
+      unregisterUnifiedListeners();
+      isInitialized.value = false;
+      isLoading.value = false;
+      canvasStore.reset();
 
-        if (loadingAbortController) {
-          loadingAbortController.abort()
-          loadingAbortController = null
-        }
+      if (loadingAbortController) {
+        loadingAbortController.abort();
+        loadingAbortController = null;
       }
     }
-)
+  },
+);
 
 watch(
-    () => canvasStore.activeCanvasId,
-    async (newCanvasId, oldCanvasId) => {
-      if (!newCanvasId || newCanvasId === oldCanvasId || !isInitialized.value) {
-        return
-      }
-
-      cursorStore.clearAllCursors()
-      runStore.resetOnCanvasSwitch()
-
-      podStore.pods = []
-      podStore.selectedPodId = null
-      podStore.activePodId = null
-
-      connectionStore.connections = []
-      connectionStore.selectedConnectionId = null
-
-
-      outputStyleStore.notes = []
-      outputStyleStore.availableItems = []
-
-      skillStore.notes = []
-      skillStore.availableItems = []
-
-      subAgentStore.notes = []
-      subAgentStore.availableItems = []
-
-      repositoryStore.notes = []
-      repositoryStore.availableItems = []
-
-      commandStore.notes = []
-      commandStore.availableItems = []
-
-      mcpServerStore.notes = []
-      mcpServerStore.availableItems = []
-
-      chatStore.messagesByPodId.clear()
-      chatStore.isTypingByPodId.clear()
-      chatStore.historyLoadingStatus.clear()
-      chatStore.historyLoadingError.clear()
-
-      await loadCanvasData()
+  () => canvasStore.activeCanvasId,
+  async (newCanvasId, oldCanvasId) => {
+    if (!newCanvasId || newCanvasId === oldCanvasId || !isInitialized.value) {
+      return;
     }
-)
+
+    cursorStore.clearAllCursors();
+    runStore.resetOnCanvasSwitch();
+
+    podStore.pods = [];
+    podStore.selectedPodId = null;
+    podStore.activePodId = null;
+
+    connectionStore.connections = [];
+    connectionStore.selectedConnectionId = null;
+
+    outputStyleStore.notes = [];
+    outputStyleStore.availableItems = [];
+
+    skillStore.notes = [];
+    skillStore.availableItems = [];
+
+    subAgentStore.notes = [];
+    subAgentStore.availableItems = [];
+
+    repositoryStore.notes = [];
+    repositoryStore.availableItems = [];
+
+    commandStore.notes = [];
+    commandStore.availableItems = [];
+
+    mcpServerStore.notes = [];
+    mcpServerStore.availableItems = [];
+
+    chatStore.messagesByPodId.clear();
+    chatStore.isTypingByPodId.clear();
+    chatStore.historyLoadingStatus.clear();
+    chatStore.historyLoadingError.clear();
+
+    await loadCanvasData();
+  },
+);
 
 onMounted(() => {
-  initializeApp()
-})
+  initializeApp();
+});
 
 onUnmounted(() => {
   if (loadingAbortController) {
-    loadingAbortController.abort()
-    loadingAbortController = null
+    loadingAbortController.abort();
+    loadingAbortController = null;
   }
 
-  chatStore.disconnectWebSocket()
-  websocketClient.off<PodStatusChangedPayload>(WebSocketResponseEvents.POD_STATUS_CHANGED, handlePodStatusChanged)
-  websocketClient.off<ScheduleFiredPayload>(WebSocketResponseEvents.SCHEDULE_FIRED, handleScheduleFired)
-  connectionStore.cleanupWorkflowListeners()
-  unregisterUnifiedListeners()
-})
+  chatStore.disconnectWebSocket();
+  websocketClient.off<PodStatusChangedPayload>(
+    WebSocketResponseEvents.POD_STATUS_CHANGED,
+    handlePodStatusChanged,
+  );
+  websocketClient.off<ScheduleFiredPayload>(
+    WebSocketResponseEvents.SCHEDULE_FIRED,
+    handleScheduleFired,
+  );
+  connectionStore.cleanupWorkflowListeners();
+  unregisterUnifiedListeners();
+});
 </script>
 
 <template>
@@ -367,11 +413,7 @@ onUnmounted(() => {
       <CanvasContainer />
     </main>
 
-    <ChatModal
-      v-if="selectedPod"
-      :pod="selectedPod"
-      @close="handleCloseChat"
-    />
+    <ChatModal v-if="selectedPod" :pod="selectedPod" @close="handleCloseChat" />
 
     <RunChatModal
       v-if="runStore.activeRunChatModal"

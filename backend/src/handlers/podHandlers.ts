@@ -279,8 +279,18 @@ function buildScheduleUpdates(
 
   const isEnabling =
     schedule.enabled && (!existingSchedule || !existingSchedule.enabled);
+
+  // every-day 和 every-week 啟用時設為 null，讓排程在當天指定時間正常觸發
+  // every-second、every-x-minute、every-x-hour 設為 new Date()，防止建立後立即觸發
+  const immediateFrequencies: ScheduleConfig["frequency"][] = [
+    "every-second",
+    "every-x-minute",
+    "every-x-hour",
+  ];
   const lastTriggeredAt = isEnabling
-    ? new Date()
+    ? immediateFrequencies.includes(schedule.frequency)
+      ? new Date()
+      : null
     : (existingSchedule?.lastTriggeredAt ?? null);
 
   return {

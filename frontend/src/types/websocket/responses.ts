@@ -532,11 +532,13 @@ export interface PodDirectoryOpenedPayload extends ResultPayload {
 export interface ConfigGetResultPayload extends ResultPayload {
   summaryModel?: ModelType;
   aiDecideModel?: ModelType;
+  timezoneOffset?: number;
 }
 
 export interface ConfigUpdatedPayload extends ResultPayload {
   summaryModel?: ModelType;
   aiDecideModel?: ModelType;
+  timezoneOffset?: number;
 }
 
 export interface PodPluginsSetPayload extends ResultPayload {

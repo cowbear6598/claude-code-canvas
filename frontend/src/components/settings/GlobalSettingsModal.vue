@@ -21,11 +21,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronDown, ChevronRight } from "lucide-vue-next";
 import { getConfig, updateConfig } from "@/services/configApi";
 import { listPlugins } from "@/services/pluginApi";
-import { MODEL_OPTIONS } from "@/types";
+import { MODEL_OPTIONS, TIMEZONE_OPTIONS } from "@/types";
 import type { ModelType } from "@/types/pod";
 import type { InstalledPlugin } from "@/types/plugin";
 import { useToast } from "@/composables/useToast";
 import { useWebSocketErrorHandler } from "@/composables/useWebSocketErrorHandler";
+import { useConfigStore } from "@/stores/configStore";
 
 interface Props {
   open: boolean;
@@ -40,8 +41,11 @@ const emit = defineEmits<{
 const { showSuccessToast } = useToast();
 const { withErrorToast } = useWebSocketErrorHandler();
 
+const configStore = useConfigStore();
+
 const summaryModel = ref<ModelType>("sonnet");
 const aiDecideModel = ref<ModelType>("sonnet");
+const timezoneOffset = ref<string>("8");
 const installedPlugins = ref<InstalledPlugin[]>([]);
 const isLoading = ref<boolean>(false);
 const isSaving = ref<boolean>(false);
@@ -92,6 +96,10 @@ const loadConfig = async (): Promise<void> => {
     }
     if (result.summaryModel) summaryModel.value = result.summaryModel;
     if (result.aiDecideModel) aiDecideModel.value = result.aiDecideModel;
+    if (result.timezoneOffset !== undefined) {
+      timezoneOffset.value = String(result.timezoneOffset);
+      configStore.setTimezoneOffset(result.timezoneOffset);
+    }
   } finally {
     isLoading.value = false;
   }
@@ -100,15 +108,18 @@ const loadConfig = async (): Promise<void> => {
 const handleSave = async (): Promise<void> => {
   isSaving.value = true;
   try {
+    const tzOffset = Number(timezoneOffset.value);
     const result = await withErrorToast(
       updateConfig({
         summaryModel: summaryModel.value,
         aiDecideModel: aiDecideModel.value,
+        timezoneOffset: tzOffset,
       }),
       "Config",
       "儲存失敗",
     );
     if (result) {
+      configStore.setTimezoneOffset(tzOffset);
       showSuccessToast("Config", "儲存成功");
       emit("update:open", false);
     }
@@ -176,6 +187,27 @@ watch(
                 v-for="option in MODEL_OPTIONS"
                 :key="option.value"
                 :value="option.value"
+              >
+                {{ option.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div class="border-t border-border" />
+
+        <div class="space-y-2">
+          <Label>時區</Label>
+          <p class="text-xs text-muted-foreground">排程觸發時間的時區設定</p>
+          <Select v-model="timezoneOffset">
+            <SelectTrigger>
+              <SelectValue placeholder="選擇時區" />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem
+                v-for="option in TIMEZONE_OPTIONS"
+                :key="option.value"
+                :value="String(option.value)"
               >
                 {{ option.label }}
               </SelectItem>
