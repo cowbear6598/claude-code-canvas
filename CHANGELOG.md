@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.1] - 2026-03-20
+
+### 新增
+- Per-Pod Plugin 管理功能
+
+### 修正
+- Pod Plugin Schema 驗證與 UUID 格式驗證
+- Plugin 子選單切換邏輯與 timer 洩漏
+- Pod 右鍵選單重複行為與視覺區隔
+
 ## [0.8.0] - 2026-03-20
 
 ### 新增
